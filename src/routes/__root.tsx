@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { AndonProvider } from "@/context/AndonProvider";
 
 import appCss from "../styles.css?url";
 
@@ -69,5 +70,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <AndonProvider>
+      <Outlet />
+    </AndonProvider>
+  );
 }
