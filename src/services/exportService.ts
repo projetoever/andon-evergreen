@@ -2,6 +2,8 @@ import type { AndonCall } from "@/types/andon";
 import type { AppBackup } from "@/types/history";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import { getCallSubtypeLabel } from "@/utils/statusUtils";
+import { appBackupSchema } from "./backupSchema";
+import { ZodError } from "zod";
 
 function escapeCsv(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
@@ -71,13 +73,24 @@ export function importBackupFromJson(file: File): Promise<AppBackup> {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result)) as AppBackup;
-        if (!parsed.machines || !parsed.calls || !parsed.settings) {
-          reject(new Error("Arquivo de backup inválido"));
+        const raw = JSON.parse(String(reader.result));
+        const parsed = appBackupSchema.parse(raw);
+        resolve(parsed satisfies AppBackup);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          const first = err.errors[0];
+          const path = first?.path.join(".") || "(raiz)";
+          reject(
+            new Error(
+              `Arquivo de backup inválido: ${path} — ${first?.message ?? "estrutura inesperada"}`,
+            ),
+          );
           return;
         }
-        resolve(parsed);
-      } catch (err) {
+        if (err instanceof SyntaxError) {
+          reject(new Error("Arquivo de backup inválido: JSON malformado"));
+          return;
+        }
         reject(err);
       }
     };
