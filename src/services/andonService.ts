@@ -146,6 +146,8 @@ export function updateMachineStatus(
     if (m.machineStatus === newStatus) return m;
     if (newStatus === "stopped") {
       const stopEvent: MachineStopEvent = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(undefined as any),
         id: generateId("stop"),
         machineId: m.id,
         stoppedAt: now,

@@ -1,4 +1,5 @@
-import type { AndonStatus, CallSubtype, MachineStatus } from "@/types/andon";
+import type { AndonStatus, CallSubtype } from "@/types/andon";
+import type { MachineStatus } from "@/types/machine";
 
 export type AlertLevel = "normal" | "warning" | "critical";
 
