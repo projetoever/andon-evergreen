@@ -146,8 +146,6 @@ export function updateMachineStatus(
     if (m.machineStatus === newStatus) return m;
     if (newStatus === "stopped") {
       const stopEvent: MachineStopEvent = {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(undefined as any),
         id: generateId("stop"),
         machineId: m.id,
         stoppedAt: now,
@@ -155,13 +153,14 @@ export function updateMachineStatus(
         durationMinutes: 0,
         source: "manual_simulation",
       };
-      return {
+      const next: Machine = {
         ...m,
         machineStatus: "stopped",
         stoppedAt: now,
         lastStatusChangedAt: now,
         stopHistory: [stopEvent, ...m.stopHistory],
       };
+      return next;
     }
     // running -> fechar última parada aberta
     const updatedHistory = m.stopHistory.map((s, idx) => {
