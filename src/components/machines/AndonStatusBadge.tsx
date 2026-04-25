@@ -1,0 +1,29 @@
+import { cn } from "@/lib/utils";
+import type { AndonStatus } from "@/types/andon";
+import { getAndonStatusLabel } from "@/utils/statusUtils";
+
+interface AndonStatusBadgeProps {
+  status: AndonStatus;
+  className?: string;
+}
+
+const TONE: Record<AndonStatus, string> = {
+  none: "bg-muted text-muted-foreground",
+  open: "bg-warning/20 text-warning animate-andon-pulse",
+  in_progress: "bg-info/20 text-info",
+  finished: "bg-success/20 text-success",
+};
+
+export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wider",
+        TONE[status],
+        className,
+      )}
+    >
+      ANDON · {getAndonStatusLabel(status)}
+    </span>
+  );
+}
