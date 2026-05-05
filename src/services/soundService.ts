@@ -1,4 +1,4 @@
-import type { SoundKey } from "@/types/andon";
+﻿import type { SoundKey } from "@/types/andon";
 
 // Importa todos os sons como URL. Se o arquivo não existir, o import falha
 // silenciosamente em runtime — tratamos com try/catch ao tocar.
@@ -13,7 +13,7 @@ const soundUrls: Record<SoundKey, string | null> = {
 // Tenta carregar arquivos via import.meta.glob (Vite). Se não existirem,
 // soundUrls permanece null e o sistema continua funcionando.
 try {
-  const modules = import.meta.glob("@/assets/sounds/*.mp3", {
+  const modules = import.meta.glob("/src/assets/sounds/*.mp3", {
     eager: true,
     query: "?url",
     import: "default",
