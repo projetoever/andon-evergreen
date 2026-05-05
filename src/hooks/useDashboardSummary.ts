@@ -10,6 +10,9 @@ export function useDashboardSummary(): DashboardSummary {
     const totalMachines = machines.length;
     const runningMachines = machines.filter((m) => m.machineStatus === "running").length;
     const stoppedMachines = totalMachines - runningMachines;
+    const notScheduledMachines = machines.filter(
+      (m) => m.productionMode === "not_scheduled",
+    ).length;
     const openCalls = calls.filter((c) => c.status === "open").length;
     const inProgressCalls = calls.filter((c) => c.status === "in_progress").length;
     const finishedCallsToday = calls.filter(
@@ -38,6 +41,7 @@ export function useDashboardSummary(): DashboardSummary {
       inProgressCalls,
       finishedCallsToday,
       criticalCalls,
+      notScheduledMachines,
     };
   }, [machines, calls, settings]);
 }

@@ -10,6 +10,7 @@ export interface DashboardSummary {
   inProgressCalls: number;
   finishedCallsToday: number;
   criticalCalls: number;
+  notScheduledMachines: number;
 }
 
 export interface AppBackup {

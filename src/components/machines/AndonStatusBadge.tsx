@@ -11,6 +11,7 @@ const TONE: Record<AndonStatus, string> = {
   none: "bg-muted text-muted-foreground",
   open: "bg-warning/20 text-warning animate-andon-pulse",
   in_progress: "bg-info/20 text-info",
+  post_maintenance: "bg-info/20 text-info",
   finished: "bg-success/20 text-success",
 };
 

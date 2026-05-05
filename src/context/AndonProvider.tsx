@@ -16,11 +16,7 @@ import { APP_NAME, APP_VERSION } from "@/constants/appConstants";
 import { DEFAULT_ALERT_RULES } from "@/constants/alertRules";
 import { createInitialMachines } from "@/data/initialMachines";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
-import {
-  loadFromStorage,
-  removeFromStorage,
-  saveToStorage,
-} from "@/services/localStorageService";
+import { loadFromStorage, removeFromStorage, saveToStorage } from "@/services/localStorageService";
 import * as andonService from "@/services/andonService";
 import {
   playCallSound,
@@ -55,6 +51,7 @@ interface AndonContextValue {
   setAudioUnlocked: (unlocked: boolean) => void;
   openCall: (params: andonService.OpenAndonCallParams) => AndonCall;
   attendCall: (callId: string) => void;
+  completeMaintenance: (callId: string) => AndonCall;
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
@@ -72,10 +69,12 @@ const AndonContext = createContext<AndonContextValue | null>(null);
 
 export function AndonProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<Machine[]>(() =>
-    loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, createInitialMachines()),
+    loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, createInitialMachines()).map(
+      andonService.normalizeMachine,
+    ),
   );
   const [calls, setCalls] = useState<AndonCall[]>(() =>
-    loadFromStorage<AndonCall[]>(LOCAL_STORAGE_KEYS.calls, []),
+    loadFromStorage<AndonCall[]>(LOCAL_STORAGE_KEYS.calls, []).map(andonService.normalizeAndonCall),
   );
   const [settings, setSettings] = useState<AppSettings>(() =>
     loadFromStorage<AppSettings>(LOCAL_STORAGE_KEYS.settings, DEFAULT_SETTINGS),
@@ -160,6 +159,16 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines, calls],
   );
 
+  const completeMaintenance = useCallback(
+    (callId: string) => {
+      const result = andonService.completeMaintenanceAttendance(machines, calls, callId);
+      setMachines(result.machines);
+      setCalls(result.calls);
+      return result.call;
+    },
+    [machines, calls],
+  );
+
   const finishCall = useCallback(
     (params: andonService.FinishAndonCallParams) => {
       const result = andonService.finishAndonCall(machines, calls, params);
@@ -201,8 +210,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       settings?: AppSettings;
       soundConfigs?: SoundConfig[];
     }) => {
-      if (data.machines) setMachines(data.machines);
-      if (data.calls) setCalls(data.calls);
+      if (data.machines) setMachines(data.machines.map(andonService.normalizeMachine));
+      if (data.calls) setCalls(data.calls.map(andonService.normalizeAndonCall));
       if (data.settings) setSettings(data.settings);
       if (data.soundConfigs) setSoundConfigs(data.soundConfigs);
     },
@@ -219,6 +228,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       setAudioUnlocked,
       openCall,
       attendCall,
+      completeMaintenance,
       finishCall,
       changeMachineStatus,
       updateSettings,
@@ -234,6 +244,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       audioUnlocked,
       openCall,
       attendCall,
+      completeMaintenance,
       finishCall,
       changeMachineStatus,
       updateSettings,

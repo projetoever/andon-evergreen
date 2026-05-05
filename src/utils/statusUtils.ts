@@ -15,6 +15,8 @@ export function getAndonStatusLabel(status: AndonStatus): string {
       return "Aberto";
     case "in_progress":
       return "Em atendimento";
+    case "post_maintenance":
+      return "Acompanhamento";
     case "finished":
       return "Finalizado";
   }
@@ -47,6 +49,8 @@ export function getStatusColorClass(status: MachineStatus | AndonStatus): string
       return "bg-warning text-warning-foreground";
     case "in_progress":
       return "bg-info text-info-foreground";
+    case "post_maintenance":
+      return "bg-info text-info-foreground";
     case "finished":
       return "bg-success text-success-foreground";
     default:
@@ -54,11 +58,7 @@ export function getStatusColorClass(status: MachineStatus | AndonStatus): string
   }
 }
 
-export function getAlertLevel(
-  minutes: number,
-  warning: number,
-  critical: number,
-): AlertLevel {
+export function getAlertLevel(minutes: number, warning: number, critical: number): AlertLevel {
   if (minutes >= critical) return "critical";
   if (minutes >= warning) return "warning";
   return "normal";

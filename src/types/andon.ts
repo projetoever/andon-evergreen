@@ -1,4 +1,4 @@
-export type AndonStatus = "none" | "open" | "in_progress" | "finished";
+export type AndonStatus = "none" | "open" | "in_progress" | "post_maintenance" | "finished";
 
 export type CallCategory = "maintenance" | "production";
 
@@ -10,12 +10,9 @@ export type CallSubtype = MaintenanceSubtype | ProductionSubtype;
 
 export type TechnicianArea = "electrical" | "mechanical" | "hot_melt";
 
-export type SoundKey =
-  | "electrical"
-  | "mechanical"
-  | "hot_melt"
-  | "quality"
-  | "leadership";
+export type CallCriticality = "low" | "medium" | "high";
+
+export type SoundKey = "electrical" | "mechanical" | "hot_melt" | "quality" | "leadership";
 
 export interface AndonCall {
   id: string;
@@ -23,13 +20,17 @@ export interface AndonCall {
   category: CallCategory;
   subtype: CallSubtype;
   status: AndonStatus;
+  criticality: CallCriticality;
   openedAt: string;
   attendedAt: string | null;
+  maintenanceCompletedAt: string | null;
   finishedAt: string | null;
   technicianName: string | null;
+  technicianNames: string[];
   technicianArea: TechnicianArea | null;
   callWaitingMinutes: number;
   attendanceMinutes: number;
+  postMaintenanceMinutes: number;
   totalCallMinutes: number;
   machineStoppedMinutes: number;
   notes: string | null;

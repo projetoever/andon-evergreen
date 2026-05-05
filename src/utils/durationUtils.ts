@@ -15,8 +15,14 @@ export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): n
 
 export function calculateAttendanceMinutes(call: AndonCall, nowIso?: string): number {
   if (!call.attendedAt) return 0;
-  const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+  const end = call.maintenanceCompletedAt ?? call.finishedAt ?? nowIso ?? new Date().toISOString();
   return diffMinutes(call.attendedAt, end);
+}
+
+export function calculatePostMaintenanceMinutes(call: AndonCall, nowIso?: string): number {
+  if (!call.maintenanceCompletedAt) return 0;
+  const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+  return diffMinutes(call.maintenanceCompletedAt, end);
 }
 
 export function calculateTotalCallMinutes(call: AndonCall, nowIso?: string): number {
