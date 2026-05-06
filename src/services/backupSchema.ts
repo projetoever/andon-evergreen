@@ -65,6 +65,7 @@ const callSchema = z
     criticality: callCriticalitySchema.default("medium"),
     openedAt: isoString,
     attendedAt: isoString.nullable(),
+    currentAttendanceStartedAt: isoString.nullable().optional(),
     maintenanceCompletedAt: isoString.nullable().default(null),
     finishedAt: isoString.nullable(),
     technicianName: shortString.nullable(),
@@ -73,6 +74,7 @@ const callSchema = z
     callWaitingMinutes: z.number().finite().min(0),
     attendanceMinutes: z.number().finite().min(0),
     postMaintenanceMinutes: z.number().finite().min(0).default(0),
+    maintenanceReturnCount: z.number().finite().min(0).default(0),
     totalCallMinutes: z.number().finite().min(0),
     machineStoppedMinutes: z.number().finite().min(0),
     notes: shortString.nullable(),
@@ -82,6 +84,11 @@ const callSchema = z
   .transform((call) => ({
     ...call,
     technicianNames: call.technicianNames ?? (call.technicianName ? [call.technicianName] : []),
+    currentAttendanceStartedAt:
+      call.currentAttendanceStartedAt ??
+      (call.status === "in_progress" && call.attendedAt && !call.maintenanceCompletedAt
+        ? call.attendedAt
+        : null),
   }));
 
 const alertRulesSchema = z.object({

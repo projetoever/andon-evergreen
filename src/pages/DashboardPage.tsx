@@ -10,7 +10,14 @@ import { Volume2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export function DashboardPage() {
-  const { machines, audioUnlocked, setAudioUnlocked, attendCall, completeMaintenance } = useAndon();
+  const {
+    machines,
+    audioUnlocked,
+    setAudioUnlocked,
+    attendCall,
+    completeMaintenance,
+    returnToMaintenance,
+  } = useAndon();
   const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
@@ -44,6 +51,15 @@ export function DashboardPage() {
     }
   }
 
+  function handleReturnToMaintenance(callId: string) {
+    try {
+      returnToMaintenance(callId);
+      toast.success("Chamado voltou à manutenção");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
   return (
     <div className="space-y-6">
       {!audioUnlocked && (
@@ -63,9 +79,7 @@ export function DashboardPage() {
       <StatusSummaryBar />
 
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
-          Máquinas
-        </h2>
+        <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">Máquinas</h2>
         <BigButton tone="warning" size="md" onClick={() => handleOpenCall()}>
           <Plus className="h-5 w-5" /> Abrir ANDON
         </BigButton>
@@ -77,6 +91,7 @@ export function DashboardPage() {
         onAttend={handleAttend}
         onFinish={setFinishCallId}
         onCompleteMaintenance={handleCompleteMaintenance}
+        onReturnToMaintenance={handleReturnToMaintenance}
       />
 
       <OpenCallModal

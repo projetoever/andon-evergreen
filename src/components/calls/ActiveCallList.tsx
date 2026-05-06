@@ -23,6 +23,7 @@ interface ActiveCallListProps {
   onAttend: (callId: string) => void;
   onFinish: (callId: string) => void;
   onCompleteMaintenance: (callId: string) => void;
+  onReturnToMaintenance: (callId: string) => void;
 }
 
 export function ActiveCallList({
@@ -30,6 +31,7 @@ export function ActiveCallList({
   onAttend,
   onFinish,
   onCompleteMaintenance,
+  onReturnToMaintenance,
 }: ActiveCallListProps) {
   useTicker(1000);
   if (calls.length === 0) {
@@ -65,9 +67,7 @@ export function ActiveCallList({
                 <span
                   className={
                     "rounded-md px-2 py-1 text-xs font-bold uppercase " +
-                    (c.status === "open"
-                      ? "bg-warning/20 text-warning"
-                      : "bg-info/20 text-info")
+                    (c.status === "open" ? "bg-warning/20 text-warning" : "bg-info/20 text-info")
                   }
                 >
                   {getAndonStatusLabel(c.status)}
@@ -76,7 +76,12 @@ export function ActiveCallList({
               <div className="text-sm text-muted-foreground">
                 Aberto em <span className="font-mono">{formatDateTime(c.openedAt)}</span>
               </div>
-              <div className={"w-fit rounded-md border px-2 py-1 text-xs font-bold " + getCriticalityColorClass(c.criticality)}>
+              <div
+                className={
+                  "w-fit rounded-md border px-2 py-1 text-xs font-bold " +
+                  getCriticalityColorClass(c.criticality)
+                }
+              >
                 Criticidade: {getCriticalityLabel(c.criticality)}
               </div>
               <div className="text-sm">
@@ -110,6 +115,11 @@ export function ActiveCallList({
               {c.status === "in_progress" && c.category === "production" && (
                 <BigButton tone="success" size="md" onClick={() => onFinish(c.id)}>
                   Finalizar
+                </BigButton>
+              )}
+              {c.status === "post_maintenance" && c.category === "maintenance" && (
+                <BigButton tone="info" size="md" onClick={() => onReturnToMaintenance(c.id)}>
+                  Voltar à Manutenção
                 </BigButton>
               )}
               {c.status === "post_maintenance" && (

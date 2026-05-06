@@ -37,32 +37,48 @@ export function HistoryTable({ calls }: HistoryTableProps) {
             <th className="px-3 py-3">Total</th>
             <th className="px-3 py-3">Parada</th>
             <th className="px-3 py-3">Técnico(s)</th>
+            <th className="px-3 py-3">Retornos</th>
             <th className="px-3 py-3">Descrição</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {calls.map((c) => {
-            const technicianNames = c.technicianNames.length > 0 ? c.technicianNames.join(", ") : c.technicianName;
-            const postMaintenanceMinutes = c.postMaintenanceMinutes || calculatePostMaintenanceMinutes(c);
+            const technicianNames =
+              c.technicianNames.length > 0 ? c.technicianNames.join(", ") : c.technicianName;
+            const postMaintenanceMinutes =
+              c.postMaintenanceMinutes || calculatePostMaintenanceMinutes(c);
             return (
-            <tr key={c.id}>
-              <td className="px-3 py-3 text-lg font-bold">{c.machineId}</td>
-              <td className="px-3 py-3">{c.category === "maintenance" ? "Manutenção" : "Produção"}</td>
-              <td className="px-3 py-3 font-bold">{getCallSubtypeLabel(c.subtype)}</td>
-              <td className="px-3 py-3">Criticidade: {getCriticalityLabel(c.criticality)}</td>
-              <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.openedAt)}</td>
-              <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.attendedAt)}</td>
-              <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.finishedAt)}</td>
-              <td className="px-3 py-3 text-warning">{formatDurationMinutes(c.callWaitingMinutes)}</td>
-              <td className="px-3 py-3 text-info">{formatDurationMinutes(c.attendanceMinutes)}</td>
-              <td className="px-3 py-3 text-info">{formatDurationMinutes(postMaintenanceMinutes)}</td>
-              <td className="px-3 py-3 font-bold">{formatDurationMinutes(c.totalCallMinutes)}</td>
-              <td className="px-3 py-3 text-danger">
-                {formatDurationMinutes(c.machineStoppedMinutes)}
-              </td>
-              <td className="px-3 py-3">{technicianNames ?? "—"}</td>
-              <td className="px-3 py-3 text-muted-foreground">{c.notes ?? "—"}</td>
-            </tr>
+              <tr key={c.id}>
+                <td className="px-3 py-3 text-lg font-bold">{c.machineId}</td>
+                <td className="px-3 py-3">
+                  {c.category === "maintenance" ? "Manutenção" : "Produção"}
+                </td>
+                <td className="px-3 py-3 font-bold">{getCallSubtypeLabel(c.subtype)}</td>
+                <td className="px-3 py-3">Criticidade: {getCriticalityLabel(c.criticality)}</td>
+                <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.openedAt)}</td>
+                <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.attendedAt)}</td>
+                <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.finishedAt)}</td>
+                <td className="px-3 py-3 text-warning">
+                  {formatDurationMinutes(c.callWaitingMinutes)}
+                </td>
+                <td className="px-3 py-3 text-info">
+                  {formatDurationMinutes(c.attendanceMinutes)}
+                </td>
+                <td className="px-3 py-3 text-info">
+                  {formatDurationMinutes(postMaintenanceMinutes)}
+                </td>
+                <td className="px-3 py-3 font-bold">{formatDurationMinutes(c.totalCallMinutes)}</td>
+                <td className="px-3 py-3 text-danger">
+                  {formatDurationMinutes(c.machineStoppedMinutes)}
+                </td>
+                <td className="px-3 py-3">{technicianNames ?? "—"}</td>
+                <td className="px-3 py-3">
+                  {c.maintenanceReturnCount > 0
+                    ? `Retornos à manutenção: ${c.maintenanceReturnCount}`
+                    : "—"}
+                </td>
+                <td className="px-3 py-3 text-muted-foreground">{c.notes ?? "—"}</td>
+              </tr>
             );
           })}
         </tbody>

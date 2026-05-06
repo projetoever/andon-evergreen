@@ -23,6 +23,7 @@ export interface AndonCall {
   criticality: CallCriticality;
   openedAt: string;
   attendedAt: string | null;
+  currentAttendanceStartedAt: string | null;
   maintenanceCompletedAt: string | null;
   finishedAt: string | null;
   technicianName: string | null;
@@ -31,6 +32,7 @@ export interface AndonCall {
   callWaitingMinutes: number;
   attendanceMinutes: number;
   postMaintenanceMinutes: number;
+  maintenanceReturnCount: number;
   totalCallMinutes: number;
   machineStoppedMinutes: number;
   notes: string | null;

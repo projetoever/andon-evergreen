@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CheckCheck, Wrench, Play, Square } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, RotateCcw, Wrench, Play, Square } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import type { AndonCall } from "@/types/andon";
 import { BigButton } from "@/components/common/BigButton";
@@ -11,6 +11,7 @@ interface MachineActionPanelProps {
   onAttend: () => void;
   onFinish: () => void;
   onCompleteMaintenance: () => void;
+  onReturnToMaintenance: () => void;
   onStop: () => void;
   onResume: () => void;
 }
@@ -22,14 +23,13 @@ export function MachineActionPanel({
   onAttend,
   onFinish,
   onCompleteMaintenance,
+  onReturnToMaintenance,
   onStop,
   onResume,
 }: MachineActionPanelProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <h3 className="mb-4 text-lg font-bold uppercase tracking-wider text-foreground">
-        Ações
-      </h3>
+      <h3 className="mb-4 text-lg font-bold uppercase tracking-wider text-foreground">Ações</h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {machine.andonStatus === "none" && (
           <BigButton tone="warning" onClick={onOpenCall}>
@@ -51,23 +51,20 @@ export function MachineActionPanel({
             <CheckCheck className="h-6 w-6" /> Finalizar
           </BigButton>
         )}
+        {currentCall?.status === "post_maintenance" && currentCall.category === "maintenance" && (
+          <BigButton tone="info" onClick={onReturnToMaintenance}>
+            <RotateCcw className="h-6 w-6" /> Voltar à Manutenção
+          </BigButton>
+        )}
         {currentCall?.status === "post_maintenance" && (
           <BigButton tone="success" onClick={onFinish}>
             <CheckCheck className="h-6 w-6" /> Finalizar Chamado
           </BigButton>
         )}
-        <BigButton
-          tone="danger"
-          onClick={onStop}
-          disabled={machine.machineStatus === "stopped"}
-        >
+        <BigButton tone="danger" onClick={onStop} disabled={machine.machineStatus === "stopped"}>
           <Square className="h-6 w-6" /> Gerar Parada
         </BigButton>
-        <BigButton
-          tone="success"
-          onClick={onResume}
-          disabled={machine.machineStatus === "running"}
-        >
+        <BigButton tone="success" onClick={onResume} disabled={machine.machineStatus === "running"}>
           <Play className="h-6 w-6" /> Voltar a Rodar
         </BigButton>
         <Link

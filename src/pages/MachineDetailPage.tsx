@@ -16,7 +16,14 @@ interface MachineDetailPageProps {
 }
 
 export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
-  const { machines, calls, attendCall, completeMaintenance, changeMachineStatus } = useAndon();
+  const {
+    machines,
+    calls,
+    attendCall,
+    completeMaintenance,
+    returnToMaintenance,
+    changeMachineStatus,
+  } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
@@ -32,7 +39,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
   }
 
   const currentCall = machine.currentCallId
-    ? calls.find((c) => c.id === machine.currentCallId) ?? null
+    ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
     : null;
 
   function handleAttend() {
@@ -50,6 +57,16 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     try {
       completeMaintenance(currentCall.id);
       toast.success("Manutenção concluída. Chamado em acompanhamento");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  function handleReturnToMaintenance() {
+    if (!currentCall) return;
+    try {
+      returnToMaintenance(currentCall.id);
+      toast.success("Chamado voltou à manutenção");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
@@ -78,6 +95,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
         onAttend={handleAttend}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={handleCompleteMaintenance}
+        onReturnToMaintenance={handleReturnToMaintenance}
         onStop={handleStop}
         onResume={handleResume}
       />

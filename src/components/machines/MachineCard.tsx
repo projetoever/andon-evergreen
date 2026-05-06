@@ -27,6 +27,7 @@ interface MachineCardProps {
   onAttend?: (callId: string) => void;
   onFinish?: (callId: string) => void;
   onCompleteMaintenance?: (callId: string) => void;
+  onReturnToMaintenance?: (callId: string) => void;
 }
 
 export function MachineCard({
@@ -35,6 +36,7 @@ export function MachineCard({
   onAttend,
   onFinish,
   onCompleteMaintenance,
+  onReturnToMaintenance,
 }: MachineCardProps) {
   useTicker(1000);
   const { calls, settings } = useAndon();
@@ -101,12 +103,18 @@ export function MachineCard({
             )}
             {getCallSubtypeLabel(currentCall.subtype)}
           </div>
-          <div className={"mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-bold " + getCriticalityColorClass(currentCall.criticality)}>
+          <div
+            className={
+              "mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-bold " +
+              getCriticalityColorClass(currentCall.criticality)
+            }
+          >
             Criticidade: {getCriticalityLabel(currentCall.criticality)}
           </div>
           {currentCall.status === "open" && (
             <div className="mt-1 text-muted-foreground">
-              Aguardando há <strong className="text-foreground">{formatDurationMinutes(waitingMin)}</strong>
+              Aguardando há{" "}
+              <strong className="text-foreground">{formatDurationMinutes(waitingMin)}</strong>
             </div>
           )}
           {currentCall.status === "in_progress" && (
@@ -117,8 +125,10 @@ export function MachineCard({
           )}
           {currentCall.status === "post_maintenance" && (
             <div className="mt-1 text-muted-foreground">
-              Acompanhamento: {" "}
-              <strong className="text-foreground">{formatDurationMinutes(postMaintenanceMin)}</strong>
+              Acompanhamento:{" "}
+              <strong className="text-foreground">
+                {formatDurationMinutes(postMaintenanceMin)}
+              </strong>
             </div>
           )}
         </div>
@@ -155,6 +165,11 @@ export function MachineCard({
         {machine.andonStatus === "in_progress" && currentCall?.category === "production" && (
           <BigButton tone="success" size="md" onClick={() => onFinish?.(currentCall.id)}>
             Finalizar
+          </BigButton>
+        )}
+        {machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance" && (
+          <BigButton tone="info" size="md" onClick={() => onReturnToMaintenance?.(currentCall.id)}>
+            Voltar à Manutenção
           </BigButton>
         )}
         {machine.andonStatus === "post_maintenance" && currentCall && (

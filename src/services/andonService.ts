@@ -14,11 +14,10 @@ import type {
 } from "@/types/machine";
 import { generateId } from "@/utils/idUtils";
 import {
-  calculateAttendanceMinutes,
   calculateCallWaitingMinutes,
   calculateMachineStoppedMinutes,
-  calculatePostMaintenanceMinutes,
   calculateTotalCallMinutes,
+  diffMinutes,
 } from "@/utils/durationUtils";
 
 export interface OpenAndonCallParams {
@@ -79,6 +78,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     maintenanceCompletedAt?: unknown;
     technicianNames?: unknown;
     postMaintenanceMinutes?: unknown;
+    currentAttendanceStartedAt?: unknown;
+    maintenanceReturnCount?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -86,16 +87,30 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
       ? [call.technicianName]
       : [];
 
+  const maintenanceCompletedAt =
+    typeof source.maintenanceCompletedAt === "string" ? source.maintenanceCompletedAt : null;
+  const currentAttendanceStartedAt =
+    typeof source.currentAttendanceStartedAt === "string"
+      ? source.currentAttendanceStartedAt
+      : call.status === "in_progress" && call.attendedAt && !maintenanceCompletedAt
+        ? call.attendedAt
+        : null;
+
   return {
     ...call,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
-    maintenanceCompletedAt:
-      typeof source.maintenanceCompletedAt === "string" ? source.maintenanceCompletedAt : null,
+    maintenanceCompletedAt,
+    currentAttendanceStartedAt,
     technicianNames,
     postMaintenanceMinutes:
       typeof source.postMaintenanceMinutes === "number" &&
       Number.isFinite(source.postMaintenanceMinutes)
         ? source.postMaintenanceMinutes
+        : 0,
+    maintenanceReturnCount:
+      typeof source.maintenanceReturnCount === "number" &&
+      Number.isFinite(source.maintenanceReturnCount)
+        ? source.maintenanceReturnCount
         : 0,
   };
 }
@@ -124,6 +139,7 @@ export function openAndonCall(
     criticality: params.criticality ?? "medium",
     openedAt: now,
     attendedAt: null,
+    currentAttendanceStartedAt: null,
     maintenanceCompletedAt: null,
     finishedAt: null,
     technicianName: null,
@@ -132,6 +148,7 @@ export function openAndonCall(
     callWaitingMinutes: 0,
     attendanceMinutes: 0,
     postMaintenanceMinutes: 0,
+    maintenanceReturnCount: 0,
     totalCallMinutes: 0,
     machineStoppedMinutes: 0,
     notes: null,
@@ -156,7 +173,15 @@ export function attendAndonCall(
   if (call.status !== "open") throw new Error("Chamado não está aberto");
   const now = new Date().toISOString();
   const newCalls = calls.map((c) =>
-    c.id === callId ? { ...c, status: "in_progress" as const, attendedAt: now, updatedAt: now } : c,
+    c.id === callId
+      ? {
+          ...c,
+          status: "in_progress" as const,
+          attendedAt: c.attendedAt ?? now,
+          currentAttendanceStartedAt: now,
+          updatedAt: now,
+        }
+      : c,
   );
   const newMachines = machines.map((m) =>
     m.id === call.machineId
@@ -183,14 +208,50 @@ export function completeMaintenanceAttendance(
   const updatedCall: AndonCall = {
     ...call,
     status: "post_maintenance",
+    currentAttendanceStartedAt: null,
     maintenanceCompletedAt: now,
-    attendanceMinutes: calculateAttendanceMinutes({ ...call, maintenanceCompletedAt: now }, now),
+    attendanceMinutes:
+      (call.attendanceMinutes ?? 0) +
+      diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
   const newMachines = machines.map((m) =>
     m.id === call.machineId
       ? { ...m, andonStatus: "post_maintenance" as const, lastStatusChangedAt: now }
+      : m,
+  );
+  return { machines: newMachines, calls: newCalls, call: updatedCall };
+}
+
+export function returnToMaintenance(
+  machines: Machine[],
+  calls: AndonCall[],
+  callId: string,
+): { machines: Machine[]; calls: AndonCall[]; call: AndonCall } {
+  const call = calls.find((c) => c.id === callId);
+  if (!call) throw new Error("Chamado não encontrado");
+  if (call.status !== "post_maintenance") {
+    throw new Error("Chamado não está em acompanhamento");
+  }
+  if (call.category !== "maintenance") {
+    throw new Error("Apenas chamados de manutenção podem voltar ao atendimento");
+  }
+  const now = new Date().toISOString();
+  const updatedCall: AndonCall = {
+    ...call,
+    status: "in_progress",
+    currentAttendanceStartedAt: now,
+    maintenanceCompletedAt: null,
+    postMaintenanceMinutes:
+      (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
+    maintenanceReturnCount: (call.maintenanceReturnCount ?? 0) + 1,
+    updatedAt: now,
+  };
+  const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
+  const newMachines = machines.map((m) =>
+    m.id === call.machineId
+      ? { ...m, andonStatus: "in_progress" as const, lastStatusChangedAt: now }
       : m,
   );
   return { machines: newMachines, calls: newCalls, call: updatedCall };
@@ -220,6 +281,7 @@ export function finishAndonCall(
   const finishedCall: AndonCall = {
     ...call,
     status: "finished",
+    currentAttendanceStartedAt: null,
     finishedAt: now,
     technicianName,
     technicianNames,
@@ -228,8 +290,14 @@ export function finishAndonCall(
     updatedAt: now,
   };
   finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);
-  finishedCall.attendanceMinutes = calculateAttendanceMinutes(finishedCall, now);
-  finishedCall.postMaintenanceMinutes = calculatePostMaintenanceMinutes(finishedCall, now);
+  finishedCall.attendanceMinutes =
+    (call.attendanceMinutes ?? 0) +
+    (call.status === "in_progress"
+      ? diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
+      : 0);
+  finishedCall.postMaintenanceMinutes =
+    (call.postMaintenanceMinutes ?? 0) +
+    (call.status === "post_maintenance" ? diffMinutes(call.maintenanceCompletedAt, now) : 0);
   finishedCall.totalCallMinutes = calculateTotalCallMinutes(finishedCall, now);
   finishedCall.machineStoppedMinutes = machine ? calculateMachineStoppedMinutes(machine, now) : 0;
   const newCalls = calls.map((c) => (c.id === params.callId ? finishedCall : c));

@@ -52,6 +52,7 @@ interface AndonContextValue {
   openCall: (params: andonService.OpenAndonCallParams) => AndonCall;
   attendCall: (callId: string) => void;
   completeMaintenance: (callId: string) => AndonCall;
+  returnToMaintenance: (callId: string) => AndonCall;
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
@@ -169,6 +170,16 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines, calls],
   );
 
+  const returnToMaintenance = useCallback(
+    (callId: string) => {
+      const result = andonService.returnToMaintenance(machines, calls, callId);
+      setMachines(result.machines);
+      setCalls(result.calls);
+      return result.call;
+    },
+    [machines, calls],
+  );
+
   const finishCall = useCallback(
     (params: andonService.FinishAndonCallParams) => {
       const result = andonService.finishAndonCall(machines, calls, params);
@@ -229,6 +240,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       openCall,
       attendCall,
       completeMaintenance,
+      returnToMaintenance,
       finishCall,
       changeMachineStatus,
       updateSettings,
@@ -245,6 +257,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       openCall,
       attendCall,
       completeMaintenance,
+      returnToMaintenance,
       finishCall,
       changeMachineStatus,
       updateSettings,

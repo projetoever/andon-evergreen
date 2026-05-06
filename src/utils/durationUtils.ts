@@ -1,7 +1,7 @@
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 
-function diffMinutes(a: string | null | undefined, b: string | null | undefined): number {
+export function diffMinutes(a: string | null | undefined, b: string | null | undefined): number {
   if (!a || !b) return 0;
   const ms = new Date(b).getTime() - new Date(a).getTime();
   if (Number.isNaN(ms) || ms < 0) return 0;
@@ -14,15 +14,26 @@ export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): n
 }
 
 export function calculateAttendanceMinutes(call: AndonCall, nowIso?: string): number {
+  const accumulatedMinutes = call.attendanceMinutes ?? 0;
+  if (call.currentAttendanceStartedAt) {
+    const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+    return accumulatedMinutes + diffMinutes(call.currentAttendanceStartedAt, end);
+  }
+  if (accumulatedMinutes > 0 || call.maintenanceCompletedAt || call.finishedAt) {
+    return accumulatedMinutes;
+  }
   if (!call.attendedAt) return 0;
-  const end = call.maintenanceCompletedAt ?? call.finishedAt ?? nowIso ?? new Date().toISOString();
+  const end = nowIso ?? new Date().toISOString();
   return diffMinutes(call.attendedAt, end);
 }
 
 export function calculatePostMaintenanceMinutes(call: AndonCall, nowIso?: string): number {
-  if (!call.maintenanceCompletedAt) return 0;
-  const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
-  return diffMinutes(call.maintenanceCompletedAt, end);
+  const accumulatedMinutes = call.postMaintenanceMinutes ?? 0;
+  if (call.maintenanceCompletedAt && call.status === "post_maintenance") {
+    const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+    return accumulatedMinutes + diffMinutes(call.maintenanceCompletedAt, end);
+  }
+  return accumulatedMinutes;
 }
 
 export function calculateTotalCallMinutes(call: AndonCall, nowIso?: string): number {
