@@ -16,7 +16,7 @@ interface MachineDetailPageProps {
 }
 
 export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
-  const { machines, calls, attendCall, changeMachineStatus } = useAndon();
+  const { machines, calls, attendCall, completeMaintenance, changeMachineStatus } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
@@ -45,6 +45,16 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     }
   }
 
+  function handleCompleteMaintenance() {
+    if (!currentCall) return;
+    try {
+      completeMaintenance(currentCall.id);
+      toast.success("Manutenção concluída. Chamado em acompanhamento");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
   function handleStop() {
     changeMachineStatus(machine!.id, "stopped");
     toast.warning(`Máquina ${machine!.id} marcada como Parada`);
@@ -67,6 +77,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
         onOpenCall={() => setOpenCallDialog(true)}
         onAttend={handleAttend}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
+        onCompleteMaintenance={handleCompleteMaintenance}
         onStop={handleStop}
         onResume={handleResume}
       />

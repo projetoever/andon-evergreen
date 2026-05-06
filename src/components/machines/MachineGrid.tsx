@@ -6,9 +6,16 @@ interface MachineGridProps {
   onOpenCall?: (machineId: string) => void;
   onAttend?: (callId: string) => void;
   onFinish?: (callId: string) => void;
+  onCompleteMaintenance?: (callId: string) => void;
 }
 
-export function MachineGrid({ machines, onOpenCall, onAttend, onFinish }: MachineGridProps) {
+export function MachineGrid({
+  machines,
+  onOpenCall,
+  onAttend,
+  onFinish,
+  onCompleteMaintenance,
+}: MachineGridProps) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
       {machines.map((m) => (
@@ -18,6 +25,7 @@ export function MachineGrid({ machines, onOpenCall, onAttend, onFinish }: Machin
           onOpenCall={onOpenCall}
           onAttend={onAttend}
           onFinish={onFinish}
+          onCompleteMaintenance={onCompleteMaintenance}
         />
       ))}
     </div>

@@ -10,7 +10,7 @@ import { Volume2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export function DashboardPage() {
-  const { machines, audioUnlocked, setAudioUnlocked, attendCall } = useAndon();
+  const { machines, audioUnlocked, setAudioUnlocked, attendCall, completeMaintenance } = useAndon();
   const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
@@ -30,6 +30,15 @@ export function DashboardPage() {
     try {
       attendCall(callId);
       toast.success("Chamado em atendimento");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  function handleCompleteMaintenance(callId: string) {
+    try {
+      completeMaintenance(callId);
+      toast.success("Manutenção concluída. Chamado em acompanhamento");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
@@ -67,6 +76,7 @@ export function DashboardPage() {
         onOpenCall={handleOpenCall}
         onAttend={handleAttend}
         onFinish={setFinishCallId}
+        onCompleteMaintenance={handleCompleteMaintenance}
       />
 
       <OpenCallModal

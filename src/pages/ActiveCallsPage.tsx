@@ -5,13 +5,13 @@ import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { toast } from "sonner";
 
 export function ActiveCallsPage() {
-  const { calls, attendCall } = useAndon();
+  const { calls, attendCall, completeMaintenance } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
 
   const activeCalls = useMemo(
     () =>
       calls
-        .filter((c) => c.status === "open" || c.status === "in_progress")
+        .filter((c) => c.status === "open" || c.status === "in_progress" || c.status === "post_maintenance")
         .sort((a, b) => a.openedAt.localeCompare(b.openedAt)),
     [calls],
   );
@@ -20,6 +20,15 @@ export function ActiveCallsPage() {
     try {
       attendCall(callId);
       toast.success("Chamado em atendimento");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  }
+
+  function handleCompleteMaintenance(callId: string) {
+    try {
+      completeMaintenance(callId);
+      toast.success("Manutenção concluída. Chamado em acompanhamento");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
@@ -34,6 +43,7 @@ export function ActiveCallsPage() {
         calls={activeCalls}
         onAttend={handleAttend}
         onFinish={setFinishCallId}
+        onCompleteMaintenance={handleCompleteMaintenance}
       />
       <FinishCallModal
         open={finishCallId !== null}

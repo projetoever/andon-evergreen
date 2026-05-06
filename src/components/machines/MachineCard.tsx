@@ -10,9 +10,15 @@ import {
   calculateAttendanceMinutes,
   calculateCallWaitingMinutes,
   calculateMachineStoppedMinutes,
+  calculatePostMaintenanceMinutes,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
-import { getAlertLevel, getCallSubtypeLabel } from "@/utils/statusUtils";
+import {
+  getAlertLevel,
+  getCallSubtypeLabel,
+  getCriticalityColorClass,
+  getCriticalityLabel,
+} from "@/utils/statusUtils";
 import { BigButton } from "@/components/common/BigButton";
 
 interface MachineCardProps {
@@ -20,9 +26,16 @@ interface MachineCardProps {
   onOpenCall?: (machineId: string) => void;
   onAttend?: (callId: string) => void;
   onFinish?: (callId: string) => void;
+  onCompleteMaintenance?: (callId: string) => void;
 }
 
-export function MachineCard({ machine, onOpenCall, onAttend, onFinish }: MachineCardProps) {
+export function MachineCard({
+  machine,
+  onOpenCall,
+  onAttend,
+  onFinish,
+  onCompleteMaintenance,
+}: MachineCardProps) {
   useTicker(1000);
   const { calls, settings } = useAndon();
   const currentCall = machine.currentCallId
@@ -37,6 +50,7 @@ export function MachineCard({ machine, onOpenCall, onAttend, onFinish }: Machine
   );
   const waitingMin = currentCall ? calculateCallWaitingMinutes(currentCall) : 0;
   const attendingMin = currentCall ? calculateAttendanceMinutes(currentCall) : 0;
+  const postMaintenanceMin = currentCall ? calculatePostMaintenanceMinutes(currentCall) : 0;
   const callAlert = currentCall
     ? getAlertLevel(
         waitingMin,
@@ -87,6 +101,9 @@ export function MachineCard({ machine, onOpenCall, onAttend, onFinish }: Machine
             )}
             {getCallSubtypeLabel(currentCall.subtype)}
           </div>
+          <div className={"mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-bold " + getCriticalityColorClass(currentCall.criticality)}>
+            Criticidade: {getCriticalityLabel(currentCall.criticality)}
+          </div>
           {currentCall.status === "open" && (
             <div className="mt-1 text-muted-foreground">
               Aguardando há <strong className="text-foreground">{formatDurationMinutes(waitingMin)}</strong>
@@ -96,6 +113,12 @@ export function MachineCard({ machine, onOpenCall, onAttend, onFinish }: Machine
             <div className="mt-1 text-muted-foreground">
               Em atendimento há{" "}
               <strong className="text-foreground">{formatDurationMinutes(attendingMin)}</strong>
+            </div>
+          )}
+          {currentCall.status === "post_maintenance" && (
+            <div className="mt-1 text-muted-foreground">
+              Acompanhamento: {" "}
+              <strong className="text-foreground">{formatDurationMinutes(postMaintenanceMin)}</strong>
             </div>
           )}
         </div>
@@ -124,9 +147,19 @@ export function MachineCard({ machine, onOpenCall, onAttend, onFinish }: Machine
             Atender
           </BigButton>
         )}
-        {machine.andonStatus === "in_progress" && currentCall && (
+        {machine.andonStatus === "in_progress" && currentCall?.category === "maintenance" && (
+          <BigButton tone="info" size="md" onClick={() => onCompleteMaintenance?.(currentCall.id)}>
+            Concluir Manutenção
+          </BigButton>
+        )}
+        {machine.andonStatus === "in_progress" && currentCall?.category === "production" && (
           <BigButton tone="success" size="md" onClick={() => onFinish?.(currentCall.id)}>
             Finalizar
+          </BigButton>
+        )}
+        {machine.andonStatus === "post_maintenance" && currentCall && (
+          <BigButton tone="success" size="md" onClick={() => onFinish?.(currentCall.id)}>
+            Finalizar Chamado
           </BigButton>
         )}
         <Link

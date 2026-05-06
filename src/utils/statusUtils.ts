@@ -1,4 +1,4 @@
-import type { AndonStatus, CallSubtype } from "@/types/andon";
+import type { AndonStatus, CallCriticality, CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
 
 export type AlertLevel = "normal" | "warning" | "critical";
@@ -34,6 +34,28 @@ export function getCallSubtypeLabel(subtype: CallSubtype): string {
       return "Qualidade";
     case "leadership":
       return "Liderança";
+  }
+}
+
+export function getCriticalityLabel(criticality: CallCriticality | null | undefined): string {
+  switch (criticality ?? "medium") {
+    case "low":
+      return "Baixa";
+    case "medium":
+      return "Média";
+    case "high":
+      return "Alta";
+  }
+}
+
+export function getCriticalityColorClass(criticality: CallCriticality | null | undefined): string {
+  switch (criticality ?? "medium") {
+    case "low":
+      return "bg-success/15 text-success border-success/30";
+    case "medium":
+      return "bg-warning/15 text-warning border-warning/30";
+    case "high":
+      return "bg-danger/15 text-danger border-danger/30";
   }
 }
 

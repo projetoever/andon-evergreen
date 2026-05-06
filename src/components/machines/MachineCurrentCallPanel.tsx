@@ -3,11 +3,17 @@ import { useTicker } from "@/hooks/useTicker";
 import {
   calculateAttendanceMinutes,
   calculateCallWaitingMinutes,
+  calculatePostMaintenanceMinutes,
   calculateTotalCallMinutes,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
-import { getAndonStatusLabel, getCallSubtypeLabel } from "@/utils/statusUtils";
+import {
+  getAndonStatusLabel,
+  getCallSubtypeLabel,
+  getCriticalityColorClass,
+  getCriticalityLabel,
+} from "@/utils/statusUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
 
@@ -28,6 +34,9 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
   }
   const waiting = calculateCallWaitingMinutes(call);
   const attending = calculateAttendanceMinutes(call);
+  const postMaintenance = call.status === "finished"
+    ? call.postMaintenanceMinutes
+    : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -54,6 +63,12 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
           </dd>
         </div>
         <div>
+          <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
+          <dd className={"inline-flex rounded-md border px-2 py-1 text-base font-bold " + getCriticalityColorClass(call.criticality)}>
+            Criticidade: {getCriticalityLabel(call.criticality)}
+          </dd>
+        </div>
+        <div>
           <dt className="text-xs uppercase text-muted-foreground">Aberto em</dt>
           <dd className="font-mono text-sm text-foreground">{formatDateTime(call.openedAt)}</dd>
         </div>
@@ -74,18 +89,24 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
           <dd className="text-2xl font-bold text-info">{formatDurationMinutes(attending)}</dd>
         </div>
         <div>
+          <dt className="text-xs uppercase text-muted-foreground">Acompanhamento</dt>
+          <dd className="text-2xl font-bold text-info">{formatDurationMinutes(postMaintenance)}</dd>
+        </div>
+        <div>
           <dt className="text-xs uppercase text-muted-foreground">Total</dt>
           <dd className="text-2xl font-bold text-foreground">{formatDurationMinutes(total)}</dd>
         </div>
-        {call.technicianName && (
+        {(call.technicianNames.length > 0 || call.technicianName) && (
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs uppercase text-muted-foreground">Técnico</dt>
-            <dd className="text-base font-bold text-foreground">{call.technicianName}</dd>
+            <dd className="text-base font-bold text-foreground">
+              {call.technicianNames.length > 0 ? call.technicianNames.join(", ") : call.technicianName}
+            </dd>
           </div>
         )}
         {call.notes && (
           <div className="sm:col-span-2 lg:col-span-3">
-            <dt className="text-xs uppercase text-muted-foreground">Observações</dt>
+            <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
             <dd className="text-base text-foreground">{call.notes}</dd>
           </div>
         )}

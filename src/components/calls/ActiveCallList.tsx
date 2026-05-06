@@ -5,9 +5,15 @@ import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
   calculateAttendanceMinutes,
   calculateCallWaitingMinutes,
+  calculatePostMaintenanceMinutes,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
-import { getAndonStatusLabel, getCallSubtypeLabel } from "@/utils/statusUtils";
+import {
+  getAndonStatusLabel,
+  getCallSubtypeLabel,
+  getCriticalityColorClass,
+  getCriticalityLabel,
+} from "@/utils/statusUtils";
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
@@ -16,9 +22,15 @@ interface ActiveCallListProps {
   calls: AndonCall[];
   onAttend: (callId: string) => void;
   onFinish: (callId: string) => void;
+  onCompleteMaintenance: (callId: string) => void;
 }
 
-export function ActiveCallList({ calls, onAttend, onFinish }: ActiveCallListProps) {
+export function ActiveCallList({
+  calls,
+  onAttend,
+  onFinish,
+  onCompleteMaintenance,
+}: ActiveCallListProps) {
   useTicker(1000);
   if (calls.length === 0) {
     return (
@@ -34,6 +46,7 @@ export function ActiveCallList({ calls, onAttend, onFinish }: ActiveCallListProp
       {calls.map((c) => {
         const waiting = calculateCallWaitingMinutes(c);
         const attending = calculateAttendanceMinutes(c);
+        const postMaintenance = calculatePostMaintenanceMinutes(c);
         return (
           <div
             key={c.id}
@@ -63,6 +76,9 @@ export function ActiveCallList({ calls, onAttend, onFinish }: ActiveCallListProp
               <div className="text-sm text-muted-foreground">
                 Aberto em <span className="font-mono">{formatDateTime(c.openedAt)}</span>
               </div>
+              <div className={"w-fit rounded-md border px-2 py-1 text-xs font-bold " + getCriticalityColorClass(c.criticality)}>
+                Criticidade: {getCriticalityLabel(c.criticality)}
+              </div>
               <div className="text-sm">
                 Aguardando:{" "}
                 <strong className="text-warning">{formatDurationMinutes(waiting)}</strong>
@@ -70,6 +86,12 @@ export function ActiveCallList({ calls, onAttend, onFinish }: ActiveCallListProp
                   <>
                     {" · "}Em atendimento:{" "}
                     <strong className="text-info">{formatDurationMinutes(attending)}</strong>
+                  </>
+                )}
+                {c.status === "post_maintenance" && (
+                  <>
+                    {" · "}Acompanhamento:{" "}
+                    <strong className="text-info">{formatDurationMinutes(postMaintenance)}</strong>
                   </>
                 )}
               </div>
@@ -80,9 +102,19 @@ export function ActiveCallList({ calls, onAttend, onFinish }: ActiveCallListProp
                   Atender
                 </BigButton>
               )}
-              {c.status === "in_progress" && (
+              {c.status === "in_progress" && c.category === "maintenance" && (
+                <BigButton tone="info" size="md" onClick={() => onCompleteMaintenance(c.id)}>
+                  Concluir Manutenção
+                </BigButton>
+              )}
+              {c.status === "in_progress" && c.category === "production" && (
                 <BigButton tone="success" size="md" onClick={() => onFinish(c.id)}>
                   Finalizar
+                </BigButton>
+              )}
+              {c.status === "post_maintenance" && (
+                <BigButton tone="success" size="md" onClick={() => onFinish(c.id)}>
+                  Finalizar Chamado
                 </BigButton>
               )}
               <Link

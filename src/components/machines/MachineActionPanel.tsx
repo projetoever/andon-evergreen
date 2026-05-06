@@ -10,6 +10,7 @@ interface MachineActionPanelProps {
   onOpenCall: () => void;
   onAttend: () => void;
   onFinish: () => void;
+  onCompleteMaintenance: () => void;
   onStop: () => void;
   onResume: () => void;
 }
@@ -20,6 +21,7 @@ export function MachineActionPanel({
   onOpenCall,
   onAttend,
   onFinish,
+  onCompleteMaintenance,
   onStop,
   onResume,
 }: MachineActionPanelProps) {
@@ -29,27 +31,31 @@ export function MachineActionPanel({
         Ações
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <BigButton
-          tone="warning"
-          onClick={onOpenCall}
-          disabled={machine.andonStatus !== "none"}
-        >
-          <Bell className="h-6 w-6" /> Abrir ANDON
-        </BigButton>
-        <BigButton
-          tone="info"
-          onClick={onAttend}
-          disabled={!currentCall || currentCall.status !== "open"}
-        >
-          <Wrench className="h-6 w-6" /> Atender
-        </BigButton>
-        <BigButton
-          tone="success"
-          onClick={onFinish}
-          disabled={!currentCall || currentCall.status === "finished"}
-        >
-          <CheckCheck className="h-6 w-6" /> Finalizar
-        </BigButton>
+        {machine.andonStatus === "none" && (
+          <BigButton tone="warning" onClick={onOpenCall}>
+            <Bell className="h-6 w-6" /> Abrir ANDON
+          </BigButton>
+        )}
+        {currentCall?.status === "open" && (
+          <BigButton tone="info" onClick={onAttend}>
+            <Wrench className="h-6 w-6" /> Atender
+          </BigButton>
+        )}
+        {currentCall?.status === "in_progress" && currentCall.category === "maintenance" && (
+          <BigButton tone="info" onClick={onCompleteMaintenance}>
+            <CheckCheck className="h-6 w-6" /> Concluir Manutenção
+          </BigButton>
+        )}
+        {currentCall?.status === "in_progress" && currentCall.category === "production" && (
+          <BigButton tone="success" onClick={onFinish}>
+            <CheckCheck className="h-6 w-6" /> Finalizar
+          </BigButton>
+        )}
+        {currentCall?.status === "post_maintenance" && (
+          <BigButton tone="success" onClick={onFinish}>
+            <CheckCheck className="h-6 w-6" /> Finalizar Chamado
+          </BigButton>
+        )}
         <BigButton
           tone="danger"
           onClick={onStop}

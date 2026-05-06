@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { useAndon } from "@/context/AndonProvider";
 import { CALL_TYPE_OPTIONS, getCallTypeOption } from "@/data/callTypes";
-import type { CallSubtype } from "@/types/andon";
+import type { CallCriticality, CallSubtype } from "@/types/andon";
 import { CallTypeSelector } from "./CallTypeSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface OpenCallModalProps {
   open: boolean;
@@ -28,11 +29,13 @@ export function OpenCallModal({
   const { machines, openCall } = useAndon();
   const [machineId, setMachineId] = useState<string | null>(preselectedMachineId ?? null);
   const [subtype, setSubtype] = useState<CallSubtype | null>(null);
+  const [criticality, setCriticality] = useState<CallCriticality>("medium");
 
   useEffect(() => {
     if (open) {
       setMachineId(preselectedMachineId ?? null);
       setSubtype(null);
+      setCriticality("medium");
     }
   }, [open, preselectedMachineId]);
 
@@ -43,7 +46,7 @@ export function OpenCallModal({
     const opt = getCallTypeOption(subtype);
     if (!opt) return;
     try {
-      openCall({ machineId, category: opt.category, subtype });
+      openCall({ machineId, category: opt.category, subtype, criticality: criticality ?? "medium" });
       toast.success(`ANDON aberto para Máquina ${machineId}`);
       onOpenChange(false);
     } catch (err) {
@@ -102,6 +105,34 @@ export function OpenCallModal({
         )}
 
         <CallTypeSelector value={subtype} onChange={setSubtype} />
+
+        <div>
+          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Criticidade
+          </h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {[
+              { value: "low" as const, label: "Baixa", className: "border-success/40 bg-success/10 text-success" },
+              { value: "medium" as const, label: "Média", className: "border-warning/40 bg-warning/10 text-warning" },
+              { value: "high" as const, label: "Alta", className: "border-danger/40 bg-danger/10 text-danger" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setCriticality(option.value)}
+                className={cn(
+                  "min-h-[72px] rounded-xl border-2 p-4 text-xl font-black uppercase tracking-wider transition-all hover:scale-[1.01]",
+                  criticality === option.value
+                    ? option.className + " shadow-lg ring-2 ring-ring/30"
+                    : "border-border bg-card text-foreground hover:bg-accent",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
 
         <DialogFooter className="gap-2">
           <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>

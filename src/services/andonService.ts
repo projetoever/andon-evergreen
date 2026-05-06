@@ -25,6 +25,7 @@ export interface OpenAndonCallParams {
   machineId: string;
   category: CallCategory;
   subtype: CallSubtype;
+  criticality?: CallCriticality;
 }
 
 export interface FinishAndonCallParams {
@@ -120,7 +121,7 @@ export function openAndonCall(
     category: params.category,
     subtype: params.subtype,
     status: "open",
-    criticality: "medium",
+    criticality: params.criticality ?? "medium",
     openedAt: now,
     attendedAt: null,
     maintenanceCompletedAt: null,
@@ -174,6 +175,9 @@ export function completeMaintenanceAttendance(
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status !== "in_progress") {
     throw new Error("Chamado não está em atendimento");
+  }
+  if (call.category !== "maintenance") {
+    throw new Error("Apenas chamados de manutenção podem entrar em acompanhamento");
   }
   const now = new Date().toISOString();
   const updatedCall: AndonCall = {

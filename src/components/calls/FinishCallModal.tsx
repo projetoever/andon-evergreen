@@ -24,12 +24,12 @@ interface FinishCallModalProps {
 export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalProps) {
   const { calls, finishCall } = useAndon();
   const call = callId ? calls.find((c) => c.id === callId) ?? null : null;
-  const [technicianName, setTechnicianName] = useState<string | null>(null);
+  const [technicianNames, setTechnicianNames] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (open) {
-      setTechnicianName(null);
+      setTechnicianNames([]);
       setNotes("");
     }
   }, [open, callId]);
@@ -43,7 +43,8 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
     try {
       finishCall({
         callId: call.id,
-        technicianName,
+        technicianName: technicianNames[0] ?? null,
+        technicianNames,
         technicianArea: opt?.technicianArea ?? null,
         notes: notes.trim() || null,
       });
@@ -67,12 +68,12 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
         {requiresTechnician && opt?.technicianArea && (
           <div>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Manutentor responsável
+              Selecione um ou mais manutentores
             </h4>
             <TechnicianSelector
               area={opt.technicianArea}
-              value={technicianName}
-              onChange={setTechnicianName}
+              value={technicianNames}
+              onChange={setTechnicianNames}
             />
           </div>
         )}
@@ -98,7 +99,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
             tone="success"
             size="md"
             onClick={handleConfirm}
-            disabled={requiresTechnician && !technicianName}
+            disabled={requiresTechnician && technicianNames.length === 0}
           >
             Finalizar
           </BigButton>
