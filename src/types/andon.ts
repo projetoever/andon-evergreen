@@ -1,3 +1,5 @@
+import type { MachineStatus } from "./machine";
+
 export type AndonStatus = "none" | "open" | "in_progress" | "post_maintenance" | "finished";
 
 export type CallCategory = "maintenance" | "production";
@@ -21,6 +23,7 @@ export interface AndonCall {
   subtype: CallSubtype;
   status: AndonStatus;
   criticality: CallCriticality;
+  machineCondition: MachineStatus;
   openedAt: string;
   attendedAt: string | null;
   currentAttendanceStartedAt: string | null;

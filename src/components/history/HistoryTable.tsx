@@ -1,7 +1,7 @@
 import type { AndonCall } from "@/types/andon";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import { calculatePostMaintenanceMinutes, formatDurationMinutes } from "@/utils/durationUtils";
-import { getCallSubtypeLabel, getCriticalityLabel } from "@/utils/statusUtils";
+import { getCallSubtypeLabel, getCriticalityLabel, getMachineConditionLabel } from "@/utils/statusUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { History } from "lucide-react";
 
@@ -30,14 +30,16 @@ export function HistoryTable({ calls }: HistoryTableProps) {
             <th className="px-3 py-3">Criticidade</th>
             <th className="px-3 py-3">Aberto</th>
             <th className="px-3 py-3">Atendido</th>
+            <th className="px-3 py-3">Conclusão manutenção</th>
             <th className="px-3 py-3">Finalizado</th>
             <th className="px-3 py-3">Tempo de ANDON</th>
             <th className="px-3 py-3">Tempo de atendimento</th>
             <th className="px-3 py-3">Acompanhamento</th>
             <th className="px-3 py-3">Total</th>
-            <th className="px-3 py-3">Parada</th>
+            <th className="px-3 py-3">Em falha</th>
             <th className="px-3 py-3">Técnico(s)</th>
             <th className="px-3 py-3">Retornos</th>
+            <th className="px-3 py-3">Condição</th>
             <th className="px-3 py-3">Descrição</th>
           </tr>
         </thead>
@@ -57,6 +59,7 @@ export function HistoryTable({ calls }: HistoryTableProps) {
                 <td className="px-3 py-3">Criticidade: {getCriticalityLabel(c.criticality)}</td>
                 <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.openedAt)}</td>
                 <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.attendedAt)}</td>
+                <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.maintenanceCompletedAt)}</td>
                 <td className="px-3 py-3 font-mono text-xs">{formatDateTime(c.finishedAt)}</td>
                 <td className="px-3 py-3 text-warning">
                   {formatDurationMinutes(c.callWaitingMinutes)}
@@ -77,6 +80,7 @@ export function HistoryTable({ calls }: HistoryTableProps) {
                     ? `Retornos à manutenção: ${c.maintenanceReturnCount}`
                     : "—"}
                 </td>
+                <td className="px-3 py-3">{getMachineConditionLabel(c.machineCondition)}</td>
                 <td className="px-3 py-3 text-muted-foreground">{c.notes ?? "—"}</td>
               </tr>
             );

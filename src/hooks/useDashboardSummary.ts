@@ -8,8 +8,12 @@ export function useDashboardSummary(): DashboardSummary {
   const { machines, calls, settings } = useAndon();
   return useMemo(() => {
     const totalMachines = machines.length;
-    const runningMachines = machines.filter((m) => m.machineStatus === "running").length;
-    const stoppedMachines = totalMachines - runningMachines;
+    const runningMachines = machines.filter(
+      (m) => m.machineStatus === "running" && m.productionMode === "scheduled",
+    ).length;
+    const stoppedMachines = machines.filter(
+      (m) => m.machineStatus === "stopped" && m.productionMode === "scheduled",
+    ).length;
     const notScheduledMachines = machines.filter(
       (m) => m.productionMode === "not_scheduled",
     ).length;
@@ -28,6 +32,7 @@ export function useDashboardSummary(): DashboardSummary {
       }
     }
     for (const m of machines) {
+      if (m.productionMode !== "scheduled") continue;
       const stopped = calculateMachineStoppedMinutes(m, now);
       if (stopped >= settings.alertRules.machineStoppedCriticalMinutes) {
         criticalCalls += 1;

@@ -36,7 +36,7 @@ export function exportHistoryToCsv(calls: AndonCall[]): void {
     "Tempo aguardando (min)",
     "Tempo em atendimento (min)",
     "Tempo total (min)",
-    "Tempo máquina parada (min)",
+    "Tempo máquina em falha (min)",
     "Técnico",
     "Observações",
   ];

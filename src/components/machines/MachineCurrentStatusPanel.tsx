@@ -28,13 +28,13 @@ export function MachineCurrentStatusPanel({ machine }: MachineCurrentStatusPanel
         {machine.machineStatus === "stopped" && machine.stoppedAt && (
           <>
             <div>
-              <dt className="text-xs uppercase text-muted-foreground">Parada desde</dt>
+              <dt className="text-xs uppercase text-muted-foreground">Em falha desde</dt>
               <dd className="font-mono text-base text-foreground">
                 {formatDateTime(machine.stoppedAt)}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase text-muted-foreground">Tempo de parada atual</dt>
+              <dt className="text-xs uppercase text-muted-foreground">Tempo em falha</dt>
               <dd className="text-2xl font-bold text-danger">
                 {formatDurationMinutes(stoppedMin)}
               </dd>
@@ -43,7 +43,7 @@ export function MachineCurrentStatusPanel({ machine }: MachineCurrentStatusPanel
         )}
         {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
           <div>
-            <dt className="text-xs uppercase text-muted-foreground">Última parada</dt>
+            <dt className="text-xs uppercase text-muted-foreground">Última falha</dt>
             <dd className="text-2xl font-bold text-foreground">
               {formatDurationMinutes(machine.lastStopDurationMinutes)}
             </dd>

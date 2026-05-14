@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CheckCheck, RotateCcw, Wrench, Play, Square } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import type { AndonCall } from "@/types/andon";
 import { BigButton } from "@/components/common/BigButton";
@@ -62,11 +62,18 @@ export function MachineActionPanel({
           </BigButton>
         )}
         <BigButton tone="danger" onClick={onStop} disabled={machine.machineStatus === "stopped"}>
-          <Square className="h-6 w-6" /> Gerar Parada
+          <Square className="h-6 w-6" /> Gerar Falha
         </BigButton>
         <BigButton tone="success" onClick={onResume} disabled={machine.machineStatus === "running"}>
-          <Play className="h-6 w-6" /> Voltar a Rodar
+          <Play className="h-6 w-6" /> Pronta para Rodar
         </BigButton>
+        <Link
+          to="/machines/$machineId/call-history"
+          params={{ machineId: machine.id }}
+          className="inline-flex min-h-[72px] items-center justify-center gap-3 rounded-xl border border-border bg-background px-8 text-xl font-bold uppercase tracking-wider text-foreground hover:bg-accent"
+        >
+          <History className="h-6 w-6" /> Histórico de Chamados
+        </Link>
         <Link
           to="/"
           className="inline-flex min-h-[72px] items-center justify-center gap-3 rounded-xl border border-border bg-background px-8 text-xl font-bold uppercase tracking-wider text-foreground hover:bg-accent"

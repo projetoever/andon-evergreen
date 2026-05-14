@@ -6,6 +6,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { useTicker } from "@/hooks/useTicker";
 import { MachineStatusBadge } from "./MachineStatusBadge";
 import { AndonStatusBadge } from "./AndonStatusBadge";
+import { ProductionModeBadge } from "./ProductionModeBadge";
 import {
   calculateAttendanceMinutes,
   calculateCallWaitingMinutes,
@@ -44,6 +45,7 @@ export function MachineCard({
     ? calls.find((c) => c.id === machine.currentCallId)
     : null;
 
+  const isNotScheduled = machine.productionMode === "not_scheduled";
   const stoppedMin = calculateMachineStoppedMinutes(machine);
   const stoppedAlert = getAlertLevel(
     stoppedMin,
@@ -61,14 +63,15 @@ export function MachineCard({
       )
     : "normal";
 
-  const isCritical = stoppedAlert === "critical" || callAlert === "critical";
-  const isWarning = stoppedAlert === "warning" || callAlert === "warning";
+  const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
+  const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
 
   return (
     <div
       className={cn(
         "flex flex-col gap-3 rounded-xl border-2 bg-card p-4 shadow-md transition-all",
-        machine.machineStatus === "stopped" ? "border-danger/60" : "border-border",
+        machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
+        isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
       )}
@@ -91,6 +94,7 @@ export function MachineCard({
       <div className="flex flex-wrap gap-2">
         <MachineStatusBadge status={machine.machineStatus} />
         <AndonStatusBadge status={machine.andonStatus} />
+        <ProductionModeBadge productionMode={machine.productionMode} />
       </div>
 
       {currentCall && (
@@ -134,15 +138,21 @@ export function MachineCard({
         </div>
       )}
 
-      {machine.machineStatus === "stopped" && (
+      {machine.machineStatus === "stopped" && !isNotScheduled && (
         <div className="flex items-center gap-2 rounded-lg bg-danger/10 p-2 text-sm text-danger">
           <AlertTriangle className="h-4 w-4" />
-          Parada há <strong>{formatDurationMinutes(stoppedMin)}</strong>
+          Em falha há <strong>{formatDurationMinutes(stoppedMin)}</strong>
+        </div>
+      )}
+      {machine.machineStatus === "stopped" && isNotScheduled && (
+        <div className="flex items-center gap-2 rounded-lg bg-muted p-2 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4" />
+          Fora de produção
         </div>
       )}
       {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
         <div className="text-xs text-muted-foreground">
-          Última parada: {formatDurationMinutes(machine.lastStopDurationMinutes)}
+          Última falha: {formatDurationMinutes(machine.lastStopDurationMinutes)}
         </div>
       )}
 

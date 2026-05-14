@@ -1,10 +1,10 @@
 import type { AndonStatus, CallCriticality, CallSubtype } from "@/types/andon";
-import type { MachineStatus } from "@/types/machine";
+import type { MachineStatus, ProductionMode } from "@/types/machine";
 
 export type AlertLevel = "normal" | "warning" | "critical";
 
 export function getMachineStatusLabel(status: MachineStatus): string {
-  return status === "running" ? "Rodando" : "Parada";
+  return status === "running" ? "Pronta para rodar" : "Em falha";
 }
 
 export function getAndonStatusLabel(status: AndonStatus): string {
@@ -84,4 +84,12 @@ export function getAlertLevel(minutes: number, warning: number, critical: number
   if (minutes >= critical) return "critical";
   if (minutes >= warning) return "warning";
   return "normal";
+}
+
+export function getProductionModeLabel(productionMode: ProductionMode): string {
+  return productionMode === "scheduled" ? "Produção Programada" : "Fora de Produção";
+}
+
+export function getMachineConditionLabel(status: MachineStatus | null | undefined): string {
+  return status === "stopped" ? "Em falha" : "Pronta para rodar";
 }

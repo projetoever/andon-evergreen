@@ -7,12 +7,13 @@ import {
   Bell,
   Wrench,
   CheckCheck,
-  AlertTriangle,
+  CalendarX,
 } from "lucide-react";
 
 interface StatCardProps {
   label: string;
   value: number;
+  subtitle?: string;
   tone: "success" | "danger" | "warning" | "info" | "neutral";
   icon: React.ReactNode;
   pulse?: boolean;
@@ -26,7 +27,7 @@ const toneBg: Record<StatCardProps["tone"], string> = {
   neutral: "bg-muted text-muted-foreground",
 };
 
-function StatCard({ label, value, tone, icon, pulse }: StatCardProps) {
+function StatCard({ label, value, subtitle, tone, icon, pulse }: StatCardProps) {
   return (
     <div
       className={cn(
@@ -39,6 +40,7 @@ function StatCard({ label, value, tone, icon, pulse }: StatCardProps) {
       </div>
       <div className="flex flex-col">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
         <span className="text-3xl font-bold tabular-nums text-foreground">{value}</span>
       </div>
     </div>
@@ -46,7 +48,7 @@ function StatCard({ label, value, tone, icon, pulse }: StatCardProps) {
 }
 
 export function StatusSummaryBar() {
-  useTicker(5000); // re-render para atualizar criticalCalls
+  useTicker(5000); // re-render para atualizar tempos e contadores
   const summary = useDashboardSummary();
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
@@ -57,13 +59,13 @@ export function StatusSummaryBar() {
         icon={<Wrench className="h-7 w-7" />}
       />
       <StatCard
-        label="Rodando"
+        label="Pronta para rodar"
         value={summary.runningMachines}
         tone="success"
         icon={<CheckCircle2 className="h-7 w-7" />}
       />
       <StatCard
-        label="Paradas"
+        label="Em falha"
         value={summary.stoppedMachines}
         tone="danger"
         icon={<XCircle className="h-7 w-7" />}
@@ -87,11 +89,11 @@ export function StatusSummaryBar() {
         icon={<CheckCheck className="h-7 w-7" />}
       />
       <StatCard
-        label="Críticos"
-        value={summary.criticalCalls}
-        tone="danger"
-        icon={<AlertTriangle className="h-7 w-7" />}
-        pulse
+        label="Fora de produção"
+        subtitle="Programação"
+        value={summary.notScheduledMachines}
+        tone="neutral"
+        icon={<CalendarX className="h-7 w-7" />}
       />
     </div>
   );

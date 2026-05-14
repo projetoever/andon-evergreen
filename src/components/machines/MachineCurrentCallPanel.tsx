@@ -13,6 +13,7 @@ import {
   getCallSubtypeLabel,
   getCriticalityColorClass,
   getCriticalityLabel,
+  getMachineConditionLabel,
 } from "@/utils/statusUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
@@ -77,8 +78,18 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
           <dd className="font-mono text-sm text-foreground">{formatDateTime(call.attendedAt)}</dd>
         </div>
         <div>
+          <dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt>
+          <dd className="font-mono text-sm text-foreground">{formatDateTime(call.maintenanceCompletedAt)}</dd>
+        </div>
+        <div>
           <dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt>
           <dd className="font-mono text-sm text-foreground">{formatDateTime(call.finishedAt)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt>
+          <dd className="text-base font-bold text-foreground">
+            {getMachineConditionLabel(call.machineCondition)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aguardando</dt>

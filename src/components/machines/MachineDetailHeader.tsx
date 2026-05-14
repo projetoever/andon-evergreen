@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import { MachineStatusBadge } from "./MachineStatusBadge";
 import { AndonStatusBadge } from "./AndonStatusBadge";
+import { ProductionModeBadge } from "./ProductionModeBadge";
 
 interface MachineDetailHeaderProps {
   machine: Machine;
@@ -30,6 +31,7 @@ export function MachineDetailHeader({ machine }: MachineDetailHeaderProps) {
       <div className="flex flex-col gap-2 sm:flex-row">
         <MachineStatusBadge status={machine.machineStatus} className="text-base" />
         <AndonStatusBadge status={machine.andonStatus} className="text-base" />
+        <ProductionModeBadge productionMode={machine.productionMode} className="text-base" />
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ export interface OpenAndonCallParams {
   category: CallCategory;
   subtype: CallSubtype;
   criticality?: CallCriticality;
+  machineCondition?: MachineStatus;
 }
 
 export interface FinishAndonCallParams {
@@ -80,6 +81,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     postMaintenanceMinutes?: unknown;
     currentAttendanceStartedAt?: unknown;
     maintenanceReturnCount?: unknown;
+    machineCondition?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -99,6 +101,10 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
   return {
     ...call,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
+    machineCondition:
+      source.machineCondition === "stopped" || source.machineCondition === "running"
+        ? source.machineCondition
+        : "stopped",
     maintenanceCompletedAt,
     currentAttendanceStartedAt,
     technicianNames,
@@ -137,6 +143,7 @@ export function openAndonCall(
     subtype: params.subtype,
     status: "open",
     criticality: params.criticality ?? "medium",
+    machineCondition: params.machineCondition ?? machine.machineStatus,
     openedAt: now,
     attendedAt: null,
     currentAttendanceStartedAt: null,
@@ -155,7 +162,9 @@ export function openAndonCall(
     createdBy: "kiosk",
     updatedAt: now,
   };
-  const newMachines = machines.map((m) =>
+  const condition = params.machineCondition ?? machine.machineStatus;
+  const statusResult = updateMachineStatus(machines, params.machineId, condition);
+  const newMachines = statusResult.machines.map((m) =>
     m.id === params.machineId
       ? { ...m, andonStatus: "open" as const, currentCallId: call.id, lastStatusChangedAt: now }
       : m,
@@ -341,14 +350,10 @@ export function updateMachineStatus(
       };
       return next;
     }
-    // running -> fechar última parada aberta
+    // running -> fechar última em falha aberta
     const updatedHistory = m.stopHistory.map((s, idx) => {
       if (idx === 0 && s.resumedAt === null) {
-        const minutes = Math.max(
-          0,
-          Math.floor((new Date(now).getTime() - new Date(s.stoppedAt).getTime()) / 60000),
-        );
-        return { ...s, resumedAt: now, durationMinutes: minutes };
+        return { ...s, resumedAt: now, durationMinutes: diffMinutes(s.stoppedAt, now) };
       }
       return s;
     });
@@ -363,4 +368,45 @@ export function updateMachineStatus(
     };
   });
   return { machines: newMachines };
+}
+
+export function updateMachineProductionMode(
+  machines: Machine[],
+  machineId: string,
+  productionMode: ProductionMode,
+): { machines: Machine[]; machine: Machine } {
+  const now = new Date().toISOString();
+  let updatedMachine: Machine | null = null;
+  const newMachines = machines.map((m) => {
+    if (m.id !== machineId) return m;
+    if (m.productionMode === productionMode) {
+      updatedMachine = m;
+      return m;
+    }
+
+    const updatedHistory = m.productionHistory.map((event, index) => {
+      if (index === 0 && event.endedAt === null) {
+        return { ...event, endedAt: now, durationMinutes: diffMinutes(event.startedAt, now) };
+      }
+      return event;
+    });
+    const productionEvent: MachineProductionEvent = {
+      id: generateId("production"),
+      machineId: m.id,
+      productionMode,
+      startedAt: now,
+      endedAt: null,
+      durationMinutes: 0,
+    };
+    updatedMachine = {
+      ...m,
+      productionMode,
+      productionModeChangedAt: now,
+      productionHistory: [productionEvent, ...updatedHistory],
+    };
+    return updatedMachine;
+  });
+
+  if (!updatedMachine) throw new Error(`Máquina ${machineId} não encontrada`);
+  return { machines: newMachines, machine: updatedMachine };
 }

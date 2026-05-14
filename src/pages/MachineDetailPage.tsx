@@ -5,6 +5,7 @@ import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentS
 import { MachineCurrentCallPanel } from "@/components/machines/MachineCurrentCallPanel";
 import { MachineStopHistoryPanel } from "@/components/machines/MachineStopHistoryPanel";
 import { MachineActionPanel } from "@/components/machines/MachineActionPanel";
+import { ProductionSchedulePanel } from "@/components/machines/ProductionSchedulePanel";
 import { OpenCallModal } from "@/components/calls/OpenCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -23,6 +24,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     completeMaintenance,
     returnToMaintenance,
     changeMachineStatus,
+    updateMachineProductionMode,
   } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
@@ -74,16 +76,30 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
 
   function handleStop() {
     changeMachineStatus(machine!.id, "stopped");
-    toast.warning(`Máquina ${machine!.id} marcada como Parada`);
+    toast.warning(`Máquina ${machine!.id} marcada como Em falha`);
   }
   function handleResume() {
     changeMachineStatus(machine!.id, "running");
-    toast.success(`Máquina ${machine!.id} voltou a Rodar`);
+    toast.success(`Máquina ${machine!.id} marcada como Pronta para rodar`);
+  }
+
+  function handleProductionModeChange(productionMode: typeof machine.productionMode) {
+    try {
+      updateMachineProductionMode(machine!.id, productionMode);
+      toast.success(
+        productionMode === "scheduled"
+          ? "Máquina marcada com Produção Programada"
+          : "Máquina marcada como Fora de Produção",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
   }
 
   return (
     <div className="space-y-4">
       <MachineDetailHeader machine={machine} />
+      <ProductionSchedulePanel machine={machine} onChange={handleProductionModeChange} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MachineCurrentStatusPanel machine={machine} />
         <MachineCurrentCallPanel call={currentCall} />

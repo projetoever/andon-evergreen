@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AndonCall } from "@/types/andon";
-import type { Machine, MachineStatus } from "@/types/machine";
+import type { Machine, MachineStatus, ProductionMode } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
 import { LOCAL_STORAGE_KEYS } from "@/constants/localStorageKeys";
 import { APP_NAME, APP_VERSION } from "@/constants/appConstants";
@@ -55,6 +55,7 @@ interface AndonContextValue {
   returnToMaintenance: (callId: string) => AndonCall;
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
+  updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSoundConfigs: (configs: SoundConfig[]) => void;
   resetAllLocalData: () => void;
@@ -197,6 +198,15 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines],
   );
 
+  const updateMachineProductionMode = useCallback(
+    (machineId: string, productionMode: ProductionMode) => {
+      const result = andonService.updateMachineProductionMode(machines, machineId, productionMode);
+      setMachines(result.machines);
+      return result.machine;
+    },
+    [machines],
+  );
+
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -243,6 +253,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       returnToMaintenance,
       finishCall,
       changeMachineStatus,
+      updateMachineProductionMode,
       updateSettings,
       updateSoundConfigs,
       resetAllLocalData,
@@ -260,6 +271,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       returnToMaintenance,
       finishCall,
       changeMachineStatus,
+      updateMachineProductionMode,
       updateSettings,
       updateSoundConfigs,
       resetAllLocalData,

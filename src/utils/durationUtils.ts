@@ -5,7 +5,7 @@ export function diffMinutes(a: string | null | undefined, b: string | null | und
   if (!a || !b) return 0;
   const ms = new Date(b).getTime() - new Date(a).getTime();
   if (Number.isNaN(ms) || ms < 0) return 0;
-  return Math.floor(ms / 60000);
+  return ms / 60000;
 }
 
 export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): number {
@@ -48,9 +48,17 @@ export function calculateMachineStoppedMinutes(machine: Machine, nowIso?: string
 }
 
 export function formatDurationMinutes(minutes: number): string {
-  if (minutes <= 0) return "0 min";
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${m.toString().padStart(2, "0")}min`;
+  const totalSeconds = Math.max(0, Math.floor(minutes * 60));
+  const hours = Math.floor(totalSeconds / 3600);
+  const remainingSeconds = totalSeconds % 3600;
+  const mins = Math.floor(remainingSeconds / 60);
+  const secs = remainingSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours} h ${mins.toString().padStart(2, "0")} min ${secs
+      .toString()
+      .padStart(2, "0")} s`;
+  }
+  if (mins > 0) return `${mins} min ${secs.toString().padStart(2, "0")} s`;
+  return `${secs} s`;
 }

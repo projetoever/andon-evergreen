@@ -63,6 +63,7 @@ const callSchema = z
     subtype: callSubtypeSchema,
     status: andonStatusSchema,
     criticality: callCriticalitySchema.default("medium"),
+    machineCondition: machineStatusSchema.default("stopped"),
     openedAt: isoString,
     attendedAt: isoString.nullable(),
     currentAttendanceStartedAt: isoString.nullable().optional(),

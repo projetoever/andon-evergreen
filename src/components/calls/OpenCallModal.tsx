@@ -10,6 +10,7 @@ import {
 import { useAndon } from "@/context/AndonProvider";
 import { CALL_TYPE_OPTIONS, getCallTypeOption } from "@/data/callTypes";
 import type { CallCriticality, CallSubtype } from "@/types/andon";
+import type { MachineStatus } from "@/types/machine";
 import { CallTypeSelector } from "./CallTypeSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { toast } from "sonner";
@@ -30,14 +31,23 @@ export function OpenCallModal({
   const [machineId, setMachineId] = useState<string | null>(preselectedMachineId ?? null);
   const [subtype, setSubtype] = useState<CallSubtype | null>(null);
   const [criticality, setCriticality] = useState<CallCriticality>("medium");
+  const [machineCondition, setMachineCondition] = useState<MachineStatus>("running");
 
   useEffect(() => {
     if (open) {
       setMachineId(preselectedMachineId ?? null);
       setSubtype(null);
       setCriticality("medium");
+      const selectedMachine = machines.find((m) => m.id === preselectedMachineId);
+      setMachineCondition(selectedMachine?.machineStatus ?? "running");
     }
-  }, [open, preselectedMachineId]);
+  }, [open, preselectedMachineId, machines]);
+
+  useEffect(() => {
+    if (!open || !machineId) return;
+    const selectedMachine = machines.find((m) => m.id === machineId);
+    setMachineCondition(selectedMachine?.machineStatus ?? "running");
+  }, [open, machineId, machines]);
 
   const selectableMachines = machines.filter((m) => m.andonStatus === "none");
 
@@ -46,7 +56,13 @@ export function OpenCallModal({
     const opt = getCallTypeOption(subtype);
     if (!opt) return;
     try {
-      openCall({ machineId, category: opt.category, subtype, criticality: criticality ?? "medium" });
+      openCall({
+        machineId,
+        category: opt.category,
+        subtype,
+        criticality: criticality ?? "medium",
+        machineCondition,
+      });
       toast.success(`ANDON aberto para Máquina ${machineId}`);
       onOpenChange(false);
     } catch (err) {
@@ -105,6 +121,32 @@ export function OpenCallModal({
         )}
 
         <CallTypeSelector value={subtype} onChange={setSubtype} />
+
+        <div>
+          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Condição da máquina
+          </h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[
+              { value: "stopped" as const, label: "Em falha", className: "border-danger/40 bg-danger/10 text-danger" },
+              { value: "running" as const, label: "Pronta para rodar", className: "border-success/40 bg-success/10 text-success" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setMachineCondition(option.value)}
+                className={cn(
+                  "min-h-[72px] rounded-xl border-2 p-4 text-xl font-black uppercase tracking-wider transition-all hover:scale-[1.01]",
+                  machineCondition === option.value
+                    ? option.className + " shadow-lg ring-2 ring-ring/30"
+                    : "border-border bg-card text-foreground hover:bg-accent",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

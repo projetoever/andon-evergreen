@@ -31,7 +31,7 @@ export function SimulationPanel() {
                   (m.machineStatus === "running" ? "text-success" : "text-danger")
                 }
               >
-                {m.machineStatus === "running" ? "Rodando" : "Parada"}
+                {m.machineStatus === "running" ? "Pronta para rodar" : "Em falha"}
               </div>
             </div>
             {m.machineStatus === "running" ? (
@@ -40,7 +40,7 @@ export function SimulationPanel() {
                 size="md"
                 onClick={() => changeMachineStatus(m.id, "stopped")}
               >
-                <Square className="h-5 w-5" /> Parar
+                <Square className="h-5 w-5" /> Gerar falha
               </BigButton>
             ) : (
               <BigButton
@@ -48,7 +48,7 @@ export function SimulationPanel() {
                 size="md"
                 onClick={() => changeMachineStatus(m.id, "running")}
               >
-                <Play className="h-5 w-5" /> Voltar
+                <Play className="h-5 w-5" /> Pronta para rodar
               </BigButton>
             )}
           </div>

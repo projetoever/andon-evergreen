@@ -13,8 +13,8 @@ export function StopHistoryList({ stopHistory }: StopHistoryListProps) {
     return (
       <EmptyState
         icon={<History className="h-10 w-10" />}
-        title="Sem paradas registradas"
-        description="Quando a máquina parar, o evento será listado aqui."
+        title="Sem falhas registradas"
+        description="Quando a máquina entrar em falha, o evento será listado aqui."
       />
     );
   }

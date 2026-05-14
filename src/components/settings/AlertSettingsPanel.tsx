@@ -22,12 +22,12 @@ export function AlertSettingsPanel() {
     },
     {
       key: "machineStoppedWarningMinutes",
-      label: "Máquina parada — aviso (min)",
+      label: "Máquina em falha — aviso (min)",
       help: "Acima deste valor a máquina fica em amarelo.",
     },
     {
       key: "machineStoppedCriticalMinutes",
-      label: "Máquina parada — crítico (min)",
+      label: "Máquina em falha — crítico (min)",
       help: "Acima deste valor a máquina pulsa em vermelho.",
     },
   ];
