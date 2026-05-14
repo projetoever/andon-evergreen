@@ -14,7 +14,7 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
-import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId.call-history'
+import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -43,9 +43,9 @@ const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
 } as any)
 const MachinesMachineIdCallHistoryRoute =
   MachinesMachineIdCallHistoryRouteImport.update({
-    id: '/call-history',
-    path: '/call-history',
-    getParentRoute: () => MachinesMachineIdRoute,
+    id: '/machines/$machineId_/call-history',
+    path: '/machines/$machineId/call-history',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -53,7 +53,7 @@ export interface FileRoutesByFullPath {
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
-  '/machines/$machineId': typeof MachinesMachineIdRouteWithChildren
+  '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
 }
 export interface FileRoutesByTo {
@@ -61,7 +61,7 @@ export interface FileRoutesByTo {
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
-  '/machines/$machineId': typeof MachinesMachineIdRouteWithChildren
+  '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
 }
 export interface FileRoutesById {
@@ -70,8 +70,8 @@ export interface FileRoutesById {
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
-  '/machines/$machineId': typeof MachinesMachineIdRouteWithChildren
-  '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
+  '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/machines/$machineId_/call-history': typeof MachinesMachineIdCallHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,7 +97,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/machines/$machineId'
-    | '/machines/$machineId/call-history'
+    | '/machines/$machineId_/call-history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +105,8 @@ export interface RootRouteChildren {
   ActiveCallsRoute: typeof ActiveCallsRoute
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
-  MachinesMachineIdRoute: typeof MachinesMachineIdRouteWithChildren
+  MachinesMachineIdRoute: typeof MachinesMachineIdRoute
+  MachinesMachineIdCallHistoryRoute: typeof MachinesMachineIdCallHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,33 +146,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MachinesMachineIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/machines/$machineId/call-history': {
-      id: '/machines/$machineId/call-history'
-      path: '/call-history'
+    '/machines/$machineId_/call-history': {
+      id: '/machines/$machineId_/call-history'
+      path: '/machines/$machineId/call-history'
       fullPath: '/machines/$machineId/call-history'
       preLoaderRoute: typeof MachinesMachineIdCallHistoryRouteImport
-      parentRoute: typeof MachinesMachineIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface MachinesMachineIdRouteChildren {
-  MachinesMachineIdCallHistoryRoute: typeof MachinesMachineIdCallHistoryRoute
-}
-
-const MachinesMachineIdRouteChildren: MachinesMachineIdRouteChildren = {
-  MachinesMachineIdCallHistoryRoute: MachinesMachineIdCallHistoryRoute,
-}
-
-const MachinesMachineIdRouteWithChildren =
-  MachinesMachineIdRoute._addFileChildren(MachinesMachineIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActiveCallsRoute: ActiveCallsRoute,
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
-  MachinesMachineIdRoute: MachinesMachineIdRouteWithChildren,
+  MachinesMachineIdRoute: MachinesMachineIdRoute,
+  MachinesMachineIdCallHistoryRoute: MachinesMachineIdCallHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
