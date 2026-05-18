@@ -15,31 +15,32 @@ export function StopHistoryList({ stopHistory }: StopHistoryListProps) {
         icon={<History className="h-10 w-10" />}
         title="Sem falhas registradas"
         description="Quando a máquina entrar em falha, o evento será listado aqui."
+        className="px-6 py-8"
       />
     );
   }
   return (
-    <div className="overflow-hidden rounded-xl border border-border">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-left">
         <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
           <tr>
-            <th className="px-4 py-3">Início</th>
-            <th className="px-4 py-3">Retorno</th>
-            <th className="px-4 py-3">Duração</th>
-            <th className="px-4 py-3">Origem</th>
+            <th className="px-3 py-2">Início</th>
+            <th className="px-3 py-2">Retorno</th>
+            <th className="px-3 py-2">Duração</th>
+            <th className="px-3 py-2">Origem</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {stopHistory.map((s) => (
             <tr key={s.id} className="text-sm">
-              <td className="px-4 py-3 font-mono">{formatDateTime(s.stoppedAt)}</td>
-              <td className="px-4 py-3 font-mono">
+              <td className="px-3 py-2 font-mono">{formatDateTime(s.stoppedAt)}</td>
+              <td className="px-3 py-2 font-mono">
                 {s.resumedAt ? formatDateTime(s.resumedAt) : <span className="text-danger">Em curso</span>}
               </td>
-              <td className="px-4 py-3 font-bold">
+              <td className="px-3 py-2 font-bold">
                 {s.resumedAt ? formatDurationMinutes(s.durationMinutes) : "—"}
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
+              <td className="px-3 py-2 text-muted-foreground">
                 {s.source === "manual_simulation" ? "Simulação manual" : "Node-RED"}
               </td>
             </tr>

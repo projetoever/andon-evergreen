@@ -40,13 +40,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center gap-4">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 md:p-5">
+        <div className="flex items-center gap-3">
           <Link
             to="/machines/$machineId"
             params={{ machineId }}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-muted hover:bg-accent"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-muted hover:bg-accent md:h-11 md:w-11"
             aria-label="Voltar para a máquina"
           >
             <ArrowLeft className="h-6 w-6" />
@@ -55,7 +55,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             <div className="text-xs uppercase tracking-widest text-muted-foreground">
               Máquina {machine.id}
             </div>
-            <h1 className="text-3xl font-black uppercase tracking-wider text-foreground">
+            <h1 className="text-2xl font-black uppercase tracking-wider text-foreground md:text-3xl">
               Histórico de Chamados
             </h1>
             <p className="text-sm text-muted-foreground">{machine.name}</p>
@@ -70,7 +70,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
           description="Quando houver chamados para esta máquina, eles aparecerão aqui."
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {machineCalls.map((call) => {
             const technicianNames =
               call.technicianNames.length > 0
@@ -88,13 +88,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               call.status === "finished" ? call.totalCallMinutes : calculateTotalCallMinutes(call);
 
             return (
-              <article key={call.id} className="rounded-xl border border-border bg-card p-5">
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <article key={call.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <div className="text-xs uppercase tracking-widest text-muted-foreground">
                       {formatDateTime(call.openedAt)}
                     </div>
-                    <h2 className="text-xl font-black text-foreground">
+                    <h2 className="text-lg font-black text-foreground md:text-xl">
                       {call.category === "maintenance" ? "Manutenção" : "Produção"} · {getCallSubtypeLabel(call.subtype)}
                     </h2>
                   </div>
@@ -103,7 +103,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   </span>
                 </div>
 
-                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
                   <div><dt className="text-xs uppercase text-muted-foreground">Aberto em</dt><dd className="font-mono text-sm">{formatDateTime(call.openedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Atendido em</dt><dd className="font-mono text-sm">{formatDateTime(call.attendedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt><dd className="font-mono text-sm">{formatDateTime(call.maintenanceCompletedAt)}</dd></div>

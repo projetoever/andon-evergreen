@@ -69,7 +69,7 @@ export function MachineCard({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border-2 bg-card p-4 shadow-md transition-all",
+        "flex flex-col gap-2.5 rounded-xl border-2 bg-card p-3.5 shadow-md transition-all",
         machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
@@ -79,7 +79,7 @@ export function MachineCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-4xl font-black leading-none text-foreground">{machine.id}</div>
+          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">{machine.id}</div>
         </div>
         <Link
           to="/machines/$machineId"
@@ -98,7 +98,7 @@ export function MachineCard({
       </div>
 
       {currentCall && (
-        <div className="rounded-lg bg-muted/40 p-3 text-sm">
+        <div className="rounded-lg bg-muted/40 p-2.5 text-sm">
           <div className="flex items-center gap-2 font-bold uppercase text-foreground">
             {currentCall.category === "maintenance" ? (
               <Wrench className="h-4 w-4" />
@@ -156,7 +156,7 @@ export function MachineCard({
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-2">
+      <div className="mt-auto flex flex-col gap-1.5">
         {machine.andonStatus === "none" && (
           <BigButton tone="warning" size="md" onClick={() => onOpenCall?.(machine.id)}>
             Abrir ANDON

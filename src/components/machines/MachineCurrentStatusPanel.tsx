@@ -14,11 +14,11 @@ export function MachineCurrentStatusPanel({ machine }: MachineCurrentStatusPanel
   useTicker(1000);
   const stoppedMin = calculateMachineStoppedMinutes(machine);
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <h3 className="mb-4 text-lg font-bold uppercase tracking-wider text-foreground">
+    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+      <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
         Status atual da máquina
       </h3>
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Última mudança</dt>
           <dd className="font-mono text-base text-foreground">

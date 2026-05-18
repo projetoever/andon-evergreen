@@ -40,11 +40,11 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
     : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <h3 className="mb-4 text-lg font-bold uppercase tracking-wider text-foreground">
+    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+      <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
         Chamado atual
       </h3>
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold text-foreground">
@@ -65,7 +65,7 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
-          <dd className={"inline-flex rounded-md border px-2 py-1 text-base font-bold " + getCriticalityColorClass(call.criticality)}>
+          <dd className={"inline-flex rounded-md border px-2 py-1 text-sm font-bold md:text-base " + getCriticalityColorClass(call.criticality)}>
             Criticidade: {getCriticalityLabel(call.criticality)}
           </dd>
         </div>
@@ -93,19 +93,19 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aguardando</dt>
-          <dd className="text-2xl font-bold text-warning">{formatDurationMinutes(waiting)}</dd>
+          <dd className="text-xl font-bold text-warning md:text-2xl">{formatDurationMinutes(waiting)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Em atendimento</dt>
-          <dd className="text-2xl font-bold text-info">{formatDurationMinutes(attending)}</dd>
+          <dd className="text-xl font-bold text-info md:text-2xl">{formatDurationMinutes(attending)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Acompanhamento</dt>
-          <dd className="text-2xl font-bold text-info">{formatDurationMinutes(postMaintenance)}</dd>
+          <dd className="text-xl font-bold text-info md:text-2xl">{formatDurationMinutes(postMaintenance)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Total</dt>
-          <dd className="text-2xl font-bold text-foreground">{formatDurationMinutes(total)}</dd>
+          <dd className="text-xl font-bold text-foreground md:text-2xl">{formatDurationMinutes(total)}</dd>
         </div>
         {(call.technicianNames.length > 0 || call.technicianName) && (
           <div className="sm:col-span-2 lg:col-span-3">

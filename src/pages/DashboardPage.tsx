@@ -61,7 +61,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {!audioUnlocked && (
         <div className="flex flex-col items-center justify-between gap-3 rounded-xl border-2 border-warning bg-warning/10 p-4 text-warning sm:flex-row">
           <div className="flex items-center gap-3">
@@ -78,8 +78,8 @@ export function DashboardPage() {
 
       <StatusSummaryBar />
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">Máquinas</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold uppercase tracking-wider text-foreground md:text-2xl">Máquinas</h2>
         <BigButton tone="warning" size="md" onClick={() => handleOpenCall()}>
           <Plus className="h-5 w-5" /> Abrir ANDON
         </BigButton>
