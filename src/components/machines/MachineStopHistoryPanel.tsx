@@ -11,7 +11,7 @@ export function MachineStopHistoryPanel({ machine }: MachineStopHistoryPanelProp
       <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
         Histórico de falhas
       </h3>
-      <StopHistoryList stopHistory={machine.stopHistory} />
+      <StopHistoryList machineId={machine.id} stopHistory={machine.stopHistory} />
     </div>
   );
 }

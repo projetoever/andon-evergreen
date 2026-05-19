@@ -15,6 +15,7 @@ import {
   getCallSubtypeLabel,
   getCriticalityLabel,
   getMachineConditionLabel,
+  getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 
 interface MachineCallHistoryPageProps {
@@ -40,7 +41,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 md:p-5">
         <div className="flex items-center gap-3">
           <Link
@@ -88,10 +89,10 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               call.status === "finished" ? call.totalCallMinutes : calculateTotalCallMinutes(call);
 
             return (
-              <article key={call.id} className="rounded-xl border border-border bg-card p-4">
+              <article key={call.id} className="rounded-xl border border-border bg-card p-4 md:p-5">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                    <div className="text-sm uppercase tracking-widest text-muted-foreground">
                       {formatDateTime(call.openedAt)}
                     </div>
                     <h2 className="text-lg font-black text-foreground md:text-xl">
@@ -103,8 +104,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   </span>
                 </div>
 
-                <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
-                  <div><dt className="text-xs uppercase text-muted-foreground">Aberto em</dt><dd className="font-mono text-sm">{formatDateTime(call.openedAt)}</dd></div>
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div><dt className="text-xs uppercase text-muted-foreground">Aberto em</dt><dd className="font-mono text-base">{formatDateTime(call.openedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Atendido em</dt><dd className="font-mono text-sm">{formatDateTime(call.attendedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt><dd className="font-mono text-sm">{formatDateTime(call.maintenanceCompletedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt><dd className="font-mono text-sm">{formatDateTime(call.finishedAt)}</dd></div>
@@ -117,7 +118,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo total</dt><dd className="font-bold">{formatDurationMinutes(totalMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Técnico</dt><dd className="font-bold">{technicianNames}</dd></div>
-                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{call.technicianArea ?? "Não informado"}</dd></div>
+                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Retornos à manutenção</dt><dd className="font-bold">{call.maintenanceReturnCount}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>
