@@ -93,3 +93,21 @@ export function getProductionModeLabel(productionMode: ProductionMode): string {
 export function getMachineConditionLabel(status: MachineStatus | null | undefined): string {
   return status === "stopped" ? "Em falha" : "Pronta para rodar";
 }
+
+export function getTechnicianAreaLabel(area: string | null | undefined): string {
+  if (!area) return "Não informado";
+  switch (area) {
+    case "electrical":
+      return "Elétrica";
+    case "mechanical":
+      return "Mecânica";
+    case "hot_melt":
+      return "Hot Melt";
+    case "quality":
+      return "Qualidade";
+    case "leadership":
+      return "Liderança";
+    default:
+      return area.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+}

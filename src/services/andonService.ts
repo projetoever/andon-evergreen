@@ -410,3 +410,30 @@ export function updateMachineProductionMode(
   if (!updatedMachine) throw new Error(`Máquina ${machineId} não encontrada`);
   return { machines: newMachines, machine: updatedMachine };
 }
+
+export function updateMachineStopEventDescription(
+  machines: Machine[],
+  machineId: string,
+  stopEventId: string,
+  failureDescription: string,
+): { machines: Machine[]; machine: Machine } {
+  const machine = machines.find((m) => m.id === machineId);
+  if (!machine) throw new Error(`Máquina ${machineId} não encontrada`);
+  const stopEvent = machine.stopHistory.find((event) => event.id === stopEventId);
+  if (!stopEvent) throw new Error("Evento de falha não encontrado");
+
+  const nextDescription = failureDescription.trim();
+  const updatedMachines = machines.map((m) =>
+    m.id === machineId
+      ? {
+          ...m,
+          stopHistory: m.stopHistory.map((event) =>
+            event.id === stopEventId
+              ? { ...event, failureDescription: nextDescription || undefined }
+              : event,
+          ),
+        }
+      : m,
+  );
+  return { machines: updatedMachines, machine: updatedMachines.find((m) => m.id === machineId)! };
+}

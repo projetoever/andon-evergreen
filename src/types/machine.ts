@@ -13,6 +13,7 @@ export interface MachineStopEvent {
   resumedAt: string | null;
   durationMinutes: number;
   source: StopSource;
+  failureDescription?: string;
 }
 
 export interface MachineProductionEvent {

@@ -78,7 +78,7 @@ export function MachineCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
+        <div className="text-sm uppercase tracking-widest text-muted-foreground">Máquina</div>
           <div className="text-3xl font-black leading-none text-foreground md:text-4xl">{machine.id}</div>
         </div>
         <Link
@@ -151,7 +151,7 @@ export function MachineCard({
         </div>
       )}
       {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Última falha: {formatDurationMinutes(machine.lastStopDurationMinutes)}
         </div>
       )}
