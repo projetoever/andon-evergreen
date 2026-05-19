@@ -15,6 +15,7 @@ import {
   getCallSubtypeLabel,
   getCriticalityLabel,
   getMachineConditionLabel,
+  getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 
 interface MachineCallHistoryPageProps {
@@ -40,7 +41,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 md:p-5">
         <div className="flex items-center gap-3">
           <Link
@@ -70,7 +71,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
           description="Quando houver chamados para esta máquina, eles aparecerão aqui."
         />
       ) : (
-        <div className="space-y-2.5">
+        <div className="max-h-[66vh] space-y-2.5 overflow-y-auto pr-1">
           {machineCalls.map((call) => {
             const technicianNames =
               call.technicianNames.length > 0
@@ -91,19 +92,19 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <article key={call.id} className="rounded-xl border border-border bg-card p-4">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                    <div className="text-sm uppercase tracking-widest text-muted-foreground">
                       {formatDateTime(call.openedAt)}
                     </div>
-                    <h2 className="text-lg font-black text-foreground md:text-xl">
+                    <h2 className="text-xl font-black text-foreground">
                       {call.category === "maintenance" ? "Manutenção" : "Produção"} · {getCallSubtypeLabel(call.subtype)}
                     </h2>
                   </div>
-                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="rounded-full bg-muted px-3 py-1 text-sm font-bold uppercase tracking-wider text-muted-foreground">
                     {getAndonStatusLabel(call.status)}
                   </span>
                 </div>
 
-                <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-2.5 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
                   <div><dt className="text-xs uppercase text-muted-foreground">Aberto em</dt><dd className="font-mono text-sm">{formatDateTime(call.openedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Atendido em</dt><dd className="font-mono text-sm">{formatDateTime(call.attendedAt)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt><dd className="font-mono text-sm">{formatDateTime(call.maintenanceCompletedAt)}</dd></div>
@@ -117,7 +118,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo total</dt><dd className="font-bold">{formatDurationMinutes(totalMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Técnico</dt><dd className="font-bold">{technicianNames}</dd></div>
-                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{call.technicianArea ?? "Não informado"}</dd></div>
+                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Retornos à manutenção</dt><dd className="font-bold">{call.maintenanceReturnCount}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>

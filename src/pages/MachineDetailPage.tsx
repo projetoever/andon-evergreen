@@ -25,6 +25,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     returnToMaintenance,
     changeMachineStatus,
     updateMachineProductionMode,
+    updateMachineStopEventDescription,
   } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
@@ -97,7 +98,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <MachineDetailHeader machine={machine} />
       <ProductionSchedulePanel machine={machine} onChange={handleProductionModeChange} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
@@ -115,7 +116,12 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
         onStop={handleStop}
         onResume={handleResume}
       />
-      <MachineStopHistoryPanel machine={machine} />
+      <MachineStopHistoryPanel
+        machine={machine}
+        onUpdateFailureDescription={(stopEventId, failureDescription) =>
+          updateMachineStopEventDescription(machine.id, stopEventId, failureDescription)
+        }
+      />
 
       <OpenCallModal
         open={openCallDialog}
