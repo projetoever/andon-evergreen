@@ -69,7 +69,7 @@ export function MachineCard({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border-2 bg-card p-3.5 shadow-md transition-all",
+        "flex flex-col gap-2 rounded-xl border-2 bg-card p-3 shadow-md transition-all",
         machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
@@ -79,7 +79,7 @@ export function MachineCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">{machine.id}</div>
+          <div className="text-3xl font-black leading-none text-foreground">{machine.id}</div>
         </div>
         <Link
           to="/machines/$machineId"
@@ -156,7 +156,7 @@ export function MachineCard({
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-1.5">
+      <div className="mt-auto flex flex-col gap-1">
         {machine.andonStatus === "none" && (
           <BigButton tone="warning" size="md" onClick={() => onOpenCall?.(machine.id)}>
             Abrir ANDON
@@ -190,7 +190,7 @@ export function MachineCard({
         <Link
           to="/machines/$machineId"
           params={{ machineId: machine.id }}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent"
+          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent"
         >
           Ver Máquina
         </Link>

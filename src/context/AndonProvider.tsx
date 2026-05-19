@@ -56,6 +56,11 @@ interface AndonContextValue {
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
+  updateMachineStopEventDescription: (
+    machineId: string,
+    stopEventId: string,
+    failureDescription: string,
+  ) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSoundConfigs: (configs: SoundConfig[]) => void;
   resetAllLocalData: () => void;
@@ -206,6 +211,25 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     },
     [machines],
   );
+  const updateMachineStopEventDescription = useCallback(
+    (machineId: string, stopEventId: string, failureDescription: string) => {
+      setMachines((prevMachines) =>
+        prevMachines.map((machine) =>
+          machine.id !== machineId
+            ? machine
+            : {
+                ...machine,
+                stopHistory: machine.stopHistory.map((stopEvent) =>
+                  stopEvent.id !== stopEventId
+                    ? stopEvent
+                    : { ...stopEvent, failureDescription: failureDescription.trim() },
+                ),
+              },
+        ),
+      );
+    },
+    [],
+  );
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
@@ -254,6 +278,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       finishCall,
       changeMachineStatus,
       updateMachineProductionMode,
+      updateMachineStopEventDescription,
       updateSettings,
       updateSoundConfigs,
       resetAllLocalData,
@@ -272,6 +297,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       finishCall,
       changeMachineStatus,
       updateMachineProductionMode,
+      updateMachineStopEventDescription,
       updateSettings,
       updateSoundConfigs,
       resetAllLocalData,
