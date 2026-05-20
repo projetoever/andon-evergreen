@@ -61,12 +61,12 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-3.5">
       {!audioUnlocked && (
-        <div className="flex flex-col items-center justify-between gap-3 rounded-xl border-2 border-warning bg-warning/10 p-4 text-warning sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-2.5 rounded-xl border-2 border-warning bg-warning/10 px-3 py-2.5 text-warning sm:flex-row">
           <div className="flex items-center gap-3">
-            <Volume2 className="h-6 w-6" />
-            <span className="text-base font-bold">
+            <Volume2 className="h-5 w-5" />
+            <span className="text-sm font-bold md:text-base">
               Toque em "Iniciar Painel" para liberar os sons dos chamados.
             </span>
           </div>
@@ -78,10 +78,10 @@ export function DashboardPage() {
 
       <StatusSummaryBar />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold uppercase tracking-wider text-foreground md:text-2xl">Máquinas</h2>
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <h2 className="text-lg font-black uppercase tracking-wider text-foreground md:text-xl">Máquinas</h2>
         <BigButton tone="warning" size="md" onClick={() => handleOpenCall()}>
-          <Plus className="h-5 w-5" /> Abrir ANDON
+          <Plus className="h-4 w-4" /> Abrir ANDON
         </BigButton>
       </div>
 
