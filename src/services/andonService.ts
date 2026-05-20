@@ -410,3 +410,23 @@ export function updateMachineProductionMode(
   if (!updatedMachine) throw new Error(`Máquina ${machineId} não encontrada`);
   return { machines: newMachines, machine: updatedMachine };
 }
+
+export function updateMachineStopEventDescription(
+  machines: Machine[],
+  machineId: string,
+  stopEventId: string,
+  failureDescription: string,
+): { machines: Machine[]; machine: Machine } {
+  let updatedMachine: Machine | null = null;
+  const newMachines = machines.map((m) => {
+    if (m.id !== machineId) return m;
+    const updatedHistory = m.stopHistory.map((event) =>
+      event.id === stopEventId ? { ...event, failureDescription } : event,
+    );
+    updatedMachine = { ...m, stopHistory: updatedHistory };
+    return updatedMachine;
+  });
+
+  if (!updatedMachine) throw new Error(`Máquina ${machineId} não encontrada`);
+  return { machines: newMachines, machine: updatedMachine };
+}
