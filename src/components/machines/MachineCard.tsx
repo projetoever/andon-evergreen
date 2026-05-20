@@ -69,7 +69,7 @@ export function MachineCard({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border-2 bg-card p-3.5 shadow-md transition-all",
+        "flex min-h-[330px] flex-col gap-2 rounded-xl border-2 bg-card p-3 shadow-md transition-all",
         machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
@@ -78,28 +78,28 @@ export function MachineCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">{machine.id}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Máquina</div>
+          <div className="text-[2rem] font-black leading-none text-foreground md:text-[2.2rem]">{machine.id}</div>
         </div>
         <Link
           to="/machines/$machineId"
           params={{ machineId: machine.id }}
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
           aria-label="Ver máquina"
         >
           <ChevronRight className="h-6 w-6" />
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         <MachineStatusBadge status={machine.machineStatus} />
         <AndonStatusBadge status={machine.andonStatus} />
         <ProductionModeBadge productionMode={machine.productionMode} />
       </div>
 
       {currentCall && (
-        <div className="rounded-lg bg-muted/40 p-2.5 text-sm">
-          <div className="flex items-center gap-2 font-bold uppercase text-foreground">
+        <div className="rounded-lg bg-muted/40 p-2 text-sm">
+          <div className="flex items-center gap-1.5 text-sm font-bold uppercase text-foreground">
             {currentCall.category === "maintenance" ? (
               <Wrench className="h-4 w-4" />
             ) : (
@@ -109,7 +109,7 @@ export function MachineCard({
           </div>
           <div
             className={
-              "mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-bold " +
+              "mt-1.5 inline-flex rounded-md border px-2 py-0.5 text-xs font-bold " +
               getCriticalityColorClass(currentCall.criticality)
             }
           >
@@ -156,7 +156,7 @@ export function MachineCard({
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-1.5">
+      <div className="mt-auto flex flex-col gap-1.5 pt-0.5">
         {machine.andonStatus === "none" && (
           <BigButton tone="warning" size="md" onClick={() => onOpenCall?.(machine.id)}>
             Abrir ANDON
@@ -190,7 +190,7 @@ export function MachineCard({
         <Link
           to="/machines/$machineId"
           params={{ machineId: machine.id }}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent"
         >
           Ver Máquina
         </Link>
