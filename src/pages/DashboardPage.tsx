@@ -6,7 +6,7 @@ import { OpenCallModal } from "@/components/calls/OpenCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { BigButton } from "@/components/common/BigButton";
 import { unlockAudio } from "@/services/soundService";
-import { Volume2, Plus } from "lucide-react";
+import { Volume2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function DashboardPage() {
@@ -80,9 +80,6 @@ export function DashboardPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold uppercase tracking-wider text-foreground md:text-2xl">Máquinas</h2>
-        <BigButton tone="warning" size="md" onClick={() => handleOpenCall()}>
-          <Plus className="h-5 w-5" /> Abrir ANDON
-        </BigButton>
       </div>
 
       <MachineGrid
