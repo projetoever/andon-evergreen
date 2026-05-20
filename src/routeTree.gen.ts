@@ -14,6 +14,7 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
+import { Route as MachinesMachineIdFailureHistoryRouteImport } from './routes/machines.$machineId_.failure-history'
 import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -41,6 +42,12 @@ const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
   path: '/machines/$machineId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MachinesMachineIdFailureHistoryRoute =
+  MachinesMachineIdFailureHistoryRouteImport.update({
+    id: '/machines/$machineId_/failure-history',
+    path: '/machines/$machineId/failure-history',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MachinesMachineIdCallHistoryRoute =
   MachinesMachineIdCallHistoryRouteImport.update({
     id: '/machines/$machineId_/call-history',
@@ -55,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
+  '/machines/$machineId/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -63,6 +71,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
+  '/machines/$machineId/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -72,6 +81,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId_/call-history': typeof MachinesMachineIdCallHistoryRoute
+  '/machines/$machineId_/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -82,6 +92,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId/call-history'
+    | '/machines/$machineId/failure-history'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -90,6 +101,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId/call-history'
+    | '/machines/$machineId/failure-history'
   id:
     | '__root__'
     | '/'
@@ -98,6 +110,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId_/call-history'
+    | '/machines/$machineId_/failure-history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -107,6 +120,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   MachinesMachineIdRoute: typeof MachinesMachineIdRoute
   MachinesMachineIdCallHistoryRoute: typeof MachinesMachineIdCallHistoryRoute
+  MachinesMachineIdFailureHistoryRoute: typeof MachinesMachineIdFailureHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +160,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MachinesMachineIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/machines/$machineId_/failure-history': {
+      id: '/machines/$machineId_/failure-history'
+      path: '/machines/$machineId/failure-history'
+      fullPath: '/machines/$machineId/failure-history'
+      preLoaderRoute: typeof MachinesMachineIdFailureHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/machines/$machineId_/call-history': {
       id: '/machines/$machineId_/call-history'
       path: '/machines/$machineId/call-history'
@@ -163,6 +184,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   MachinesMachineIdRoute: MachinesMachineIdRoute,
   MachinesMachineIdCallHistoryRoute: MachinesMachineIdCallHistoryRoute,
+  MachinesMachineIdFailureHistoryRoute: MachinesMachineIdFailureHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

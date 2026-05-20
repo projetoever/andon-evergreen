@@ -80,9 +80,6 @@ export function DashboardPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-1.5">
         <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
-        <BigButton tone="warning" size="sm" onClick={() => handleOpenCall()}>
-          <Plus className="h-4 w-4" /> Abrir ANDON
-        </BigButton>
       </div>
 
       <MachineGrid

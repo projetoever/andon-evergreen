@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square, FileWarning } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import type { AndonCall } from "@/types/andon";
 import { BigButton } from "@/components/common/BigButton";
@@ -73,6 +73,13 @@ export function MachineActionPanel({
           className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-base"
         >
           <History className="h-6 w-6" /> Histórico de Chamados
+        </Link>
+        <Link
+          to="/machines/$machineId/failure-history"
+          params={{ machineId: machine.id }}
+          className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-base"
+        >
+          <FileWarning className="h-6 w-6" /> Histórico de Falhas
         </Link>
         <Link
           to="/"
