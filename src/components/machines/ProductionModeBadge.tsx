@@ -15,12 +15,12 @@ export function ProductionModeBadge({ productionMode, className }: ProductionMod
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wider",
+        "inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide",
         isScheduled ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
         className,
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5" />
       {getProductionModeLabel(productionMode)}
     </span>
   );

@@ -19,7 +19,7 @@ export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wider",
+        "inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide",
         TONE[status],
         className,
       )}
