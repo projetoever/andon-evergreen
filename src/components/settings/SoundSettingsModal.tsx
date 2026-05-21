@@ -8,7 +8,14 @@ import { getSoundConfig, listSoundConfigs, removeSoundConfig, saveSoundConfig } 
 import { testAndonSound } from "@/services/soundService";
 import { toast } from "sonner";
 
-interface SoundSettingsModalProps { open: boolean; onOpenChange: (open: boolean) => void }
+interface SoundSettingsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const selectClassName =
+  "mt-1 w-full rounded-md border border-slate-600 bg-slate-950 p-2 text-slate-100 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500";
+const optionClassName = "bg-slate-950 text-white";
 
 export function SoundSettingsModal({ open, onOpenChange }: SoundSettingsModalProps) {
   const { machines } = useAndon();
@@ -26,7 +33,9 @@ export function SoundSettingsModal({ open, onOpenChange }: SoundSettingsModalPro
     setCurrentConfig(config);
   }
 
-  useEffect(() => { if (open) void refresh(); }, [open, machineId, subtype]);
+  useEffect(() => {
+    if (open) void refresh();
+  }, [open, machineId, subtype]);
 
   async function handleSave() {
     if (!selectedFile) return toast.error("Nenhum som configurado para esta seleção.");
@@ -50,18 +59,67 @@ export function SoundSettingsModal({ open, onOpenChange }: SoundSettingsModalPro
     if (!ok) toast.message("Nenhum som configurado para esta seleção.");
   }
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-    <DialogHeader><DialogTitle>Configuração de Sons do ANDON</DialogTitle><DialogDescription>Configure um som específico por máquina e tipo de chamado.</DialogDescription></DialogHeader>
-    <div className="grid gap-3 md:grid-cols-2">
-      <label className="text-sm font-bold">Máquina<select className="mt-1 w-full rounded border p-2" value={machineId} onChange={(e)=>setMachineId(e.target.value)}><option value="default">Padrão para todas</option>{machines.map((m)=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-      <label className="text-sm font-bold">Tipo de chamado<select className="mt-1 w-full rounded border p-2" value={subtype} onChange={(e)=>setSubtype(e.target.value as any)}>{CALL_TYPE_OPTIONS.map((o)=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
-    </div>
-    <div className="space-y-2 rounded border p-3"><div className="text-sm font-bold">Arquivo de áudio</div><input type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" onChange={(e)=>setSelectedFile(e.target.files?.[0] ?? null)} />
-      {selectedFile && <p className="text-xs">{selectedFile.name} · {(selectedFile.size/1024).toFixed(1)} KB</p>}
-      {currentConfig && <p className="text-xs text-muted-foreground">Atual: {currentConfig.fileName} · {(currentConfig.sizeBytes/1024).toFixed(1)} KB · {new Date(currentConfig.updatedAt).toLocaleString("pt-BR")}</p>}
-      {!currentConfig && !selectedFile && <p className="text-xs text-muted-foreground">Nenhum som configurado</p>}
-    </div>
-    <div className="flex flex-wrap gap-2"><BigButton tone="info" size="md" onClick={()=>void handleTest()}>Testar som</BigButton><BigButton tone="danger" size="md" onClick={()=>void handleRemove()}>Remover som</BigButton><BigButton tone="primary" size="md" onClick={()=>void handleSave()}>Salvar</BigButton><BigButton tone="neutral" size="md" onClick={()=>onOpenChange(false)}>Cancelar</BigButton></div>
-    <div className="space-y-1"><div className="text-sm font-bold">Sons configurados</div>{configs.slice(0,10).map((cfg)=><div className="text-xs" key={cfg.id}>{cfg.machineId === "default" ? "Padrão" : `Máquina ${cfg.machineId}`} · {CALL_TYPE_OPTIONS.find((o)=>o.id===cfg.subtype)?.label ?? cfg.subtype} · {cfg.fileName}</div>)}</div>
-  </DialogContent></Dialog>;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Configuração de Sons do ANDON</DialogTitle>
+          <DialogDescription>Configure um som específico por máquina e tipo de chamado.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-sm font-bold">
+            Máquina
+            <select className={selectClassName} value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+              <option className={optionClassName} value="default">Padrão para todas</option>
+              {machines.map((m) => (
+                <option className={optionClassName} key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-bold">
+            Tipo de chamado
+            <select className={selectClassName} value={subtype} onChange={(e) => setSubtype(e.target.value as any)}>
+              {CALL_TYPE_OPTIONS.map((o) => (
+                <option className={optionClassName} key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="space-y-2 rounded border p-3">
+          <div className="text-sm font-bold">Arquivo de áudio</div>
+          <input
+            type="file"
+            accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
+          {selectedFile && <p className="text-xs">{selectedFile.name} · {(selectedFile.size / 1024).toFixed(1)} KB</p>}
+          {currentConfig && (
+            <p className="text-xs text-muted-foreground">
+              Atual: {currentConfig.fileName} · {(currentConfig.sizeBytes / 1024).toFixed(1)} KB · {new Date(currentConfig.updatedAt).toLocaleString("pt-BR")}
+            </p>
+          )}
+          {!currentConfig && !selectedFile && <p className="text-xs text-muted-foreground">Nenhum som configurado</p>}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <BigButton tone="info" size="md" onClick={() => void handleTest()}>Testar som</BigButton>
+          <BigButton tone="danger" size="md" onClick={() => void handleRemove()}>Remover som</BigButton>
+          <BigButton tone="primary" size="md" onClick={() => void handleSave()}>Salvar</BigButton>
+          <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>Cancelar</BigButton>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-sm font-bold">Sons configurados</div>
+          {configs.slice(0, 10).map((cfg) => (
+            <div className="text-xs" key={cfg.id}>
+              {cfg.machineId === "default" ? "Padrão" : `Máquina ${cfg.machineId}`} · {CALL_TYPE_OPTIONS.find((o) => o.id === cfg.subtype)?.label ?? cfg.subtype} · {cfg.fileName}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
