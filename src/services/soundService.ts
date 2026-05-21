@@ -2,6 +2,7 @@ import type { CallSubtype, SoundKey } from "@/types/andon";
 import { getCallTypeOption } from "@/data/callTypes";
 import { DEFAULT_SOUND_MACHINE_ID, type SoundMachineId } from "@/types/sound";
 import { getSoundBlob } from "@/services/soundStorageService";
+import { isMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 
 const soundUrls: Record<SoundKey, string | null> = {
   electrical: null,
@@ -34,6 +35,7 @@ const repeatTimers: Partial<Record<SoundKey, number>> = {};
 let unlocked = false;
 let currentVolume = 0.8;
 let currentAndonAudio: HTMLAudioElement | null = null;
+let currentAndonMachineId: string | null = null;
 
 function ensureAudio(key: SoundKey): HTMLAudioElement | null {
   const url = soundUrls[key];
@@ -70,6 +72,7 @@ function stopCurrentAndonAudio(): void {
     // ignore
   }
   currentAndonAudio = null;
+  currentAndonMachineId = null;
 }
 
 async function createCustomAudio(machineId: SoundMachineId, subtype: CallSubtype): Promise<HTMLAudioElement | null> {
@@ -113,6 +116,7 @@ export function stopCallSound(key: SoundKey): void {
     audio.currentTime = 0;
     if (currentAndonAudio === audio) {
       currentAndonAudio = null;
+  currentAndonMachineId = null;
     }
   }
 }
@@ -124,15 +128,18 @@ export function stopAllSounds(): void {
   stopCurrentAndonAudio();
 }
 
-export function stopAndonSound(): void {
-  stopCurrentAndonAudio();
-  for (const key of Object.keys(soundUrls) as SoundKey[]) {
-    stopTimer(key);
+export function stopAndonSound(machineId?: string): void {
+  if (!machineId || currentAndonMachineId === machineId) {
+    stopCurrentAndonAudio();
+    for (const key of Object.keys(soundUrls) as SoundKey[]) {
+      stopTimer(key);
+    }
   }
 }
 
 export async function playAndonSound(machineId: string, subtype: CallSubtype, repeatIntervalSeconds = 10): Promise<void> {
   if (!unlocked) return;
+  if (!isMachineSoundEnabled(machineId)) return;
   const callType = getCallTypeOption(subtype);
   if (!callType) return;
   const key = callType.soundKey;
@@ -145,6 +152,7 @@ export async function playAndonSound(machineId: string, subtype: CallSubtype, re
 
   try {
     currentAndonAudio = audio;
+    currentAndonMachineId = machineId;
     await playAudio(audio);
   } catch (err) {
     console.warn("[sound] play failed", err);

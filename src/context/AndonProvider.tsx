@@ -154,7 +154,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   const attendCall = useCallback(
     (callId: string) => {
-      stopAndonSound();
+      const currentCall = calls.find((call) => call.id === callId);
+      stopAndonSound(currentCall?.machineId);
       const result = andonService.attendAndonCall(machines, calls, callId);
       setMachines(result.machines);
       setCalls(result.calls);

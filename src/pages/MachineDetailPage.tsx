@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentStatusPanel";
@@ -11,6 +11,8 @@ import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { EmptyState } from "@/components/common/EmptyState";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
+import { stopAndonSound } from "@/services/soundService";
 
 interface MachineDetailPageProps {
   machineId: string;
@@ -29,6 +31,7 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
+  const [machineSoundEnabled, setMachineSoundEnabledState] = useState(true);
 
   if (!machine) {
     return (
@@ -39,6 +42,10 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
       />
     );
   }
+
+  useEffect(() => {
+    setMachineSoundEnabledState(isMachineSoundEnabled(machine.id));
+  }, [machine.id]);
 
   const currentCall = machine.currentCallId
     ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
@@ -96,9 +103,25 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     }
   }
 
+  function handleToggleMachineSound() {
+    const next = !machineSoundEnabled;
+    setMachineSoundEnabled(machine.id, next);
+    setMachineSoundEnabledState(next);
+    if (!next) {
+      stopAndonSound(machine.id);
+      toast.success("Som do ANDON silenciado para esta máquina");
+      return;
+    }
+    toast.success("Som do ANDON ativado para esta máquina");
+  }
+
   return (
     <div className="space-y-3">
-      <MachineDetailHeader machine={machine} />
+      <MachineDetailHeader
+        machine={machine}
+        machineSoundEnabled={machineSoundEnabled}
+        onToggleMachineSound={handleToggleMachineSound}
+      />
       <ProductionSchedulePanel machine={machine} onChange={handleProductionModeChange} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <MachineCurrentStatusPanel machine={machine} />
