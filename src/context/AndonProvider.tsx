@@ -22,6 +22,7 @@ import {
   playAndonSound,
   setSoundVolume,
   stopAllSounds,
+  stopAndonSound,
   stopCallSound,
 } from "@/services/soundService";
 import { getCallTypeOption } from "@/data/callTypes";
@@ -153,6 +154,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   const attendCall = useCallback(
     (callId: string) => {
+      stopAndonSound();
       const result = andonService.attendAndonCall(machines, calls, callId);
       setMachines(result.machines);
       setCalls(result.calls);

@@ -33,6 +33,7 @@ const audioElements: Partial<Record<SoundKey, HTMLAudioElement>> = {};
 const repeatTimers: Partial<Record<SoundKey, number>> = {};
 let unlocked = false;
 let currentVolume = 0.8;
+let currentAndonAudio: HTMLAudioElement | null = null;
 
 function ensureAudio(key: SoundKey): HTMLAudioElement | null {
   const url = soundUrls[key];
@@ -58,6 +59,17 @@ async function playAudio(audio: HTMLAudioElement): Promise<void> {
   audio.currentTime = 0;
   audio.volume = currentVolume;
   await audio.play();
+}
+
+function stopCurrentAndonAudio(): void {
+  if (!currentAndonAudio) return;
+  try {
+    currentAndonAudio.pause();
+    currentAndonAudio.currentTime = 0;
+  } catch {
+    // ignore
+  }
+  currentAndonAudio = null;
 }
 
 async function createCustomAudio(machineId: SoundMachineId, subtype: CallSubtype): Promise<HTMLAudioElement | null> {
@@ -99,12 +111,23 @@ export function stopCallSound(key: SoundKey): void {
   if (audio) {
     audio.pause();
     audio.currentTime = 0;
+    if (currentAndonAudio === audio) {
+      currentAndonAudio = null;
+    }
   }
 }
 
 export function stopAllSounds(): void {
   for (const key of Object.keys(soundUrls) as SoundKey[]) {
     stopCallSound(key);
+  }
+  stopCurrentAndonAudio();
+}
+
+export function stopAndonSound(): void {
+  stopCurrentAndonAudio();
+  for (const key of Object.keys(soundUrls) as SoundKey[]) {
+    stopTimer(key);
   }
 }
 
@@ -121,6 +144,7 @@ export async function playAndonSound(machineId: string, subtype: CallSubtype, re
   if (!audio) return;
 
   try {
+    currentAndonAudio = audio;
     await playAudio(audio);
   } catch (err) {
     console.warn("[sound] play failed", err);
