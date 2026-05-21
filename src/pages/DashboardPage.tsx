@@ -6,7 +6,8 @@ import { OpenCallModal } from "@/components/calls/OpenCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { BigButton } from "@/components/common/BigButton";
 import { unlockAudio } from "@/services/soundService";
-import { Volume2, Plus } from "lucide-react";
+import { Volume2, Settings } from "lucide-react";
+import { SoundSettingsModal } from "@/components/settings/SoundSettingsModal";
 import { toast } from "sonner";
 
 export function DashboardPage() {
@@ -21,6 +22,7 @@ export function DashboardPage() {
   const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
+  const [soundModalOpen, setSoundModalOpen] = useState(false);
 
   function handleUnlock() {
     unlockAudio();
@@ -80,7 +82,12 @@ export function DashboardPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-1.5">
         <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
+        <BigButton tone="neutral" size="sm" onClick={() => setSoundModalOpen(true)}>
+          <Settings className="h-4 w-4" /> CONFIGURAR SONS
+        </BigButton>
       </div>
+
+      <SoundSettingsModal open={soundModalOpen} onOpenChange={setSoundModalOpen} />
 
       <MachineGrid
         machines={machines}

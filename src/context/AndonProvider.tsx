@@ -19,7 +19,7 @@ import { SOUND_CONFIGS } from "@/data/soundFiles";
 import { loadFromStorage, removeFromStorage, saveToStorage } from "@/services/localStorageService";
 import * as andonService from "@/services/andonService";
 import {
-  playCallSound,
+  playAndonSound,
   setSoundVolume,
   stopAllSounds,
   stopCallSound,
@@ -118,19 +118,17 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       return;
     }
     const openCalls = calls.filter((c) => c.status === "open");
-    const wantedKeys = new Set<string>();
+    const wantedKeys = new Map<string, { machineId: string; subtype: any; interval: number }>();
     for (const call of openCalls) {
       const opt = getCallTypeOption(call.subtype);
       const cfg = soundConfigs.find((s) => s.key === call.subtype);
       if (!opt || !cfg || !cfg.enabled) continue;
-      wantedKeys.add(opt.soundKey);
+      wantedKeys.set(opt.soundKey, { machineId: call.machineId, subtype: call.subtype, interval: cfg?.repeatUntilAttended ? cfg.repeatIntervalSeconds : 0 });
     }
     // Tocar novos
-    for (const key of wantedKeys) {
+    for (const [key, soundData] of wantedKeys) {
       if (!activeSoundsRef.current.has(key)) {
-        const cfg = soundConfigs.find((s) => s.key === key);
-        const interval = cfg?.repeatUntilAttended ? cfg.repeatIntervalSeconds : 0;
-        playCallSound(key as never, interval);
+        void playAndonSound(soundData.machineId, soundData.subtype, soundData.interval);
         activeSoundsRef.current.add(key);
       }
     }

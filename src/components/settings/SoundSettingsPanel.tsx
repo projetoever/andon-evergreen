@@ -2,7 +2,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { BigButton } from "@/components/common/BigButton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { unlockAudio, testSound, isSoundAvailable } from "@/services/soundService";
+import { unlockAudio, testAndonSound } from "@/services/soundService";
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,7 +67,6 @@ export function SoundSettingsPanel() {
 
       <div className="space-y-2">
         {soundConfigs.map((s) => {
-          const available = isSoundAvailable(s.key);
           return (
             <div
               key={s.key}
@@ -76,8 +75,7 @@ export function SoundSettingsPanel() {
               <div>
                 <div className="text-base font-bold">{s.label}</div>
                 <div className="text-xs text-muted-foreground">
-                  {s.fileName}{" "}
-                  {!available && <span className="text-danger">· arquivo não encontrado</span>}
+                  {s.fileName}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -88,8 +86,7 @@ export function SoundSettingsPanel() {
                 <BigButton
                   tone="info"
                   size="md"
-                  onClick={() => testSound(s.key)}
-                  disabled={!available}
+                  onClick={() => void testAndonSound("default", s.key).then((ok) => { if (!ok) toast.error("Nenhum som configurado para esta seleção."); })}
                 >
                   <Play className="h-4 w-4" /> Testar
                 </BigButton>
