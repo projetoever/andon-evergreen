@@ -17,8 +17,8 @@ import {
   getMachineConditionLabel,
 } from "@/utils/statusUtils";
 import {
-  calculateMachineConditionBreakdownForPeriod,
-  calculateProductionModeBreakdownForPeriod,
+  calculateOperationalImpactBreakdown,
+  formatBreakdownDuration,
 } from "@/utils/timeBreakdownUtils";
 
 interface MachineCallHistoryPageProps {
@@ -92,29 +92,22 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             const totalMinutes =
               call.status === "finished" ? call.totalCallMinutes : calculateTotalCallMinutes(call);
 
-            const attendanceStart = call.attendedAt;
+            const attendanceStart = call.attendedAt ?? call.openedAt;
             const attendanceEnd = call.maintenanceCompletedAt ?? call.finishedAt ?? now.toISOString();
 
-            const conditionBreakdown = attendanceStart
-              ? calculateMachineConditionBreakdownForPeriod({
-                  periodStart: attendanceStart,
-                  periodEnd: attendanceEnd,
-                  stopHistory: machine.stopHistory,
-                  fallbackMachineCondition: call.machineCondition,
-                  now,
-                })
-              : { failureSeconds: 0, readySeconds: 0, unknownSeconds: 0 };
-
-            const productionBreakdown = attendanceStart
-              ? calculateProductionModeBreakdownForPeriod({
-                  periodStart: attendanceStart,
-                  periodEnd: attendanceEnd,
-                  productionHistory: machine.productionHistory,
-                  fallbackProductionMode:
-                    call.productionModeAtAttend ?? call.productionModeAtOpen ?? machine.productionMode,
-                  now,
-                })
-              : { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: 0 };
+            const impactBreakdown = calculateOperationalImpactBreakdown({
+              periodStart: attendanceStart,
+              periodEnd: attendanceEnd,
+              stopHistory: machine.stopHistory,
+              productionHistory: machine.productionHistory,
+              fallbackMachineCondition: call.machineCondition,
+              fallbackProductionMode:
+                call.productionModeAtAttend ??
+                call.productionModeAtOpen ??
+                call.productionModeAtFinish ??
+                machine.productionMode,
+              now,
+            });
 
             return (
               <article key={call.id} className="rounded-xl border border-border bg-card p-4">
@@ -152,25 +145,16 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>
                 </dl>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <section className="rounded-lg border border-border bg-muted/30 p-3">
-                    <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por condição da máquina</h3>
-                    <dl className="space-y-1 text-sm">
-                      <div className="flex items-center justify-between"><dt>Com máquina em falha</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(conditionBreakdown.failureSeconds / 60))}</dd></div>
-                      <div className="flex items-center justify-between"><dt>Sem falha / pronta para rodar</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(conditionBreakdown.readySeconds / 60))}</dd></div>
-                      <div className="flex items-center justify-between"><dt>Não informado</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(conditionBreakdown.unknownSeconds / 60))}</dd></div>
-                    </dl>
-                  </section>
-
-                  <section className="rounded-lg border border-border bg-muted/30 p-3">
-                    <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por programação</h3>
-                    <dl className="space-y-1 text-sm">
-                      <div className="flex items-center justify-between"><dt>Em produção programada</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.scheduledSeconds / 60))}</dd></div>
-                      <div className="flex items-center justify-between"><dt>Fora de produção</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.notScheduledSeconds / 60))}</dd></div>
-                      <div className="flex items-center justify-between"><dt>Não informado</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.unknownSeconds / 60))}</dd></div>
-                    </dl>
-                  </section>
-                </div>
+                <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                  <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto operacional</h3>
+                  <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+                    <div className="flex items-center justify-between gap-2"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productiveDowntimeSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Suporte segurando produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Suporte fora de produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2 sm:col-span-2"><dt>Não classificado</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.unknownSeconds)}</dd></div>
+                  </dl>
+                </section>
               </article>
             );
           })}

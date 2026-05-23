@@ -16,6 +16,13 @@ interface ConditionBreakdownParams extends BasePeriodParams {
   fallbackMachineCondition?: MachineStatus | null;
 }
 
+interface OperationalImpactParams extends BasePeriodParams {
+  stopHistory?: MachineStopEvent[];
+  productionHistory?: MachineProductionEvent[];
+  fallbackMachineCondition?: MachineStatus | null;
+  fallbackProductionMode?: ProductionMode | null;
+}
+
 export interface ProductionModeBreakdown {
   scheduledSeconds: number;
   notScheduledSeconds: number;
@@ -25,6 +32,14 @@ export interface ProductionModeBreakdown {
 export interface MachineConditionBreakdown {
   failureSeconds: number;
   readySeconds: number;
+  unknownSeconds: number;
+}
+
+export interface OperationalImpactBreakdown {
+  productiveDowntimeSeconds: number;
+  nonScheduledDowntimeSeconds: number;
+  productionBlockedSupportSeconds: number;
+  nonScheduledSupportSeconds: number;
   unknownSeconds: number;
 }
 
@@ -44,7 +59,6 @@ function getPeriodBounds(params: BasePeriodParams): { start: number; end: number
 
   const start = startDate.getTime();
   const end = endDate.getTime();
-
   if (end <= start) return { start, end: start };
   return { start, end };
 }
@@ -54,9 +68,7 @@ function overlapSeconds(startA: number, endA: number, startB: number, endB: numb
   return Math.floor(overlapMs / 1000);
 }
 
-export function calculateProductionModeBreakdownForPeriod(
-  params: ProductionBreakdownParams,
-): ProductionModeBreakdown {
+export function calculateProductionModeBreakdownForPeriod(params: ProductionBreakdownParams): ProductionModeBreakdown {
   const bounds = getPeriodBounds(params);
   if (!bounds) return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: 0 };
 
@@ -65,12 +77,8 @@ export function calculateProductionModeBreakdownForPeriod(
 
   const history = (params.productionHistory ?? []).filter((event) => !!toValidDate(event.startedAt));
   if (history.length === 0) {
-    if (params.fallbackProductionMode === "scheduled") {
-      return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
-    }
-    if (params.fallbackProductionMode === "not_scheduled") {
-      return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
-    }
+    if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
     return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: totalSeconds };
   }
 
@@ -83,7 +91,6 @@ export function calculateProductionModeBreakdownForPeriod(
     const eventEnd = toValidDate(event.endedAt ?? null) ?? (params.now ?? new Date());
     const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
     if (seconds <= 0) continue;
-
     if (event.mode === "scheduled") scheduledSeconds += seconds;
     if (event.mode === "not_scheduled") notScheduledSeconds += seconds;
   }
@@ -96,13 +103,14 @@ export function calculateProductionModeBreakdownForPeriod(
     knownSeconds = scheduledSeconds + notScheduledSeconds;
   }
 
-  const unknownSeconds = Math.max(0, totalSeconds - knownSeconds);
-  return { scheduledSeconds, notScheduledSeconds, unknownSeconds };
+  return {
+    scheduledSeconds,
+    notScheduledSeconds,
+    unknownSeconds: Math.max(0, totalSeconds - knownSeconds),
+  };
 }
 
-export function calculateMachineConditionBreakdownForPeriod(
-  params: ConditionBreakdownParams,
-): MachineConditionBreakdown {
+export function calculateMachineConditionBreakdownForPeriod(params: ConditionBreakdownParams): MachineConditionBreakdown {
   const bounds = getPeriodBounds(params);
   if (!bounds) return { failureSeconds: 0, readySeconds: 0, unknownSeconds: 0 };
 
@@ -111,12 +119,8 @@ export function calculateMachineConditionBreakdownForPeriod(
 
   const history = params.stopHistory ?? [];
   if (history.length === 0) {
-    if (params.fallbackMachineCondition === "stopped") {
-      return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
-    }
-    if (params.fallbackMachineCondition === "running") {
-      return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
-    }
+    if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
     return { failureSeconds: 0, readySeconds: 0, unknownSeconds: totalSeconds };
   }
 
@@ -128,14 +132,64 @@ export function calculateMachineConditionBreakdownForPeriod(
     failureSeconds += overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
   }
 
-  if (failureSeconds > totalSeconds) {
-    failureSeconds = totalSeconds;
-  }
-
-  const readySeconds = Math.max(0, totalSeconds - failureSeconds);
-  return { failureSeconds, readySeconds, unknownSeconds: 0 };
+  failureSeconds = Math.min(totalSeconds, failureSeconds);
+  return { failureSeconds, readySeconds: Math.max(0, totalSeconds - failureSeconds), unknownSeconds: 0 };
 }
 
-export function formatBreakdownSecondsToMinutesLabel(seconds: number): string {
-  return `${Math.floor(Math.max(0, seconds) / 60)} min`;
+export function calculateOperationalImpactBreakdown(params: OperationalImpactParams): OperationalImpactBreakdown {
+  const condition = calculateMachineConditionBreakdownForPeriod({
+    periodStart: params.periodStart,
+    periodEnd: params.periodEnd,
+    stopHistory: params.stopHistory,
+    fallbackMachineCondition: params.fallbackMachineCondition,
+    now: params.now,
+  });
+
+  const production = calculateProductionModeBreakdownForPeriod({
+    periodStart: params.periodStart,
+    periodEnd: params.periodEnd,
+    productionHistory: params.productionHistory,
+    fallbackProductionMode: params.fallbackProductionMode,
+    now: params.now,
+  });
+
+  const totalSeconds = condition.failureSeconds + condition.readySeconds + condition.unknownSeconds;
+  if (totalSeconds <= 0) {
+    return {
+      productiveDowntimeSeconds: 0,
+      nonScheduledDowntimeSeconds: 0,
+      productionBlockedSupportSeconds: 0,
+      nonScheduledSupportSeconds: 0,
+      unknownSeconds: 0,
+    };
+  }
+
+  const scale = (a: number, b: number) => Math.floor((a * b) / totalSeconds);
+
+  const productiveDowntimeSeconds = scale(condition.failureSeconds, production.scheduledSeconds);
+  const nonScheduledDowntimeSeconds = scale(condition.failureSeconds, production.notScheduledSeconds);
+  const productionBlockedSupportSeconds = scale(condition.readySeconds, production.scheduledSeconds);
+  const nonScheduledSupportSeconds = scale(condition.readySeconds, production.notScheduledSeconds);
+
+  const classified =
+    productiveDowntimeSeconds +
+    nonScheduledDowntimeSeconds +
+    productionBlockedSupportSeconds +
+    nonScheduledSupportSeconds;
+
+  return {
+    productiveDowntimeSeconds,
+    nonScheduledDowntimeSeconds,
+    productionBlockedSupportSeconds,
+    nonScheduledSupportSeconds,
+    unknownSeconds: Math.max(0, totalSeconds - classified),
+  };
+}
+
+export function formatBreakdownDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const secondsRemainder = safeSeconds % 60;
+  if (minutes === 0) return `${secondsRemainder} s`;
+  return `${minutes} min ${secondsRemainder.toString().padStart(2, "0")} s`;
 }

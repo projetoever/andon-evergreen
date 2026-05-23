@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { useAndon } from "@/context/AndonProvider";
 import { formatDurationMinutes, diffMinutes } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
-import { calculateProductionModeBreakdownForPeriod } from "@/utils/timeBreakdownUtils";
+import { calculateProductionModeBreakdownForPeriod, formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
 
 interface MachineFailureHistoryPageProps { machineId: string; }
 
@@ -43,11 +43,11 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
             <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs uppercase text-muted-foreground">Descrição da falha</dt><dd className="text-foreground">{editingId===event.id ? <div className="flex flex-col gap-2"><textarea className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm" value={editingText} onChange={(e)=>setEditingText(e.target.value)} /><button type="button" onClick={()=>{updateMachineStopEventDescription(machine.id,event.id,editingText.trim());setEditingId(null);}} className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"><Save className="h-4 w-4" />Salvar</button></div> : <div className="flex items-start justify-between gap-3"><span>{event.failureDescription || "Sem descrição"}</span><button type="button" onClick={()=>{setEditingId(event.id);setEditingText(event.failureDescription || "");}} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"><Pencil className="h-4 w-4" />Editar</button></div>}</dd></div>
           </dl>
           <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
-            <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Falha por programação</h3>
+            <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto da falha</h3>
             <dl className="space-y-1 text-sm">
-              <div className="flex items-center justify-between"><dt>Em produção programada</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.scheduledSeconds / 60))}</dd></div>
-              <div className="flex items-center justify-between"><dt>Fora de produção</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.notScheduledSeconds / 60))}</dd></div>
-              <div className="flex items-center justify-between"><dt>Não informado</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.unknownSeconds / 60))}</dd></div>
+              <div className="flex items-center justify-between"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.scheduledSeconds)}</dd></div>
+              <div className="flex items-center justify-between"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}</dd></div>
+              <div className="flex items-center justify-between"><dt>Não classificado</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.unknownSeconds)}</dd></div>
             </dl>
           </section>
         </article>;})}</div>}
