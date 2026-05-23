@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { useAndon } from "@/context/AndonProvider";
 import { formatDurationMinutes, diffMinutes } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
+import { calculateProductionModeBreakdownForPeriod } from "@/utils/timeBreakdownUtils";
 
 interface MachineFailureHistoryPageProps { machineId: string; }
 
@@ -22,7 +23,16 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
         <div><div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina {machine.id}</div><h1 className="text-2xl font-black uppercase tracking-wider text-foreground md:text-3xl">Histórico de Falhas</h1><p className="text-sm text-muted-foreground">{machine.name}</p></div>
       </div></div>
       {history.length===0 ? <EmptyState icon={<FileWarning className="h-12 w-12" />} title="Sem falhas registradas" description="Quando houver falhas para esta máquina, elas aparecerão aqui." /> : <div className="space-y-2.5">{history.map((event)=>{
-        const duration = event.resumedAt ? event.durationMinutes : diffMinutes(event.stoppedAt, new Date().toISOString());
+        const now = new Date();
+        const periodEnd = event.resumedAt ?? now.toISOString();
+        const duration = event.resumedAt ? event.durationMinutes : diffMinutes(event.stoppedAt, periodEnd);
+        const productionBreakdown = calculateProductionModeBreakdownForPeriod({
+          periodStart: event.stoppedAt,
+          periodEnd,
+          productionHistory: machine.productionHistory,
+          fallbackProductionMode: machine.productionMode,
+          now,
+        });
         return <article key={event.id} className="rounded-xl border border-border bg-card p-4">
           <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
             <div><dt className="text-xs uppercase text-muted-foreground">Início</dt><dd className="font-mono text-sm">{formatDateTime(event.stoppedAt)}</dd></div>
@@ -31,6 +41,15 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
             <div><dt className="text-xs uppercase text-muted-foreground">Origem</dt><dd className="font-bold">{event.source || "Não informado"}</dd></div>
             <div><dt className="text-xs uppercase text-muted-foreground">Status</dt><dd className="font-bold">{event.resumedAt ? "Finalizada" : "Em aberto"}</dd></div>
             <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs uppercase text-muted-foreground">Descrição da falha</dt><dd className="text-foreground">{editingId===event.id ? <div className="flex flex-col gap-2"><textarea className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm" value={editingText} onChange={(e)=>setEditingText(e.target.value)} /><button type="button" onClick={()=>{updateMachineStopEventDescription(machine.id,event.id,editingText.trim());setEditingId(null);}} className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"><Save className="h-4 w-4" />Salvar</button></div> : <div className="flex items-start justify-between gap-3"><span>{event.failureDescription || "Sem descrição"}</span><button type="button" onClick={()=>{setEditingId(event.id);setEditingText(event.failureDescription || "");}} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"><Pencil className="h-4 w-4" />Editar</button></div>}</dd></div>
-          </dl></article>;})}</div>}
+          </dl>
+          <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+            <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Falha por programação</h3>
+            <dl className="space-y-1 text-sm">
+              <div className="flex items-center justify-between"><dt>Em produção programada</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.scheduledSeconds / 60))}</dd></div>
+              <div className="flex items-center justify-between"><dt>Fora de produção</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.notScheduledSeconds / 60))}</dd></div>
+              <div className="flex items-center justify-between"><dt>Não informado</dt><dd className="font-bold">{formatDurationMinutes(Math.floor(productionBreakdown.unknownSeconds / 60))}</dd></div>
+            </dl>
+          </section>
+        </article>;})}</div>}
     </div>;
 }

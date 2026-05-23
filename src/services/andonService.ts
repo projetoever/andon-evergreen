@@ -82,6 +82,12 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     currentAttendanceStartedAt?: unknown;
     maintenanceReturnCount?: unknown;
     machineCondition?: unknown;
+    productionModeAtOpen?: unknown;
+    productionModeAtAttend?: unknown;
+    productionModeAtFinish?: unknown;
+    machineStatusAtOpen?: unknown;
+    machineStatusAtAttend?: unknown;
+    machineStatusAtFinish?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -118,6 +124,12 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
       Number.isFinite(source.maintenanceReturnCount)
         ? source.maintenanceReturnCount
         : 0,
+    productionModeAtOpen: source.productionModeAtOpen === "scheduled" || source.productionModeAtOpen === "not_scheduled" ? source.productionModeAtOpen : undefined,
+    productionModeAtAttend: source.productionModeAtAttend === "scheduled" || source.productionModeAtAttend === "not_scheduled" ? source.productionModeAtAttend : undefined,
+    productionModeAtFinish: source.productionModeAtFinish === "scheduled" || source.productionModeAtFinish === "not_scheduled" ? source.productionModeAtFinish : undefined,
+    machineStatusAtOpen: source.machineStatusAtOpen === "running" || source.machineStatusAtOpen === "stopped" ? source.machineStatusAtOpen : undefined,
+    machineStatusAtAttend: source.machineStatusAtAttend === "running" || source.machineStatusAtAttend === "stopped" ? source.machineStatusAtAttend : undefined,
+    machineStatusAtFinish: source.machineStatusAtFinish === "running" || source.machineStatusAtFinish === "stopped" ? source.machineStatusAtFinish : undefined,
   };
 }
 
@@ -161,6 +173,8 @@ export function openAndonCall(
     notes: null,
     createdBy: "kiosk",
     updatedAt: now,
+    productionModeAtOpen: machine.productionMode,
+    machineStatusAtOpen: condition,
   };
   const condition = params.machineCondition ?? machine.machineStatus;
   const statusResult = updateMachineStatus(machines, params.machineId, condition);
@@ -188,6 +202,8 @@ export function attendAndonCall(
           status: "in_progress" as const,
           attendedAt: c.attendedAt ?? now,
           currentAttendanceStartedAt: now,
+          productionModeAtAttend: machines.find((m) => m.id === c.machineId)?.productionMode,
+          machineStatusAtAttend: machines.find((m) => m.id === c.machineId)?.machineStatus,
           updatedAt: now,
         }
       : c,
@@ -296,6 +312,8 @@ export function finishAndonCall(
     technicianNames,
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
+    productionModeAtFinish: machine?.productionMode,
+    machineStatusAtFinish: machine?.machineStatus,
     updatedAt: now,
   };
   finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);

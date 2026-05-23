@@ -3,7 +3,6 @@ import { useAndon } from "@/context/AndonProvider";
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentStatusPanel";
 import { MachineCurrentCallPanel } from "@/components/machines/MachineCurrentCallPanel";
-import { MachineStopHistoryPanel } from "@/components/machines/MachineStopHistoryPanel";
 import { MachineActionPanel } from "@/components/machines/MachineActionPanel";
 import { ProductionSchedulePanel } from "@/components/machines/ProductionSchedulePanel";
 import { OpenCallModal } from "@/components/calls/OpenCallModal";
@@ -138,7 +137,6 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
         onStop={handleStop}
         onResume={handleResume}
       />
-      <MachineStopHistoryPanel machine={machine} />
 
       <OpenCallModal
         open={openCallDialog}

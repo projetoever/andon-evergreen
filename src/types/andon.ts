@@ -38,6 +38,12 @@ export interface AndonCall {
   maintenanceReturnCount: number;
   totalCallMinutes: number;
   machineStoppedMinutes: number;
+  productionModeAtOpen?: "scheduled" | "not_scheduled";
+  productionModeAtAttend?: "scheduled" | "not_scheduled";
+  productionModeAtFinish?: "scheduled" | "not_scheduled";
+  machineStatusAtOpen?: MachineStatus;
+  machineStatusAtAttend?: MachineStatus;
+  machineStatusAtFinish?: MachineStatus;
   notes: string | null;
   createdBy: "kiosk";
   updatedAt: string;
