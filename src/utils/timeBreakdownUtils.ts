@@ -84,6 +84,7 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
 
   let scheduledSeconds = 0;
   let notScheduledSeconds = 0;
+  let matchedOverlapSeconds = 0;
 
   for (const event of history) {
     const eventStart = toValidDate(event.startedAt);
@@ -91,8 +92,15 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
     const eventEnd = toValidDate(event.endedAt ?? null) ?? (params.now ?? new Date());
     const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
     if (seconds <= 0) continue;
+    matchedOverlapSeconds += seconds;
     if (event.mode === "scheduled") scheduledSeconds += seconds;
     if (event.mode === "not_scheduled") notScheduledSeconds += seconds;
+  }
+
+  if (matchedOverlapSeconds === 0) {
+    if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
+    return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: totalSeconds };
   }
 
   let knownSeconds = scheduledSeconds + notScheduledSeconds;
@@ -125,11 +133,21 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
   }
 
   let failureSeconds = 0;
+  let matchedOverlapSeconds = 0;
   for (const event of history) {
     const eventStart = toValidDate(event.stoppedAt);
     if (!eventStart) continue;
     const eventEnd = toValidDate(event.resumedAt ?? null) ?? (params.now ?? new Date());
-    failureSeconds += overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
+    const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
+    if (seconds <= 0) continue;
+    matchedOverlapSeconds += seconds;
+    failureSeconds += seconds;
+  }
+
+  if (matchedOverlapSeconds === 0) {
+    if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
+    return { failureSeconds: 0, readySeconds: 0, unknownSeconds: totalSeconds };
   }
 
   failureSeconds = Math.min(totalSeconds, failureSeconds);
