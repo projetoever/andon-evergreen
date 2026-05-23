@@ -148,6 +148,7 @@ export function openAndonCall(
     throw new Error("Já existe um chamado ativo para esta máquina");
   }
   const now = new Date().toISOString();
+  const condition = params.machineCondition ?? machine.machineStatus;
   const call: AndonCall = {
     id: generateId("call"),
     machineId: params.machineId,
@@ -176,7 +177,6 @@ export function openAndonCall(
     productionModeAtOpen: machine.productionMode,
     machineStatusAtOpen: condition,
   };
-  const condition = params.machineCondition ?? machine.machineStatus;
   const statusResult = updateMachineStatus(machines, params.machineId, condition);
   const newMachines = statusResult.machines.map((m) =>
     m.id === params.machineId
