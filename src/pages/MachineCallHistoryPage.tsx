@@ -15,6 +15,7 @@ import {
   getCallSubtypeLabel,
   getCriticalityLabel,
   getMachineConditionLabel,
+  getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 import {
   calculateOperationalImpactBreakdown,
@@ -100,7 +101,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               periodEnd: attendanceEnd,
               stopHistory: machine.stopHistory,
               productionHistory: machine.productionHistory,
-              fallbackMachineCondition: call.machineCondition,
+              fallbackMachineCondition:
+                call.machineCondition ??
+                call.machineStatusAtAttend ??
+                call.machineStatusAtOpen ??
+                call.machineStatusAtFinish ??
+                machine.machineStatus,
               fallbackProductionMode:
                 call.productionModeAtAttend ??
                 call.productionModeAtOpen ??
@@ -139,7 +145,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Tempo total</dt><dd className="font-bold">{formatDurationMinutes(totalMinutes)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Técnico</dt><dd className="font-bold">{technicianNames}</dd></div>
-                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{call.technicianArea ?? "Não informado"}</dd></div>
+                  <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Retornos à manutenção</dt><dd className="font-bold">{call.maintenanceReturnCount}</dd></div>
                   <div><dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>
