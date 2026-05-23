@@ -158,7 +158,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     <div className="flex items-center justify-between gap-2"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}</dd></div>
                     <div className="flex items-center justify-between gap-2"><dt>Suporte segurando produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
                     <div className="flex items-center justify-between gap-2"><dt>Suporte fora de produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}</dd></div>
-                    <div className="flex items-center justify-between gap-2 sm:col-span-2"><dt>Não classificado</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.unknownSeconds)}</dd></div>
                   </dl>
                 </section>
               </article>

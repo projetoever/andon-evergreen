@@ -79,7 +79,7 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
   if (history.length === 0) {
     if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
     if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
-    return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: totalSeconds };
+    return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
   }
 
   let scheduledSeconds = 0;
@@ -100,7 +100,7 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
   if (matchedOverlapSeconds === 0) {
     if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
     if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
-    return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: totalSeconds };
+    return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
   }
 
   let knownSeconds = scheduledSeconds + notScheduledSeconds;
@@ -129,7 +129,7 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
   if (history.length === 0) {
     if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
     if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
-    return { failureSeconds: 0, readySeconds: 0, unknownSeconds: totalSeconds };
+    return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
   }
 
   let failureSeconds = 0;
@@ -147,7 +147,7 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
   if (matchedOverlapSeconds === 0) {
     if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
     if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
-    return { failureSeconds: 0, readySeconds: 0, unknownSeconds: totalSeconds };
+    return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
   }
 
   failureSeconds = Math.min(totalSeconds, failureSeconds);
@@ -195,12 +195,29 @@ export function calculateOperationalImpactBreakdown(params: OperationalImpactPar
     productionBlockedSupportSeconds +
     nonScheduledSupportSeconds;
 
+  const remainingSeconds = Math.max(0, totalSeconds - classified);
+
+  let adjustedProductiveDowntimeSeconds = productiveDowntimeSeconds;
+  let adjustedNonScheduledDowntimeSeconds = nonScheduledDowntimeSeconds;
+  let adjustedProductionBlockedSupportSeconds = productionBlockedSupportSeconds;
+  let adjustedNonScheduledSupportSeconds = nonScheduledSupportSeconds;
+
+  if (remainingSeconds > 0) {
+    const fallbackIsFailure = condition.failureSeconds >= condition.readySeconds;
+    const fallbackIsScheduled = production.scheduledSeconds >= production.notScheduledSeconds;
+
+    if (fallbackIsFailure && fallbackIsScheduled) adjustedProductiveDowntimeSeconds += remainingSeconds;
+    if (fallbackIsFailure && !fallbackIsScheduled) adjustedNonScheduledDowntimeSeconds += remainingSeconds;
+    if (!fallbackIsFailure && fallbackIsScheduled) adjustedProductionBlockedSupportSeconds += remainingSeconds;
+    if (!fallbackIsFailure && !fallbackIsScheduled) adjustedNonScheduledSupportSeconds += remainingSeconds;
+  }
+
   return {
-    productiveDowntimeSeconds,
-    nonScheduledDowntimeSeconds,
-    productionBlockedSupportSeconds,
-    nonScheduledSupportSeconds,
-    unknownSeconds: Math.max(0, totalSeconds - classified),
+    productiveDowntimeSeconds: adjustedProductiveDowntimeSeconds,
+    nonScheduledDowntimeSeconds: adjustedNonScheduledDowntimeSeconds,
+    productionBlockedSupportSeconds: adjustedProductionBlockedSupportSeconds,
+    nonScheduledSupportSeconds: adjustedNonScheduledSupportSeconds,
+    unknownSeconds: 0,
   };
 }
 

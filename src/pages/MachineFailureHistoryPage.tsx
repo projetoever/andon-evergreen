@@ -47,7 +47,6 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
             <dl className="space-y-1 text-sm">
               <div className="flex items-center justify-between"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.scheduledSeconds)}</dd></div>
               <div className="flex items-center justify-between"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}</dd></div>
-              <div className="flex items-center justify-between"><dt>Não classificado</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.unknownSeconds)}</dd></div>
             </dl>
           </section>
         </article>;})}</div>}
