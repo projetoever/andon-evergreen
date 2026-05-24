@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
-import { stopAndonSound } from "@/services/soundService";
+import { playAndonSound, stopAndonSound } from "@/services/soundService";
 
 interface MachineDetailPageProps {
   machineId: string;
@@ -26,6 +26,9 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
     returnToMaintenance,
     changeMachineStatus,
     updateMachineProductionMode,
+    soundConfigs,
+    settings,
+    audioUnlocked,
   } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
@@ -110,6 +113,12 @@ export function MachineDetailPage({ machineId }: MachineDetailPageProps) {
       stopAndonSound(machine.id);
       toast.success("Som do ANDON silenciado para esta máquina");
       return;
+    }
+    const shouldReplay = currentCall?.status === "open" && settings.soundsEnabled && audioUnlocked;
+    if (shouldReplay) {
+      const cfg = soundConfigs.find((item) => item.key === currentCall.subtype);
+      const repeatInterval = cfg?.repeatUntilAttended ? cfg.repeatIntervalSeconds : 0;
+      void playAndonSound(machine.id, currentCall.subtype, repeatInterval);
     }
     toast.success("Som do ANDON ativado para esta máquina");
   }

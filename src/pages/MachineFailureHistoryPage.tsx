@@ -9,6 +9,16 @@ import { calculateProductionModeBreakdownForPeriod, formatBreakdownDuration } fr
 
 interface MachineFailureHistoryPageProps { machineId: string; }
 
+function getStopSourceLabel(source?: string | null) {
+  if (!source || source === "unknown") return "Não informado";
+  if (source === "manual_simulation") return "Simulação manual";
+  if (source === "manual") return "Registro manual";
+  if (source === "clp") return "Sinal do CLP";
+  if (source === "node_red") return "Node-RED";
+  if (source === "system") return "Sistema";
+  return "Não informado";
+}
+
 export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPageProps) {
   const { machines, updateMachineStopEventDescription } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
@@ -38,9 +48,9 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
             <div><dt className="text-xs uppercase text-muted-foreground">Início</dt><dd className="font-mono text-sm">{formatDateTime(event.stoppedAt)}</dd></div>
             <div><dt className="text-xs uppercase text-muted-foreground">Retorno</dt><dd className="font-mono text-sm">{event.resumedAt ? formatDateTime(event.resumedAt) : "Em aberto"}</dd></div>
             <div><dt className="text-xs uppercase text-muted-foreground">Duração</dt><dd className="font-bold">{formatDurationMinutes(duration)}</dd></div>
-            <div><dt className="text-xs uppercase text-muted-foreground">Origem</dt><dd className="font-bold">{event.source || "Não informado"}</dd></div>
+            <div><dt className="text-xs uppercase text-muted-foreground">Fonte do registro</dt><dd className="font-bold">{getStopSourceLabel(event.source)}</dd></div>
             <div><dt className="text-xs uppercase text-muted-foreground">Status</dt><dd className="font-bold">{event.resumedAt ? "Finalizada" : "Em aberto"}</dd></div>
-            <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs uppercase text-muted-foreground">Descrição da falha</dt><dd className="text-foreground">{editingId===event.id ? <div className="flex flex-col gap-2"><textarea className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm" value={editingText} onChange={(e)=>setEditingText(e.target.value)} /><button type="button" onClick={()=>{updateMachineStopEventDescription(machine.id,event.id,editingText.trim());setEditingId(null);}} className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"><Save className="h-4 w-4" />Salvar</button></div> : <div className="flex items-start justify-between gap-3"><span>{event.failureDescription || "Sem descrição"}</span><button type="button" onClick={()=>{setEditingId(event.id);setEditingText(event.failureDescription || "");}} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"><Pencil className="h-4 w-4" />Editar</button></div>}</dd></div>
+            <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs uppercase text-muted-foreground">Descrição da ocorrência</dt><dd className="text-foreground">{editingId===event.id ? <div className="flex flex-col gap-2"><textarea className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm" value={editingText} onChange={(e)=>setEditingText(e.target.value)} /><button type="button" onClick={()=>{updateMachineStopEventDescription(machine.id,event.id,editingText.trim());setEditingId(null);}} className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"><Save className="h-4 w-4" />Salvar</button></div> : <div className="flex items-start justify-between gap-3"><span>{event.failureDescription || "Sem descrição"}</span><button type="button" onClick={()=>{setEditingId(event.id);setEditingText(event.failureDescription || "");}} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"><Pencil className="h-4 w-4" />Editar</button></div>}</dd></div>
           </dl>
           <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
             <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto da falha</h3>
