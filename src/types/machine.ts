@@ -7,6 +7,8 @@ export type FailureClassification =
   | "electrical_failure"
   | "mechanical_failure"
   | "automation_sensor_failure"
+  | "operational_failure"
+  | "process_failure"
   | "operational_process_failure"
   | "quality_failure"
   | "manual_intervention"
