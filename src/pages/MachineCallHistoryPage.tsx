@@ -156,8 +156,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
                     <div className="flex items-center justify-between gap-2"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productiveDowntimeSeconds)}</dd></div>
                     <div className="flex items-center justify-between gap-2"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}</dd></div>
-                    <div className="flex items-center justify-between gap-2"><dt>Suporte segurando produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
-                    <div className="flex items-center justify-between gap-2"><dt>Suporte fora de produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Atendimento com produção aguardando</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Atendimento fora de produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}</dd></div>
                   </dl>
                 </section>
               </article>

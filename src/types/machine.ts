@@ -14,6 +14,8 @@ export interface MachineStopEvent {
   durationMinutes: number;
   source: StopSource;
   failureDescription?: string;
+  productionModeAtStart?: ProductionMode;
+  productionModeAtEnd?: ProductionMode;
 }
 
 export interface MachineProductionEvent {

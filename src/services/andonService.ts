@@ -358,6 +358,7 @@ export function updateMachineStatus(
         resumedAt: null,
         durationMinutes: 0,
         source: "manual_simulation",
+        productionModeAtStart: m.productionMode,
       };
       const next: Machine = {
         ...m,
@@ -371,7 +372,7 @@ export function updateMachineStatus(
     // running -> fechar última em falha aberta
     const updatedHistory = m.stopHistory.map((s, idx) => {
       if (idx === 0 && s.resumedAt === null) {
-        return { ...s, resumedAt: now, durationMinutes: diffMinutes(s.stoppedAt, now) };
+        return { ...s, resumedAt: now, durationMinutes: diffMinutes(s.stoppedAt, now), productionModeAtEnd: m.productionMode };
       }
       return s;
     });

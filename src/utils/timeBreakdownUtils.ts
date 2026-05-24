@@ -111,10 +111,17 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
     knownSeconds = scheduledSeconds + notScheduledSeconds;
   }
 
+  const remainingSeconds = Math.max(0, totalSeconds - knownSeconds);
+  if (remainingSeconds > 0) {
+    const fallbackMode = params.fallbackProductionMode ?? "scheduled";
+    if (fallbackMode === "not_scheduled") notScheduledSeconds += remainingSeconds;
+    else scheduledSeconds += remainingSeconds;
+  }
+
   return {
     scheduledSeconds,
     notScheduledSeconds,
-    unknownSeconds: Math.max(0, totalSeconds - knownSeconds),
+    unknownSeconds: 0,
   };
 }
 

@@ -30,7 +30,7 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
           periodStart: event.stoppedAt,
           periodEnd,
           productionHistory: machine.productionHistory,
-          fallbackProductionMode: machine.productionMode,
+          fallbackProductionMode: event.productionModeAtStart ?? event.productionModeAtEnd ?? machine.productionMode,
           now,
         });
         return <article key={event.id} className="rounded-xl border border-border bg-card p-4">
