@@ -93,8 +93,8 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
     const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
     if (seconds <= 0) continue;
     matchedOverlapSeconds += seconds;
-    if (event.mode === "scheduled") scheduledSeconds += seconds;
-    if (event.mode === "not_scheduled") notScheduledSeconds += seconds;
+    if (event.productionMode === "scheduled") scheduledSeconds += seconds;
+    if (event.productionMode === "not_scheduled") notScheduledSeconds += seconds;
   }
 
   if (matchedOverlapSeconds === 0) {

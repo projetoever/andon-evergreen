@@ -5,8 +5,8 @@ import { MachineGrid } from "@/components/machines/MachineGrid";
 import { OpenCallModal } from "@/components/calls/OpenCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { BigButton } from "@/components/common/BigButton";
-import { stopAndonSound, unlockAudio } from "@/services/soundService";
-import { Volume2, Settings, VolumeX } from "lucide-react";
+import { unlockAudio } from "@/services/soundService";
+import { Volume2, Settings } from "lucide-react";
 import { SoundSettingsModal } from "@/components/settings/SoundSettingsModal";
 import { toast } from "sonner";
 
@@ -18,7 +18,6 @@ export function DashboardPage() {
     attendCall,
     completeMaintenance,
     returnToMaintenance,
-    calls,
   } = useAndon();
   const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const [openCallDialog, setOpenCallDialog] = useState(false);
@@ -63,7 +62,6 @@ export function DashboardPage() {
     }
   }
 
-  const hasOpenCall = calls.some((call) => call.status === "open");
 
   return (
     <div className="space-y-3">
@@ -86,20 +84,6 @@ export function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-1.5">
         <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
         <div className="flex items-center gap-2">
-          {hasOpenCall && (
-            <button
-              type="button"
-              title="Silenciar som do ANDON"
-              aria-label="Silenciar som do ANDON"
-              onClick={() => {
-                stopAndonSound();
-                toast.success("Som do ANDON silenciado");
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <VolumeX className="h-4 w-4" />
-            </button>
-          )}
           <button
             type="button"
             title="Configurar sons do ANDON"

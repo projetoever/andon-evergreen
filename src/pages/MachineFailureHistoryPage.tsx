@@ -46,7 +46,7 @@ export function MachineFailureHistoryPage({ machineId }: MachineFailureHistoryPa
             <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto da falha</h3>
             <dl className="space-y-1 text-sm">
               <div className="flex items-center justify-between"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.scheduledSeconds)}</dd></div>
-              <div className="flex items-center justify-between"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}</dd></div>
+              <div className="flex items-center justify-between"><dt>Em falha sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}</dd></div>
             </dl>
           </section>
         </article>;})}</div>}

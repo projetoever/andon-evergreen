@@ -155,8 +155,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto operacional</h3>
                   <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
                     <div className="flex items-center justify-between gap-2"><dt>Parada produtiva</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productiveDowntimeSeconds)}</dd></div>
-                    <div className="flex items-center justify-between gap-2"><dt>Parada sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}</dd></div>
-                    <div className="flex items-center justify-between gap-2"><dt>Atendimento com produção aguardando</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Em falha sem produção programada</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}</dd></div>
+                    <div className="flex items-center justify-between gap-2"><dt>Atendimento sem impacto produtivo</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.productionBlockedSupportSeconds)}</dd></div>
                     <div className="flex items-center justify-between gap-2"><dt>Atendimento fora de produção</dt><dd className="font-bold">{formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}</dd></div>
                   </dl>
                 </section>
