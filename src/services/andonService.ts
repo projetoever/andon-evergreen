@@ -435,12 +435,13 @@ export function updateMachineStopEventDescription(
   machineId: string,
   stopEventId: string,
   failureDescription: string,
+  failureClassification?: import("@/types/machine").FailureClassification,
 ): { machines: Machine[]; machine: Machine } {
   let updatedMachine: Machine | null = null;
   const newMachines = machines.map((m) => {
     if (m.id !== machineId) return m;
     const updatedHistory = m.stopHistory.map((event) =>
-      event.id === stopEventId ? { ...event, failureDescription } : event,
+      event.id === stopEventId ? { ...event, failureDescription, failureClassification } : event,
     );
     updatedMachine = { ...m, stopHistory: updatedHistory };
     return updatedMachine;

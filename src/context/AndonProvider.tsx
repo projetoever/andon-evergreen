@@ -57,7 +57,12 @@ interface AndonContextValue {
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
-  updateMachineStopEventDescription: (machineId: string, stopEventId: string, failureDescription: string) => Machine;
+  updateMachineStopEventDescription: (
+    machineId: string,
+    stopEventId: string,
+    failureDescription: string,
+    failureClassification?: import("@/types/machine").FailureClassification,
+  ) => Machine;
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSoundConfigs: (configs: SoundConfig[]) => void;
   resetAllLocalData: () => void;
@@ -210,12 +215,18 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const updateMachineStopEventDescription = useCallback(
-    (machineId: string, stopEventId: string, failureDescription: string) => {
+    (
+      machineId: string,
+      stopEventId: string,
+      failureDescription: string,
+      failureClassification?: import("@/types/machine").FailureClassification,
+    ) => {
       const result = andonService.updateMachineStopEventDescription(
         machines,
         machineId,
         stopEventId,
         failureDescription,
+        failureClassification,
       );
       setMachines(result.machines);
       return result.machine;

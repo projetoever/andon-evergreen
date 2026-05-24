@@ -1,6 +1,18 @@
 export type MachineStatus = "running" | "stopped";
 
-export type StopSource = "manual_simulation" | "node_red";
+export type StopSource = "manual_simulation" | "node_red" | "manual" | "clp" | "system";
+
+export type FailureClassification =
+  | "real_machine_failure"
+  | "electrical_failure"
+  | "mechanical_failure"
+  | "automation_sensor_failure"
+  | "operational_process_failure"
+  | "quality_failure"
+  | "manual_intervention"
+  | "simulation_test"
+  | "unidentified_stop"
+  | "other";
 
 export type ProductionMode = "scheduled" | "not_scheduled";
 
@@ -14,6 +26,7 @@ export interface MachineStopEvent {
   durationMinutes: number;
   source: StopSource;
   failureDescription?: string;
+  failureClassification?: FailureClassification;
   productionModeAtStart?: ProductionMode;
   productionModeAtEnd?: ProductionMode;
 }
