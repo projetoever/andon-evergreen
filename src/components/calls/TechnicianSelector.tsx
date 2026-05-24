@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TECHNICIANS } from "@/data/technicians";
+import { getTechniciansForSelector } from "@/services/technicianConfigService";
 import type { TechnicianArea } from "@/types/andon";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ interface TechnicianSelectorProps {
 }
 
 export function TechnicianSelector({ area, value, onChange }: TechnicianSelectorProps) {
-  const list = useMemo(() => TECHNICIANS.filter((t) => t.area === area && t.active), [area]);
+  const list = useMemo(() => getTechniciansForSelector(area), [area]);
 
   function toggleTechnician(name: string) {
     if (value.includes(name)) {

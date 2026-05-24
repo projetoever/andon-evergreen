@@ -1,3 +1,4 @@
+import type { CallSubtype, TechnicianArea } from "./andon";
 import type { SoundKey } from "./andon";
 
 export interface AlertRules {
@@ -32,4 +33,39 @@ export interface SoundConfig {
   enabled: boolean;
   repeatUntilAttended: boolean;
   repeatIntervalSeconds: number;
+}
+
+export interface AdminSession {
+  isAuthenticated: boolean;
+}
+
+export type SettingsTab = "sounds" | "technicians" | "categories" | "shifts";
+
+export interface TechnicianConfig {
+  id: string;
+  name: string;
+  area: CallSubtype;
+  shifts: string[];
+  active: boolean;
+}
+
+export interface ShiftConfig {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+  crossesMidnight: boolean;
+}
+
+export interface AndonCategoryConfig {
+  id: CallSubtype;
+  categoryGroup: "maintenance" | "production";
+  displayName: string;
+  active: boolean;
+}
+
+export interface TechnicianCategory {
+  id: TechnicianArea | "quality" | "leadership";
+  label: string;
 }

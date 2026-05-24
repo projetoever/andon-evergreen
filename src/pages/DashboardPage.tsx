@@ -7,7 +7,9 @@ import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { BigButton } from "@/components/common/BigButton";
 import { unlockAudio } from "@/services/soundService";
 import { Volume2, Settings } from "lucide-react";
-import { SoundSettingsModal } from "@/components/settings/SoundSettingsModal";
+import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
+import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
+import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { toast } from "sonner";
 
 export function DashboardPage() {
@@ -22,7 +24,8 @@ export function DashboardPage() {
   const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
-  const [soundModalOpen, setSoundModalOpen] = useState(false);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
 
   function handleUnlock() {
     unlockAudio();
@@ -88,7 +91,7 @@ export function DashboardPage() {
             type="button"
             title="Configurar sons do ANDON"
             aria-label="Configurar sons do ANDON"
-            onClick={() => setSoundModalOpen(true)}
+            onClick={() => (isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true))}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <Settings className="h-4 w-4" />
@@ -96,7 +99,8 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <SoundSettingsModal open={soundModalOpen} onOpenChange={setSoundModalOpen} />
+      <AdminLoginModal open={adminLoginOpen} onOpenChange={setAdminLoginOpen} onSuccess={() => setAdminSettingsOpen(true)} />
+      <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
 
       <MachineGrid
         machines={machines}
