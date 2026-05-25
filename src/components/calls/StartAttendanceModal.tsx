@@ -54,10 +54,6 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
   }
 
   function startWithoutTechnician() {
-    const confirmed = window.confirm(
-      "Este atendimento será iniciado sem manutentor apontado. O tempo individual só será contado após adicionar um manutentor. Deseja continuar?",
-    );
-    if (!confirmed) return;
     attendCall({ callId: call.id, technicians: [], notes });
     toast.success("Chamado em atendimento sem apontamento de manutentor");
     onOpenChange(false);

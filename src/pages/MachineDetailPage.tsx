@@ -268,10 +268,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               tone="warning"
               size="md"
               onClick={() => {
-                const confirmed = window.confirm(
-                  "Este atendimento será iniciado sem manutentor apontado. O tempo individual só será contado após adicionar um manutentor. Deseja continuar?",
-                );
-                if (!confirmed || !currentCall) return;
+                if (!currentCall) return;
                 attendCall({ callId: currentCall.id, technicians: [], notes });
                 setStartOpen(false);
                 toast.success("Chamado em atendimento sem apontamento de manutentor");
