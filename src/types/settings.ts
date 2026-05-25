@@ -39,7 +39,7 @@ export interface AdminSession {
   isAuthenticated: boolean;
 }
 
-export type SettingsTab = "sounds" | "technicians" | "categories" | "shifts";
+export type SettingsTab = "sounds" | "technicians" | "categories" | "shifts" | "classifications";
 
 export interface TechnicianConfig {
   id: string;
@@ -68,4 +68,14 @@ export interface AndonCategoryConfig {
 export interface TechnicianCategory {
   id: TechnicianArea | "quality" | "leadership";
   label: string;
+}
+
+
+export interface FailureClassificationConfig {
+  id: string;
+  label: string;
+  isActive: boolean;
+  isDefault?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }

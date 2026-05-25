@@ -11,14 +11,16 @@ import { DEFAULT_SHIFTS, getShiftConfigs, saveShiftConfigs } from "@/services/sh
 import { getTechnicianConfigs, saveTechnicianConfigs } from "@/services/technicianConfigService";
 import type { CallSubtype } from "@/types/andon";
 import { DEFAULT_SOUND_MACHINE_ID, type AndonSoundConfig, type SoundMachineId } from "@/types/sound";
-import type { AndonCategoryConfig, SettingsTab, ShiftConfig, TechnicianConfig } from "@/types/settings";
+import type { AndonCategoryConfig, FailureClassificationConfig, SettingsTab, ShiftConfig, TechnicianConfig } from "@/types/settings";
 import { toast } from "sonner";
+import { getFailureClassificationConfigs, saveFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "sounds", label: "Sons do ANDON" },
   { id: "technicians", label: "Manutentores" },
   { id: "categories", label: "Categorias" },
   { id: "shifts", label: "Turnos" },
+  { id: "classifications", label: "Classificações" },
 ];
 
 const areaOptions: Array<{ id: CallSubtype; label: string }> = [
@@ -66,6 +68,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         {tab === "technicians" && <TechniciansTab />}
         {tab === "categories" && <CategoriesTab />}
         {tab === "shifts" && <ShiftsTab />}
+        {tab === "classifications" && <ClassificationsTab />}
 
         <div className="flex items-center justify-between border-t border-border pt-3">
           <BigButton tone="danger" size="md" onClick={() => { logoutAdmin(); onOpenChange(false); }}>Sair do modo admin</BigButton>
@@ -210,3 +213,41 @@ return <div className="space-y-4"><div className="space-y-1"><h3 className="text
 
 function ShiftsTab() { const [items,setItems]=useState<ShiftConfig[]>([]); const [selectedId,setSelectedId]=useState<string>("morning"); const [draft,setDraft]=useState<ShiftConfig|null>(null); useEffect(()=>{const list=getShiftConfigs(); setItems(list); const first=list.find((x)=>x.id==="morning")??list[0]; setSelectedId(first.id); setDraft({...first});},[]); const persist=(next:ShiftConfig[])=>{setItems(next);saveShiftConfigs(next)}; const handleSelect=(item:ShiftConfig)=>{setSelectedId(item.id);setDraft({...item})}; const handleAddShift=()=>{setSelectedId(""); setDraft({...DEFAULT_SHIFTS[0],id:"",name:"Novo turno"});}; const handleSave=()=>{if(!draft)return; if(!draft.startTime||!draft.endTime)return toast.error("Informe horário inicial e final."); const normalized={...draft,crossesMidnight:draft.startTime>draft.endTime}; if(!draft.id){ toast.error("Nesta versão, edite apenas turnos existentes."); return;} persist(items.map((x)=>x.id===draft.id?normalized:x)); setDraft(normalized); toast.success("Turno salvo.");}; const handleCancel=()=>{const original=items.find((x)=>x.id===selectedId); if(original)setDraft({...original});}; if(!draft)return null;
 return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Turnos</h3><p className="text-sm text-muted-foreground">Ajuste horários e status dos turnos, incluindo cruzamento de meia-noite.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Turnos"><BigButton tone="neutral" size="md" onClick={handleAddShift}>Adicionar turno</BigButton><div className="space-y-2">{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{item.startTime} às {item.endTime} · {item.active?"Ativo":"Inativo"}</p><p className="text-xs text-muted-foreground">Cruza meia-noite: {item.crossesMidnight?"Sim":"Não"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar turno":"Novo turno"}><label className="text-sm font-semibold">Nome do turno<input value={draft.name} onChange={(e)=>setDraft({...draft,name:e.target.value})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-semibold">Horário início<input type="time" value={draft.startTime} onChange={(e)=>setDraft({...draft,startTime:e.target.value,crossesMidnight:e.target.value>draft.endTime})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label><label className="text-sm font-semibold">Horário fim<input type="time" value={draft.endTime} onChange={(e)=>setDraft({...draft,endTime:e.target.value,crossesMidnight:draft.startTime>e.target.value})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label></div><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})}/>Ativo</label><p className="text-sm text-muted-foreground">Cruza meia-noite: <span className="font-bold">{draft.crossesMidnight?"Sim":"Não"}</span></p><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar turno</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={()=>setDraft((prev)=>prev?{...prev,active:!prev.active}:prev)}>{draft.active?"Inativar":"Ativar"}</BigButton></div></CardSection></div></div>; }
+
+
+function ClassificationsTab() {
+  const [items, setItems] = useState<FailureClassificationConfig[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<FailureClassificationConfig>({ id: "", label: "", isActive: true });
+  useEffect(() => { setItems(getFailureClassificationConfigs()); }, []);
+  const persist = (next: FailureClassificationConfig[]) => { setItems(next); saveFailureClassificationConfigs(next); };
+  const handleAddClassification = () => { setSelectedId(null); setDraft({ id: "", label: "", isActive: true }); };
+  const handleSelect = (item: FailureClassificationConfig) => { setSelectedId(item.id); setDraft({ ...item }); };
+  const handleSave = () => {
+    if (!draft.label.trim()) return toast.error("Informe o nome exibido.");
+    const id = draft.id.trim() || draft.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    if (!id) return toast.error("Informe um ID interno válido.");
+    if (!/^[a-z0-9_]+$/.test(id)) return toast.error("ID interno inválido. Use minúsculas e underscore.");
+    const duplicate = items.some((item) => item.id === id && item.id !== selectedId);
+    if (duplicate) return toast.error("Já existe classificação com este ID.");
+    const nextItem = { ...draft, id, label: draft.label.trim(), updatedAt: new Date().toISOString(), createdAt: draft.createdAt ?? new Date().toISOString() };
+    persist([...items.filter((item) => item.id !== selectedId), nextItem].sort((a,b)=>a.label.localeCompare(b.label)));
+    setSelectedId(id);
+    setDraft(nextItem);
+    toast.success("Classificação salva.");
+  };
+  const handleCancel = () => {
+    if (!selectedId) return handleAddClassification();
+    const found = items.find((item) => item.id === selectedId);
+    if (found) setDraft({ ...found });
+  };
+  const handleToggleActive = () => {
+    if (!selectedId) return;
+    const next = items.map((item) => item.id === selectedId ? { ...item, isActive: !item.isActive, updatedAt: new Date().toISOString() } : item);
+    persist(next);
+    const found = next.find((item) => item.id === selectedId);
+    if (found) setDraft({ ...found });
+  };
+
+  return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Classificações</h3><p className="text-sm text-muted-foreground">Gerencie as opções usadas na classificação da ocorrência.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Classificações cadastradas"><BigButton tone="neutral" size="md" onClick={handleAddClassification}>Adicionar classificação</BigButton><div className="space-y-2">{items.length===0&&<p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.label}</p><p className="text-xs text-muted-foreground">{item.id} · {item.isActive?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar classificação":"Nova classificação"}><label className="text-sm font-semibold">Nome exibido<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.label} onChange={(e)=>setDraft({...draft,label:e.target.value})}/></label><label className="text-sm font-semibold">ID interno<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.id} onChange={(e)=>setDraft({...draft,id:e.target.value})} placeholder="ex: pneumatic_failure"/></label><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.isActive} onChange={(e)=>setDraft({...draft,isActive:e.target.checked})}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar classificação</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={handleToggleActive} disabled={!selectedId}>{draft.isActive?"Inativar":"Reativar"}</BigButton></div></CardSection></div></div>;
+}
