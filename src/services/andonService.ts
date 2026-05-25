@@ -251,8 +251,7 @@ export function attendAndonCall(
           productionModeAtAttend: machines.find((m) => m.id === c.machineId)?.productionMode,
           machineStatusAtAttend: machines.find((m) => m.id === c.machineId)?.machineStatus,
           technicianSessions: [...sessions, ...createdSessions],
-          technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
-    updatedAt: now,
+          updatedAt: now,
         }
       : c,
   );
@@ -286,7 +285,6 @@ export function completeMaintenanceAttendance(
     attendanceMinutes:
       (call.attendanceMinutes ?? 0) +
       diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
-    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -320,7 +318,6 @@ export function returnToMaintenance(
     postMaintenanceMinutes:
       (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
     maintenanceReturnCount: (call.maintenanceReturnCount ?? 0) + 1,
-    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -387,7 +384,6 @@ export function finishAndonCall(
     finishedAt: now,
     technicianName,
     technicianNames,
-    technicianSessions: Array.isArray((source as any).technicianSessions) ? ((source as any).technicianSessions as TechnicianAttendanceSession[]) : [],
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
     productionModeAtFinish: machine?.productionMode,
