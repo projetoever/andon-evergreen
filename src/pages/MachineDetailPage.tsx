@@ -16,6 +16,7 @@ import { BigButton } from "@/components/common/BigButton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
+import { formatShiftName } from "@/utils/technicianDisplayUtils";
 import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
 
@@ -49,6 +50,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [endNotes, setEndNotes] = useState("");
   const [endReason, setEndReason] = useState("handover");
   const [sessionId, setSessionId] = useState("");
+  const [nowIso, setNowIso] = useState(() => new Date().toISOString());
 
   if (!machine) {
     return (
@@ -68,10 +70,18 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
     : null;
   const activeSessions = currentCall?.technicianSessions?.filter((s) => !s.endedAt) ?? [];
+
+  useEffect(() => {
+    if (activeSessions.length === 0) return;
+    const interval = window.setInterval(() => {
+      setNowIso(new Date().toISOString());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [activeSessions.length]);
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
   const timeWithoutTechnicianMinutes =
     currentCall?.status === "in_progress" && activeSessions.length === 0
-      ? diffMinutes(currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt, new Date().toISOString())
+      ? diffMinutes(currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt, nowIso)
       : 0;
 
   function handleAttend() {
@@ -179,9 +189,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               {activeSessions.map((session) => (
                 <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
                   <div className="text-base font-bold text-foreground">{session.technicianName}</div>
-                  <div className="text-muted-foreground">Turno: {session.shiftName ?? "Não informado"}</div>
+                  <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>
                   <div className="font-semibold text-info">
-                    Tempo: {formatDurationMinutes(diffMinutes(session.startedAt, new Date().toISOString()))}
+                    Tempo: {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
                   </div>
                 </div>
               ))}
