@@ -21,9 +21,26 @@ import {
   calculateOperationalImpactBreakdown,
   formatBreakdownDuration,
 } from "@/utils/timeBreakdownUtils";
+import { calculateTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 
 interface MachineCallHistoryPageProps {
   machineId: string;
+}
+
+function getSessionEndReasonLabel(reason?: string): string {
+  if (!reason) return "Não informado";
+  const labels: Record<string, string> = {
+    handover: "Troca de turno",
+    support_finished: "Apoio encerrado",
+    support_completed: "Apoio encerrado",
+    transferred: "Serviço transferido",
+    service_transferred: "Serviço transferido",
+    break: "Intervalo",
+    other: "Outro",
+    final_call: "Finalização da ocorrência",
+    manual: "Encerramento manual",
+  };
+  return labels[reason] ?? reason;
 }
 
 export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProps) {
@@ -114,6 +131,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 machine.productionMode,
               now,
             });
+            const timeAllocations = calculateTechnicianTimeAllocations(call);
 
             return (
               <article key={call.id} className="rounded-xl border border-border bg-card p-4">
@@ -150,6 +168,49 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div><dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>
                 </dl>
+
+
+
+                {((call.technicianSessions ?? []).length > 0 || timeAllocations.allocations.length > 0) && (
+                  <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por manutentor</h3>
+                    {timeAllocations.allocations.length > 0 && (
+                      <div className="mb-3 space-y-2 rounded border border-border bg-background/70 p-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Resumo consolidado</h4>
+                        {timeAllocations.allocations.map((allocation) => (
+                          <div key={`${call.id}-${allocation.technicianName}-${allocation.source}`} className="rounded border border-border bg-card p-2 text-sm">
+                            <div className="font-semibold">{allocation.technicianName}</div>
+                            <div>Tempo atribuído: {formatDurationMinutes(allocation.durationSeconds / 60)}</div>
+                            <div>Origem: {allocation.sourceLabel}</div>
+                          </div>
+                        ))}
+                        {timeAllocations.unassignedSeconds > 0 && (
+                          <div className="text-sm font-semibold text-warning">
+                            Tempo sem manutentor apontado: {formatDurationMinutes(timeAllocations.unassignedSeconds / 60)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {(call.technicianSessions ?? []).length > 0 && (
+                      <>
+                        <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessões registradas</h4>
+                        <div className="space-y-2">
+                          {(call.technicianSessions ?? []).map((session) => {
+                        const end = session.endedAt ?? now.toISOString();
+                        const duration = formatDurationMinutes((new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000);
+                        return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm">
+                          <div className="font-semibold">{session.technicianName} — {session.shiftName ?? "Não informado"}</div>
+                          <div>{formatDateTime(session.startedAt)} até {formatDateTime(session.endedAt ?? null)}</div>
+                          <div>Duração: {duration}</div>
+                          <div>Motivo: {getSessionEndReasonLabel(session.endReason)}</div>
+                          {session.notes && <div>Observação: {session.notes}</div>}
+                        </div>;
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </section>
+                )}
 
                 <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
                   <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto operacional</h3>

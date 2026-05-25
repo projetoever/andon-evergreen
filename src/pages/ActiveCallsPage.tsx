@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { ActiveCallList } from "@/components/calls/ActiveCallList";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
+import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { toast } from "sonner";
 
 export function ActiveCallsPage() {
-  const { calls, attendCall, completeMaintenance, returnToMaintenance } = useAndon();
+  const { calls, completeMaintenance, returnToMaintenance } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
+  const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
 
   const activeCalls = useMemo(
     () =>
@@ -20,12 +22,7 @@ export function ActiveCallsPage() {
   );
 
   function handleAttend(callId: string) {
-    try {
-      attendCall(callId);
-      toast.success("Chamado em atendimento");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro");
-    }
+    setStartAttendanceCallId(callId);
   }
 
   function handleCompleteMaintenance(callId: string) {
@@ -62,6 +59,11 @@ export function ActiveCallsPage() {
         open={finishCallId !== null}
         onOpenChange={(o) => !o && setFinishCallId(null)}
         callId={finishCallId}
+      />
+      <StartAttendanceModal
+        open={startAttendanceCallId !== null}
+        onOpenChange={(open) => !open && setStartAttendanceCallId(null)}
+        callId={startAttendanceCallId}
       />
     </div>
   );
