@@ -45,8 +45,14 @@ export interface TechnicianConfig {
   id: string;
   name: string;
   area: CallSubtype;
-  shifts: string[];
+  shiftId: string;
+  shiftIds?: string[];
   active: boolean;
+}
+
+export interface TechnicianShiftFilterConfig {
+  filterByCurrentShift: boolean;
+  updatedAt?: string;
 }
 
 export interface ShiftConfig {
