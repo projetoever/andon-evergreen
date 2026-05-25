@@ -29,7 +29,8 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
 
   useEffect(() => {
     if (open) {
-      setTechnicianNames([]);
+      const sessionNames = Array.from(new Set((call?.technicianSessions ?? []).map((session) => session.technicianName)));
+      setTechnicianNames(sessionNames);
       setNotes("");
     }
   }, [open, callId]);

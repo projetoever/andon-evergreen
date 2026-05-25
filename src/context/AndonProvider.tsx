@@ -51,7 +51,9 @@ interface AndonContextValue {
   audioUnlocked: boolean;
   setAudioUnlocked: (unlocked: boolean) => void;
   openCall: (params: andonService.OpenAndonCallParams) => AndonCall;
-  attendCall: (callId: string) => void;
+  attendCall: (params: string | andonService.StartAttendanceParams) => void;
+  addTechnicianSessions: (params: andonService.AddTechnicianSessionsParams) => void;
+  endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => void;
   completeMaintenance: (callId: string) => AndonCall;
   returnToMaintenance: (callId: string) => AndonCall;
   finishCall: (params: andonService.FinishAndonCallParams) => void;
@@ -158,11 +160,30 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const attendCall = useCallback(
-    (callId: string) => {
+    (params: string | andonService.StartAttendanceParams) => {
+      const callId = typeof params === "string" ? params : params.callId;
       const currentCall = calls.find((call) => call.id === callId);
       stopAndonSound(currentCall?.machineId);
-      const result = andonService.attendAndonCall(machines, calls, callId);
+      const result = andonService.attendAndonCall(machines, calls, params);
       setMachines(result.machines);
+      setCalls(result.calls);
+    },
+    [machines, calls],
+  );
+
+
+
+  const addTechnicianSessions = useCallback(
+    (params: andonService.AddTechnicianSessionsParams) => {
+      const result = andonService.addTechnicianSessions(machines, calls, params);
+      setCalls(result.calls);
+    },
+    [machines, calls],
+  );
+
+  const endTechnicianSession = useCallback(
+    (params: andonService.EndTechnicianSessionParams) => {
+      const result = andonService.endTechnicianSession(machines, calls, params);
       setCalls(result.calls);
     },
     [machines, calls],
@@ -276,6 +297,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       setAudioUnlocked,
       openCall,
       attendCall,
+      addTechnicianSessions,
+      endTechnicianSession,
       completeMaintenance,
       returnToMaintenance,
       finishCall,
@@ -295,6 +318,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       audioUnlocked,
       openCall,
       attendCall,
+      addTechnicianSessions,
+      endTechnicianSession,
       completeMaintenance,
       returnToMaintenance,
       finishCall,

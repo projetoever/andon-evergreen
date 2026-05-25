@@ -4,6 +4,8 @@ import type {
   CallCriticality,
   CallSubtype,
   TechnicianArea,
+  TechnicianAttendanceSession,
+  TechnicianSessionEndReason,
 } from "@/types/andon";
 import type {
   Machine,
@@ -28,12 +30,50 @@ export interface OpenAndonCallParams {
   machineCondition?: MachineStatus;
 }
 
+export interface SelectedTechnicianInput {
+  id?: string;
+  name: string;
+  shiftId?: string;
+  shiftName?: string;
+  technicalArea?: TechnicianArea;
+}
+
 export interface FinishAndonCallParams {
   callId: string;
   technicianName: string | null;
   technicianNames?: string[];
   technicianArea: TechnicianArea | null;
   notes?: string | null;
+  selectedTechnicians?: SelectedTechnicianInput[];
+}
+
+
+
+export interface StartAttendanceParams {
+  callId: string;
+  technicians: SelectedTechnicianInput[];
+  notes?: string | null;
+}
+
+export interface AddTechnicianSessionsParams {
+  callId: string;
+  technicians: SelectedTechnicianInput[];
+}
+
+export interface EndTechnicianSessionParams {
+  callId: string;
+  sessionId: string;
+  notes?: string | null;
+  endReason: TechnicianSessionEndReason;
+}
+
+function createSession(call: AndonCall, machine: Machine | undefined, technician: SelectedTechnicianInput, now: string, notes?: string | null): TechnicianAttendanceSession {
+  return {
+    id: generateId("session"), callId: call.id, machineId: call.machineId,
+    technicianId: technician.id, technicianName: technician.name, technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
+    shiftId: technician.shiftId, shiftName: technician.shiftName ?? "Não informado", startedAt: now,
+    notes: notes ?? undefined, productionModeAtStart: machine?.productionMode, machineStatusAtStart: machine?.machineStatus,
+  };
 }
 
 /**
@@ -114,6 +154,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     maintenanceCompletedAt,
     currentAttendanceStartedAt,
     technicianNames,
+    technicianSessions: Array.isArray((source as any).technicianSessions) ? ((source as any).technicianSessions as TechnicianAttendanceSession[]) : [],
     postMaintenanceMinutes:
       typeof source.postMaintenanceMinutes === "number" &&
       Number.isFinite(source.postMaintenanceMinutes)
@@ -173,6 +214,7 @@ export function openAndonCall(
     machineStoppedMinutes: 0,
     notes: null,
     createdBy: "kiosk",
+    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
     productionModeAtOpen: machine.productionMode,
     machineStatusAtOpen: condition,
@@ -189,12 +231,16 @@ export function openAndonCall(
 export function attendAndonCall(
   machines: Machine[],
   calls: AndonCall[],
-  callId: string,
+  params: string | StartAttendanceParams,
 ): { machines: Machine[]; calls: AndonCall[] } {
+  const callId = typeof params === "string" ? params : params.callId;
   const call = calls.find((c) => c.id === callId);
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status !== "open") throw new Error("Chamado não está aberto");
   const now = new Date().toISOString();
+  const machine = machines.find((m) => m.id === call.machineId);
+  const sessions = call.technicianSessions ?? [];
+  const createdSessions = typeof params === "string" ? [] : params.technicians.map((t) => createSession(call, machine, t, now, params.notes));
   const newCalls = calls.map((c) =>
     c.id === callId
       ? {
@@ -204,7 +250,9 @@ export function attendAndonCall(
           currentAttendanceStartedAt: now,
           productionModeAtAttend: machines.find((m) => m.id === c.machineId)?.productionMode,
           machineStatusAtAttend: machines.find((m) => m.id === c.machineId)?.machineStatus,
-          updatedAt: now,
+          technicianSessions: [...sessions, ...createdSessions],
+          technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
+    updatedAt: now,
         }
       : c,
   );
@@ -238,6 +286,7 @@ export function completeMaintenanceAttendance(
     attendanceMinutes:
       (call.attendanceMinutes ?? 0) +
       diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
+    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -271,6 +320,7 @@ export function returnToMaintenance(
     postMaintenanceMinutes:
       (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
     maintenanceReturnCount: (call.maintenanceReturnCount ?? 0) + 1,
+    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -282,6 +332,36 @@ export function returnToMaintenance(
   return { machines: newMachines, calls: newCalls, call: updatedCall };
 }
 
+export function addTechnicianSessions(
+  machines: Machine[],
+  calls: AndonCall[],
+  params: AddTechnicianSessionsParams,
+): { machines: Machine[]; calls: AndonCall[] } {
+  const call = calls.find((c) => c.id === params.callId);
+  if (!call) throw new Error("Chamado não encontrado");
+  if (call.status !== "in_progress") throw new Error("Chamado não está em atendimento");
+  const now = new Date().toISOString();
+  const machine = machines.find((m) => m.id === call.machineId);
+  const currentSessions = call.technicianSessions ?? [];
+  const active = new Set(currentSessions.filter((s)=>!s.endedAt).map((s)=>s.technicianName));
+  const additions = params.technicians.filter((t)=>!active.has(t.name)).map((t)=>createSession(call,machine,t,now));
+  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:[...currentSessions,...additions], updatedAt: now } : c);
+  return { machines, calls: newCalls };
+}
+
+export function endTechnicianSession(
+  machines: Machine[],
+  calls: AndonCall[],
+  params: EndTechnicianSessionParams,
+): { machines: Machine[]; calls: AndonCall[] } {
+  const call = calls.find((c) => c.id === params.callId);
+  if (!call) throw new Error("Chamado não encontrado");
+  const now = new Date().toISOString();
+  const machine = machines.find((m) => m.id === call.machineId);
+  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:(c.technicianSessions??[]).map((s)=> s.id===params.sessionId ? { ...s, endedAt: now, endReason: params.endReason, notes: params.notes ?? s.notes, productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus } : s), updatedAt: now } : c);
+  return { machines, calls: newCalls };
+}
+
 export function finishAndonCall(
   machines: Machine[],
   calls: AndonCall[],
@@ -291,11 +371,8 @@ export function finishAndonCall(
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status === "finished") throw new Error("Chamado já finalizado");
 
-  const technicianNames = params.technicianNames?.length
-    ? params.technicianNames
-    : params.technicianName
-      ? [params.technicianName]
-      : call.technicianNames;
+  const sessionNames = Array.from(new Set((call.technicianSessions ?? []).map((session) => session.technicianName)));
+  const technicianNames = Array.from(new Set([...(params.technicianNames?.length ? params.technicianNames : params.technicianName ? [params.technicianName] : call.technicianNames), ...sessionNames]));
   const technicianName = technicianNames[0] ?? params.technicianName ?? null;
 
   if (call.category === "maintenance" && !technicianName) {
@@ -310,10 +387,12 @@ export function finishAndonCall(
     finishedAt: now,
     technicianName,
     technicianNames,
+    technicianSessions: Array.isArray((source as any).technicianSessions) ? ((source as any).technicianSessions as TechnicianAttendanceSession[]) : [],
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
     productionModeAtFinish: machine?.productionMode,
     machineStatusAtFinish: machine?.machineStatus,
+    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     updatedAt: now,
   };
   finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);

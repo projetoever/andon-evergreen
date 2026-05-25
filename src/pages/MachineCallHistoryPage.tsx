@@ -151,6 +151,27 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div className="sm:col-span-2 lg:col-span-4"><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="text-foreground">{call.notes || "Sem descrição"}</dd></div>
                 </dl>
 
+
+
+                {(call.technicianSessions ?? []).length > 0 && (
+                  <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+                    <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por manutentor</h3>
+                    <div className="space-y-2">
+                      {(call.technicianSessions ?? []).map((session) => {
+                        const end = session.endedAt ?? now.toISOString();
+                        const duration = formatDurationMinutes((new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000);
+                        return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm">
+                          <div className="font-semibold">{session.technicianName} — {session.shiftName ?? "Não informado"}</div>
+                          <div>{formatDateTime(session.startedAt)} até {formatDateTime(session.endedAt ?? null)}</div>
+                          <div>Duração: {duration}</div>
+                          <div>Motivo: {session.endReason ?? "Não informado"}</div>
+                          {session.notes && <div>Observação: {session.notes}</div>}
+                        </div>;
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 <section className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
                   <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto operacional</h3>
                   <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">

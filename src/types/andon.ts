@@ -16,6 +16,27 @@ export type CallCriticality = "low" | "medium" | "high";
 
 export type SoundKey = "electrical" | "mechanical" | "hot_melt" | "quality" | "leadership";
 
+export type TechnicianSessionEndReason = "handover" | "support_finished" | "final_call" | "transferred" | "break" | "manual" | "other";
+
+export interface TechnicianAttendanceSession {
+  id: string;
+  callId: string;
+  machineId: string;
+  technicianId?: string;
+  technicianName: string;
+  technicalArea?: TechnicianArea;
+  shiftId?: string;
+  shiftName?: string;
+  startedAt: string;
+  endedAt?: string;
+  notes?: string;
+  endReason?: TechnicianSessionEndReason;
+  productionModeAtStart?: "scheduled" | "not_scheduled";
+  productionModeAtEnd?: "scheduled" | "not_scheduled";
+  machineStatusAtStart?: MachineStatus;
+  machineStatusAtEnd?: MachineStatus;
+}
+
 export interface AndonCall {
   id: string;
   machineId: string;
@@ -31,6 +52,7 @@ export interface AndonCall {
   finishedAt: string | null;
   technicianName: string | null;
   technicianNames: string[];
+  technicianSessions?: TechnicianAttendanceSession[];
   technicianArea: TechnicianArea | null;
   callWaitingMinutes: number;
   attendanceMinutes: number;
