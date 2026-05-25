@@ -214,7 +214,7 @@ export function openAndonCall(
     machineStoppedMinutes: 0,
     notes: null,
     createdBy: "kiosk",
-    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
+    technicianSessions: [],
     updatedAt: now,
     productionModeAtOpen: machine.productionMode,
     machineStatusAtOpen: condition,
