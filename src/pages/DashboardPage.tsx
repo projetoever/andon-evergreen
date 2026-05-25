@@ -4,6 +4,7 @@ import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { OpenCallModal } from "@/components/calls/OpenCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
+import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { BigButton } from "@/components/common/BigButton";
 import { unlockAudio } from "@/services/soundService";
 import { Volume2, Settings } from "lucide-react";
@@ -17,7 +18,6 @@ export function DashboardPage() {
     machines,
     audioUnlocked,
     setAudioUnlocked,
-    attendCall,
     completeMaintenance,
     returnToMaintenance,
   } = useAndon();
@@ -26,6 +26,7 @@ export function DashboardPage() {
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
 
   function handleUnlock() {
     unlockAudio();
@@ -39,12 +40,7 @@ export function DashboardPage() {
   }
 
   function handleAttend(callId: string) {
-    try {
-      attendCall(callId);
-      toast.success("Chamado em atendimento");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro");
-    }
+    setStartAttendanceCallId(callId);
   }
 
   function handleCompleteMaintenance(callId: string) {
@@ -120,6 +116,11 @@ export function DashboardPage() {
         open={finishCallId !== null}
         onOpenChange={(o) => !o && setFinishCallId(null)}
         callId={finishCallId}
+      />
+      <StartAttendanceModal
+        open={startAttendanceCallId !== null}
+        onOpenChange={(open) => !open && setStartAttendanceCallId(null)}
+        callId={startAttendanceCallId}
       />
     </div>
   );

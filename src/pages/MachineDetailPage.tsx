@@ -69,6 +69,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     : null;
   const activeSessions = currentCall?.technicianSessions?.filter((s) => !s.endedAt) ?? [];
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
+  const timeWithoutTechnicianMinutes =
+    currentCall?.status === "in_progress" && activeSessions.length === 0
+      ? diffMinutes(currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt, new Date().toISOString())
+      : 0;
 
   function handleAttend() {
     if (!currentCall) return;
@@ -165,7 +169,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
           {activeSessions.length === 0 ? (
             <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-              Nenhum manutentor ativo no momento. Adicione um manutentor ou finalize a ocorrência.
+              Nenhum manutentor ativo no momento. Adicione um manutentor para registrar o tempo individual.
+              <div className="mt-1 font-semibold text-foreground">
+                Tempo sem manutentor apontado: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -184,7 +191,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <div className="mt-4 flex flex-wrap items-center gap-2.5">
             <BigButton
               tone="info"
-              size="sm"
+              size="md"
+              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
               onClick={() => {
                 setNames([]);
                 setAddOpen(true);
@@ -194,7 +202,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </BigButton>
             <BigButton
               tone="warning"
-              size="sm"
+              size="md"
+              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
               disabled={activeSessions.length === 0}
               onClick={() => {
                 setSessionId(activeSessions[0]?.id ?? "");
@@ -254,6 +263,21 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <DialogFooter className="gap-2">
             <BigButton tone="neutral" size="md" onClick={() => setStartOpen(false)}>
               Cancelar
+            </BigButton>
+            <BigButton
+              tone="warning"
+              size="md"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  "Este atendimento será iniciado sem manutentor apontado. O tempo individual só será contado após adicionar um manutentor. Deseja continuar?",
+                );
+                if (!confirmed || !currentCall) return;
+                attendCall({ callId: currentCall.id, technicians: [], notes });
+                setStartOpen(false);
+                toast.success("Chamado em atendimento sem apontamento de manutentor");
+              }}
+            >
+              Iniciar sem apontar manutentor
             </BigButton>
             <BigButton tone="success" size="md" onClick={confirmStart} disabled={names.length === 0}>
               Iniciar atendimento
