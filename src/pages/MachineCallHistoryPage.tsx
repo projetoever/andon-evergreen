@@ -26,6 +26,22 @@ interface MachineCallHistoryPageProps {
   machineId: string;
 }
 
+function getSessionEndReasonLabel(reason?: string): string {
+  if (!reason) return "Não informado";
+  const labels: Record<string, string> = {
+    handover: "Troca de turno",
+    support_finished: "Apoio encerrado",
+    support_completed: "Apoio encerrado",
+    transferred: "Serviço transferido",
+    service_transferred: "Serviço transferido",
+    break: "Intervalo",
+    other: "Outro",
+    final_call: "Finalização da ocorrência",
+    manual: "Encerramento manual",
+  };
+  return labels[reason] ?? reason;
+}
+
 export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProps) {
   const { machines, calls } = useAndon();
   const machine = machines.find((m) => m.id === machineId);
@@ -164,7 +180,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           <div className="font-semibold">{session.technicianName} — {session.shiftName ?? "Não informado"}</div>
                           <div>{formatDateTime(session.startedAt)} até {formatDateTime(session.endedAt ?? null)}</div>
                           <div>Duração: {duration}</div>
-                          <div>Motivo: {session.endReason ?? "Não informado"}</div>
+                          <div>Motivo: {getSessionEndReasonLabel(session.endReason)}</div>
                           {session.notes && <div>Observação: {session.notes}</div>}
                         </div>;
                       })}

@@ -181,10 +181,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </div>
           )}
 
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
             <BigButton
               tone="info"
-              size="md"
+              size="sm"
               onClick={() => {
                 setNames([]);
                 setAddOpen(true);
@@ -194,7 +194,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </BigButton>
             <BigButton
               tone="warning"
-              size="md"
+              size="sm"
               disabled={activeSessions.length === 0}
               onClick={() => {
                 setSessionId(activeSessions[0]?.id ?? "");
@@ -336,8 +336,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                   onChange={(e) => setEndReason(e.target.value)}
                 >
                   <option value="handover">Troca de turno</option>
-                  <option value="support_finished">Apoio encerrado</option>
-                  <option value="transferred">Serviço transferido</option>
+                  <option value="support_completed">Apoio encerrado</option>
+                  <option value="service_transferred">Serviço transferido</option>
                   <option value="break">Intervalo</option>
                   <option value="other">Outro</option>
                 </select>
