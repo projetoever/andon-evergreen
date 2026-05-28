@@ -10,6 +10,12 @@ export function formatShiftName(shiftName?: string | null): string {
   return labels[normalized] ?? shiftName;
 }
 
+export function formatTechnicianDisplayName(name?: string | null): string {
+  const normalizedName = name?.trim();
+  if (!normalizedName) return "Sem manutentor apontado";
+  return normalizedName;
+}
+
 export function formatSessionEndReason(reason?: string | null): string {
   if (!reason) return "Não informado";
   const labels: Record<string, string> = {

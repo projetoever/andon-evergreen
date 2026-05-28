@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAndon } from "@/context/AndonProvider";
@@ -19,6 +19,7 @@ import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
 import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
+import { useTicker } from "@/hooks/useTicker";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
@@ -50,7 +51,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [endNotes, setEndNotes] = useState("");
   const [endReason, setEndReason] = useState("handover");
   const [sessionId, setSessionId] = useState("");
-  const [nowIso, setNowIso] = useState(() => new Date().toISOString());
+  const tick = useTicker(1000);
 
   if (!machine) {
     return (
@@ -69,16 +70,15 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const currentCall = machine.currentCallId
     ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
     : null;
-  const sessions = currentCall?.technicianSessions ?? [];
+  const nowIso = useMemo(() => new Date().toISOString(), [tick]);
+  const sessions = useMemo(
+    () =>
+      (currentCall?.technicianSessions ?? [])
+        .slice()
+        .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()),
+    [currentCall?.technicianSessions],
+  );
   const activeSessions = sessions.filter((s) => !s.endedAt);
-
-  useEffect(() => {
-    if (activeSessions.length === 0) return;
-    const interval = window.setInterval(() => {
-      setNowIso(new Date().toISOString());
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [activeSessions.length]);
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
   const timeWithoutTechnicianMinutes =
     currentCall?.status === "in_progress" && activeSessions.length === 0
@@ -195,7 +195,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                     {formatDurationMinutes(
                       diffMinutes(
                         currentCall.currentAttendanceStartedAt,
-                        sessions[0]?.startedAt ?? currentCall.maintenanceCompletedAt ?? nowIso,
+                        sessions[0]?.startedAt ?? nowIso,
                       ),
                     )}
                   </div>
