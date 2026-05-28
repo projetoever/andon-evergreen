@@ -62,7 +62,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
         const allocationRows = allocations.map((allocation: any, index: number) => ({
           id: allocation.technicianId ?? allocation.technicianName ?? `allocation-${index}`,
-          technicianName: allocation.technicianName || "Não informado",
+          technicianName: allocation.technicianName || "Sem manutentor apontado",
           startedAt: allocation.startedAt ?? null,
           endedAt: allocation.endedAt ?? null,
           minutes: typeof allocation.minutes === "number" ? allocation.minutes : 0,
@@ -80,7 +80,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div className="mt-1 text-sm text-muted-foreground">Tempo total: <span className="font-bold text-foreground">{formatDurationMinutes(totalMinutes)}</span></div>
               <div className="text-sm text-muted-foreground">Técnicos: {technicianNames}</div>
             </div>
-            <div className="flex flex-col items-end gap-2"><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">{getAndonStatusLabel(call.status)}</span><button type="button" className="text-xs font-semibold text-info hover:underline" onClick={() => setExpandedCallIds((prev) => prev.includes(call.id) ? prev.filter((id) => id !== call.id) : [...prev, call.id])}>{isExpanded ? "Ocultar detalhes" : "Ver detalhes"}</button></div>
+            <div className="flex flex-col items-end gap-2"><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">{getAndonStatusLabel(call.status)}</span><button type="button" className="text-xs font-semibold text-info hover:underline" onClick={() => setExpandedCallIds((prev) => prev.includes(call.id) ? prev.filter((id) => id !== call.id) : [...prev, call.id])}>{isExpanded ? "Ocultar detalhes" : "Mais detalhes"}</button></div>
           </div>
 
           {isExpanded && <>
@@ -107,11 +107,11 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   <div>Início: {formatDateTime(row.startedAt)}</div>
                   <div>Fim: {formatDateTime(row.endedAt)}</div>
                   <div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div>
-                  <div className="text-xs text-muted-foreground">Origem: {formatTimeAllocationSource(row.source)}</div>
+                  {row.source && <div className="text-xs text-muted-foreground">Origem: {formatTimeAllocationSource(row.source)}</div>}
                 </div>) : sessions.length > 0 ? sessions.map((session) => {
                   const end = session.endedAt ?? now.toISOString();
                   const minutes = (new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000;
-                  return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm"><div className="font-semibold">{session.technicianName}</div><div>Início: {formatDateTime(session.startedAt)}</div><div>Fim: {formatDateTime(session.endedAt ?? null)}</div><div>Tempo: {formatDurationMinutes(minutes)}</div><div className="text-xs text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div></div>;
+                  return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm"><div className="font-semibold">{session.technicianName}</div><div>Início: {formatDateTime(session.startedAt)}</div><div>Fim: {formatDateTime(session.endedAt ?? null)}</div><div>Tempo: {formatDurationMinutes(minutes)}</div>{session.shiftName && <div className="text-xs text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}</div>;
                 }) : <div className="text-sm text-muted-foreground">Não informado</div>}
 
                 {unassignedRows.map((row: any) => <div key={`${row.id}-unassigned`} className="rounded border border-dashed border-border bg-card p-2 text-sm text-muted-foreground"><div className="font-semibold">Tempo sem manutentor apontado</div><div>Início: {formatDateTime(row.startedAt)}</div><div>Fim: {formatDateTime(row.endedAt)}</div><div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div></div>)}

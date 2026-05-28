@@ -69,7 +69,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const currentCall = machine.currentCallId
     ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
     : null;
-  const activeSessions = currentCall?.technicianSessions?.filter((s) => !s.endedAt) ?? [];
+  const sessions = currentCall?.technicianSessions ?? [];
+  const activeSessions = sessions.filter((s) => !s.endedAt);
 
   useEffect(() => {
     if (activeSessions.length === 0) return;
@@ -177,7 +178,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             Atendimento por manutentor
           </h3>
 
-          {activeSessions.length === 0 ? (
+          {sessions.length === 0 ? (
             <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
               Nenhum manutentor ativo no momento. Adicione um manutentor para registrar o tempo individual.
               <div className="mt-1 font-semibold text-foreground">
@@ -186,10 +187,24 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {currentCall.currentAttendanceStartedAt && (
+                <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-sm">
+                  <div className="text-base font-bold text-foreground">Sem manutentor apontado</div>
+                  <div className="font-semibold text-info">
+                    Tempo:{" "}
+                    {formatDurationMinutes(
+                      diffMinutes(
+                        currentCall.currentAttendanceStartedAt,
+                        sessions[0]?.startedAt ?? currentCall.maintenanceCompletedAt ?? nowIso,
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
               {activeSessions.map((session) => (
                 <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
                   <div className="text-base font-bold text-foreground">{session.technicianName}</div>
-                  <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>
+                  {session.shiftName && <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}
                   <div className="font-semibold text-info">
                     Tempo: {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
                   </div>

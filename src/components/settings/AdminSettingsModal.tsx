@@ -192,7 +192,14 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
             <label className="text-sm font-semibold">Máquina<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={machineId} onChange={(e) => setMachineId(e.target.value)}><option value="default">Padrão para todas</option>{machines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
             <label className="text-sm font-semibold">Tipo de chamado<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={subtype} onChange={(e) => setSubtype(e.target.value as any)}>{CALL_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
           </div>
-          <label className="text-sm font-semibold">Arquivo de áudio<input type="file" accept=".mp3,.wav,.ogg" className="mt-1 block w-full text-sm" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} /></label>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Arquivo de áudio</p>
+            <input id="andon-audio-file-input" type="file" accept=".mp3,.wav,.ogg" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
+            <label htmlFor="andon-audio-file-input" className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-md border border-border bg-muted px-4 text-lg font-black hover:bg-accent">
+              + Escolher áudio
+            </label>
+            <p className="text-sm text-muted-foreground">{selectedFile ? selectedFile.name : "Nenhum arquivo selecionado"}</p>
+          </div>
           <p className="text-sm text-muted-foreground">Arquivo atual: {currentConfig?.fileName ?? "Nenhum som configurado"}</p>
           <div className="flex flex-wrap gap-2 pt-2">
             <BigButton tone="primary" size="md" onClick={() => void handleSaveSound()}>Salvar som</BigButton>
