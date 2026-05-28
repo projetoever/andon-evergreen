@@ -45,17 +45,11 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
 
   function startWithTechnicians() {
     if (names.length === 0) {
-      toast.error("Selecione ao menos um manutentor");
+      toast.error("Selecione pelo menos um manutentor para iniciar o atendimento.");
       return;
     }
     attendCall({ callId: call.id, technicians: resolveSelected(), notes });
     toast.success("Chamado em atendimento");
-    onOpenChange(false);
-  }
-
-  function startWithoutTechnician() {
-    attendCall({ callId: call.id, technicians: [], notes });
-    toast.success("Chamado em atendimento sem apontamento de manutentor");
     onOpenChange(false);
   }
 
@@ -65,7 +59,7 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
         <DialogHeader>
           <DialogTitle className="text-3xl">Iniciar atendimento</DialogTitle>
           <DialogDescription className="text-base">
-            Selecione os manutentores que iniciarão o atendimento ou inicie sem apontamento para registrar depois.
+            Selecione pelo menos um manutentor para iniciar o atendimento.
           </DialogDescription>
         </DialogHeader>
 
@@ -85,8 +79,7 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
 
         <DialogFooter className="gap-2">
           <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>Cancelar</BigButton>
-          <BigButton tone="warning" size="md" onClick={startWithoutTechnician}>Iniciar sem apontar manutentor</BigButton>
-          <BigButton tone="success" size="md" onClick={startWithTechnicians} disabled={names.length === 0}>Iniciar atendimento</BigButton>
+          <BigButton tone="success" size="md" onClick={startWithTechnicians}>Iniciar atendimento</BigButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

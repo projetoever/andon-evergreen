@@ -18,6 +18,22 @@ export type SoundKey = "electrical" | "mechanical" | "hot_melt" | "quality" | "l
 
 export type TechnicianSessionEndReason = "handover" | "support_finished" | "final_call" | "transferred" | "break" | "manual" | "other";
 
+
+export type TechnicianTimeAllocationSource =
+  | "registered_session"
+  | "full_period_final_selection"
+  | "single_responsible_full_period"
+  | "unassigned_time";
+
+export interface TechnicianTimeAllocation {
+  technicianId?: string;
+  technicianName: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  minutes: number;
+  source: TechnicianTimeAllocationSource;
+}
+
 export interface TechnicianAttendanceSession {
   id: string;
   callId: string;
@@ -53,6 +69,7 @@ export interface AndonCall {
   technicianName: string | null;
   technicianNames: string[];
   technicianSessions?: TechnicianAttendanceSession[];
+  technicianTimeAllocations?: TechnicianTimeAllocation[];
   technicianArea: TechnicianArea | null;
   callWaitingMinutes: number;
   attendanceMinutes: number;

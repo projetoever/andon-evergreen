@@ -39,6 +39,20 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
   const opt = getCallTypeOption(call.subtype);
   const requiresTechnician = call.category === "maintenance";
 
+  function resolveSelectedTechnicians() {
+    const configs = JSON.parse(localStorage.getItem("andonTechniciansConfig") ?? "[]") as any[];
+    return technicianNames.map((name) => {
+      const config = configs.find((item) => item.name === name);
+      return {
+        name,
+        id: config?.id,
+        shiftId: config?.shiftId,
+        shiftName: config?.shiftId,
+        technicalArea: config?.area ?? opt?.technicianArea ?? undefined,
+      };
+    });
+  }
+
   function handleConfirm() {
     if (!call) return;
     try {
@@ -47,6 +61,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
         technicianName: technicianNames[0] ?? null,
         technicianNames,
         technicianArea: opt?.technicianArea ?? null,
+        selectedTechnicians: resolveSelectedTechnicians(),
         notes: notes.trim() || null,
       });
       toast.success(`Chamado da Máquina ${call.machineId} finalizado`);

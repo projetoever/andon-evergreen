@@ -79,6 +79,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     [currentCall?.technicianSessions],
   );
   const activeSessions = sessions.filter((s) => !s.endedAt);
+  const firstSessionStartedAt = sessions[0]?.startedAt ?? null;
+  const hasLegacyUnassignedPeriod = Boolean(
+    currentCall?.currentAttendanceStartedAt &&
+      (!firstSessionStartedAt ||
+        new Date(firstSessionStartedAt).getTime() - new Date(currentCall.currentAttendanceStartedAt).getTime() > 1000),
+  );
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
   const timeWithoutTechnicianMinutes =
     currentCall?.status === "in_progress" && activeSessions.length === 0
@@ -108,7 +114,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   function confirmStart() {
     if (!currentCall || names.length === 0) {
-      toast.error("Selecione ao menos um manutentor");
+      toast.error("Selecione pelo menos um manutentor para iniciar o atendimento.");
       return;
     }
     attendCall({ callId: currentCall.id, technicians: resolveSelected(), notes });
@@ -187,7 +193,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {currentCall.currentAttendanceStartedAt && (
+              {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
                 <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-sm">
                   <div className="text-base font-bold text-foreground">Sem manutentor apontado</div>
                   <div className="font-semibold text-info">
@@ -289,19 +295,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             <BigButton tone="neutral" size="md" onClick={() => setStartOpen(false)}>
               Cancelar
             </BigButton>
-            <BigButton
-              tone="warning"
-              size="md"
-              onClick={() => {
-                if (!currentCall) return;
-                attendCall({ callId: currentCall.id, technicians: [], notes });
-                setStartOpen(false);
-                toast.success("Chamado em atendimento sem apontamento de manutentor");
-              }}
-            >
-              Iniciar sem apontar manutentor
-            </BigButton>
-            <BigButton tone="success" size="md" onClick={confirmStart} disabled={names.length === 0}>
+            <BigButton tone="success" size="md" onClick={confirmStart}>
               Iniciar atendimento
             </BigButton>
           </DialogFooter>

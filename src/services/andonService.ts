@@ -6,6 +6,7 @@ import type {
   TechnicianArea,
   TechnicianAttendanceSession,
   TechnicianSessionEndReason,
+  TechnicianTimeAllocation,
 } from "@/types/andon";
 import type {
   Machine,
@@ -71,7 +72,7 @@ function createSession(call: AndonCall, machine: Machine | undefined, technician
   return {
     id: generateId("session"), callId: call.id, machineId: call.machineId,
     technicianId: technician.id, technicianName: technician.name, technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
-    shiftId: technician.shiftId, shiftName: technician.shiftName ?? "Não informado", startedAt: now,
+    shiftId: technician.shiftId, shiftName: technician.shiftName, startedAt: now,
     notes: notes ?? undefined, productionModeAtStart: machine?.productionMode, machineStatusAtStart: machine?.machineStatus,
   };
 }
@@ -128,6 +129,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     machineStatusAtOpen?: unknown;
     machineStatusAtAttend?: unknown;
     machineStatusAtFinish?: unknown;
+    technicianTimeAllocations?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -155,6 +157,9 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     currentAttendanceStartedAt,
     technicianNames,
     technicianSessions: Array.isArray((source as any).technicianSessions) ? ((source as any).technicianSessions as TechnicianAttendanceSession[]) : [],
+    technicianTimeAllocations: Array.isArray(source.technicianTimeAllocations)
+      ? (source.technicianTimeAllocations as TechnicianTimeAllocation[])
+      : [],
     postMaintenanceMinutes:
       typeof source.postMaintenanceMinutes === "number" &&
       Number.isFinite(source.postMaintenanceMinutes)
@@ -239,8 +244,12 @@ export function attendAndonCall(
   if (call.status !== "open") throw new Error("Chamado não está aberto");
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
+  const selectedTechnicians = typeof params === "string" ? [] : params.technicians;
+  if (selectedTechnicians.length === 0) {
+    throw new Error("Selecione pelo menos um manutentor para iniciar o atendimento.");
+  }
   const sessions = call.technicianSessions ?? [];
-  const createdSessions = typeof params === "string" ? [] : params.technicians.map((t) => createSession(call, machine, t, now, params.notes));
+  const createdSessions = selectedTechnicians.map((t) => createSession(call, machine, t, now, typeof params === "string" ? null : params.notes));
   const newCalls = calls.map((c) =>
     c.id === callId
       ? {
@@ -369,7 +378,12 @@ export function finishAndonCall(
   if (call.status === "finished") throw new Error("Chamado já finalizado");
 
   const sessionNames = Array.from(new Set((call.technicianSessions ?? []).map((session) => session.technicianName)));
-  const technicianNames = Array.from(new Set([...(params.technicianNames?.length ? params.technicianNames : params.technicianName ? [params.technicianName] : call.technicianNames), ...sessionNames]));
+  const selectedFinalNames = params.technicianNames?.length
+    ? params.technicianNames
+    : params.technicianName
+      ? [params.technicianName]
+      : call.technicianNames;
+  const technicianNames = Array.from(new Set([...selectedFinalNames, ...sessionNames].filter(Boolean)));
   const technicianName = technicianNames[0] ?? params.technicianName ?? null;
 
   if (call.category === "maintenance" && !technicianName) {
@@ -377,6 +391,23 @@ export function finishAndonCall(
   }
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
+  const allocationStartedAt = call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt;
+  const allocationEndedAt = now;
+  const allocationMinutes = diffMinutes(allocationStartedAt, allocationEndedAt);
+  const selectedTechnicianByName = new Map((params.selectedTechnicians ?? []).map((technician) => [technician.name, technician]));
+  const sessionByName = new Map((call.technicianSessions ?? []).map((session) => [session.technicianName, session]));
+  const technicianTimeAllocations: TechnicianTimeAllocation[] = technicianNames.map((name) => {
+    const selectedTechnician = selectedTechnicianByName.get(name);
+    const session = sessionByName.get(name);
+    return {
+      technicianId: selectedTechnician?.id ?? session?.technicianId,
+      technicianName: name,
+      startedAt: allocationStartedAt,
+      endedAt: allocationEndedAt,
+      minutes: allocationMinutes,
+      source: technicianNames.length === 1 ? "single_responsible_full_period" : "full_period_final_selection",
+    };
+  });
   const finishedCall: AndonCall = {
     ...call,
     status: "finished",
@@ -389,6 +420,7 @@ export function finishAndonCall(
     productionModeAtFinish: machine?.productionMode,
     machineStatusAtFinish: machine?.machineStatus,
     technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
+    technicianTimeAllocations,
     updatedAt: now,
   };
   finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);
