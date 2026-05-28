@@ -20,6 +20,7 @@ import { formatShiftName } from "@/utils/technicianDisplayUtils";
 import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
 import { useTicker } from "@/hooks/useTicker";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
@@ -86,6 +87,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         new Date(firstSessionStartedAt).getTime() - new Date(currentCall.currentAttendanceStartedAt).getTime() > 1000),
   );
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
+  const requiresTechnician = currentCall ? requiresMaintenanceTechnician(currentCall) : false;
   const timeWithoutTechnicianMinutes =
     currentCall?.status === "in_progress" && activeSessions.length === 0
       ? diffMinutes(currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt, nowIso)
@@ -95,6 +97,17 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     if (!currentCall) return;
     setNames([]);
     setNotes("");
+
+    if (!requiresMaintenanceTechnician(currentCall)) {
+      try {
+        attendCall({ callId: currentCall.id, technicians: [] });
+        toast.success("Chamado em atendimento");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao atender chamado");
+      }
+      return;
+    }
+
     setStartOpen(true);
   }
 
@@ -113,11 +126,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   function confirmStart() {
-    if (!currentCall || names.length === 0) {
+    if (!currentCall) return;
+    if (requiresTechnician && names.length === 0) {
       toast.error("Selecione pelo menos um manutentor para iniciar o atendimento.");
       return;
     }
-    attendCall({ callId: currentCall.id, technicians: resolveSelected(), notes });
+    attendCall({ callId: currentCall.id, technicians: requiresTechnician ? resolveSelected() : [], notes });
     setStartOpen(false);
     toast.success("Chamado em atendimento");
   }
@@ -178,7 +192,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         <MachineCurrentCallPanel call={currentCall} />
       </div>
 
-      {currentCall?.status === "in_progress" && (
+      {currentCall?.status === "in_progress" && requiresTechnician && (
         <section className="rounded-xl border border-border bg-card p-4 md:p-5">
           <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
             Atendimento por manutentor
@@ -277,7 +291,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </DialogDescription>
           </DialogHeader>
 
-          {area && <TechnicianSelector area={area} value={names} onChange={setNames} />}
+          {requiresTechnician && area && <TechnicianSelector area={area} value={names} onChange={setNames} />}
 
           <div>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

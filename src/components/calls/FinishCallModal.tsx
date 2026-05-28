@@ -13,6 +13,7 @@ import { getCallTypeOption } from "@/data/callTypes";
 import { TechnicianSelector } from "./TechnicianSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { getCallSubtypeLabel } from "@/utils/statusUtils";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { toast } from "sonner";
 
 interface FinishCallModalProps {
@@ -37,7 +38,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
 
   if (!call) return null;
   const opt = getCallTypeOption(call.subtype);
-  const requiresTechnician = call.category === "maintenance";
+  const requiresTechnician = requiresMaintenanceTechnician(call);
 
   function resolveSelectedTechnicians() {
     const configs = JSON.parse(localStorage.getItem("andonTechniciansConfig") ?? "[]") as any[];

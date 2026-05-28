@@ -4,9 +4,10 @@ import { ActiveCallList } from "@/components/calls/ActiveCallList";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { toast } from "sonner";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function ActiveCallsPage() {
-  const { calls, completeMaintenance, returnToMaintenance } = useAndon();
+  const { calls, attendCall, completeMaintenance, returnToMaintenance } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
 
@@ -22,6 +23,17 @@ export function ActiveCallsPage() {
   );
 
   function handleAttend(callId: string) {
+    const call = calls.find((item) => item.id === callId);
+    if (call && !requiresMaintenanceTechnician(call)) {
+      try {
+        attendCall({ callId, technicians: [] });
+        toast.success("Chamado em atendimento");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao atender chamado");
+      }
+      return;
+    }
+
     setStartAttendanceCallId(callId);
   }
 

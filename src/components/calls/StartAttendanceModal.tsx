@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { BigButton } from "@/components/common/BigButton";
 import { TechnicianSelector } from "@/components/calls/TechnicianSelector";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 interface StartAttendanceModalProps {
   open: boolean;
@@ -20,6 +21,7 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
 
   const call = callId ? calls.find((item) => item.id === callId) ?? null : null;
   const area = call ? getCallTypeOption(call.subtype)?.technicianArea : null;
+  const requiresTechnician = call ? requiresMaintenanceTechnician(call) : false;
 
   useEffect(() => {
     if (!open) return;
@@ -44,11 +46,11 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
   }
 
   function startWithTechnicians() {
-    if (names.length === 0) {
+    if (requiresTechnician && names.length === 0) {
       toast.error("Selecione pelo menos um manutentor para iniciar o atendimento.");
       return;
     }
-    attendCall({ callId: call.id, technicians: resolveSelected(), notes });
+    attendCall({ callId: call.id, technicians: requiresTechnician ? resolveSelected() : [], notes });
     toast.success("Chamado em atendimento");
     onOpenChange(false);
   }
@@ -63,7 +65,7 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
           </DialogDescription>
         </DialogHeader>
 
-        {area && <TechnicianSelector area={area} value={names} onChange={setNames} />}
+        {requiresTechnician && area && <TechnicianSelector area={area} value={names} onChange={setNames} />}
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

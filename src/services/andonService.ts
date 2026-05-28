@@ -22,6 +22,7 @@ import {
   calculateTotalCallMinutes,
   diffMinutes,
 } from "@/utils/durationUtils";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -245,11 +246,14 @@ export function attendAndonCall(
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
   const selectedTechnicians = typeof params === "string" ? [] : params.technicians;
-  if (selectedTechnicians.length === 0) {
+  const shouldRequireTechnician = requiresMaintenanceTechnician(call);
+  if (shouldRequireTechnician && selectedTechnicians.length === 0) {
     throw new Error("Selecione pelo menos um manutentor para iniciar o atendimento.");
   }
   const sessions = call.technicianSessions ?? [];
-  const createdSessions = selectedTechnicians.map((t) => createSession(call, machine, t, now, typeof params === "string" ? null : params.notes));
+  const createdSessions = shouldRequireTechnician
+    ? selectedTechnicians.map((t) => createSession(call, machine, t, now, typeof params === "string" ? null : params.notes))
+    : [];
   const newCalls = calls.map((c) =>
     c.id === callId
       ? {
@@ -386,7 +390,7 @@ export function finishAndonCall(
   const technicianNames = Array.from(new Set([...selectedFinalNames, ...sessionNames].filter(Boolean)));
   const technicianName = technicianNames[0] ?? params.technicianName ?? null;
 
-  if (call.category === "maintenance" && !technicianName) {
+  if (requiresMaintenanceTechnician(call) && !technicianName) {
     throw new Error("Selecione um manutentor para chamados de manutenção");
   }
   const now = new Date().toISOString();

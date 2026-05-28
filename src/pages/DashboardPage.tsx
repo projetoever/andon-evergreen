@@ -12,12 +12,15 @@ import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { toast } from "sonner";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function DashboardPage() {
   const {
     machines,
+    calls,
     audioUnlocked,
     setAudioUnlocked,
+    attendCall,
     completeMaintenance,
     returnToMaintenance,
   } = useAndon();
@@ -40,6 +43,17 @@ export function DashboardPage() {
   }
 
   function handleAttend(callId: string) {
+    const call = calls.find((item) => item.id === callId);
+    if (call && !requiresMaintenanceTechnician(call)) {
+      try {
+        attendCall({ callId, technicians: [] });
+        toast.success("Chamado em atendimento");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao atender chamado");
+      }
+      return;
+    }
+
     setStartAttendanceCallId(callId);
   }
 

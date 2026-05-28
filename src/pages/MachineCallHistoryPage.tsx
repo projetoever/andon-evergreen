@@ -21,6 +21,7 @@ import {
 } from "@/utils/statusUtils";
 import { calculateOperationalImpactBreakdown, formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
 import { formatShiftName, formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 interface MachineCallHistoryPageProps { machineId: string; }
 
@@ -47,9 +48,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
         const attendanceMinutes = call.status === "finished" ? call.attendanceMinutes : calculateAttendanceMinutes(call);
         const postMaintenanceMinutes = call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
         const totalMinutes = call.status === "finished" ? call.totalCallMinutes : calculateTotalCallMinutes(call);
+        const isMaintenance = requiresMaintenanceTechnician(call);
+        const hasTechnicianNames = call.technicianNames.length > 0 || Boolean(call.technicianName);
         const technicianNames = call.technicianNames.length > 0
           ? call.technicianNames.join(", ")
-          : formatTechnicianDisplayName(call.technicianName);
+          : call.technicianName
+            ? formatTechnicianDisplayName(call.technicianName)
+            : isMaintenance
+              ? "Sem manutentor apontado"
+              : "Não aplicável";
         const isExpanded = expandedCallIds.includes(call.id);
 
         const attendanceStart = call.attendedAt ?? call.openedAt;
@@ -89,7 +96,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               source: "full_period_final_selection" as const,
             }));
 
-        const hasLegacyUnassignedAttendance = call.attendedAt && finalTechnicianNames.length === 0 && sessions.length === 0;
+        const hasLegacyUnassignedAttendance = isMaintenance && call.attendedAt && finalTechnicianNames.length === 0 && sessions.length === 0;
         const technicianRows = hasLegacyUnassignedAttendance
           ? [
               ...allocationRows,
@@ -104,13 +111,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             ]
           : allocationRows;
 
+        const shouldShowTechnicianSection = isMaintenance || sessions.length > 0 || allocations.length > 0 || hasTechnicianNames;
+
         return <article key={call.id} className="rounded-lg border border-border bg-card p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">{formatDateTime(call.openedAt)}</div>
               <h2 className="text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
               <div className="mt-1 text-sm text-muted-foreground">Tempo total: <span className="font-bold text-foreground">{formatDurationMinutes(totalMinutes)}</span></div>
-              <div className="text-sm text-muted-foreground">Técnicos: {technicianNames}</div>
+              <div className="text-sm text-muted-foreground">Manutentores: {technicianNames}</div>
             </div>
             <div className="flex flex-col items-end gap-2"><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">{getAndonStatusLabel(call.status)}</span><button type="button" className="text-xs font-semibold text-info hover:underline" onClick={() => setExpandedCallIds((prev) => prev.includes(call.id) ? prev.filter((id) => id !== call.id) : [...prev, call.id])}>{isExpanded ? "Ocultar detalhes" : "Mais detalhes"}</button></div>
           </div>
@@ -131,22 +140,24 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd>{call.notes || "Sem descrição"}</dd></div>
             </dl>
 
-            <section className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-              <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por manutentor</h3>
-              <div className="space-y-2">
-                {technicianRows.length > 0 ? technicianRows.map((row: any) => <div key={row.id} className="rounded border border-border bg-card p-2 text-sm">
-                  <div className="font-semibold">{formatTechnicianDisplayName(row.technicianName)}</div>
-                  <div>Início: {formatDateTime(row.startedAt)}</div>
-                  <div>Fim: {formatDateTime(row.endedAt)}</div>
-                  <div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div>
-                  {row.source && <div className="text-xs text-muted-foreground">Origem: {formatTimeAllocationSource(row.source)}</div>}
-                </div>) : sessions.length > 0 ? sessions.map((session) => {
-                  const end = session.endedAt ?? now.toISOString();
-                  const minutes = (new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000;
-                  return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm"><div className="font-semibold">{formatTechnicianDisplayName(session.technicianName)}</div><div>Início: {formatDateTime(session.startedAt)}</div><div>Fim: {formatDateTime(session.endedAt ?? null)}</div><div>Tempo: {formatDurationMinutes(minutes)}</div>{session.shiftName && <div className="text-xs text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}</div>;
-                }) : <div className="text-sm text-muted-foreground">Não informado</div>}
-              </div>
-            </section>
+            {shouldShowTechnicianSection && (
+              <section className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
+                <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por manutentor</h3>
+                <div className="space-y-2">
+                  {technicianRows.length > 0 ? technicianRows.map((row: any) => <div key={row.id} className="rounded border border-border bg-card p-2 text-sm">
+                    <div className="font-semibold">{formatTechnicianDisplayName(row.technicianName)}</div>
+                    <div>Início: {formatDateTime(row.startedAt)}</div>
+                    <div>Fim: {formatDateTime(row.endedAt)}</div>
+                    <div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div>
+                    {row.source && <div className="text-xs text-muted-foreground">Origem: {formatTimeAllocationSource(row.source)}</div>}
+                  </div>) : sessions.length > 0 ? sessions.map((session) => {
+                    const end = session.endedAt ?? now.toISOString();
+                    const minutes = (new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000;
+                    return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm"><div className="font-semibold">{formatTechnicianDisplayName(session.technicianName)}</div><div>Início: {formatDateTime(session.startedAt)}</div><div>Fim: {formatDateTime(session.endedAt ?? null)}</div><div>Tempo: {formatDurationMinutes(minutes)}</div>{session.shiftName && <div className="text-xs text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}</div>;
+                  }) : <div className="text-sm text-muted-foreground">Sem manutentor apontado</div>}
+                </div>
+              </section>
+            )}
 
             <section className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
               <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Impacto operacional</h3>
