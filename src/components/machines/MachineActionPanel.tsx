@@ -28,9 +28,9 @@ export function MachineActionPanel({
   onResume,
 }: MachineActionPanelProps) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-md md:p-5">
       <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">Ações</h3>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         {machine.andonStatus === "none" && (
           <BigButton tone="warning" size="md" onClick={onOpenCall}>
             <Bell className="h-6 w-6" /> Abrir ANDON

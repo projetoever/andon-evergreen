@@ -159,7 +159,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-3 p-3 md:min-h-[calc(100dvh-2rem)] md:p-4">
       <MachineDetailHeader
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
@@ -187,13 +187,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
       <ProductionSchedulePanel machine={machine} onChange={(pm) => updateMachineProductionMode(machine.id, pm)} />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid flex-1 grid-cols-1 items-stretch gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel machine={machine} />
         <MachineCurrentCallPanel call={currentCall} />
       </div>
 
       {currentCall?.status === "in_progress" && requiresTechnician && (
-        <section className="rounded-xl border border-border bg-card p-4 md:p-5">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-md md:p-5">
           <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
             Atendimento por manutentor
           </h3>
@@ -206,7 +206,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
                 <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-sm">
                   <div className="text-base font-bold text-foreground">Sem manutentor apontado</div>
@@ -222,7 +222,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 </div>
               )}
               {activeSessions.map((session) => (
-                <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
                   <div className="text-base font-bold text-foreground">{session.technicianName}</div>
                   {session.shiftName && <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}
                   <div className="font-semibold text-info">
@@ -233,11 +233,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <BigButton
               tone="info"
               size="md"
-              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
+              className="min-h-[50px] whitespace-nowrap px-4 text-sm shadow"
               onClick={() => {
                 setNames([]);
                 setAddOpen(true);
@@ -248,7 +248,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             <BigButton
               tone="warning"
               size="md"
-              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
+              className="min-h-[50px] whitespace-nowrap px-4 text-sm shadow"
               disabled={activeSessions.length === 0}
               onClick={() => {
                 setSessionId(activeSessions[0]?.id ?? "");

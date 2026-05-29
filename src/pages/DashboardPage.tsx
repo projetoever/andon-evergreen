@@ -77,7 +77,7 @@ export function DashboardPage() {
 
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-[calc(100dvh-1.5rem)] flex-col gap-3 p-3 md:min-h-[calc(100dvh-2rem)] md:p-4">
       {!audioUnlocked && (
         <div className="flex flex-col items-center justify-between gap-3 rounded-xl border-2 border-warning bg-warning/10 p-4 text-warning sm:flex-row">
           <div className="flex items-center gap-3">
@@ -113,6 +113,7 @@ export function DashboardPage() {
       <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
 
       <MachineGrid
+        className="flex-1 content-stretch"
         machines={machines}
         onOpenCall={handleOpenCall}
         onAttend={handleAttend}

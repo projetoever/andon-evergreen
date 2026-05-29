@@ -1,4 +1,5 @@
 import type { AndonCall } from "@/types/andon";
+import { cn } from "@/lib/utils";
 import { useTicker } from "@/hooks/useTicker";
 import {
   calculateAttendanceMinutes,
@@ -20,31 +21,37 @@ import { Inbox } from "lucide-react";
 
 interface MachineCurrentCallPanelProps {
   call: AndonCall | null;
+  className?: string;
 }
 
-export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) {
+export function MachineCurrentCallPanel({ call, className }: MachineCurrentCallPanelProps) {
   useTicker(1000);
   if (!call) {
     return (
       <EmptyState
-        icon={<Inbox className="h-10 w-10" />}
+        icon={<Inbox className="h-12 w-12" />}
         title="Sem chamado ativo"
         description="Use o botão ABRIR ANDON para registrar um novo chamado para esta máquina."
+        className={cn("h-full min-h-[260px] border-solid bg-card px-8 py-12 shadow-md", className)}
       />
     );
   }
   const waiting = calculateCallWaitingMinutes(call);
   const attending = calculateAttendanceMinutes(call);
-  const postMaintenance = call.status === "finished"
-    ? call.postMaintenanceMinutes
-    : calculatePostMaintenanceMinutes(call);
+  const postMaintenance =
+    call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
   return (
-    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
+    <div
+      className={cn(
+        "flex h-full min-h-[260px] flex-col rounded-xl border border-border bg-card p-4 shadow-md md:p-5",
+        className,
+      )}
+    >
       <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
         Chamado atual
       </h3>
-      <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold text-foreground">
@@ -65,7 +72,12 @@ export function MachineCurrentCallPanel({ call }: MachineCurrentCallPanelProps) 
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
-          <dd className={"inline-flex rounded-md border px-2 py-1 text-sm font-bold md:text-base " + getCriticalityColorClass(call.criticality)}>
+          <dd
+            className={
+              "inline-flex rounded-md border px-2 py-1 text-sm font-bold md:text-base " +
+              getCriticalityColorClass(call.criticality)
+            }
+          >
             Criticidade: {getCriticalityLabel(call.criticality)}
           </dd>
         </div>
