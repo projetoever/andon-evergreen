@@ -8,6 +8,7 @@ import {
   calculateCallWaitingMinutes,
   calculatePostMaintenanceMinutes,
   calculateTotalCallMinutes,
+  diffMinutes,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
@@ -19,8 +20,7 @@ import {
   getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 import { calculateOperationalImpactBreakdown, formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
-import { formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
-import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
+import { formatShiftName, formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 interface MachineCallHistoryPageProps { machineId: string; }
@@ -74,31 +74,39 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
           : call.technicianName
             ? [call.technicianName]
             : [];
-        const allocationRows = buildTechnicianTimeAllocations({
-          call,
-          finalizedAt: call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString(),
-          technicianNames: finalTechnicianNames,
-        }).map((allocation, index) => ({
-          id: allocation.technicianId ?? `${allocation.technicianName}-${allocation.source}-${index}`,
-          technicianName: formatTechnicianDisplayName(allocation.technicianName),
-          startedAt: allocation.startedAt ?? null,
-          endedAt: allocation.endedAt ?? null,
-          minutes: typeof allocation.minutes === "number" ? allocation.minutes : 0,
-          source: allocation.source,
-        }));
+        const totalAttendanceStartedAt = call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt;
+        const totalAttendanceEndedAt = call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString();
+        const totalAttendanceMinutes = diffMinutes(totalAttendanceStartedAt, totalAttendanceEndedAt);
+
+        const allocationRows = allocations.length > 0
+          ? allocations.map((allocation, index) => ({
+              id: allocation.technicianId ?? allocation.technicianName ?? `allocation-${index}`,
+              technicianName: formatTechnicianDisplayName(allocation.technicianName),
+              startedAt: allocation.startedAt ?? null,
+              endedAt: allocation.endedAt ?? null,
+              minutes: typeof allocation.minutes === "number" ? allocation.minutes : 0,
+              source: allocation.source,
+            }))
+          : finalTechnicianNames.map((name, index) => ({
+              id: `${name}-${index}`,
+              technicianName: formatTechnicianDisplayName(name),
+              startedAt: totalAttendanceStartedAt,
+              endedAt: totalAttendanceEndedAt,
+              minutes: totalAttendanceMinutes,
+              source: "full_period_final_selection" as const,
+            }));
 
         const hasLegacyUnassignedAttendance = isMaintenance && call.attendedAt && finalTechnicianNames.length === 0 && sessions.length === 0;
-        const legacyUnassignedAllocation = allocations.find((allocation) => allocation.source === "unassigned_time");
-        const technicianRows = hasLegacyUnassignedAttendance && legacyUnassignedAllocation
+        const technicianRows = hasLegacyUnassignedAttendance
           ? [
               ...allocationRows,
               {
                 id: `${call.id}-legacy-unassigned`,
                 technicianName: "Sem manutentor apontado",
-                startedAt: legacyUnassignedAllocation.startedAt,
-                endedAt: legacyUnassignedAllocation.endedAt,
-                minutes: legacyUnassignedAllocation.minutes,
-                source: legacyUnassignedAllocation.source,
+                startedAt: call.attendedAt,
+                endedAt: call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString(),
+                minutes: diffMinutes(call.attendedAt, call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString()),
+                source: "unassigned_time" as const,
               },
             ]
           : allocationRows;
@@ -136,13 +144,17 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <section className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
                 <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Atendimento por manutentor</h3>
                 <div className="space-y-2">
-                  {technicianRows.length > 0 ? technicianRows.map((row) => <div key={row.id} className="rounded border border-border bg-card p-2 text-sm">
+                  {technicianRows.length > 0 ? technicianRows.map((row: any) => <div key={row.id} className="rounded border border-border bg-card p-2 text-sm">
                     <div className="font-semibold">{formatTechnicianDisplayName(row.technicianName)}</div>
                     <div>Início: {formatDateTime(row.startedAt)}</div>
                     <div>Fim: {formatDateTime(row.endedAt)}</div>
                     <div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div>
                     {row.source && <div className="text-xs text-muted-foreground">Origem: {formatTimeAllocationSource(row.source)}</div>}
-                  </div>) : <div className="text-sm text-muted-foreground">Sem manutentor apontado</div>}
+                  </div>) : sessions.length > 0 ? sessions.map((session) => {
+                    const end = session.endedAt ?? now.toISOString();
+                    const minutes = (new Date(end).getTime() - new Date(session.startedAt).getTime()) / 60000;
+                    return <div key={session.id} className="rounded border border-border bg-card p-2 text-sm"><div className="font-semibold">{formatTechnicianDisplayName(session.technicianName)}</div><div>Início: {formatDateTime(session.startedAt)}</div><div>Fim: {formatDateTime(session.endedAt ?? null)}</div><div>Tempo: {formatDurationMinutes(minutes)}</div>{session.shiftName && <div className="text-xs text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}</div>;
+                  }) : <div className="text-sm text-muted-foreground">Sem manutentor apontado</div>}
                 </div>
               </section>
             )}

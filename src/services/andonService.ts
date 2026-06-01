@@ -23,7 +23,6 @@ import {
   diffMinutes,
 } from "@/utils/durationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
-import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -396,16 +395,22 @@ export function finishAndonCall(
   }
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
-  const selectedTechnicianIdsByName = new Map(
-    (params.selectedTechnicians ?? [])
-      .map((technician) => [technician.name.trim(), technician.id] as const)
-      .filter(([name]) => Boolean(name)),
-  );
-  const technicianTimeAllocations = buildTechnicianTimeAllocations({
-    call,
-    finalizedAt: now,
-    technicianNames,
-    selectedTechnicianIdsByName,
+  const allocationStartedAt = call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt;
+  const allocationEndedAt = now;
+  const allocationMinutes = diffMinutes(allocationStartedAt, allocationEndedAt);
+  const selectedTechnicianByName = new Map((params.selectedTechnicians ?? []).map((technician) => [technician.name, technician]));
+  const sessionByName = new Map((call.technicianSessions ?? []).map((session) => [session.technicianName, session]));
+  const technicianTimeAllocations: TechnicianTimeAllocation[] = technicianNames.map((name) => {
+    const selectedTechnician = selectedTechnicianByName.get(name);
+    const session = sessionByName.get(name);
+    return {
+      technicianId: selectedTechnician?.id ?? session?.technicianId,
+      technicianName: name,
+      startedAt: allocationStartedAt,
+      endedAt: allocationEndedAt,
+      minutes: allocationMinutes,
+      source: technicianNames.length === 1 ? "single_responsible_full_period" : "full_period_final_selection",
+    };
   });
   const finishedCall: AndonCall = {
     ...call,

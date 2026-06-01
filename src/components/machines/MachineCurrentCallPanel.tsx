@@ -32,7 +32,7 @@ export function MachineCurrentCallPanel({ call, className }: MachineCurrentCallP
         icon={<Inbox className="h-12 w-12" />}
         title="Sem chamado ativo"
         description="Use o botão ABRIR ANDON para registrar um novo chamado para esta máquina."
-        className={cn("h-full min-h-[260px] border-solid bg-card px-8 py-12 shadow-md", className)}
+        className={cn("h-full min-h-0 border-solid bg-card px-6 py-8 shadow-md", className)}
       />
     );
   }
@@ -44,29 +44,29 @@ export function MachineCurrentCallPanel({ call, className }: MachineCurrentCallP
   return (
     <div
       className={cn(
-        "flex h-full min-h-[260px] flex-col rounded-xl border border-border bg-card p-4 shadow-md md:p-5",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 shadow-md",
         className,
       )}
     >
-      <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
+      <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
         Chamado atual
       </h3>
-      <dl className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid min-h-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
-          <dd className="text-base font-bold text-foreground">
+          <dd className="text-sm font-bold text-foreground">
             {call.category === "maintenance" ? "Manutenção" : "Produção"}
           </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Subtipo</dt>
-          <dd className="text-base font-bold text-foreground">
+          <dd className="text-sm font-bold text-foreground">
             {getCallSubtypeLabel(call.subtype)}
           </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Status</dt>
-          <dd className="text-base font-bold text-foreground">
+          <dd className="text-sm font-bold text-foreground">
             {getAndonStatusLabel(call.status)}
           </dd>
         </div>
@@ -74,7 +74,7 @@ export function MachineCurrentCallPanel({ call, className }: MachineCurrentCallP
           <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
           <dd
             className={
-              "inline-flex rounded-md border px-2 py-1 text-sm font-bold md:text-base " +
+              "inline-flex rounded-md border px-2 py-0.5 text-xs font-bold md:text-sm " +
               getCriticalityColorClass(call.criticality)
             }
           >
@@ -83,46 +83,46 @@ export function MachineCurrentCallPanel({ call, className }: MachineCurrentCallP
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aberto em</dt>
-          <dd className="font-mono text-sm text-foreground">{formatDateTime(call.openedAt)}</dd>
+          <dd className="font-mono text-xs text-foreground">{formatDateTime(call.openedAt)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Atendido em</dt>
-          <dd className="font-mono text-sm text-foreground">{formatDateTime(call.attendedAt)}</dd>
+          <dd className="font-mono text-xs text-foreground">{formatDateTime(call.attendedAt)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt>
-          <dd className="font-mono text-sm text-foreground">{formatDateTime(call.maintenanceCompletedAt)}</dd>
+          <dd className="font-mono text-xs text-foreground">{formatDateTime(call.maintenanceCompletedAt)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt>
-          <dd className="font-mono text-sm text-foreground">{formatDateTime(call.finishedAt)}</dd>
+          <dd className="font-mono text-xs text-foreground">{formatDateTime(call.finishedAt)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt>
-          <dd className="text-base font-bold text-foreground">
+          <dd className="text-sm font-bold text-foreground">
             {getMachineConditionLabel(call.machineCondition)}
           </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aguardando</dt>
-          <dd className="text-xl font-bold text-warning md:text-2xl">{formatDurationMinutes(waiting)}</dd>
+          <dd className="text-lg font-bold text-warning md:text-xl">{formatDurationMinutes(waiting)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Em atendimento</dt>
-          <dd className="text-xl font-bold text-info md:text-2xl">{formatDurationMinutes(attending)}</dd>
+          <dd className="text-lg font-bold text-info md:text-xl">{formatDurationMinutes(attending)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Acompanhamento</dt>
-          <dd className="text-xl font-bold text-info md:text-2xl">{formatDurationMinutes(postMaintenance)}</dd>
+          <dd className="text-lg font-bold text-info md:text-xl">{formatDurationMinutes(postMaintenance)}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Total</dt>
-          <dd className="text-xl font-bold text-foreground md:text-2xl">{formatDurationMinutes(total)}</dd>
+          <dd className="text-lg font-bold text-foreground md:text-xl">{formatDurationMinutes(total)}</dd>
         </div>
         {(call.technicianNames.length > 0 || call.technicianName) && (
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs uppercase text-muted-foreground">Técnico</dt>
-            <dd className="text-base font-bold text-foreground">
+            <dd className="text-sm font-bold text-foreground">
               {call.technicianNames.length > 0 ? call.technicianNames.join(", ") : call.technicianName}
             </dd>
           </div>
