@@ -9,13 +9,13 @@ interface ProductionSchedulePanelProps {
 
 export function ProductionSchedulePanel({ machine, onChange }: ProductionSchedulePanelProps) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
             Programação de Produção
           </h3>
-          <p className="text-xs text-muted-foreground md:text-sm">
+          <p className="text-xs text-muted-foreground">
             Última alteração: {formatDateTime(machine.productionModeChangedAt)}
           </p>
         </div>
@@ -28,7 +28,7 @@ export function ProductionSchedulePanel({ machine, onChange }: ProductionSchedul
           onClick={() => onChange("scheduled")}
           disabled={machine.productionMode === "scheduled"}
           className={
-            "inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-bold uppercase tracking-wide transition-all " +
+            "inline-flex min-h-[34px] flex-1 items-center justify-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-all " +
             (machine.productionMode === "scheduled"
               ? "bg-success text-success-foreground"
               : "text-foreground hover:bg-accent")
@@ -40,7 +40,7 @@ export function ProductionSchedulePanel({ machine, onChange }: ProductionSchedul
           onClick={() => onChange("not_scheduled")}
           disabled={machine.productionMode === "not_scheduled"}
           className={
-            "inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-md px-3 text-sm font-bold uppercase tracking-wide transition-all " +
+            "inline-flex min-h-[34px] flex-1 items-center justify-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-all " +
             (machine.productionMode === "not_scheduled"
               ? "bg-muted text-muted-foreground ring-1 ring-border"
               : "text-foreground hover:bg-accent")

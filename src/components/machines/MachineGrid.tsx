@@ -1,8 +1,10 @@
 import type { Machine } from "@/types/machine";
+import { cn } from "@/lib/utils";
 import { MachineCard } from "./MachineCard";
 
 interface MachineGridProps {
   machines: Machine[];
+  className?: string;
   onOpenCall?: (machineId: string) => void;
   onAttend?: (callId: string) => void;
   onFinish?: (callId: string) => void;
@@ -12,6 +14,7 @@ interface MachineGridProps {
 
 export function MachineGrid({
   machines,
+  className,
   onOpenCall,
   onAttend,
   onFinish,
@@ -19,7 +22,12 @@ export function MachineGrid({
   onReturnToMaintenance,
 }: MachineGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+    <div
+      className={cn(
+        "grid h-full min-h-0 auto-rows-fr grid-cols-2 items-stretch gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7",
+        className,
+      )}
+    >
       {machines.map((m) => (
         <MachineCard
           key={m.id}
