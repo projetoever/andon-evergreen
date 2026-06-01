@@ -159,7 +159,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-dvh min-h-0 flex-col gap-2 overflow-hidden p-2 md:p-3">
       <MachineDetailHeader
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
@@ -187,29 +187,35 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
       <ProductionSchedulePanel machine={machine} onChange={(pm) => updateMachineProductionMode(machine.id, pm)} />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <MachineCurrentStatusPanel machine={machine} />
-        <MachineCurrentCallPanel call={currentCall} />
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-2 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+        <MachineCurrentStatusPanel
+          machine={machine}
+          compactNormal={!currentCall && machine.machineStatus === "running"}
+        />
+        <MachineCurrentCallPanel
+          call={currentCall}
+          compactEmpty={!currentCall && machine.machineStatus === "running"}
+        />
       </div>
 
       {currentCall?.status === "in_progress" && requiresTechnician && (
-        <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-          <h3 className="mb-3 text-base font-bold uppercase tracking-wider text-foreground md:text-lg">
+        <section className="rounded-xl border border-border bg-card p-3 shadow-md">
+          <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
             Atendimento por manutentor
           </h3>
 
           {sessions.length === 0 ? (
-            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-xs text-warning">
               Nenhum manutentor ativo no momento. Adicione um manutentor para registrar o tempo individual.
               <div className="mt-1 font-semibold text-foreground">
                 Tempo sem manutentor apontado: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
-                <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-sm">
-                  <div className="text-base font-bold text-foreground">Sem manutentor apontado</div>
+                <div className="rounded-lg border border-dashed border-border bg-muted/10 p-2.5 text-xs">
+                  <div className="text-sm font-bold text-foreground">Sem manutentor apontado</div>
                   <div className="font-semibold text-info">
                     Tempo:{" "}
                     {formatDurationMinutes(
@@ -222,8 +228,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 </div>
               )}
               {activeSessions.map((session) => (
-                <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                  <div className="text-base font-bold text-foreground">{session.technicianName}</div>
+                <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs">
+                  <div className="text-sm font-bold text-foreground">{session.technicianName}</div>
                   {session.shiftName && <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>}
                   <div className="font-semibold text-info">
                     Tempo: {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
@@ -233,11 +239,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <BigButton
               tone="info"
               size="md"
-              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
+              className="min-h-[40px] whitespace-nowrap px-3 text-xs shadow"
               onClick={() => {
                 setNames([]);
                 setAddOpen(true);
@@ -248,7 +254,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             <BigButton
               tone="warning"
               size="md"
-              className="min-h-[46px] whitespace-nowrap px-4 text-sm shadow"
+              className="min-h-[40px] whitespace-nowrap px-3 text-xs shadow"
               disabled={activeSessions.length === 0}
               onClick={() => {
                 setSessionId(activeSessions[0]?.id ?? "");
@@ -273,6 +279,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onReturnToMaintenance={() => currentCall && returnToMaintenance(currentCall.id)}
         onStop={() => changeMachineStatus(machine.id, "stopped")}
         onResume={() => changeMachineStatus(machine.id, "running")}
+        prominentNoCall={!currentCall}
       />
 
       <OpenCallModal open={openCallDialog} onOpenChange={setOpenCallDialog} preselectedMachineId={machine.id} />
