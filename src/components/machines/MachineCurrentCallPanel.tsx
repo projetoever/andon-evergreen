@@ -32,7 +32,7 @@ export function MachineCurrentCallPanel({ call, className, compactEmpty = false 
       return (
         <div
           className={cn(
-            "flex min-h-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/40 px-6 py-5 text-center shadow-md",
+            "flex h-full min-h-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/40 px-6 py-5 text-center shadow-md",
             className,
           )}
         >

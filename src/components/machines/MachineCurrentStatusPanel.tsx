@@ -24,7 +24,7 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
     <div
       className={cn(
         compactNormal
-          ? "flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md"
+          ? "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md"
           : "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md",
         isStopped && !isNotScheduled ? "border-danger/60" : "border-border",
         className,
