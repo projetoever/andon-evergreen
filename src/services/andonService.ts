@@ -23,6 +23,7 @@ import {
   diffMinutes,
 } from "@/utils/durationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -395,22 +396,23 @@ export function finishAndonCall(
   }
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
-  const allocationStartedAt = call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt;
-  const allocationEndedAt = now;
-  const allocationMinutes = diffMinutes(allocationStartedAt, allocationEndedAt);
-  const selectedTechnicianByName = new Map((params.selectedTechnicians ?? []).map((technician) => [technician.name, technician]));
-  const sessionByName = new Map((call.technicianSessions ?? []).map((session) => [session.technicianName, session]));
-  const technicianTimeAllocations: TechnicianTimeAllocation[] = technicianNames.map((name) => {
-    const selectedTechnician = selectedTechnicianByName.get(name);
-    const session = sessionByName.get(name);
-    return {
-      technicianId: selectedTechnician?.id ?? session?.technicianId,
-      technicianName: name,
-      startedAt: allocationStartedAt,
-      endedAt: allocationEndedAt,
-      minutes: allocationMinutes,
-      source: technicianNames.length === 1 ? "single_responsible_full_period" : "full_period_final_selection",
-    };
+  const finalizedTechnicianSessions = (call.technicianSessions ?? []).map((session) =>
+    session.endedAt
+      ? session
+      : {
+          ...session,
+          endedAt: now,
+          endReason: "final_call" as const,
+          productionModeAtEnd: machine?.productionMode,
+          machineStatusAtEnd: machine?.machineStatus,
+        },
+  );
+  const technicianTimeAllocations = buildTechnicianTimeAllocations({
+    attendanceStartedAt: call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt,
+    attendanceEndedAt: now,
+    sessions: finalizedTechnicianSessions,
+    fallbackTechnicianNames: technicianNames,
+    selectedTechnicians: params.selectedTechnicians,
   });
   const finishedCall: AndonCall = {
     ...call,
@@ -423,7 +425,7 @@ export function finishAndonCall(
     notes: params.notes ?? null,
     productionModeAtFinish: machine?.productionMode,
     machineStatusAtFinish: machine?.machineStatus,
-    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
+    technicianSessions: finalizedTechnicianSessions,
     technicianTimeAllocations,
     updatedAt: now,
   };

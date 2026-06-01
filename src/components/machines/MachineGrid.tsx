@@ -24,7 +24,7 @@ export function MachineGrid({
   return (
     <div
       className={cn(
-        "grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(160px,1fr))] items-stretch gap-3 md:gap-4",
+        "grid auto-rows-fr grid-cols-2 items-stretch gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7",
         className,
       )}
     >
