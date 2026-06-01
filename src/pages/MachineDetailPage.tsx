@@ -191,12 +191,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         <MachineCurrentStatusPanel
           machine={machine}
           compactNormal={!currentCall && machine.machineStatus === "running"}
-          className={!currentCall && machine.machineStatus === "running" ? "self-start" : undefined}
         />
         <MachineCurrentCallPanel
           call={currentCall}
           compactEmpty={!currentCall && machine.machineStatus === "running"}
-          className={!currentCall && machine.machineStatus === "running" ? "self-start" : undefined}
         />
       </div>
 
