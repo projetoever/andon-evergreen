@@ -279,6 +279,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onReturnToMaintenance={() => currentCall && returnToMaintenance(currentCall.id)}
         onStop={() => changeMachineStatus(machine.id, "stopped")}
         onResume={() => changeMachineStatus(machine.id, "running")}
+        prominentNoCall={!currentCall}
       />
 
       <OpenCallModal open={openCallDialog} onOpenChange={setOpenCallDialog} preselectedMachineId={machine.id} />
