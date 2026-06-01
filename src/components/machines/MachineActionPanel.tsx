@@ -31,23 +31,31 @@ export function MachineActionPanel({
   prominentNoCall = false,
 }: MachineActionPanelProps) {
   const actionButtonClass = prominentNoCall
-    ? "min-h-[66px] px-4 text-base md:min-h-[74px] md:text-lg"
+    ? "min-h-[76px] px-5 text-lg md:min-h-[86px] md:text-xl 2xl:min-h-[92px]"
     : "min-h-[44px] px-3 text-sm";
+  const primaryActionClass = cn(
+    actionButtonClass,
+    prominentNoCall && "ring-2 ring-warning/50 shadow-xl shadow-warning/10",
+  );
+  const dangerActionClass = cn(
+    actionButtonClass,
+    prominentNoCall && "ring-2 ring-danger/40 shadow-xl shadow-danger/10",
+  );
   const secondaryActionClass = prominentNoCall
-    ? "inline-flex min-h-[58px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-base"
+    ? "inline-flex min-h-[62px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent md:min-h-[70px] md:text-base 2xl:min-h-[76px]"
     : "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-sm";
 
   return (
     <div
       className={cn(
         "rounded-xl border border-border bg-card shadow-md",
-        prominentNoCall ? "p-4 ring-1 ring-warning/20" : "p-3",
+        prominentNoCall ? "p-4 ring-1 ring-warning/25 md:p-5" : "p-3",
       )}
     >
-      <h3 className={cn("font-bold uppercase tracking-wider text-foreground", prominentNoCall ? "mb-3 text-base md:text-lg" : "mb-2 text-sm md:text-base")}>Ações</h3>
-      <div className={cn("grid grid-cols-2 lg:grid-cols-3", prominentNoCall ? "gap-3" : "gap-2")}>
+      <h3 className={cn("font-bold uppercase tracking-wider text-foreground", prominentNoCall ? "mb-4 text-base md:text-lg" : "mb-2 text-sm md:text-base")}>Ações</h3>
+      <div className={cn("grid grid-cols-2 lg:grid-cols-3", prominentNoCall ? "gap-3 md:gap-4" : "gap-2")}>
         {machine.andonStatus === "none" && (
-          <BigButton tone="warning" size="md" className={actionButtonClass} onClick={onOpenCall}>
+          <BigButton tone="warning" size="md" className={primaryActionClass} onClick={onOpenCall}>
             <Bell className="h-6 w-6" /> Abrir ANDON
           </BigButton>
         )}
@@ -76,7 +84,7 @@ export function MachineActionPanel({
             <CheckCheck className="h-6 w-6" /> Finalizar Chamado
           </BigButton>
         )}
-        <BigButton tone="danger" size="md" className={actionButtonClass} onClick={onStop} disabled={machine.machineStatus === "stopped"}>
+        <BigButton tone="danger" size="md" className={dangerActionClass} onClick={onStop} disabled={machine.machineStatus === "stopped"}>
           <Square className="h-6 w-6" /> Gerar Falha
         </BigButton>
         <BigButton tone="success" size="md" className={actionButtonClass} onClick={onResume} disabled={machine.machineStatus === "running"}>
