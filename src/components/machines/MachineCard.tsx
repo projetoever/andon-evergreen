@@ -78,8 +78,8 @@ export function MachineCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-2xl font-black leading-none text-foreground">{machine.id}</div>
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Máquina</div>
+          <div className="text-4xl font-black leading-none tracking-tight text-foreground md:text-5xl">{machine.id}</div>
         </div>
         <Link
           to="/machines/$machineId"

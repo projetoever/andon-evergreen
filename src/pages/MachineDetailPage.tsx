@@ -188,7 +188,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <ProductionSchedulePanel machine={machine} onChange={(pm) => updateMachineProductionMode(machine.id, pm)} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-2 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
-        <MachineCurrentStatusPanel machine={machine} />
+        <MachineCurrentStatusPanel
+          machine={machine}
+          compactNormal={!currentCall && machine.machineStatus === "running"}
+          className={!currentCall && machine.machineStatus === "running" ? "self-start" : undefined}
+        />
         <MachineCurrentCallPanel call={currentCall} />
       </div>
 

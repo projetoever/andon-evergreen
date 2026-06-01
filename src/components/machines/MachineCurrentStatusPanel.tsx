@@ -11,9 +11,10 @@ import { getMachineStatusLabel, getProductionModeLabel } from "@/utils/statusUti
 interface MachineCurrentStatusPanelProps {
   machine: Machine;
   className?: string;
+  compactNormal?: boolean;
 }
 
-export function MachineCurrentStatusPanel({ machine, className }: MachineCurrentStatusPanelProps) {
+export function MachineCurrentStatusPanel({ machine, className, compactNormal = false }: MachineCurrentStatusPanelProps) {
   useTicker(1000);
   const stoppedMin = calculateMachineStoppedMinutes(machine);
   const isStopped = machine.machineStatus === "stopped";
@@ -22,7 +23,9 @@ export function MachineCurrentStatusPanel({ machine, className }: MachineCurrent
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md",
+        compactNormal
+          ? "flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md"
+          : "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md",
         isStopped && !isNotScheduled ? "border-danger/60" : "border-border",
         className,
       )}
@@ -46,18 +49,21 @@ export function MachineCurrentStatusPanel({ machine, className }: MachineCurrent
         </span>
       </div>
 
-      <dl className="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <dl className={cn(
+        "grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2",
+        compactNormal ? "xl:grid-cols-3 xl:content-start" : "xl:grid-cols-3",
+      )}>
         <div
           className={cn(
-            "rounded-lg border p-2.5 sm:col-span-2 xl:col-span-1",
+            compactNormal ? "rounded-lg border p-2.5" : "rounded-lg border p-2.5 sm:col-span-2 xl:col-span-1",
             isStopped ? "border-danger/30 bg-danger/10" : "border-success/30 bg-success/10",
           )}
         >
           <dt className="text-xs uppercase text-muted-foreground">Condição operacional</dt>
-          <dd className={cn("mt-1 text-xl font-black", isStopped ? "text-danger" : "text-success")}>
+          <dd className={cn(compactNormal ? "mt-1 text-lg font-black" : "mt-1 text-xl font-black", isStopped ? "text-danger" : "text-success")}>
             {isStopped ? "Máquina em falha" : "Pronta para rodar"}
           </dd>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className={cn("mt-1 text-xs text-muted-foreground", compactNormal && "hidden 2xl:block")}>
             {isStopped
               ? "Acompanhe o tempo parado e acione a tratativa pelo painel de ações."
               : "Sem falha ativa registrada para esta máquina."}
@@ -89,14 +95,14 @@ export function MachineCurrentStatusPanel({ machine, className }: MachineCurrent
         )}
 
         {!isStopped && (
-          <div className="rounded-lg border border-border bg-muted/20 p-2.5 sm:col-span-2 xl:col-span-1">
+          <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1")}>
             <dt className="text-xs uppercase text-muted-foreground">Última falha</dt>
-            <dd className="mt-1 text-xl font-bold text-foreground">
+            <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
               {machine.lastStopDurationMinutes > 0
                 ? formatDurationMinutes(machine.lastStopDurationMinutes)
                 : "Sem registro"}
             </dd>
-            <p className="mt-1 text-xs text-muted-foreground">Informação secundária para acompanhamento.</p>
+            {!compactNormal && <p className="mt-1 text-xs text-muted-foreground">Informação secundária para acompanhamento.</p>}
           </div>
         )}
       </dl>
