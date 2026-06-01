@@ -396,23 +396,16 @@ export function finishAndonCall(
   }
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
-  const finalizedTechnicianSessions = (call.technicianSessions ?? []).map((session) =>
-    session.endedAt
-      ? session
-      : {
-          ...session,
-          endedAt: now,
-          endReason: "final_call" as const,
-          productionModeAtEnd: machine?.productionMode,
-          machineStatusAtEnd: machine?.machineStatus,
-        },
+  const selectedTechnicianIdsByName = new Map(
+    (params.selectedTechnicians ?? [])
+      .map((technician) => [technician.name.trim(), technician.id] as const)
+      .filter(([name]) => Boolean(name)),
   );
   const technicianTimeAllocations = buildTechnicianTimeAllocations({
-    attendanceStartedAt: call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt,
-    attendanceEndedAt: now,
-    sessions: finalizedTechnicianSessions,
-    fallbackTechnicianNames: technicianNames,
-    selectedTechnicians: params.selectedTechnicians,
+    call,
+    finalizedAt: now,
+    technicianNames,
+    selectedTechnicianIdsByName,
   });
   const finishedCall: AndonCall = {
     ...call,
@@ -425,7 +418,7 @@ export function finishAndonCall(
     notes: params.notes ?? null,
     productionModeAtFinish: machine?.productionMode,
     machineStatusAtFinish: machine?.machineStatus,
-    technicianSessions: finalizedTechnicianSessions,
+    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
     technicianTimeAllocations,
     updatedAt: now,
   };

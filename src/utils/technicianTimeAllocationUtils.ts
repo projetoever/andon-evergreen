@@ -1,108 +1,116 @@
 import type {
+  AndonCall,
   TechnicianAttendanceSession,
   TechnicianTimeAllocation,
 } from "@/types/andon";
 import { diffMinutes } from "@/utils/durationUtils";
 
-interface AllocationTechnicianInput {
-  id?: string;
-  name: string;
-}
-
 interface BuildTechnicianTimeAllocationsParams {
-  attendanceStartedAt: string | null;
-  attendanceEndedAt: string;
-  sessions: TechnicianAttendanceSession[];
-  fallbackTechnicianNames: string[];
-  selectedTechnicians?: AllocationTechnicianInput[];
+  call: AndonCall;
+  finalizedAt: string;
+  technicianNames: string[];
+  selectedTechnicianIdsByName?: Map<string, string | undefined>;
 }
 
-function uniqueNames(names: string[]): string[] {
-  return Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+function normalizeTechnicianName(name?: string | null): string | null {
+  const normalizedName = name?.trim();
+  return normalizedName ? normalizedName : null;
+}
+
+function getSessionEnd(session: TechnicianAttendanceSession, finalizedAt: string): string {
+  return session.endedAt ?? finalizedAt;
+}
+
+function getAttendanceStart(call: AndonCall): string {
+  return call.attendedAt ?? call.currentAttendanceStartedAt ?? call.openedAt;
+}
+
+function mergeTechnicianNames(names: Array<string | null | undefined>): string[] {
+  const mergedNames: string[] = [];
+  const seenNames = new Set<string>();
+
+  names.forEach((name) => {
+    const normalizedName = normalizeTechnicianName(name);
+    if (!normalizedName || seenNames.has(normalizedName)) return;
+    seenNames.add(normalizedName);
+    mergedNames.push(normalizedName);
+  });
+
+  return mergedNames;
+}
+
+function buildRegisteredSessionAllocations(
+  sessions: TechnicianAttendanceSession[],
+  finalizedAt: string,
+  selectedTechnicianIdsByName: Map<string, string | undefined>,
+): TechnicianTimeAllocation[] {
+  const sessionsByTechnicianName = new Map<string, TechnicianAttendanceSession[]>();
+
+  sessions.forEach((session) => {
+    const technicianName = normalizeTechnicianName(session.technicianName);
+    if (!technicianName) return;
+    const technicianSessions = sessionsByTechnicianName.get(technicianName) ?? [];
+    technicianSessions.push(session);
+    sessionsByTechnicianName.set(technicianName, technicianSessions);
+  });
+
+  return Array.from(sessionsByTechnicianName.entries()).map(([technicianName, technicianSessions]) => {
+    const sortedSessions = technicianSessions
+      .slice()
+      .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+    const firstSession = sortedSessions[0];
+    const lastSession = sortedSessions.reduce((latestSession, session) => {
+      const latestEndedAt = getSessionEnd(latestSession, finalizedAt);
+      const sessionEndedAt = getSessionEnd(session, finalizedAt);
+      return new Date(sessionEndedAt).getTime() >= new Date(latestEndedAt).getTime()
+        ? session
+        : latestSession;
+    }, sortedSessions[0]);
+    const minutes = sortedSessions.reduce(
+      (totalMinutes, session) => totalMinutes + diffMinutes(session.startedAt, getSessionEnd(session, finalizedAt)),
+      0,
+    );
+
+    return {
+      technicianId: selectedTechnicianIdsByName.get(technicianName) ?? firstSession.technicianId,
+      technicianName,
+      startedAt: firstSession.startedAt,
+      endedAt: getSessionEnd(lastSession, finalizedAt),
+      minutes,
+      source: "registered_session",
+    };
+  });
 }
 
 export function buildTechnicianTimeAllocations({
-  attendanceStartedAt,
-  attendanceEndedAt,
-  sessions,
-  fallbackTechnicianNames,
-  selectedTechnicians = [],
+  call,
+  finalizedAt,
+  technicianNames,
+  selectedTechnicianIdsByName = new Map(),
 }: BuildTechnicianTimeAllocationsParams): TechnicianTimeAllocation[] {
-  const selectedTechnicianByName = new Map(
-    selectedTechnicians.map((technician) => [technician.name, technician]),
+  const sessions = call.technicianSessions ?? [];
+  const sessionAllocations = buildRegisteredSessionAllocations(
+    sessions,
+    finalizedAt,
+    selectedTechnicianIdsByName,
   );
-  const normalizedSessions = sessions
-    .filter((session) => session.technicianName.trim())
-    .slice()
-    .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+  const techniciansWithRegisteredSessions = new Set(
+    sessionAllocations.map((allocation) => allocation.technicianName),
+  );
 
-  if (normalizedSessions.length > 0) {
-    const allocations: TechnicianTimeAllocation[] = [];
-    let previousSessionEndedAt = attendanceStartedAt;
-
-    normalizedSessions.forEach((session) => {
-      if (previousSessionEndedAt && diffMinutes(previousSessionEndedAt, session.startedAt) > 0) {
-        allocations.push({
-          technicianName: "Sem manutentor apontado",
-          startedAt: previousSessionEndedAt,
-          endedAt: session.startedAt,
-          minutes: diffMinutes(previousSessionEndedAt, session.startedAt),
-          source: "unassigned_time",
-        });
-      }
-
-      const endedAt = session.endedAt ?? attendanceEndedAt;
-      allocations.push({
-        technicianId: session.technicianId,
-        technicianName: session.technicianName,
-        startedAt: session.startedAt,
-        endedAt,
-        minutes: diffMinutes(session.startedAt, endedAt),
-        source: "registered_session",
-      });
-      previousSessionEndedAt = endedAt;
-    });
-
-    if (previousSessionEndedAt && diffMinutes(previousSessionEndedAt, attendanceEndedAt) > 0) {
-      allocations.push({
-        technicianName: "Sem manutentor apontado",
-        startedAt: previousSessionEndedAt,
-        endedAt: attendanceEndedAt,
-        minutes: diffMinutes(previousSessionEndedAt, attendanceEndedAt),
-        source: "unassigned_time",
-      });
-    }
-
-    return allocations;
-  }
-
-  const technicianNames = uniqueNames(fallbackTechnicianNames);
-  if (technicianNames.length === 0) {
-    return attendanceStartedAt
-      ? [
-          {
-            technicianName: "Sem manutentor apontado",
-            startedAt: attendanceStartedAt,
-            endedAt: attendanceEndedAt,
-            minutes: diffMinutes(attendanceStartedAt, attendanceEndedAt),
-            source: "unassigned_time",
-          },
-        ]
-      : [];
-  }
-
-  return technicianNames.map((name) => {
-    const selectedTechnician = selectedTechnicianByName.get(name);
-    return {
-      technicianId: selectedTechnician?.id,
+  const finalTechnicianNames = mergeTechnicianNames(technicianNames);
+  const totalAttendanceStartedAt = getAttendanceStart(call);
+  const totalAttendanceMinutes = diffMinutes(totalAttendanceStartedAt, finalizedAt);
+  const fullPeriodAllocations: TechnicianTimeAllocation[] = finalTechnicianNames
+    .filter((name) => !techniciansWithRegisteredSessions.has(name))
+    .map((name) => ({
+      technicianId: selectedTechnicianIdsByName.get(name),
       technicianName: name,
-      startedAt: attendanceStartedAt,
-      endedAt: attendanceEndedAt,
-      minutes: diffMinutes(attendanceStartedAt, attendanceEndedAt),
-      source:
-        technicianNames.length === 1
-          ? "single_responsible_full_period"
-          : "full_period_final_selection",
-    };
-  });
+      startedAt: totalAttendanceStartedAt,
+      endedAt: finalizedAt,
+      minutes: totalAttendanceMinutes,
+      source: "full_period_final_selection",
+    }));
+
+  return [...sessionAllocations, ...fullPeriodAllocations];
 }
