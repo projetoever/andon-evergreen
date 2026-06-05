@@ -65,21 +65,67 @@ export function MachineCard({
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
+  const shouldShowOpenCallAction = machine.andonStatus === "none";
+  const shouldShowAttendAction = machine.andonStatus === "open" && Boolean(currentCall);
+  const shouldShowCompleteMaintenanceAction =
+    machine.andonStatus === "in_progress" && currentCall?.category === "maintenance";
+  const shouldShowFinishProductionAction =
+    machine.andonStatus === "in_progress" && currentCall?.category === "production";
+  const shouldShowReturnToMaintenanceAction =
+    machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance";
+  const hasExpandedContent =
+    Boolean(currentCall) || (machine.machineStatus === "stopped" && !isNotScheduled);
+  const cardGapClass = hasExpandedContent ? "gap-1 p-2" : "gap-1.5 p-2.5";
+  const machineNumberClass = hasExpandedContent ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl";
+  const statusBadgeClass = hasExpandedContent
+    ? "gap-1 px-1.5 py-0 text-[10px] leading-tight tracking-normal"
+    : undefined;
+  const callDetailClass = hasExpandedContent
+    ? "p-1 text-[10px] leading-tight"
+    : "p-1.5 text-[11px] leading-tight";
+  const callTitleClass = hasExpandedContent ? "text-[10px] leading-tight" : "text-[11px]";
+  const callMetaClass = hasExpandedContent ? "mt-0.5 text-[10px]" : "mt-1 text-[10px]";
+  const timeTextClass = hasExpandedContent ? "mt-0 text-[10px]" : "mt-0.5 text-[11px]";
+  const alertClass = hasExpandedContent ? "p-1 text-[10px]" : "p-1.5 text-[11px]";
+  const actionGapClass = hasExpandedContent ? "gap-0.5 pt-0.5" : "gap-1 pt-1";
+  const actionButtonClass = hasExpandedContent
+    ? "min-h-[30px] rounded-lg px-2 text-[10px] leading-tight tracking-wide shadow-sm"
+    : "min-h-[38px] px-3 text-xs";
+  const viewMachineClass = hasExpandedContent
+    ? "min-h-[30px] rounded-lg px-2 text-[10px] leading-tight tracking-wide"
+    : "min-h-[36px] rounded-xl px-3 text-[11px] tracking-wide";
 
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col gap-1.5 overflow-hidden rounded-xl border-2 bg-card p-2.5 shadow-md transition-all",
-        machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
+        "flex h-full min-h-[13.5rem] flex-col rounded-xl border-2 bg-card shadow-md transition-all",
+        cardGapClass,
+        machine.machineStatus === "stopped" && !isNotScheduled
+          ? "border-danger/60"
+          : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex shrink-0 items-start justify-between gap-2">
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-4xl font-black leading-none tracking-tight text-foreground md:text-5xl">{machine.id}</div>
+          <div
+            className={cn(
+              "uppercase tracking-widest text-muted-foreground",
+              hasExpandedContent ? "text-[10px]" : "text-[11px]",
+            )}
+          >
+            Máquina
+          </div>
+          <div
+            className={cn(
+              "font-black leading-none tracking-tight text-foreground",
+              machineNumberClass,
+            )}
+          >
+            {machine.id}
+          </div>
         </div>
         <Link
           to="/machines/$machineId"
@@ -91,15 +137,20 @@ export function MachineCard({
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        <MachineStatusBadge status={machine.machineStatus} />
-        <AndonStatusBadge status={machine.andonStatus} />
-        <ProductionModeBadge productionMode={machine.productionMode} />
+      <div className={cn("flex shrink-0 flex-wrap", hasExpandedContent ? "gap-0.5" : "gap-1")}>
+        <MachineStatusBadge status={machine.machineStatus} className={statusBadgeClass} />
+        <AndonStatusBadge status={machine.andonStatus} className={statusBadgeClass} />
+        <ProductionModeBadge productionMode={machine.productionMode} className={statusBadgeClass} />
       </div>
 
       {currentCall && (
-        <div className="rounded-lg bg-muted/40 p-1.5 text-[11px] leading-tight">
-          <div className="flex items-center gap-1 text-[11px] font-bold uppercase text-foreground">
+        <div className={cn("shrink-0 rounded-lg bg-muted/40", callDetailClass)}>
+          <div
+            className={cn(
+              "flex items-center gap-1 font-bold uppercase text-foreground",
+              callTitleClass,
+            )}
+          >
             {currentCall.category === "maintenance" ? (
               <Wrench className="h-3 w-3" />
             ) : (
@@ -109,26 +160,27 @@ export function MachineCard({
           </div>
           <div
             className={
-              "mt-1 inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-bold " +
+              cn("inline-flex rounded-md border px-1.5 py-0.5 font-bold", callMetaClass) +
+              " " +
               getCriticalityColorClass(currentCall.criticality)
             }
           >
             Criticidade: {getCriticalityLabel(currentCall.criticality)}
           </div>
           {currentCall.status === "open" && (
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className={cn("text-muted-foreground", timeTextClass)}>
               Aguardando há{" "}
               <strong className="text-foreground">{formatDurationMinutes(waitingMin)}</strong>
             </div>
           )}
           {currentCall.status === "in_progress" && (
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className={cn("text-muted-foreground", timeTextClass)}>
               Em atendimento há{" "}
               <strong className="text-foreground">{formatDurationMinutes(attendingMin)}</strong>
             </div>
           )}
           {currentCall.status === "post_maintenance" && (
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className={cn("text-muted-foreground", timeTextClass)}>
               Acompanhamento:{" "}
               <strong className="text-foreground">
                 {formatDurationMinutes(postMaintenanceMin)}
@@ -139,58 +191,91 @@ export function MachineCard({
       )}
 
       {machine.machineStatus === "stopped" && !isNotScheduled && (
-        <div className="flex items-center gap-1 rounded-lg bg-danger/10 p-1.5 text-[11px] text-danger">
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded-lg bg-danger/10 text-danger",
+            alertClass,
+          )}
+        >
           <AlertTriangle className="h-3 w-3" />
           Em falha há <strong>{formatDurationMinutes(stoppedMin)}</strong>
         </div>
       )}
       {machine.machineStatus === "stopped" && isNotScheduled && (
-        <div className="flex items-center gap-1 rounded-lg bg-muted p-1.5 text-[11px] text-muted-foreground">
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded-lg bg-muted text-muted-foreground",
+            alertClass,
+          )}
+        >
           <AlertTriangle className="h-3 w-3" />
           Fora de produção
         </div>
       )}
       {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
-        <div className="text-[10px] text-muted-foreground">
+        <div className="shrink-0 text-[10px] leading-tight text-muted-foreground">
           Última falha: {formatDurationMinutes(machine.lastStopDurationMinutes)}
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-1 pt-1">
-        {machine.andonStatus === "none" && (
-          <BigButton tone="warning" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onOpenCall?.(machine.id)}>
+      <div className={cn("mt-auto flex shrink-0 flex-col", actionGapClass)}>
+        {shouldShowOpenCallAction && (
+          <BigButton
+            tone="warning"
+            size="md"
+            className={actionButtonClass}
+            onClick={() => onOpenCall?.(machine.id)}
+          >
             Abrir ANDON
           </BigButton>
         )}
-        {machine.andonStatus === "open" && currentCall && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onAttend?.(currentCall.id)}>
+        {shouldShowAttendAction && currentCall && (
+          <BigButton
+            tone="info"
+            size="md"
+            className={actionButtonClass}
+            onClick={() => onAttend?.(currentCall.id)}
+          >
             Atender
           </BigButton>
         )}
-        {machine.andonStatus === "in_progress" && currentCall?.category === "maintenance" && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onCompleteMaintenance?.(currentCall.id)}>
+        {shouldShowCompleteMaintenanceAction && currentCall && (
+          <BigButton
+            tone="info"
+            size="md"
+            className={actionButtonClass}
+            onClick={() => onCompleteMaintenance?.(currentCall.id)}
+          >
             Concluir Manutenção
           </BigButton>
         )}
-        {machine.andonStatus === "in_progress" && currentCall?.category === "production" && (
-          <BigButton tone="success" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onFinish?.(currentCall.id)}>
+        {shouldShowFinishProductionAction && currentCall && (
+          <BigButton
+            tone="success"
+            size="md"
+            className={actionButtonClass}
+            onClick={() => onFinish?.(currentCall.id)}
+          >
             Finalizar
           </BigButton>
         )}
-        {machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance" && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onReturnToMaintenance?.(currentCall.id)}>
+        {shouldShowReturnToMaintenanceAction && currentCall && (
+          <BigButton
+            tone="info"
+            size="md"
+            className={actionButtonClass}
+            onClick={() => onReturnToMaintenance?.(currentCall.id)}
+          >
             Voltar à Manutenção
-          </BigButton>
-        )}
-        {machine.andonStatus === "post_maintenance" && currentCall && (
-          <BigButton tone="success" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onFinish?.(currentCall.id)}>
-            Finalizar Chamado
           </BigButton>
         )}
         <Link
           to="/machines/$machineId"
           params={{ machineId: machine.id }}
-          className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-[11px] font-bold uppercase tracking-wide text-foreground hover:bg-accent"
+          className={cn(
+            "inline-flex items-center justify-center gap-2 border border-border bg-background font-bold uppercase text-foreground hover:bg-accent",
+            viewMachineClass,
+          )}
         >
           Ver Máquina
         </Link>
