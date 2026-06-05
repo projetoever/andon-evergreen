@@ -65,17 +65,16 @@ export function MachineCard({
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
-  const operationalActionCount = [
-    machine.andonStatus === "none",
-    machine.andonStatus === "open" && currentCall,
-    machine.andonStatus === "in_progress" && currentCall,
-    machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance",
-    machine.andonStatus === "post_maintenance" && currentCall,
-  ].filter(Boolean).length;
+  const shouldShowOpenCallAction = machine.andonStatus === "none";
+  const shouldShowAttendAction = machine.andonStatus === "open" && Boolean(currentCall);
+  const shouldShowCompleteMaintenanceAction =
+    machine.andonStatus === "in_progress" && currentCall?.category === "maintenance";
+  const shouldShowFinishProductionAction =
+    machine.andonStatus === "in_progress" && currentCall?.category === "production";
+  const shouldShowReturnToMaintenanceAction =
+    machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance";
   const hasExpandedContent =
-    Boolean(currentCall) ||
-    (machine.machineStatus === "stopped" && !isNotScheduled) ||
-    operationalActionCount > 1;
+    Boolean(currentCall) || (machine.machineStatus === "stopped" && !isNotScheduled);
   const cardGapClass = hasExpandedContent ? "gap-1 p-2" : "gap-1.5 p-2.5";
   const machineNumberClass = hasExpandedContent ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl";
   const statusBadgeClass = hasExpandedContent
@@ -220,7 +219,7 @@ export function MachineCard({
       )}
 
       <div className={cn("mt-auto flex shrink-0 flex-col", actionGapClass)}>
-        {machine.andonStatus === "none" && (
+        {shouldShowOpenCallAction && (
           <BigButton
             tone="warning"
             size="md"
@@ -230,7 +229,7 @@ export function MachineCard({
             Abrir ANDON
           </BigButton>
         )}
-        {machine.andonStatus === "open" && currentCall && (
+        {shouldShowAttendAction && currentCall && (
           <BigButton
             tone="info"
             size="md"
@@ -240,7 +239,7 @@ export function MachineCard({
             Atender
           </BigButton>
         )}
-        {machine.andonStatus === "in_progress" && currentCall?.category === "maintenance" && (
+        {shouldShowCompleteMaintenanceAction && currentCall && (
           <BigButton
             tone="info"
             size="md"
@@ -250,7 +249,7 @@ export function MachineCard({
             Concluir Manutenção
           </BigButton>
         )}
-        {machine.andonStatus === "in_progress" && currentCall?.category === "production" && (
+        {shouldShowFinishProductionAction && currentCall && (
           <BigButton
             tone="success"
             size="md"
@@ -260,7 +259,7 @@ export function MachineCard({
             Finalizar
           </BigButton>
         )}
-        {machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance" && (
+        {shouldShowReturnToMaintenanceAction && currentCall && (
           <BigButton
             tone="info"
             size="md"
@@ -268,16 +267,6 @@ export function MachineCard({
             onClick={() => onReturnToMaintenance?.(currentCall.id)}
           >
             Voltar à Manutenção
-          </BigButton>
-        )}
-        {machine.andonStatus === "post_maintenance" && currentCall && (
-          <BigButton
-            tone="success"
-            size="md"
-            className={actionButtonClass}
-            onClick={() => onFinish?.(currentCall.id)}
-          >
-            Finalizar Chamado
           </BigButton>
         )}
         <Link
