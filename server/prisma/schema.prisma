@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Machine {
+  id                  String                @id
+  name                String
+  machineStatus       String                @default("running")
+  andonStatus         String                @default("normal")
+  productionMode      String                @default("production")
+  currentCallId       String?               @unique
+  currentCall         AndonCall?            @relation("MachineCurrentCall", fields: [currentCallId], references: [id], onDelete: SetNull)
+  lastStatusChangedAt DateTime              @default(now())
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  andonCalls          AndonCall[]           @relation("MachineAndonCalls")
+  technicianSessions  TechnicianSession[]
+  failureEvents       FailureEvent[]
+  kioskDevices        KioskDevice[]
+
+  @@map("machines")
+}
+
+model AndonCall {
+  id                          String                      @id @default(cuid())
+  machineId                   String
+  machine                     Machine                     @relation("MachineAndonCalls", fields: [machineId], references: [id], onDelete: Restrict)
+  currentForMachine           Machine?                    @relation("MachineCurrentCall")
+  category                    String
+  subtype                     String?
+  status                      String
+  criticality                 String
+  machineCondition            String?
+  openedAt                    DateTime
+  attendedAt                  DateTime?
+  currentAttendanceStartedAt  DateTime?
+  maintenanceCompletedAt      DateTime?
+  finishedAt                  DateTime?
+  technicianName              String?
+  technicianNames             String[]                    @default([])
+  technicianArea              String?
+  callWaitingMinutes          Int?
+  attendanceMinutes           Int?
+  postMaintenanceMinutes      Int?
+  totalCallMinutes            Int?
+  machineStoppedMinutes       Int?
+  maintenanceReturnCount      Int                         @default(0)
+  notes                       String?
+  createdBy                   String?
+  productionModeAtOpen        String?
+  productionModeAtAttend      String?
+  productionModeAtFinish      String?
+  machineStatusAtOpen         String?
+  machineStatusAtAttend       String?
+  machineStatusAtFinish       String?
+  createdAt                   DateTime                    @default(now())
+  updatedAt                   DateTime                    @updatedAt
+  technicianSessions          TechnicianSession[]
+  technicianTimeAllocations   TechnicianTimeAllocation[]
+  failureEvents               FailureEvent[]
+
+  @@index([machineId])
+  @@index([status])
+  @@index([openedAt])
+  @@map("andon_calls")
+}
+
+model TechnicianSession {
+  id                    String     @id @default(cuid())
+  callId                String
+  call                  AndonCall  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  machineId             String
+  machine               Machine    @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  technicianId          String?
+  technician            Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  technicianName        String
+  technicalArea         String?
+  shiftId               String?
+  shift                 Shift?     @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  shiftName             String?
+  startedAt             DateTime
+  endedAt               DateTime?
+  endReason             String?
+  notes                 String?
+  productionModeAtStart String?
+  machineStatusAtStart  String?
+  productionModeAtEnd   String?
+  machineStatusAtEnd    String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@index([callId])
+  @@index([machineId])
+  @@index([technicianId])
+  @@map("technician_sessions")
+}
+
+model TechnicianTimeAllocation {
+  id             String    @id @default(cuid())
+  callId         String
+  call           AndonCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  technicianName String
+  technicianId   String?
+  technician     Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  startedAt      DateTime
+  endedAt        DateTime?
+  totalSeconds   Int?
+  source         String
+  createdAt      DateTime  @default(now())
+
+  @@index([callId])
+  @@index([technicianId])
+  @@map("technician_time_allocations")
+}
+
+model FailureEvent {
+  id              String     @id @default(cuid())
+  machineId       String
+  machine         Machine    @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  callId          String?
+  call            AndonCall? @relation(fields: [callId], references: [id], onDelete: SetNull)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  classification  String?
+  source          String
+  productionMode  String?
+  machineStatus   String?
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([machineId])
+  @@index([callId])
+  @@index([startedAt])
+  @@map("failure_events")
+}
+
+model Technician {
+  id                         String                     @id @default(cuid())
+  name                       String
+  technicalArea              String?
+  shiftId                    String?
+  shift                      Shift?                     @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  active                     Boolean                    @default(true)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  technicianSessions         TechnicianSession[]
+  technicianTimeAllocations  TechnicianTimeAllocation[]
+
+  @@index([shiftId])
+  @@map("technicians")
+}
+
+model Shift {
+  id                  String                @id
+  name                String
+  startTime           String
+  endTime             String
+  active              Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  technicians         Technician[]
+  technicianSessions  TechnicianSession[]
+
+  @@map("shifts")
+}
+
+model FailureClassification {
+  id        String   @id @default(cuid())
+  label     String
+  value     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("failure_classifications")
+}
+
+model KioskDevice {
+  id               String   @id @default(cuid())
+  name             String
+  ipAddress        String?
+  location         String?
+  defaultMachineId String?
+  defaultMachine   Machine? @relation(fields: [defaultMachineId], references: [id], onDelete: SetNull)
+  lastHeartbeat    DateTime?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([defaultMachineId])
+  @@map("kiosk_devices")
+}

@@ -1,0 +1,29 @@
+{
+  "name": "andon-evergreen-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --name init",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "fastify": "^5.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "prisma": "^6.19.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
