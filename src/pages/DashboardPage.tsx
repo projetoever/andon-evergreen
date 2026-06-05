@@ -75,9 +75,8 @@ export function DashboardPage() {
     }
   }
 
-
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-2 overflow-hidden p-2 md:p-3">
+    <div className="flex min-h-dvh flex-col gap-2 overflow-x-hidden p-2 md:p-3">
       {!audioUnlocked && (
         <div className="flex flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-2 text-warning sm:flex-row">
           <div className="flex items-center gap-3">
@@ -95,13 +94,17 @@ export function DashboardPage() {
       <StatusSummaryBar />
 
       <div className="flex flex-wrap items-center justify-between gap-1.5">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
+        <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
+          Máquinas
+        </h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
             title="Configurar sons do ANDON"
             aria-label="Configurar sons do ANDON"
-            onClick={() => (isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true))}
+            onClick={() =>
+              isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true)
+            }
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <Settings className="h-4 w-4" />
@@ -109,11 +112,15 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <AdminLoginModal open={adminLoginOpen} onOpenChange={setAdminLoginOpen} onSuccess={() => setAdminSettingsOpen(true)} />
+      <AdminLoginModal
+        open={adminLoginOpen}
+        onOpenChange={setAdminLoginOpen}
+        onSuccess={() => setAdminSettingsOpen(true)}
+      />
       <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
 
       <MachineGrid
-        className="min-h-0 flex-1 content-stretch overflow-hidden"
+        className="flex-1"
         machines={machines}
         onOpenCall={handleOpenCall}
         onAttend={handleAttend}

@@ -69,17 +69,21 @@ export function MachineCard({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col gap-1.5 overflow-hidden rounded-xl border-2 bg-card p-2.5 shadow-md transition-all",
-        machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
+        "flex h-full min-h-[13.5rem] flex-col gap-1.5 rounded-xl border-2 bg-card p-2.5 shadow-md transition-all",
+        machine.machineStatus === "stopped" && !isNotScheduled
+          ? "border-danger/60"
+          : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="shrink-0 flex items-start justify-between gap-2">
         <div>
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-4xl font-black leading-none tracking-tight text-foreground md:text-5xl">{machine.id}</div>
+          <div className="text-4xl font-black leading-none tracking-tight text-foreground md:text-5xl">
+            {machine.id}
+          </div>
         </div>
         <Link
           to="/machines/$machineId"
@@ -91,14 +95,14 @@ export function MachineCard({
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-1">
+      <div className="shrink-0 flex flex-wrap gap-1">
         <MachineStatusBadge status={machine.machineStatus} />
         <AndonStatusBadge status={machine.andonStatus} />
         <ProductionModeBadge productionMode={machine.productionMode} />
       </div>
 
       {currentCall && (
-        <div className="rounded-lg bg-muted/40 p-1.5 text-[11px] leading-tight">
+        <div className="shrink-0 rounded-lg bg-muted/40 p-1.5 text-[11px] leading-tight">
           <div className="flex items-center gap-1 text-[11px] font-bold uppercase text-foreground">
             {currentCall.category === "maintenance" ? (
               <Wrench className="h-3 w-3" />
@@ -139,51 +143,81 @@ export function MachineCard({
       )}
 
       {machine.machineStatus === "stopped" && !isNotScheduled && (
-        <div className="flex items-center gap-1 rounded-lg bg-danger/10 p-1.5 text-[11px] text-danger">
+        <div className="shrink-0 flex items-center gap-1 rounded-lg bg-danger/10 p-1.5 text-[11px] text-danger">
           <AlertTriangle className="h-3 w-3" />
           Em falha há <strong>{formatDurationMinutes(stoppedMin)}</strong>
         </div>
       )}
       {machine.machineStatus === "stopped" && isNotScheduled && (
-        <div className="flex items-center gap-1 rounded-lg bg-muted p-1.5 text-[11px] text-muted-foreground">
+        <div className="shrink-0 flex items-center gap-1 rounded-lg bg-muted p-1.5 text-[11px] text-muted-foreground">
           <AlertTriangle className="h-3 w-3" />
           Fora de produção
         </div>
       )}
       {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
-        <div className="text-[10px] text-muted-foreground">
+        <div className="shrink-0 text-[10px] text-muted-foreground">
           Última falha: {formatDurationMinutes(machine.lastStopDurationMinutes)}
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-1 pt-1">
+      <div className="mt-auto flex shrink-0 flex-col gap-1 pt-1">
         {machine.andonStatus === "none" && (
-          <BigButton tone="warning" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onOpenCall?.(machine.id)}>
+          <BigButton
+            tone="warning"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onOpenCall?.(machine.id)}
+          >
             Abrir ANDON
           </BigButton>
         )}
         {machine.andonStatus === "open" && currentCall && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onAttend?.(currentCall.id)}>
+          <BigButton
+            tone="info"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onAttend?.(currentCall.id)}
+          >
             Atender
           </BigButton>
         )}
         {machine.andonStatus === "in_progress" && currentCall?.category === "maintenance" && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onCompleteMaintenance?.(currentCall.id)}>
+          <BigButton
+            tone="info"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onCompleteMaintenance?.(currentCall.id)}
+          >
             Concluir Manutenção
           </BigButton>
         )}
         {machine.andonStatus === "in_progress" && currentCall?.category === "production" && (
-          <BigButton tone="success" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onFinish?.(currentCall.id)}>
+          <BigButton
+            tone="success"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onFinish?.(currentCall.id)}
+          >
             Finalizar
           </BigButton>
         )}
         {machine.andonStatus === "post_maintenance" && currentCall?.category === "maintenance" && (
-          <BigButton tone="info" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onReturnToMaintenance?.(currentCall.id)}>
+          <BigButton
+            tone="info"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onReturnToMaintenance?.(currentCall.id)}
+          >
             Voltar à Manutenção
           </BigButton>
         )}
         {machine.andonStatus === "post_maintenance" && currentCall && (
-          <BigButton tone="success" size="md" className="min-h-[38px] px-3 text-xs" onClick={() => onFinish?.(currentCall.id)}>
+          <BigButton
+            tone="success"
+            size="md"
+            className="min-h-[38px] px-3 text-xs"
+            onClick={() => onFinish?.(currentCall.id)}
+          >
             Finalizar Chamado
           </BigButton>
         )}
