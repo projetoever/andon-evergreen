@@ -1,28 +1,60 @@
-# Backend ANDON futuro
+# ANDON API
 
-Esta pasta reserva a estrutura para uma futura API Node.js local do Sistema ANDON.
+Backend Node.js básico para a futura API local do ANDON Web Industrial.
 
-## Escopo desta etapa
+Nesta etapa o servidor expõe apenas a rota de saúde e ainda não conecta PostgreSQL, não cria schema de banco e não altera a lógica do frontend.
 
-- Não há backend funcional nesta tarefa.
-- Não há conexão com PostgreSQL.
-- Não há autenticação, cloud, Supabase ou Firebase.
-- O frontend continua usando o modo local com LocalStorage.
+## Requisitos
 
-## Direção futura
+- Node.js 22+
+- npm
 
-A arquitetura prevista é:
+## Configuração
 
-```text
-Kiosks Raspberry / Chromium
-↓
-Frontend ANDON Web
-↓ HTTP ou WebSocket
-API Node.js local
-↓
-PostgreSQL
-↓
-Node-RED / máquinas / relatórios / ordens de serviço
+Copie o arquivo de exemplo de ambiente, se quiser ajustar porta, host ou CORS:
+
+```bash
+cp .env.example .env
 ```
 
-Os kiosks Raspberry não devem acessar o PostgreSQL diretamente. Quando o backend for implementado, somente a API Node.js local deverá ler e gravar no banco.
+Variáveis disponíveis:
+
+- `PORT`: porta HTTP do servidor. Padrão: `3001`.
+- `HOST`: host de escuta. Padrão: `0.0.0.0` para permitir acesso na rede local.
+- `CORS_ORIGIN`: origem permitida pelo CORS. Padrão: `*`.
+
+## Instalação
+
+```bash
+npm install
+```
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm run start
+```
+
+- `npm run dev`: executa o servidor TypeScript em modo watch.
+- `npm run build`: compila o backend para `dist/`.
+- `npm run start`: executa o servidor compilado.
+
+## Health check
+
+Com o servidor em execução, acesse:
+
+```bash
+curl http://localhost:3001/health
+```
+
+Resposta esperada:
+
+```json
+{
+  "status": "ok",
+  "service": "andon-api",
+  "timestamp": "2026-06-05T00:00:00.000Z"
+}
+```
