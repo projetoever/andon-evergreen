@@ -66,7 +66,7 @@ export function MachineCard({ machine }: MachineCardProps) {
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
-  const compactBadgeClass = "max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px] leading-none tracking-normal md:text-[11px] xl:text-[10px] 2xl:text-[11px]";
+  const compactBadgeClass = "min-w-fit shrink-0 whitespace-nowrap gap-1 px-1.5 py-0.5 text-[9px] leading-none tracking-normal sm:text-[10px] 2xl:text-[11px]";
 
   return (
     <div
@@ -94,10 +94,10 @@ export function MachineCard({ machine }: MachineCardProps) {
       <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden text-xs leading-tight text-muted-foreground 2xl:text-sm">
         {machine.machineStatus === "stopped" && !isNotScheduled && (
           <div className="flex items-center justify-between gap-1.5 rounded-md bg-danger/10 px-2 py-1 font-bold text-danger">
-            <span className="inline-flex min-w-0 items-center gap-1 truncate">
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Em falha
             </span>
-            <strong className="shrink-0 text-foreground">{formatDurationMinutes(stoppedMin)}</strong>
+            <strong className="min-w-0 truncate text-right text-foreground">{formatDurationMinutes(stoppedMin)}</strong>
           </div>
         )}
         {machine.machineStatus === "stopped" && isNotScheduled && (
