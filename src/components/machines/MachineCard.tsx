@@ -19,15 +19,10 @@ import {
   getCallSubtypeLabel,
   getCriticalityColorClass,
   getCriticalityLabel,
-  getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 
 interface MachineCardProps {
   machine: Machine;
-}
-
-function getCategoryLabel(category: string): string {
-  return category === "maintenance" ? "Manutenção" : "Produção";
 }
 
 export function MachineCard({ machine }: MachineCardProps) {
@@ -57,7 +52,7 @@ export function MachineCard({ machine }: MachineCardProps) {
   const callElapsedLabel = currentCall?.status === "open"
     ? "Aguardando"
     : currentCall?.status === "in_progress"
-      ? "Em atendimento"
+      ? "Atendimento"
       : currentCall?.status === "post_maintenance"
         ? "Acompanhamento"
         : null;
@@ -68,108 +63,85 @@ export function MachineCard({ machine }: MachineCardProps) {
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
-  const callAreaLabel = currentCall?.technicianArea
-    ? getTechnicianAreaLabel(currentCall.technicianArea)
-    : getCategoryLabel(currentCall?.category ?? "production");
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
+  const compactBadgeClass = "max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px] leading-none tracking-normal md:text-[11px] xl:text-[10px] 2xl:text-[11px]";
 
   return (
     <div
       className={cn(
-        "flex h-full min-h-[250px] flex-col gap-2 rounded-xl border-2 bg-card p-3 shadow-md transition-all",
+        "flex h-full min-h-0 flex-col gap-1.5 rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
         machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex shrink-0 items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-5xl font-black leading-none tracking-tight text-foreground md:text-6xl">{machine.id}</div>
-        </div>
-        <div className="rounded-lg bg-muted px-2.5 py-1 text-xs font-black uppercase tracking-wide text-muted-foreground">
-          Monitor
+          <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">Máquina</div>
+          <div className="text-4xl font-black leading-none tracking-tight text-foreground 2xl:text-5xl">{machine.id}</div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 text-[12px] [&>*]:px-2 [&>*]:py-1 [&>*]:text-[11px] md:[&>*]:text-xs">
-        <MachineStatusBadge status={machine.machineStatus} />
-        <AndonStatusBadge status={machine.andonStatus} />
-        <ProductionModeBadge productionMode={machine.productionMode} />
+      <div className="flex shrink-0 flex-wrap gap-1 overflow-hidden">
+        <MachineStatusBadge status={machine.machineStatus} className={compactBadgeClass} />
+        <AndonStatusBadge status={machine.andonStatus} className={compactBadgeClass} />
+        <ProductionModeBadge productionMode={machine.productionMode} className={compactBadgeClass} />
       </div>
 
-      <div className="grid gap-1.5 text-sm leading-snug text-muted-foreground">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden text-xs leading-tight text-muted-foreground 2xl:text-sm">
         {machine.machineStatus === "stopped" && !isNotScheduled && (
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-danger/10 px-2.5 py-2 text-danger">
-            <span className="inline-flex items-center gap-1.5 font-bold">
-              <AlertTriangle className="h-4 w-4" /> Tempo em falha
+          <div className="flex items-center justify-between gap-1.5 rounded-md bg-danger/10 px-2 py-1 font-bold text-danger">
+            <span className="inline-flex min-w-0 items-center gap-1 truncate">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Em falha
             </span>
-            <strong className="text-base leading-none">{formatDurationMinutes(stoppedMin)}</strong>
+            <strong className="shrink-0 text-foreground">{formatDurationMinutes(stoppedMin)}</strong>
           </div>
         )}
         {machine.machineStatus === "stopped" && isNotScheduled && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-2 font-bold text-muted-foreground">
-            <AlertTriangle className="h-4 w-4" /> Fora de produção
+          <div className="flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-bold text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Fora de produção
           </div>
         )}
-        {machine.machineStatus === "running" && machine.lastStopDurationMinutes > 0 && (
-          <div className="rounded-lg bg-muted/35 px-2.5 py-2">
-            Última falha: <strong className="text-foreground">{formatDurationMinutes(machine.lastStopDurationMinutes)}</strong>
+        {machine.machineStatus === "running" && (
+          <div className="truncate rounded-md bg-muted/35 px-2 py-1">
+            Última falha: <strong className="text-foreground">{machine.lastStopDurationMinutes > 0 ? formatDurationMinutes(machine.lastStopDurationMinutes) : "sem registro"}</strong>
           </div>
         )}
-        {machine.machineStatus === "running" && machine.lastStopDurationMinutes <= 0 && (
-          <div className="rounded-lg bg-muted/35 px-2.5 py-2">
-            Última falha: <strong className="text-foreground">sem registro</strong>
-          </div>
-        )}
-      </div>
 
-      {currentCall && (
-        <div className="rounded-xl border border-border bg-muted/40 p-2.5 text-sm leading-snug">
-          <div className="flex items-center gap-1.5 text-sm font-black uppercase text-foreground">
-            {currentCall.category === "maintenance" ? (
-              <Wrench className="h-4 w-4" />
-            ) : (
-              <Bell className="h-4 w-4" />
-            )}
-            {getCallSubtypeLabel(currentCall.subtype)}
-          </div>
-          <div className="mt-1 grid grid-cols-2 gap-1.5">
-            <div className="rounded-lg bg-background/70 px-2 py-1.5">
-              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Área/Categoria</div>
-              <div className="font-bold text-foreground">{callAreaLabel}</div>
+        {currentCall && (
+          <div className="grid gap-1 rounded-lg border border-border bg-muted/40 p-1.5">
+            <div className="flex min-w-0 items-center gap-1 text-xs font-black uppercase leading-tight text-foreground 2xl:text-sm">
+              {currentCall.category === "maintenance" ? (
+                <Wrench className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <Bell className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
             </div>
             <div
               className={
-                "rounded-lg border px-2 py-1.5 font-bold " +
+                "w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold leading-none 2xl:text-xs " +
                 getCriticalityColorClass(currentCall.criticality)
               }
             >
-              <div className="text-[10px] uppercase tracking-wide opacity-80">Criticidade</div>
-              <div>{getCriticalityLabel(currentCall.criticality)}</div>
+              Criticidade: {getCriticalityLabel(currentCall.criticality)}
             </div>
+            {callElapsedLabel && callElapsedMinutes !== null && (
+              <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
+                {callElapsedLabel}: <strong className="text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
+              </div>
+            )}
           </div>
-          {callElapsedLabel && callElapsedMinutes !== null && (
-            <div className="mt-1.5 rounded-lg bg-background/70 px-2 py-1.5 text-muted-foreground">
-              {callElapsedLabel} há <strong className="text-base text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!currentCall && (
-        <div className="rounded-xl border border-dashed border-border px-2.5 py-2 text-sm font-semibold text-muted-foreground">
-          Sem chamado ANDON ativo
-        </div>
-      )}
+        )}
+      </div>
 
       <Link
         to="/machines/$machineId"
         params={{ machineId: machine.id }}
-        className="mt-auto inline-flex min-h-[46px] w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-black uppercase tracking-wider text-foreground transition hover:bg-accent md:text-base"
+        className="inline-flex min-h-[34px] shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2 text-[11px] font-black uppercase tracking-wide text-foreground transition hover:bg-accent 2xl:min-h-[38px] 2xl:text-xs"
       >
         Ver Máquina
       </Link>

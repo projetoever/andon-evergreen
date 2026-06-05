@@ -11,7 +11,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
   return (
     <div
       className={cn(
-        "grid auto-rows-[minmax(250px,1fr)] grid-cols-1 items-stretch gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7",
+        "grid h-full min-h-0 grid-cols-2 grid-rows-[repeat(7,minmax(0,1fr))] items-stretch gap-1.5 sm:grid-cols-3 sm:grid-rows-[repeat(5,minmax(0,1fr))] md:grid-cols-4 md:grid-rows-[repeat(4,minmax(0,1fr))] lg:grid-cols-5 lg:grid-rows-[repeat(3,minmax(0,1fr))] xl:grid-cols-7 xl:grid-rows-2 2xl:gap-2",
         className,
       )}
     >
