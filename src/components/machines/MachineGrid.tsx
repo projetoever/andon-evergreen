@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { Machine } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { MachineCard } from "./MachineCard";
@@ -8,6 +9,14 @@ interface MachineGridProps {
 }
 
 export function MachineGrid({ machines, className }: MachineGridProps) {
+  const sortedMachines = useMemo(
+    () =>
+      machines
+        .slice()
+        .sort((a, b) => Number(a.id) - Number(b.id)),
+    [machines],
+  );
+
   return (
     <div
       className={cn(
@@ -15,7 +24,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
         className,
       )}
     >
-      {machines.map((m) => (
+      {sortedMachines.map((m) => (
         <MachineCard key={m.id} machine={m} />
       ))}
     </div>

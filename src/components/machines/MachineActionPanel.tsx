@@ -16,6 +16,7 @@ interface MachineActionPanelProps {
   onStop: () => void;
   onResume: () => void;
   prominentNoCall?: boolean;
+  screenLocked?: boolean;
 }
 
 export function MachineActionPanel({
@@ -29,6 +30,7 @@ export function MachineActionPanel({
   onStop,
   onResume,
   prominentNoCall = false,
+  screenLocked = false,
 }: MachineActionPanelProps) {
   const actionButtonClass = prominentNoCall
     ? "min-h-[76px] px-5 text-lg md:min-h-[86px] md:text-xl 2xl:min-h-[92px]"
@@ -104,12 +106,14 @@ export function MachineActionPanel({
         >
           <FileWarning className="h-6 w-6" /> Histórico de Falhas
         </Link>
-        <Link
-          to="/"
-          className={secondaryActionClass}
-        >
-          <ArrowLeft className="h-6 w-6" /> Voltar ao Painel
-        </Link>
+        {!screenLocked && (
+          <Link
+            to="/"
+            className={secondaryActionClass}
+          >
+            <ArrowLeft className="h-6 w-6" /> Voltar ao Painel
+          </Link>
+        )}
       </div>
     </div>
   );

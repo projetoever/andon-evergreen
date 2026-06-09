@@ -5,4 +5,5 @@ export const LOCAL_STORAGE_KEYS = {
   settings: "andonWebIndustrial.settings",
   soundConfigs: "andonWebIndustrial.soundConfigs",
   appVersion: "andonWebIndustrial.appVersion",
+  machineScreenLock: "andon_machine_screen_lock",
 } as const;

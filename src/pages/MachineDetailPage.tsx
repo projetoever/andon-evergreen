@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAndon } from "@/context/AndonProvider";
@@ -14,11 +15,13 @@ import { TechnicianSelector } from "@/components/calls/TechnicianSelector";
 import { EmptyState } from "@/components/common/EmptyState";
 import { BigButton } from "@/components/common/BigButton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { Textarea } from "@/components/ui/textarea";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
 import { isMachineSoundEnabled, setMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
+import { getMachineScreenLock, lockMachineScreen, unlockMachineScreen } from "@/services/machineScreenLockService";
 import { useTicker } from "@/hooks/useTicker";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
@@ -38,10 +41,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     audioUnlocked,
   } = useAndon();
 
+  const navigate = useNavigate();
   const machine = machines.find((m) => m.id === machineId);
   const [openCallDialog, setOpenCallDialog] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [machineSoundEnabled, setMachineSoundEnabledState] = useState(true);
+  const [screenLock, setScreenLock] = useState(() => getMachineScreenLock());
+  const [unlockLoginOpen, setUnlockLoginOpen] = useState(false);
 
   const [startOpen, setStartOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -54,21 +60,25 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [sessionId, setSessionId] = useState("");
   const tick = useTicker(1000);
 
-  if (!machine) {
-    return (
-      <EmptyState
-        icon={<AlertCircle className="h-10 w-10" />}
-        title="Máquina não encontrada"
-        description={`A máquina "${machineId}" não existe.`}
-      />
-    );
-  }
+  useEffect(() => {
+    const lockedScreen = getMachineScreenLock();
+    setScreenLock(lockedScreen);
+
+    if (lockedScreen?.locked && lockedScreen.machineId !== machineId) {
+      void navigate({
+        to: "/machines/$machineId",
+        params: { machineId: lockedScreen.machineId },
+        replace: true,
+      });
+    }
+  }, [machineId, navigate]);
 
   useEffect(() => {
+    if (!machine) return;
     setMachineSoundEnabledState(isMachineSoundEnabled(machine.id));
-  }, [machine.id]);
+  }, [machine]);
 
-  const currentCall = machine.currentCallId
+  const currentCall = machine?.currentCallId
     ? (calls.find((c) => c.id === machine.currentCallId) ?? null)
     : null;
   const nowIso = useMemo(() => new Date().toISOString(), [tick]);
@@ -92,6 +102,26 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     currentCall?.status === "in_progress" && activeSessions.length === 0
       ? diffMinutes(currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt, nowIso)
       : 0;
+  const screenLocked = Boolean(machine && screenLock?.locked === true && screenLock.machineId === machine.id);
+
+  function handleToggleScreenLock() {
+    if (!machine) return;
+
+    if (screenLocked) {
+      setUnlockLoginOpen(true);
+      return;
+    }
+
+    lockMachineScreen(machine.id);
+    setScreenLock({ locked: true, machineId: machine.id });
+    toast.success(`Tela da máquina ${machine.id} fixada`);
+  }
+
+  function handleUnlockSuccess() {
+    unlockMachineScreen();
+    setScreenLock(null);
+    toast.success("Tela desbloqueada. Navegação liberada.");
+  }
 
   function handleAttend() {
     if (!currentCall) return;
@@ -158,11 +188,23 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     toast.success("Atendimento individual encerrado");
   }
 
+  if (!machine) {
+    return (
+      <EmptyState
+        icon={<AlertCircle className="h-10 w-10" />}
+        title="Máquina não encontrada"
+        description={`A máquina "${machineId}" não existe.`}
+      />
+    );
+  }
+
   return (
     <div className="flex h-dvh min-h-0 flex-col gap-2 overflow-hidden p-2 md:p-3">
       <MachineDetailHeader
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
+        screenLocked={screenLocked}
+        onToggleScreenLock={handleToggleScreenLock}
         onToggleMachineSound={() => {
           const next = !machineSoundEnabled;
           setMachineSoundEnabled(machine.id, next);
@@ -280,9 +322,18 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onStop={() => changeMachineStatus(machine.id, "stopped")}
         onResume={() => changeMachineStatus(machine.id, "running")}
         prominentNoCall={!currentCall}
+        screenLocked={screenLocked}
       />
 
       <OpenCallModal open={openCallDialog} onOpenChange={setOpenCallDialog} preselectedMachineId={machine.id} />
+      <AdminLoginModal
+        open={unlockLoginOpen}
+        onOpenChange={setUnlockLoginOpen}
+        onSuccess={handleUnlockSuccess}
+        title="Desbloquear tela fixada"
+        description="Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel."
+        successLabel="Desbloquear"
+      />
       <FinishCallModal
         open={finishCallId !== null}
         onOpenChange={(isOpen) => !isOpen && setFinishCallId(null)}

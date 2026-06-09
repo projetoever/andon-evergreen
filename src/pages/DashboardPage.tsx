@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { MachineGrid } from "@/components/machines/MachineGrid";
@@ -8,6 +9,7 @@ import { Volume2, Settings } from "lucide-react";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
+import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 
 export function DashboardPage() {
@@ -16,13 +18,38 @@ export function DashboardPage() {
     audioUnlocked,
     setAudioUnlocked,
   } = useAndon();
+  const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [lockedMachineId, setLockedMachineId] = useState<string | null>(() => getMachineScreenLock()?.machineId ?? null);
+
+  useEffect(() => {
+    const lockedScreen = getMachineScreenLock();
+    if (!lockedScreen?.locked) {
+      setLockedMachineId(null);
+      return;
+    }
+
+    setLockedMachineId(lockedScreen.machineId);
+    void navigate({
+      to: "/machines/$machineId",
+      params: { machineId: lockedScreen.machineId },
+      replace: true,
+    });
+  }, [navigate]);
 
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
     toast.success("Painel ativo — sons habilitados");
+  }
+
+  if (lockedMachineId) {
+    return (
+      <div className="flex h-dvh min-h-0 items-center justify-center bg-background p-4 text-center text-sm font-bold uppercase tracking-wide text-muted-foreground">
+        Tela fixada na máquina {lockedMachineId}. Redirecionando...
+      </div>
+    );
   }
 
   return (
