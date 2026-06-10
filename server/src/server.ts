@@ -1,33 +1,43 @@
-import cors from '@fastify/cors';
-import Fastify from 'fastify';
+import "./config/env.js";
+import Fastify from "fastify";
 
-import { env } from './config/env.js';
-import { registerHealthRoutes } from './routes/health.js';
+import { prisma } from "./db/prisma.js";
+import { registerHealthDbRoute } from "./routes/healthDb.js";
 
-export async function buildServer() {
-  const server = Fastify({
-    logger: true,
-  });
+const DEFAULT_PORT = 3001;
+const DEFAULT_HOST = "0.0.0.0";
 
-  await server.register(cors, {
-    origin: env.corsOrigin,
-  });
+export function buildServer() {
+  const app = Fastify({ logger: true });
 
-  await server.register(registerHealthRoutes);
+  app.get("/health", async () => ({
+    status: "ok",
+    service: "andon-evergreen-api",
+    timestamp: new Date().toISOString(),
+  }));
 
-  return server;
+  void registerHealthDbRoute(app);
+
+  return app;
 }
 
-async function startServer(): Promise<void> {
-  const server = await buildServer();
+async function start() {
+  const app = buildServer();
+  const port = Number(process.env.PORT ?? DEFAULT_PORT);
+  const host = process.env.HOST ?? DEFAULT_HOST;
 
-  await server.listen({
-    port: env.port,
-    host: env.host,
-  });
+  const close = async () => {
+    await app.close();
+    await prisma.$disconnect();
+  };
+
+  process.once("SIGINT", close);
+  process.once("SIGTERM", close);
+
+  await app.listen({ port, host });
 }
 
-startServer().catch((error) => {
-  console.error(error);
+start().catch((error) => {
+  console.error("Erro ao iniciar API ANDON:", error);
   process.exit(1);
 });

@@ -1,25 +1,46 @@
-import 'dotenv/config';
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const DEFAULT_PORT = 3001;
-const DEFAULT_HOST = '0.0.0.0';
-const DEFAULT_CORS_ORIGIN = '*';
+const ENV_FILE_PATH = resolve(process.cwd(), ".env");
 
-function parsePort(value: string | undefined): number {
-  if (!value) {
-    return DEFAULT_PORT;
+function stripQuotes(value: string) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
   }
 
-  const port = Number(value);
-
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throw new Error('PORT must be an integer between 1 and 65535.');
-  }
-
-  return port;
+  return value;
 }
 
-export const env = {
-  port: parsePort(process.env.PORT),
-  host: process.env.HOST ?? DEFAULT_HOST,
-  corsOrigin: process.env.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN,
-};
+export function loadEnvFile() {
+  if (!existsSync(ENV_FILE_PATH)) {
+    return;
+  }
+
+  const envFile = readFileSync(ENV_FILE_PATH, "utf8");
+
+  for (const line of envFile.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine || trimmedLine.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmedLine.indexOf("=");
+
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+    const value = stripQuotes(trimmedLine.slice(separatorIndex + 1).trim());
+
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFile();

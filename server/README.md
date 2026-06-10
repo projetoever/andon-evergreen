@@ -1,60 +1,118 @@
-# ANDON API
+# ANDON API local
 
-Backend Node.js básico para a futura API local do ANDON Web Industrial.
-
-Nesta etapa o servidor expõe apenas a rota de saúde e ainda não conecta PostgreSQL, não cria schema de banco e não altera a lógica do frontend.
+Backend Node.js local do Sistema ANDON. Nesta etapa a API contém apenas rotas de saúde e a fundação PostgreSQL/Prisma; o frontend continua usando LocalStorage e não consome a API.
 
 ## Requisitos
 
-- Node.js 22+
+- Node.js
 - npm
+- Docker com Docker Compose
 
 ## Configuração
 
-Copie o arquivo de exemplo de ambiente, se quiser ajustar porta, host ou CORS:
+Copie o arquivo de ambiente de exemplo:
 
 ```bash
 cp .env.example .env
 ```
 
-Variáveis disponíveis:
+Variáveis principais:
 
-- `PORT`: porta HTTP do servidor. Padrão: `3001`.
-- `HOST`: host de escuta. Padrão: `0.0.0.0` para permitir acesso na rede local.
-- `CORS_ORIGIN`: origem permitida pelo CORS. Padrão: `*`.
+```dotenv
+PORT=3001
+HOST=0.0.0.0
+DATABASE_URL="postgresql://andon:andon_dev_password@localhost:5432/andon_db?schema=public"
+```
+
+## PostgreSQL com Docker
+
+Na raiz do repositório, suba o PostgreSQL local:
+
+```bash
+docker compose up -d
+```
+
+O serviço usa:
+
+- usuário: `andon`
+- senha: `andon_dev_password`
+- banco: `andon_db`
+- porta local: `5432`
+- volume persistente: `andon_postgres_data`
+
+Para parar o container sem remover o volume:
+
+```bash
+docker compose down
+```
 
 ## Instalação
+
+Dentro de `server/`:
 
 ```bash
 npm install
 ```
 
-## Scripts
+## Prisma
+
+Gerar o Prisma Client:
+
+```bash
+npm run db:generate
+```
+
+Criar/aplicar a migration inicial:
+
+```bash
+npm run db:migrate
+```
+
+Executar o seed inicial:
+
+```bash
+npm run db:seed
+```
+
+Abrir o Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+Resetar o banco local e executar seed novamente:
+
+```bash
+npm run db:reset
+```
+
+## Seed inicial
+
+O seed cria:
+
+- máquinas: 17, 10, 12, 32, 9, 11, 37, 15 e 38;
+- turnos: Manhã, Tarde, Noite e Comercial;
+- classificações: Falha real da máquina, Falha operacional, Simulação manual, Ajuste e Teste.
+
+## Desenvolvimento
+
+Dentro de `server/`:
 
 ```bash
 npm run dev
-npm run build
-npm run start
 ```
 
-- `npm run dev`: executa o servidor TypeScript em modo watch.
-- `npm run build`: compila o backend para `dist/`.
-- `npm run start`: executa o servidor compilado.
+Rotas disponíveis:
 
-## Health check
+- `GET http://localhost:3001/health` — saúde da API, não depende do banco;
+- `GET http://localhost:3001/health/db` — testa conexão com PostgreSQL.
 
-Com o servidor em execução, acesse:
+`GET /health` deve continuar retornando `status: "ok"` mesmo quando o PostgreSQL não estiver rodando. `GET /health/db` retorna `connected: true` quando o banco estiver disponível e `connected: false` quando estiver indisponível.
+
+## Build
+
+Dentro de `server/`:
 
 ```bash
-curl http://localhost:3001/health
-```
-
-Resposta esperada:
-
-```json
-{
-  "status": "ok",
-  "service": "andon-api",
-  "timestamp": "2026-06-05T00:00:00.000Z"
-}
+npm run build
 ```
