@@ -1,58 +1,75 @@
-import type { AndonSnapshot } from "@/repositories/andonRepository";
-
 export interface AndonApiClientConfig {
   baseUrl: string;
   timeoutMs: number;
 }
 
-export interface AndonApiClient {
-  getSnapshot(): Promise<AndonSnapshot>;
-  replaceSnapshot(snapshot: AndonSnapshot): Promise<AndonSnapshot>;
+export class AndonApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+  ) {
+    super(message);
+    this.name = "AndonApiError";
+  }
 }
 
+const DEFAULT_BASE_URL = "http://localhost:3001";
+
 export const DEFAULT_ANDON_API_CLIENT_CONFIG: AndonApiClientConfig = {
-  baseUrl: import.meta.env.VITE_ANDON_API_BASE_URL ?? "http://localhost:3000",
+  baseUrl: import.meta.env.VITE_ANDON_API_BASE_URL?.trim() || DEFAULT_BASE_URL,
   timeoutMs: 10_000,
 };
 
-/**
- * Cliente reservado para a futura API Node.js local.
- *
- * Ele ainda não é instanciado pelo frontend atual. Raspberry/kiosks deverão falar
- * com a API por HTTP/WebSocket; somente a API acessará o PostgreSQL.
- */
+export interface AndonApiClient {
+  request<T>(path: string, init?: RequestInit): Promise<T>;
+  get<T>(path: string): Promise<T>;
+  post<T>(path: string, body: unknown): Promise<T>;
+  patch<T>(path: string, body: unknown): Promise<T>;
+}
+
+function buildErrorMessage(status: number, payload: unknown) {
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return `Falha ao comunicar com a API ANDON (HTTP ${status}).`;
+}
+
 export function createAndonApiClient(
   config: AndonApiClientConfig = DEFAULT_ANDON_API_CLIENT_CONFIG,
 ): AndonApiClient {
-  const normalizeUrl = (path: string) => `${config.baseUrl.replace(/\/$/, "")}${path}`;
+  const baseUrl = config.baseUrl.replace(/\/$/, "");
+  const normalizeUrl = (path: string) => `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetch(normalizeUrl(path), {
+        ...init,
+        headers: {
+          ...(init.body ? { "Content-Type": "application/json" } : {}),
+          ...init.headers,
+        },
+        signal: AbortSignal.timeout(config.timeoutMs),
+      });
+    } catch {
+      throw new AndonApiError("API ANDON indisponível. Verifique se o backend está em execução.");
+    }
+
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      throw new AndonApiError(buildErrorMessage(response.status, payload), response.status);
+    }
+
+    return payload as T;
+  }
 
   return {
-    async getSnapshot() {
-      const response = await fetch(normalizeUrl("/api/andon/snapshot"), {
-        method: "GET",
-        signal: AbortSignal.timeout(config.timeoutMs),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Falha ao carregar snapshot ANDON da API: ${response.status}`);
-      }
-
-      return response.json() as Promise<AndonSnapshot>;
-    },
-
-    async replaceSnapshot(snapshot) {
-      const response = await fetch(normalizeUrl("/api/andon/snapshot"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(snapshot),
-        signal: AbortSignal.timeout(config.timeoutMs),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Falha ao salvar snapshot ANDON na API: ${response.status}`);
-      }
-
-      return response.json() as Promise<AndonSnapshot>;
-    },
+    request,
+    get: (path) => request(path, { method: "GET" }),
+    post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body) }),
+    patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
   };
 }

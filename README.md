@@ -47,3 +47,25 @@ necessário para liberar o autoplay no navegador.
 
 Dados ficam em `localStorage` sob a chave `andonWebIndustrial.*`.
 Use a tela **Configurações → Backup** para exportar/importar JSON ou CSV.
+
+## Modo de dados do frontend
+
+O frontend continua usando **LocalStorage por padrão**. Se nenhuma variável de
+ambiente for configurada, ou se `VITE_ANDON_DATA_MODE` estiver vazia/inválida, a
+aplicação usa o modo local e mantém o comportamento atual.
+
+Para ativar a API Node.js/PostgreSQL de forma explícita:
+
+```bash
+VITE_ANDON_DATA_MODE=api VITE_ANDON_API_BASE_URL=http://localhost:3001 npm run dev
+```
+
+- `VITE_ANDON_DATA_MODE=api` seleciona o repositório HTTP.
+- `VITE_ANDON_API_BASE_URL` define a URL base da API; se ausente, o frontend usa
+  `http://localhost:3001`.
+- Para voltar ao modo local, remova `VITE_ANDON_DATA_MODE` ou configure qualquer
+  valor diferente de `api`/`local`.
+
+No modo API, falhas de comunicação são registradas de forma controlada no console
+e não removem o suporte a LocalStorage. Escritas não alternam automaticamente para
+LocalStorage para evitar divergência entre navegador e banco.

@@ -4,8 +4,9 @@ const LOCAL_DATA_MODE: DataMode = "local";
 const API_DATA_MODE: DataMode = "api";
 const SUPPORTED_DATA_MODES = [LOCAL_DATA_MODE, API_DATA_MODE] as const;
 
-function isDataMode(value: string | undefined): value is DataMode {
-  return SUPPORTED_DATA_MODES.includes(value as DataMode);
+function normalizeDataMode(value: string | undefined): DataMode | null {
+  const normalized = value?.trim();
+  return SUPPORTED_DATA_MODES.includes(normalized as DataMode) ? (normalized as DataMode) : null;
 }
 
 /**
@@ -17,8 +18,7 @@ function isDataMode(value: string | undefined): value is DataMode {
  */
 export const DEFAULT_DATA_MODE: DataMode = LOCAL_DATA_MODE;
 
-export const CONFIGURED_DATA_MODE: DataMode = isDataMode(import.meta.env.VITE_ANDON_DATA_MODE)
-  ? import.meta.env.VITE_ANDON_DATA_MODE
-  : DEFAULT_DATA_MODE;
+export const CONFIGURED_DATA_MODE: DataMode =
+  normalizeDataMode(import.meta.env.VITE_ANDON_DATA_MODE) ?? DEFAULT_DATA_MODE;
 
 export const IS_API_DATA_MODE = CONFIGURED_DATA_MODE === API_DATA_MODE;

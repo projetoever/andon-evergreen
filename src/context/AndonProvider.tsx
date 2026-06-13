@@ -12,12 +12,14 @@ import type { AndonCall } from "@/types/andon";
 import type { Machine, MachineStatus, ProductionMode } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
 import { LOCAL_STORAGE_KEYS } from "@/constants/localStorageKeys";
-import { APP_NAME, APP_VERSION } from "@/constants/appConstants";
-import { DEFAULT_ALERT_RULES } from "@/constants/alertRules";
+import { APP_VERSION } from "@/constants/appConstants";
 import { createInitialMachines } from "@/data/initialMachines";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
 import { loadFromStorage, removeFromStorage, saveToStorage } from "@/services/localStorageService";
 import * as andonService from "@/services/andonService";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
+import { andonRepository } from "@/repositories/selectedAndonRepository";
+import { DEFAULT_SETTINGS } from "./defaultSettings";
 import {
   playAndonSound,
   setSoundVolume,
@@ -26,22 +28,6 @@ import {
   stopCallSound,
 } from "@/services/soundService";
 import { getCallTypeOption } from "@/data/callTypes";
-
-const DEFAULT_SETTINGS: AppSettings = {
-  appName: APP_NAME,
-  kioskMode: true,
-  simulationMode: true,
-  soundsEnabled: true,
-  soundVolume: 0.8,
-  alertRules: DEFAULT_ALERT_RULES,
-  theme: {
-    primaryColor: "#2E7D32",
-    dangerColor: "#C62828",
-    warningColor: "#FBC02D",
-    successColor: "#2E7D32",
-    neutralColor: "#37474F",
-  },
-};
 
 interface AndonContextValue {
   machines: Machine[];
@@ -96,22 +82,38 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const activeSoundsRef = useRef<Set<string>>(new Set());
 
-  // Persistência automática
+  const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
+
   useEffect(() => {
-    saveToStorage(LOCAL_STORAGE_KEYS.machines, machines);
-  }, [machines]);
+    if (isLocalDataMode) return;
+
+    void andonRepository.loadSnapshot().then((snapshot) => {
+      if (!snapshot) return;
+      setMachines(snapshot.machines.map(andonService.normalizeMachine));
+      setCalls(snapshot.calls.map(andonService.normalizeAndonCall));
+      setSettings(snapshot.settings);
+      setSoundConfigs(snapshot.soundConfigs);
+    }).catch((error) => {
+      console.error(error instanceof Error ? error.message : "Falha ao carregar dados da API ANDON.");
+    });
+  }, [isLocalDataMode]);
+
+  // Persistência automática local
   useEffect(() => {
-    saveToStorage(LOCAL_STORAGE_KEYS.calls, calls);
-  }, [calls]);
+    if (isLocalDataMode) saveToStorage(LOCAL_STORAGE_KEYS.machines, machines);
+  }, [isLocalDataMode, machines]);
   useEffect(() => {
-    saveToStorage(LOCAL_STORAGE_KEYS.settings, settings);
-  }, [settings]);
+    if (isLocalDataMode) saveToStorage(LOCAL_STORAGE_KEYS.calls, calls);
+  }, [isLocalDataMode, calls]);
   useEffect(() => {
-    saveToStorage(LOCAL_STORAGE_KEYS.soundConfigs, soundConfigs);
-  }, [soundConfigs]);
+    if (isLocalDataMode) saveToStorage(LOCAL_STORAGE_KEYS.settings, settings);
+  }, [isLocalDataMode, settings]);
   useEffect(() => {
-    saveToStorage(LOCAL_STORAGE_KEYS.appVersion, APP_VERSION);
-  }, []);
+    if (isLocalDataMode) saveToStorage(LOCAL_STORAGE_KEYS.soundConfigs, soundConfigs);
+  }, [isLocalDataMode, soundConfigs]);
+  useEffect(() => {
+    if (isLocalDataMode) saveToStorage(LOCAL_STORAGE_KEYS.appVersion, APP_VERSION);
+  }, [isLocalDataMode]);
 
   // Sincroniza volume
   useEffect(() => {
@@ -149,14 +151,20 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     }
   }, [calls, settings.soundsEnabled, audioUnlocked, soundConfigs]);
 
+  const handleRepositoryError = useCallback((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "Falha na operação ANDON.");
+  }, []);
+
   const openCall = useCallback(
     (params: andonService.OpenAndonCallParams) => {
-      const result = andonService.openAndonCall(machines, calls, params);
-      setMachines(result.machines);
-      setCalls(result.calls);
-      return result.call;
+      const optimisticResult = andonService.openAndonCall(machines, calls, params);
+      void andonRepository.openCall(machines, calls, params).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
+      return optimisticResult.call;
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const attendCall = useCallback(
@@ -164,75 +172,86 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       const callId = typeof params === "string" ? params : params.callId;
       const currentCall = calls.find((call) => call.id === callId);
       stopAndonSound(currentCall?.machineId);
-      const result = andonService.attendAndonCall(machines, calls, params);
-      setMachines(result.machines);
-      setCalls(result.calls);
+      void andonRepository.attendCall(machines, calls, params).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
 
 
   const addTechnicianSessions = useCallback(
     (params: andonService.AddTechnicianSessionsParams) => {
-      const result = andonService.addTechnicianSessions(machines, calls, params);
-      setCalls(result.calls);
+      void andonRepository.addTechnicianSessions(machines, calls, params).then((result) => {
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const endTechnicianSession = useCallback(
     (params: andonService.EndTechnicianSessionParams) => {
-      const result = andonService.endTechnicianSession(machines, calls, params);
-      setCalls(result.calls);
+      void andonRepository.endTechnicianSession(machines, calls, params).then((result) => {
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const completeMaintenance = useCallback(
     (callId: string) => {
-      const result = andonService.completeMaintenanceAttendance(machines, calls, callId);
-      setMachines(result.machines);
-      setCalls(result.calls);
-      return result.call;
+      const optimisticResult = andonService.completeMaintenanceAttendance(machines, calls, callId);
+      void andonRepository.completeMaintenance(machines, calls, callId).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
+      return optimisticResult.call;
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const returnToMaintenance = useCallback(
     (callId: string) => {
-      const result = andonService.returnToMaintenance(machines, calls, callId);
-      setMachines(result.machines);
-      setCalls(result.calls);
-      return result.call;
+      const optimisticResult = andonService.returnToMaintenance(machines, calls, callId);
+      void andonRepository.returnToMaintenance(machines, calls, callId).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
+      return optimisticResult.call;
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const finishCall = useCallback(
     (params: andonService.FinishAndonCallParams) => {
-      const result = andonService.finishAndonCall(machines, calls, params);
-      setMachines(result.machines);
-      setCalls(result.calls);
+      void andonRepository.finishCall(machines, calls, params).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
     },
-    [machines, calls],
+    [machines, calls, handleRepositoryError],
   );
 
   const changeMachineStatus = useCallback(
     (machineId: string, status: MachineStatus) => {
-      const result = andonService.updateMachineStatus(machines, machineId, status);
-      setMachines(result.machines);
+      void andonRepository.updateMachineStatus(machines, machineId, status).then((result) => {
+        setMachines(result.machines);
+      }).catch(handleRepositoryError);
     },
-    [machines],
+    [machines, handleRepositoryError],
   );
 
   const updateMachineProductionMode = useCallback(
     (machineId: string, productionMode: ProductionMode) => {
-      const result = andonService.updateMachineProductionMode(machines, machineId, productionMode);
-      setMachines(result.machines);
-      return result.machine;
+      const optimisticResult = andonService.updateMachineProductionMode(machines, machineId, productionMode);
+      void andonRepository.updateMachineProductionMode(machines, machineId, productionMode).then((result) => {
+        setMachines(result.machines);
+      }).catch(handleRepositoryError);
+      return optimisticResult.machine;
     },
-    [machines],
+    [machines, handleRepositoryError],
   );
 
   const updateMachineStopEventDescription = useCallback(
@@ -252,7 +271,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       setMachines(result.machines);
       return result.machine;
     },
-    [machines],
+    [machines, handleRepositoryError],
   );
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
