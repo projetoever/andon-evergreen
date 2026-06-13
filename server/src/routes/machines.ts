@@ -1,7 +1,22 @@
 import type { FastifyInstance } from "fastify";
 
 import { prisma } from "../db/prisma.js";
-import { notFound } from "./routeUtils.js";
+import { badRequest, notFound } from "./routeUtils.js";
+
+const MACHINE_STATUSES = new Set(["running", "stopped"]);
+const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
+
+type MachineStatusBody = {
+  machineStatus?: unknown;
+};
+
+type ProductionModeBody = {
+  productionMode?: unknown;
+};
+
+function requiredBodyString(value: unknown) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
 
 const machineSelect = {
   id: true,
@@ -46,5 +61,41 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     }
 
     return machine;
+  });
+
+  app.patch<{ Params: { id: string }; Body: MachineStatusBody }>("/api/machines/:id/status", async (request, reply) => {
+    const machineStatus = requiredBodyString(request.body?.machineStatus);
+    if (!machineStatus || !MACHINE_STATUSES.has(machineStatus)) {
+      return badRequest(reply, "Status operacional inválido");
+    }
+
+    const machine = await prisma.machine.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!machine) {
+      return notFound(reply, "Máquina não encontrada");
+    }
+
+    return prisma.machine.update({
+      where: { id: request.params.id },
+      data: { machineStatus, lastStatusChangedAt: new Date() },
+      select: machineSelect,
+    });
+  });
+
+  app.patch<{ Params: { id: string }; Body: ProductionModeBody }>("/api/machines/:id/production-mode", async (request, reply) => {
+    const productionMode = requiredBodyString(request.body?.productionMode);
+    if (!productionMode || !PRODUCTION_MODES.has(productionMode)) {
+      return badRequest(reply, "Modo de produção inválido");
+    }
+
+    const machine = await prisma.machine.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!machine) {
+      return notFound(reply, "Máquina não encontrada");
+    }
+
+    return prisma.machine.update({
+      where: { id: request.params.id },
+      data: { productionMode },
+      select: machineSelect,
+    });
   });
 }

@@ -53,3 +53,10 @@ export function notFound(reply: FastifyReply, message: string) {
     message,
   });
 }
+
+export function badRequest(reply: FastifyReply, message: string) {
+  return reply.status(400).send({
+    error: "bad_request",
+    message,
+  });
+}
