@@ -1,6 +1,7 @@
 import "./config/env.js";
 import Fastify from "fastify";
 
+import { registerCorsSupport } from "./config/cors.js";
 import { prisma } from "./db/prisma.js";
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
@@ -15,6 +16,8 @@ const DEFAULT_HOST = "0.0.0.0";
 
 export function buildServer() {
   const app = Fastify({ logger: true });
+
+  void app.register(registerCorsSupport);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error({ error }, "Erro ao processar requisição");
