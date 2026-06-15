@@ -64,9 +64,28 @@ function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
   };
 }
 
+function safeTimeMs(value: string | null | undefined) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function diffSeconds(startIso: string | null | undefined, endIso: string | null | undefined) {
+  const start = safeTimeMs(startIso);
+  const end = safeTimeMs(endIso);
+  if (start === null || end === null || end <= start) return null;
+  return (end - start) / 1000;
+}
+
+function secondsToMinutes(seconds: number | null, fallback: number | null | undefined) {
+  if (typeof seconds === "number" && Number.isFinite(seconds) && seconds >= 0) {
+    return seconds / 60;
+  }
+  return typeof fallback === "number" && Number.isFinite(fallback) && fallback >= 0 ? fallback : 0;
+}
+
 function diffMinutes(startIso: string, endIso: string) {
-  const diffMs = new Date(endIso).getTime() - new Date(startIso).getTime();
-  return Number.isFinite(diffMs) && diffMs > 0 ? diffMs / 60000 : 0;
+  return secondsToMinutes(diffSeconds(startIso, endIso), 0);
 }
 
 function calculateCallDurations(call: ApiAndonCall) {
@@ -75,20 +94,31 @@ function calculateCallDurations(call: ApiAndonCall) {
   const attendedAt = call.attendedAt ? toIso(call.attendedAt) : null;
   const maintenanceCompletedAt = call.maintenanceCompletedAt ? toIso(call.maintenanceCompletedAt) : null;
   const finishedAt = call.finishedAt ? toIso(call.finishedAt) : null;
-  const activeEnd = finishedAt ?? now;
+  const callEnd = finishedAt ?? now;
   const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? now : null);
   const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? now : null);
-  const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
+  const stoppedStatuses = new Set(["stopped", "failure", "failed"]);
+  const wasStopped =
+    stoppedStatuses.has(String(call.machineCondition ?? "")) ||
+    stoppedStatuses.has(String(call.machineStatusAtOpen ?? ""));
 
   return {
-    callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, now),
-    attendanceMinutes: attendedAt && attendanceEnd ? diffMinutes(attendedAt, attendanceEnd) : (call.attendanceMinutes ?? 0),
-    postMaintenanceMinutes:
-      maintenanceCompletedAt && postMaintenanceEnd
-        ? diffMinutes(maintenanceCompletedAt, postMaintenanceEnd)
-        : (call.postMaintenanceMinutes ?? 0),
-    totalCallMinutes: diffMinutes(openedAt, activeEnd),
-    machineStoppedMinutes: wasStopped ? diffMinutes(openedAt, activeEnd) : (call.machineStoppedMinutes ?? 0),
+    callWaitingMinutes: secondsToMinutes(
+      diffSeconds(openedAt, attendedAt ?? (call.status === "open" ? now : null)),
+      call.callWaitingMinutes,
+    ),
+    attendanceMinutes: secondsToMinutes(
+      attendedAt ? diffSeconds(attendedAt, attendanceEnd) : null,
+      call.attendanceMinutes,
+    ),
+    postMaintenanceMinutes: secondsToMinutes(
+      maintenanceCompletedAt ? diffSeconds(maintenanceCompletedAt, postMaintenanceEnd) : null,
+      call.postMaintenanceMinutes,
+    ),
+    totalCallMinutes: secondsToMinutes(diffSeconds(openedAt, callEnd), call.totalCallMinutes),
+    machineStoppedMinutes: wasStopped
+      ? secondsToMinutes(diffSeconds(openedAt, callEnd), call.machineStoppedMinutes)
+      : secondsToMinutes(null, call.machineStoppedMinutes),
   };
 }
 
