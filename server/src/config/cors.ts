@@ -59,7 +59,7 @@ async function registerCorsPlugin(app: FastifyInstance, allowedOrigins: string[]
   });
 }
 
-function registerManualCorsFallback(app: FastifyInstance, allowedOrigins: string[]) {
+function registerGlobalCorsHeaders(app: FastifyInstance, allowedOrigins: string[]) {
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -68,19 +68,21 @@ function registerManualCorsFallback(app: FastifyInstance, allowedOrigins: string
     }
   });
 
-  app.options("*", async (_request, reply) => reply.status(204).send());
+  app.addHook("onSend", async (request, reply, payload) => {
+    applyCorsHeaders(request, reply, allowedOrigins);
+    return payload;
+  });
 }
 
-export async function registerCorsSupport(app: FastifyInstance) {
+export function registerCorsSupport(app: FastifyInstance) {
   const allowedOrigins = getAllowedCorsOrigins();
 
-  try {
-    await registerCorsPlugin(app, allowedOrigins);
-  } catch (error) {
+  registerGlobalCorsHeaders(app, allowedOrigins);
+
+  void registerCorsPlugin(app, allowedOrigins).catch((error) => {
     app.log.warn(
       { error },
-      "Não foi possível registrar @fastify/cors; usando fallback CORS local.",
+      "Não foi possível registrar @fastify/cors; mantendo hooks CORS globais locais.",
     );
-    registerManualCorsFallback(app, allowedOrigins);
-  }
+  });
 }

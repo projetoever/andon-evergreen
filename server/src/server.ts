@@ -17,7 +17,7 @@ const DEFAULT_HOST = "0.0.0.0";
 export function buildServer() {
   const app = Fastify({ logger: true });
 
-  void app.register(registerCorsSupport);
+  registerCorsSupport(app);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error({ error }, "Erro ao processar requisição");
