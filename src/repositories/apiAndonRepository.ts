@@ -2,7 +2,7 @@ import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient"
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
 import type { AndonCall, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
-import type { Machine, MachineStatus, ProductionMode } from "@/types/machine";
+import type { FailureClassification, Machine, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
   EndTechnicianSessionParams,
@@ -14,6 +14,20 @@ import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
 type ApiMachine = Partial<Machine> & { id: string; name: string; createdAt?: string; updatedAt?: string };
+type ApiFailureEvent = {
+  id: string;
+  machineId: string;
+  callId?: string | null;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+  classification?: string | null;
+  source?: string | null;
+  productionMode?: string | null;
+  machineStatus?: string | null;
+  notes?: string | null;
+};
+type FailureEventMutationResult = { event: ApiFailureEvent; machine: ApiMachine };
 type ApiTechnicianSession = TechnicianAttendanceSession & { createdAt?: string; updatedAt?: string };
 type ApiTechnicianTimeAllocation = TechnicianTimeAllocation & { totalSeconds?: number; createdAt?: string };
 type ApiAndonCall = AndonCall & {
@@ -28,8 +42,59 @@ function toIso(value: unknown, fallback = new Date().toISOString()) {
   return fallback;
 }
 
-function mapMachine(machine: ApiMachine): Machine {
+function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
+  return {
+    id: event.id,
+    machineId: event.machineId,
+    stoppedAt: toIso(event.startedAt),
+    resumedAt: event.endedAt ? toIso(event.endedAt) : null,
+    durationMinutes:
+      typeof event.durationSeconds === "number"
+        ? event.durationSeconds / 60
+        : event.endedAt
+          ? diffMinutes(toIso(event.startedAt), toIso(event.endedAt))
+          : 0,
+    source: (event.source === "manual" ? "manual" : "system") as StopSource,
+    failureDescription: event.notes ?? undefined,
+    failureClassification: (event.classification ?? "unidentified_stop") as FailureClassification,
+    productionModeAtStart:
+      event.productionMode === "not_scheduled" || event.productionMode === "scheduled"
+        ? event.productionMode
+        : undefined,
+  };
+}
+
+function diffMinutes(startIso: string, endIso: string) {
+  const diffMs = new Date(endIso).getTime() - new Date(startIso).getTime();
+  return Number.isFinite(diffMs) && diffMs > 0 ? diffMs / 60000 : 0;
+}
+
+function calculateCallDurations(call: ApiAndonCall) {
   const now = new Date().toISOString();
+  const openedAt = toIso(call.openedAt, now);
+  const attendedAt = call.attendedAt ? toIso(call.attendedAt) : null;
+  const maintenanceCompletedAt = call.maintenanceCompletedAt ? toIso(call.maintenanceCompletedAt) : null;
+  const finishedAt = call.finishedAt ? toIso(call.finishedAt) : null;
+  const activeEnd = finishedAt ?? now;
+  const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? now : null);
+  const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? now : null);
+  const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
+
+  return {
+    callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, now),
+    attendanceMinutes: attendedAt && attendanceEnd ? diffMinutes(attendedAt, attendanceEnd) : (call.attendanceMinutes ?? 0),
+    postMaintenanceMinutes:
+      maintenanceCompletedAt && postMaintenanceEnd
+        ? diffMinutes(maintenanceCompletedAt, postMaintenanceEnd)
+        : (call.postMaintenanceMinutes ?? 0),
+    totalCallMinutes: diffMinutes(openedAt, activeEnd),
+    machineStoppedMinutes: wasStopped ? diffMinutes(openedAt, activeEnd) : (call.machineStoppedMinutes ?? 0),
+  };
+}
+
+function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): Machine {
+  const now = new Date().toISOString();
+  const openStop = stopHistory.find((event) => !event.resumedAt);
   return normalizeMachine({
     id: machine.id,
     name: machine.name,
@@ -37,9 +102,11 @@ function mapMachine(machine: ApiMachine): Machine {
     andonStatus: machine.andonStatus === "normal" ? "none" : (machine.andonStatus ?? "none"),
     currentCallId: machine.currentCallId ?? null,
     lastStatusChangedAt: toIso(machine.lastStatusChangedAt, now),
-    stoppedAt: machine.stoppedAt ?? null,
-    lastStopDurationMinutes: machine.lastStopDurationMinutes ?? 0,
-    stopHistory: machine.stopHistory ?? [],
+    stoppedAt: machine.stoppedAt ?? openStop?.stoppedAt ?? null,
+    lastStopDurationMinutes:
+      machine.lastStopDurationMinutes ??
+      (openStop ? diffMinutes(openStop.stoppedAt, now) : (stopHistory[0]?.durationMinutes ?? 0)),
+    stopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
     productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, now),
     useCommercialShift: machine.useCommercialShift ?? false,
@@ -68,8 +135,11 @@ function mapTechnicianTimeAllocation(allocation: ApiTechnicianTimeAllocation): T
 }
 
 function mapCall(call: ApiAndonCall): AndonCall {
+  const durations = calculateCallDurations(call);
+
   return normalizeAndonCall({
     ...call,
+    ...durations,
     openedAt: toIso(call.openedAt),
     attendedAt: call.attendedAt ? toIso(call.attendedAt) : null,
     currentAttendanceStartedAt: call.currentAttendanceStartedAt ? toIso(call.currentAttendanceStartedAt) : null,
@@ -93,8 +163,22 @@ function mapCall(call: ApiAndonCall): AndonCall {
 export class ApiAndonRepository implements AndonRepository {
   constructor(private readonly apiClient: AndonApiClient = createAndonApiClient()) {}
 
+  private async loadFailureEvents() {
+    return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events");
+  }
+
   private async loadMachines() {
-    return (await this.apiClient.get<ApiMachine[]>("/api/machines")).map(mapMachine);
+    const [machines, failureEvents] = await Promise.all([
+      this.apiClient.get<ApiMachine[]>("/api/machines"),
+      this.loadFailureEvents(),
+    ]);
+    const stopHistoryByMachine = new Map<string, MachineStopEvent[]>();
+    for (const event of failureEvents.map(mapFailureEvent)) {
+      const history = stopHistoryByMachine.get(event.machineId) ?? [];
+      history.push(event);
+      stopHistoryByMachine.set(event.machineId, history);
+    }
+    return machines.map((machine) => mapMachine(machine, stopHistoryByMachine.get(machine.id) ?? []));
   }
 
   private async loadCalls(path = "/api/andon-calls") {
@@ -178,8 +262,33 @@ export class ApiAndonRepository implements AndonRepository {
     return this.loadResult();
   }
 
-  async updateMachineStatus(_machines: Machine[], machineId: string, status: MachineStatus) {
-    await this.apiClient.patch(`/api/machines/${machineId}/status`, { machineStatus: status });
+  async updateMachineStatus(machines: Machine[], machineId: string, status: MachineStatus) {
+    if (status === "stopped") {
+      const machine = machines.find((item) => item.id === machineId);
+      await this.apiClient.post<FailureEventMutationResult>("/api/failure-events", {
+        machineId,
+        classification: "unidentified_stop",
+        source: "manual",
+        productionMode: machine?.productionMode,
+        machineStatus: "stopped",
+        notes: "Falha gerada pelo operador",
+      });
+      return { machines: await this.loadMachines() };
+    }
+
+    const openStop = machines
+      .find((item) => item.id === machineId)
+      ?.stopHistory.find((event) => !event.resumedAt);
+
+    if (openStop) {
+      await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${openStop.id}/finish`, {
+        machineStatus: "running",
+        notes: "Máquina pronta para rodar",
+      });
+    } else {
+      await this.apiClient.patch(`/api/machines/${machineId}/status`, { machineStatus: status });
+    }
+
     return { machines: await this.loadMachines() };
   }
 
