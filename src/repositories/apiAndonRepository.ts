@@ -1,7 +1,7 @@
 import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient";
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
-import type { AndonCall } from "@/types/andon";
+import type { AndonCall, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
 import type { Machine, MachineStatus, ProductionMode } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
@@ -14,7 +14,13 @@ import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
 type ApiMachine = Partial<Machine> & { id: string; name: string; createdAt?: string; updatedAt?: string };
-type ApiAndonCall = AndonCall & { createdAt?: string };
+type ApiTechnicianSession = TechnicianAttendanceSession & { createdAt?: string; updatedAt?: string };
+type ApiTechnicianTimeAllocation = TechnicianTimeAllocation & { totalSeconds?: number; createdAt?: string };
+type ApiAndonCall = AndonCall & {
+  createdAt?: string;
+  technicianSessions?: ApiTechnicianSession[];
+  technicianTimeAllocations?: ApiTechnicianTimeAllocation[];
+};
 
 function toIso(value: unknown, fallback = new Date().toISOString()) {
   if (typeof value === "string") return value;
@@ -41,6 +47,26 @@ function mapMachine(machine: ApiMachine): Machine {
   });
 }
 
+function mapTechnicianSession(session: ApiTechnicianSession): TechnicianAttendanceSession {
+  return {
+    ...session,
+    startedAt: toIso(session.startedAt),
+    endedAt: session.endedAt ? toIso(session.endedAt) : undefined,
+  };
+}
+
+function mapTechnicianTimeAllocation(allocation: ApiTechnicianTimeAllocation): TechnicianTimeAllocation {
+  return {
+    ...allocation,
+    startedAt: allocation.startedAt ? toIso(allocation.startedAt) : null,
+    endedAt: allocation.endedAt ? toIso(allocation.endedAt) : null,
+    minutes:
+      typeof allocation.minutes === "number"
+        ? allocation.minutes
+        : Math.round(((allocation.totalSeconds ?? 0) / 60) * 100) / 100,
+  };
+}
+
 function mapCall(call: ApiAndonCall): AndonCall {
   return normalizeAndonCall({
     ...call,
@@ -52,6 +78,12 @@ function mapCall(call: ApiAndonCall): AndonCall {
     technicianName: call.technicianName ?? null,
     technicianNames: call.technicianNames ?? [],
     technicianArea: call.technicianArea ?? null,
+    technicianSessions: Array.isArray(call.technicianSessions)
+      ? call.technicianSessions.map(mapTechnicianSession)
+      : [],
+    technicianTimeAllocations: Array.isArray(call.technicianTimeAllocations)
+      ? call.technicianTimeAllocations.map(mapTechnicianTimeAllocation)
+      : [],
     notes: call.notes ?? null,
     createdBy: "kiosk",
     updatedAt: toIso(call.updatedAt ?? call.createdAt),
@@ -116,14 +148,26 @@ export class ApiAndonRepository implements AndonRepository {
     return { ...result, call };
   }
 
-  async addTechnicianSessions(_machines: Machine[], calls: AndonCall[], _params: AddTechnicianSessionsParams) {
-    console.warn("Inclusão incremental de manutentores ainda não possui endpoint dedicado; estado mantido até próxima carga da API.");
-    return { calls };
+  async addTechnicianSessions(_machines: Machine[], _calls: AndonCall[], params: AddTechnicianSessionsParams) {
+    for (const technician of params.technicians) {
+      await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
+        technicianName: technician.name,
+        technicianArea: technician.technicalArea,
+      });
+    }
+    return this.loadResult();
   }
 
-  async endTechnicianSession(_machines: Machine[], calls: AndonCall[], _params: EndTechnicianSessionParams) {
-    console.warn("Encerramento individual de sessão ainda não possui endpoint dedicado; estado mantido até próxima carga da API.");
-    return { calls };
+  async endTechnicianSession(_machines: Machine[], calls: AndonCall[], params: EndTechnicianSessionParams) {
+    const call = calls.find((item) => item.id === params.callId);
+    const session = call?.technicianSessions?.find((item) => item.id === params.sessionId);
+    if (!session) throw new Error("Sessão de manutentor não encontrada");
+
+    await this.apiClient.patch(
+      `/api/andon-calls/${params.callId}/technicians/${encodeURIComponent(session.technicianName)}/end`,
+      { reason: params.notes ?? params.endReason },
+    );
+    return this.loadResult();
   }
 
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
