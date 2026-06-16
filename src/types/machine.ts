@@ -69,6 +69,8 @@ export interface Machine {
   lastStopDurationMinutes: number;
   stopHistory: MachineStopEvent[];
   productionMode: ProductionMode;
+  isActive: boolean;
+  displayOrder?: number | null;
   productionModeChangedAt: string;
   useCommercialShift: boolean;
   productionHistory: MachineProductionEvent[];

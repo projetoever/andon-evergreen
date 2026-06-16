@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const machineIds = ["17", "10", "12", "32", "9", "11", "37", "15", "38"];
+const machineIds = ["9", "10", "11", "12", "15", "17", "32", "37", "38"];
 
 const shifts = [
   { id: "morning", name: "Manhã", startTime: "06:00", endTime: "14:00" },
@@ -26,7 +26,9 @@ async function main() {
       name: `Máquina ${id}`,
       machineStatus: "running",
       andonStatus: "normal",
-      productionMode: "production",
+      productionMode: "scheduled",
+      isActive: true,
+      displayOrder: Number(id),
     })),
     skipDuplicates: true,
   });

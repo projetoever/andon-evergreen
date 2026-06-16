@@ -12,7 +12,9 @@ model Machine {
   name                String
   machineStatus       String                @default("running")
   andonStatus         String                @default("normal")
-  productionMode      String                @default("production")
+  productionMode      String                @default("scheduled")
+  isActive            Boolean               @default(true)
+  displayOrder        Int?
   currentCallId       String?               @unique
   currentCall         AndonCall?            @relation("MachineCurrentCall", fields: [currentCallId], references: [id], onDelete: SetNull)
   lastStatusChangedAt DateTime              @default(now())

@@ -14,6 +14,8 @@ export function createInitialMachines(): Machine[] {
     lastStopDurationMinutes: 0,
     stopHistory: [],
     productionMode: "scheduled",
+    isActive: true,
+    displayOrder: Number(id),
     productionModeChangedAt: now,
     useCommercialShift: false,
     productionHistory: [],

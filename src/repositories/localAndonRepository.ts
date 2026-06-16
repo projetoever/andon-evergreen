@@ -103,6 +103,43 @@ export class LocalAndonRepository implements AndonRepository {
     return andonService.updateMachineProductionMode(machines, machineId, productionMode);
   }
 
+
+  async createMachine(machines: Machine[], params: import("./andonRepository").MachineCatalogInput) {
+    if (machines.some((machine) => machine.id === params.id)) throw new Error("Já existe uma máquina com este id");
+    const now = new Date().toISOString();
+    const machine = andonService.normalizeMachine({
+      id: params.id, name: params.name?.trim() || `Máquina ${params.id}`, machineStatus: "running", andonStatus: "none",
+      currentCallId: null, lastStatusChangedAt: now, stoppedAt: null, lastStopDurationMinutes: 0, stopHistory: [],
+      productionMode: params.productionMode ?? "scheduled", productionModeChangedAt: now, useCommercialShift: false, productionHistory: [],
+      isActive: true, displayOrder: Number.isFinite(Number(params.id)) ? Number(params.id) : null,
+    });
+    const nextMachines = [...machines, machine].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    return { machines: nextMachines, machine };
+  }
+
+  async updateMachineCatalog(machines: Machine[], machineId: string, patch: import("./andonRepository").MachineCatalogPatch) {
+    let updated: Machine | undefined;
+    const nextMachines = machines.map((machine) => {
+      if (machine.id !== machineId) return machine;
+      updated = andonService.normalizeMachine({ ...machine, name: patch.name?.trim() || machine.name, productionMode: patch.productionMode ?? machine.productionMode });
+      return updated;
+    });
+    if (!updated) throw new Error("Máquina não encontrada");
+    return { machines: nextMachines, machine: updated };
+  }
+
+  async updateMachineActive(machines: Machine[], machineId: string, isActive: boolean) {
+    let updated: Machine | undefined;
+    const nextMachines = machines.map((machine) => {
+      if (machine.id !== machineId) return machine;
+      if (!isActive && machine.currentCallId) throw new Error("Não é possível desativar máquina com chamado ativo");
+      updated = andonService.normalizeMachine({ ...machine, isActive });
+      return updated;
+    });
+    if (!updated) throw new Error("Máquina não encontrada");
+    return { machines: nextMachines, machine: updated };
+  }
+
   async updateMachineStopEventDescription(
     machines: Machine[],
     machineId: string,

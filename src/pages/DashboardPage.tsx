@@ -92,7 +92,7 @@ export function DashboardPage() {
 
       <MachineGrid
         className="min-h-0 flex-1"
-        machines={machines}
+        machines={[...machines].filter((machine) => machine.isActive).sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
       />
     </div>
   );
