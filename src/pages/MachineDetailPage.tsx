@@ -24,12 +24,14 @@ import { playAndonSound, stopAndonSound } from "@/services/soundService";
 import { getMachineScreenLock, lockMachineScreen, unlockMachineScreen } from "@/services/machineScreenLockService";
 import { useTicker } from "@/hooks/useTicker";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
     machines,
     calls,
     attendCall,
+    cancelCall,
     addTechnicianSessions,
     endTechnicianSession,
     completeMaintenance,
@@ -104,6 +106,16 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       : 0;
   const screenLocked = Boolean(machine && screenLock?.locked === true && screenLock.machineId === machine.id);
 
+  useAndonOpenCallSound({
+    calls,
+    machines,
+    settings,
+    soundConfigs,
+    audioUnlocked,
+    machineId,
+    respectMachinePreference: true,
+  });
+
   function handleToggleScreenLock() {
     if (!machine) return;
 
@@ -121,6 +133,22 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     unlockMachineScreen();
     setScreenLock(null);
     toast.success("Tela desbloqueada. Navegação liberada.");
+  }
+
+  function handleCancelCall() {
+    if (!currentCall) return;
+    const confirmed = window.confirm(
+      "Deseja cancelar este chamado? Use apenas se foi aberto por engano ou resolvido antes do atendimento.",
+    );
+    if (!confirmed) return;
+
+    try {
+      cancelCall({ callId: currentCall.id, reason: "Aberto por engano", cancelledBy: "operador" });
+      stopAndonSound(machine.id);
+      toast.success("Chamado cancelado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
+    }
   }
 
   function handleAttend() {
@@ -316,6 +344,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         currentCall={currentCall}
         onOpenCall={() => setOpenCallDialog(true)}
         onAttend={handleAttend}
+        onCancelCall={handleCancelCall}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => currentCall && completeMaintenance(currentCall.id)}
         onReturnToMaintenance={() => currentCall && returnToMaintenance(currentCall.id)}

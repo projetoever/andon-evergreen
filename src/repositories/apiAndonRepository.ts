@@ -7,6 +7,7 @@ import type {
   AddTechnicianSessionsParams,
   EndTechnicianSessionParams,
   FinishAndonCallParams,
+  CancelAndonCallParams,
   OpenAndonCallParams,
   StartAttendanceParams,
 } from "@/services/andonService";
@@ -264,6 +265,14 @@ export class ApiAndonRepository implements AndonRepository {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
       machineStatus: "running",
+    });
+    return this.loadResult();
+  }
+
+  async cancelCall(_machines: Machine[], _calls: AndonCall[], params: CancelAndonCallParams) {
+    await this.apiClient.patch(`/api/andon-calls/${params.callId}/cancel`, {
+      reason: params.reason,
+      cancelledBy: params.cancelledBy,
     });
     return this.loadResult();
   }

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function ActiveCallsPage() {
-  const { calls, attendCall, completeMaintenance, returnToMaintenance } = useAndon();
+  const { calls, attendCall, completeMaintenance, returnToMaintenance, cancelCall } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
 
@@ -55,6 +55,20 @@ export function ActiveCallsPage() {
     }
   }
 
+  function handleCancel(callId: string) {
+    const confirmed = window.confirm(
+      "Deseja cancelar este chamado? Use apenas se foi aberto por engano ou resolvido antes do atendimento.",
+    );
+    if (!confirmed) return;
+
+    try {
+      cancelCall({ callId, reason: "Aberto por engano", cancelledBy: "operador" });
+      toast.success("Chamado cancelado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="text-3xl font-bold uppercase tracking-wider text-foreground">
@@ -64,6 +78,7 @@ export function ActiveCallsPage() {
         calls={activeCalls}
         onAttend={handleAttend}
         onFinish={setFinishCallId}
+        onCancel={handleCancel}
         onCompleteMaintenance={handleCompleteMaintenance}
         onReturnToMaintenance={handleReturnToMaintenance}
       />

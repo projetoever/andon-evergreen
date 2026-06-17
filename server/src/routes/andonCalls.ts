@@ -51,6 +51,11 @@ type FinishAndonCallBody = {
   machineStatus?: unknown;
 };
 
+type CancelAndonCallBody = {
+  reason?: unknown;
+  cancelledBy?: unknown;
+};
+
 const CALL_CATEGORIES = new Set(["maintenance", "production"]);
 const CALL_CRITICALITIES = new Set(["low", "medium", "high", "critical"]);
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
@@ -250,6 +255,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const technicianArea = optionalString(body.technicianArea);
     const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
     if (!call) return notFound(reply, "Chamado não encontrado");
+    if (call.status !== "open") return badRequest(reply, "Chamado não está aberto");
 
     const now = new Date();
     const updatedCall = await prisma.$transaction(async (tx) => {
@@ -283,6 +289,39 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     });
 
     return updatedCall;
+  });
+
+
+  app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>("/api/andon-calls/:id/cancel", async (request, reply) => {
+    const call = await prisma.andonCall.findUnique({
+      include: { technicianSessions: true, currentForMachine: true },
+      where: { id: request.params.id },
+    });
+    if (!call) return notFound(reply, "Chamado não encontrado");
+    if (call.status !== "open") return badRequest(reply, "Não é possível cancelar chamado já atendido.");
+
+    const hasTechnician = Boolean(call.technicianName || call.technicianNames.length || call.technicianArea);
+    const hasAttendance = Boolean(call.attendedAt || call.currentAttendanceStartedAt || call.technicianSessions.length);
+    if (hasTechnician || hasAttendance) {
+      return badRequest(reply, "Não é possível cancelar chamado já atendido.");
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.machine.updateMany({
+        where: { id: call.machineId, currentCallId: call.id },
+        data: { andonStatus: "normal", currentCallId: null, lastStatusChangedAt: now },
+      });
+      await tx.andonCall.delete({ where: { id: call.id } });
+    });
+
+    return reply.send({
+      id: call.id,
+      machineId: call.machineId,
+      status: "cancelled",
+      reason: optionalString(request.body?.reason),
+      cancelledBy: optionalString(request.body?.cancelledBy),
+    });
   });
 
   app.post<{ Params: { id: string }; Body: AddTechnicianBody }>("/api/andon-calls/:id/technicians", async (request, reply) => {

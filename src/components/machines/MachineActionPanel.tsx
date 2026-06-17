@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square, FileWarning } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square, FileWarning, XCircle } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import type { AndonCall } from "@/types/andon";
 import { BigButton } from "@/components/common/BigButton";
@@ -10,6 +10,7 @@ interface MachineActionPanelProps {
   currentCall: AndonCall | null;
   onOpenCall: () => void;
   onAttend: () => void;
+  onCancelCall: () => void;
   onFinish: () => void;
   onCompleteMaintenance: () => void;
   onReturnToMaintenance: () => void;
@@ -24,6 +25,7 @@ export function MachineActionPanel({
   currentCall,
   onOpenCall,
   onAttend,
+  onCancelCall,
   onFinish,
   onCompleteMaintenance,
   onReturnToMaintenance,
@@ -64,6 +66,11 @@ export function MachineActionPanel({
         {currentCall?.status === "open" && (
           <BigButton tone="info" size="md" className={actionButtonClass} onClick={onAttend}>
             <Wrench className="h-6 w-6" /> Atender
+          </BigButton>
+        )}
+        {currentCall?.status === "open" && !currentCall.attendedAt && !(currentCall.technicianSessions ?? []).length && (
+          <BigButton tone="danger" size="md" className={actionButtonClass} onClick={onCancelCall}>
+            <XCircle className="h-6 w-6" /> Cancelar chamado
           </BigButton>
         )}
         {currentCall?.status === "in_progress" && currentCall.category === "maintenance" && (
