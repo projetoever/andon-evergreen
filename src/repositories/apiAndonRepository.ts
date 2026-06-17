@@ -13,7 +13,7 @@ import type {
 import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
-type ApiMachine = Partial<Machine> & { id: string; name: string; createdAt?: string; updatedAt?: string };
+type ApiMachine = Partial<Machine> & { id: string; name: string; isActive?: boolean; displayOrder?: number | null; createdAt?: string; updatedAt?: string };
 type ApiFailureEvent = {
   id: string;
   machineId: string;
@@ -94,7 +94,11 @@ function calculateCallDurations(call: ApiAndonCall) {
 
 function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): Machine {
   const now = new Date().toISOString();
-  const openStop = stopHistory.find((event) => !event.resumedAt);
+  const sortedStopHistory = [...stopHistory].sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
+  const openStop = sortedStopHistory.find((event) => !event.resumedAt);
+  const activeStoppedAt = machine.machineStatus === "stopped"
+    ? openStop?.stoppedAt ?? machine.stoppedAt ?? toIso(machine.lastStatusChangedAt, now)
+    : null;
   return normalizeMachine({
     id: machine.id,
     name: machine.name,
@@ -102,12 +106,14 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): 
     andonStatus: machine.andonStatus === "normal" ? "none" : (machine.andonStatus ?? "none"),
     currentCallId: machine.currentCallId ?? null,
     lastStatusChangedAt: toIso(machine.lastStatusChangedAt, now),
-    stoppedAt: machine.stoppedAt ?? openStop?.stoppedAt ?? null,
+    stoppedAt: activeStoppedAt,
     lastStopDurationMinutes:
       machine.lastStopDurationMinutes ??
-      (openStop ? diffMinutes(openStop.stoppedAt, now) : (stopHistory[0]?.durationMinutes ?? 0)),
-    stopHistory,
+      (openStop ? diffMinutes(openStop.stoppedAt, now) : (sortedStopHistory[0]?.durationMinutes ?? 0)),
+    stopHistory: sortedStopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
+    isActive: machine.isActive ?? true,
+    displayOrder: machine.displayOrder ?? null,
     productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, now),
     useCommercialShift: machine.useCommercialShift ?? false,
     productionHistory: machine.productionHistory ?? [],
@@ -164,12 +170,12 @@ export class ApiAndonRepository implements AndonRepository {
   constructor(private readonly apiClient: AndonApiClient = createAndonApiClient()) {}
 
   private async loadFailureEvents() {
-    return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events");
+    return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events?limit=500");
   }
 
   private async loadMachines() {
     const [machines, failureEvents] = await Promise.all([
-      this.apiClient.get<ApiMachine[]>("/api/machines"),
+      this.apiClient.get<ApiMachine[]>("/api/machines?includeInactive=true"),
       this.loadFailureEvents(),
     ]);
     const stopHistoryByMachine = new Map<string, MachineStopEvent[]>();
@@ -294,6 +300,22 @@ export class ApiAndonRepository implements AndonRepository {
 
   async updateMachineProductionMode(_machines: Machine[], machineId: string, productionMode: ProductionMode) {
     const machine = mapMachine(await this.apiClient.patch<ApiMachine>(`/api/machines/${machineId}/production-mode`, { productionMode }));
+    return { machines: await this.loadMachines(), machine };
+  }
+
+
+  async createMachine(_machines: Machine[], params: import("./andonRepository").MachineCatalogInput) {
+    const machine = mapMachine(await this.apiClient.post<ApiMachine>("/api/machines", params));
+    return { machines: await this.loadMachines(), machine };
+  }
+
+  async updateMachineCatalog(_machines: Machine[], machineId: string, patch: import("./andonRepository").MachineCatalogPatch) {
+    const machine = mapMachine(await this.apiClient.patch<ApiMachine>(`/api/machines/${machineId}`, patch));
+    return { machines: await this.loadMachines(), machine };
+  }
+
+  async updateMachineActive(_machines: Machine[], machineId: string, isActive: boolean) {
+    const machine = mapMachine(await this.apiClient.patch<ApiMachine>(`/api/machines/${machineId}/active`, { isActive }));
     return { machines: await this.loadMachines(), machine };
   }
 

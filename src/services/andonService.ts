@@ -104,6 +104,8 @@ export function normalizeMachine(machine: Machine): Machine {
   return {
     ...machine,
     productionMode: isProductionMode(source.productionMode) ? source.productionMode : "scheduled",
+    isActive: typeof (source as { isActive?: unknown }).isActive === "boolean" ? (source as { isActive: boolean }).isActive : true,
+    displayOrder: typeof (source as { displayOrder?: unknown }).displayOrder === "number" ? (source as { displayOrder: number }).displayOrder : null,
     productionModeChangedAt:
       typeof source.productionModeChangedAt === "string" && source.productionModeChangedAt
         ? source.productionModeChangedAt

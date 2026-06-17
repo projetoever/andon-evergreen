@@ -3,6 +3,7 @@ import { useTicker } from "@/hooks/useTicker";
 import { cn } from "@/lib/utils";
 import {
   calculateMachineStoppedMinutes,
+  getActiveMachineStoppedAt,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
@@ -17,6 +18,7 @@ interface MachineCurrentStatusPanelProps {
 export function MachineCurrentStatusPanel({ machine, className, compactNormal = false }: MachineCurrentStatusPanelProps) {
   useTicker(1000);
   const stoppedMin = calculateMachineStoppedMinutes(machine);
+  const activeStoppedAt = getActiveMachineStoppedAt(machine);
   const isStopped = machine.machineStatus === "stopped";
   const isNotScheduled = machine.productionMode === "not_scheduled";
 
@@ -77,12 +79,12 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
           </dd>
         </div>
 
-        {isStopped && machine.stoppedAt && (
+        {isStopped && activeStoppedAt && (
           <>
             <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5">
               <dt className="text-xs uppercase text-muted-foreground">Em falha desde</dt>
               <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
-                {formatDateTime(machine.stoppedAt)}
+                {formatDateTime(activeStoppedAt)}
               </dd>
             </div>
             <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5 sm:col-span-2 xl:col-span-3">

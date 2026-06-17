@@ -39,7 +39,7 @@ export interface AdminSession {
   isAuthenticated: boolean;
 }
 
-export type SettingsTab = "sounds" | "technicians" | "categories" | "shifts" | "classifications";
+export type SettingsTab = "sounds" | "technicians" | "categories" | "shifts" | "classifications" | "machines";
 
 export interface TechnicianConfig {
   id: string;

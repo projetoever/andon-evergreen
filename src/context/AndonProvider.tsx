@@ -45,6 +45,9 @@ interface AndonContextValue {
   finishCall: (params: andonService.FinishAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
+  createMachine: (params: { id: string; name?: string; productionMode?: ProductionMode }) => void;
+  updateMachineCatalog: (machineId: string, patch: { name?: string; productionMode?: ProductionMode }) => void;
+  updateMachineActive: (machineId: string, isActive: boolean) => void;
   updateMachineStopEventDescription: (
     machineId: string,
     stopEventId: string,
@@ -254,6 +257,34 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines, handleRepositoryError],
   );
 
+
+  const createMachine = useCallback(
+    (params: { id: string; name?: string; productionMode?: ProductionMode }) => {
+      void andonRepository.createMachine(machines, params).then((result) => {
+        setMachines(result.machines.map(andonService.normalizeMachine));
+      }).catch(handleRepositoryError);
+    },
+    [machines, handleRepositoryError],
+  );
+
+  const updateMachineCatalog = useCallback(
+    (machineId: string, patch: { name?: string; productionMode?: ProductionMode }) => {
+      void andonRepository.updateMachineCatalog(machines, machineId, patch).then((result) => {
+        setMachines(result.machines.map(andonService.normalizeMachine));
+      }).catch(handleRepositoryError);
+    },
+    [machines, handleRepositoryError],
+  );
+
+  const updateMachineActive = useCallback(
+    (machineId: string, isActive: boolean) => {
+      void andonRepository.updateMachineActive(machines, machineId, isActive).then((result) => {
+        setMachines(result.machines.map(andonService.normalizeMachine));
+      }).catch(handleRepositoryError);
+    },
+    [machines, handleRepositoryError],
+  );
+
   const updateMachineStopEventDescription = useCallback(
     (
       machineId: string,
@@ -323,6 +354,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       finishCall,
       changeMachineStatus,
       updateMachineProductionMode,
+      createMachine,
+      updateMachineCatalog,
+      updateMachineActive,
       updateMachineStopEventDescription,
       updateSettings,
       updateSoundConfigs,
@@ -344,6 +378,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       finishCall,
       changeMachineStatus,
       updateMachineProductionMode,
+      createMachine,
+      updateMachineCatalog,
+      updateMachineActive,
       updateMachineStopEventDescription,
       updateSettings,
       updateSoundConfigs,

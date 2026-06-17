@@ -30,6 +30,17 @@ export interface AndonRepositoryMachineResult {
   machine: Machine;
 }
 
+export interface MachineCatalogInput {
+  id: string;
+  name?: string;
+  productionMode?: ProductionMode;
+}
+
+export interface MachineCatalogPatch {
+  name?: string;
+  productionMode?: ProductionMode;
+}
+
 /**
  * Contrato incremental para separar o frontend da origem dos dados.
  *
@@ -86,6 +97,9 @@ export interface AndonRepository {
     machineId: string,
     productionMode: ProductionMode,
   ): Promise<AndonRepositoryMachineResult>;
+  createMachine(machines: Machine[], params: MachineCatalogInput): Promise<AndonRepositoryMachineResult>;
+  updateMachineCatalog(machines: Machine[], machineId: string, patch: MachineCatalogPatch): Promise<AndonRepositoryMachineResult>;
+  updateMachineActive(machines: Machine[], machineId: string, isActive: boolean): Promise<AndonRepositoryMachineResult>;
   updateMachineStopEventDescription(
     machines: Machine[],
     machineId: string,

@@ -3,11 +3,12 @@ import { SimulationPanel } from "./SimulationPanel";
 import { SoundSettingsPanel } from "./SoundSettingsPanel";
 import { DataBackupPanel } from "./DataBackupPanel";
 import { AlertSettingsPanel } from "./AlertSettingsPanel";
+import { MachineAdminPanel } from "./MachineAdminPanel";
 
 export function SettingsPanel() {
   return (
     <Tabs defaultValue="simulation" className="w-full">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted p-2 lg:grid-cols-4">
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted p-2 lg:grid-cols-5">
         <TabsTrigger value="simulation" className="min-h-[56px] text-base font-bold uppercase">
           Simulação
         </TabsTrigger>
@@ -19,6 +20,9 @@ export function SettingsPanel() {
         </TabsTrigger>
         <TabsTrigger value="alerts" className="min-h-[56px] text-base font-bold uppercase">
           Alertas
+        </TabsTrigger>
+        <TabsTrigger value="machines" className="min-h-[56px] text-base font-bold uppercase">
+          Máquinas
         </TabsTrigger>
       </TabsList>
       <TabsContent value="simulation" className="mt-4">
@@ -32,6 +36,9 @@ export function SettingsPanel() {
       </TabsContent>
       <TabsContent value="alerts" className="mt-4">
         <AlertSettingsPanel />
+      </TabsContent>
+      <TabsContent value="machines" className="mt-4">
+        <MachineAdminPanel />
       </TabsContent>
     </Tabs>
   );
