@@ -15,6 +15,7 @@ import { DEFAULT_SOUND_MACHINE_ID, type AndonSoundConfig, type SoundMachineId } 
 import type { AndonCategoryConfig, FailureClassificationConfig, SettingsTab, ShiftConfig, TechnicianConfig } from "@/types/settings";
 import { toast } from "sonner";
 import { getFailureClassificationConfigs, saveFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
+import { MachineAdminPanel } from "./MachineAdminPanel";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "sounds", label: "Sons do ANDON" },
@@ -22,6 +23,7 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "categories", label: "Categorias" },
   { id: "shifts", label: "Turnos" },
   { id: "classifications", label: "Classificações" },
+  { id: "machines", label: "Máquinas" },
 ];
 
 const areaOptions: Array<{ id: CallSubtype; label: string }> = [
@@ -70,6 +72,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         {tab === "categories" && <CategoriesTab />}
         {tab === "shifts" && <ShiftsTab />}
         {tab === "classifications" && <ClassificationsTab />}
+        {tab === "machines" && <MachineAdminPanel />}
 
         <div className="flex items-center justify-between border-t border-border pt-3">
           <BigButton tone="danger" size="md" onClick={() => { logoutAdmin(); onOpenChange(false); }}>Sair do modo admin</BigButton>
