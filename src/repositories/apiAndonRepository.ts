@@ -94,7 +94,11 @@ function calculateCallDurations(call: ApiAndonCall) {
 
 function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): Machine {
   const now = new Date().toISOString();
-  const openStop = stopHistory.find((event) => !event.resumedAt);
+  const sortedStopHistory = [...stopHistory].sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
+  const openStop = sortedStopHistory.find((event) => !event.resumedAt);
+  const activeStoppedAt = machine.machineStatus === "stopped"
+    ? openStop?.stoppedAt ?? machine.stoppedAt ?? toIso(machine.lastStatusChangedAt, now)
+    : null;
   return normalizeMachine({
     id: machine.id,
     name: machine.name,
@@ -102,11 +106,11 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): 
     andonStatus: machine.andonStatus === "normal" ? "none" : (machine.andonStatus ?? "none"),
     currentCallId: machine.currentCallId ?? null,
     lastStatusChangedAt: toIso(machine.lastStatusChangedAt, now),
-    stoppedAt: machine.stoppedAt ?? openStop?.stoppedAt ?? null,
+    stoppedAt: activeStoppedAt,
     lastStopDurationMinutes:
       machine.lastStopDurationMinutes ??
-      (openStop ? diffMinutes(openStop.stoppedAt, now) : (stopHistory[0]?.durationMinutes ?? 0)),
-    stopHistory,
+      (openStop ? diffMinutes(openStop.stoppedAt, now) : (sortedStopHistory[0]?.durationMinutes ?? 0)),
+    stopHistory: sortedStopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
     isActive: machine.isActive ?? true,
     displayOrder: machine.displayOrder ?? null,
@@ -166,7 +170,7 @@ export class ApiAndonRepository implements AndonRepository {
   constructor(private readonly apiClient: AndonApiClient = createAndonApiClient()) {}
 
   private async loadFailureEvents() {
-    return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events");
+    return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events?limit=500");
   }
 
   private async loadMachines() {

@@ -41,10 +41,18 @@ export function calculateTotalCallMinutes(call: AndonCall, nowIso?: string): num
   return diffMinutes(call.openedAt, end);
 }
 
+export function getActiveMachineStoppedAt(machine: Machine): string | null {
+  if (machine.machineStatus !== "stopped") return null;
+
+  const openStop = machine.stopHistory.find((event) => !event.resumedAt);
+  return openStop?.stoppedAt ?? machine.stoppedAt ?? machine.lastStatusChangedAt ?? null;
+}
+
 export function calculateMachineStoppedMinutes(machine: Machine, nowIso?: string): number {
-  if (machine.machineStatus !== "stopped" || !machine.stoppedAt) return 0;
+  const stoppedAt = getActiveMachineStoppedAt(machine);
+  if (!stoppedAt) return 0;
   const end = nowIso ?? new Date().toISOString();
-  return diffMinutes(machine.stoppedAt, end);
+  return diffMinutes(stoppedAt, end);
 }
 
 export function formatDurationMinutes(minutes: number): string {
