@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -20,14 +19,7 @@ import * as andonService from "@/services/andonService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { andonRepository } from "@/repositories/selectedAndonRepository";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
-import {
-  playAndonSound,
-  setSoundVolume,
-  stopAllSounds,
-  stopAndonSound,
-  stopCallSound,
-} from "@/services/soundService";
-import { getCallTypeOption } from "@/data/callTypes";
+import { setSoundVolume, stopAllSounds, stopAndonSound } from "@/services/soundService";
 
 interface AndonContextValue {
   machines: Machine[];
@@ -43,6 +35,7 @@ interface AndonContextValue {
   completeMaintenance: (callId: string) => AndonCall;
   returnToMaintenance: (callId: string) => AndonCall;
   finishCall: (params: andonService.FinishAndonCallParams) => void;
+  cancelCall: (params: andonService.CancelAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
   createMachine: (params: { id: string; name?: string; productionMode?: ProductionMode }) => void;
@@ -83,7 +76,6 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     loadFromStorage<SoundConfig[]>(LOCAL_STORAGE_KEYS.soundConfigs, SOUND_CONFIGS),
   );
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const activeSoundsRef = useRef<Set<string>>(new Set());
 
   const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
 
@@ -122,37 +114,6 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSoundVolume(settings.soundVolume);
   }, [settings.soundVolume]);
-
-  // Sincroniza sons com chamados abertos
-  useEffect(() => {
-    if (!settings.soundsEnabled || !audioUnlocked) {
-      stopAllSounds();
-      activeSoundsRef.current.clear();
-      return;
-    }
-    const openCalls = calls.filter((c) => c.status === "open");
-    const wantedKeys = new Map<string, { machineId: string; subtype: any; interval: number }>();
-    for (const call of openCalls) {
-      const opt = getCallTypeOption(call.subtype);
-      const cfg = soundConfigs.find((s) => s.key === call.subtype);
-      if (!opt || !cfg || !cfg.enabled) continue;
-      wantedKeys.set(opt.soundKey, { machineId: call.machineId, subtype: call.subtype, interval: cfg?.repeatUntilAttended ? cfg.repeatIntervalSeconds : 0 });
-    }
-    // Tocar novos
-    for (const [key, soundData] of wantedKeys) {
-      if (!activeSoundsRef.current.has(key)) {
-        void playAndonSound(soundData.machineId, soundData.subtype, soundData.interval);
-        activeSoundsRef.current.add(key);
-      }
-    }
-    // Parar os que não são mais necessários
-    for (const key of Array.from(activeSoundsRef.current)) {
-      if (!wantedKeys.has(key)) {
-        stopCallSound(key as never);
-        activeSoundsRef.current.delete(key);
-      }
-    }
-  }, [calls, settings.soundsEnabled, audioUnlocked, soundConfigs]);
 
   const handleRepositoryError = useCallback((error: unknown) => {
     console.error(error instanceof Error ? error.message : "Falha na operação ANDON.");
@@ -230,6 +191,18 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const finishCall = useCallback(
     (params: andonService.FinishAndonCallParams) => {
       void andonRepository.finishCall(machines, calls, params).then((result) => {
+        setMachines(result.machines);
+        setCalls(result.calls);
+      }).catch(handleRepositoryError);
+    },
+    [machines, calls, handleRepositoryError],
+  );
+
+  const cancelCall = useCallback(
+    (params: andonService.CancelAndonCallParams) => {
+      const currentCall = calls.find((call) => call.id === params.callId);
+      stopAndonSound(currentCall?.machineId);
+      void andonRepository.cancelCall(machines, calls, params).then((result) => {
         setMachines(result.machines);
         setCalls(result.calls);
       }).catch(handleRepositoryError);
@@ -352,6 +325,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       completeMaintenance,
       returnToMaintenance,
       finishCall,
+      cancelCall,
       changeMachineStatus,
       updateMachineProductionMode,
       createMachine,
@@ -376,6 +350,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       completeMaintenance,
       returnToMaintenance,
       finishCall,
+      cancelCall,
       changeMachineStatus,
       updateMachineProductionMode,
       createMachine,

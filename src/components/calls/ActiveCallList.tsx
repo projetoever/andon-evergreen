@@ -22,6 +22,7 @@ interface ActiveCallListProps {
   calls: AndonCall[];
   onAttend: (callId: string) => void;
   onFinish: (callId: string) => void;
+  onCancel: (callId: string) => void;
   onCompleteMaintenance: (callId: string) => void;
   onReturnToMaintenance: (callId: string) => void;
 }
@@ -30,6 +31,7 @@ export function ActiveCallList({
   calls,
   onAttend,
   onFinish,
+  onCancel,
   onCompleteMaintenance,
   onReturnToMaintenance,
 }: ActiveCallListProps) {
@@ -105,6 +107,11 @@ export function ActiveCallList({
               {c.status === "open" && (
                 <BigButton tone="info" size="md" onClick={() => onAttend(c.id)}>
                   Atender
+                </BigButton>
+              )}
+              {c.status === "open" && !c.attendedAt && !(c.technicianSessions ?? []).length && (
+                <BigButton tone="danger" size="md" onClick={() => onCancel(c.id)}>
+                  Cancelar chamado
                 </BigButton>
               )}
               {c.status === "in_progress" && c.category === "maintenance" && (

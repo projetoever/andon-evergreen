@@ -2,6 +2,7 @@ import type {
   AddTechnicianSessionsParams,
   EndTechnicianSessionParams,
   FinishAndonCallParams,
+  CancelAndonCallParams,
   OpenAndonCallParams,
   StartAttendanceParams,
 } from "@/services/andonService";
@@ -86,6 +87,11 @@ export interface AndonRepository {
     machines: Machine[],
     calls: AndonCall[],
     params: FinishAndonCallParams,
+  ): Promise<AndonRepositoryResult>;
+  cancelCall(
+    machines: Machine[],
+    calls: AndonCall[],
+    params: CancelAndonCallParams,
   ): Promise<AndonRepositoryResult>;
   updateMachineStatus(
     machines: Machine[],

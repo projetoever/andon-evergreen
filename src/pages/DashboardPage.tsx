@@ -11,16 +11,22 @@ import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
+import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 
 export function DashboardPage() {
   const {
     machines,
+    calls,
+    settings,
+    soundConfigs,
     audioUnlocked,
     setAudioUnlocked,
   } = useAndon();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  useAndonOpenCallSound({ calls, machines, settings, soundConfigs, audioUnlocked });
+
   const [lockedMachineId, setLockedMachineId] = useState<string | null>(() => getMachineScreenLock()?.machineId ?? null);
 
   useEffect(() => {

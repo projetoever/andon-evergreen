@@ -87,6 +87,14 @@ export class LocalAndonRepository implements AndonRepository {
     return andonService.finishAndonCall(machines, calls, params);
   }
 
+  async cancelCall(
+    machines: Machine[],
+    calls: AndonCall[],
+    params: andonService.CancelAndonCallParams,
+  ) {
+    return andonService.cancelAndonCall(machines, calls, params);
+  }
+
   async updateMachineStatus(
     machines: Machine[],
     machineId: string,

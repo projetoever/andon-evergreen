@@ -41,6 +41,13 @@ export interface SelectedTechnicianInput {
   technicalArea?: TechnicianArea;
 }
 
+
+export interface CancelAndonCallParams {
+  callId: string;
+  reason?: string | null;
+  cancelledBy?: string | null;
+}
+
 export interface FinishAndonCallParams {
   callId: string;
   technicianName: string | null;
@@ -436,6 +443,34 @@ export function finishAndonCall(
   finishedCall.totalCallMinutes = calculateTotalCallMinutes(finishedCall, now);
   finishedCall.machineStoppedMinutes = machine ? calculateMachineStoppedMinutes(machine, now) : 0;
   const newCalls = calls.map((c) => (c.id === params.callId ? finishedCall : c));
+  const newMachines = machines.map((m) =>
+    m.id === call.machineId
+      ? {
+          ...m,
+          andonStatus: "none" as const,
+          currentCallId: null,
+          lastStatusChangedAt: now,
+        }
+      : m,
+  );
+  return { machines: newMachines, calls: newCalls };
+}
+
+export function cancelAndonCall(
+  machines: Machine[],
+  calls: AndonCall[],
+  params: CancelAndonCallParams,
+): { machines: Machine[]; calls: AndonCall[] } {
+  const call = calls.find((c) => c.id === params.callId);
+  if (!call) throw new Error("Chamado não encontrado");
+  const hasTechnician = Boolean(call.technicianName || call.technicianNames?.length || call.technicianArea);
+  const hasAttendanceSession = Boolean((call.technicianSessions ?? []).length || call.currentAttendanceStartedAt);
+  if (call.status !== "open" || call.attendedAt || hasTechnician || hasAttendanceSession) {
+    throw new Error("Não é possível cancelar chamado já atendido.");
+  }
+
+  const now = new Date().toISOString();
+  const newCalls = calls.filter((c) => c.id !== params.callId);
   const newMachines = machines.map((m) =>
     m.id === call.machineId
       ? {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -24,12 +24,14 @@ import { playAndonSound, stopAndonSound } from "@/services/soundService";
 import { getMachineScreenLock, lockMachineScreen, unlockMachineScreen } from "@/services/machineScreenLockService";
 import { useTicker } from "@/hooks/useTicker";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
     machines,
     calls,
     attendCall,
+    cancelCall,
     addTechnicianSessions,
     endTechnicianSession,
     completeMaintenance,
@@ -104,6 +106,16 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       : 0;
   const screenLocked = Boolean(machine && screenLock?.locked === true && screenLock.machineId === machine.id);
 
+  useAndonOpenCallSound({
+    calls,
+    machines,
+    settings,
+    soundConfigs,
+    audioUnlocked,
+    machineId,
+    respectMachinePreference: true,
+  });
+
   function handleToggleScreenLock() {
     if (!machine) return;
 
@@ -114,13 +126,24 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
     lockMachineScreen(machine.id);
     setScreenLock({ locked: true, machineId: machine.id });
-    toast.success(`Tela da máquina ${machine.id} fixada`);
+    toast.success(`Tela da mÃ¡quina ${machine.id} fixada`);
   }
 
   function handleUnlockSuccess() {
     unlockMachineScreen();
     setScreenLock(null);
-    toast.success("Tela desbloqueada. Navegação liberada.");
+    toast.success("Tela desbloqueada. NavegaÃ§Ã£o liberada.");
+  }
+
+  function handleCancelCall() {
+    if (!currentCall) return;
+    try {
+      cancelCall({ callId: currentCall.id, reason: "Aberto por engano", cancelledBy: "operador" });
+      stopAndonSound(machine.id);
+      toast.success("Chamado cancelado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "NÃ£o Ã© possÃ­vel cancelar chamado jÃ¡ atendido.");
+    }
   }
 
   function handleAttend() {
@@ -192,8 +215,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     return (
       <EmptyState
         icon={<AlertCircle className="h-10 w-10" />}
-        title="Máquina não encontrada"
-        description={`A máquina "${machineId}" não existe.`}
+        title="MÃ¡quina nÃ£o encontrada"
+        description={`A mÃ¡quina "${machineId}" nÃ£o existe.`}
       />
     );
   }
@@ -212,7 +235,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
           if (!next) {
             stopAndonSound(machine.id);
-            toast.success("Som do ANDON silenciado para esta máquina");
+            toast.success("Som do ANDON silenciado para esta mÃ¡quina");
             return;
           }
 
@@ -223,7 +246,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
             void playAndonSound(machine.id, currentCall.subtype, repeatInterval);
           }
 
-          toast.success("Som do ANDON ativado para esta máquina");
+          toast.success("Som do ANDON ativado para esta mÃ¡quina");
         }}
       />
 
@@ -316,6 +339,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         currentCall={currentCall}
         onOpenCall={() => setOpenCallDialog(true)}
         onAttend={handleAttend}
+        onCancelCall={handleCancelCall}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => currentCall && completeMaintenance(currentCall.id)}
         onReturnToMaintenance={() => currentCall && returnToMaintenance(currentCall.id)}
@@ -331,7 +355,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onOpenChange={setUnlockLoginOpen}
         onSuccess={handleUnlockSuccess}
         title="Desbloquear tela fixada"
-        description="Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel."
+        description="Informe o mesmo usuÃ¡rio e senha administrativos para liberar a navegaÃ§Ã£o ao painel."
         successLabel="Desbloquear"
       />
       <FinishCallModal
@@ -345,7 +369,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <DialogHeader>
             <DialogTitle className="text-3xl">Iniciar atendimento</DialogTitle>
             <DialogDescription className="text-base">
-              Selecione os manutentores que iniciarão o atendimento deste chamado.
+              Selecione os manutentores que iniciarÃ£o o atendimento deste chamado.
             </DialogDescription>
           </DialogHeader>
 
@@ -353,7 +377,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
           <div>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Observação inicial (opcional)
+              ObservaÃ§Ã£o inicial (opcional)
             </h4>
             <Textarea
               placeholder="Descreva o contexto inicial do atendimento."
@@ -379,7 +403,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <DialogHeader>
             <DialogTitle className="text-3xl">Adicionar manutentor ao atendimento</DialogTitle>
             <DialogDescription className="text-base">
-              Selecione um ou mais manutentores para iniciar nova sessão de atendimento neste chamado.
+              Selecione um ou mais manutentores para iniciar nova sessÃ£o de atendimento neste chamado.
             </DialogDescription>
           </DialogHeader>
 
@@ -408,13 +432,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <DialogHeader>
             <DialogTitle className="text-3xl">Encerrar atendimento individual</DialogTitle>
             <DialogDescription className="text-base">
-              Registre o encerramento do atendimento de um manutentor sem finalizar a ocorrência.
+              Registre o encerramento do atendimento de um manutentor sem finalizar a ocorrÃªncia.
             </DialogDescription>
           </DialogHeader>
 
           {activeSessions.length === 0 ? (
             <div className="rounded-lg border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
-              Não há manutentor ativo para encerrar.
+              NÃ£o hÃ¡ manutentor ativo para encerrar.
             </div>
           ) : (
             <>
@@ -449,7 +473,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 >
                   <option value="handover">Troca de turno</option>
                   <option value="support_completed">Apoio encerrado</option>
-                  <option value="service_transferred">Serviço transferido</option>
+                  <option value="service_transferred">ServiÃ§o transferido</option>
                   <option value="break">Intervalo</option>
                   <option value="other">Outro</option>
                 </select>
@@ -457,14 +481,14 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
               <div>
                 <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Observação
+                  ObservaÃ§Ã£o
                 </h4>
                 <Textarea
                   value={endNotes}
                   onChange={(e) => setEndNotes(e.target.value)}
                   rows={4}
                   className="text-base"
-                  placeholder="Descreva o que foi realizado ou a condição deixada para o próximo manutentor."
+                  placeholder="Descreva o que foi realizado ou a condiÃ§Ã£o deixada para o prÃ³ximo manutentor."
                 />
               </div>
             </>
@@ -488,3 +512,4 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     </div>
   );
 }
+
