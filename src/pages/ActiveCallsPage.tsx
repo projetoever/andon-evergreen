@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { ActiveCallList } from "@/components/calls/ActiveCallList";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
@@ -40,7 +40,7 @@ export function ActiveCallsPage() {
   function handleCompleteMaintenance(callId: string) {
     try {
       completeMaintenance(callId);
-      toast.success("Manutenção concluída. Chamado em acompanhamento");
+      toast.success("ManutenÃ§Ã£o concluÃ­da. Chamado em acompanhamento");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
@@ -49,23 +49,18 @@ export function ActiveCallsPage() {
   function handleReturnToMaintenance(callId: string) {
     try {
       returnToMaintenance(callId);
-      toast.success("Chamado voltou à manutenção");
+      toast.success("Chamado voltou Ã  manutenÃ§Ã£o");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
   }
 
   function handleCancel(callId: string) {
-    const confirmed = window.confirm(
-      "Deseja cancelar este chamado? Use apenas se foi aberto por engano ou resolvido antes do atendimento.",
-    );
-    if (!confirmed) return;
-
     try {
       cancelCall({ callId, reason: "Aberto por engano", cancelledBy: "operador" });
       toast.success("Chamado cancelado.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
+      toast.error(err instanceof Error ? err.message : "NÃ£o Ã© possÃ­vel cancelar chamado jÃ¡ atendido.");
     }
   }
 
@@ -95,3 +90,4 @@ export function ActiveCallsPage() {
     </div>
   );
 }
+
