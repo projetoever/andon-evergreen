@@ -4,8 +4,8 @@ import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
-import { unlockAudio } from "@/services/soundService";
-import { Volume2, Settings } from "lucide-react";
+import { stopAndonSound, unlockAudio } from "@/services/soundService";
+import { Volume2, VolumeX, Settings } from "lucide-react";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
@@ -22,10 +22,19 @@ export function DashboardPage() {
     audioUnlocked,
     setAudioUnlocked,
   } = useAndon();
+
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
-  useAndonOpenCallSound({ calls, machines, settings, soundConfigs, audioUnlocked });
+  const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+
+  useAndonOpenCallSound({
+    calls,
+    machines,
+    settings,
+    soundConfigs,
+    audioUnlocked: audioUnlocked && !dashboardSoundMuted,
+  });
 
   const [lockedMachineId, setLockedMachineId] = useState<string | null>(() => getMachineScreenLock()?.machineId ?? null);
 
@@ -47,7 +56,21 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
+    setDashboardSoundMuted(false);
     toast.success("Painel ativo — sons habilitados");
+  }
+
+  function handleToggleDashboardSound() {
+    const nextMuted = !dashboardSoundMuted;
+    setDashboardSoundMuted(nextMuted);
+
+    if (nextMuted) {
+      stopAndonSound();
+      toast.success("Som do dashboard silenciado");
+      return;
+    }
+
+    toast.success("Som do dashboard reativado");
   }
 
   if (lockedMachineId) {
@@ -81,6 +104,19 @@ export function DashboardPage() {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-1">
         <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
         <div className="flex items-center gap-2">
+          {audioUnlocked && (
+            <button
+              type="button"
+              title={dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"}
+              aria-label={dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"}
+              onClick={handleToggleDashboardSound}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground"
+            >
+              {dashboardSoundMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {dashboardSoundMuted ? "Som silenciado" : "Silenciar som"}
+            </button>
+          )}
+
           <button
             type="button"
             title="Configurar sons do ANDON"

@@ -25,7 +25,7 @@ export function useAndonOpenCallSound({
   machineId,
   respectMachinePreference = false,
 }: UseAndonOpenCallSoundParams) {
-  const activeSoundMachineIdRef = useRef<string | null>(null);
+  const activeSoundCallIdRef = useRef<string | null>(null);
   const activeMachines = useMemo(
     () => new Set(machines.filter((machine) => machine.isActive).map((machine) => machine.id)),
     [machines],
@@ -33,12 +33,8 @@ export function useAndonOpenCallSound({
 
   useEffect(() => {
     const stopCurrent = () => {
-      if (activeSoundMachineIdRef.current) {
-        stopAndonSound(activeSoundMachineIdRef.current);
-        activeSoundMachineIdRef.current = null;
-      } else {
-        stopAndonSound();
-      }
+      stopAndonSound();
+      activeSoundCallIdRef.current = null;
     };
 
     if (!settings.soundsEnabled || !audioUnlocked) {
@@ -46,33 +42,34 @@ export function useAndonOpenCallSound({
       return;
     }
 
-    const callToAlert = calls.find((call) => {
-      if (call.status !== "open") return false;
-      if (machineId && call.machineId !== machineId) return false;
-      if (!activeMachines.has(call.machineId)) return false;
-      if (respectMachinePreference && !isMachineSoundEnabled(call.machineId)) return false;
-      const config = soundConfigs.find((item) => item.key === call.subtype);
-      return Boolean(getCallTypeOption(call.subtype) && config?.enabled);
-    });
+    const callToAlert = calls
+      .filter((call) => {
+        if (call.status !== "open") return false;
+        if (machineId && call.machineId !== machineId) return false;
+        if (!activeMachines.has(call.machineId)) return false;
+        if (respectMachinePreference && !isMachineSoundEnabled(call.machineId)) return false;
+        const config = soundConfigs.find((item) => item.key === call.subtype);
+        return Boolean(getCallTypeOption(call.subtype) && config?.enabled);
+      })
+      .sort((a, b) => b.openedAt.localeCompare(a.openedAt))[0];
 
     if (!callToAlert) {
       stopCurrent();
       return;
     }
 
-    if (activeSoundMachineIdRef.current === callToAlert.machineId) return;
+    if (activeSoundCallIdRef.current === callToAlert.id) return;
 
     stopCurrent();
+
     const config = soundConfigs.find((item) => item.key === callToAlert.subtype);
     const repeatInterval = config?.repeatUntilAttended ? config.repeatIntervalSeconds : 0;
-    activeSoundMachineIdRef.current = callToAlert.machineId;
+
+    activeSoundCallIdRef.current = callToAlert.id;
     void playAndonSound(callToAlert.machineId, callToAlert.subtype, repeatInterval).catch(() => undefined);
 
     return () => {
-      stopAndonSound(callToAlert.machineId);
-      if (activeSoundMachineIdRef.current === callToAlert.machineId) {
-        activeSoundMachineIdRef.current = null;
-      }
+      stopCurrent();
     };
   }, [activeMachines, audioUnlocked, calls, machineId, respectMachinePreference, settings.soundsEnabled, soundConfigs]);
 }
