@@ -18,6 +18,7 @@ function normalizeTechnicianName(name?: string | null): string | null {
 }
 
 function getSessionEnd(session: TechnicianAttendanceSession, finalizedAt: string): string {
+  if (session.endReason === "support_finished") return finalizedAt;
   return session.endedAt ?? finalizedAt;
 }
 

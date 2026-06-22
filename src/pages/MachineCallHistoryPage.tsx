@@ -59,12 +59,25 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               : "Não aplicável";
         const isExpanded = expandedCallIds.includes(call.id);
 
-        const attendanceStart = call.attendedAt ?? call.openedAt;
-        const attendanceEnd = call.maintenanceCompletedAt ?? call.finishedAt ?? now.toISOString();
+        const impactPeriodStart = call.openedAt;
+        const impactPeriodEnd = call.finishedAt ?? now.toISOString();
         const impactBreakdown = calculateOperationalImpactBreakdown({
-          periodStart: attendanceStart, periodEnd: attendanceEnd, stopHistory: machine.stopHistory, productionHistory: machine.productionHistory,
-          fallbackMachineCondition: call.machineCondition ?? call.machineStatusAtAttend ?? call.machineStatusAtOpen ?? call.machineStatusAtFinish ?? machine.machineStatus,
-          fallbackProductionMode: call.productionModeAtAttend ?? call.productionModeAtOpen ?? call.productionModeAtFinish ?? machine.productionMode, now,
+          periodStart: impactPeriodStart,
+          periodEnd: impactPeriodEnd,
+          stopHistory: machine.stopHistory,
+          productionHistory: machine.productionHistory,
+          fallbackMachineCondition:
+            call.machineStatusAtOpen ??
+            call.machineCondition ??
+            call.machineStatusAtAttend ??
+            call.machineStatusAtFinish ??
+            machine.machineStatus,
+          fallbackProductionMode:
+            call.productionModeAtOpen ??
+            call.productionModeAtAttend ??
+            call.productionModeAtFinish ??
+            machine.productionMode,
+          now,
         });
 
         const sessions = call.technicianSessions ?? [];
@@ -124,7 +137,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt><dd className="font-mono">{formatDateTime(call.finishedAt)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Criticidade</dt><dd className="font-bold">{getCriticalityLabel(call.criticality)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
-              <div><dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
+              <div><dt className="text-xs uppercase text-muted-foreground">Condição ao abrir</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Retornos à manutenção</dt><dd className="font-bold">{call.maintenanceReturnCount}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de ANDON</dt><dd className="font-bold text-warning">{formatDurationMinutes(waitingMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de atendimento</dt><dd className="font-bold text-info">{formatDurationMinutes(attendanceMinutes)}</dd></div>

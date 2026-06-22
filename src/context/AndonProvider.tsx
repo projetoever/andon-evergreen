@@ -265,15 +265,30 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       failureDescription: string,
       failureClassification?: import("@/types/machine").FailureClassification,
     ) => {
-      const result = andonService.updateMachineStopEventDescription(
+      const optimisticResult = andonService.updateMachineStopEventDescription(
         machines,
         machineId,
         stopEventId,
         failureDescription,
         failureClassification,
       );
-      setMachines(result.machines);
-      return result.machine;
+
+      setMachines(optimisticResult.machines);
+
+      void andonRepository
+        .updateMachineStopEventDescription(
+          machines,
+          machineId,
+          stopEventId,
+          failureDescription,
+          failureClassification,
+        )
+        .then((result) => {
+          setMachines(result.machines.map(andonService.normalizeMachine));
+        })
+        .catch(handleRepositoryError);
+
+      return optimisticResult.machine;
     },
     [machines, handleRepositoryError],
   );

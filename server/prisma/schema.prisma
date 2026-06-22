@@ -23,6 +23,7 @@ model Machine {
   andonCalls          AndonCall[]           @relation("MachineAndonCalls")
   technicianSessions  TechnicianSession[]
   failureEvents       FailureEvent[]
+  productionEvents    MachineProductionEvent[]
   kioskDevices        KioskDevice[]
 
   @@map("machines")
@@ -141,6 +142,22 @@ model FailureEvent {
   @@index([callId])
   @@index([startedAt])
   @@map("failure_events")
+}
+
+model MachineProductionEvent {
+  id              String    @id @default(cuid())
+  machineId       String
+  machine         Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  productionMode  String
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([machineId])
+  @@index([startedAt])
+  @@map("machine_production_events")
 }
 
 model Technician {
