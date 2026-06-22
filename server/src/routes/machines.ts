@@ -27,6 +27,10 @@ function normalizeProductionMode(value: string | undefined) {
   return value === "production" ? "scheduled" : value;
 }
 
+function diffSeconds(start: Date, end = new Date()) {
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+}
+
 const machineSelect = {
   id: true,
   name: true,
@@ -39,6 +43,18 @@ const machineSelect = {
   lastStatusChangedAt: true,
   createdAt: true,
   updatedAt: true,
+  productionEvents: {
+    select: {
+      id: true,
+      machineId: true,
+      productionMode: true,
+      startedAt: true,
+      endedAt: true,
+      durationSeconds: true,
+    },
+    orderBy: { startedAt: "desc" as const },
+    take: 200,
+  },
 };
 
 function sortMachinesByNumber<T extends { id: string; name: string; displayOrder?: number | null }>(machines: T[]) {
@@ -85,6 +101,7 @@ export async function registerMachineRoutes(app: FastifyInstance) {
           andonStatus: "normal",
           currentCallId: null,
           isActive: true,
+          productionEvents: { create: { productionMode, startedAt: new Date() } },
         },
         select: machineSelect,
       });
@@ -135,8 +152,52 @@ export async function registerMachineRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: ProductionModeBody }>("/api/machines/:id/production-mode", async (request, reply) => {
     const productionMode = normalizeProductionMode(requiredBodyString(request.body?.productionMode));
     if (!productionMode || !PRODUCTION_MODES.has(productionMode)) return badRequest(reply, "Modo de produção inválido");
+
     const machine = await findMachineOr404(request.params.id, reply);
     if (!("id" in machine)) return machine;
-    return prisma.machine.update({ where: { id: request.params.id }, data: { productionMode }, select: machineSelect });
+
+    const now = new Date();
+
+    return prisma.$transaction(async (tx) => {
+      const currentMachine = await tx.machine.findUnique({
+        where: { id: request.params.id },
+        select: { id: true, productionMode: true },
+      });
+
+      if (!currentMachine) throw new Error("Máquina não encontrada");
+
+      const openProductionEvent = await tx.machineProductionEvent.findFirst({
+        where: { machineId: request.params.id, endedAt: null },
+        orderBy: { startedAt: "desc" },
+      });
+
+      if (currentMachine.productionMode === productionMode && openProductionEvent) {
+        return tx.machine.findUniqueOrThrow({ where: { id: request.params.id }, select: machineSelect });
+      }
+
+      if (openProductionEvent) {
+        await tx.machineProductionEvent.update({
+          where: { id: openProductionEvent.id },
+          data: {
+            endedAt: now,
+            durationSeconds: diffSeconds(openProductionEvent.startedAt, now),
+          },
+        });
+      }
+
+      await tx.machineProductionEvent.create({
+        data: {
+          machineId: request.params.id,
+          productionMode,
+          startedAt: now,
+        },
+      });
+
+      return tx.machine.update({
+        where: { id: request.params.id },
+        data: { productionMode },
+        select: machineSelect,
+      });
+    });
   });
 }

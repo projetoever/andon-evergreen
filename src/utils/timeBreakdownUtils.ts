@@ -161,24 +161,138 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
   return { failureSeconds, readySeconds: Math.max(0, totalSeconds - failureSeconds), unknownSeconds: 0 };
 }
 
+type OperationalImpactCategory =
+  | "productiveDowntimeSeconds"
+  | "nonScheduledDowntimeSeconds"
+  | "productionBlockedSupportSeconds"
+  | "nonScheduledSupportSeconds";
+
+const OPERATIONAL_IMPACT_CATEGORIES: OperationalImpactCategory[] = [
+  "productiveDowntimeSeconds",
+  "nonScheduledDowntimeSeconds",
+  "productionBlockedSupportSeconds",
+  "nonScheduledSupportSeconds",
+];
+
+function clampBoundary(boundaries: Set<number>, value: number, periodStart: number, periodEnd: number) {
+  if (value > periodStart && value < periodEnd) boundaries.add(value);
+}
+
+function getRelevantStopEvents(
+  stopHistory: MachineStopEvent[] | undefined,
+  periodStart: number,
+  periodEnd: number,
+  now: Date,
+): MachineStopEvent[] {
+  return (stopHistory ?? []).filter((event) => {
+    const eventStart = toValidDate(event.stoppedAt);
+    if (!eventStart) return false;
+    const eventEnd = toValidDate(event.resumedAt ?? null) ?? now;
+    return eventEnd.getTime() > periodStart && eventStart.getTime() < periodEnd;
+  });
+}
+
+function getRelevantProductionEvents(
+  productionHistory: MachineProductionEvent[] | undefined,
+  periodStart: number,
+  periodEnd: number,
+  now: Date,
+): MachineProductionEvent[] {
+  return (productionHistory ?? []).filter((event) => {
+    const eventStart = toValidDate(event.startedAt);
+    if (!eventStart) return false;
+    const eventEnd = toValidDate(event.endedAt ?? null) ?? now;
+    return eventEnd.getTime() > periodStart && eventStart.getTime() < periodEnd;
+  });
+}
+
+function getMachineConditionAtTimestamp(
+  timestamp: number,
+  relevantStopEvents: MachineStopEvent[],
+  fallbackMachineCondition: MachineStatus | null | undefined,
+  now: Date,
+): MachineStatus {
+  const isInsideStopEvent = relevantStopEvents.some((event) => {
+    const eventStart = toValidDate(event.stoppedAt);
+    if (!eventStart) return false;
+    const eventEnd = toValidDate(event.resumedAt ?? null) ?? now;
+    return timestamp >= eventStart.getTime() && timestamp < eventEnd.getTime();
+  });
+
+  if (isInsideStopEvent) return "stopped";
+  return fallbackMachineCondition === "stopped" && relevantStopEvents.length === 0 ? "stopped" : "running";
+}
+
+function getProductionModeAtTimestamp(
+  timestamp: number,
+  relevantProductionEvents: MachineProductionEvent[],
+  fallbackProductionMode: ProductionMode | null | undefined,
+  now: Date,
+): ProductionMode {
+  const fallbackMode = fallbackProductionMode === "not_scheduled" ? "not_scheduled" : "scheduled";
+
+  const matchingEvent = relevantProductionEvents.find((event) => {
+    const eventStart = toValidDate(event.startedAt);
+    if (!eventStart) return false;
+    const eventEnd = toValidDate(event.endedAt ?? null) ?? now;
+    return timestamp >= eventStart.getTime() && timestamp < eventEnd.getTime();
+  });
+
+  return matchingEvent?.productionMode ?? fallbackMode;
+}
+
+function finalizeOperationalImpactSeconds(
+  categoryMilliseconds: Record<OperationalImpactCategory, number>,
+  totalSeconds: number,
+): OperationalImpactBreakdown {
+  const result: Record<OperationalImpactCategory, number> = {
+    productiveDowntimeSeconds: 0,
+    nonScheduledDowntimeSeconds: 0,
+    productionBlockedSupportSeconds: 0,
+    nonScheduledSupportSeconds: 0,
+  };
+
+  const remainders = OPERATIONAL_IMPACT_CATEGORIES.map((category) => {
+    const milliseconds = Math.max(0, categoryMilliseconds[category]);
+    result[category] = Math.floor(milliseconds / 1000);
+    return { category, remainder: milliseconds % 1000, milliseconds };
+  }).sort((a, b) => {
+    if (b.remainder !== a.remainder) return b.remainder - a.remainder;
+    return b.milliseconds - a.milliseconds;
+  });
+
+  let classifiedSeconds = OPERATIONAL_IMPACT_CATEGORIES.reduce((total, category) => total + result[category], 0);
+  let remainingSeconds = Math.max(0, totalSeconds - classifiedSeconds);
+  let index = 0;
+
+  while (remainingSeconds > 0 && remainders.length > 0) {
+    result[remainders[index % remainders.length].category] += 1;
+    remainingSeconds -= 1;
+    index += 1;
+  }
+
+  return {
+    productiveDowntimeSeconds: result.productiveDowntimeSeconds,
+    nonScheduledDowntimeSeconds: result.nonScheduledDowntimeSeconds,
+    productionBlockedSupportSeconds: result.productionBlockedSupportSeconds,
+    nonScheduledSupportSeconds: result.nonScheduledSupportSeconds,
+    unknownSeconds: 0,
+  };
+}
+
 export function calculateOperationalImpactBreakdown(params: OperationalImpactParams): OperationalImpactBreakdown {
-  const condition = calculateMachineConditionBreakdownForPeriod({
-    periodStart: params.periodStart,
-    periodEnd: params.periodEnd,
-    stopHistory: params.stopHistory,
-    fallbackMachineCondition: params.fallbackMachineCondition,
-    now: params.now,
-  });
+  const bounds = getPeriodBounds(params);
+  if (!bounds) {
+    return {
+      productiveDowntimeSeconds: 0,
+      nonScheduledDowntimeSeconds: 0,
+      productionBlockedSupportSeconds: 0,
+      nonScheduledSupportSeconds: 0,
+      unknownSeconds: 0,
+    };
+  }
 
-  const production = calculateProductionModeBreakdownForPeriod({
-    periodStart: params.periodStart,
-    periodEnd: params.periodEnd,
-    productionHistory: params.productionHistory,
-    fallbackProductionMode: params.fallbackProductionMode,
-    now: params.now,
-  });
-
-  const totalSeconds = condition.failureSeconds + condition.readySeconds + condition.unknownSeconds;
+  const totalSeconds = Math.floor((bounds.end - bounds.start) / 1000);
   if (totalSeconds <= 0) {
     return {
       productiveDowntimeSeconds: 0,
@@ -189,43 +303,65 @@ export function calculateOperationalImpactBreakdown(params: OperationalImpactPar
     };
   }
 
-  const scale = (a: number, b: number) => Math.floor((a * b) / totalSeconds);
+  const now = params.now ?? new Date();
+  const relevantStopEvents = getRelevantStopEvents(params.stopHistory, bounds.start, bounds.end, now);
+  const relevantProductionEvents = getRelevantProductionEvents(params.productionHistory, bounds.start, bounds.end, now);
 
-  const productiveDowntimeSeconds = scale(condition.failureSeconds, production.scheduledSeconds);
-  const nonScheduledDowntimeSeconds = scale(condition.failureSeconds, production.notScheduledSeconds);
-  const productionBlockedSupportSeconds = scale(condition.readySeconds, production.scheduledSeconds);
-  const nonScheduledSupportSeconds = scale(condition.readySeconds, production.notScheduledSeconds);
+  const boundaries = new Set<number>([bounds.start, bounds.end]);
 
-  const classified =
-    productiveDowntimeSeconds +
-    nonScheduledDowntimeSeconds +
-    productionBlockedSupportSeconds +
-    nonScheduledSupportSeconds;
-
-  const remainingSeconds = Math.max(0, totalSeconds - classified);
-
-  let adjustedProductiveDowntimeSeconds = productiveDowntimeSeconds;
-  let adjustedNonScheduledDowntimeSeconds = nonScheduledDowntimeSeconds;
-  let adjustedProductionBlockedSupportSeconds = productionBlockedSupportSeconds;
-  let adjustedNonScheduledSupportSeconds = nonScheduledSupportSeconds;
-
-  if (remainingSeconds > 0) {
-    const fallbackIsFailure = condition.failureSeconds >= condition.readySeconds;
-    const fallbackIsScheduled = production.scheduledSeconds >= production.notScheduledSeconds;
-
-    if (fallbackIsFailure && fallbackIsScheduled) adjustedProductiveDowntimeSeconds += remainingSeconds;
-    if (fallbackIsFailure && !fallbackIsScheduled) adjustedNonScheduledDowntimeSeconds += remainingSeconds;
-    if (!fallbackIsFailure && fallbackIsScheduled) adjustedProductionBlockedSupportSeconds += remainingSeconds;
-    if (!fallbackIsFailure && !fallbackIsScheduled) adjustedNonScheduledSupportSeconds += remainingSeconds;
+  for (const event of relevantStopEvents) {
+    const eventStart = toValidDate(event.stoppedAt);
+    const eventEnd = toValidDate(event.resumedAt ?? null) ?? now;
+    if (eventStart) clampBoundary(boundaries, eventStart.getTime(), bounds.start, bounds.end);
+    clampBoundary(boundaries, eventEnd.getTime(), bounds.start, bounds.end);
   }
 
-  return {
-    productiveDowntimeSeconds: adjustedProductiveDowntimeSeconds,
-    nonScheduledDowntimeSeconds: adjustedNonScheduledDowntimeSeconds,
-    productionBlockedSupportSeconds: adjustedProductionBlockedSupportSeconds,
-    nonScheduledSupportSeconds: adjustedNonScheduledSupportSeconds,
-    unknownSeconds: 0,
+  for (const event of relevantProductionEvents) {
+    const eventStart = toValidDate(event.startedAt);
+    const eventEnd = toValidDate(event.endedAt ?? null) ?? now;
+    if (eventStart) clampBoundary(boundaries, eventStart.getTime(), bounds.start, bounds.end);
+    clampBoundary(boundaries, eventEnd.getTime(), bounds.start, bounds.end);
+  }
+
+  const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
+
+  const categoryMilliseconds: Record<OperationalImpactCategory, number> = {
+    productiveDowntimeSeconds: 0,
+    nonScheduledDowntimeSeconds: 0,
+    productionBlockedSupportSeconds: 0,
+    nonScheduledSupportSeconds: 0,
   };
+
+  for (let index = 0; index < sortedBoundaries.length - 1; index += 1) {
+    const segmentStart = sortedBoundaries[index];
+    const segmentEnd = sortedBoundaries[index + 1];
+    const segmentMs = Math.max(0, segmentEnd - segmentStart);
+    if (segmentMs <= 0) continue;
+
+    const machineCondition = getMachineConditionAtTimestamp(
+      segmentStart,
+      relevantStopEvents,
+      params.fallbackMachineCondition,
+      now,
+    );
+
+    const productionMode = getProductionModeAtTimestamp(
+      segmentStart,
+      relevantProductionEvents,
+      params.fallbackProductionMode,
+      now,
+    );
+
+    const isStopped = machineCondition === "stopped";
+    const isScheduled = productionMode === "scheduled";
+
+    if (isStopped && isScheduled) categoryMilliseconds.productiveDowntimeSeconds += segmentMs;
+    else if (isStopped && !isScheduled) categoryMilliseconds.nonScheduledDowntimeSeconds += segmentMs;
+    else if (!isStopped && isScheduled) categoryMilliseconds.productionBlockedSupportSeconds += segmentMs;
+    else categoryMilliseconds.nonScheduledSupportSeconds += segmentMs;
+  }
+
+  return finalizeOperationalImpactSeconds(categoryMilliseconds, totalSeconds);
 }
 
 export function formatBreakdownDuration(seconds: number): string {

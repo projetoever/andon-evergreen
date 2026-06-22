@@ -260,6 +260,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         <MachineCurrentCallPanel
           call={currentCall}
           compactEmpty={!currentCall && machine.machineStatus === "running"}
+          currentMachineStatus={machine.machineStatus}
         />
       </div>
 

@@ -27,6 +27,11 @@ type FinishFailureEventBody = {
   machineStatus?: unknown;
 };
 
+type UpdateFailureEventBody = {
+  classification?: unknown;
+  notes?: unknown;
+};
+
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 
 function optionalString(value: unknown) {
@@ -78,12 +83,15 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
     const machine = await prisma.machine.findUnique({ where: { id: machineId } });
     if (!machine) return notFound(reply, "Máquina não encontrada");
 
-    const openEvent = await prisma.failureEvent.findFirst({
+    const openEvents = await prisma.failureEvent.findMany({
       where: { machineId, endedAt: null },
       orderBy: { startedAt: "desc" },
     });
 
-    if (openEvent) {
+    const openEvent = openEvents[0];
+    const now = new Date();
+
+    if (openEvent && machine.machineStatus === "stopped") {
       const updatedMachine = await prisma.machine.update({
         where: { id: machineId },
         data: { machineStatus: "stopped", lastStatusChangedAt: openEvent.startedAt },
@@ -91,7 +99,21 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
       return reply.status(200).send({ event: openEvent, machine: updatedMachine });
     }
 
-    const now = new Date();
+    if (openEvents.length > 0 && machine.machineStatus !== "stopped") {
+      await prisma.$transaction(
+        openEvents.map((event) =>
+          prisma.failureEvent.update({
+            where: { id: event.id },
+            data: {
+              endedAt: event.endedAt ?? now,
+              durationSeconds: event.durationSeconds ?? diffSeconds(event.startedAt, now),
+              machineStatus: "running",
+              notes: event.notes ?? "Encerramento automático de falha aberta obsoleta",
+            },
+          }),
+        ),
+      );
+    }
     const result = await prisma.$transaction(async (tx) => {
       const event = await tx.failureEvent.create({
         data: {
@@ -115,6 +137,31 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
     });
 
     return reply.status(201).send(result);
+  });
+
+  app.patch<{ Params: { id: string }; Body: UpdateFailureEventBody }>("/api/failure-events/:id", async (request, reply) => {
+    const event = await prisma.failureEvent.findUnique({ where: { id: request.params.id } });
+    if (!event) return notFound(reply, "Evento de falha não encontrado");
+
+    const classification = optionalString(request.body?.classification);
+    const notes = typeof request.body?.notes === "string" ? request.body.notes.trim() : undefined;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedEvent = await tx.failureEvent.update({
+        where: { id: event.id },
+        data: {
+          ...(classification ? { classification } : {}),
+          ...(notes !== undefined ? { notes } : {}),
+        },
+      });
+
+      const machine = await tx.machine.findUnique({ where: { id: updatedEvent.machineId } });
+      if (!machine) throw new Error("Máquina não encontrada ao atualizar evento de falha");
+
+      return { event: updatedEvent, machine };
+    });
+
+    return result;
   });
 
   app.patch<{ Params: { id: string }; Body: FinishFailureEventBody }>("/api/failure-events/:id/finish", async (request, reply) => {

@@ -2,7 +2,7 @@ import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient"
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
 import type { AndonCall, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
-import type { FailureClassification, Machine, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
+import type { FailureClassification, Machine, MachineProductionEvent, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
   EndTechnicianSessionParams,
@@ -14,7 +14,24 @@ import type {
 import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
-type ApiMachine = Partial<Machine> & { id: string; name: string; isActive?: boolean; displayOrder?: number | null; createdAt?: string; updatedAt?: string };
+type ApiProductionEvent = {
+  id: string;
+  machineId: string;
+  productionMode?: string | null;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+};
+
+type ApiMachine = Partial<Machine> & {
+  id: string;
+  name: string;
+  isActive?: boolean;
+  displayOrder?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  productionEvents?: ApiProductionEvent[];
+};
 type ApiFailureEvent = {
   id: string;
   machineId: string;
@@ -70,6 +87,22 @@ function diffMinutes(startIso: string, endIso: string) {
   return Number.isFinite(diffMs) && diffMs > 0 ? diffMs / 60000 : 0;
 }
 
+function mapProductionEvent(event: ApiProductionEvent): MachineProductionEvent {
+  return {
+    id: event.id,
+    machineId: event.machineId,
+    productionMode: event.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
+    startedAt: toIso(event.startedAt),
+    endedAt: event.endedAt ? toIso(event.endedAt) : null,
+    durationMinutes:
+      typeof event.durationSeconds === "number"
+        ? event.durationSeconds / 60
+        : event.endedAt
+          ? diffMinutes(toIso(event.startedAt), toIso(event.endedAt))
+          : 0,
+  };
+}
+
 function calculateCallDurations(call: ApiAndonCall) {
   const now = new Date().toISOString();
   const openedAt = toIso(call.openedAt, now);
@@ -96,6 +129,10 @@ function calculateCallDurations(call: ApiAndonCall) {
 function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): Machine {
   const now = new Date().toISOString();
   const sortedStopHistory = [...stopHistory].sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
+  const sortedProductionHistory = [
+    ...(machine.productionHistory ?? []),
+    ...(machine.productionEvents ?? []).map(mapProductionEvent),
+  ].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   const openStop = sortedStopHistory.find((event) => !event.resumedAt);
   const activeStoppedAt = machine.machineStatus === "stopped"
     ? openStop?.stoppedAt ?? machine.stoppedAt ?? toIso(machine.lastStatusChangedAt, now)
@@ -117,7 +154,7 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): 
     displayOrder: machine.displayOrder ?? null,
     productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, now),
     useCommercialShift: machine.useCommercialShift ?? false,
-    productionHistory: machine.productionHistory ?? [],
+    productionHistory: sortedProductionHistory,
   });
 }
 
@@ -264,7 +301,6 @@ export class ApiAndonRepository implements AndonRepository {
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
-      machineStatus: "running",
     });
     return this.loadResult();
   }
@@ -278,28 +314,47 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async updateMachineStatus(machines: Machine[], machineId: string, status: MachineStatus) {
+    const machine = machines.find((item) => item.id === machineId);
+    if (!machine) throw new Error("Máquina não encontrada");
+
+    const openStops = machine.stopHistory.filter((event) => !event.resumedAt);
+
     if (status === "stopped") {
-      const machine = machines.find((item) => item.id === machineId);
+      if (machine.machineStatus === "stopped") {
+        return { machines: await this.loadMachines() };
+      }
+
+      // Proteção contra falha aberta obsoleta no banco:
+      // se a máquina está pronta/rodando, mas existe evento de falha aberto,
+      // fecha o evento antigo antes de criar uma nova falha limpa.
+      if (openStops.length > 0) {
+        for (const openStop of openStops) {
+          await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${openStop.id}/finish`, {
+            machineStatus: "running",
+            notes: "Encerramento automático de falha aberta obsoleta antes de nova falha",
+          });
+        }
+      }
+
       await this.apiClient.post<FailureEventMutationResult>("/api/failure-events", {
         machineId,
         classification: "unidentified_stop",
         source: "manual",
-        productionMode: machine?.productionMode,
+        productionMode: machine.productionMode,
         machineStatus: "stopped",
         notes: "Falha gerada pelo operador",
       });
+
       return { machines: await this.loadMachines() };
     }
 
-    const openStop = machines
-      .find((item) => item.id === machineId)
-      ?.stopHistory.find((event) => !event.resumedAt);
-
-    if (openStop) {
-      await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${openStop.id}/finish`, {
-        machineStatus: "running",
-        notes: "Máquina pronta para rodar",
-      });
+    if (openStops.length > 0) {
+      for (const openStop of openStops) {
+        await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${openStop.id}/finish`, {
+          machineStatus: "running",
+          notes: "Máquina pronta para rodar",
+        });
+      }
     } else {
       await this.apiClient.patch(`/api/machines/${machineId}/status`, { machineStatus: status });
     }
@@ -328,11 +383,25 @@ export class ApiAndonRepository implements AndonRepository {
     return { machines: await this.loadMachines(), machine };
   }
 
-  async updateMachineStopEventDescription(machines: Machine[], machineId: string) {
+  async updateMachineStopEventDescription(
+    machines: Machine[],
+    machineId: string,
+    stopEventId: string,
+    failureDescription: string,
+    failureClassification?: Machine["stopHistory"][number]["failureClassification"],
+  ) {
     const machine = machines.find((item) => item.id === machineId);
     if (!machine) throw new Error("Máquina não encontrada");
-    console.warn("Descrição de parada permanece local: endpoint de eventos de falha é somente leitura nesta versão.");
-    return { machines, machine };
+
+    await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${stopEventId}`, {
+      notes: failureDescription,
+      classification: failureClassification ?? "unidentified_stop",
+    });
+
+    const nextMachines = await this.loadMachines();
+    const updatedMachine = nextMachines.find((item) => item.id === machineId) ?? machine;
+
+    return { machines: nextMachines, machine: updatedMachine };
   }
 }
 

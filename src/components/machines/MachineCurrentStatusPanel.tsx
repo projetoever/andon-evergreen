@@ -67,7 +67,7 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
           </dd>
           <p className={cn("mt-1 text-xs text-muted-foreground", compactNormal && "hidden 2xl:block")}>
             {isStopped
-              ? "Acompanhe o tempo parado e acione a tratativa pelo painel de ações."
+              ? "Tempo contado desde a parada real da máquina. Pode ser maior que o tempo do ANDON se a falha começou antes do chamado."
               : "Sem falha ativa registrada para esta máquina."}
           </p>
         </div>
@@ -82,13 +82,13 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
         {isStopped && activeStoppedAt && (
           <>
             <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5">
-              <dt className="text-xs uppercase text-muted-foreground">Em falha desde</dt>
+              <dt className="text-xs uppercase text-muted-foreground">Falha iniciada em</dt>
               <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
                 {formatDateTime(activeStoppedAt)}
               </dd>
             </div>
             <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5 sm:col-span-2 xl:col-span-3">
-              <dt className="text-xs uppercase text-muted-foreground">Tempo em falha</dt>
+              <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
               <dd className="mt-1 text-3xl font-black leading-none text-danger md:text-4xl">
                 {formatDurationMinutes(stoppedMin)}
               </dd>

@@ -1,4 +1,5 @@
 import type { AndonCall } from "@/types/andon";
+import type { MachineStatus } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { useTicker } from "@/hooks/useTicker";
 import {
@@ -23,9 +24,15 @@ interface MachineCurrentCallPanelProps {
   call: AndonCall | null;
   className?: string;
   compactEmpty?: boolean;
+  currentMachineStatus?: MachineStatus;
 }
 
-export function MachineCurrentCallPanel({ call, className, compactEmpty = false }: MachineCurrentCallPanelProps) {
+export function MachineCurrentCallPanel({
+  call,
+  className,
+  compactEmpty = false,
+  currentMachineStatus,
+}: MachineCurrentCallPanelProps) {
   useTicker(1000);
   if (!call) {
     if (compactEmpty) {
@@ -59,6 +66,8 @@ export function MachineCurrentCallPanel({ call, className, compactEmpty = false 
   const postMaintenance =
     call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
+  const displayedMachineCondition = currentMachineStatus ?? call.machineCondition;
+  const showOpeningCondition = Boolean(currentMachineStatus && currentMachineStatus !== call.machineCondition);
   return (
     <div
       className={cn(
@@ -116,11 +125,19 @@ export function MachineCurrentCallPanel({ call, className, compactEmpty = false 
           <dd className="font-mono text-sm leading-tight text-foreground">{formatDateTime(call.finishedAt)}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Condição da máquina</dt>
+          <dt className="text-xs uppercase text-muted-foreground">Condição atual da máquina</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {getMachineConditionLabel(call.machineCondition)}
+            {getMachineConditionLabel(displayedMachineCondition)}
           </dd>
         </div>
+        {showOpeningCondition && (
+          <div>
+            <dt className="text-xs uppercase text-muted-foreground">Condição ao abrir</dt>
+            <dd className="text-base font-bold leading-tight text-muted-foreground md:text-lg">
+              {getMachineConditionLabel(call.machineCondition)}
+            </dd>
+          </div>
+        )}
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aguardando</dt>
           <dd className="text-xl font-bold leading-tight text-warning md:text-2xl">{formatDurationMinutes(waiting)}</dd>
