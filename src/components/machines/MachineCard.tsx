@@ -121,7 +121,7 @@ export function MachineCard({ machine }: MachineCardProps) {
         )}
         {machine.machineStatus === "running" && (
           <div className="truncate rounded-md bg-muted/35 px-2 py-1">
-            Última falha: <strong className="text-foreground">{machine.lastStopDurationMinutes > 0 ? formatDurationMinutes(machine.lastStopDurationMinutes) : "sem registro"}</strong>
+            Última falha: <strong className="text-foreground">{formatLastFailureDuration(machine.lastStopDurationMinutes)}</strong>
           </div>
         )}
 
