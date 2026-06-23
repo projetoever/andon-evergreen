@@ -25,12 +25,26 @@ interface MachineCardProps {
   machine: Machine;
 }
 
+function formatLastFailureDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "sem registro";
+
+  const totalSeconds = Math.max(0, Math.round(minutes * 60));
+  const totalMinutes = Math.floor(totalSeconds / 60);
+
+  if (totalMinutes <= 0) return "menos de 1 min";
+  if (totalMinutes === 1) return "1 min";
+
+  return `${totalMinutes} min`;
+}
+
 export function MachineCard({ machine }: MachineCardProps) {
-  useTicker(1000);
   const { calls, settings } = useAndon();
   const currentCall = machine.currentCallId
     ? calls.find((c) => c.id === machine.currentCallId)
     : null;
+
+  const hasLiveTimer = machine.machineStatus === "stopped" || Boolean(currentCall);
+  useTicker(hasLiveTimer ? 1000 : 60000);
 
   const isNotScheduled = machine.productionMode === "not_scheduled";
   const stoppedMin = calculateMachineStoppedMinutes(machine);
@@ -107,7 +121,7 @@ export function MachineCard({ machine }: MachineCardProps) {
         )}
         {machine.machineStatus === "running" && (
           <div className="truncate rounded-md bg-muted/35 px-2 py-1">
-            Última falha: <strong className="text-foreground">{machine.lastStopDurationMinutes > 0 ? formatDurationMinutes(machine.lastStopDurationMinutes) : "sem registro"}</strong>
+            Última falha: <strong className="text-foreground">{formatLastFailureDuration(machine.lastStopDurationMinutes)}</strong>
           </div>
         )}
 
