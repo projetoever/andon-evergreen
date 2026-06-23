@@ -25,6 +25,7 @@ import { getMachineScreenLock, lockMachineScreen, unlockMachineScreen } from "@/
 import { useTicker } from "@/hooks/useTicker";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
+import type { TechnicianArea } from "@/types/andon";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
@@ -99,6 +100,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         new Date(firstSessionStartedAt).getTime() - new Date(currentCall.currentAttendanceStartedAt).getTime() > 1000),
   );
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
+  const optionalAddTechnicianAreas = useMemo<TechnicianArea[]>(
+    () => (area && area !== "mechanical" ? ["mechanical"] : []),
+    [area],
+  );
   const requiresTechnician = currentCall ? requiresMaintenanceTechnician(currentCall) : false;
   const timeWithoutTechnicianMinutes =
     currentCall?.status === "in_progress" && activeSessions.length === 0
@@ -414,6 +419,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               value={names}
               onChange={setNames}
               excludeNames={activeSessions.map((session) => session.technicianName)}
+              optionalAreas={optionalAddTechnicianAreas}
             />
           )}
 
