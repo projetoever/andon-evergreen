@@ -101,7 +101,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   );
   const area = currentCall ? getCallTypeOption(currentCall.subtype)?.technicianArea : null;
   const optionalAddTechnicianAreas = useMemo<TechnicianArea[]>(
-    () => (area && area !== "mechanical" ? ["mechanical"] : []),
+    () => {
+      const supportAreas: TechnicianArea[] = ["electrical", "mechanical", "hot_melt"];
+      return area ? supportAreas.filter((supportArea) => supportArea !== area) : [];
+    },
     [area],
   );
   const requiresTechnician = currentCall ? requiresMaintenanceTechnician(currentCall) : false;
