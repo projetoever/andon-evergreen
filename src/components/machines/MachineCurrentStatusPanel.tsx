@@ -15,12 +15,26 @@ interface MachineCurrentStatusPanelProps {
   compactNormal?: boolean;
 }
 
+function formatLastFailureDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "Sem registro";
+
+  const totalSeconds = Math.max(0, Math.round(minutes * 60));
+  const totalMinutes = Math.floor(totalSeconds / 60);
+
+  if (totalMinutes <= 0) return "Menos de 1 min";
+  if (totalMinutes === 1) return "1 min";
+
+  return `${totalMinutes} min`;
+}
+
 export function MachineCurrentStatusPanel({ machine, className, compactNormal = false }: MachineCurrentStatusPanelProps) {
-  useTicker(1000);
-  const stoppedMin = calculateMachineStoppedMinutes(machine);
-  const activeStoppedAt = getActiveMachineStoppedAt(machine);
   const isStopped = machine.machineStatus === "stopped";
   const isNotScheduled = machine.productionMode === "not_scheduled";
+
+  useTicker(isStopped ? 1000 : 60000);
+
+  const stoppedMin = calculateMachineStoppedMinutes(machine);
+  const activeStoppedAt = getActiveMachineStoppedAt(machine);
 
   return (
     <div
@@ -100,11 +114,9 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
           <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1")}>
             <dt className="text-xs uppercase text-muted-foreground">Última falha</dt>
             <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
-              {machine.lastStopDurationMinutes > 0
-                ? formatDurationMinutes(machine.lastStopDurationMinutes)
-                : "Sem registro"}
+              {formatLastFailureDuration(machine.lastStopDurationMinutes)}
             </dd>
-            {!compactNormal && <p className="mt-1 text-xs text-muted-foreground">Informação secundária para acompanhamento.</p>}
+            {!compactNormal && <p className="mt-1 text-xs text-muted-foreground">Atualizada de minuto em minuto.</p>}
           </div>
         )}
       </dl>
