@@ -142,6 +142,54 @@ async function createMissingActiveTechnicianSessions(
   });
 }
 
+async function ensureOpenFailureEventForStoppedCall(
+  tx: Prisma.TransactionClient,
+  params: {
+    machineId: string;
+    callId: string;
+    startedAt: Date;
+    productionMode?: string | null;
+  },
+) {
+  const openEvents = await tx.failureEvent.findMany({
+    where: {
+      machineId: params.machineId,
+      endedAt: null,
+    },
+    orderBy: {
+      startedAt: "desc",
+    },
+  });
+
+  const activeEvent = openEvents[0];
+
+  if (activeEvent) {
+    if (!activeEvent.callId) {
+      await tx.failureEvent.update({
+        where: { id: activeEvent.id },
+        data: { callId: params.callId },
+      });
+    }
+
+    return activeEvent.startedAt;
+  }
+
+  await tx.failureEvent.create({
+    data: {
+      machineId: params.machineId,
+      callId: params.callId,
+      startedAt: params.startedAt,
+      classification: "unidentified_stop",
+      source: "manual",
+      productionMode: params.productionMode ?? undefined,
+      machineStatus: "stopped",
+      notes: "Falha registrada na abertura do ANDON",
+    },
+  });
+
+  return params.startedAt;
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request) => {
     const { machineId, status, criticality } = request.query;
@@ -229,13 +277,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         },
       });
 
+      const failureStartedAt =
+        machineCondition === "stopped"
+          ? await ensureOpenFailureEventForStoppedCall(tx, {
+              machineId,
+              callId: createdCall.id,
+              startedAt: now,
+              productionMode: machine.productionMode,
+            })
+          : null;
+
       await tx.machine.update({
         where: { id: machineId },
         data: {
           andonStatus: "open",
           currentCallId: createdCall.id,
-          ...(machineCondition ? { machineStatus: machineCondition } : {}),
-          lastStatusChangedAt: now,
+          ...(machineCondition
+            ? {
+                machineStatus: machineCondition,
+                lastStatusChangedAt: failureStartedAt ?? now,
+              }
+            : {}),
         },
       });
 
@@ -273,7 +335,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         },
       });
 
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress", lastStatusChangedAt: now } });
+      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress" } });
 
       await createMissingActiveTechnicianSessions(tx, {
         callId: call.id,
@@ -310,7 +372,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     await prisma.$transaction(async (tx) => {
       await tx.machine.updateMany({
         where: { id: call.machineId, currentCallId: call.id },
-        data: { andonStatus: "normal", currentCallId: null, lastStatusChangedAt: now },
+        data: { andonStatus: "normal", currentCallId: null },
       });
       await tx.andonCall.delete({ where: { id: call.id } });
     });
@@ -406,7 +468,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           notes: appendNote(call.notes, optionalString(request.body?.notes), "Conclusão da manutenção"),
         },
       });
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "post_maintenance", lastStatusChangedAt: now } });
+      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "post_maintenance" } });
       return findCallWithSessions(tx, call.id);
     });
 
@@ -430,7 +492,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           notes: appendNote(call.notes, optionalString(request.body?.reason), "Retorno à manutenção"),
         },
       });
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress", lastStatusChangedAt: now } });
+      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress" } });
       return findCallWithSessions(tx, call.id);
     });
 
@@ -465,7 +527,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
       await tx.machine.update({
         where: { id: call.machineId },
-        data: { andonStatus: "normal", currentCallId: null, lastStatusChangedAt: now },
+        data: { andonStatus: "normal", currentCallId: null },
       });
       await tx.technicianSession.updateMany({
         where: { callId: call.id, endedAt: null },
