@@ -1,71 +1,50 @@
-# Andon Web Industrial
+﻿# Andon Web Industrial
 
-Sistema ANDON industrial para chão de fábrica, executado em navegador
-Chromium/Edge em modo kiosk numa VM Windows Server 2016.
+Sistema ANDON industrial para chão de fábrica, desenvolvido para monitoramento visual de máquinas, abertura de chamados, acompanhamento de manutenção, histórico operacional e evolução para integração com banco de dados, API local e automação industrial.
 
-## Fase atual
+O projeto nasceu como uma aplicação frontend local para validação rápida do fluxo operacional, mas está sendo evoluído para uma plataforma industrial completa, instalável em ambiente local da empresa, com arquitetura preparada para PostgreSQL, API Node.js, Docker Compose, modo kiosk e futuras integrações com Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
 
-**Somente frontend.** Sem backend, sem banco de dados, sem autenticação,
-sem Supabase, sem Firebase, sem cloud. Toda a persistência é feita em
-LocalStorage do navegador.
+---
 
-## Stack
+## Objetivo do projeto
 
-React + TypeScript + Vite + Tailwind v4 + shadcn/ui + TanStack Router.
+O objetivo do Andon Web Industrial é fornecer uma solução simples, visual e eficiente para o chão de fábrica, permitindo que produção, liderança e manutenção tenham visão clara do status das máquinas, chamados abertos, tempos de atendimento e histórico de ocorrências.
 
-## Comandos
+A plataforma busca reduzir o tempo de resposta da manutenção, melhorar a comunicação entre áreas, registrar dados operacionais e criar uma base para indicadores industriais.
 
-```bash
-npm install
-npm run dev
-npm run build
-```
+---
 
-## Conceito
+## Estado atual do projeto
 
-- `MachineStatus` (running/stopped) e `AndonStatus` (none/open/in_progress/finished)
-  são **independentes**. Um ANDON pode estar ativo mesmo com a máquina rodando.
-- Cada máquina tem sua própria tela individual em `/machines/:machineId`.
-- Camada de serviço (`src/services/`) isolada para futura troca de
-  LocalStorage por API Node.js + SQLite + Node-RED.
+A versão atual consolida a base funcional do painel Andon, incluindo:
 
-## Sons
+- Painel geral de máquinas;
+- Tela individual por máquina;
+- Status independente da máquina e do chamado Andon;
+- Abertura de chamados;
+- Atendimento de manutenção;
+- Criticidade do chamado;
+- Produção programada e não programada;
+- Acompanhamento pós-manutenção;
+- Histórico de eventos;
+- Relatórios e indicadores em evolução;
+- Preparação para persistência via API;
+- Preparação para PostgreSQL;
+- Operação em navegador Chromium/Edge em modo kiosk;
+- Base para empacotamento via Docker Compose;
+- Planejamento de instalador Windows.
 
-Coloque os arquivos em `src/assets/sounds/`:
+---
 
-- `eletrica.mp3`
-- `mecanica.mp3`
-- `hot-melt.mp3`
-- `qualidade.mp3`
-- `lideranca.mp3`
+## Arquitetura atual e evolução
 
-Se algum arquivo estiver ausente, o sistema continua funcionando — apenas
-não toca o som correspondente. O botão "INICIAR PAINEL / ATIVAR SONS" é
-necessário para liberar o autoplay no navegador.
+A arquitetura do projeto está sendo organizada em camadas:
 
-## Persistência
-
-Dados ficam em `localStorage` sob a chave `andonWebIndustrial.*`.
-Use a tela **Configurações → Backup** para exportar/importar JSON ou CSV.
-
-## Modo de dados do frontend
-
-O frontend continua usando **LocalStorage por padrão**. Se nenhuma variável de
-ambiente for configurada, ou se `VITE_ANDON_DATA_MODE` estiver vazia/inválida, a
-aplicação usa o modo local e mantém o comportamento atual.
-
-Para ativar a API Node.js/PostgreSQL de forma explícita:
-
-```bash
-VITE_ANDON_DATA_MODE=api VITE_ANDON_API_BASE_URL=http://localhost:3001 npm run dev
-```
-
-- `VITE_ANDON_DATA_MODE=api` seleciona o repositório HTTP.
-- `VITE_ANDON_API_BASE_URL` define a URL base da API; se ausente, o frontend usa
-  `http://localhost:3001`.
-- Para voltar ao modo local, remova `VITE_ANDON_DATA_MODE` ou configure qualquer
-  valor diferente de `api`/`local`.
-
-No modo API, falhas de comunicação são registradas de forma controlada no console
-e não removem o suporte a LocalStorage. Escritas não alternam automaticamente para
-LocalStorage para evitar divergência entre navegador e banco.
+```txt
+Frontend React/Vite
+        ↓
+API Node.js
+        ↓
+PostgreSQL
+        ↓
+Docker Compose / Instalador Local
