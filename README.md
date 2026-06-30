@@ -1,71 +1,187 @@
-# Andon Web Industrial
+﻿# Andon Web Industrial
 
-Sistema ANDON industrial para chão de fábrica, executado em navegador
-Chromium/Edge em modo kiosk numa VM Windows Server 2016.
+Sistema ANDON industrial para chão de fábrica, desenvolvido para monitoramento visual de máquinas, abertura de chamados, acompanhamento de manutenção, histórico operacional e evolução para integração com banco de dados, API local e automação industrial.
 
-## Fase atual
+O projeto nasceu como uma aplicação frontend local para validação rápida do fluxo operacional, mas está sendo evoluído para uma plataforma industrial completa, instalável em ambiente local da empresa, com arquitetura preparada para PostgreSQL, API Node.js, Docker Compose, modo kiosk e futuras integrações com Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
 
-**Somente frontend.** Sem backend, sem banco de dados, sem autenticação,
-sem Supabase, sem Firebase, sem cloud. Toda a persistência é feita em
-LocalStorage do navegador.
+---
 
-## Stack
+## Objetivo do projeto
 
-React + TypeScript + Vite + Tailwind v4 + shadcn/ui + TanStack Router.
+O objetivo do Andon Web Industrial é fornecer uma solução simples, visual e eficiente para o chão de fábrica, permitindo que produção, liderança e manutenção tenham visão clara do status das máquinas, chamados abertos, tempos de atendimento e histórico de ocorrências.
 
-## Comandos
+A plataforma busca reduzir o tempo de resposta da manutenção, melhorar a comunicação entre áreas, registrar dados operacionais e criar uma base para indicadores industriais.
 
-```bash
-npm install
-npm run dev
-npm run build
-```
+---
 
-## Conceito
+## Estado atual do projeto
 
-- `MachineStatus` (running/stopped) e `AndonStatus` (none/open/in_progress/finished)
-  são **independentes**. Um ANDON pode estar ativo mesmo com a máquina rodando.
-- Cada máquina tem sua própria tela individual em `/machines/:machineId`.
-- Camada de serviço (`src/services/`) isolada para futura troca de
-  LocalStorage por API Node.js + SQLite + Node-RED.
+A versão atual consolida a base funcional do painel Andon e a arquitetura está sendo preparada para operação completa com API, PostgreSQL, Docker Compose e instalador Windows.
 
-## Sons
+Funcionalidades já consideradas no escopo atual:
 
-Coloque os arquivos em `src/assets/sounds/`:
+- Painel geral de máquinas;
+- Tela individual por máquina;
+- Status independente da máquina e do chamado Andon;
+- Abertura de chamados;
+- Atendimento de manutenção;
+- Criticidade do chamado;
+- Produção programada e não programada;
+- Acompanhamento pós-manutenção;
+- Histórico de eventos;
+- Relatórios e indicadores em evolução;
+- Preparação para persistência via API;
+- Preparação para PostgreSQL;
+- Operação em navegador Chromium/Edge em modo kiosk;
+- Base para empacotamento via Docker Compose;
+- Planejamento de instalador Windows.
 
-- `eletrica.mp3`
-- `mecanica.mp3`
-- `hot-melt.mp3`
-- `qualidade.mp3`
-- `lideranca.mp3`
+---
 
-Se algum arquivo estiver ausente, o sistema continua funcionando — apenas
-não toca o som correspondente. O botão "INICIAR PAINEL / ATIVAR SONS" é
-necessário para liberar o autoplay no navegador.
+## Arquitetura atual e evolução
 
-## Persistência
+A arquitetura do produto está sendo organizada em camadas:
 
-Dados ficam em `localStorage` sob a chave `andonWebIndustrial.*`.
-Use a tela **Configurações → Backup** para exportar/importar JSON ou CSV.
+Frontend React/Vite
+API Node.js
+PostgreSQL
+Docker Compose / Instalador Local
+
+A versão inicial do frontend utilizava LocalStorage para validação rápida. A evolução atual do produto considera a persistência centralizada em banco de dados PostgreSQL, com comunicação por API Node.js.
+
+---
+
+## Stack principal
+
+- React;
+- TypeScript;
+- Vite;
+- Tailwind CSS;
+- shadcn/ui;
+- TanStack Router;
+- Node.js;
+- PostgreSQL;
+- Prisma;
+- Docker Compose;
+- Futuro suporte a Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
+
+---
+
+## Conceitos principais
+
+- MachineStatus representa o estado da máquina: rodando ou parada;
+- AndonStatus representa o estado do chamado: sem chamado, aberto, em atendimento ou finalizado;
+- O status da máquina e o status do chamado são independentes;
+- Um chamado Andon pode estar ativo mesmo com a máquina em funcionamento;
+- Cada máquina possui sua própria tela individual;
+- A tela da máquina concentra operação, manutenção, histórico e indicadores;
+- A arquitetura foi preparada para evoluir de persistência local para API e banco de dados.
+
+---
+
+## Funcionalidades principais
+
+- Painel visual de máquinas;
+- Tela detalhada por máquina;
+- Chamados Andon por área;
+- Criticidade baixa, média e alta;
+- Atendimento de manutenção;
+- Seleção de múltiplos técnicos;
+- Acompanhamento pós-manutenção;
+- Botão para voltar à manutenção;
+- Contagem de retornos de manutenção;
+- Produção programada e não programada;
+- Histórico de chamados;
+- Registro de tempos;
+- Relatórios por máquina;
+- Preparação para indicadores de eficiência;
+- Preparação para integração industrial.
+
+---
+
+## Modo kiosk
+
+O sistema foi pensado para uso em ambiente fabril, podendo ser executado em Chromium ou Microsoft Edge em modo kiosk.
+
+Exemplo com Microsoft Edge:
+
+msedge --kiosk http://localhost:8080 --edge-kiosk-type=fullscreen
+
+Ou em outro terminal da rede:
+
+http://IP-DO-SERVIDOR:8080
+
+---
 
 ## Modo de dados do frontend
 
-O frontend continua usando **LocalStorage por padrão**. Se nenhuma variável de
-ambiente for configurada, ou se `VITE_ANDON_DATA_MODE` estiver vazia/inválida, a
-aplicação usa o modo local e mantém o comportamento atual.
+O frontend mantém suporte ao modo local, mas está preparado para operar com API.
 
-Para ativar a API Node.js/PostgreSQL de forma explícita:
+Exemplo de configuração para API:
 
-```bash
-VITE_ANDON_DATA_MODE=api VITE_ANDON_API_BASE_URL=http://localhost:3001 npm run dev
-```
+VITE_ANDON_DATA_MODE=api
+VITE_ANDON_API_BASE_URL=http://localhost:3001
 
-- `VITE_ANDON_DATA_MODE=api` seleciona o repositório HTTP.
-- `VITE_ANDON_API_BASE_URL` define a URL base da API; se ausente, o frontend usa
-  `http://localhost:3001`.
-- Para voltar ao modo local, remova `VITE_ANDON_DATA_MODE` ou configure qualquer
-  valor diferente de `api`/`local`.
+Variáveis:
 
-No modo API, falhas de comunicação são registradas de forma controlada no console
-e não removem o suporte a LocalStorage. Escritas não alternam automaticamente para
-LocalStorage para evitar divergência entre navegador e banco.
+- VITE_ANDON_DATA_MODE=api ativa o modo API;
+- VITE_ANDON_API_BASE_URL define o endereço da API;
+- Se não configurado, o frontend pode operar em modo local conforme configuração da versão.
+
+---
+
+## Comandos principais
+
+Instalar dependências:
+
+npm install
+
+Rodar em desenvolvimento:
+
+npm run dev
+
+Gerar build:
+
+npm run build
+
+Visualizar build:
+
+npm run preview
+
+Executar lint:
+
+npm run lint
+
+Formatar código:
+
+npm run format
+
+---
+
+## Documentação
+
+A documentação principal está organizada em:
+
+- docs/ESTADO_ATUAL.md
+- docs/ARQUITETURA.md
+- docs/ROADMAP.md
+- docs/INSTALACAO.md
+
+---
+
+## Roadmap resumido
+
+- v1.15 - Base funcional do Andon;
+- v1.16 - Consolidação API Node.js + PostgreSQL;
+- v1.17 - Docker Compose completo;
+- v1.18 - Scripts de instalação, backup e atualização;
+- v1.19 - Instalador Windows;
+- v2.0 - Integração industrial com Node-RED, MQTT, sensores, ESP32 e CLP.
+
+---
+
+## Visão de produto
+
+O Andon Web Industrial está sendo estruturado para se tornar uma solução local instalável para empresas industriais, com operação em rede interna, banco de dados local, API própria, backup, atualização controlada, modo kiosk e possibilidade de expansão para integrações industriais.
+
+A proposta é transformar o sistema em uma plataforma replicável, adaptável por cliente e preparada para ambientes fabris de médio e grande porte.
