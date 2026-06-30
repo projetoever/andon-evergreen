@@ -1,31 +1,4 @@
-﻿# Arquitetura do Andon Web Industrial
-
-Este documento descreve a arquitetura planejada e em evolução do Andon Web Industrial.
-
----
-
-## Visão arquitetural
-
-A arquitetura do produto é baseada em uma solução local, instalada em ambiente interno da empresa.
-
-```txt
-Usuário / Operador / Manutenção
-        ↓
-Frontend Web
-        ↓
-API Node.js
-        ↓
-PostgreSQL
-
----
-
-# 6. Criar ROADMAP.md
-
-Cole este bloco inteiro:
-
-```powershell
-@'
-# Roadmap do Produto Andon
+﻿# Roadmap do Produto Andon
 
 Este documento define a evolução planejada do Andon Web Industrial como produto instalável.
 
@@ -43,7 +16,7 @@ Itens:
 - Criticidade;
 - Atendimento de manutenção;
 - Histórico;
-- Produção programada/não programada;
+- Produção programada e não programada;
 - Acompanhamento pós-manutenção;
 - Retorno para manutenção;
 - Múltiplos técnicos;
