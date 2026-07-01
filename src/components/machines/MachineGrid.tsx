@@ -58,14 +58,27 @@ function getDashboardPriority(machine: Machine, calls: AndonCall[]): number {
   return 10;
 }
 
-function chunkMachines(machines: Machine[]): Machine[][] {
-  const pages: Machine[][] = [];
+function splitMachinesByPriority(machines: Machine[], calls: AndonCall[]): Machine[][] {
+  const selectedIds = new Set(
+    machines
+      .slice()
+      .sort((a, b) => {
+        const priorityDiff = getDashboardPriority(a, calls) - getDashboardPriority(b, calls);
+        return priorityDiff || compareByMachineNumber(a, b);
+      })
+      .slice(0, MAX_DASHBOARD_CARDS)
+      .map((machine) => machine.id),
+  );
 
-  for (let index = 0; index < machines.length; index += MAX_DASHBOARD_CARDS) {
-    pages.push(machines.slice(index, index + MAX_DASHBOARD_CARDS));
+  const firstPage = machines.filter((machine) => selectedIds.has(machine.id));
+  const remaining = machines.filter((machine) => !selectedIds.has(machine.id));
+  const pages = [firstPage];
+
+  for (let index = 0; index < remaining.length; index += MAX_DASHBOARD_CARDS) {
+    pages.push(remaining.slice(index, index + MAX_DASHBOARD_CARDS));
   }
 
-  return pages.length > 0 ? pages : [[]];
+  return pages;
 }
 
 function MachinePageGrid({ machines }: { machines: Machine[] }) {
@@ -85,17 +98,12 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
   const numericMachines = useMemo(() => machines.slice().sort(compareByMachineNumber), [machines]);
   const hasOverflow = numericMachines.length > MAX_DASHBOARD_CARDS;
 
-  const sortedMachines = useMemo(() => {
-    if (!hasOverflow) return numericMachines;
-
-    return numericMachines.slice().sort((a, b) => {
-      const priorityDiff = getDashboardPriority(a, calls) - getDashboardPriority(b, calls);
-      return priorityDiff || compareByMachineNumber(a, b);
-    });
+  const pages = useMemo(() => {
+    if (!hasOverflow) return [numericMachines];
+    return splitMachinesByPriority(numericMachines, calls);
   }, [calls, hasOverflow, numericMachines]);
 
-  const pages = useMemo(() => chunkMachines(sortedMachines), [sortedMachines]);
-  const overflowCount = Math.max(0, sortedMachines.length - MAX_DASHBOARD_CARDS);
+  const overflowCount = Math.max(0, numericMachines.length - MAX_DASHBOARD_CARDS);
 
   useEffect(() => {
     if (pageIndex <= pages.length - 1) return;
@@ -126,7 +134,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
       <button
         type="button"
         onClick={handleSlideClick}
-        className="absolute left-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-border bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
+        className="absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-border bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
         title={pageIndex === 0 ? `Ver ${overflowCount} máquina(s) restante(s)` : "Voltar aos cards principais"}
         aria-label={pageIndex === 0 ? `Ver ${overflowCount} máquina(s) restante(s)` : "Voltar aos cards principais"}
       >
