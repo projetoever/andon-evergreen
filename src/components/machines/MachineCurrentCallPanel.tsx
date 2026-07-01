@@ -27,6 +27,30 @@ interface MachineCurrentCallPanelProps {
   currentMachineStatus?: MachineStatus;
 }
 
+interface TimerMetricProps {
+  label: string;
+  value: string;
+  tone?: "warning" | "info" | "foreground";
+}
+
+function TimerMetric({ label, value, tone = "foreground" }: TimerMetricProps) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs uppercase text-muted-foreground">{label}</dt>
+      <dd
+        className={cn(
+          "mt-0.5 whitespace-nowrap pb-0.5 text-xl font-bold leading-[1.15] md:text-2xl",
+          tone === "warning" && "text-warning",
+          tone === "info" && "text-info",
+          tone === "foreground" && "text-foreground",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 export function MachineCurrentCallPanel({
   call,
   className,
@@ -71,14 +95,14 @@ export function MachineCurrentCallPanel({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 shadow-md",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 pb-4 shadow-md",
         className,
       )}
     >
       <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
         Chamado atual
       </h3>
-      <dl className="grid min-h-0 flex-1 grid-cols-2 gap-x-3 gap-y-2 text-sm lg:grid-cols-3">
+      <dl className="grid min-h-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
@@ -138,21 +162,11 @@ export function MachineCurrentCallPanel({
             </dd>
           </div>
         )}
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Aguardando</dt>
-          <dd className="text-xl font-bold leading-tight text-warning md:text-2xl">{formatDurationMinutes(waiting)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Em atendimento</dt>
-          <dd className="text-xl font-bold leading-tight text-info md:text-2xl">{formatDurationMinutes(attending)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Acompanhamento</dt>
-          <dd className="text-xl font-bold leading-tight text-info md:text-2xl">{formatDurationMinutes(postMaintenance)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Total</dt>
-          <dd className="text-xl font-bold leading-tight text-foreground md:text-2xl">{formatDurationMinutes(total)}</dd>
+        <div className="col-span-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/15 p-2 lg:col-span-3 xl:grid-cols-4">
+          <TimerMetric label="Aguardando" value={formatDurationMinutes(waiting)} tone="warning" />
+          <TimerMetric label="Em atendimento" value={formatDurationMinutes(attending)} tone="info" />
+          <TimerMetric label="Acompanhamento" value={formatDurationMinutes(postMaintenance)} tone="info" />
+          <TimerMetric label="Total" value={formatDurationMinutes(total)} />
         </div>
         {(call.technicianNames.length > 0 || call.technicianName) && (
           <div className="sm:col-span-2 lg:col-span-3">
