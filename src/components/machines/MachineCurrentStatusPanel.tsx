@@ -1,3 +1,4 @@
+import { HelpCircle } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import { useTicker } from "@/hooks/useTicker";
 import { cn } from "@/lib/utils";
@@ -8,11 +9,41 @@ import {
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import { getMachineStatusLabel, getProductionModeLabel } from "@/utils/statusUtils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MachineCurrentStatusPanelProps {
   machine: Machine;
   className?: string;
   compactNormal?: boolean;
+}
+
+interface InfoHintProps {
+  summary: string;
+  detail: string;
+}
+
+function InfoHint({ summary, detail }: InfoHintProps) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <span className="truncate">{summary}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground transition hover:text-foreground"
+              aria-label="Mais informações"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground shadow-xl">
+            {detail}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
 }
 
 function formatLastFailureDuration(minutes: number): string {
@@ -79,11 +110,14 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
           <dd className={cn(compactNormal ? "mt-1 text-lg font-black" : "mt-1 text-xl font-black", isStopped ? "text-danger" : "text-success")}>
             {isStopped ? "Máquina em falha" : "Pronta para rodar"}
           </dd>
-          <p className={cn("mt-1 text-xs text-muted-foreground", compactNormal && "hidden 2xl:block")}>
-            {isStopped
-              ? "Tempo contado desde a parada real da máquina. Pode ser maior que o tempo do ANDON se a falha começou antes do chamado."
-              : "Sem falha ativa registrada para esta máquina."}
-          </p>
+          <InfoHint
+            summary={isStopped ? "Tempo contado desde a parada real." : "Sem falha ativa registrada."}
+            detail={
+              isStopped
+                ? "O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado."
+                : "A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status."
+            }
+          />
         </div>
 
         <div className="rounded-lg border border-border bg-muted/20 p-2.5">
@@ -103,7 +137,7 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
             </div>
             <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5 sm:col-span-2 xl:col-span-3">
               <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
-              <dd className="mt-1 text-3xl font-black leading-none text-danger md:text-4xl">
+              <dd className="mt-1 text-2xl font-black leading-tight text-danger md:text-3xl">
                 {formatDurationMinutes(stoppedMin)}
               </dd>
             </div>
@@ -116,7 +150,12 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
             <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
               {formatLastFailureDuration(machine.lastStopDurationMinutes)}
             </dd>
-            {!compactNormal && <p className="mt-1 text-xs text-muted-foreground">Atualizada de minuto em minuto.</p>}
+            {!compactNormal && (
+              <InfoHint
+                summary="Atualização automática."
+                detail="Este indicador mostra a duração da última falha encerrada e é recalculado periodicamente pelo painel."
+              />
+            )}
           </div>
         )}
       </dl>
