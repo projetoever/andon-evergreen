@@ -34,3 +34,8 @@ dist-ssr
 server/.env
 
 .env.production
+
+# ANDON local runtime folders
+chrome-profile/
+logs/
+backups/
