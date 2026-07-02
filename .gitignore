@@ -39,3 +39,8 @@ server/.env
 chrome-profile/
 logs/
 backups/
+
+# ANDON installer local config
+installer/andon-network.config.json
+installer/*.local.json
+server/.env
