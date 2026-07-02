@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useAndon } from "@/context/AndonProvider";
 import type { Machine, ProductionMode } from "@/types/machine";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ADMIN_PASSWORD_MIN_LENGTH, changeAdminPassword } from "@/services/adminAuthService";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -19,6 +21,78 @@ function sortMachines(machines: Machine[]) {
 
 function productionModeLabel(mode: ProductionMode) {
   return mode === "scheduled" ? "Programada" : "Não programada";
+}
+
+function AdminPasswordPanel() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  function handleChangePassword() {
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      toast.error("A confirmação não confere com a nova senha.");
+      return;
+    }
+
+    const result = changeAdminPassword(currentPassword, newPassword);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    toast.success(result.message);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Senha administrativa</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          A senha padrão de instalação é 123456. Após alterar, use a nova senha para acessar o painel administrativo e desbloquear telas fixadas.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label htmlFor="current-admin-password">Senha atual</Label>
+            <Input
+              id="current-admin-password"
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              placeholder="Senha atual"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="new-admin-password">Nova senha</Label>
+            <Input
+              id="new-admin-password"
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder={`Mínimo ${ADMIN_PASSWORD_MIN_LENGTH} caracteres`}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="confirm-admin-password">Confirmar nova senha</Label>
+            <Input
+              id="confirm-admin-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder="Repita a nova senha"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button type="button" onClick={handleChangePassword}>Alterar senha</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function MachineAdminPanel() {
@@ -38,6 +112,8 @@ export function MachineAdminPanel() {
 
   return (
     <div className="space-y-4">
+      <AdminPasswordPanel />
+
       <Card>
         <CardHeader>
           <CardTitle>Cadastro de máquinas</CardTitle>
