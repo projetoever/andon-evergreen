@@ -168,14 +168,6 @@ export function MachineCurrentCallPanel({
           <TimerMetric label="Acompanhamento" value={formatDurationMinutes(postMaintenance)} tone="info" />
           <TimerMetric label="Total" value={formatDurationMinutes(total)} />
         </div>
-        {(call.technicianNames.length > 0 || call.technicianName) && (
-          <div className="sm:col-span-2 lg:col-span-3">
-            <dt className="text-xs uppercase text-muted-foreground">Técnico</dt>
-            <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-              {call.technicianNames.length > 0 ? call.technicianNames.join(", ") : call.technicianName}
-            </dd>
-          </div>
-        )}
         {call.notes && (
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
