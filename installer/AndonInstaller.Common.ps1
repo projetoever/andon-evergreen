@@ -237,6 +237,7 @@ function Invoke-AndonCommand {
     Write-AndonLog "Executando comando: $Command" $LogName
 
     $pushed = $false
+    $oldErrorActionPreference = $ErrorActionPreference
 
     if ($WorkingDirectory -and (Test-Path $WorkingDirectory)) {
         Push-Location $WorkingDirectory
@@ -244,16 +245,14 @@ function Invoke-AndonCommand {
     }
 
     try {
-        cmd.exe /c $Command 2>&1 | ForEach-Object {
-            $outputLine = $_
-            Write-Host $outputLine
-            Write-AndonLog "$outputLine" $LogName
-        }
+        $ErrorActionPreference = "Continue"
 
+        $output = cmd.exe /d /c $Command 2>&1
         $exitCode = $LASTEXITCODE
 
-        if ($pushed) {
-            Pop-Location
+        foreach ($line in $output) {
+            Write-Host $line
+            Write-AndonLog "$line" $LogName
         }
 
         if ($exitCode -ne 0) {
@@ -264,12 +263,14 @@ function Invoke-AndonCommand {
         Write-AndonOk "Comando concluido: $Command"
         return $true
     } catch {
+        Write-AndonFail "Erro ao executar comando: $($_.Exception.Message)"
+        return $false
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+
         if ($pushed) {
             Pop-Location
         }
-
-        Write-AndonFail "Erro ao executar comando: $($_.Exception.Message)"
-        return $false
     }
 }
 
