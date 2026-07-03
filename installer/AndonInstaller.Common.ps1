@@ -236,36 +236,39 @@ function Invoke-AndonCommand {
 
     Write-AndonLog "Executando comando: $Command" $LogName
 
+    $pushed = $false
+
     if ($WorkingDirectory -and (Test-Path $WorkingDirectory)) {
         Push-Location $WorkingDirectory
+        $pushed = $true
     }
 
     try {
-        cmd.exe /c $Command
+        cmd.exe /c $Command 2>&1 | ForEach-Object {
+            $outputLine = $_
+            Write-Host $outputLine
+            Write-AndonLog "$outputLine" $LogName
+        }
+
         $exitCode = $LASTEXITCODE
+
+        if ($pushed) {
+            Pop-Location
+        }
 
         if ($exitCode -ne 0) {
             Write-AndonFail "Comando falhou com codigo ${exitCode}: $Command"
-            if ($WorkingDirectory) {
-                Pop-Location
-            }
             return $false
         }
 
         Write-AndonOk "Comando concluido: $Command"
-
-        if ($WorkingDirectory) {
-            Pop-Location
-        }
-
         return $true
     } catch {
-        Write-AndonFail "Erro ao executar comando: $($_.Exception.Message)"
-
-        if ($WorkingDirectory) {
+        if ($pushed) {
             Pop-Location
         }
 
+        Write-AndonFail "Erro ao executar comando: $($_.Exception.Message)"
         return $false
     }
 }
