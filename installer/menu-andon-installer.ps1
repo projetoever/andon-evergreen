@@ -304,12 +304,19 @@ do {
             Write-Host "Saindo do instalador ANDON." -ForegroundColor Cyan
         }
 
+        "12" {
+            Invoke-AndonScript `
+                -ScriptPath $NetworkConfigScript `
+                -Description "Configurar IP/rede do servidor ANDON"
+        }
+
         default {
             Write-Host "Opcao invalida." -ForegroundColor Yellow
             Pause-Menu
         }
     }
 } while ($option -ne "0")
+
 
 
 
