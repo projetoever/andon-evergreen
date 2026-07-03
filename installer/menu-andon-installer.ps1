@@ -216,6 +216,7 @@ function Show-Menu {
     Write-Host "9  - Habilitar inicializacao automatica"
     Write-Host "10 - Desinstalar preservando banco"
     Write-Host "11 - Desinstalacao limpa"
+    Write-Host "12 - Configurar IP/rede do servidor"
     Write-Host "0  - Sair"
     Write-Host ""
 }
@@ -309,6 +310,8 @@ do {
         }
     }
 } while ($option -ne "0")
+
+
 
 
 
