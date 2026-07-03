@@ -8,6 +8,7 @@ $LogsPath = "$ProjectPath\logs"
 
 $InstallScript = "$InstallerPath\install-andon-server.ps1"
 $UpdateScript = "$InstallerPath\update-andon-server.ps1"
+$NetworkConfigScript = "$InstallerPath\configure-andon-network.ps1"
 $RepairScript = "$InstallerPath\repair-andon-server.ps1"
 $UninstallPreserveDbScript = "$InstallerPath\uninstall-andon-preserve-db.ps1"
 $UninstallCleanScript = "$InstallerPath\uninstall-andon-clean.ps1"
@@ -215,6 +216,7 @@ function Show-Menu {
     Write-Host "9  - Habilitar inicializacao automatica"
     Write-Host "10 - Desinstalar preservando banco"
     Write-Host "11 - Desinstalacao limpa"
+    Write-Host "12 - Configurar IP/rede do servidor"
     Write-Host "0  - Sair"
     Write-Host ""
 }
@@ -302,9 +304,21 @@ do {
             Write-Host "Saindo do instalador ANDON." -ForegroundColor Cyan
         }
 
+        "12" {
+            Invoke-AndonScript `
+                -ScriptPath $NetworkConfigScript `
+                -Description "Configurar IP/rede do servidor ANDON"
+        }
+
         default {
             Write-Host "Opcao invalida." -ForegroundColor Yellow
             Pause-Menu
         }
     }
 } while ($option -ne "0")
+
+
+
+
+
+
