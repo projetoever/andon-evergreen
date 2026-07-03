@@ -8,6 +8,7 @@ $LogsPath = "$ProjectPath\logs"
 
 $InstallScript = "$InstallerPath\install-andon-server.ps1"
 $UpdateScript = "$InstallerPath\update-andon-server.ps1"
+$NetworkConfigScript = "$InstallerPath\configure-andon-network.ps1"
 $RepairScript = "$InstallerPath\repair-andon-server.ps1"
 $UninstallPreserveDbScript = "$InstallerPath\uninstall-andon-preserve-db.ps1"
 $UninstallCleanScript = "$InstallerPath\uninstall-andon-clean.ps1"
@@ -308,3 +309,6 @@ do {
         }
     }
 } while ($option -ne "0")
+
+
+
