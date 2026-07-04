@@ -471,21 +471,42 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Não é possível cancelar chamado já atendido.");
     }
 
-    await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const reason = optionalString(request.body?.reason);
+    const cancelledBy = optionalString(request.body?.cancelledBy);
+    const cancellationNoteParts = [
+      reason ? `Motivo: ${reason}` : undefined,
+      cancelledBy ? `Cancelado por: ${cancelledBy}` : undefined,
+    ].filter((part): part is string => Boolean(part));
+    const cancellationNote = cancellationNoteParts.length ? cancellationNoteParts.join(" | ") : undefined;
+
+    const updatedCall = await prisma.$transaction(async (tx) => {
       await tx.machine.updateMany({
         where: { id: call.machineId, currentCallId: call.id },
         data: { andonStatus: "normal", currentCallId: null },
       });
-      await tx.andonCall.delete({ where: { id: call.id } });
+      await tx.andonCall.update({
+        where: { id: call.id },
+        data: {
+          status: "cancelled",
+          finishedAt: now,
+          currentAttendanceStartedAt: null,
+          callWaitingMinutes: diffMinutes(call.openedAt, now),
+          attendanceMinutes: 0,
+          postMaintenanceMinutes: 0,
+          totalCallMinutes: diffMinutes(call.openedAt, now),
+          machineStoppedMinutes: call.machineCondition === "stopped" ? diffMinutes(call.openedAt, now) : 0,
+          productionModeAtFinish: call.productionModeAtOpen,
+          machineStatusAtFinish: call.machineStatusAtOpen,
+          notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
+        },
+      });
+
+      return findCallWithSessions(tx, call.id);
     });
 
-    return reply.send({
-      id: call.id,
-      machineId: call.machineId,
-      status: "cancelled",
-      reason: optionalString(request.body?.reason),
-      cancelledBy: optionalString(request.body?.cancelledBy),
-    });
+    const [enrichedCall] = await enrichCallsWithMachineSetSnapshots(updatedCall ? [updatedCall] : []);
+    return reply.send(enrichedCall ?? { id: call.id, machineId: call.machineId, status: "cancelled", reason, cancelledBy });
   });
 
   app.post<{ Params: { id: string }; Body: AddTechnicianBody }>("/api/andon-calls/:id/technicians", async (request, reply) => {
