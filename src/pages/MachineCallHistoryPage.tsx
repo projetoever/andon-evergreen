@@ -16,12 +16,14 @@ import {
   getCallSubtypeLabel,
   getCriticalityLabel,
   getMachineConditionLabel,
+  getStatusColorClass,
   getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 import { calculateOperationalImpactBreakdown, formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
 import { formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { cn } from "@/lib/utils";
 
 interface MachineCallHistoryPageProps { machineId: string; }
 
@@ -44,10 +46,11 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     {machineCalls.length === 0 ? <EmptyState icon={<History className="h-12 w-12" />} title="Sem chamados registrados" description="Quando houver chamados para esta máquina, eles aparecerão aqui." /> :
       <div className="space-y-2">{machineCalls.map((call) => {
         const now = new Date();
-        const waitingMinutes = call.status === "finished" ? call.callWaitingMinutes : calculateCallWaitingMinutes(call);
-        const attendanceMinutes = call.status === "finished" ? call.attendanceMinutes : calculateAttendanceMinutes(call);
-        const postMaintenanceMinutes = call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
-        const totalMinutes = call.status === "finished" ? call.totalCallMinutes : calculateTotalCallMinutes(call);
+        const isClosedCall = call.status === "finished" || call.status === "cancelled";
+        const waitingMinutes = isClosedCall ? call.callWaitingMinutes : calculateCallWaitingMinutes(call);
+        const attendanceMinutes = isClosedCall ? call.attendanceMinutes : calculateAttendanceMinutes(call);
+        const postMaintenanceMinutes = isClosedCall ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
+        const totalMinutes = isClosedCall ? call.totalCallMinutes : calculateTotalCallMinutes(call);
         const isMaintenance = requiresMaintenanceTechnician(call);
         const hasTechnicianNames = call.technicianNames.length > 0 || Boolean(call.technicianName);
         const technicianNames = call.technicianNames.length > 0
@@ -57,6 +60,11 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             : isMaintenance
               ? "Sem manutentor apontado"
               : "Não aplicável";
+        const machineSetLabel = call.machineSetNameSnapshot || call.machineSetCodeSnapshot || null;
+        const machineSetMeta = call.machineSetTypeSnapshot || call.machineSetCodeSnapshot || null;
+        const machineSetDisplay = machineSetLabel
+          ? `${machineSetLabel}${machineSetMeta && machineSetMeta !== machineSetLabel ? ` • ${machineSetMeta}` : ""}`
+          : "Não informado";
         const isExpanded = expandedCallIds.includes(call.id);
 
         const impactPeriodStart = call.openedAt;
@@ -118,15 +126,16 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
         const shouldShowTechnicianSection = isMaintenance || sessions.length > 0 || allocations.length > 0 || hasTechnicianNames;
 
-        return <article key={call.id} className="rounded-lg border border-border bg-card p-3">
+        return <article key={call.id} className={cn("rounded-lg border bg-card p-3", call.status === "cancelled" ? "border-muted opacity-80" : "border-border")}>
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <div className="text-xs uppercase tracking-widest text-muted-foreground">{formatDateTime(call.openedAt)}</div>
-              <h2 className="text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
+              <h2 className="truncate text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
+              {machineSetLabel && <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">Conjunto: {machineSetDisplay}</div>}
               <div className="mt-1 text-sm text-muted-foreground">Tempo total: <span className="font-bold text-foreground">{formatDurationMinutes(totalMinutes)}</span></div>
               <div className="text-sm text-muted-foreground">Manutentores: {technicianNames}</div>
             </div>
-            <div className="flex flex-col items-end gap-2"><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">{getAndonStatusLabel(call.status)}</span><button type="button" className="text-xs font-semibold text-info hover:underline" onClick={() => setExpandedCallIds((prev) => prev.includes(call.id) ? prev.filter((id) => id !== call.id) : [...prev, call.id])}>{isExpanded ? "Ocultar detalhes" : "Mais detalhes"}</button></div>
+            <div className="flex flex-col items-end gap-2"><span className={cn("rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider", getStatusColorClass(call.status))}>{getAndonStatusLabel(call.status)}</span><button type="button" className="text-xs font-semibold text-info hover:underline" onClick={() => setExpandedCallIds((prev) => prev.includes(call.id) ? prev.filter((id) => id !== call.id) : [...prev, call.id])}>{isExpanded ? "Ocultar detalhes" : "Mais detalhes"}</button></div>
           </div>
 
           {isExpanded && <>
@@ -134,7 +143,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Aberto em</dt><dd className="font-mono">{formatDateTime(call.openedAt)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Atendido em</dt><dd className="font-mono">{formatDateTime(call.attendedAt)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt><dd className="font-mono">{formatDateTime(call.maintenanceCompletedAt)}</dd></div>
-              <div><dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt><dd className="font-mono">{formatDateTime(call.finishedAt)}</dd></div>
+              <div><dt className="text-xs uppercase text-muted-foreground">{call.status === "cancelled" ? "Cancelado em" : "Finalizado em"}</dt><dd className="font-mono">{formatDateTime(call.finishedAt)}</dd></div>
+              <div><dt className="text-xs uppercase text-muted-foreground">Conjunto</dt><dd className="font-bold">{machineSetDisplay}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Criticidade</dt><dd className="font-bold">{getCriticalityLabel(call.criticality)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Condição ao abrir</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>
@@ -142,7 +152,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de ANDON</dt><dd className="font-bold text-warning">{formatDurationMinutes(waitingMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de atendimento</dt><dd className="font-bold text-info">{formatDurationMinutes(attendanceMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
-              <div><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd>{call.notes || "Sem descrição"}</dd></div>
+              <div><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd></div>
             </dl>
 
             {shouldShowTechnicianSection && (
