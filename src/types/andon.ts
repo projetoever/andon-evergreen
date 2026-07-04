@@ -1,6 +1,6 @@
 import type { MachineStatus } from "./machine";
 
-export type AndonStatus = "none" | "open" | "in_progress" | "post_maintenance" | "finished";
+export type AndonStatus = "none" | "open" | "in_progress" | "post_maintenance" | "finished" | "cancelled";
 
 export type CallCategory = "maintenance" | "production";
 
