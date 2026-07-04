@@ -12,6 +12,8 @@ $Global:AndonBranch = "main"
 $Global:AndonApiPort = 3001
 $Global:AndonFrontendPort = 8080
 $Global:AndonPostgresPort = 5432
+$Global:AndonPostgresHost = "127.0.0.1"
+$Global:AndonConfigPath = "$Global:AndonBasePath\andon-config.json"
 
 $Global:AndonDatabaseName = "andon_db"
 $Global:AndonDatabaseUser = "andon"
@@ -110,20 +112,44 @@ function Get-AndonNpmCmd {
 }
 
 function Get-AndonPsql {
-    $psql = "$Global:AndonPostgresBinPath\psql.exe"
+    $primaryCandidates = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\bin\psql.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending
 
-    if (Test-Path $psql) {
-        return $psql
+    if ($primaryCandidates -and $primaryCandidates.Count -gt 0) {
+        return $primaryCandidates[0].FullName
+    }
+
+    $fallbackCandidates = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\pgAdmin 4\runtime\psql.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending
+
+    if ($fallbackCandidates -and $fallbackCandidates.Count -gt 0) {
+        return $fallbackCandidates[0].FullName
     }
 
     return $null
 }
 
 function Get-AndonPgDump {
-    $pgDump = "$Global:AndonPostgresBinPath\pg_dump.exe"
+    $primaryCandidates = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\bin\pg_dump.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending
 
-    if (Test-Path $pgDump) {
-        return $pgDump
+    if ($primaryCandidates -and $primaryCandidates.Count -gt 0) {
+        return $primaryCandidates[0].FullName
+    }
+
+    $fallbackCandidates = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\pgAdmin 4\runtime\pg_dump.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending
+
+    if ($fallbackCandidates -and $fallbackCandidates.Count -gt 0) {
+        return $fallbackCandidates[0].FullName
     }
 
     return $null
@@ -555,12 +581,209 @@ function Ensure-AndonNetworkConfig {
     return Select-AndonServerIp
 }
 
-function Write-AndonBackendEnv {
+function Get-AndonInstallConfig {
+    $defaultConfig = [ordered]@{
+        postgresHost = "127.0.0.1"
+        postgresPort = 5432
+        databaseName = $Global:AndonDatabaseName
+        databaseUser = $Global:AndonDatabaseUser
+        apiPort = $Global:AndonApiPort
+        frontendPort = $Global:AndonFrontendPort
+    }
+
+    if (!(Test-Path $Global:AndonConfigPath)) {
+        return [pscustomobject]$defaultConfig
+    }
+
+    try {
+        $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
+
+        foreach ($key in @("postgresHost", "postgresPort", "databaseName", "databaseUser", "apiPort", "frontendPort")) {
+            if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") {
+                $defaultConfig[$key] = $fileConfig.$key
+            }
+        }
+
+        return [pscustomobject]$defaultConfig
+    } catch {
+        Write-AndonWarn "Falha ao ler andon-config.json. Usando configuracao padrao. Erro: $($_.Exception.Message)"
+        return [pscustomobject]$defaultConfig
+    }
+}
+
+function Update-AndonGlobalsFromInstallConfig {
+    param([object]$Config)
+
+    if (!$Config) {
+        return
+    }
+
+    $Global:AndonPostgresHost = "$($Config.postgresHost)"
+    $Global:AndonPostgresPort = [int]$Config.postgresPort
+    $Global:AndonDatabaseName = "$($Config.databaseName)"
+    $Global:AndonDatabaseUser = "$($Config.databaseUser)"
+    $Global:AndonApiPort = [int]$Config.apiPort
+    $Global:AndonFrontendPort = [int]$Config.frontendPort
+}
+
+function Save-AndonInstallConfig {
+    param([object]$Config)
+
+    if (!$Config) {
+        Write-AndonFail "Configuracao invalida."
+        return $false
+    }
+
+    New-Item -ItemType Directory -Force $Global:AndonBasePath | Out-Null
+
+    $configToSave = [ordered]@{
+        postgresHost = "$($Config.postgresHost)"
+        postgresPort = [int]$Config.postgresPort
+        databaseName = "$($Config.databaseName)"
+        databaseUser = "$($Config.databaseUser)"
+        apiPort = [int]$Config.apiPort
+        frontendPort = [int]$Config.frontendPort
+    }
+
+    $configToSave | ConvertTo-Json -Depth 5 | Set-Content -Path $Global:AndonConfigPath -Encoding UTF8
+
+    Update-AndonGlobalsFromInstallConfig -Config ([pscustomobject]$configToSave)
+
+    Write-AndonOk "Configuracao global salva em: $Global:AndonConfigPath"
+    Write-Host "PostgreSQL:  $($configToSave.postgresHost):$($configToSave.postgresPort)"
+    Write-Host "Banco:       $($configToSave.databaseName)"
+    Write-Host "Usuario DB:  $($configToSave.databaseUser)"
+    Write-Host "API:         $($configToSave.apiPort)"
+    Write-Host "Frontend:    $($configToSave.frontendPort)"
+
+    return $true
+}
+
+function Ensure-AndonInstallConfig {
+    $config = Get-AndonInstallConfig
+
+    if (!(Test-Path $Global:AndonConfigPath)) {
+        Save-AndonInstallConfig -Config $config | Out-Null
+    }
+
+    Update-AndonGlobalsFromInstallConfig -Config $config
+
+    return Get-AndonInstallConfig
+}
+
+function Select-AndonPostgresConfig {
+    Write-AndonHeader "ANDON - CONFIGURACAO DO POSTGRESQL"
+
+    $config = Get-AndonInstallConfig
+
+    Write-Host "Configuracao atual:" -ForegroundColor Yellow
+    Write-Host "Host PostgreSQL:  $($config.postgresHost)"
+    Write-Host "Porta PostgreSQL: $($config.postgresPort)"
+    Write-Host ""
+
+    $portInput = Read-Host "Informe a porta do PostgreSQL [$($config.postgresPort)]"
+
+    if ([string]::IsNullOrWhiteSpace($portInput)) {
+        $port = [int]$config.postgresPort
+    } else {
+        $port = 0
+
+        if (![int]::TryParse($portInput, [ref]$port)) {
+            Write-AndonFail "Porta invalida: $portInput"
+            return $null
+        }
+
+        if ($port -lt 1 -or $port -gt 65535) {
+            Write-AndonFail "Porta fora do intervalo valido: $port"
+            return $null
+        }
+    }
+
+    $newConfig = [pscustomobject]@{
+        postgresHost = "127.0.0.1"
+        postgresPort = $port
+        databaseName = "$($config.databaseName)"
+        databaseUser = "$($config.databaseUser)"
+        apiPort = [int]$config.apiPort
+        frontendPort = [int]$config.frontendPort
+    }
+
+    if (!(Save-AndonInstallConfig -Config $newConfig)) {
+        return $null
+    }
+
+    return Get-AndonInstallConfig
+}
+
+function Get-AndonDatabaseUrl {
+    param([object]$Config)
+
+    if (!$Config) {
+        $Config = Ensure-AndonInstallConfig
+    }
+
+    return "postgresql://$($Config.databaseUser):$Global:AndonDatabasePassword@$($Config.postgresHost):$($Config.postgresPort)/$($Config.databaseName)?schema=public"
+}
+
+function Test-AndonPostgresAdminConnection {
     param(
-        [switch]$PreserveExisting
+        [string]$PostgresPassword,
+        [int]$PostgresPort = 0
     )
 
-    $networkConfig = Ensure-AndonNetworkConfig
+    $config = Ensure-AndonInstallConfig
+
+    if ($PostgresPort -le 0) {
+        $PostgresPort = [int]$config.postgresPort
+    }
+
+    $psql = Get-AndonPsql
+
+    if (!$psql) {
+        Write-AndonFail "psql.exe nao encontrado."
+        return $false
+    }
+
+    $oldPassword = $env:PGPASSWORD
+    $env:PGPASSWORD = $PostgresPassword
+
+    try {
+        Write-Host "Testando PostgreSQL em 127.0.0.1:$PostgresPort com usuario postgres..." -ForegroundColor Cyan
+
+        & $psql `
+            -h "127.0.0.1" `
+            -p $PostgresPort `
+            -U "postgres" `
+            -d "postgres" `
+            -c "SELECT version();" | Out-Host
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-AndonFail "Falha ao autenticar no PostgreSQL."
+            Write-Host "- A senha digitada deve ser a senha do usuario postgres do PostgreSQL." -ForegroundColor Yellow
+            Write-Host "- Nao e a senha do Windows." -ForegroundColor Yellow
+            Write-Host "- Teste manualmente com psql se necessario." -ForegroundColor Yellow
+            return $false
+        }
+
+        Write-AndonOk "Conexao administrativa com PostgreSQL validada."
+        return $true
+    } finally {
+        $env:PGPASSWORD = $oldPassword
+    }
+}
+
+function Write-AndonBackendEnv {
+    param(
+        [object]$NetworkConfig = $null,
+        [switch]$PreserveExisting,
+        [switch]$ForceDatabaseUrl
+    )
+
+    $installConfig = Ensure-AndonInstallConfig
+
+    if (!$NetworkConfig) {
+        $NetworkConfig = Ensure-AndonNetworkConfig
+    }
 
     $serverPath = "$Global:AndonProjectPath\server"
     $envPath = "$serverPath\.env"
@@ -570,16 +793,40 @@ function Write-AndonBackendEnv {
         return $false
     }
 
+    $databaseUrl = Get-AndonDatabaseUrl -Config $installConfig
+
     if ($PreserveExisting -and (Test-Path $envPath)) {
         Write-AndonOk ".env existente preservado: $envPath"
 
         $envContent = Get-Content $envPath -Raw
 
+        if ($envContent -notmatch "PORT=") {
+            Add-Content -Path $envPath -Encoding UTF8 -Value "PORT=$($installConfig.apiPort)"
+        }
+
+        if ($envContent -notmatch "HOST=") {
+            Add-Content -Path $envPath -Encoding UTF8 -Value "HOST=0.0.0.0"
+        }
+
+        if ($envContent -notmatch "DATABASE_URL=") {
+            Add-Content -Path $envPath -Encoding UTF8 -Value "DATABASE_URL=`"$databaseUrl`""
+            Write-AndonOk "DATABASE_URL adicionada ao .env existente."
+        } elseif ($ForceDatabaseUrl) {
+            $envContent = Get-Content $envPath -Raw
+            $envContent = $envContent -replace 'DATABASE_URL=.*', "DATABASE_URL=`"$databaseUrl`""
+            Set-Content -Path $envPath -Value $envContent -Encoding UTF8
+            Write-AndonOk "DATABASE_URL atualizada no .env existente."
+        } else {
+            Write-AndonOk "DATABASE_URL existente preservada."
+        }
+
+        $envContent = Get-Content $envPath -Raw
+
         if ($envContent -notmatch "CORS_ORIGINS=") {
-            Add-Content -Path $envPath -Encoding UTF8 -Value "CORS_ORIGINS=`"$($networkConfig.corsOrigins)`""
+            Add-Content -Path $envPath -Encoding UTF8 -Value "CORS_ORIGINS=`"$($NetworkConfig.corsOrigins)`""
             Write-AndonOk "CORS_ORIGINS adicionado ao .env existente."
         } else {
-            $newContent = $envContent -replace 'CORS_ORIGINS=.*', "CORS_ORIGINS=`"$($networkConfig.corsOrigins)`""
+            $newContent = $envContent -replace 'CORS_ORIGINS=.*', "CORS_ORIGINS=`"$($NetworkConfig.corsOrigins)`""
             Set-Content -Path $envPath -Value $newContent -Encoding UTF8
             Write-AndonOk "CORS_ORIGINS atualizado no .env existente."
         }
@@ -588,12 +835,13 @@ function Write-AndonBackendEnv {
     }
 
 @"
-PORT=$Global:AndonApiPort
+PORT=$($installConfig.apiPort)
 HOST=0.0.0.0
-DATABASE_URL="postgresql://$Global:AndonDatabaseUser`:$Global:AndonDatabasePassword@localhost:$Global:AndonPostgresPort/$Global:AndonDatabaseName`?schema=public"
-CORS_ORIGINS="$($networkConfig.corsOrigins)"
+DATABASE_URL="$databaseUrl"
+CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
 "@ | Set-Content -Path $envPath -Encoding UTF8
 
     Write-AndonOk ".env criado/atualizado em: $envPath"
     return $true
 }
+
