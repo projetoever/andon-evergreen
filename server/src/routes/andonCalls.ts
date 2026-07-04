@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
@@ -15,6 +15,7 @@ type AndonCallQuery = {
 
 type OpenAndonCallBody = {
   machineId?: unknown;
+  machineSetId?: unknown;
   category?: unknown;
   subtype?: unknown;
   criticality?: unknown;
@@ -56,6 +57,21 @@ type CancelAndonCallBody = {
   cancelledBy?: unknown;
 };
 
+type MachineSetSnapshot = {
+  id: string;
+  code: string;
+  name: string;
+  type: string | null;
+};
+
+type CallMachineSetSnapshotRow = {
+  id: string;
+  machineSetId: string | null;
+  machineSetCodeSnapshot: string | null;
+  machineSetNameSnapshot: string | null;
+  machineSetTypeSnapshot: string | null;
+};
+
 const CALL_CATEGORIES = new Set(["maintenance", "production"]);
 const CALL_CRITICALITIES = new Set(["low", "medium", "high", "critical"]);
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
@@ -89,6 +105,71 @@ function appendNote(currentNotes: string | null, note: string | undefined, prefi
 
   const entry = `${prefix}: ${note}`;
   return currentNotes ? `${currentNotes}\n${entry}` : entry;
+}
+
+function attachMachineSetSnapshot(call: unknown, snapshot: MachineSetSnapshot | null) {
+  if (!call || typeof call !== "object") {
+    return call;
+  }
+
+  return {
+    ...call,
+    machineSetId: snapshot?.id ?? null,
+    machineSetCodeSnapshot: snapshot?.code ?? null,
+    machineSetNameSnapshot: snapshot?.name ?? null,
+    machineSetTypeSnapshot: snapshot?.type ?? null,
+  };
+}
+
+async function enrichCallsWithMachineSetSnapshots(calls: unknown[]) {
+  const callIds = calls
+    .map((call) => (call && typeof call === "object" && "id" in call ? String(call.id) : undefined))
+    .filter((id): id is string => Boolean(id));
+
+  if (!callIds.length) {
+    return calls;
+  }
+
+  const rows = await prisma.$queryRaw<CallMachineSetSnapshotRow[]>(Prisma.sql`
+    SELECT
+      "id",
+      "machineSetId",
+      "machineSetCodeSnapshot",
+      "machineSetNameSnapshot",
+      "machineSetTypeSnapshot"
+    FROM "andon_calls"
+    WHERE "id" IN (${Prisma.join(callIds)})
+  `);
+
+  const snapshotsByCallId = new Map(rows.map((row) => [row.id, row]));
+
+  return calls.map((call) => {
+    if (!call || typeof call !== "object" || !("id" in call)) {
+      return call;
+    }
+
+    const snapshot = snapshotsByCallId.get(String(call.id));
+    return {
+      ...call,
+      machineSetId: snapshot?.machineSetId ?? null,
+      machineSetCodeSnapshot: snapshot?.machineSetCodeSnapshot ?? null,
+      machineSetNameSnapshot: snapshot?.machineSetNameSnapshot ?? null,
+      machineSetTypeSnapshot: snapshot?.machineSetTypeSnapshot ?? null,
+    };
+  });
+}
+
+async function findActiveMachineSetForCall(machineId: string, machineSetId: string) {
+  const rows = await prisma.$queryRaw<MachineSetSnapshot[]>(Prisma.sql`
+    SELECT "id", "code", "name", "type"
+    FROM "machine_sets"
+    WHERE "id" = ${machineSetId}
+      AND "machineId" = ${machineId}
+      AND "isActive" = true
+    LIMIT 1
+  `);
+
+  return rows[0] ?? null;
 }
 
 async function findCallWithSessions(tx: Prisma.TransactionClient, callId: string) {
@@ -199,12 +280,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       ...(criticality ? { criticality } : {}),
     };
 
-    return prisma.andonCall.findMany({
+    const calls = await prisma.andonCall.findMany({
       where,
       include: andonCallInclude,
       orderBy: { openedAt: "desc" },
       take: parseLimit(request.query.limit),
     });
+
+    return enrichCallsWithMachineSetSnapshots(calls);
   });
 
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls/history", async (request) => {
@@ -224,17 +307,20 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         : {}),
     };
 
-    return prisma.andonCall.findMany({
+    const calls = await prisma.andonCall.findMany({
       where,
       include: andonCallInclude,
       orderBy: [{ finishedAt: "desc" }, { openedAt: "desc" }],
       take: parseLimit(request.query.limit),
     });
+
+    return enrichCallsWithMachineSetSnapshots(calls);
   });
 
   app.post<{ Body: OpenAndonCallBody }>("/api/andon-calls", async (request, reply) => {
     const body = request.body ?? {};
     const machineId = body.machineId === undefined ? undefined : String(body.machineId);
+    const machineSetId = optionalString(body.machineSetId);
     const category = optionalString(body.category);
     const subtype = optionalString(body.subtype);
     const criticality = optionalString(body.criticality) ?? "medium";
@@ -252,6 +338,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (!machine) return notFound(reply, "Máquina não encontrada");
     if (machine.currentCallId || OPEN_CALL_STATUSES.includes(machine.andonStatus)) {
       return badRequest(reply, "Já existe um chamado ativo para esta máquina");
+    }
+
+    const machineSet = machineSetId ? await findActiveMachineSetForCall(machineId, machineSetId) : null;
+    if (machineSetId && !machineSet) {
+      return badRequest(reply, "Conjunto inválido ou inativo para esta máquina");
     }
 
     const now = new Date();
@@ -277,6 +368,18 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         },
       });
 
+      if (machineSet) {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE "andon_calls"
+          SET
+            "machineSetId" = ${machineSet.id},
+            "machineSetCodeSnapshot" = ${machineSet.code},
+            "machineSetNameSnapshot" = ${machineSet.name},
+            "machineSetTypeSnapshot" = ${machineSet.type}
+          WHERE "id" = ${createdCall.id}
+        `);
+      }
+
       const failureStartedAt =
         machineCondition === "stopped"
           ? await ensureOpenFailureEventForStoppedCall(tx, {
@@ -301,7 +404,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         },
       });
 
-      return findCallWithSessions(tx, createdCall.id);
+      const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
+      return attachMachineSetSnapshot(createdCallWithSessions, machineSet);
     });
 
     return reply.status(201).send(call);
@@ -353,7 +457,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     return updatedCall;
   });
 
-
   app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>("/api/andon-calls/:id/cancel", async (request, reply) => {
     const call = await prisma.andonCall.findUnique({
       include: { technicianSessions: true, currentForMachine: true },
@@ -368,7 +471,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Não é possível cancelar chamado já atendido.");
     }
 
-    const now = new Date();
     await prisma.$transaction(async (tx) => {
       await tx.machine.updateMany({
         where: { id: call.machineId, currentCallId: call.id },
