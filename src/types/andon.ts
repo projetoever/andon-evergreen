@@ -56,6 +56,10 @@ export interface TechnicianAttendanceSession {
 export interface AndonCall {
   id: string;
   machineId: string;
+  machineSetId?: string | null;
+  machineSetCodeSnapshot?: string | null;
+  machineSetNameSnapshot?: string | null;
+  machineSetTypeSnapshot?: string | null;
   category: CallCategory;
   subtype: CallSubtype;
   status: AndonStatus;
