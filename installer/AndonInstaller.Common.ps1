@@ -18,7 +18,6 @@ $Global:AndonConfigPath = "$Global:AndonBasePath\andon-config.json"
 $Global:AndonDatabaseName = "andon_db"
 $Global:AndonDatabaseUser = "andon"
 $Global:AndonDatabasePassword = "andon_dev_password"
-$Global:AndonPostgresBinPath = "C:\Program Files\PostgreSQL\18\bin"
 
 $Global:AndonTaskBoot = "ANDON - Boot Servicos"
 $Global:AndonTaskWatchdog = "ANDON - Watchdog Servicos"

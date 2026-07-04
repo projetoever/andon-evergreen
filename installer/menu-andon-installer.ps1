@@ -151,11 +151,24 @@ function Show-EnvironmentStatus {
         Write-Host "[FALHA] npm.cmd nao encontrado" -ForegroundColor Red
     }
 
-    $psqlPath = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
-    if (Test-Path $psqlPath) {
-        Write-Host "[OK] psql.exe: $psqlPath" -ForegroundColor Green
+    $psqlCandidate = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\bin\psql.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+
+    if (!$psqlCandidate) {
+        $psqlCandidate = Get-ChildItem `
+            -Path "C:\Program Files\PostgreSQL\*\pgAdmin 4\runtime\psql.exe" `
+            -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+    }
+
+    if ($psqlCandidate) {
+        Write-Host "[OK] psql.exe: $($psqlCandidate.FullName)" -ForegroundColor Green
     } else {
-        Write-Host "[AVISO] psql.exe nao encontrado em: $psqlPath" -ForegroundColor Yellow
+        Write-Host "[AVISO] psql.exe nao encontrado no PostgreSQL/bin nem pgAdmin runtime" -ForegroundColor Yellow
     }
 
     $chromeCandidates = @(
