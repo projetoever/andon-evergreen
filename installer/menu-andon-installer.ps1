@@ -5,10 +5,12 @@ $ProjectPath = "$BasePath\andon"
 $ToolsPath = "$BasePath\andon-tools"
 $InstallerPath = "$BasePath\installer"
 $LogsPath = "$ProjectPath\logs"
+$ConfigPath = "$BasePath\andon-config.json"
 
 $InstallScript = "$InstallerPath\install-andon-server.ps1"
 $UpdateScript = "$InstallerPath\update-andon-server.ps1"
 $NetworkConfigScript = "$InstallerPath\configure-andon-network.ps1"
+$PostgresConfigScript = "$InstallerPath\configure-andon-postgres.ps1"
 $RepairScript = "$InstallerPath\repair-andon-server.ps1"
 $UninstallPreserveDbScript = "$InstallerPath\uninstall-andon-preserve-db.ps1"
 $UninstallCleanScript = "$InstallerPath\uninstall-andon-clean.ps1"
@@ -149,11 +151,24 @@ function Show-EnvironmentStatus {
         Write-Host "[FALHA] npm.cmd nao encontrado" -ForegroundColor Red
     }
 
-    $psqlPath = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
-    if (Test-Path $psqlPath) {
-        Write-Host "[OK] psql.exe: $psqlPath" -ForegroundColor Green
+    $psqlCandidate = Get-ChildItem `
+        -Path "C:\Program Files\PostgreSQL\*\bin\psql.exe" `
+        -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+
+    if (!$psqlCandidate) {
+        $psqlCandidate = Get-ChildItem `
+            -Path "C:\Program Files\PostgreSQL\*\pgAdmin 4\runtime\psql.exe" `
+            -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+    }
+
+    if ($psqlCandidate) {
+        Write-Host "[OK] psql.exe: $($psqlCandidate.FullName)" -ForegroundColor Green
     } else {
-        Write-Host "[AVISO] psql.exe nao encontrado em: $psqlPath" -ForegroundColor Yellow
+        Write-Host "[AVISO] psql.exe nao encontrado no PostgreSQL/bin nem pgAdmin runtime" -ForegroundColor Yellow
     }
 
     $chromeCandidates = @(
@@ -180,8 +195,34 @@ function Show-EnvironmentStatus {
     }
 
     Write-Host ""
-    Write-Host "Portas oficiais:"
-    foreach ($port in @(3001, 8080, 5432)) {
+    Write-Host ""
+    $postgresPort = 5432
+    $postgresHost = "127.0.0.1"
+
+    if (Test-Path $ConfigPath) {
+        try {
+            $andonConfig = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+
+            if ($andonConfig.postgresPort) {
+                $postgresPort = [int]$andonConfig.postgresPort
+            }
+
+            if ($andonConfig.postgresHost) {
+                $postgresHost = "$($andonConfig.postgresHost)"
+            }
+        } catch {
+            Write-Host "[AVISO] Falha ao ler andon-config.json. Usando PostgreSQL 127.0.0.1:5432" -ForegroundColor Yellow
+        }
+    }
+
+    Write-Host "Configuracao ANDON:"
+    Write-Host "API:        3001"
+    Write-Host "Frontend:   8080"
+    Write-Host "PostgreSQL: $postgresHost`:$postgresPort"
+
+    Write-Host ""
+    Write-Host "Portas oficiais/configuradas:"
+    foreach ($port in @(3001, 8080, $postgresPort)) {
         $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
         if ($connections) {
             Write-Host "[USO] Porta $port em uso" -ForegroundColor Yellow
@@ -189,7 +230,6 @@ function Show-EnvironmentStatus {
             Write-Host "[LIVRE] Porta $port livre" -ForegroundColor Green
         }
     }
-
     Write-Host ""
     Write-Host "Tarefas ANDON:"
     schtasks /Query | findstr ANDON
@@ -217,6 +257,7 @@ function Show-Menu {
     Write-Host "10 - Desinstalar preservando banco"
     Write-Host "11 - Desinstalacao limpa"
     Write-Host "12 - Configurar IP/rede do servidor"
+    Write-Host "13 - Configurar PostgreSQL/porta do banco"
     Write-Host "0  - Sair"
     Write-Host ""
 }
@@ -310,12 +351,20 @@ do {
                 -Description "Configurar IP/rede do servidor ANDON"
         }
 
+        "13" {
+            Invoke-AndonScript `
+                -ScriptPath $PostgresConfigScript `
+                -Description "Configurar PostgreSQL/porta do banco"
+        }
+
         default {
             Write-Host "Opcao invalida." -ForegroundColor Yellow
             Pause-Menu
         }
     }
 } while ($option -ne "0")
+
+
 
 
 

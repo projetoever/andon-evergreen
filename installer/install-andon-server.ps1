@@ -134,7 +134,19 @@ GRANT ALL PRIVILEGES ON DATABASE $Global:AndonDatabaseName TO $Global:AndonDatab
 $tempSqlPath = "$Global:AndonInstallerPath\prepare-database.sql"
 $dbSql | Set-Content -Path $tempSqlPath -Encoding UTF8
 
-& $psql -h localhost -p $Global:AndonPostgresPort -U postgres -d postgres -f $tempSqlPath
+$oldPgPassword = $env:PGPASSWORD
+$env:PGPASSWORD = $postgresAdminPassword
+
+try {
+    & $psql `
+        -h $Global:AndonPostgresHost `
+        -p $Global:AndonPostgresPort `
+        -U postgres `
+        -d postgres `
+        -f $tempSqlPath
+} finally {
+    $env:PGPASSWORD = $oldPgPassword
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-AndonFail "Falha ao preparar banco PostgreSQL."
@@ -148,7 +160,7 @@ Write-AndonHeader "8. Testando conexao com banco"
 $env:PGPASSWORD = $Global:AndonDatabasePassword
 
 & $psql `
-    -h localhost `
+    -h $Global:AndonPostgresHost `
     -p $Global:AndonPostgresPort `
     -U $Global:AndonDatabaseUser `
     -d $Global:AndonDatabaseName `
@@ -256,4 +268,6 @@ Write-Host $Global:AndonToolsPath
 Write-Host ""
 
 exit 0
+
+
 
