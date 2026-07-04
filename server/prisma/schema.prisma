@@ -8,19 +8,20 @@ datasource db {
 }
 
 model Machine {
-  id                  String                @id
+  id                  String                   @id
   name                String
-  machineStatus       String                @default("running")
-  andonStatus         String                @default("normal")
-  productionMode      String                @default("scheduled")
-  isActive            Boolean               @default(true)
+  machineStatus       String                   @default("running")
+  andonStatus         String                   @default("normal")
+  productionMode      String                   @default("scheduled")
+  isActive            Boolean                  @default(true)
   displayOrder        Int?
-  currentCallId       String?               @unique
-  currentCall         AndonCall?            @relation("MachineCurrentCall", fields: [currentCallId], references: [id], onDelete: SetNull)
-  lastStatusChangedAt DateTime              @default(now())
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  andonCalls          AndonCall[]           @relation("MachineAndonCalls")
+  currentCallId       String?                  @unique
+  currentCall         AndonCall?               @relation("MachineCurrentCall", fields: [currentCallId], references: [id], onDelete: SetNull)
+  lastStatusChangedAt DateTime                 @default(now())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  andonCalls          AndonCall[]              @relation("MachineAndonCalls")
+  machineSets         MachineSet[]
   technicianSessions  TechnicianSession[]
   failureEvents       FailureEvent[]
   productionEvents    MachineProductionEvent[]
@@ -29,11 +30,36 @@ model Machine {
   @@map("machines")
 }
 
+model MachineSet {
+  id           String      @id @default(cuid())
+  machineId    String
+  machine      Machine     @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  code         String
+  name         String
+  type         String?
+  description  String?
+  isActive     Boolean     @default(true)
+  displayOrder Int?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  andonCalls   AndonCall[]
+
+  @@unique([machineId, code])
+  @@index([machineId])
+  @@index([type])
+  @@map("machine_sets")
+}
+
 model AndonCall {
   id                          String                      @id @default(cuid())
   machineId                   String
   machine                     Machine                     @relation("MachineAndonCalls", fields: [machineId], references: [id], onDelete: Restrict)
   currentForMachine           Machine?                    @relation("MachineCurrentCall")
+  machineSetId                String?
+  machineSet                  MachineSet?                 @relation(fields: [machineSetId], references: [id], onDelete: SetNull)
+  machineSetCodeSnapshot      String?
+  machineSetNameSnapshot      String?
+  machineSetTypeSnapshot      String?
   category                    String
   subtype                     String?
   status                      String
@@ -68,6 +94,7 @@ model AndonCall {
   failureEvents               FailureEvent[]
 
   @@index([machineId])
+  @@index([machineSetId])
   @@index([status])
   @@index([openedAt])
   @@map("andon_calls")
