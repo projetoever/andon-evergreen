@@ -19,6 +19,8 @@ export function getAndonStatusLabel(status: AndonStatus): string {
       return "Acompanhamento";
     case "finished":
       return "Finalizado";
+    case "cancelled":
+      return "Cancelado";
   }
 }
 
@@ -75,6 +77,8 @@ export function getStatusColorClass(status: MachineStatus | AndonStatus): string
       return "bg-info text-info-foreground";
     case "finished":
       return "bg-success text-success-foreground";
+    case "cancelled":
+      return "bg-muted text-muted-foreground";
     default:
       return "bg-muted text-muted-foreground";
   }
