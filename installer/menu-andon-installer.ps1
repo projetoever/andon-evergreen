@@ -5,6 +5,7 @@ $ProjectPath = "$BasePath\andon"
 $ToolsPath = "$BasePath\andon-tools"
 $InstallerPath = "$BasePath\installer"
 $LogsPath = "$ProjectPath\logs"
+$ConfigPath = "$BasePath\andon-config.json"
 
 $InstallScript = "$InstallerPath\install-andon-server.ps1"
 $UpdateScript = "$InstallerPath\update-andon-server.ps1"
@@ -324,6 +325,7 @@ do {
         }
     }
 } while ($option -ne "0")
+
 
 
 
