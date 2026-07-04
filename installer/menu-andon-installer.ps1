@@ -195,8 +195,34 @@ function Show-EnvironmentStatus {
     }
 
     Write-Host ""
-    Write-Host "Portas oficiais:"
-    foreach ($port in @(3001, 8080, 5432)) {
+    Write-Host ""
+    $postgresPort = 5432
+    $postgresHost = "127.0.0.1"
+
+    if (Test-Path $ConfigPath) {
+        try {
+            $andonConfig = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+
+            if ($andonConfig.postgresPort) {
+                $postgresPort = [int]$andonConfig.postgresPort
+            }
+
+            if ($andonConfig.postgresHost) {
+                $postgresHost = "$($andonConfig.postgresHost)"
+            }
+        } catch {
+            Write-Host "[AVISO] Falha ao ler andon-config.json. Usando PostgreSQL 127.0.0.1:5432" -ForegroundColor Yellow
+        }
+    }
+
+    Write-Host "Configuracao ANDON:"
+    Write-Host "API:        3001"
+    Write-Host "Frontend:   8080"
+    Write-Host "PostgreSQL: $postgresHost`:$postgresPort"
+
+    Write-Host ""
+    Write-Host "Portas oficiais/configuradas:"
+    foreach ($port in @(3001, 8080, $postgresPort)) {
         $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
         if ($connections) {
             Write-Host "[USO] Porta $port em uso" -ForegroundColor Yellow
@@ -204,7 +230,6 @@ function Show-EnvironmentStatus {
             Write-Host "[LIVRE] Porta $port livre" -ForegroundColor Green
         }
     }
-
     Write-Host ""
     Write-Host "Tarefas ANDON:"
     schtasks /Query | findstr ANDON
