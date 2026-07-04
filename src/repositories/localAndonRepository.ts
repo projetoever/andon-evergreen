@@ -10,6 +10,38 @@ import type { Machine } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
+type OpenCallMachineSetSnapshotParams = andonService.OpenAndonCallParams & {
+  machineSetId?: string | null;
+  machineSetCodeSnapshot?: string | null;
+  machineSetNameSnapshot?: string | null;
+  machineSetTypeSnapshot?: string | null;
+};
+
+function applyMachineSetSnapshotToLocalCall(
+  result: { machines: Machine[]; calls: AndonCall[]; call: AndonCall },
+  params: andonService.OpenAndonCallParams,
+) {
+  const snapshotParams = params as OpenCallMachineSetSnapshotParams;
+
+  if (!snapshotParams.machineSetId && !snapshotParams.machineSetNameSnapshot && !snapshotParams.machineSetCodeSnapshot) {
+    return result;
+  }
+
+  const patchedCall: AndonCall = {
+    ...result.call,
+    machineSetId: snapshotParams.machineSetId ?? null,
+    machineSetCodeSnapshot: snapshotParams.machineSetCodeSnapshot ?? null,
+    machineSetNameSnapshot: snapshotParams.machineSetNameSnapshot ?? null,
+    machineSetTypeSnapshot: snapshotParams.machineSetTypeSnapshot ?? null,
+  };
+
+  return {
+    ...result,
+    call: patchedCall,
+    calls: result.calls.map((call) => (call.id === patchedCall.id ? patchedCall : call)),
+  };
+}
+
 export class LocalAndonRepository implements AndonRepository {
   async loadSnapshot(): Promise<AndonSnapshot | null> {
     const machines = loadFromStorage<Machine[] | null>(LOCAL_STORAGE_KEYS.machines, null);
@@ -44,7 +76,7 @@ export class LocalAndonRepository implements AndonRepository {
   }
 
   async openCall(machines: Machine[], calls: AndonCall[], params: andonService.OpenAndonCallParams) {
-    return andonService.openAndonCall(machines, calls, params);
+    return applyMachineSetSnapshotToLocalCall(andonService.openAndonCall(machines, calls, params), params);
   }
 
   async attendCall(
