@@ -16,9 +16,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS "machine_sets_machineId_code_key" ON "machine_
 CREATE INDEX IF NOT EXISTS "machine_sets_machineId_idx" ON "machine_sets"("machineId");
 CREATE INDEX IF NOT EXISTS "machine_sets_type_idx" ON "machine_sets"("type");
 
-ALTER TABLE "machine_sets"
-ADD CONSTRAINT "machine_sets_machineId_fkey"
-FOREIGN KEY ("machineId") REFERENCES "machines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'machine_sets_machineId_fkey'
+  ) THEN
+    ALTER TABLE "machine_sets"
+    ADD CONSTRAINT "machine_sets_machineId_fkey"
+    FOREIGN KEY ("machineId") REFERENCES "machines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 ALTER TABLE "andon_calls" ADD COLUMN IF NOT EXISTS "machineSetId" TEXT;
 ALTER TABLE "andon_calls" ADD COLUMN IF NOT EXISTS "machineSetCodeSnapshot" TEXT;
@@ -27,6 +34,13 @@ ALTER TABLE "andon_calls" ADD COLUMN IF NOT EXISTS "machineSetTypeSnapshot" TEXT
 
 CREATE INDEX IF NOT EXISTS "andon_calls_machineSetId_idx" ON "andon_calls"("machineSetId");
 
-ALTER TABLE "andon_calls"
-ADD CONSTRAINT "andon_calls_machineSetId_fkey"
-FOREIGN KEY ("machineSetId") REFERENCES "machine_sets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'andon_calls_machineSetId_fkey'
+  ) THEN
+    ALTER TABLE "andon_calls"
+    ADD CONSTRAINT "andon_calls_machineSetId_fkey"
+    FOREIGN KEY ("machineSetId") REFERENCES "machine_sets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
