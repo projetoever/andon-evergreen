@@ -17,6 +17,12 @@ type OpenCallMachineSetSnapshotParams = andonService.OpenAndonCallParams & {
   machineSetTypeSnapshot?: string | null;
 };
 
+function appendAuditNote(currentNotes: string | null, note: string | null | undefined) {
+  if (!note?.trim()) return currentNotes;
+  const entry = `Cancelamento: ${note.trim()}`;
+  return currentNotes ? `${currentNotes}\n${entry}` : entry;
+}
+
 function applyMachineSetSnapshotToLocalCall(
   result: { machines: Machine[]; calls: AndonCall[]; call: AndonCall },
   params: andonService.OpenAndonCallParams,
@@ -124,7 +130,26 @@ export class LocalAndonRepository implements AndonRepository {
     calls: AndonCall[],
     params: andonService.CancelAndonCallParams,
   ) {
-    return andonService.cancelAndonCall(machines, calls, params);
+    const result = andonService.cancelAndonCall(machines, calls, params);
+    const cancelledSourceCall = calls.find((call) => call.id === params.callId);
+
+    if (!cancelledSourceCall) return result;
+
+    const now = new Date().toISOString();
+    const cancelledCall: AndonCall = {
+      ...cancelledSourceCall,
+      status: "cancelled",
+      finishedAt: now,
+      currentAttendanceStartedAt: null,
+      totalCallMinutes: andonService.normalizeAndonCall({ ...cancelledSourceCall, finishedAt: now }).totalCallMinutes,
+      notes: appendAuditNote(cancelledSourceCall.notes, params.reason),
+      updatedAt: now,
+    };
+
+    return {
+      machines: result.machines,
+      calls: [cancelledCall, ...result.calls],
+    };
   }
 
   async updateMachineStatus(
