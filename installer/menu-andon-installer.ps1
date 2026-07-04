@@ -9,6 +9,7 @@ $LogsPath = "$ProjectPath\logs"
 $InstallScript = "$InstallerPath\install-andon-server.ps1"
 $UpdateScript = "$InstallerPath\update-andon-server.ps1"
 $NetworkConfigScript = "$InstallerPath\configure-andon-network.ps1"
+$PostgresConfigScript = "$InstallerPath\configure-andon-postgres.ps1"
 $RepairScript = "$InstallerPath\repair-andon-server.ps1"
 $UninstallPreserveDbScript = "$InstallerPath\uninstall-andon-preserve-db.ps1"
 $UninstallCleanScript = "$InstallerPath\uninstall-andon-clean.ps1"
@@ -217,6 +218,7 @@ function Show-Menu {
     Write-Host "10 - Desinstalar preservando banco"
     Write-Host "11 - Desinstalacao limpa"
     Write-Host "12 - Configurar IP/rede do servidor"
+    Write-Host "13 - Configurar PostgreSQL/porta do banco"
     Write-Host "0  - Sair"
     Write-Host ""
 }
@@ -310,12 +312,19 @@ do {
                 -Description "Configurar IP/rede do servidor ANDON"
         }
 
+        "13" {
+            Invoke-AndonScript `
+                -ScriptPath $PostgresConfigScript `
+                -Description "Configurar PostgreSQL/porta do banco"
+        }
+
         default {
             Write-Host "Opcao invalida." -ForegroundColor Yellow
             Pause-Menu
         }
     }
 } while ($option -ne "0")
+
 
 
 
