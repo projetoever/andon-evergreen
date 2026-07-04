@@ -17,8 +17,6 @@ import {
 import {
   getAlertLevel,
   getCallSubtypeLabel,
-  getCriticalityColorClass,
-  getCriticalityLabel,
 } from "@/utils/statusUtils";
 
 interface MachineCardProps {
@@ -77,6 +75,8 @@ export function MachineCard({ machine }: MachineCardProps) {
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
+  const machineSetLabel = currentCall?.machineSetNameSnapshot || currentCall?.machineSetCodeSnapshot || null;
+  const machineSetMeta = currentCall?.machineSetTypeSnapshot || currentCall?.machineSetCodeSnapshot || null;
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
@@ -135,14 +135,18 @@ export function MachineCard({ machine }: MachineCardProps) {
               )}
               <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
             </div>
-            <div
-              className={
-                "w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold leading-none 2xl:text-xs " +
-                getCriticalityColorClass(currentCall.criticality)
-              }
-            >
-              Criticidade: {getCriticalityLabel(currentCall.criticality)}
-            </div>
+            {machineSetLabel && (
+              <div
+                className="flex w-fit max-w-full min-w-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary 2xl:text-xs"
+                title={`Conjunto: ${machineSetLabel}${machineSetMeta ? ` • ${machineSetMeta}` : ""}`}
+              >
+                <span className="shrink-0 text-muted-foreground">Conjunto:</span>
+                <span className="min-w-0 truncate">{machineSetLabel}</span>
+                {machineSetMeta && machineSetMeta !== machineSetLabel && (
+                  <span className="shrink-0 opacity-80">• {machineSetMeta}</span>
+                )}
+              </div>
+            )}
             {callElapsedLabel && callElapsedMinutes !== null && (
               <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
                 {callElapsedLabel}: <strong className="text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
