@@ -1,72 +1,27 @@
-﻿$ErrorActionPreference = "Stop"
+﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
 
-$CommonPath = Join-Path $PSScriptRoot "AndonInstaller.Common.ps1"
-
-if (!(Test-Path $CommonPath)) {
-    Write-Host "ERRO: biblioteca comum nao encontrada:" -ForegroundColor Red
-    Write-Host $CommonPath
-    exit 1
-}
-
-. $CommonPath
-
-Write-AndonHeader "ANDON - CONFIGURAR POSTGRESQL"
-
-Assert-AndonAdmin
-
-$config = Select-AndonPostgresConfig
-
-if (!$config) {
-    Write-AndonFail "Configuracao do PostgreSQL cancelada ou invalida."
-    exit 1
-}
-
-$networkConfig = Ensure-AndonNetworkConfig
-
-if (!(Write-AndonBackendEnv -NetworkConfig $networkConfig -PreserveExisting -ForceDatabaseUrl)) {
-    Write-AndonFail "Falha ao atualizar .env do backend."
-    exit 1
-}
-
-Write-AndonHeader "TESTE OPCIONAL DA CONEXAO DO BANCO ANDON"
-
-$psql = Get-AndonPsql
-
-if (!$psql) {
-    Write-AndonWarn "psql.exe nao encontrado. Nao foi possivel testar a conexao."
-} else {
-    $oldPassword = $env:PGPASSWORD
-    $env:PGPASSWORD = $Global:AndonDatabasePassword
-
-    try {
-        & $psql `
-            -h $config.postgresHost `
-            -p $config.postgresPort `
-            -U $config.databaseUser `
-            -d $config.databaseName `
-            -c "SELECT current_database(), current_user;"
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-AndonOk "Conexao com banco ANDON validada."
-        } else {
-            Write-AndonWarn "Nao foi possivel conectar no banco ANDON com usuario $($config.databaseUser)."
-            Write-AndonWarn "Isso e esperado se a instalacao limpa ainda nao preparou o banco/usuario."
-        }
-    } finally {
-        $env:PGPASSWORD = $oldPassword
+try {
+    Assert-AndonAdmin
+    $config = Import-AndonConfig
+    Write-AndonHeader "CONFIGURAR POSTGRESQL/PORTA DO BANCO"
+    Write-Host "Modo atual: $($config.databaseMode)"
+    Write-Host "PostgreSQL atual: $($config.postgresHost):$($config.postgresPort)"
+    Write-Host ""
+    Write-Host "1 - Manter modo atual e alterar apenas porta"
+    Write-Host "2 - Alterar para Docker recomendado"
+    Write-Host "3 - Alterar para PostgreSQL local"
+    Write-Host "0 - Cancelar"
+    Write-Host ""
+    $choice = Read-Host "Escolha uma opcao"
+    switch ($choice) {
+        "1" { $newPort = Read-AndonPort "Nova porta PostgreSQL" ([int]$config.postgresPort); $config.postgresHost = "127.0.0.1"; $config.postgresPort = [int]$newPort; Save-AndonConfig $config; $network = Ensure-AndonNetworkConfig; Write-AndonBackendEnv -Config $config -NetworkConfig $network }
+        "2" { Initialize-AndonDockerDatabase | Out-Null }
+        "3" { Initialize-AndonLocalDatabase | Out-Null }
+        "0" { Write-AndonWarn "Cancelado."; exit 0 }
+        default { throw "Opcao invalida." }
     }
-}
-
-Write-AndonHeader "CONFIGURACAO POSTGRESQL FINALIZADA"
-
-Write-Host "Arquivo global:" -ForegroundColor Green
-Write-Host $Global:AndonConfigPath
-Write-Host ""
-Write-Host ".env backend:" -ForegroundColor Green
-Write-Host "$Global:AndonProjectPath\server\.env"
-Write-Host ""
-Write-Host "PostgreSQL configurado em:" -ForegroundColor Green
-Write-Host "$($config.postgresHost):$($config.postgresPort)"
-Write-Host ""
-
-exit 0
+    Write-AndonOk "Configuracao de banco atualizada."
+    exit 0
+} catch { Write-AndonHeader "ERRO"; Write-AndonFail "$($_.Exception.Message)"; exit 1 }

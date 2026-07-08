@@ -1,373 +1,58 @@
-﻿$ErrorActionPreference = "Continue"
+﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
 
-$BasePath = "C:\web-andon-industrial"
-$ProjectPath = "$BasePath\andon"
-$ToolsPath = "$BasePath\andon-tools"
-$InstallerPath = "$BasePath\installer"
-$LogsPath = "$ProjectPath\logs"
-$ConfigPath = "$BasePath\andon-config.json"
-
-$InstallScript = "$InstallerPath\install-andon-server.ps1"
-$UpdateScript = "$InstallerPath\update-andon-server.ps1"
-$NetworkConfigScript = "$InstallerPath\configure-andon-network.ps1"
-$PostgresConfigScript = "$InstallerPath\configure-andon-postgres.ps1"
-$RepairScript = "$InstallerPath\repair-andon-server.ps1"
-$UninstallPreserveDbScript = "$InstallerPath\uninstall-andon-preserve-db.ps1"
-$UninstallCleanScript = "$InstallerPath\uninstall-andon-clean.ps1"
-
-$StartScript = "$ToolsPath\04-iniciar-servicos-andon.ps1"
-$StopScript = "$ToolsPath\01-parar-servicos-andon.ps1"
-$HealthScript = "$ToolsPath\05-verificar-saude-andon.ps1"
-$DisableStartupScript = "$ToolsPath\07-desativar-inicializacao-automatica-andon.ps1"
-$EnableStartupScript = "$ToolsPath\08-habilitar-inicializacao-automatica-andon.ps1"
-$RecreateTasksScript = "$ToolsPath\09-recriar-tarefas-automaticas-andon.ps1"
-
-function Ensure-BaseFolders {
-    New-Item -ItemType Directory -Force $BasePath | Out-Null
-    New-Item -ItemType Directory -Force $InstallerPath | Out-Null
-
-    if (Test-Path $ProjectPath) {
-        New-Item -ItemType Directory -Force $LogsPath | Out-Null
-    }
-}
-
-function Test-IsAdmin {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Write-Header {
-    Clear-Host
-    Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host "       ANDON WEB INDUSTRIAL - INSTALADOR" -ForegroundColor Cyan
-    Write-Host "==================================================" -ForegroundColor Cyan
+function Invoke-AndonMenuScript {
+    param([string]$ScriptPath, [string]$Description)
+    Write-AndonHeader $Description
+    if (!(Test-AndonAdmin)) { Write-AndonFail "Execute este menu como Administrador."; Read-Host "Pressione ENTER para voltar"; return }
+    if (!(Test-Path $ScriptPath)) { Write-AndonFail "Script nao encontrado: $ScriptPath"; Read-Host "Pressione ENTER para voltar"; return }
+    powershell.exe -ExecutionPolicy Bypass -NoProfile -File $ScriptPath
     Write-Host ""
-    Write-Host "Base oficial:        $BasePath"
-    Write-Host "Projeto/app:         $ProjectPath"
-    Write-Host "Ferramentas:         $ToolsPath"
-    Write-Host "Instalador:          $InstallerPath"
-    Write-Host ""
-}
-
-function Write-Section {
-    param([string]$Message)
-    Write-Host ""
-    Write-Host "---- $Message ----" -ForegroundColor Yellow
-}
-
-function Pause-Menu {
-    Write-Host ""
+    Write-Host "Codigo de saida: $LASTEXITCODE"
     Read-Host "Pressione ENTER para voltar ao menu"
 }
 
-function Invoke-AndonScript {
-    param(
-        [string]$ScriptPath,
-        [string]$Description,
-        [switch]$RequireConfirmation,
-        [string]$ConfirmationText = ""
-    )
-
-    Write-Section $Description
-
-    if (!(Test-IsAdmin)) {
-        Write-Host "ERRO: execute este menu como Administrador." -ForegroundColor Red
-        Pause-Menu
-        return
-    }
-
-    if (!(Test-Path $ScriptPath)) {
-        Write-Host "ERRO: script nao encontrado:" -ForegroundColor Red
-        Write-Host $ScriptPath
-        Pause-Menu
-        return
-    }
-
-    if ($RequireConfirmation) {
+function Show-AndonMenu {
+    do {
+        Clear-Host
+        Write-AndonHeader "ANDON WEB INDUSTRIAL - INSTALADOR V10.5.1"
+        Show-AndonStatus
+        Write-AndonHeader "MENU PRINCIPAL"
+        Write-Host "1  - Instalacao limpa com escolha Docker/local"
+        Write-Host "2  - Atualizar pela main preservando modo do banco"
+        Write-Host "3  - Reparar instalacao preservando modo do banco"
+        Write-Host "4  - Iniciar ANDON"
+        Write-Host "5  - Parar ANDON"
+        Write-Host "6  - Verificar saude"
+        Write-Host "7  - Recriar tarefas automaticas"
+        Write-Host "8  - Desativar inicializacao automatica"
+        Write-Host "9  - Habilitar inicializacao automatica"
+        Write-Host "10 - Desinstalar preservando banco"
+        Write-Host "11 - Desinstalacao limpa"
+        Write-Host "12 - Configurar IP/rede do servidor"
+        Write-Host "13 - Configurar PostgreSQL/porta do banco"
+        Write-Host "0  - Sair"
         Write-Host ""
-        Write-Host "ATENCAO: esta operacao exige confirmacao." -ForegroundColor Red
-        Write-Host $ConfirmationText -ForegroundColor Yellow
-        Write-Host ""
-        $confirm = Read-Host "Digite APAGAR para continuar"
-
-        if ($confirm -ne "APAGAR") {
-            Write-Host "Operacao cancelada pelo usuario." -ForegroundColor Yellow
-            Pause-Menu
-            return
+        $option = Read-Host "Escolha uma opcao"
+        switch ($option) {
+            "1" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\install-andon-server.ps1" "Instalacao limpa" }
+            "2" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\update-andon-server.ps1" "Atualizar pela main" }
+            "3" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\repair-andon-server.ps1" "Reparar instalacao" }
+            "4" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\start-andon.ps1" "Iniciar ANDON" }
+            "5" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\stop-andon.ps1" "Parar ANDON" }
+            "6" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\health-check-andon.ps1" "Verificar saude" }
+            "7" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\recreate-andon-tasks.ps1" "Recriar tarefas automaticas" }
+            "8" { foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) { Disable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null }; Write-AndonOk "Inicializacao automatica desativada."; Read-Host "Pressione ENTER para voltar" }
+            "9" { foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) { Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null }; Write-AndonOk "Inicializacao automatica habilitada."; Read-Host "Pressione ENTER para voltar" }
+            "10" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\uninstall-andon-preserve-db.ps1" "Desinstalar preservando banco" }
+            "11" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\uninstall-andon-clean.ps1" "Desinstalacao limpa" }
+            "12" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\configure-andon-network.ps1" "Configurar IP/rede" }
+            "13" { Invoke-AndonMenuScript "$Global:AndonInstallerPath\configure-andon-postgres.ps1" "Configurar PostgreSQL/porta" }
+            "0" { return }
+            default { Write-AndonFail "Opcao invalida."; Read-Host "Pressione ENTER para voltar" }
         }
-    }
-
-    Write-Host "Executando:" -ForegroundColor Cyan
-    Write-Host $ScriptPath
-    Write-Host ""
-
-    powershell.exe -ExecutionPolicy Bypass -NoProfile -File $ScriptPath
-
-    Write-Host ""
-    Write-Host "Codigo de saida: $LASTEXITCODE"
-    Pause-Menu
+    } while ($true)
 }
 
-function Show-EnvironmentStatus {
-    Write-Section "Status rapido do ambiente"
-
-    if (Test-IsAdmin) {
-        Write-Host "[OK] PowerShell como Administrador" -ForegroundColor Green
-    } else {
-        Write-Host "[FALHA] PowerShell nao esta como Administrador" -ForegroundColor Red
-    }
-
-    if (Test-Path $ProjectPath) {
-        Write-Host "[OK] Projeto encontrado: $ProjectPath" -ForegroundColor Green
-    } else {
-        Write-Host "[AVISO] Projeto ainda nao encontrado: $ProjectPath" -ForegroundColor Yellow
-    }
-
-    if (Test-Path $ToolsPath) {
-        Write-Host "[OK] Ferramentas encontradas: $ToolsPath" -ForegroundColor Green
-    } else {
-        Write-Host "[AVISO] Ferramentas ainda nao encontradas: $ToolsPath" -ForegroundColor Yellow
-    }
-
-    $git = Get-Command git -ErrorAction SilentlyContinue
-    if ($git) {
-        Write-Host "[OK] Git: $($git.Source)" -ForegroundColor Green
-    } else {
-        Write-Host "[FALHA] Git nao encontrado" -ForegroundColor Red
-    }
-
-    $node = Get-Command node -ErrorAction SilentlyContinue
-    if ($node) {
-        Write-Host "[OK] Node.js: $($node.Source)" -ForegroundColor Green
-    } else {
-        Write-Host "[FALHA] Node.js nao encontrado" -ForegroundColor Red
-    }
-
-    $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
-    if ($npmCmd) {
-        Write-Host "[OK] npm.cmd: $($npmCmd.Source)" -ForegroundColor Green
-    } else {
-        Write-Host "[FALHA] npm.cmd nao encontrado" -ForegroundColor Red
-    }
-
-    $psqlCandidate = Get-ChildItem `
-        -Path "C:\Program Files\PostgreSQL\*\bin\psql.exe" `
-        -ErrorAction SilentlyContinue |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1
-
-    if (!$psqlCandidate) {
-        $psqlCandidate = Get-ChildItem `
-            -Path "C:\Program Files\PostgreSQL\*\pgAdmin 4\runtime\psql.exe" `
-            -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-    }
-
-    if ($psqlCandidate) {
-        Write-Host "[OK] psql.exe: $($psqlCandidate.FullName)" -ForegroundColor Green
-    } else {
-        Write-Host "[AVISO] psql.exe nao encontrado no PostgreSQL/bin nem pgAdmin runtime" -ForegroundColor Yellow
-    }
-
-    $chromeCandidates = @(
-        "C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
-    )
-
-    $chromeFound = $false
-    foreach ($candidate in $chromeCandidates) {
-        if (Test-Path $candidate) {
-            Write-Host "[OK] Chrome: $candidate" -ForegroundColor Green
-            $chromeFound = $true
-            break
-        }
-    }
-
-    if (-not $chromeFound) {
-        $chromeCmd = Get-Command chrome.exe -ErrorAction SilentlyContinue
-        if ($chromeCmd) {
-            Write-Host "[OK] Chrome: $($chromeCmd.Source)" -ForegroundColor Green
-        } else {
-            Write-Host "[AVISO] Chrome nao encontrado. Kiosk pode nao funcionar." -ForegroundColor Yellow
-        }
-    }
-
-    Write-Host ""
-    Write-Host ""
-    $postgresPort = 5432
-    $postgresHost = "127.0.0.1"
-
-    if (Test-Path $ConfigPath) {
-        try {
-            $andonConfig = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-
-            if ($andonConfig.postgresPort) {
-                $postgresPort = [int]$andonConfig.postgresPort
-            }
-
-            if ($andonConfig.postgresHost) {
-                $postgresHost = "$($andonConfig.postgresHost)"
-            }
-        } catch {
-            Write-Host "[AVISO] Falha ao ler andon-config.json. Usando PostgreSQL 127.0.0.1:5432" -ForegroundColor Yellow
-        }
-    }
-
-    Write-Host "Configuracao ANDON:"
-    Write-Host "API:        3001"
-    Write-Host "Frontend:   8080"
-    Write-Host "PostgreSQL: $postgresHost`:$postgresPort"
-
-    Write-Host ""
-    Write-Host "Portas oficiais/configuradas:"
-    foreach ($port in @(3001, 8080, $postgresPort)) {
-        $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-        if ($connections) {
-            Write-Host "[USO] Porta $port em uso" -ForegroundColor Yellow
-        } else {
-            Write-Host "[LIVRE] Porta $port livre" -ForegroundColor Green
-        }
-    }
-    Write-Host ""
-    Write-Host "Tarefas ANDON:"
-    schtasks /Query | findstr ANDON
-}
-
-function Show-Menu {
-    Write-Header
-
-    Show-EnvironmentStatus
-
-    Write-Host ""
-    Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host " MENU PRINCIPAL" -ForegroundColor Cyan
-    Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "1  - Instalacao limpa"
-    Write-Host "2  - Atualizar pela main"
-    Write-Host "3  - Reparar instalacao"
-    Write-Host "4  - Iniciar ANDON"
-    Write-Host "5  - Parar ANDON"
-    Write-Host "6  - Verificar saude"
-    Write-Host "7  - Recriar tarefas automaticas"
-    Write-Host "8  - Desativar inicializacao automatica"
-    Write-Host "9  - Habilitar inicializacao automatica"
-    Write-Host "10 - Desinstalar preservando banco"
-    Write-Host "11 - Desinstalacao limpa"
-    Write-Host "12 - Configurar IP/rede do servidor"
-    Write-Host "13 - Configurar PostgreSQL/porta do banco"
-    Write-Host "0  - Sair"
-    Write-Host ""
-}
-
-Ensure-BaseFolders
-
-do {
-    Show-Menu
-    $option = Read-Host "Escolha uma opcao"
-
-    switch ($option) {
-        "1" {
-            Invoke-AndonScript `
-                -ScriptPath $InstallScript `
-                -Description "Instalacao limpa do ANDON Server" `
-                -RequireConfirmation `
-                -ConfirmationText "A instalacao limpa pode recriar banco e rodar seed inicial. Use apenas em ambiente novo ou apos backup confirmado."
-        }
-
-        "2" {
-            Invoke-AndonScript `
-                -ScriptPath $UpdateScript `
-                -Description "Atualizacao segura pela branch main"
-        }
-
-        "3" {
-            Invoke-AndonScript `
-                -ScriptPath $RepairScript `
-                -Description "Reparacao da instalacao"
-        }
-
-        "4" {
-            Invoke-AndonScript `
-                -ScriptPath $StartScript `
-                -Description "Iniciar ANDON"
-        }
-
-        "5" {
-            Invoke-AndonScript `
-                -ScriptPath $StopScript `
-                -Description "Parar ANDON"
-        }
-
-        "6" {
-            Invoke-AndonScript `
-                -ScriptPath $HealthScript `
-                -Description "Verificar saude do ANDON"
-        }
-
-        "7" {
-            Invoke-AndonScript `
-                -ScriptPath $RecreateTasksScript `
-                -Description "Recriar tarefas automaticas"
-        }
-
-        "8" {
-            Invoke-AndonScript `
-                -ScriptPath $DisableStartupScript `
-                -Description "Desativar inicializacao automatica"
-        }
-
-        "9" {
-            Invoke-AndonScript `
-                -ScriptPath $EnableStartupScript `
-                -Description "Habilitar inicializacao automatica"
-        }
-
-        "10" {
-            Invoke-AndonScript `
-                -ScriptPath $UninstallPreserveDbScript `
-                -Description "Desinstalacao preservando banco" `
-                -RequireConfirmation `
-                -ConfirmationText "Esta operacao remove o app, mas preserva PostgreSQL e andon_db."
-        }
-
-        "11" {
-            Invoke-AndonScript `
-                -ScriptPath $UninstallCleanScript `
-                -Description "Desinstalacao limpa" `
-                -RequireConfirmation `
-                -ConfirmationText "Esta operacao remove app, tarefas, firewall, banco andon_db e usuario andon. PostgreSQL nao sera removido."
-        }
-
-        "0" {
-            Write-Host "Saindo do instalador ANDON." -ForegroundColor Cyan
-        }
-
-        "12" {
-            Invoke-AndonScript `
-                -ScriptPath $NetworkConfigScript `
-                -Description "Configurar IP/rede do servidor ANDON"
-        }
-
-        "13" {
-            Invoke-AndonScript `
-                -ScriptPath $PostgresConfigScript `
-                -Description "Configurar PostgreSQL/porta do banco"
-        }
-
-        default {
-            Write-Host "Opcao invalida." -ForegroundColor Yellow
-            Pause-Menu
-        }
-    }
-} while ($option -ne "0")
-
-
-
-
-
-
-
-
+try { Assert-AndonAdmin; Initialize-AndonFolders; Show-AndonMenu } catch { Write-AndonHeader "ERRO"; Write-AndonFail "$($_.Exception.Message)"; Read-Host "Pressione ENTER para sair"; exit 1 }
