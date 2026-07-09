@@ -12,11 +12,10 @@ function normalizeDataMode(value: string | undefined): DataMode | null {
 /**
  * Modo padrão de dados do frontend.
  *
- * Nesta etapa o sistema continua frontend-only e LocalStorage-first. A variável
- * VITE_ANDON_DATA_MODE existe apenas para preparar a troca futura para uma API
- * Node.js local, sem ativar integrações remotas por padrão.
+ * A partir do instalador V10.6.1, o ANDON opera em modo API por padrão.
+ * O modo local permanece disponível apenas para testes controlados.
  */
-export const DEFAULT_DATA_MODE: DataMode = LOCAL_DATA_MODE;
+export const DEFAULT_DATA_MODE: DataMode = API_DATA_MODE;
 
 export const CONFIGURED_DATA_MODE: DataMode =
   normalizeDataMode(import.meta.env.VITE_ANDON_DATA_MODE) ?? DEFAULT_DATA_MODE;

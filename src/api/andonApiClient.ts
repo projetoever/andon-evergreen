@@ -13,10 +13,20 @@ export class AndonApiError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL = "http://localhost:3001";
+function resolveDefaultBaseUrl() {
+  const configured = import.meta.env.VITE_ANDON_API_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    const protocol = window.location.protocol || "http:";
+    return `${protocol}//${window.location.hostname}:3001`;
+  }
+
+  return "http://localhost:3001";
+}
 
 export const DEFAULT_ANDON_API_CLIENT_CONFIG: AndonApiClientConfig = {
-  baseUrl: import.meta.env.VITE_ANDON_API_BASE_URL?.trim() || DEFAULT_BASE_URL,
+  baseUrl: resolveDefaultBaseUrl(),
   timeoutMs: 10_000,
 };
 

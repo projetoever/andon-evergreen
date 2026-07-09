@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-title ANDON WEB INDUSTRIAL - MENU V10.5.1
+title ANDON WEB INDUSTRIAL - MENU V10.6.1
 set "MENU=C:\web-andon-industrial\installer\menu-andon-installer.ps1"
 if not exist "%MENU%" (
   echo ERRO: menu do ANDON nao encontrado:
