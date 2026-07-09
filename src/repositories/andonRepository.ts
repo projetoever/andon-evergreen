@@ -15,6 +15,8 @@ export interface AndonSnapshot {
   calls: AndonCall[];
   settings: AppSettings;
   soundConfigs: SoundConfig[];
+  serverTimestampIso?: string;
+  serverTimeOffsetMs?: number;
 }
 
 export interface AndonRepositoryResult {
