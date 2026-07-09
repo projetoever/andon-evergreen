@@ -1,5 +1,6 @@
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
+import { getServerNowIso } from "./serverClock";
 
 export function diffMinutes(a: string | null | undefined, b: string | null | undefined): number {
   if (!a || !b) return 0;
@@ -9,35 +10,35 @@ export function diffMinutes(a: string | null | undefined, b: string | null | und
 }
 
 export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): number {
-  const end = call.attendedAt ?? nowIso ?? new Date().toISOString();
+  const end = call.attendedAt ?? nowIso ?? getServerNowIso();
   return diffMinutes(call.openedAt, end);
 }
 
 export function calculateAttendanceMinutes(call: AndonCall, nowIso?: string): number {
   const accumulatedMinutes = call.attendanceMinutes ?? 0;
   if (call.currentAttendanceStartedAt) {
-    const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+    const end = call.finishedAt ?? nowIso ?? getServerNowIso();
     return accumulatedMinutes + diffMinutes(call.currentAttendanceStartedAt, end);
   }
   if (accumulatedMinutes > 0 || call.maintenanceCompletedAt || call.finishedAt) {
     return accumulatedMinutes;
   }
   if (!call.attendedAt) return 0;
-  const end = nowIso ?? new Date().toISOString();
+  const end = nowIso ?? getServerNowIso();
   return diffMinutes(call.attendedAt, end);
 }
 
 export function calculatePostMaintenanceMinutes(call: AndonCall, nowIso?: string): number {
   const accumulatedMinutes = call.postMaintenanceMinutes ?? 0;
   if (call.maintenanceCompletedAt && call.status === "post_maintenance") {
-    const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+    const end = call.finishedAt ?? nowIso ?? getServerNowIso();
     return accumulatedMinutes + diffMinutes(call.maintenanceCompletedAt, end);
   }
   return accumulatedMinutes;
 }
 
 export function calculateTotalCallMinutes(call: AndonCall, nowIso?: string): number {
-  const end = call.finishedAt ?? nowIso ?? new Date().toISOString();
+  const end = call.finishedAt ?? nowIso ?? getServerNowIso();
   return diffMinutes(call.openedAt, end);
 }
 
@@ -51,7 +52,7 @@ export function getActiveMachineStoppedAt(machine: Machine): string | null {
 export function calculateMachineStoppedMinutes(machine: Machine, nowIso?: string): number {
   const stoppedAt = getActiveMachineStoppedAt(machine);
   if (!stoppedAt) return 0;
-  const end = nowIso ?? new Date().toISOString();
+  const end = nowIso ?? getServerNowIso();
   return diffMinutes(stoppedAt, end);
 }
 
