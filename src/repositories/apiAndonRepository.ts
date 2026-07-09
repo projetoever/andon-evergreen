@@ -12,7 +12,25 @@ import type {
   StartAttendanceParams,
 } from "@/services/andonService";
 import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
+import {
+  getLastServerTimestampIso,
+  getServerNowIso,
+  getServerTimeOffsetMs,
+  setServerClockFromTimestamp,
+} from "@/utils/serverClock";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
+
+type ApiHealth = {
+  status: string;
+  service: string;
+  timestamp: string;
+};
+
+type ServerClockSnapshot = {
+  nowIso: string;
+  timestampIso?: string;
+  timeOffsetMs: number;
+};
 
 type ApiProductionEvent = {
   id: string;
@@ -54,7 +72,7 @@ type ApiAndonCall = AndonCall & {
   technicianTimeAllocations?: ApiTechnicianTimeAllocation[];
 };
 
-function toIso(value: unknown, fallback = new Date().toISOString()) {
+function toIso(value: unknown, fallback = getServerNowIso()) {
   if (typeof value === "string") return value;
   if (value instanceof Date) return value.toISOString();
   return fallback;
@@ -103,19 +121,18 @@ function mapProductionEvent(event: ApiProductionEvent): MachineProductionEvent {
   };
 }
 
-function calculateCallDurations(call: ApiAndonCall) {
-  const now = new Date().toISOString();
-  const openedAt = toIso(call.openedAt, now);
+function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) {
+  const openedAt = toIso(call.openedAt, nowIso);
   const attendedAt = call.attendedAt ? toIso(call.attendedAt) : null;
   const maintenanceCompletedAt = call.maintenanceCompletedAt ? toIso(call.maintenanceCompletedAt) : null;
   const finishedAt = call.finishedAt ? toIso(call.finishedAt) : null;
-  const activeEnd = finishedAt ?? now;
-  const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? now : null);
-  const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? now : null);
+  const activeEnd = finishedAt ?? nowIso;
+  const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? nowIso : null);
+  const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? nowIso : null);
   const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
 
   return {
-    callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, now),
+    callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, nowIso),
     attendanceMinutes: attendedAt && attendanceEnd ? diffMinutes(attendedAt, attendanceEnd) : (call.attendanceMinutes ?? 0),
     postMaintenanceMinutes:
       maintenanceCompletedAt && postMaintenanceEnd
@@ -126,8 +143,7 @@ function calculateCallDurations(call: ApiAndonCall) {
   };
 }
 
-function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): Machine {
-  const now = new Date().toISOString();
+function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = [], nowIso = getServerNowIso()): Machine {
   const sortedStopHistory = [...stopHistory].sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
   const sortedProductionHistory = [
     ...(machine.productionHistory ?? []),
@@ -135,7 +151,7 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): 
   ].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   const openStop = sortedStopHistory.find((event) => !event.resumedAt);
   const activeStoppedAt = machine.machineStatus === "stopped"
-    ? openStop?.stoppedAt ?? machine.stoppedAt ?? toIso(machine.lastStatusChangedAt, now)
+    ? openStop?.stoppedAt ?? machine.stoppedAt ?? toIso(machine.lastStatusChangedAt, nowIso)
     : null;
   return normalizeMachine({
     id: machine.id,
@@ -143,16 +159,16 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = []): 
     machineStatus: machine.machineStatus ?? "running",
     andonStatus: machine.andonStatus === "normal" ? "none" : (machine.andonStatus ?? "none"),
     currentCallId: machine.currentCallId ?? null,
-    lastStatusChangedAt: toIso(machine.lastStatusChangedAt, now),
+    lastStatusChangedAt: toIso(machine.lastStatusChangedAt, nowIso),
     stoppedAt: activeStoppedAt,
     lastStopDurationMinutes:
       machine.lastStopDurationMinutes ??
-      (openStop ? diffMinutes(openStop.stoppedAt, now) : (sortedStopHistory[0]?.durationMinutes ?? 0)),
+      (openStop ? diffMinutes(openStop.stoppedAt, nowIso) : (sortedStopHistory[0]?.durationMinutes ?? 0)),
     stopHistory: sortedStopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
     isActive: machine.isActive ?? true,
     displayOrder: machine.displayOrder ?? null,
-    productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, now),
+    productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, nowIso),
     useCommercialShift: machine.useCommercialShift ?? false,
     productionHistory: sortedProductionHistory,
   });
@@ -178,13 +194,13 @@ function mapTechnicianTimeAllocation(allocation: ApiTechnicianTimeAllocation): T
   };
 }
 
-function mapCall(call: ApiAndonCall): AndonCall {
-  const durations = calculateCallDurations(call);
+function mapCall(call: ApiAndonCall, nowIso = getServerNowIso()): AndonCall {
+  const durations = calculateCallDurations(call, nowIso);
 
   return normalizeAndonCall({
     ...call,
     ...durations,
-    openedAt: toIso(call.openedAt),
+    openedAt: toIso(call.openedAt, nowIso),
     attendedAt: call.attendedAt ? toIso(call.attendedAt) : null,
     currentAttendanceStartedAt: call.currentAttendanceStartedAt ? toIso(call.currentAttendanceStartedAt) : null,
     maintenanceCompletedAt: call.maintenanceCompletedAt ? toIso(call.maintenanceCompletedAt) : null,
@@ -200,18 +216,31 @@ function mapCall(call: ApiAndonCall): AndonCall {
       : [],
     notes: call.notes ?? null,
     createdBy: "kiosk",
-    updatedAt: toIso(call.updatedAt ?? call.createdAt),
+    updatedAt: toIso(call.updatedAt ?? call.createdAt, nowIso),
   });
 }
 
 export class ApiAndonRepository implements AndonRepository {
   constructor(private readonly apiClient: AndonApiClient = createAndonApiClient()) {}
 
+  private async loadServerClock(): Promise<ServerClockSnapshot> {
+    const clientStartedAtMs = Date.now();
+    const health = await this.apiClient.get<ApiHealth>("/health");
+    const clientEndedAtMs = Date.now();
+    const timeOffsetMs = setServerClockFromTimestamp(health.timestamp, clientStartedAtMs, clientEndedAtMs);
+
+    return {
+      nowIso: getServerNowIso(),
+      timestampIso: getLastServerTimestampIso() ?? health.timestamp,
+      timeOffsetMs,
+    };
+  }
+
   private async loadFailureEvents() {
     return this.apiClient.get<ApiFailureEvent[]>("/api/failure-events?limit=500");
   }
 
-  private async loadMachines() {
+  private async loadMachines(nowIso = getServerNowIso()) {
     const [machines, failureEvents] = await Promise.all([
       this.apiClient.get<ApiMachine[]>("/api/machines?includeInactive=true"),
       this.loadFailureEvents(),
@@ -222,21 +251,30 @@ export class ApiAndonRepository implements AndonRepository {
       history.push(event);
       stopHistoryByMachine.set(event.machineId, history);
     }
-    return machines.map((machine) => mapMachine(machine, stopHistoryByMachine.get(machine.id) ?? []));
+    return machines.map((machine) => mapMachine(machine, stopHistoryByMachine.get(machine.id) ?? [], nowIso));
   }
 
-  private async loadCalls(path = "/api/andon-calls") {
-    return (await this.apiClient.get<ApiAndonCall[]>(path)).map(mapCall);
+  private async loadCalls(path = "/api/andon-calls", nowIso = getServerNowIso()) {
+    return (await this.apiClient.get<ApiAndonCall[]>(path)).map((call) => mapCall(call, nowIso));
   }
 
   private async loadResult() {
-    const [machines, calls] = await Promise.all([this.loadMachines(), this.loadCalls()]);
+    const serverClock = await this.loadServerClock();
+    const [machines, calls] = await Promise.all([this.loadMachines(serverClock.nowIso), this.loadCalls("/api/andon-calls", serverClock.nowIso)]);
     return { machines, calls };
   }
 
   async loadSnapshot(): Promise<AndonSnapshot | null> {
-    const [machines, calls] = await Promise.all([this.loadMachines(), this.loadCalls()]);
-    return { machines, calls, settings: DEFAULT_SETTINGS, soundConfigs: SOUND_CONFIGS };
+    const serverClock = await this.loadServerClock();
+    const [machines, calls] = await Promise.all([this.loadMachines(serverClock.nowIso), this.loadCalls("/api/andon-calls", serverClock.nowIso)]);
+    return {
+      machines,
+      calls,
+      settings: DEFAULT_SETTINGS,
+      soundConfigs: SOUND_CONFIGS,
+      serverTimestampIso: serverClock.timestampIso,
+      serverTimeOffsetMs: serverClock.timeOffsetMs,
+    };
   }
 
   async saveSnapshot(_snapshot: AndonSnapshot): Promise<void> {
@@ -300,6 +338,9 @@ export class ApiAndonRepository implements AndonRepository {
 
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
+      rootCause: params.rootCause,
+      actionTaken: params.actionTaken,
+      finishedBy: params.finishedBy,
       notes: params.notes,
     });
     return this.loadResult();
