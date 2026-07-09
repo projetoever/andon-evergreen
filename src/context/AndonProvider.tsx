@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -20,6 +21,16 @@ import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { andonRepository } from "@/repositories/selectedAndonRepository";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { setSoundVolume, stopAllSounds, stopAndonSound } from "@/services/soundService";
+import { setServerTimeOffsetMs } from "@/utils/serverClock";
+
+const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
+const MIN_API_SYNC_INTERVAL_MS = 500;
+
+function getApiSyncIntervalMs() {
+  const configured = Number(import.meta.env.VITE_ANDON_SYNC_INTERVAL_MS);
+  if (Number.isFinite(configured) && configured >= MIN_API_SYNC_INTERVAL_MS) return configured;
+  return DEFAULT_API_SYNC_INTERVAL_MS;
+}
 
 interface AndonContextValue {
   machines: Machine[];
@@ -27,6 +38,7 @@ interface AndonContextValue {
   settings: AppSettings;
   soundConfigs: SoundConfig[];
   audioUnlocked: boolean;
+  serverTimeOffsetMs: number;
   setAudioUnlocked: (unlocked: boolean) => void;
   openCall: (params: andonService.OpenAndonCallParams) => AndonCall;
   attendCall: (params: string | andonService.StartAttendanceParams) => void;
@@ -62,35 +74,87 @@ const AndonContext = createContext<AndonContextValue | null>(null);
 
 export function AndonProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<Machine[]>(() =>
-    loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, createInitialMachines()).map(
-      andonService.normalizeMachine,
-    ),
+    CONFIGURED_DATA_MODE === "api"
+      ? []
+      : loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, createInitialMachines()).map(
+        andonService.normalizeMachine,
+      ),
   );
   const [calls, setCalls] = useState<AndonCall[]>(() =>
-    loadFromStorage<AndonCall[]>(LOCAL_STORAGE_KEYS.calls, []).map(andonService.normalizeAndonCall),
+    CONFIGURED_DATA_MODE === "api"
+      ? []
+      : loadFromStorage<AndonCall[]>(LOCAL_STORAGE_KEYS.calls, []).map(andonService.normalizeAndonCall),
   );
   const [settings, setSettings] = useState<AppSettings>(() =>
-    loadFromStorage<AppSettings>(LOCAL_STORAGE_KEYS.settings, DEFAULT_SETTINGS),
+    CONFIGURED_DATA_MODE === "api"
+      ? DEFAULT_SETTINGS
+      : loadFromStorage<AppSettings>(LOCAL_STORAGE_KEYS.settings, DEFAULT_SETTINGS),
   );
   const [soundConfigs, setSoundConfigs] = useState<SoundConfig[]>(() =>
-    loadFromStorage<SoundConfig[]>(LOCAL_STORAGE_KEYS.soundConfigs, SOUND_CONFIGS),
+    CONFIGURED_DATA_MODE === "api"
+      ? SOUND_CONFIGS
+      : loadFromStorage<SoundConfig[]>(LOCAL_STORAGE_KEYS.soundConfigs, SOUND_CONFIGS),
   );
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [serverTimeOffsetStateMs, setServerTimeOffsetStateMs] = useState(0);
+  const apiSyncInFlightRef = useRef(false);
 
   const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
 
   useEffect(() => {
     if (isLocalDataMode) return;
 
-    void andonRepository.loadSnapshot().then((snapshot) => {
-      if (!snapshot) return;
-      setMachines(snapshot.machines.map(andonService.normalizeMachine));
-      setCalls(snapshot.calls.map(andonService.normalizeAndonCall));
-      setSettings(snapshot.settings);
-      setSoundConfigs(snapshot.soundConfigs);
-    }).catch((error) => {
-      console.error(error instanceof Error ? error.message : "Falha ao carregar dados da API ANDON.");
-    });
+    let disposed = false;
+    const syncIntervalMs = getApiSyncIntervalMs();
+
+    async function syncSnapshot(reason: "initial" | "poll" | "online" | "visible") {
+      if (apiSyncInFlightRef.current) return;
+      apiSyncInFlightRef.current = true;
+
+      try {
+        const snapshot = await andonRepository.loadSnapshot();
+        if (!snapshot || disposed) return;
+
+        setMachines(snapshot.machines.map(andonService.normalizeMachine));
+        setCalls(snapshot.calls.map(andonService.normalizeAndonCall));
+        setSettings(snapshot.settings);
+        setSoundConfigs(snapshot.soundConfigs);
+
+        if (typeof snapshot.serverTimeOffsetMs === "number" && Number.isFinite(snapshot.serverTimeOffsetMs)) {
+          setServerTimeOffsetMs(snapshot.serverTimeOffsetMs);
+          setServerTimeOffsetStateMs(snapshot.serverTimeOffsetMs);
+        }
+      } catch (error) {
+        console.error(
+          error instanceof Error
+            ? `[${reason}] ${error.message}`
+            : "Falha ao sincronizar dados da API ANDON.",
+        );
+      } finally {
+        apiSyncInFlightRef.current = false;
+      }
+    }
+
+    void syncSnapshot("initial");
+
+    const intervalId = window.setInterval(() => {
+      void syncSnapshot("poll");
+    }, syncIntervalMs);
+
+    const handleOnline = () => void syncSnapshot("online");
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void syncSnapshot("visible");
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [isLocalDataMode]);
 
   // Persistência automática local
@@ -307,6 +371,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     setCalls([]);
     setSettings(DEFAULT_SETTINGS);
     setSoundConfigs(SOUND_CONFIGS);
+    setServerTimeOffsetMs(0);
+    setServerTimeOffsetStateMs(0);
     stopAllSounds();
   }, []);
 
@@ -332,6 +398,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       settings,
       soundConfigs,
       audioUnlocked,
+      serverTimeOffsetMs: serverTimeOffsetStateMs,
       setAudioUnlocked,
       openCall,
       attendCall,
@@ -358,6 +425,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       settings,
       soundConfigs,
       audioUnlocked,
+      serverTimeOffsetStateMs,
       openCall,
       attendCall,
       addTechnicianSessions,
