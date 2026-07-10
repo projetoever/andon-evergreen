@@ -8,6 +8,7 @@ import { registerFailureClassificationRoutes } from "./routes/failureClassificat
 import { registerFailureEventRoutes } from "./routes/failureEvents.js";
 import { registerHealthDbRoute } from "./routes/healthDb.js";
 import { registerMachineRoutes } from "./routes/machines.js";
+import { registerMachineCatalogRoutes } from "./routes/machineCatalogs.js";
 import { registerMachineSetRoutes } from "./routes/machineSets.js";
 import { registerShiftRoutes } from "./routes/shifts.js";
 import { registerTechnicianRoutes } from "./routes/technicians.js";
@@ -42,6 +43,7 @@ export function buildServer() {
 
   void registerHealthDbRoute(app);
   void registerMachineRoutes(app);
+  void registerMachineCatalogRoutes(app);
   void registerMachineSetRoutes(app);
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
