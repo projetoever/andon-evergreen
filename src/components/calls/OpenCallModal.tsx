@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,22 +38,46 @@ export function OpenCallModal({
   const [machineSets, setMachineSets] = useState<MachineSet[]>([]);
   const [machineSetId, setMachineSetId] = useState<string | null>(null);
   const [isLoadingMachineSets, setIsLoadingMachineSets] = useState(false);
+  const machinesRef = useRef(machines);
+  const wasOpenRef = useRef(false);
+  const initializedMachineIdRef = useRef<string | null>(preselectedMachineId ?? null);
+  const machineConditionTouchedRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      setMachineId(preselectedMachineId ?? null);
-      setSubtype(null);
-      setMachineSetId(null);
-      setMachineSets([]);
-      const selectedMachine = machines.find((m) => m.id === preselectedMachineId);
-      setMachineCondition(selectedMachine?.machineStatus ?? "running");
+    machinesRef.current = machines;
+  }, [machines]);
+
+  useEffect(() => {
+    if (!open) {
+      wasOpenRef.current = false;
+      initializedMachineIdRef.current = preselectedMachineId ?? null;
+      machineConditionTouchedRef.current = false;
+      return;
     }
-  }, [open, preselectedMachineId, machines]);
+
+    const nextMachineId = preselectedMachineId ?? null;
+    const shouldInitialize =
+      !wasOpenRef.current || initializedMachineIdRef.current !== nextMachineId;
+
+    if (!shouldInitialize) return;
+
+    wasOpenRef.current = true;
+    initializedMachineIdRef.current = nextMachineId;
+    machineConditionTouchedRef.current = false;
+    setMachineId(nextMachineId);
+    setSubtype(null);
+    setMachineSetId(null);
+    setMachineSets([]);
+
+    const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
+    setMachineCondition(selectedMachine?.machineStatus ?? "running");
+  }, [open, preselectedMachineId]);
 
   useEffect(() => {
-    if (!open || !machineId) return;
+    if (!open || !machineId || machineConditionTouchedRef.current) return;
     const selectedMachine = machines.find((m) => m.id === machineId);
-    setMachineCondition(selectedMachine?.machineStatus ?? "running");
+    if (!selectedMachine) return;
+    setMachineCondition(selectedMachine.machineStatus);
   }, [open, machineId, machines]);
 
   useEffect(() => {
@@ -89,6 +113,21 @@ export function OpenCallModal({
       isCurrent = false;
     };
   }, [open, machineId]);
+
+  function handleSelectMachine(nextMachineId: string) {
+    setMachineId(nextMachineId);
+    setMachineSetId(null);
+    setMachineSets([]);
+    machineConditionTouchedRef.current = false;
+
+    const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
+    setMachineCondition(selectedMachine?.machineStatus ?? "running");
+  }
+
+  function handleSelectMachineCondition(condition: MachineStatus) {
+    machineConditionTouchedRef.current = true;
+    setMachineCondition(condition);
+  }
 
   const selectableMachines = machines.filter((m) => m.andonStatus === "none");
   const selectedMachineSet = useMemo(
@@ -154,7 +193,7 @@ export function OpenCallModal({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => setMachineId(m.id)}
+                    onClick={() => handleSelectMachine(m.id)}
                     className={
                       "min-h-[64px] rounded-xl border-2 text-2xl font-black transition-all " +
                       (machineId === m.id
@@ -231,7 +270,7 @@ export function OpenCallModal({
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setMachineCondition(option.value)}
+                onClick={() => handleSelectMachineCondition(option.value)}
                 className={cn(
                   "min-h-[72px] rounded-xl border-2 p-4 text-xl font-black uppercase tracking-wider transition-all hover:scale-[1.01]",
                   machineCondition === option.value
