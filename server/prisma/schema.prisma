@@ -30,24 +30,86 @@ model Machine {
   @@map("machines")
 }
 
+model MachineSetType {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  name         String
+  description  String?
+  isActive     Boolean      @default(true)
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  machineSets  MachineSet[]
+
+  @@index([isActive])
+  @@index([displayOrder])
+  @@map("machine_set_types")
+}
+
+model MachineSubsetType {
+  id             String          @id @default(cuid())
+  code           String          @unique
+  name           String
+  description    String?
+  isActive       Boolean         @default(true)
+  displayOrder   Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  machineSubsets MachineSubset[]
+
+  @@index([isActive])
+  @@index([displayOrder])
+  @@map("machine_subset_types")
+}
+
 model MachineSet {
-  id           String      @id @default(cuid())
+  id           String          @id @default(cuid())
   machineId    String
-  machine      Machine     @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  machine      Machine         @relation(fields: [machineId], references: [id], onDelete: Restrict)
   code         String
   name         String
   type         String?
+  typeId       String?
+  setType      MachineSetType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
   description  String?
-  isActive     Boolean     @default(true)
+  isActive     Boolean         @default(true)
   displayOrder Int?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
   andonCalls   AndonCall[]
+  subsets      MachineSubset[]
 
   @@unique([machineId, code])
   @@index([machineId])
   @@index([type])
+  @@index([typeId])
   @@map("machine_sets")
+}
+
+model MachineSubset {
+  id           String            @id @default(cuid())
+  machineSetId String
+  machineSet   MachineSet        @relation(fields: [machineSetId], references: [id], onDelete: Restrict)
+  typeId       String
+  subsetType   MachineSubsetType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  code         String
+  name         String
+  description  String?
+  manufacturer String?
+  model        String?
+  assetTag     String?
+  isActive     Boolean           @default(true)
+  displayOrder Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  andonCalls   AndonCall[]
+
+  @@unique([machineSetId, code])
+  @@index([machineSetId])
+  @@index([typeId])
+  @@index([assetTag])
+  @@index([isActive])
+  @@map("machine_subsets")
 }
 
 model AndonCall {
@@ -55,11 +117,16 @@ model AndonCall {
   machineId                   String
   machine                     Machine                     @relation("MachineAndonCalls", fields: [machineId], references: [id], onDelete: Restrict)
   currentForMachine           Machine?                    @relation("MachineCurrentCall")
-  machineSetId                String?
-  machineSet                  MachineSet?                 @relation(fields: [machineSetId], references: [id], onDelete: SetNull)
-  machineSetCodeSnapshot      String?
-  machineSetNameSnapshot      String?
-  machineSetTypeSnapshot      String?
+  machineSetId                 String?
+  machineSet                   MachineSet?    @relation(fields: [machineSetId], references: [id], onDelete: SetNull)
+  machineSetCodeSnapshot       String?
+  machineSetNameSnapshot       String?
+  machineSetTypeSnapshot       String?
+  machineSubsetId              String?
+  machineSubset                MachineSubset? @relation(fields: [machineSubsetId], references: [id], onDelete: SetNull)
+  machineSubsetCodeSnapshot    String?
+  machineSubsetNameSnapshot    String?
+  machineSubsetTypeSnapshot    String?
   category                    String
   subtype                     String?
   status                      String
@@ -95,6 +162,7 @@ model AndonCall {
 
   @@index([machineId])
   @@index([machineSetId])
+  @@index([machineSubsetId])
   @@index([status])
   @@index([openedAt])
   @@map("andon_calls")
