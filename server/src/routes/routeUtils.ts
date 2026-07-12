@@ -60,3 +60,10 @@ export function badRequest(reply: FastifyReply, message: string) {
     message,
   });
 }
+
+export function conflict(reply: FastifyReply, message: string) {
+  return reply.status(409).send({
+    error: "conflict",
+    message,
+  });
+}

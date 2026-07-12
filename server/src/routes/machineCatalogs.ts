@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
-import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
+import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
 
 type CatalogQuery = {
   includeInactive?: string;
@@ -223,6 +223,19 @@ export async function registerMachineCatalogRoutes(
 
       if (!nextCode) {
         return badRequest(reply, "Campo code é inválido");
+      }
+
+      if (nextCode !== current.code) {
+        const usageCount = await prisma.machineSet.count({
+          where: { typeId: request.params.id },
+        });
+
+        if (usageCount > 0) {
+          return conflict(
+            reply,
+            "O código do tipo de conjunto não pode ser alterado porque já está em uso",
+          );
+        }
       }
 
       const booleanError = invalidBoolean(
@@ -463,6 +476,19 @@ export async function registerMachineCatalogRoutes(
 
       if (!nextCode) {
         return badRequest(reply, "Campo code é inválido");
+      }
+
+      if (nextCode !== current.code) {
+        const usageCount = await prisma.machineSubset.count({
+          where: { typeId: request.params.id },
+        });
+
+        if (usageCount > 0) {
+          return conflict(
+            reply,
+            "O código do tipo de subconjunto não pode ser alterado porque já está em uso",
+          );
+        }
       }
 
       const booleanError = invalidBoolean(

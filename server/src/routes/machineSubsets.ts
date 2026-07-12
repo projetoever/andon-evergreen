@@ -12,28 +12,22 @@ import {
   parseBoolean,
 } from "./routeUtils.js";
 
-type MachineSetQuery = {
+type MachineSubsetQuery = {
   includeInactive?: string;
-  includeSubsets?: string;
 };
 
-type MachineSetBody = {
-  machineId?: unknown;
+type MachineSubsetBody = {
+  machineSetId?: unknown;
   code?: unknown;
   name?: unknown;
-  type?: unknown;
   typeId?: unknown;
   description?: unknown;
+  manufacturer?: unknown;
+  model?: unknown;
+  assetTag?: unknown;
   isActive?: unknown;
   displayOrder?: unknown;
 };
-
-const setTypeSelect = {
-  id: true,
-  code: true,
-  name: true,
-  isActive: true,
-} satisfies Prisma.MachineSetTypeSelect;
 
 const subsetTypeSelect = {
   id: true,
@@ -41,17 +35,6 @@ const subsetTypeSelect = {
   name: true,
   isActive: true,
 } satisfies Prisma.MachineSubsetTypeSelect;
-
-const machineSetOrderBy:
-  Prisma.MachineSetOrderByWithRelationInput[] = [
-    {
-      displayOrder: {
-        sort: "asc",
-        nulls: "last",
-      },
-    },
-    { name: "asc" },
-  ];
 
 const machineSubsetOrderBy:
   Prisma.MachineSubsetOrderByWithRelationInput[] = [
@@ -61,7 +44,9 @@ const machineSubsetOrderBy:
         nulls: "last",
       },
     },
-    { name: "asc" },
+    {
+      name: "asc",
+    },
   ];
 
 function requiredString(value: unknown) {
@@ -81,6 +66,16 @@ function optionalString(value: unknown) {
   }
 
   return value.trim() || null;
+}
+
+function normalizeCode(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function parseDisplayOrder(value: unknown) {
@@ -105,16 +100,6 @@ function parseDisplayOrder(value: unknown) {
   }
 
   return numeric;
-}
-
-function normalizeCode(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 function isPrismaError(
@@ -146,9 +131,10 @@ function validateBoolean(
   return null;
 }
 
-function validateDescription(
+function validateOptionalText(
   reply: FastifyReply,
   value: unknown,
+  fieldName: string,
 ) {
   if (
     value !== undefined &&
@@ -157,43 +143,47 @@ function validateDescription(
   ) {
     return badRequest(
       reply,
-      "Campo description deve ser texto ou null",
+      `Campo ${fieldName} deve ser texto ou null`,
     );
   }
 
   return null;
 }
 
-async function findActiveSetType(
-  typeId: string,
-) {
-  return prisma.machineSetType.findUnique({
-    where: { id: typeId },
-    select: setTypeSelect,
+async function findSubsetType(typeId: string) {
+  return prisma.machineSubsetType.findUnique({
+    where: {
+      id: typeId,
+    },
+    select: subsetTypeSelect,
   });
 }
 
-export async function registerMachineSetRoutes(
+export async function registerMachineSubsetRoutes(
   app: FastifyInstance,
 ) {
   app.get<{
-    Params: { machineId: string };
-    Querystring: MachineSetQuery;
+    Params: {
+      machineSetId: string;
+    };
+    Querystring: MachineSubsetQuery;
   }>(
-    "/api/machines/:machineId/sets",
+    "/api/machine-sets/:machineSetId/subsets",
     async (request, reply) => {
-      const machine =
-        await prisma.machine.findUnique({
+      const machineSet =
+        await prisma.machineSet.findUnique({
           where: {
-            id: request.params.machineId,
+            id: request.params.machineSetId,
           },
-          select: { id: true },
+          select: {
+            id: true,
+          },
         });
 
-      if (!machine) {
+      if (!machineSet) {
         return notFound(
           reply,
-          "Máquina não encontrada",
+          "Conjunto não encontrado",
         );
       }
 
@@ -202,135 +192,65 @@ export async function registerMachineSetRoutes(
           request.query.includeInactive,
         ) === true;
 
-      const includeSubsets =
-        request.query.includeSubsets;
-
-      if (
-        includeSubsets !== undefined &&
-        includeSubsets !== "count" &&
-        includeSubsets !== "list"
-      ) {
-        return badRequest(
-          reply,
-          "includeSubsets deve ser count ou list",
-        );
-      }
-
-      const where:
-        Prisma.MachineSetWhereInput = {
-          machineId: request.params.machineId,
+      return prisma.machineSubset.findMany({
+        where: {
+          machineSetId:
+            request.params.machineSetId,
           ...(includeInactive
             ? {}
-            : { isActive: true }),
-        };
-
-      if (includeSubsets === "list") {
-        return prisma.machineSet.findMany({
-          where,
-          orderBy: machineSetOrderBy,
-          include: {
-            setType: {
-              select: setTypeSelect,
-            },
-            subsets: {
-              where: includeInactive
-                ? undefined
-                : { isActive: true },
-              orderBy: machineSubsetOrderBy,
-              include: {
-                subsetType: {
-                  select: subsetTypeSelect,
-                },
-              },
-            },
+            : {
+                isActive: true,
+              }),
+        },
+        orderBy: machineSubsetOrderBy,
+        include: {
+          subsetType: {
+            select: subsetTypeSelect,
           },
-        });
-      }
-
-      const rows =
-        await prisma.machineSet.findMany({
-          where,
-          orderBy: machineSetOrderBy,
-          include: {
-            setType: {
-              select: setTypeSelect,
-            },
-          },
-        });
-
-      if (includeSubsets !== "count") {
-        return rows;
-      }
-
-      if (rows.length === 0) {
-        return [];
-      }
-
-      const counts =
-        await prisma.machineSubset.groupBy({
-          by: ["machineSetId"],
-          where: {
-            machineSetId: {
-              in: rows.map((row) => row.id),
-            },
-            ...(includeInactive
-              ? {}
-              : { isActive: true }),
-          },
-          _count: {
-            _all: true,
-          },
-        });
-
-      const countBySetId = new Map(
-        counts.map((item) => [
-          item.machineSetId,
-          item._count._all,
-        ]),
-      );
-
-      return rows.map((row) => ({
-        ...row,
-        subsetCount:
-          countBySetId.get(row.id) ?? 0,
-      }));
+        },
+      });
     },
   );
 
   app.post<{
-    Params: { machineId: string };
-    Body: MachineSetBody;
+    Params: {
+      machineSetId: string;
+    };
+    Body: MachineSubsetBody;
   }>(
-    "/api/machines/:machineId/sets",
+    "/api/machine-sets/:machineSetId/subsets",
     async (request, reply) => {
-      if (request.body?.type !== undefined) {
-        return badRequest(
-          reply,
-          "Campo type é legado. Envie typeId.",
-        );
-      }
-
       if (
-        request.body?.machineId !== undefined
+        request.body?.machineSetId !== undefined
       ) {
         return badRequest(
           reply,
-          "machineId deve ser informado apenas na URL",
+          "machineSetId deve ser informado apenas na URL",
         );
       }
 
-      const machine =
-        await prisma.machine.findUnique({
+      const machineSet =
+        await prisma.machineSet.findUnique({
           where: {
-            id: request.params.machineId,
+            id: request.params.machineSetId,
           },
-          select: { id: true },
+          select: {
+            id: true,
+            isActive: true,
+          },
         });
 
-      if (!machine) {
+      if (!machineSet) {
         return notFound(
           reply,
-          "Máquina não encontrada",
+          "Conjunto não encontrado",
+        );
+      }
+
+      if (!machineSet.isActive) {
+        return badRequest(
+          reply,
+          "Não é possível adicionar subconjunto a um conjunto inativo",
         );
       }
 
@@ -356,20 +276,20 @@ export async function registerMachineSetRoutes(
         );
       }
 
-      const setType =
-        await findActiveSetType(typeId);
+      const subsetType =
+        await findSubsetType(typeId);
 
-      if (!setType) {
+      if (!subsetType) {
         return notFound(
           reply,
-          "Tipo de conjunto não encontrado",
+          "Tipo de subconjunto não encontrado",
         );
       }
 
-      if (!setType.isActive) {
+      if (!subsetType.isActive) {
         return badRequest(
           reply,
-          "O tipo de conjunto está inativo",
+          "O tipo de subconjunto está inativo",
         );
       }
 
@@ -395,14 +315,36 @@ export async function registerMachineSetRoutes(
         return booleanError;
       }
 
-      const descriptionError =
-        validateDescription(
-          reply,
-          request.body?.description,
-        );
+      const optionalTextFields = [
+        {
+          name: "description",
+          value: request.body?.description,
+        },
+        {
+          name: "manufacturer",
+          value: request.body?.manufacturer,
+        },
+        {
+          name: "model",
+          value: request.body?.model,
+        },
+        {
+          name: "assetTag",
+          value: request.body?.assetTag,
+        },
+      ];
 
-      if (descriptionError) {
-        return descriptionError;
+      for (const field of optionalTextFields) {
+        const validationError =
+          validateOptionalText(
+            reply,
+            field.value,
+            field.name,
+          );
+
+        if (validationError) {
+          return validationError;
+        }
       }
 
       const displayOrder = parseDisplayOrder(
@@ -422,17 +364,28 @@ export async function registerMachineSetRoutes(
 
       try {
         const created =
-          await prisma.machineSet.create({
+          await prisma.machineSubset.create({
             data: {
-              machineId:
-                request.params.machineId,
+              machineSetId:
+                request.params.machineSetId,
+              typeId: subsetType.id,
               code,
               name,
-              typeId: setType.id,
-              type: setType.code,
               description:
                 optionalString(
                   request.body?.description,
+                ) ?? null,
+              manufacturer:
+                optionalString(
+                  request.body?.manufacturer,
+                ) ?? null,
+              model:
+                optionalString(
+                  request.body?.model,
+                ) ?? null,
+              assetTag:
+                optionalString(
+                  request.body?.assetTag,
                 ) ?? null,
               isActive:
                 parseBoolean(
@@ -442,8 +395,8 @@ export async function registerMachineSetRoutes(
                 displayOrder ?? null,
             },
             include: {
-              setType: {
-                select: setTypeSelect,
+              subsetType: {
+                select: subsetTypeSelect,
               },
             },
           });
@@ -455,7 +408,7 @@ export async function registerMachineSetRoutes(
         if (isPrismaError(error, "P2002")) {
           return conflict(
             reply,
-            "Já existe um conjunto com esse código para esta máquina",
+            "Já existe um subconjunto com esse código dentro deste conjunto",
           );
         }
 
@@ -465,35 +418,30 @@ export async function registerMachineSetRoutes(
   );
 
   app.patch<{
-    Params: { id: string };
-    Body: MachineSetBody;
+    Params: {
+      id: string;
+    };
+    Body: MachineSubsetBody;
   }>(
-    "/api/machine-sets/:id",
+    "/api/machine-subsets/:id",
     async (request, reply) => {
-      if (request.body?.type !== undefined) {
-        return badRequest(
-          reply,
-          "Campo type é legado. Envie typeId.",
-        );
-      }
-
       if (
-        request.body?.machineId !== undefined
+        request.body?.machineSetId !== undefined
       ) {
         return badRequest(
           reply,
-          "machineId não pode ser alterado",
+          "machineSetId não pode ser alterado",
         );
       }
 
       const current =
-        await prisma.machineSet.findUnique({
+        await prisma.machineSubset.findUnique({
           where: {
             id: request.params.id,
           },
           include: {
-            setType: {
-              select: setTypeSelect,
+            subsetType: {
+              select: subsetTypeSelect,
             },
           },
         });
@@ -501,7 +449,7 @@ export async function registerMachineSetRoutes(
       if (!current) {
         return notFound(
           reply,
-          "Conjunto não encontrado",
+          "Subconjunto não encontrado",
         );
       }
 
@@ -545,14 +493,36 @@ export async function registerMachineSetRoutes(
         return booleanError;
       }
 
-      const descriptionError =
-        validateDescription(
-          reply,
-          request.body?.description,
-        );
+      const optionalTextFields = [
+        {
+          name: "description",
+          value: request.body?.description,
+        },
+        {
+          name: "manufacturer",
+          value: request.body?.manufacturer,
+        },
+        {
+          name: "model",
+          value: request.body?.model,
+        },
+        {
+          name: "assetTag",
+          value: request.body?.assetTag,
+        },
+      ];
 
-      if (descriptionError) {
-        return descriptionError;
+      for (const field of optionalTextFields) {
+        const validationError =
+          validateOptionalText(
+            reply,
+            field.value,
+            field.name,
+          );
+
+        if (validationError) {
+          return validationError;
+        }
       }
 
       const parsedDisplayOrder =
@@ -572,7 +542,6 @@ export async function registerMachineSetRoutes(
       }
 
       let nextTypeId = current.typeId;
-      let nextType = current.type;
 
       if (
         request.body?.typeId !== undefined
@@ -589,27 +558,26 @@ export async function registerMachineSetRoutes(
           );
         }
 
-        const setType =
-          await findActiveSetType(
+        const subsetType =
+          await findSubsetType(
             requestedTypeId,
           );
 
-        if (!setType) {
+        if (!subsetType) {
           return notFound(
             reply,
-            "Tipo de conjunto não encontrado",
+            "Tipo de subconjunto não encontrado",
           );
         }
 
-        if (!setType.isActive) {
+        if (!subsetType.isActive) {
           return badRequest(
             reply,
-            "O tipo de conjunto está inativo",
+            "O tipo de subconjunto está inativo",
           );
         }
 
-        nextTypeId = setType.id;
-        nextType = setType.code;
+        nextTypeId = subsetType.id;
       }
 
       const nextDescription =
@@ -620,12 +588,41 @@ export async function registerMachineSetRoutes(
               request.body.description,
             );
 
+      const nextManufacturer =
+        request.body?.manufacturer ===
+        undefined
+          ? current.manufacturer
+          : optionalString(
+              request.body.manufacturer,
+            );
+
+      const nextModel =
+        request.body?.model === undefined
+          ? current.model
+          : optionalString(
+              request.body.model,
+            );
+
+      const nextAssetTag =
+        request.body?.assetTag === undefined
+          ? current.assetTag
+          : optionalString(
+              request.body.assetTag,
+            );
+
       const nextIsActive =
         request.body?.isActive === undefined
           ? current.isActive
           : parseBoolean(
               request.body.isActive,
             );
+
+      if (nextIsActive === undefined) {
+        return badRequest(
+          reply,
+          "Campo isActive deve ser true ou false",
+        );
+      }
 
       const nextDisplayOrder =
         request.body?.displayOrder ===
@@ -634,7 +631,7 @@ export async function registerMachineSetRoutes(
           : parsedDisplayOrder;
 
       try {
-        return await prisma.machineSet.update({
+        return await prisma.machineSubset.update({
           where: {
             id: request.params.id,
           },
@@ -642,15 +639,17 @@ export async function registerMachineSetRoutes(
             code: nextCode,
             name: nextName,
             typeId: nextTypeId,
-            type: nextType,
             description: nextDescription,
+            manufacturer: nextManufacturer,
+            model: nextModel,
+            assetTag: nextAssetTag,
             isActive: nextIsActive,
             displayOrder:
               nextDisplayOrder,
           },
           include: {
-            setType: {
-              select: setTypeSelect,
+            subsetType: {
+              select: subsetTypeSelect,
             },
           },
         });
@@ -658,7 +657,7 @@ export async function registerMachineSetRoutes(
         if (isPrismaError(error, "P2002")) {
           return conflict(
             reply,
-            "Já existe um conjunto com esse código para esta máquina",
+            "Já existe um subconjunto com esse código dentro deste conjunto",
           );
         }
 
@@ -668,18 +667,20 @@ export async function registerMachineSetRoutes(
   );
 
   app.delete<{
-    Params: { id: string };
+    Params: {
+      id: string;
+    };
   }>(
-    "/api/machine-sets/:id",
+    "/api/machine-subsets/:id",
     async (request, reply) => {
       const current =
-        await prisma.machineSet.findUnique({
+        await prisma.machineSubset.findUnique({
           where: {
             id: request.params.id,
           },
           include: {
-            setType: {
-              select: setTypeSelect,
+            subsetType: {
+              select: subsetTypeSelect,
             },
           },
         });
@@ -687,36 +688,21 @@ export async function registerMachineSetRoutes(
       if (!current) {
         return notFound(
           reply,
-          "Conjunto não encontrado",
-        );
-      }
-
-      const subsetCount =
-        await prisma.machineSubset.count({
-          where: {
-            machineSetId:
-              request.params.id,
-          },
-        });
-
-      if (subsetCount > 0) {
-        return conflict(
-          reply,
-          "O conjunto possui subconjuntos. Exclua ou inative os subconjuntos antes de tratar o conjunto.",
+          "Subconjunto não encontrado",
         );
       }
 
       const callCount =
         await prisma.andonCall.count({
           where: {
-            machineSetId:
+            machineSubsetId:
               request.params.id,
           },
         });
 
       if (callCount > 0) {
         const updated =
-          await prisma.machineSet.update({
+          await prisma.machineSubset.update({
             where: {
               id: request.params.id,
             },
@@ -724,8 +710,8 @@ export async function registerMachineSetRoutes(
               isActive: false,
             },
             include: {
-              setType: {
-                select: setTypeSelect,
+              subsetType: {
+                select: subsetTypeSelect,
               },
             },
           });
@@ -733,11 +719,11 @@ export async function registerMachineSetRoutes(
         return {
           deleted: false,
           inactivated: true,
-          set: updated,
+          subset: updated,
         };
       }
 
-      await prisma.machineSet.delete({
+      await prisma.machineSubset.delete({
         where: {
           id: request.params.id,
         },
