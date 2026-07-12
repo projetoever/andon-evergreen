@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BigButton } from "@/components/common/BigButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAndon } from "@/context/AndonProvider";
@@ -16,6 +16,7 @@ import type { AndonCategoryConfig, FailureClassificationConfig, SettingsTab, Shi
 import { toast } from "sonner";
 import { getFailureClassificationConfigs, saveFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import { MachineAdminPanel } from "./MachineAdminPanel";
+import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "sounds", label: "Sons do ANDON" },
@@ -23,6 +24,7 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "categories", label: "Categorias" },
   { id: "shifts", label: "Turnos" },
   { id: "classifications", label: "Classificações" },
+  { id: "assetCatalogs", label: "Catálogos de ativos" },
   { id: "machines", label: "Máquinas" },
 ];
 
@@ -72,6 +74,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         {tab === "categories" && <CategoriesTab />}
         {tab === "shifts" && <ShiftsTab />}
         {tab === "classifications" && <ClassificationsTab />}
+        {tab === "assetCatalogs" && <MachineAssetCatalogPanel />}
         {tab === "machines" && <MachineAdminPanel />}
 
         <div className="flex items-center justify-between border-t border-border pt-3">
@@ -113,13 +116,19 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
     setPreviewSoundId(null);
   }
 
-  async function refresh() {
-    const [list, config] = await Promise.all([listSoundConfigs(), getSoundConfig(machineId, subtype)]);
+  const refresh = useCallback(async () => {
+    const [list, config] = await Promise.all([
+      listSoundConfigs(),
+      getSoundConfig(machineId, subtype),
+    ]);
+
     setItems(list);
     setCurrentConfig(config);
-  }
+  }, [machineId, subtype]);
 
-  useEffect(() => { void refresh(); }, [machineId, subtype]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
   useEffect(() => { if (!isOpen || !isActive) stopPreview(); }, [isOpen, isActive]);
   useEffect(() => stopPreview, []);
 
@@ -193,7 +202,7 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
         <CardSection title={selectedId ? "Editar configuração de som" : "Nova configuração de som"}>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-sm font-semibold">Máquina<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={machineId} onChange={(e) => setMachineId(e.target.value)}><option value="default">Padrão para todas</option>{machines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-            <label className="text-sm font-semibold">Tipo de chamado<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={subtype} onChange={(e) => setSubtype(e.target.value as any)}>{CALL_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
+            <label className="text-sm font-semibold">Tipo de chamado<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={subtype} onChange={(e) => setSubtype(e.target.value as CallSubtype)}>{CALL_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-semibold">Arquivo de áudio</p>
