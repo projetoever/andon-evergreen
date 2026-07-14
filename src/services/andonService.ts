@@ -27,6 +27,14 @@ import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocation
 
 export interface OpenAndonCallParams {
   machineId: string;
+  machineSetId?: string;
+  machineSetCodeSnapshot?: string;
+  machineSetNameSnapshot?: string;
+  machineSetTypeSnapshot?: string;
+  machineSubsetId?: string;
+  machineSubsetCodeSnapshot?: string;
+  machineSubsetNameSnapshot?: string;
+  machineSubsetTypeSnapshot?: string;
   category: CallCategory;
   subtype: CallSubtype;
   criticality?: CallCriticality;
@@ -159,6 +167,38 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
 
   return {
     ...call,
+    machineSetId:
+      typeof source.machineSetId === "string"
+        ? source.machineSetId
+        : null,
+    machineSetCodeSnapshot:
+      typeof source.machineSetCodeSnapshot === "string"
+        ? source.machineSetCodeSnapshot
+        : null,
+    machineSetNameSnapshot:
+      typeof source.machineSetNameSnapshot === "string"
+        ? source.machineSetNameSnapshot
+        : null,
+    machineSetTypeSnapshot:
+      typeof source.machineSetTypeSnapshot === "string"
+        ? source.machineSetTypeSnapshot
+        : null,
+    machineSubsetId:
+      typeof source.machineSubsetId === "string"
+        ? source.machineSubsetId
+        : null,
+    machineSubsetCodeSnapshot:
+      typeof source.machineSubsetCodeSnapshot === "string"
+        ? source.machineSubsetCodeSnapshot
+        : null,
+    machineSubsetNameSnapshot:
+      typeof source.machineSubsetNameSnapshot === "string"
+        ? source.machineSubsetNameSnapshot
+        : null,
+    machineSubsetTypeSnapshot:
+      typeof source.machineSubsetTypeSnapshot === "string"
+        ? source.machineSubsetTypeSnapshot
+        : null,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
       source.machineCondition === "stopped" || source.machineCondition === "running"
@@ -167,7 +207,9 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     maintenanceCompletedAt,
     currentAttendanceStartedAt,
     technicianNames,
-    technicianSessions: Array.isArray((source as any).technicianSessions) ? ((source as any).technicianSessions as TechnicianAttendanceSession[]) : [],
+    technicianSessions: Array.isArray(source.technicianSessions)
+      ? (source.technicianSessions as TechnicianAttendanceSession[])
+      : [],
     technicianTimeAllocations: Array.isArray(source.technicianTimeAllocations)
       ? (source.technicianTimeAllocations as TechnicianTimeAllocation[])
       : [],
@@ -209,6 +251,21 @@ export function openAndonCall(
   const call: AndonCall = {
     id: generateId("call"),
     machineId: params.machineId,
+    machineSetId: params.machineSetId ?? null,
+    machineSetCodeSnapshot:
+      params.machineSetCodeSnapshot ?? null,
+    machineSetNameSnapshot:
+      params.machineSetNameSnapshot ?? null,
+    machineSetTypeSnapshot:
+      params.machineSetTypeSnapshot ?? null,
+    machineSubsetId:
+      params.machineSubsetId ?? null,
+    machineSubsetCodeSnapshot:
+      params.machineSubsetCodeSnapshot ?? null,
+    machineSubsetNameSnapshot:
+      params.machineSubsetNameSnapshot ?? null,
+    machineSubsetTypeSnapshot:
+      params.machineSubsetTypeSnapshot ?? null,
     category: params.category,
     subtype: params.subtype,
     status: "open",

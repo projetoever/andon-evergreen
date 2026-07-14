@@ -16,6 +16,7 @@ type AndonCallQuery = {
 type OpenAndonCallBody = {
   machineId?: unknown;
   machineSetId?: unknown;
+  machineSubsetId?: unknown;
   category?: unknown;
   subtype?: unknown;
   criticality?: unknown;
@@ -64,12 +65,23 @@ type MachineSetSnapshot = {
   type: string | null;
 };
 
-type CallMachineSetSnapshotRow = {
+type MachineSubsetSnapshot = {
+  id: string;
+  code: string;
+  name: string;
+  type: string | null;
+};
+
+type CallAssetSnapshotRow = {
   id: string;
   machineSetId: string | null;
   machineSetCodeSnapshot: string | null;
   machineSetNameSnapshot: string | null;
   machineSetTypeSnapshot: string | null;
+  machineSubsetId: string | null;
+  machineSubsetCodeSnapshot: string | null;
+  machineSubsetNameSnapshot: string | null;
+  machineSubsetTypeSnapshot: string | null;
 };
 
 const CALL_CATEGORIES = new Set(["maintenance", "production"]);
@@ -107,21 +119,29 @@ function appendNote(currentNotes: string | null, note: string | undefined, prefi
   return currentNotes ? `${currentNotes}\n${entry}` : entry;
 }
 
-function attachMachineSetSnapshot(call: unknown, snapshot: MachineSetSnapshot | null) {
+function attachAssetSnapshots(
+  call: unknown,
+  machineSet: MachineSetSnapshot | null,
+  machineSubset: MachineSubsetSnapshot | null,
+) {
   if (!call || typeof call !== "object") {
     return call;
   }
 
   return {
     ...call,
-    machineSetId: snapshot?.id ?? null,
-    machineSetCodeSnapshot: snapshot?.code ?? null,
-    machineSetNameSnapshot: snapshot?.name ?? null,
-    machineSetTypeSnapshot: snapshot?.type ?? null,
+    machineSetId: machineSet?.id ?? null,
+    machineSetCodeSnapshot: machineSet?.code ?? null,
+    machineSetNameSnapshot: machineSet?.name ?? null,
+    machineSetTypeSnapshot: machineSet?.type ?? null,
+    machineSubsetId: machineSubset?.id ?? null,
+    machineSubsetCodeSnapshot: machineSubset?.code ?? null,
+    machineSubsetNameSnapshot: machineSubset?.name ?? null,
+    machineSubsetTypeSnapshot: machineSubset?.type ?? null,
   };
 }
 
-async function enrichCallsWithMachineSetSnapshots(calls: unknown[]) {
+async function enrichCallsWithAssetSnapshots(calls: unknown[]) {
   const callIds = calls
     .map((call) => (call && typeof call === "object" && "id" in call ? String(call.id) : undefined))
     .filter((id): id is string => Boolean(id));
@@ -130,13 +150,17 @@ async function enrichCallsWithMachineSetSnapshots(calls: unknown[]) {
     return calls;
   }
 
-  const rows = await prisma.$queryRaw<CallMachineSetSnapshotRow[]>(Prisma.sql`
+  const rows = await prisma.$queryRaw<CallAssetSnapshotRow[]>(Prisma.sql`
     SELECT
       "id",
       "machineSetId",
       "machineSetCodeSnapshot",
       "machineSetNameSnapshot",
-      "machineSetTypeSnapshot"
+      "machineSetTypeSnapshot",
+      "machineSubsetId",
+      "machineSubsetCodeSnapshot",
+      "machineSubsetNameSnapshot",
+      "machineSubsetTypeSnapshot"
     FROM "andon_calls"
     WHERE "id" IN (${Prisma.join(callIds)})
   `);
@@ -155,6 +179,10 @@ async function enrichCallsWithMachineSetSnapshots(calls: unknown[]) {
       machineSetCodeSnapshot: snapshot?.machineSetCodeSnapshot ?? null,
       machineSetNameSnapshot: snapshot?.machineSetNameSnapshot ?? null,
       machineSetTypeSnapshot: snapshot?.machineSetTypeSnapshot ?? null,
+      machineSubsetId: snapshot?.machineSubsetId ?? null,
+      machineSubsetCodeSnapshot: snapshot?.machineSubsetCodeSnapshot ?? null,
+      machineSubsetNameSnapshot: snapshot?.machineSubsetNameSnapshot ?? null,
+      machineSubsetTypeSnapshot: snapshot?.machineSubsetTypeSnapshot ?? null,
     };
   });
 }
@@ -166,6 +194,29 @@ async function findActiveMachineSetForCall(machineId: string, machineSetId: stri
     WHERE "id" = ${machineSetId}
       AND "machineId" = ${machineId}
       AND "isActive" = true
+    LIMIT 1
+  `);
+
+  return rows[0] ?? null;
+}
+
+async function findActiveMachineSubsetForCall(
+  machineSetId: string,
+  machineSubsetId: string,
+) {
+  const rows = await prisma.$queryRaw<MachineSubsetSnapshot[]>(Prisma.sql`
+    SELECT
+      subset."id",
+      subset."code",
+      subset."name",
+      subset_type."code" AS "type"
+    FROM "machine_subsets" AS subset
+    INNER JOIN "machine_subset_types" AS subset_type
+      ON subset_type."id" = subset."typeId"
+    WHERE subset."id" = ${machineSubsetId}
+      AND subset."machineSetId" = ${machineSetId}
+      AND subset."isActive" = true
+      AND subset_type."isActive" = true
     LIMIT 1
   `);
 
@@ -287,7 +338,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       take: parseLimit(request.query.limit),
     });
 
-    return enrichCallsWithMachineSetSnapshots(calls);
+    return enrichCallsWithAssetSnapshots(calls);
   });
 
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls/history", async (request) => {
@@ -314,13 +365,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       take: parseLimit(request.query.limit),
     });
 
-    return enrichCallsWithMachineSetSnapshots(calls);
+    return enrichCallsWithAssetSnapshots(calls);
   });
 
   app.post<{ Body: OpenAndonCallBody }>("/api/andon-calls", async (request, reply) => {
     const body = request.body ?? {};
     const machineId = body.machineId === undefined ? undefined : String(body.machineId);
     const machineSetId = optionalString(body.machineSetId);
+    const machineSubsetId = optionalString(body.machineSubsetId);
     const category = optionalString(body.category);
     const subtype = optionalString(body.subtype);
     const criticality = optionalString(body.criticality) ?? "medium";
@@ -340,9 +392,37 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Já existe um chamado ativo para esta máquina");
     }
 
-    const machineSet = machineSetId ? await findActiveMachineSetForCall(machineId, machineSetId) : null;
+    if (machineSubsetId && !machineSetId) {
+      return badRequest(
+        reply,
+        "machineSetId é obrigatório quando machineSubsetId for informado",
+      );
+    }
+
+    const machineSet = machineSetId
+      ? await findActiveMachineSetForCall(machineId, machineSetId)
+      : null;
+
     if (machineSetId && !machineSet) {
-      return badRequest(reply, "Conjunto inválido ou inativo para esta máquina");
+      return badRequest(
+        reply,
+        "Conjunto inválido ou inativo para esta máquina",
+      );
+    }
+
+    const machineSubset =
+      machineSetId && machineSubsetId
+        ? await findActiveMachineSubsetForCall(
+            machineSetId,
+            machineSubsetId,
+          )
+        : null;
+
+    if (machineSubsetId && !machineSubset) {
+      return badRequest(
+        reply,
+        "Subconjunto inválido, inativo ou não pertence ao conjunto selecionado",
+      );
     }
 
     const now = new Date();
@@ -375,7 +455,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             "machineSetId" = ${machineSet.id},
             "machineSetCodeSnapshot" = ${machineSet.code},
             "machineSetNameSnapshot" = ${machineSet.name},
-            "machineSetTypeSnapshot" = ${machineSet.type}
+            "machineSetTypeSnapshot" = ${machineSet.type},
+            "machineSubsetId" = ${machineSubset?.id ?? null},
+            "machineSubsetCodeSnapshot" = ${machineSubset?.code ?? null},
+            "machineSubsetNameSnapshot" = ${machineSubset?.name ?? null},
+            "machineSubsetTypeSnapshot" = ${machineSubset?.type ?? null}
           WHERE "id" = ${createdCall.id}
         `);
       }
@@ -405,7 +489,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       });
 
       const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
-      return attachMachineSetSnapshot(createdCallWithSessions, machineSet);
+      return attachAssetSnapshots(
+        createdCallWithSessions,
+        machineSet,
+        machineSubset,
+      );
     });
 
     return reply.status(201).send(call);
@@ -505,7 +593,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return findCallWithSessions(tx, call.id);
     });
 
-    const [enrichedCall] = await enrichCallsWithMachineSetSnapshots(updatedCall ? [updatedCall] : []);
+    const [enrichedCall] = await enrichCallsWithAssetSnapshots(updatedCall ? [updatedCall] : []);
     return reply.send(enrichedCall ?? { id: call.id, machineId: call.machineId, status: "cancelled", reason, cancelledBy });
   });
 

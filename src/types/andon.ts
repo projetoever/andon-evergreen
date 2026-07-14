@@ -60,6 +60,10 @@ export interface AndonCall {
   machineSetCodeSnapshot?: string | null;
   machineSetNameSnapshot?: string | null;
   machineSetTypeSnapshot?: string | null;
+  machineSubsetId?: string | null;
+  machineSubsetCodeSnapshot?: string | null;
+  machineSubsetNameSnapshot?: string | null;
+  machineSubsetTypeSnapshot?: string | null;
   category: CallCategory;
   subtype: CallSubtype;
   status: AndonStatus;

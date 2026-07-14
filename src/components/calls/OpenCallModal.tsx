@@ -12,7 +12,7 @@ import { CALL_TYPE_OPTIONS, getCallTypeOption } from "@/data/callTypes";
 import type { CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
 import type { MachineSet } from "@/types/machineSet";
-import { createAndonApiClient } from "@/api/andonApiClient";
+import { listMachineSets } from "@/services/machineAssetService";
 import { CallTypeSelector } from "./CallTypeSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { toast } from "sonner";
@@ -23,8 +23,6 @@ interface OpenCallModalProps {
   onOpenChange: (open: boolean) => void;
   preselectedMachineId?: string | null;
 }
-
-const andonApiClient = createAndonApiClient();
 
 export function OpenCallModal({
   open,
@@ -37,6 +35,7 @@ export function OpenCallModal({
   const [machineCondition, setMachineCondition] = useState<MachineStatus>("running");
   const [machineSets, setMachineSets] = useState<MachineSet[]>([]);
   const [machineSetId, setMachineSetId] = useState<string | null>(null);
+  const [machineSubsetId, setMachineSubsetId] = useState<string | null>(null);
   const [isLoadingMachineSets, setIsLoadingMachineSets] = useState(false);
   const machinesRef = useRef(machines);
   const wasOpenRef = useRef(false);
@@ -67,6 +66,7 @@ export function OpenCallModal({
     setMachineId(nextMachineId);
     setSubtype(null);
     setMachineSetId(null);
+    setMachineSubsetId(null);
     setMachineSets([]);
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
@@ -84,25 +84,40 @@ export function OpenCallModal({
     if (!open || !machineId) {
       setMachineSets([]);
       setMachineSetId(null);
+      setMachineSubsetId(null);
       setIsLoadingMachineSets(false);
       return;
     }
 
     let isCurrent = true;
+
     setIsLoadingMachineSets(true);
     setMachineSetId(null);
+    setMachineSubsetId(null);
 
-    andonApiClient
-      .get<MachineSet[]>(`/api/machines/${encodeURIComponent(machineId)}/sets`)
+    listMachineSets(machineId, {
+      includeSubsets: "list",
+    })
       .then((sets) => {
         if (!isCurrent) return;
+
         setMachineSets(sets);
-        setMachineSetId(sets.length === 1 ? sets[0].id : null);
+
+        const onlySet =
+          sets.length === 1 ? sets[0] : null;
+
+        setMachineSetId(onlySet?.id ?? null);
+        setMachineSubsetId(null);
       })
       .catch(() => {
         if (!isCurrent) return;
+
         setMachineSets([]);
         setMachineSetId(null);
+        setMachineSubsetId(null);
+        toast.error(
+          "Não foi possível carregar os conjuntos e subconjuntos da máquina",
+        );
       })
       .finally(() => {
         if (!isCurrent) return;
@@ -117,11 +132,17 @@ export function OpenCallModal({
   function handleSelectMachine(nextMachineId: string) {
     setMachineId(nextMachineId);
     setMachineSetId(null);
+    setMachineSubsetId(null);
     setMachineSets([]);
     machineConditionTouchedRef.current = false;
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
     setMachineCondition(selectedMachine?.machineStatus ?? "running");
+  }
+
+  function handleSelectMachineSet(nextMachineSetId: string) {
+    setMachineSetId(nextMachineSetId);
+    setMachineSubsetId(null);
   }
 
   function handleSelectMachineCondition(condition: MachineStatus) {
@@ -134,8 +155,32 @@ export function OpenCallModal({
     () => machineSets.find((set) => set.id === machineSetId) ?? null,
     [machineSets, machineSetId],
   );
+
+  const selectedMachineSubsets = useMemo(
+    () =>
+      (selectedMachineSet?.subsets ?? []).filter(
+        (subset) =>
+          subset.isActive &&
+          subset.subsetType?.isActive !== false,
+      ),
+    [selectedMachineSet],
+  );
+
+  const selectedMachineSubset = useMemo(
+    () =>
+      selectedMachineSubsets.find(
+        (subset) => subset.id === machineSubsetId,
+      ) ?? null,
+    [selectedMachineSubsets, machineSubsetId],
+  );
+
   const shouldRequireMachineSet = machineSets.length > 0;
-  const canConfirm = Boolean(machineId && subtype && (!shouldRequireMachineSet || machineSetId));
+
+  const canConfirm = Boolean(
+    machineId &&
+      subtype &&
+      (!shouldRequireMachineSet || machineSetId),
+  );
 
   function handleConfirm() {
     if (!machineId || !subtype) return;
@@ -152,7 +197,15 @@ export function OpenCallModal({
       machineSetId: selectedMachineSet?.id,
       machineSetCodeSnapshot: selectedMachineSet?.code,
       machineSetNameSnapshot: selectedMachineSet?.name,
-      machineSetTypeSnapshot: selectedMachineSet?.type ?? undefined,
+      machineSetTypeSnapshot:
+        selectedMachineSet?.setType?.code ??
+        selectedMachineSet?.type ??
+        undefined,
+      machineSubsetId: selectedMachineSubset?.id,
+      machineSubsetCodeSnapshot: selectedMachineSubset?.code,
+      machineSubsetNameSnapshot: selectedMachineSubset?.name,
+      machineSubsetTypeSnapshot:
+        selectedMachineSubset?.subsetType?.code,
       category: opt.category,
       subtype,
       criticality: "medium" as const,
@@ -174,7 +227,7 @@ export function OpenCallModal({
         <DialogHeader>
           <DialogTitle className="text-3xl">Abrir ANDON</DialogTitle>
           <DialogDescription className="text-base">
-            Selecione a máquina, o tipo de chamado e o conjunto quando houver cadastro.
+            Selecione a máquina, o tipo de chamado, o conjunto e, opcionalmente, o subconjunto.
           </DialogDescription>
         </DialogHeader>
 
@@ -239,7 +292,7 @@ export function OpenCallModal({
                   <button
                     key={set.id}
                     type="button"
-                    onClick={() => setMachineSetId(set.id)}
+                    onClick={() => handleSelectMachineSet(set.id)}
                     className={cn(
                       "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
                       machineSetId === set.id
@@ -251,6 +304,83 @@ export function OpenCallModal({
                     <div className="mt-1 text-xs opacity-80">
                       Código: {set.code}{set.type ? ` • Tipo: ${set.type}` : ""}
                     </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedMachineSet && (
+          <div>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Subconjunto do conjunto
+            </h4>
+
+            <p className="mb-3 text-sm text-muted-foreground">
+              Opcional. Selecione um item específico ou mantenha o chamado no conjunto inteiro.
+            </p>
+
+            {selectedMachineSubsets.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Este conjunto não possui subconjuntos ativos. O chamado será aberto para o conjunto inteiro.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setMachineSubsetId(null)}
+                  className={cn(
+                    "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
+                    machineSubsetId === null
+                      ? "border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-ring/30"
+                      : "border-border bg-card text-foreground hover:bg-accent",
+                  )}
+                >
+                  <div className="text-lg font-black uppercase tracking-wider">
+                    Conjunto inteiro
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Sem subconjunto específico
+                  </div>
+                </button>
+
+                {selectedMachineSubsets.map((subset) => (
+                  <button
+                    key={subset.id}
+                    type="button"
+                    onClick={() => setMachineSubsetId(subset.id)}
+                    className={cn(
+                      "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
+                      machineSubsetId === subset.id
+                        ? "border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-ring/30"
+                        : "border-border bg-card text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <div className="text-lg font-black uppercase tracking-wider">
+                      {subset.name}
+                    </div>
+
+                    <div className="mt-1 text-xs opacity-80">
+                      Código: {subset.code}
+                      {subset.subsetType?.name
+                        ? ` • Tipo: ${subset.subsetType.name}`
+                        : ""}
+                    </div>
+
+                    {(subset.manufacturer ||
+                      subset.model ||
+                      subset.assetTag) && (
+                      <div className="mt-1 text-xs opacity-80">
+                        {[
+                          subset.manufacturer,
+                          subset.model,
+                          subset.assetTag,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
