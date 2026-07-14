@@ -13,10 +13,35 @@ export class AndonApiError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL = "http://localhost:3001";
+const DEFAULT_API_PORT =
+  import.meta.env.VITE_ANDON_API_PORT?.trim() || "3001";
+
+function normalizeBaseUrl(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function resolveDefaultBaseUrl() {
+  const configuredBaseUrl =
+    import.meta.env.VITE_ANDON_API_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return normalizeBaseUrl(configuredBaseUrl);
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    window.location?.hostname
+  ) {
+    const protocol = window.location.protocol || "http:";
+
+    return `${protocol}//${window.location.hostname}:${DEFAULT_API_PORT}`;
+  }
+
+  return `http://localhost:${DEFAULT_API_PORT}`;
+}
 
 export const DEFAULT_ANDON_API_CLIENT_CONFIG: AndonApiClientConfig = {
-  baseUrl: import.meta.env.VITE_ANDON_API_BASE_URL?.trim() || DEFAULT_BASE_URL,
+  baseUrl: resolveDefaultBaseUrl(),
   timeoutMs: 10_000,
 };
 
@@ -27,40 +52,92 @@ export interface AndonApiClient {
   patch<T>(path: string, body: unknown): Promise<T>;
 }
 
-function buildErrorMessage(status: number, payload: unknown) {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
+function buildErrorMessage(
+  status: number,
+  payload: unknown,
+) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "message" in payload
+  ) {
+    const message = (
+      payload as { message?: unknown }
+    ).message;
+
+    if (
+      typeof message === "string" &&
+      message.trim()
+    ) {
+      return message;
+    }
   }
+
   return `Falha ao comunicar com a API ANDON (HTTP ${status}).`;
 }
 
 export function createAndonApiClient(
-  config: AndonApiClientConfig = DEFAULT_ANDON_API_CLIENT_CONFIG,
+  config: AndonApiClientConfig =
+    DEFAULT_ANDON_API_CLIENT_CONFIG,
 ): AndonApiClient {
-  const baseUrl = config.baseUrl.replace(/\/$/, "");
-  const normalizeUrl = (path: string) => `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  const baseUrl = normalizeBaseUrl(config.baseUrl);
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const normalizeUrl = (path: string) =>
+    `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+
+  async function request<T>(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    const url = normalizeUrl(path);
+
     let response: Response;
+
     try {
-      response = await fetch(normalizeUrl(path), {
+      response = await fetch(url, {
         ...init,
         headers: {
-          ...(init.body ? { "Content-Type": "application/json" } : {}),
+          ...(init.body
+            ? { "Content-Type": "application/json" }
+            : {}),
           ...init.headers,
         },
         signal: AbortSignal.timeout(config.timeoutMs),
       });
-    } catch {
-      throw new AndonApiError("API ANDON indisponível. Verifique se o backend está em execução.");
+    } catch (error) {
+      console.error(
+        "Falha de rede ao chamar a API ANDON.",
+        {
+          url,
+          error,
+        },
+      );
+
+      throw new AndonApiError(
+        `API ANDON indisponível em ${baseUrl}. Verifique backend, firewall, IP e CORS.`,
+      );
     }
 
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : null;
+
+    let payload: unknown = null;
+
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = text;
+      }
+    }
 
     if (!response.ok) {
-      throw new AndonApiError(buildErrorMessage(response.status, payload), response.status);
+      throw new AndonApiError(
+        buildErrorMessage(
+          response.status,
+          payload,
+        ),
+        response.status,
+      );
     }
 
     return payload as T;
@@ -68,8 +145,19 @@ export function createAndonApiClient(
 
   return {
     request,
-    get: (path) => request(path, { method: "GET" }),
-    post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body) }),
-    patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
+    get: (path) =>
+      request(path, {
+        method: "GET",
+      }),
+    post: (path, body) =>
+      request(path, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    patch: (path, body) =>
+      request(path, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
   };
 }
