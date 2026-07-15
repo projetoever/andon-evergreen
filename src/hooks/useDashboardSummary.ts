@@ -8,6 +8,7 @@ export function useDashboardSummary(): DashboardSummary {
   const { machines, calls, settings } = useAndon();
   return useMemo(() => {
     const activeMachines = machines.filter((machine) => machine.isActive);
+    const operationalCalls = calls.filter((call) => !call.isSystemTest);
     const totalMachines = activeMachines.length;
     const runningMachines = activeMachines.filter(
       (m) => m.machineStatus === "running" && m.productionMode === "scheduled",
@@ -18,14 +19,14 @@ export function useDashboardSummary(): DashboardSummary {
     const notScheduledMachines = activeMachines.filter(
       (m) => m.productionMode === "not_scheduled",
     ).length;
-    const openCalls = calls.filter((c) => c.status === "open").length;
-    const inProgressCalls = calls.filter((c) => c.status === "in_progress").length;
-    const finishedCallsToday = calls.filter(
+    const openCalls = operationalCalls.filter((c) => c.status === "open").length;
+    const inProgressCalls = operationalCalls.filter((c) => c.status === "in_progress").length;
+    const finishedCallsToday = operationalCalls.filter(
       (c) => c.status === "finished" && isToday(c.finishedAt),
     ).length;
     const now = new Date().toISOString();
     let criticalCalls = 0;
-    for (const c of calls) {
+    for (const c of operationalCalls) {
       if (c.status !== "open" && c.status !== "in_progress") continue;
       const waiting = calculateCallWaitingMinutes(c, now);
       if (waiting >= settings.alertRules.callOpenCriticalMinutes) {

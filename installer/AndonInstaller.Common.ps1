@@ -478,7 +478,7 @@ function Test-AndonApiWrite {
     catch { Write-AndonWarn "Teste de escrita pulado: nao foi possivel listar maquinas pela API."; return $false }
     $machine = $machines | Where-Object { $_.currentCallId -eq $null } | Select-Object -First 1
     if (!$machine) { Write-AndonWarn "Teste de escrita pulado: nenhuma maquina livre."; return $false }
-    $payload = @{ machineId = "$($machine.id)"; category = "maintenance"; subtype = "mechanical"; criticality = "medium"; machineCondition = "running"; description = "Chamado temporario criado pelo health check do instalador"; createdBy = "installer-health" } | ConvertTo-Json
+    $payload = @{ machineId = "$($machine.id)"; category = "maintenance"; subtype = "mechanical"; criticality = "medium"; machineCondition = "running"; description = "Chamado temporario criado pelo health check do instalador"; createdBy = "installer-health"; origin = "installer_health_check"; isSystemTest = $true } | ConvertTo-Json
     try {
         $call = Invoke-RestMethod "$api/api/andon-calls" -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 10
         $cancelPayload = @{ reason = "Teste automatico do instalador"; cancelledBy = "installer-health" } | ConvertTo-Json

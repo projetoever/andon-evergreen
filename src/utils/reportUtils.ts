@@ -17,7 +17,7 @@ export function buildMachineAttendanceReports(
 ): MachineAttendanceReport[] {
   return machines.map((machine) => {
     const finishedCalls = calls.filter(
-      (call) => call.machineId === machine.id && call.status === "finished",
+      (call) => !call.isSystemTest && call.machineId === machine.id && call.status === "finished",
     );
 
     const report: MachineAttendanceReport = {

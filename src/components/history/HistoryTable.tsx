@@ -25,6 +25,7 @@ export function HistoryTable({ calls }: HistoryTableProps) {
         <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="px-3 py-3">Máquina</th>
+            <th className="px-3 py-3">Origem</th>
             <th className="px-3 py-3">Categoria</th>
             <th className="px-3 py-3">Subtipo</th>
             <th className="px-3 py-3">Criticidade</th>
@@ -52,6 +53,9 @@ export function HistoryTable({ calls }: HistoryTableProps) {
             return (
               <tr key={c.id}>
                 <td className="px-3 py-3 text-lg font-bold">{c.machineId}</td>
+                <td className="px-3 py-3 font-semibold">
+                  {c.isSystemTest ? "Teste automático" : "Operacional"}
+                </td>
                 <td className="px-3 py-3">
                   {c.category === "maintenance" ? "Manutenção" : "Produção"}
                 </td>

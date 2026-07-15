@@ -16,7 +16,10 @@ export function ActiveCallsPage() {
       calls
         .filter(
           (c) =>
-            c.status === "open" || c.status === "in_progress" || c.status === "post_maintenance",
+            !c.isSystemTest &&
+            (c.status === "open" ||
+              c.status === "in_progress" ||
+              c.status === "post_maintenance"),
         )
         .sort((a, b) => a.openedAt.localeCompare(b.openedAt)),
     [calls],

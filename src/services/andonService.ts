@@ -149,6 +149,9 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     machineStatusAtAttend?: unknown;
     machineStatusAtFinish?: unknown;
     technicianTimeAllocations?: unknown;
+    createdBy?: unknown;
+    origin?: unknown;
+    isSystemTest?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -229,6 +232,9 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     machineStatusAtOpen: source.machineStatusAtOpen === "running" || source.machineStatusAtOpen === "stopped" ? source.machineStatusAtOpen : undefined,
     machineStatusAtAttend: source.machineStatusAtAttend === "running" || source.machineStatusAtAttend === "stopped" ? source.machineStatusAtAttend : undefined,
     machineStatusAtFinish: source.machineStatusAtFinish === "running" || source.machineStatusAtFinish === "stopped" ? source.machineStatusAtFinish : undefined,
+    createdBy: typeof source.createdBy === "string" ? source.createdBy : null,
+    origin: source.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
+    isSystemTest: source.isSystemTest === true,
   };
 }
 
@@ -287,6 +293,8 @@ export function openAndonCall(
     machineStoppedMinutes: 0,
     notes: null,
     createdBy: "kiosk",
+    origin: "kiosk",
+    isSystemTest: false,
     technicianSessions: [],
     updatedAt: now,
     productionModeAtOpen: machine.productionMode,

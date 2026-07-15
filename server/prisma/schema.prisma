@@ -148,6 +148,8 @@ model AndonCall {
   maintenanceReturnCount      Int                         @default(0)
   notes                       String?
   createdBy                   String?
+  origin                      String                      @default("kiosk")
+  isSystemTest                Boolean                     @default(false)
   productionModeAtOpen        String?
   productionModeAtAttend      String?
   productionModeAtFinish      String?
@@ -164,6 +166,7 @@ model AndonCall {
   @@index([machineSetId])
   @@index([machineSubsetId])
   @@index([status])
+  @@index([isSystemTest])
   @@index([openedAt])
   @@map("andon_calls")
 }

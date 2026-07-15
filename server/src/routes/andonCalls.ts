@@ -22,6 +22,8 @@ type OpenAndonCallBody = {
   criticality?: unknown;
   description?: unknown;
   createdBy?: unknown;
+  origin?: unknown;
+  isSystemTest?: unknown;
   machineCondition?: unknown;
 };
 
@@ -86,6 +88,9 @@ type CallAssetSnapshotRow = {
 
 const CALL_CATEGORIES = new Set(["maintenance", "production"]);
 const CALL_CRITICALITIES = new Set(["low", "medium", "high", "critical"]);
+const CALL_ORIGINS = new Set(["kiosk", "installer_health_check"]);
+const INSTALLER_HEALTH_ORIGIN = "installer_health_check";
+const INSTALLER_HEALTH_CREATED_BY = "installer-health";
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const OPEN_CALL_STATUSES = ["open", "in_progress", "post_maintenance"];
 
@@ -378,17 +383,35 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const criticality = optionalString(body.criticality) ?? "medium";
     const description = optionalString(body.description);
     const createdBy = optionalString(body.createdBy);
+    const origin = optionalString(body.origin) ?? "kiosk";
+    const isSystemTest = body.isSystemTest === true;
     const machineCondition = optionalString(body.machineCondition);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!category) return badRequest(reply, "Campo category é obrigatório");
     if (!CALL_CATEGORIES.has(category)) return badRequest(reply, "Categoria inválida");
     if (!CALL_CRITICALITIES.has(criticality)) return badRequest(reply, "Criticidade inválida");
+    if (!CALL_ORIGINS.has(origin)) return badRequest(reply, "Origem do chamado inválida");
+
+    const usesInstallerHealthMetadata =
+      origin === INSTALLER_HEALTH_ORIGIN || isSystemTest;
+
+    const hasValidInstallerHealthMetadata =
+      origin === INSTALLER_HEALTH_ORIGIN &&
+      isSystemTest &&
+      createdBy === INSTALLER_HEALTH_CREATED_BY;
+
+    if (usesInstallerHealthMetadata && !hasValidInstallerHealthMetadata) {
+      return badRequest(reply, "Metadados de teste automático inválidos");
+    }
     if (machineCondition && !MACHINE_STATUSES.has(machineCondition)) return badRequest(reply, "Condição da máquina inválida");
 
     const machine = await prisma.machine.findUnique({ where: { id: machineId } });
     if (!machine) return notFound(reply, "Máquina não encontrada");
-    if (machine.currentCallId || OPEN_CALL_STATUSES.includes(machine.andonStatus)) {
+    if (
+      !isSystemTest &&
+      (machine.currentCallId || OPEN_CALL_STATUSES.includes(machine.andonStatus))
+    ) {
       return badRequest(reply, "Já existe um chamado ativo para esta máquina");
     }
 
@@ -443,6 +466,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           machineStoppedMinutes: 0,
           notes: description ?? null,
           createdBy,
+          origin,
+          isSystemTest,
           productionModeAtOpen: machine.productionMode,
           machineStatusAtOpen: machineCondition ?? machine.machineStatus,
         },
@@ -465,7 +490,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       const failureStartedAt =
-        machineCondition === "stopped"
+        !isSystemTest && machineCondition === "stopped"
           ? await ensureOpenFailureEventForStoppedCall(tx, {
               machineId,
               callId: createdCall.id,
@@ -474,19 +499,21 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             })
           : null;
 
-      await tx.machine.update({
-        where: { id: machineId },
-        data: {
-          andonStatus: "open",
-          currentCallId: createdCall.id,
-          ...(machineCondition
-            ? {
-                machineStatus: machineCondition,
-                lastStatusChangedAt: failureStartedAt ?? now,
-              }
-            : {}),
-        },
-      });
+      if (!isSystemTest) {
+        await tx.machine.update({
+          where: { id: machineId },
+          data: {
+            andonStatus: "open",
+            currentCallId: createdCall.id,
+            ...(machineCondition
+              ? {
+                  machineStatus: machineCondition,
+                  lastStatusChangedAt: failureStartedAt ?? now,
+                }
+              : {}),
+          },
+        });
+      }
 
       const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
       return attachAssetSnapshots(

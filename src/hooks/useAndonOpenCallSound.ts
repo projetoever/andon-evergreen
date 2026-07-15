@@ -44,6 +44,7 @@ export function useAndonOpenCallSound({
 
     const callToAlert = calls
       .filter((call) => {
+        if (call.isSystemTest) return false;
         if (call.status !== "open") return false;
         if (machineId && call.machineId !== machineId) return false;
         if (!activeMachines.has(call.machineId)) return false;

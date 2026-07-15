@@ -215,7 +215,9 @@ function mapCall(call: ApiAndonCall, nowIso = getServerNowIso()): AndonCall {
       ? call.technicianTimeAllocations.map(mapTechnicianTimeAllocation)
       : [],
     notes: call.notes ?? null,
-    createdBy: "kiosk",
+    createdBy: typeof call.createdBy === "string" ? call.createdBy : null,
+    origin: call.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
+    isSystemTest: call.isSystemTest === true,
     updatedAt: toIso(call.updatedAt ?? call.createdAt, nowIso),
   });
 }

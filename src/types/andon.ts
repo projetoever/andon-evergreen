@@ -4,6 +4,8 @@ export type AndonStatus = "none" | "open" | "in_progress" | "post_maintenance" |
 
 export type CallCategory = "maintenance" | "production";
 
+export type CallOrigin = "kiosk" | "installer_health_check";
+
 export type MaintenanceSubtype = "electrical" | "mechanical" | "hot_melt";
 
 export type ProductionSubtype = "quality" | "leadership";
@@ -92,7 +94,9 @@ export interface AndonCall {
   machineStatusAtAttend?: MachineStatus;
   machineStatusAtFinish?: MachineStatus;
   notes: string | null;
-  createdBy: "kiosk";
+  createdBy: string | null;
+  origin: CallOrigin;
+  isSystemTest: boolean;
   updatedAt: string;
 }
 
