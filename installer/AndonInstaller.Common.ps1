@@ -527,94 +527,6 @@ function Start-AndonRuntime {
     Invoke-AndonKioskOpen | Out-Null
 }
 
-function Patch-AndonApiClientDynamic {
-    Write-AndonHeader "API DINAMICA DO FRONTEND"
-    $apiClientPath = "$Global:AndonProjectPath\src\api\andonApiClient.ts"
-    if (!(Test-Path $apiClientPath)) { Write-AndonWarn "Arquivo API client nao encontrado: $apiClientPath"; return }
-@'
-export interface AndonApiClientConfig {
-  baseUrl: string;
-  timeoutMs: number;
-}
-
-export class AndonApiError extends Error {
-  constructor(message: string, public readonly status?: number) {
-    super(message);
-    this.name = "AndonApiError";
-  }
-}
-
-const DEFAULT_API_PORT = "3001";
-
-function getRuntimeDefaultBaseUrl() {
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    const protocol = window.location.protocol || "http:";
-    return `${protocol}//${window.location.hostname}:${DEFAULT_API_PORT}`;
-  }
-  return "http://localhost:3001";
-}
-
-function getConfiguredBaseUrl() {
-  return import.meta.env.VITE_ANDON_API_BASE_URL?.trim() || getRuntimeDefaultBaseUrl();
-}
-
-export const DEFAULT_ANDON_API_CLIENT_CONFIG: AndonApiClientConfig = {
-  baseUrl: getConfiguredBaseUrl(),
-  timeoutMs: 15_000,
-};
-
-export interface AndonApiClient {
-  request<T>(path: string, init?: RequestInit): Promise<T>;
-  get<T>(path: string): Promise<T>;
-  post<T>(path: string, body: unknown): Promise<T>;
-  patch<T>(path: string, body: unknown): Promise<T>;
-}
-
-function buildErrorMessage(status: number, payload: unknown) {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return `Falha ao comunicar com a API ANDON (HTTP ${status}).`;
-}
-
-export function createAndonApiClient(config: AndonApiClientConfig = DEFAULT_ANDON_API_CLIENT_CONFIG): AndonApiClient {
-  const baseUrl = config.baseUrl.replace(/\/$/, "");
-  const normalizeUrl = (path: string) => `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const url = normalizeUrl(path);
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        ...init,
-        headers: {
-          ...(init.body ? { "Content-Type": "application/json" } : {}),
-          ...init.headers,
-        },
-        signal: AbortSignal.timeout(config.timeoutMs),
-      });
-    } catch (error) {
-      console.error("Falha de rede ao chamar API ANDON", { url, error });
-      throw new AndonApiError(`API ANDON indisponível em ${baseUrl}. Verifique backend, firewall, IP e CORS.`);
-    }
-    const text = await response.text();
-    const payload = text ? JSON.parse(text) : null;
-    if (!response.ok) { throw new AndonApiError(buildErrorMessage(response.status, payload), response.status); }
-    return payload as T;
-  }
-
-  return {
-    request,
-    get: (path) => request(path, { method: "GET" }),
-    post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body) }),
-    patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
-  };
-}
-'@ | Set-Content $apiClientPath -Encoding UTF8
-    Write-AndonOk "API client dinamico aplicado."
-}
-
 function Invoke-AndonNodePipeline {
     param([bool]$RunSeed = $false, [bool]$InstallDependencies = $true)
     $config = Import-AndonConfig
@@ -630,15 +542,18 @@ function Invoke-AndonNodePipeline {
     Invoke-AndonProcess $npm @("run", "db:migrate") $serverPath
     if ($RunSeed) { Write-AndonWarn "Instalacao limpa: db:seed sera executado."; Invoke-AndonProcess $npm @("run", "db:seed") $serverPath } else { Write-AndonOk "db:seed nao sera executado neste procedimento." }
     Invoke-AndonProcess $npm @("run", "build") $serverPath
-    Patch-AndonApiClientDynamic
     Remove-Item "$Global:AndonProjectPath\dist" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
     Remove-Item Env:\VITE_ANDON_API_BASE_URL -ErrorAction SilentlyContinue
     $env:VITE_ANDON_DATA_MODE = "api"
+    $env:VITE_ANDON_API_PORT = "$($config.apiPort)"
     try {
         if ($InstallDependencies) { Invoke-AndonProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $Global:AndonProjectPath }
         Invoke-AndonProcess $npm @("run", "build") $Global:AndonProjectPath
-    } finally { Remove-Item Env:\VITE_ANDON_DATA_MODE -ErrorAction SilentlyContinue }
+    } finally {
+        Remove-Item Env:\VITE_ANDON_DATA_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\VITE_ANDON_API_PORT -ErrorAction SilentlyContinue
+    }
     if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
     Write-AndonOk "Backend/frontend preparados."
 }
