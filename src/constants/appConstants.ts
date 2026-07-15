@@ -1,5 +1,5 @@
 export const APP_NAME = "Andon Web Industrial";
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.0-pilot.1";
 
 export const MACHINE_IDS = [
   "17",
