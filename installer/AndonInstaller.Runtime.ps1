@@ -11,6 +11,7 @@ function Assert-AndonRuntimeScripts {
     if (!(Test-Path $scriptsPath)) { New-Item -ItemType Directory -Force $scriptsPath | Out-Null }
 
     $required = @(
+        "$scriptsPath\Andon.Runtime.Common.ps1",
         "$scriptsPath\start-postgres.ps1",
         "$scriptsPath\start-api.ps1",
         "$scriptsPath\start-frontend.ps1",

@@ -1,67 +1,116 @@
-﻿$BasePath = "C:\web-andon-industrial"
-$ProjectPath = "$BasePath\andon"
-$LogsPath = "$ProjectPath\logs"
-$FrontUrl = "http://127.0.0.1:8080"
+﻿$ErrorActionPreference = "Stop"
 
-New-Item -ItemType Directory -Force $LogsPath | Out-Null
+$commonPath =
+    Join-Path $PSScriptRoot "Andon.Runtime.Common.ps1"
 
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $line = "[$timestamp] $Message"
-    Write-Host $line
-    Add-Content -Path "$LogsPath\frontend-start.log" -Value $line
+if (!(Test-Path $commonPath -PathType Leaf)) {
+    throw "Modulo comum do runtime nao encontrado: $commonPath"
 }
 
-function Test-Frontend {
-    try {
-        Invoke-WebRequest $FrontUrl -UseBasicParsing -TimeoutSec 2 | Out-Null
-        return $true
-    } catch {
-        return $false
-    }
+. $commonPath
+
+$context = Get-AndonRuntimeContext
+$component = "frontend-start"
+$packagePath = Join-Path $context.ProjectPath "package.json"
+$clientBuildPath = Join-Path $context.ProjectPath "dist\client"
+
+function Write-FrontendLog {
+    param(
+        [string]$Message,
+
+        [ValidateSet("INFO", "OK", "AVISO", "ERRO")]
+        [string]$Level = "INFO"
+    )
+
+    Write-AndonRuntimeLog `
+        -Component $component `
+        -Message $Message `
+        -Level $Level
 }
 
-Write-Log "Verificando frontend em $FrontUrl..."
+Write-FrontendLog `
+    -Message "Verificando frontend em $($context.FrontendUrl)."
 
-if (Test-Frontend) {
-    Write-Log "Frontend ja esta rodando. Nenhuma acao necessaria."
+if (
+    Test-AndonRuntimeHttp `
+        -Url $context.FrontendUrl `
+        -TimeoutSeconds 5
+) {
+    Write-FrontendLog `
+        -Level "OK" `
+        -Message "Frontend ja esta acessivel."
+
     exit 0
 }
 
-$FrontBuild = "$ProjectPath\dist"
-
-if (!(Test-Path $FrontBuild)) {
-    Write-Log "ERRO: Build frontend nao encontrado em $FrontBuild"
-    Write-Log "Execute: cd C:\web-andon-industrial\andon ; npm.cmd run build"
-    exit 1
+if (!(Test-Path $packagePath -PathType Leaf)) {
+    throw "package.json nao encontrado: $packagePath"
 }
 
-Write-Log "Frontend nao respondeu. Verificando porta 8080..."
-
-$portPids = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue |
-    Where-Object { $_.OwningProcess -gt 0 } |
-    Select-Object -ExpandProperty OwningProcess -Unique
-
-foreach ($pidItem in $portPids) {
-    Write-Log "Porta 8080 ocupada por PID $pidItem, mas frontend nao respondeu. Finalizando..."
-    Stop-Process -Id $pidItem -Force -ErrorAction SilentlyContinue
+if (!(Test-Path $clientBuildPath -PathType Container)) {
+    throw (
+        "Build do frontend nao encontrado: $clientBuildPath. " +
+        "Execute instalacao, atualizacao ou reparo."
+    )
 }
 
-Start-Sleep -Seconds 3
+$portProcessIds =
+    Get-AndonRuntimePortProcessIds `
+        -Port $context.FrontendPort
 
-Set-Location $ProjectPath
+if ($portProcessIds.Count -gt 0) {
+    Write-FrontendLog `
+        -Level "AVISO" `
+        -Message (
+            "Porta $($context.FrontendPort) ocupada, mas o frontend " +
+            "nao respondeu corretamente."
+        )
 
-Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
-$env:NODE_ENV = "production"
+    Stop-AndonRuntimeOwnedPortProcesses `
+        -Port $context.FrontendPort `
+        -Component $component `
+        -ExpectedMarkers @(
+            (Join-Path $context.ProjectPath "node_modules")
+        )
 
-$NpmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
-if (-not $NpmCmd) { $NpmCmd = "C:\Program Files\nodejs\npm.cmd" }
-
-if (!(Test-Path $NpmCmd)) {
-    Write-Log "ERRO: npm.cmd nao encontrado."
-    exit 1
+    Start-Sleep -Seconds 3
 }
 
-Write-Log "Iniciando frontend ANDON na porta 8080..."
-& $NpmCmd run preview -- --host 0.0.0.0 --port 8080
+$npmPath =
+    Get-AndonRuntimeCommandPath `
+        -CommandName "npm.cmd" `
+        -FallbackPaths @(
+            "C:\Program Files\nodejs\npm.cmd"
+        )
+
+$previousLocation = Get-Location
+
+try {
+    Set-Location $context.ProjectPath
+
+    $env:NODE_ENV = "production"
+
+    Write-FrontendLog `
+        -Message (
+            "Iniciando frontend em 0.0.0.0:" +
+            "$($context.FrontendPort)."
+        )
+
+    & $npmPath run preview -- `
+        --host 0.0.0.0 `
+        --port $context.FrontendPort
+
+    $exitCode = $LASTEXITCODE
+} finally {
+    Set-Location $previousLocation
+}
+
+if ($exitCode -ne 0) {
+    throw "Processo do frontend terminou com codigo $exitCode."
+}
+
+Write-FrontendLog `
+    -Level "AVISO" `
+    -Message "Processo do frontend foi encerrado."
+
+exit 0
