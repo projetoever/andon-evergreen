@@ -1,7 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
+$Global:AndonInstallerVersion = "1.0.0-pilot.1"
 
 # ==================================================
-# ANDON WEB INDUSTRIAL - INSTALLER COMMON V10.5.1
+# ANDON WEB INDUSTRIAL - INSTALLER COMMON 1.0.0-pilot.1
 # Produto: Docker recomendado + PostgreSQL local avancado
 # Fonte da verdade: C:\web-andon-industrial\andon-config.json
 # ==================================================
@@ -400,24 +401,6 @@ function Sync-AndonRepositoryAndTools {
     Write-AndonOk "Repositorio e tools sincronizados."
 }
 
-function Stop-AndonRuntime {
-    Write-AndonHeader "PARADA LIMPA"
-    foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
-        try {
-            $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-            if ($task) {
-                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-                Disable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
-                Write-AndonOk "Tarefa parada/desabilitada: $taskName"
-            } else { Write-AndonWarn "Tarefa nao existia: $taskName" }
-        } catch { Write-AndonWarn "Nao foi possivel parar tarefa $taskName. Continuando." }
-    }
-    Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*chrome-profile*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-    Write-AndonOk "Runtime parado ou ja estava parado."
-}
-
 function Apply-AndonFirewallRules {
     Write-AndonHeader "FIREWALL"
     Get-NetFirewallRule -DisplayName "ANDON Frontend 8080" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
@@ -444,36 +427,6 @@ function Write-AndonRobustKioskScript {
     Write-AndonOk "Script Kiosk robusto atualizado: $scriptPath"
 }
 
-function Recreate-AndonTasks {
-    Write-AndonHeader "TAREFAS AUTOMATICAS"
-    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    Write-Host "Usuario atual para Chrome Kiosk: $currentUser"
-    foreach ($taskName in @("ANDON - Inicializacao Automatica", $Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
-        try {
-            $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-            if ($task) { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue; Write-AndonOk "Tarefa removida: $taskName" }
-            else { Write-AndonWarn "Tarefa nao existia: $taskName" }
-        } catch { Write-AndonWarn "Nao foi possivel remover $taskName. Continuando." }
-    }
-    Write-AndonRobustKioskScript
-    $watchdogScript = "$Global:AndonProjectPath\scripts\watchdog-andon.ps1"
-    $chromeScript = "$Global:AndonProjectPath\scripts\open-kiosk-chrome.ps1"
-    if (!(Test-Path $watchdogScript)) { throw "watchdog-andon.ps1 nao encontrado: $watchdogScript" }
-    if (!(Test-Path $chromeScript)) { throw "open-kiosk-chrome.ps1 nao encontrado: $chromeScript" }
-    $watchdogAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$watchdogScript`""
-    $bootTrigger = New-ScheduledTaskTrigger -AtStartup
-    $minuteTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
-    $systemPrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 0)
-    Register-ScheduledTask -TaskName $Global:AndonTaskBoot -Action $watchdogAction -Trigger $bootTrigger -Principal $systemPrincipal -Settings $settings -Force | Out-Null
-    Register-ScheduledTask -TaskName $Global:AndonTaskWatchdog -Action $watchdogAction -Trigger $minuteTrigger -Principal $systemPrincipal -Settings $settings -Force | Out-Null
-    $chromeAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$chromeScript`""
-    $chromeTrigger = New-ScheduledTaskTrigger -AtLogOn -User $currentUser
-    $chromePrincipal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Limited
-    Register-ScheduledTask -TaskName $Global:AndonTaskKiosk -Action $chromeAction -Trigger $chromeTrigger -Principal $chromePrincipal -Settings $settings -Force | Out-Null
-    Write-AndonOk "Tarefas recriadas."
-}
-
 function Test-AndonHttpReady {
     param([string]$Url, [int]$TimeoutSeconds = 90)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -486,45 +439,6 @@ function Test-AndonHttpReady {
 
 function Get-AndonKioskProcess {
     Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*chrome-profile*" -or $_.CommandLine -like "*C:\web-andon-industrial\andon\chrome-profile*" }
-}
-
-function Test-AndonKioskVisible {
-    $proc = @(Get-AndonKioskProcess)
-    return ($proc.Count -gt 0)
-}
-
-function Invoke-AndonKioskOpen {
-    Write-AndonHeader "CHROME KIOSK ANDON"
-    Write-AndonRobustKioskScript
-    $frontendUrl = "http://127.0.0.1:$Global:AndonFrontendPort"
-    if (Test-AndonKioskVisible) { Write-AndonOk "Chrome Kiosk ja estava detectado. Reabrindo para garantir tela em primeiro plano." }
-    if (Test-AndonHttpReady -Url $frontendUrl -TimeoutSeconds 90) { Write-AndonOk "Frontend disponivel para Kiosk: $frontendUrl" }
-    else { Write-AndonWarn "Frontend ainda nao respondeu em $frontendUrl. Tentando abrir Kiosk mesmo assim." }
-    $task = Get-ScheduledTask -TaskName $Global:AndonTaskKiosk -ErrorAction SilentlyContinue
-    if ($task) {
-        Write-AndonOk "Disparando tarefa: $Global:AndonTaskKiosk"
-        Start-ScheduledTask -TaskName $Global:AndonTaskKiosk -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 12
-        if (Test-AndonKioskVisible) { Write-AndonOk "Chrome Kiosk detectado via tarefa."; return $true }
-        Write-AndonWarn "Tarefa Kiosk nao exibiu o Chrome. Tentando abertura direta."
-    } else { Write-AndonWarn "Tarefa Kiosk nao encontrada. Tentando abertura direta." }
-    $scriptPath = "$Global:AndonProjectPath\scripts\open-kiosk-chrome.ps1"
-    if (Test-Path $scriptPath) { Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""; Start-Sleep -Seconds 15 }
-    if (Test-AndonKioskVisible) { Write-AndonOk "Chrome Kiosk detectado via abertura direta."; return $true }
-    Write-AndonWarn "Chrome Kiosk ainda nao foi detectado. O ANDON esta funcional, mas a tela Kiosk precisa ser aberta manualmente."
-    return $false
-}
-
-function Start-AndonRuntime {
-    Write-AndonHeader "INICIANDO ANDON"
-    foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) { Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null }
-    Start-ScheduledTask -TaskName $Global:AndonTaskWatchdog -ErrorAction SilentlyContinue
-    Write-AndonOk "Watchdog solicitado."
-    $apiUrl = "http://127.0.0.1:$Global:AndonApiPort/health"
-    $frontendUrl = "http://127.0.0.1:$Global:AndonFrontendPort"
-    if (Test-AndonHttpReady -Url $apiUrl -TimeoutSeconds 90) { Write-AndonOk "API pronta: $apiUrl" } else { Write-AndonWarn "API nao respondeu no tempo esperado: $apiUrl" }
-    if (Test-AndonHttpReady -Url $frontendUrl -TimeoutSeconds 90) { Write-AndonOk "Frontend pronto: $frontendUrl" } else { Write-AndonWarn "Frontend nao respondeu no tempo esperado: $frontendUrl" }
-    Invoke-AndonKioskOpen | Out-Null
 }
 
 function Invoke-AndonNodePipeline {
@@ -572,31 +486,6 @@ function Test-AndonApiWrite {
         Write-AndonOk "Teste real de escrita API aprovado."
         return $true
     } catch { Write-AndonWarn "Teste real de escrita API falhou: $($_.Exception.Message)"; return $false }
-}
-
-function Invoke-AndonHealthCheck {
-    param([switch]$Full)
-    Write-AndonHeader "HEALTH CHECK ANDON"
-    $config = Import-AndonConfig
-    Write-Host "databaseMode: $($config.databaseMode)"
-    Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"
-    Write-Host "Banco:         $($config.databaseName)"
-    Write-Host "API:           $($config.apiPort)"
-    Write-Host "Frontend:      $($config.frontendPort)"
-    if ($config.databaseMode -eq "docker") {
-        $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
-        if ($docker) { & $docker.Source container inspect $Global:AndonDockerContainer *> $null; if ($LASTEXITCODE -eq 0) { Write-AndonOk "Container Docker detectado: $Global:AndonDockerContainer" } else { Write-AndonFail "Container Docker nao detectado: $Global:AndonDockerContainer" } }
-        else { Write-AndonFail "docker.exe nao encontrado." }
-    }
-    foreach ($port in @($config.apiPort, $config.frontendPort, $config.postgresPort)) { if (Test-AndonPortInUse ([int]$port)) { Write-AndonOk "Porta $port em uso." } else { Write-AndonWarn "Porta $port sem listener." } }
-    foreach ($url in @("http://127.0.0.1:$($config.apiPort)/health", "http://127.0.0.1:$($config.apiPort)/health/db")) {
-        try { Invoke-RestMethod $url -TimeoutSec 8 | Out-Null; Write-AndonOk $url } catch { Write-AndonFail $url }
-    }
-    try { Invoke-WebRequest "http://127.0.0.1:$($config.frontendPort)" -UseBasicParsing -TimeoutSec 8 | Out-Null; Write-AndonOk "Frontend http://127.0.0.1:$($config.frontendPort)" } catch { Write-AndonFail "Frontend http://127.0.0.1:$($config.frontendPort)" }
-    $tasks = Get-ScheduledTask -TaskName "ANDON*" -ErrorAction SilentlyContinue
-    if ($tasks) { $tasks | Select-Object TaskName, State | Format-Table -AutoSize } else { Write-AndonWarn "Nenhuma tarefa ANDON encontrada." }
-    if (Test-AndonKioskVisible) { Write-AndonOk "Chrome Kiosk detectado." } else { Write-AndonWarn "Chrome Kiosk nao detectado." }
-    if ($Full) { Test-AndonApiWrite | Out-Null }
 }
 
 function Remove-AndonTasks {
