@@ -1,6 +1,7 @@
 ﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
 
 try {
     Assert-AndonAdmin
@@ -11,16 +12,16 @@ try {
     Initialize-AndonFolders
     $network = Select-AndonServerIp
     Write-AndonHeader "ESCOLHA DO BANCO DE DADOS"
-    Write-Host "1 - PostgreSQL via Docker recomendado"
-    Write-Host "2 - PostgreSQL local instalado no Windows avancado/compatibilidade"
+    Write-Host "1 - PostgreSQL local no Windows - recomendado para HOST/producao"
+    Write-Host "2 - PostgreSQL via Docker - desenvolvimento, notebook ou testes"
     Write-Host "0 - Cancelar"
     Write-Host ""
     $dbConfig = $null
     do {
         $choice = Read-Host "Escolha o modo de banco"
         switch ($choice) {
-            "1" { $dbConfig = Initialize-AndonDockerDatabase }
-            "2" { $dbConfig = Initialize-AndonLocalDatabase }
+            "1" { $dbConfig = Initialize-AndonLocalDatabase }
+            "2" { $dbConfig = Initialize-AndonDockerDatabase }
             "0" { Write-AndonWarn "Instalacao cancelada."; exit 0 }
             default { Write-AndonFail "Opcao invalida." }
         }

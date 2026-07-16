@@ -18,7 +18,7 @@ export function HistoryPage() {
   const finished = useMemo(
     () =>
       calls
-        .filter((c) => c.status === "finished")
+        .filter((c) => c.status === "finished" || (c.isSystemTest && c.finishedAt !== null))
         .sort((a, b) => (b.finishedAt ?? "").localeCompare(a.finishedAt ?? "")),
     [calls],
   );

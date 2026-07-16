@@ -18,14 +18,18 @@ export function DataBackupPanel() {
   const [confirmImport, setConfirmImport] = useState<File | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const finishedCalls = calls.filter((c) => c.status === "finished");
+  const exportableCalls = calls.filter(
+    (call) =>
+      call.status === "finished" ||
+      call.isSystemTest,
+  );
 
   function handleExportCsv() {
-    if (finishedCalls.length === 0) {
-      toast.warning("Não há chamados finalizados para exportar");
+    if (exportableCalls.length === 0) {
+      toast.warning("Não há registros para exportar");
       return;
     }
-    exportHistoryToCsv(finishedCalls);
+    exportHistoryToCsv(exportableCalls);
     toast.success("CSV exportado");
   }
 

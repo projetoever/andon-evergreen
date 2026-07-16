@@ -1,6 +1,7 @@
 ﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
 
 try {
     Assert-AndonAdmin

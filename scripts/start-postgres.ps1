@@ -1,33 +1,221 @@
-﻿$BasePath = "C:\web-andon-industrial"
-$ProjectPath = "$BasePath\andon"
-$LogsPath = "$ProjectPath\logs"
+﻿$ErrorActionPreference = "Stop"
 
-New-Item -ItemType Directory -Force $LogsPath | Out-Null
+$commonPath =
+    Join-Path $PSScriptRoot "Andon.Runtime.Common.ps1"
 
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $line = "[$timestamp] $Message"
-    Write-Host $line
-    Add-Content -Path "$LogsPath\postgres.log" -Value $line
+if (!(Test-Path $commonPath -PathType Leaf)) {
+    throw "Modulo comum do runtime nao encontrado: $commonPath"
 }
 
-Write-Log "Verificando servico PostgreSQL..."
+. $commonPath
 
-$pgService = Get-Service | Where-Object {
-    $_.Name -like "*postgres*" -or $_.DisplayName -like "*postgres*"
-} | Sort-Object Name | Select-Object -First 1
+$context = Get-AndonRuntimeContext
+$component = "postgres"
 
-if ($pgService) {
-    Write-Log "Servico PostgreSQL encontrado: $($pgService.Name) / Status: $($pgService.Status)"
+function Write-PostgresLog {
+    param(
+        [string]$Message,
 
-    if ($pgService.Status -ne "Running") {
-        Write-Log "Iniciando PostgreSQL..."
-        Start-Service -Name $pgService.Name
-        Start-Sleep -Seconds 8
-    } else {
-        Write-Log "PostgreSQL ja esta rodando."
+        [ValidateSet("INFO", "OK", "AVISO", "ERRO")]
+        [string]$Level = "INFO"
+    )
+
+    Write-AndonRuntimeLog `
+        -Component $component `
+        -Message $Message `
+        -Level $Level
+}
+
+function Wait-PostgresTcpReady {
+    param([int]$TimeoutSeconds = 90)
+
+    $deadline =
+        (Get-Date).AddSeconds($TimeoutSeconds)
+
+    do {
+        if (
+            Test-AndonRuntimeTcp `
+                -HostName $context.PostgresHost `
+                -Port $context.PostgresPort `
+                -TimeoutMilliseconds 3000
+        ) {
+            return $true
+        }
+
+        Start-Sleep -Seconds 3
+    } while ((Get-Date) -lt $deadline)
+
+    return $false
+}
+
+Write-PostgresLog `
+    -Message (
+        "Verificando PostgreSQL em " +
+        "$($context.PostgresHost):$($context.PostgresPort) " +
+        "(modo $($context.DatabaseMode))."
+    )
+
+if (
+    Test-AndonRuntimeTcp `
+        -HostName $context.PostgresHost `
+        -Port $context.PostgresPort `
+        -TimeoutMilliseconds 3000
+) {
+    Write-PostgresLog `
+        -Level "OK" `
+        -Message "PostgreSQL ja esta acessivel na porta configurada."
+
+    exit 0
+}
+
+switch ($context.DatabaseMode) {
+    "local" {
+        if (
+            $context.PostgresHost -notin @(
+                "127.0.0.1",
+                "localhost",
+                "::1"
+            )
+        ) {
+            throw (
+                "Modo local configurado com host remoto: " +
+                $context.PostgresHost
+            )
+        }
+
+        Write-PostgresLog `
+            -Message "Procurando servico PostgreSQL local."
+
+        $postgresServices = @(
+            Get-Service -ErrorAction Stop |
+                Where-Object {
+                    $_.Name -like "*postgres*" -or
+                    $_.DisplayName -like "*postgres*"
+                } |
+                Sort-Object Name
+        )
+
+        if ($postgresServices.Count -eq 0) {
+            throw "Nenhum servico PostgreSQL local foi encontrado."
+        }
+
+        if ($postgresServices.Count -gt 1) {
+            $serviceDescription =
+                $postgresServices |
+                ForEach-Object {
+                    "$($_.Name) [$($_.Status)]"
+                }
+
+            throw (
+                "Mais de um servico PostgreSQL foi encontrado. " +
+                "Nao e seguro selecionar automaticamente: " +
+                ($serviceDescription -join ", ")
+            )
+        }
+
+        $postgresService =
+            $postgresServices[0]
+
+        Write-PostgresLog `
+            -Message (
+                "Servico encontrado: $($postgresService.Name) " +
+                "[$($postgresService.Status)]."
+            )
+
+        if ($postgresService.Status -ne "Running") {
+            Write-PostgresLog `
+                -Message "Iniciando servico PostgreSQL local."
+
+            Start-Service `
+                -Name $postgresService.Name `
+                -ErrorAction Stop
+        } else {
+            Write-PostgresLog `
+                -Message "Servico PostgreSQL local ja esta em execucao."
+        }
+
+        if (!(Wait-PostgresTcpReady -TimeoutSeconds 90)) {
+            throw (
+                "Servico PostgreSQL foi iniciado, mas a porta " +
+                "$($context.PostgresPort) nao ficou acessivel."
+            )
+        }
+
+        Write-PostgresLog `
+            -Level "OK" `
+            -Message "PostgreSQL local pronto."
+
+        exit 0
     }
-} else {
-    Write-Log "ATENCAO: Nenhum servico PostgreSQL encontrado."
+
+    "docker" {
+        Write-PostgresLog `
+            -Message (
+                "Verificando container Docker " +
+                "$($context.DockerContainer)."
+            )
+
+        $docker =
+            Get-AndonRuntimeCommandPath `
+                -CommandName "docker.exe"
+
+        & $docker container inspect `
+            $context.DockerContainer `
+            1>$null `
+            2>$null
+
+        if ($LASTEXITCODE -ne 0) {
+            throw (
+                "Container Docker nao encontrado: " +
+                $context.DockerContainer +
+                ". Execute instalacao ou reparo."
+            )
+        }
+
+        $runningState =
+            & $docker inspect `
+                --format "{{.State.Running}}" `
+                $context.DockerContainer `
+                2>$null
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Nao foi possivel consultar o estado do container."
+        }
+
+        if (
+            "$runningState".Trim().ToLowerInvariant() -ne
+            "true"
+        ) {
+            Write-PostgresLog `
+                -Message "Iniciando container PostgreSQL."
+
+            & $docker start `
+                $context.DockerContainer `
+                1>$null
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha ao iniciar o container PostgreSQL."
+            }
+        } else {
+            Write-PostgresLog `
+                -Message "Container PostgreSQL ja esta em execucao."
+        }
+
+        if (!(Wait-PostgresTcpReady -TimeoutSeconds 90)) {
+            throw (
+                "Container foi iniciado, mas PostgreSQL nao respondeu em " +
+                "$($context.PostgresHost):$($context.PostgresPort)."
+            )
+        }
+
+        Write-PostgresLog `
+            -Level "OK" `
+            -Message "PostgreSQL Docker pronto."
+
+        exit 0
+    }
+
+    default {
+        throw "databaseMode nao suportado: $($context.DatabaseMode)"
+    }
 }

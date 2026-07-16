@@ -1,0 +1,48 @@
+{
+  "product": "ANDON Web Industrial",
+  "version": "1.0.0-pilot.1",
+  "channel": "pilot",
+  "branch": "chore/release-installer-1.0.0-pilot.1",
+  "components": {
+    "frontend": "1.0.0-pilot.1",
+    "backend": "1.0.0-pilot.1",
+    "windowsInstaller": "1.0.0-pilot.1",
+    "windowsRuntime": "1.0.0-pilot.1"
+  },
+  "deployment": {
+    "currentPilotDatabaseMode": "docker",
+    "companyHostPostPilotRecommendation": "local",
+    "developmentDatabaseMode": "docker",
+    "normalOperation": "local_offline",
+    "runtimeOrder": [
+      "database",
+      "api",
+      "frontend",
+      "kiosk"
+    ]
+  },
+  "ports": {
+    "apiDefault": 3001,
+    "frontendDefault": 8080,
+    "currentPilotPostgresPort": 5432,
+    "companyPostgresRecommendedPort": 5433
+  },
+  "readiness": [
+    "/health",
+    "/health/db",
+    "/api/machines?includeInactive=true"
+  ],
+  "database": {
+    "engine": "PostgreSQL",
+    "migration": "20260715043000_add_andon_call_system_test_metadata",
+    "migrationType": "additive",
+    "migrationApplied": true,
+    "backupRequiredBeforeDeploy": true
+  },
+  "automaticHealthTest": {
+    "origin": "installer_health_check",
+    "isSystemTest": true,
+    "historyLabel": "Teste automático",
+    "excludedFromOperationalIndicators": true
+  }
+}
