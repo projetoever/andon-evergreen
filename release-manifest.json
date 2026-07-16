@@ -10,7 +10,8 @@
     "windowsRuntime": "1.0.0-pilot.1"
   },
   "deployment": {
-    "companyHostDatabaseMode": "local",
+    "currentPilotDatabaseMode": "docker",
+    "companyHostPostPilotRecommendation": "local",
     "developmentDatabaseMode": "docker",
     "normalOperation": "local_offline",
     "runtimeOrder": [
@@ -23,7 +24,8 @@
   "ports": {
     "apiDefault": 3001,
     "frontendDefault": 8080,
-    "companyPostgresDefault": 5433
+    "currentPilotPostgresPort": 5432,
+    "companyPostgresRecommendedPort": 5433
   },
   "readiness": [
     "/health",
@@ -34,7 +36,7 @@
     "engine": "PostgreSQL",
     "migration": "20260715043000_add_andon_call_system_test_metadata",
     "migrationType": "additive",
-    "migrationApplied": false,
+    "migrationApplied": true,
     "backupRequiredBeforeDeploy": true
   },
   "automaticHealthTest": {
