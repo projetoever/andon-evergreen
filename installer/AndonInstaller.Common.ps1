@@ -1,8 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
-$Global:AndonInstallerVersion = "1.0.0-pilot.1"
+$Global:AndonInstallerVersion = "1.0.0-pilot.2"
 
 # ==================================================
-# ANDON WEB INDUSTRIAL - INSTALLER COMMON 1.0.0-pilot.1
+# ANDON WEB INDUSTRIAL - INSTALLER COMMON 1.0.0-pilot.2
 # Produto: piloto atual em Docker; PostgreSQL local recomendado para o HOST pos-piloto
 # Fonte da verdade: C:\web-andon-industrial\andon-config.json
 # ==================================================

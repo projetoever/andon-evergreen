@@ -23,7 +23,7 @@ function normalizeDataMode(
 /**
  * Modo padrão do frontend ANDON.
  *
- * A partir da release 1.0.0-pilot.1:
+ * A partir da release 1.0.0-pilot.2:
  *
  * - builds de produção operam obrigatoriamente pela API;
  * - o instalador e o menu ANDON geram builds em modo API;

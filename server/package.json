@@ -1,6 +1,6 @@
 {
   "name": "andon-evergreen-server",
-  "version": "1.0.0-pilot.1",
+  "version": "1.0.0-pilot.2",
   "private": true,
   "type": "module",
   "scripts": {

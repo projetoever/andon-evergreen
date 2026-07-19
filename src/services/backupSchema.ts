@@ -152,6 +152,51 @@ const callSchema = z
     createdBy: shortString.nullable().default("kiosk"),
     origin: callOriginSchema.default("kiosk"),
     isSystemTest: z.boolean().default(false),
+
+    machineSetId:
+      shortString.nullable().optional(),
+    machineSetCodeSnapshot:
+      shortString.nullable().optional(),
+    machineSetNameSnapshot:
+      shortString.nullable().optional(),
+    machineSetTypeSnapshot:
+      shortString.nullable().optional(),
+
+    machineSubsetId:
+      shortString.nullable().optional(),
+    machineSubsetCodeSnapshot:
+      shortString.nullable().optional(),
+    machineSubsetNameSnapshot:
+      shortString.nullable().optional(),
+    machineSubsetTypeSnapshot:
+      shortString.nullable().optional(),
+
+    confirmedMachineSetId:
+      shortString.nullable().optional(),
+    confirmedMachineSetCodeSnapshot:
+      shortString.nullable().optional(),
+    confirmedMachineSetNameSnapshot:
+      shortString.nullable().optional(),
+    confirmedMachineSetTypeSnapshot:
+      shortString.nullable().optional(),
+
+    confirmedMachineSubsetId:
+      shortString.nullable().optional(),
+    confirmedMachineSubsetCodeSnapshot:
+      shortString.nullable().optional(),
+    confirmedMachineSubsetNameSnapshot:
+      shortString.nullable().optional(),
+    confirmedMachineSubsetTypeSnapshot:
+      shortString.nullable().optional(),
+
+    assetConfirmedAt:
+      isoString.nullable().optional(),
+    assetConfirmedBy:
+      shortString.nullable().optional(),
+    assetLocationChanged:
+      z.boolean().optional(),
+    assetChangeReason:
+      shortString.nullable().optional(),
     updatedAt: isoString,
   })
   .passthrough()

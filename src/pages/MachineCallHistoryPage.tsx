@@ -23,6 +23,12 @@ import { calculateOperationalImpactBreakdown, formatBreakdownDuration } from "@/
 import { formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import {
+  getConfirmedAssetLocationLabel,
+  getEffectiveAssetLocationLabel,
+  getOpeningAssetLocationLabel,
+  hasAssetConfirmation,
+} from "@/utils/assetLocationUtils";
 import { cn } from "@/lib/utils";
 
 interface MachineCallHistoryPageProps { machineId: string; }
@@ -60,11 +66,26 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             : isMaintenance
               ? "Sem manutentor apontado"
               : "Não aplicável";
-        const machineSetLabel = call.machineSetNameSnapshot || call.machineSetCodeSnapshot || null;
-        const machineSetMeta = call.machineSetTypeSnapshot || call.machineSetCodeSnapshot || null;
-        const machineSetDisplay = machineSetLabel
-          ? `${machineSetLabel}${machineSetMeta && machineSetMeta !== machineSetLabel ? ` • ${machineSetMeta}` : ""}`
-          : "Não informado";
+        const openingAssetLocation =
+          getOpeningAssetLocationLabel(
+            call,
+            "Não informado",
+          );
+
+        const confirmedAssetLocation =
+          getConfirmedAssetLocationLabel(
+            call,
+            "Não confirmada",
+          );
+
+        const effectiveAssetLocation =
+          getEffectiveAssetLocationLabel(
+            call,
+            "Não informado",
+          );
+
+        const assetWasConfirmed =
+          hasAssetConfirmation(call);
         const isExpanded = expandedCallIds.includes(call.id);
 
         const impactPeriodStart = call.openedAt;
@@ -132,7 +153,14 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div className="text-xs uppercase tracking-widest text-muted-foreground">{formatDateTime(call.openedAt)}</div>
               <h2 className="truncate text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
               {call.isSystemTest && <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">Teste automático</div>}
-              {machineSetLabel && <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">Conjunto: {machineSetDisplay}</div>}
+              <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                Localização: {effectiveAssetLocation}
+              </div>
+              {call.assetLocationChanged && (
+                <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">
+                  Corrigida na finalização
+                </div>
+              )}
               <div className="mt-1 text-sm text-muted-foreground">Tempo total: <span className="font-bold text-foreground">{formatDurationMinutes(totalMinutes)}</span></div>
               <div className="text-sm text-muted-foreground">Manutentores: {technicianNames}</div>
             </div>
@@ -145,7 +173,90 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Atendido em</dt><dd className="font-mono">{formatDateTime(call.attendedAt)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt><dd className="font-mono">{formatDateTime(call.maintenanceCompletedAt)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">{call.status === "cancelled" ? "Cancelado em" : "Finalizado em"}</dt><dd className="font-mono">{formatDateTime(call.finishedAt)}</dd></div>
-              <div><dt className="text-xs uppercase text-muted-foreground">Conjunto</dt><dd className="font-bold">{machineSetDisplay}</dd></div>
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Localização efetiva
+                </dt>
+                <dd className="font-bold text-primary">
+                  {effectiveAssetLocation}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Localização na abertura
+                </dt>
+                <dd className="font-bold">
+                  {openingAssetLocation}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Localização confirmada
+                </dt>
+                <dd className="font-bold">
+                  {confirmedAssetLocation}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Confirmação do ativo
+                </dt>
+                <dd
+                  className={
+                    assetWasConfirmed
+                      ? call.assetLocationChanged
+                        ? "font-bold text-warning"
+                        : "font-bold text-success"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {assetWasConfirmed
+                    ? call.assetLocationChanged
+                      ? "Localização corrigida"
+                      : "Confirmada sem alteração"
+                    : "Não confirmada"}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Confirmado por
+                </dt>
+                <dd className="font-bold">
+                  {assetWasConfirmed
+                    ? call.assetConfirmedBy ??
+                      "Não informado"
+                    : "—"}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs uppercase text-muted-foreground">
+                  Confirmado em
+                </dt>
+                <dd className="font-mono">
+                  {assetWasConfirmed
+                    ? formatDateTime(
+                        call.assetConfirmedAt,
+                      )
+                    : "—"}
+                </dd>
+              </div>
+
+              {call.assetLocationChanged &&
+                call.assetChangeReason && (
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <dt className="text-xs uppercase text-muted-foreground">
+                      Justificativa da correção
+                    </dt>
+                    <dd className="whitespace-pre-line font-semibold text-warning">
+                      {call.assetChangeReason}
+                    </dd>
+                  </div>
+                )}
               <div><dt className="text-xs uppercase text-muted-foreground">Criticidade</dt><dd className="font-bold">{getCriticalityLabel(call.criticality)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Área técnica</dt><dd className="font-bold">{getTechnicianAreaLabel(call.technicianArea)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Condição ao abrir</dt><dd className="font-bold">{getMachineConditionLabel(call.machineCondition)}</dd></div>

@@ -1,6 +1,6 @@
 {
   "name": "tanstack_start_ts",
-  "version": "1.0.0-pilot.1",
+  "version": "1.0.0-pilot.2",
   "private": true,
   "sideEffects": false,
   "type": "module",

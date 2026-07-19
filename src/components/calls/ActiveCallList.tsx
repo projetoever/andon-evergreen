@@ -14,6 +14,9 @@ import {
   getCriticalityColorClass,
   getCriticalityLabel,
 } from "@/utils/statusUtils";
+import {
+  getEffectiveAssetLocationLabel,
+} from "@/utils/assetLocationUtils";
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
@@ -51,6 +54,13 @@ export function ActiveCallList({
         const waiting = calculateCallWaitingMinutes(c);
         const attending = calculateAttendanceMinutes(c);
         const postMaintenance = calculatePostMaintenanceMinutes(c);
+
+        const assetLocation =
+          getEffectiveAssetLocationLabel(
+            c,
+            "Sem conjunto informado",
+          );
+
         return (
           <div
             key={c.id}
@@ -77,6 +87,13 @@ export function ActiveCallList({
               </div>
               <div className="text-sm text-muted-foreground">
                 Aberto em <span className="font-mono">{formatDateTime(c.openedAt)}</span>
+              </div>
+
+              <div
+                className="w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-bold text-primary"
+                title={`Localização: ${assetLocation}`}
+              >
+                Localização: {assetLocation}
               </div>
               <div
                 className={

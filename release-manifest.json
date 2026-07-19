@@ -1,13 +1,13 @@
 {
   "product": "ANDON Web Industrial",
-  "version": "1.0.0-pilot.1",
+  "version": "1.0.0-pilot.2",
   "channel": "pilot",
-  "branch": "chore/release-installer-1.0.0-pilot.1",
+  "branch": "chore/release-installer-1.0.0-pilot.2",
   "components": {
-    "frontend": "1.0.0-pilot.1",
-    "backend": "1.0.0-pilot.1",
-    "windowsInstaller": "1.0.0-pilot.1",
-    "windowsRuntime": "1.0.0-pilot.1"
+    "frontend": "1.0.0-pilot.2",
+    "backend": "1.0.0-pilot.2",
+    "windowsInstaller": "1.0.0-pilot.2",
+    "windowsRuntime": "1.0.0-pilot.2"
   },
   "deployment": {
     "currentPilotDatabaseMode": "docker",
