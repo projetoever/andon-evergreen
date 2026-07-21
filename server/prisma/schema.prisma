@@ -76,7 +76,8 @@ model MachineSet {
   displayOrder Int?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  andonCalls   AndonCall[]
+  andonCalls          AndonCall[] @relation("AndonCallOpeningMachineSet")
+  confirmedAndonCalls AndonCall[] @relation("AndonCallConfirmedMachineSet")
   subsets      MachineSubset[]
 
   @@unique([machineId, code])
@@ -102,8 +103,8 @@ model MachineSubset {
   displayOrder Int?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
-  andonCalls   AndonCall[]
-
+  andonCalls          AndonCall[] @relation("AndonCallOpeningMachineSubset")
+  confirmedAndonCalls AndonCall[] @relation("AndonCallConfirmedMachineSubset")
   @@unique([machineSetId, code])
   @@index([machineSetId])
   @@index([typeId])
@@ -118,15 +119,32 @@ model AndonCall {
   machine                     Machine                     @relation("MachineAndonCalls", fields: [machineId], references: [id], onDelete: Restrict)
   currentForMachine           Machine?                    @relation("MachineCurrentCall")
   machineSetId                 String?
-  machineSet                   MachineSet?    @relation(fields: [machineSetId], references: [id], onDelete: SetNull)
+  machineSet                   MachineSet?    @relation("AndonCallOpeningMachineSet", fields: [machineSetId], references: [id], onDelete: SetNull)
   machineSetCodeSnapshot       String?
   machineSetNameSnapshot       String?
   machineSetTypeSnapshot       String?
   machineSubsetId              String?
-  machineSubset                MachineSubset? @relation(fields: [machineSubsetId], references: [id], onDelete: SetNull)
+  machineSubset                MachineSubset? @relation("AndonCallOpeningMachineSubset", fields: [machineSubsetId], references: [id], onDelete: SetNull)
   machineSubsetCodeSnapshot    String?
   machineSubsetNameSnapshot    String?
-  machineSubsetTypeSnapshot    String?
+  machineSubsetTypeSnapshot          String?
+
+  confirmedMachineSetId              String?
+  confirmedMachineSet                MachineSet?    @relation("AndonCallConfirmedMachineSet", fields: [confirmedMachineSetId], references: [id], onDelete: SetNull)
+  confirmedMachineSetCodeSnapshot    String?
+  confirmedMachineSetNameSnapshot    String?
+  confirmedMachineSetTypeSnapshot    String?
+
+  confirmedMachineSubsetId           String?
+  confirmedMachineSubset             MachineSubset? @relation("AndonCallConfirmedMachineSubset", fields: [confirmedMachineSubsetId], references: [id], onDelete: SetNull)
+  confirmedMachineSubsetCodeSnapshot String?
+  confirmedMachineSubsetNameSnapshot String?
+  confirmedMachineSubsetTypeSnapshot String?
+
+  assetConfirmedAt                   DateTime?
+  assetConfirmedBy                   String?
+  assetLocationChanged               Boolean        @default(false)
+  assetChangeReason                  String?
   category                    String
   subtype                     String?
   status                      String
@@ -165,6 +183,9 @@ model AndonCall {
   @@index([machineId])
   @@index([machineSetId])
   @@index([machineSubsetId])
+  @@index([confirmedMachineSetId])
+  @@index([confirmedMachineSubsetId])
+  @@index([assetConfirmedAt])
   @@index([status])
   @@index([isSystemTest])
   @@index([openedAt])

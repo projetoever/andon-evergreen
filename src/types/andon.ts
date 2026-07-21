@@ -66,6 +66,21 @@ export interface AndonCall {
   machineSubsetCodeSnapshot?: string | null;
   machineSubsetNameSnapshot?: string | null;
   machineSubsetTypeSnapshot?: string | null;
+  confirmedMachineSetId?: string | null;
+  confirmedMachineSetCodeSnapshot?: string | null;
+  confirmedMachineSetNameSnapshot?: string | null;
+  confirmedMachineSetTypeSnapshot?: string | null;
+
+  confirmedMachineSubsetId?: string | null;
+  confirmedMachineSubsetCodeSnapshot?: string | null;
+  confirmedMachineSubsetNameSnapshot?: string | null;
+  confirmedMachineSubsetTypeSnapshot?: string | null;
+
+  assetConfirmedAt?: string | null;
+  assetConfirmedBy?: string | null;
+  assetLocationChanged?: boolean;
+  assetChangeReason?: string | null;
+
   category: CallCategory;
   subtype: CallSubtype;
   status: AndonStatus;

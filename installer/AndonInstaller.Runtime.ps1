@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference = "Stop"
 
 # ==================================================
-# ANDON WEB INDUSTRIAL - INSTALLER RUNTIME 1.0.0-pilot.1
+# ANDON WEB INDUSTRIAL - INSTALLER RUNTIME 1.0.0-pilot.2
 # Runtime Windows consolidado
 # ==================================================
 

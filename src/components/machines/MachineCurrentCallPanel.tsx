@@ -17,6 +17,9 @@ import {
   getCriticalityLabel,
   getMachineConditionLabel,
 } from "@/utils/statusUtils";
+import {
+  getEffectiveAssetLocationLabel,
+} from "@/utils/assetLocationUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
 
@@ -90,8 +93,22 @@ export function MachineCurrentCallPanel({
   const postMaintenance =
     call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
-  const displayedMachineCondition = currentMachineStatus ?? call.machineCondition;
-  const showOpeningCondition = Boolean(currentMachineStatus && currentMachineStatus !== call.machineCondition);
+  const displayedMachineCondition =
+    currentMachineStatus ??
+    call.machineCondition;
+
+  const showOpeningCondition = Boolean(
+    currentMachineStatus &&
+      currentMachineStatus !==
+        call.machineCondition,
+  );
+
+  const assetLocation =
+    getEffectiveAssetLocationLabel(
+      call,
+      "Sem conjunto informado",
+    );
+
   return (
     <div
       className={cn(
@@ -119,6 +136,19 @@ export function MachineCurrentCallPanel({
           <dt className="text-xs uppercase text-muted-foreground">Status</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
             {getAndonStatusLabel(call.status)}
+          </dd>
+        </div>
+
+        <div className="col-span-2 lg:col-span-3">
+          <dt className="text-xs uppercase text-muted-foreground">
+            Localização do chamado
+          </dt>
+
+          <dd
+            className="truncate text-base font-bold leading-tight text-primary md:text-lg"
+            title={assetLocation}
+          >
+            {assetLocation}
           </dd>
         </div>
         <div>

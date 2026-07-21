@@ -46,7 +46,7 @@ interface AndonContextValue {
   endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => void;
   completeMaintenance: (callId: string) => AndonCall;
   returnToMaintenance: (callId: string) => AndonCall;
-  finishCall: (params: andonService.FinishAndonCallParams) => void;
+  finishCall: (params: andonService.FinishAndonCallParams) => Promise<void>;
   cancelCall: (params: andonService.CancelAndonCallParams) => void;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
@@ -253,13 +253,20 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const finishCall = useCallback(
-    (params: andonService.FinishAndonCallParams) => {
-      void andonRepository.finishCall(machines, calls, params).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
+    async (
+      params: andonService.FinishAndonCallParams,
+    ) => {
+      const result =
+        await andonRepository.finishCall(
+          machines,
+          calls,
+          params,
+        );
+
+      setMachines(result.machines);
+      setCalls(result.calls);
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls],
   );
 
   const cancelCall = useCallback(

@@ -2,6 +2,12 @@ import type { AndonCall } from "@/types/andon";
 import type { AppBackup } from "@/types/history";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
+  getConfirmedAssetLocationLabel,
+  getEffectiveAssetLocationLabel,
+  getOpeningAssetLocationLabel,
+  hasAssetConfirmation,
+} from "@/utils/assetLocationUtils";
+import {
   getAndonStatusLabel,
   getCallSubtypeLabel,
 } from "@/utils/statusUtils";
@@ -53,9 +59,9 @@ function getCallOriginLabel(call: AndonCall): string {
   return "Kiosk";
 }
 
-export function exportHistoryToCsv(
+export function buildHistoryCsv(
   calls: AndonCall[],
-): void {
+): string {
   const header = [
     "Máquina",
     "Tipo de registro",
@@ -63,6 +69,13 @@ export function exportHistoryToCsv(
     "Status",
     "Categoria",
     "Subtipo",
+    "Localização efetiva",
+    "Localização na abertura",
+    "Localização confirmada",
+    "Situação da confirmação",
+    "Confirmado por",
+    "Confirmado em",
+    "Motivo da correção",
     "Aberto em",
     "Atendido em",
     "Finalizado em",
@@ -74,29 +87,71 @@ export function exportHistoryToCsv(
     "Observações",
   ];
 
-  const rows = calls.map((call) => [
-    call.machineId,
-    getRecordTypeLabel(call),
-    getCallOriginLabel(call),
-    getAndonStatusLabel(call.status),
-    call.category === "maintenance"
-      ? "Manutenção"
-      : "Produção",
-    getCallSubtypeLabel(call.subtype),
-    formatDateTime(call.openedAt),
-    formatDateTime(call.attendedAt),
-    formatDateTime(call.finishedAt),
-    call.callWaitingMinutes,
-    call.attendanceMinutes,
-    call.totalCallMinutes,
-    call.machineStoppedMinutes,
-    call.technicianName ?? "",
-    call.notes ?? "",
-  ]);
+  const rows = calls.map((call) => {
+    const assetWasConfirmed =
+      hasAssetConfirmation(call);
 
-  const csv = [header, ...rows]
-    .map((row) => row.map(escapeCsv).join(";"))
+    const confirmationStatus =
+      assetWasConfirmed
+        ? call.assetLocationChanged
+          ? "Corrigida"
+          : "Confirmada sem alteração"
+        : "Não confirmada";
+
+    return [
+      call.machineId,
+      getRecordTypeLabel(call),
+      getCallOriginLabel(call),
+      getAndonStatusLabel(call.status),
+      call.category === "maintenance"
+        ? "Manutenção"
+        : "Produção",
+      getCallSubtypeLabel(call.subtype),
+      getEffectiveAssetLocationLabel(
+        call,
+        "Não informado",
+      ),
+      getOpeningAssetLocationLabel(
+        call,
+        "Não informado",
+      ),
+      getConfirmedAssetLocationLabel(
+        call,
+        "Não confirmada",
+      ),
+      confirmationStatus,
+      call.assetConfirmedBy ?? "",
+      assetWasConfirmed
+        ? formatDateTime(
+            call.assetConfirmedAt,
+          )
+        : "",
+      call.assetLocationChanged
+        ? call.assetChangeReason ?? ""
+        : "",
+      formatDateTime(call.openedAt),
+      formatDateTime(call.attendedAt),
+      formatDateTime(call.finishedAt),
+      call.callWaitingMinutes,
+      call.attendanceMinutes,
+      call.totalCallMinutes,
+      call.machineStoppedMinutes,
+      call.technicianName ?? "",
+      call.notes ?? "",
+    ];
+  });
+
+  return [header, ...rows]
+    .map((row) =>
+      row.map(escapeCsv).join(";"),
+    )
     .join("\r\n");
+}
+
+export function exportHistoryToCsv(
+  calls: AndonCall[],
+): void {
+  const csv = buildHistoryCsv(calls);
 
   const blob = new Blob(
     ["\uFEFF" + csv],

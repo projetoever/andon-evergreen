@@ -1,4 +1,9 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { getActiveTechniciansForArea } from "@/services/technicianConfigService";
 import { getCurrentShiftFromConfig, getTechnicianShiftFilterConfig } from "@/services/technicianShiftFilterService";
 import type { TechnicianArea } from "@/types/andon";
@@ -9,7 +14,7 @@ import { cn } from "@/lib/utils";
 interface TechnicianSelectorProps {
   area: TechnicianArea;
   value: string[];
-  onChange: (names: string[]) => void;
+  onChange: Dispatch<SetStateAction<string[]>>;
   excludeNames?: string[];
   optionalAreas?: TechnicianArea[];
 }
@@ -77,8 +82,14 @@ export function TechnicianSelector({
   }, [visibleAreas, showAll, excludeNames]);
 
   function toggleTechnician(name: string) {
-    if (value.includes(name)) return onChange(value.filter((selected) => selected !== name));
-    onChange([...value, name]);
+    onChange((current) =>
+      current.includes(name)
+        ? current.filter(
+            (selected) =>
+              selected !== name,
+          )
+        : [...current, name],
+    );
   }
 
   function showOptionalArea(optionalArea: TechnicianArea) {

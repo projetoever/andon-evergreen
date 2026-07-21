@@ -63,6 +63,17 @@ export interface FinishAndonCallParams {
   technicianArea: TechnicianArea | null;
   notes?: string | null;
   selectedTechnicians?: SelectedTechnicianInput[];
+
+  assetConfirmed: true;
+  confirmedMachineSetId: string | null;
+  confirmedMachineSetCodeSnapshot: string | null;
+  confirmedMachineSetNameSnapshot: string | null;
+  confirmedMachineSetTypeSnapshot: string | null;
+  confirmedMachineSubsetId: string | null;
+  confirmedMachineSubsetCodeSnapshot: string | null;
+  confirmedMachineSubsetNameSnapshot: string | null;
+  confirmedMachineSubsetTypeSnapshot: string | null;
+  assetChangeReason?: string | null;
 }
 
 
@@ -83,6 +94,89 @@ export interface EndTechnicianSessionParams {
   sessionId: string;
   notes?: string | null;
   endReason: TechnicianSessionEndReason;
+}
+
+function uniqueRegisteredTechnicianNames(
+  names: Array<string | null | undefined>,
+) {
+  return Array.from(
+    new Set(
+      names
+        .map(
+          (name) => name?.trim(),
+        )
+        .filter(
+          (name): name is string =>
+            Boolean(name),
+        ),
+    ),
+  );
+}
+
+function resolveAutomaticAssetConfirmedBy(
+  call: AndonCall,
+) {
+  const sessions =
+    call.technicianSessions ?? [];
+
+  const activeSessionNames =
+    uniqueRegisteredTechnicianNames(
+      sessions
+        .filter(
+          (session) =>
+            !session.endedAt,
+        )
+        .map(
+          (session) =>
+            session.technicianName,
+        ),
+    );
+
+  const allSessionNames =
+    uniqueRegisteredTechnicianNames(
+      sessions.map(
+        (session) =>
+          session.technicianName,
+      ),
+    );
+
+  const legacyNames =
+    uniqueRegisteredTechnicianNames([
+      ...(call.technicianNames ?? []),
+      call.technicianName,
+    ]);
+
+  const responsibleNames =
+    activeSessionNames.length
+      ? activeSessionNames
+      : allSessionNames.length
+        ? allSessionNames
+        : legacyNames;
+
+  if (
+    requiresMaintenanceTechnician(call) &&
+    responsibleNames.length === 0
+  ) {
+    throw new Error(
+      "O chamado de manutenção não possui mantenedor registrado",
+    );
+  }
+
+  return responsibleNames.length
+    ? responsibleNames.join(", ")
+    : "Operação";
+}
+
+function resolveAssetChangeReason(
+  locationChanged: boolean,
+  reason: string | null | undefined,
+) {
+  if (!locationChanged) {
+    return null;
+  }
+
+  return reason?.trim() ||
+    "Não justificado";
 }
 
 function createSession(call: AndonCall, machine: Machine | undefined, technician: SelectedTechnicianInput, now: string, notes?: string | null): TechnicianAttendanceSession {
@@ -152,6 +246,18 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     createdBy?: unknown;
     origin?: unknown;
     isSystemTest?: unknown;
+    confirmedMachineSetId?: unknown;
+    confirmedMachineSetCodeSnapshot?: unknown;
+    confirmedMachineSetNameSnapshot?: unknown;
+    confirmedMachineSetTypeSnapshot?: unknown;
+    confirmedMachineSubsetId?: unknown;
+    confirmedMachineSubsetCodeSnapshot?: unknown;
+    confirmedMachineSubsetNameSnapshot?: unknown;
+    confirmedMachineSubsetTypeSnapshot?: unknown;
+    assetConfirmedAt?: unknown;
+    assetConfirmedBy?: unknown;
+    assetLocationChanged?: unknown;
+    assetChangeReason?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -201,6 +307,52 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     machineSubsetTypeSnapshot:
       typeof source.machineSubsetTypeSnapshot === "string"
         ? source.machineSubsetTypeSnapshot
+        : null,
+    confirmedMachineSetId:
+      typeof source.confirmedMachineSetId === "string"
+        ? source.confirmedMachineSetId
+        : null,
+    confirmedMachineSetCodeSnapshot:
+      typeof source.confirmedMachineSetCodeSnapshot === "string"
+        ? source.confirmedMachineSetCodeSnapshot
+        : null,
+    confirmedMachineSetNameSnapshot:
+      typeof source.confirmedMachineSetNameSnapshot === "string"
+        ? source.confirmedMachineSetNameSnapshot
+        : null,
+    confirmedMachineSetTypeSnapshot:
+      typeof source.confirmedMachineSetTypeSnapshot === "string"
+        ? source.confirmedMachineSetTypeSnapshot
+        : null,
+    confirmedMachineSubsetId:
+      typeof source.confirmedMachineSubsetId === "string"
+        ? source.confirmedMachineSubsetId
+        : null,
+    confirmedMachineSubsetCodeSnapshot:
+      typeof source.confirmedMachineSubsetCodeSnapshot === "string"
+        ? source.confirmedMachineSubsetCodeSnapshot
+        : null,
+    confirmedMachineSubsetNameSnapshot:
+      typeof source.confirmedMachineSubsetNameSnapshot === "string"
+        ? source.confirmedMachineSubsetNameSnapshot
+        : null,
+    confirmedMachineSubsetTypeSnapshot:
+      typeof source.confirmedMachineSubsetTypeSnapshot === "string"
+        ? source.confirmedMachineSubsetTypeSnapshot
+        : null,
+    assetConfirmedAt:
+      typeof source.assetConfirmedAt === "string"
+        ? source.assetConfirmedAt
+        : null,
+    assetConfirmedBy:
+      typeof source.assetConfirmedBy === "string"
+        ? source.assetConfirmedBy
+        : null,
+    assetLocationChanged:
+      source.assetLocationChanged === true,
+    assetChangeReason:
+      typeof source.assetChangeReason === "string"
+        ? source.assetChangeReason
         : null,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
@@ -452,35 +604,148 @@ export function finishAndonCall(
   calls: AndonCall[],
   params: FinishAndonCallParams,
 ): { machines: Machine[]; calls: AndonCall[] } {
-  const call = calls.find((c) => c.id === params.callId);
-  if (!call) throw new Error("Chamado não encontrado");
-  if (call.status === "finished") throw new Error("Chamado já finalizado");
+  const call = calls.find((item) => item.id === params.callId);
 
-  const sessionNames = Array.from(new Set((call.technicianSessions ?? []).map((session) => session.technicianName)));
-  const selectedFinalNames = params.technicianNames?.length
-    ? params.technicianNames
-    : params.technicianName
-      ? [params.technicianName]
-      : call.technicianNames;
-  const technicianNames = Array.from(new Set([...selectedFinalNames, ...sessionNames].filter(Boolean)));
-  const technicianName = technicianNames[0] ?? params.technicianName ?? null;
-
-  if (requiresMaintenanceTechnician(call) && !technicianName) {
-    throw new Error("Selecione um manutentor para chamados de manutenção");
+  if (!call) {
+    throw new Error("Chamado não encontrado");
   }
-  const now = new Date().toISOString();
-  const machine = machines.find((m) => m.id === call.machineId);
-  const selectedTechnicianIdsByName = new Map(
-    (params.selectedTechnicians ?? [])
-      .map((technician) => [technician.name.trim(), technician.id] as const)
-      .filter(([name]) => Boolean(name)),
+
+  if (
+    call.status === "finished" ||
+    call.status === "cancelled"
+  ) {
+    throw new Error("Chamado já encerrado");
+  }
+
+  if (params.assetConfirmed !== true) {
+    throw new Error(
+      "Confirme a localização do ativo antes de finalizar",
+    );
+  }
+
+  const assetConfirmedBy =
+    resolveAutomaticAssetConfirmedBy(
+      call,
+    );
+
+  const sessionNames = Array.from(
+    new Set(
+      (call.technicianSessions ?? []).map(
+        (session) => session.technicianName,
+      ),
+    ),
   );
-  const technicianTimeAllocations = buildTechnicianTimeAllocations({
-    call,
-    finalizedAt: now,
-    technicianNames,
-    selectedTechnicianIdsByName,
-  });
+
+  const selectedFinalNames =
+    params.technicianNames?.length
+      ? params.technicianNames
+      : params.technicianName
+        ? [params.technicianName]
+        : call.technicianNames;
+
+  const technicianNames = Array.from(
+    new Set(
+      [
+        ...selectedFinalNames,
+        ...sessionNames,
+      ].filter(Boolean),
+    ),
+  );
+
+  const technicianName =
+    technicianNames[0] ??
+    params.technicianName ??
+    null;
+
+  if (
+    requiresMaintenanceTechnician(call) &&
+    !technicianName
+  ) {
+    throw new Error(
+      "Selecione um manutentor para chamados de manutenção",
+    );
+  }
+
+  function assetKey(
+    id: string | null | undefined,
+    code: string | null | undefined,
+    name: string | null | undefined,
+    type: string | null | undefined,
+  ) {
+    if (id) {
+      return `id:${id}`;
+    }
+
+    const values = [
+      code?.trim() ?? "",
+      name?.trim() ?? "",
+      type?.trim() ?? "",
+    ];
+
+    return values.some(Boolean)
+      ? `snapshot:${values.join("|")}`
+      : null;
+  }
+
+  const locationChanged =
+    assetKey(
+      call.machineSetId,
+      call.machineSetCodeSnapshot,
+      call.machineSetNameSnapshot,
+      call.machineSetTypeSnapshot,
+    ) !==
+      assetKey(
+        params.confirmedMachineSetId,
+        params.confirmedMachineSetCodeSnapshot,
+        params.confirmedMachineSetNameSnapshot,
+        params.confirmedMachineSetTypeSnapshot,
+      ) ||
+    assetKey(
+      call.machineSubsetId,
+      call.machineSubsetCodeSnapshot,
+      call.machineSubsetNameSnapshot,
+      call.machineSubsetTypeSnapshot,
+    ) !==
+      assetKey(
+        params.confirmedMachineSubsetId,
+        params.confirmedMachineSubsetCodeSnapshot,
+        params.confirmedMachineSubsetNameSnapshot,
+        params.confirmedMachineSubsetTypeSnapshot,
+      );
+
+  const assetChangeReason =
+    resolveAssetChangeReason(
+      locationChanged,
+      params.assetChangeReason,
+    );
+
+  const now = new Date().toISOString();
+
+  const machine = machines.find(
+    (item) => item.id === call.machineId,
+  );
+
+  const selectedTechnicianIdsByName =
+    new Map(
+      (params.selectedTechnicians ?? [])
+        .map(
+          (technician) =>
+            [
+              technician.name.trim(),
+              technician.id,
+            ] as const,
+        )
+        .filter(([name]) => Boolean(name)),
+    );
+
+  const technicianTimeAllocations =
+    buildTechnicianTimeAllocations({
+      call,
+      finalizedAt: now,
+      technicianNames,
+      selectedTechnicianIdsByName,
+    });
+
   const finishedCall: AndonCall = {
     ...call,
     status: "finished",
@@ -490,37 +755,116 @@ export function finishAndonCall(
     technicianNames,
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
-    productionModeAtFinish: machine?.productionMode,
-    machineStatusAtFinish: machine?.machineStatus,
-    technicianSessions: (call.technicianSessions ?? []).map((session) => session.endedAt ? session : { ...session, endedAt: now, endReason: "final_call", productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus }),
+    productionModeAtFinish:
+      machine?.productionMode,
+    machineStatusAtFinish:
+      machine?.machineStatus,
+
+    confirmedMachineSetId:
+      params.confirmedMachineSetId,
+    confirmedMachineSetCodeSnapshot:
+      params.confirmedMachineSetCodeSnapshot,
+    confirmedMachineSetNameSnapshot:
+      params.confirmedMachineSetNameSnapshot,
+    confirmedMachineSetTypeSnapshot:
+      params.confirmedMachineSetTypeSnapshot,
+
+    confirmedMachineSubsetId:
+      params.confirmedMachineSubsetId,
+    confirmedMachineSubsetCodeSnapshot:
+      params.confirmedMachineSubsetCodeSnapshot,
+    confirmedMachineSubsetNameSnapshot:
+      params.confirmedMachineSubsetNameSnapshot,
+    confirmedMachineSubsetTypeSnapshot:
+      params.confirmedMachineSubsetTypeSnapshot,
+
+    assetConfirmedAt: now,
+    assetConfirmedBy,
+    assetLocationChanged:
+      locationChanged,
+    assetChangeReason:
+      locationChanged
+        ? assetChangeReason
+        : null,
+
+    technicianSessions:
+      (call.technicianSessions ?? []).map(
+        (session) =>
+          session.endedAt
+            ? session
+            : {
+                ...session,
+                endedAt: now,
+                endReason: "final_call",
+                productionModeAtEnd:
+                  machine?.productionMode,
+                machineStatusAtEnd:
+                  machine?.machineStatus,
+              },
+      ),
+
     technicianTimeAllocations,
     updatedAt: now,
   };
-  finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);
+
+  finishedCall.callWaitingMinutes =
+    calculateCallWaitingMinutes(
+      finishedCall,
+      now,
+    );
+
   finishedCall.attendanceMinutes =
     (call.attendanceMinutes ?? 0) +
     (call.status === "in_progress"
-      ? diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
+      ? diffMinutes(
+          call.currentAttendanceStartedAt ??
+            call.attendedAt,
+          now,
+        )
       : 0);
+
   finishedCall.postMaintenanceMinutes =
     (call.postMaintenanceMinutes ?? 0) +
-    (call.status === "post_maintenance" ? diffMinutes(call.maintenanceCompletedAt, now) : 0);
-  finishedCall.totalCallMinutes = calculateTotalCallMinutes(finishedCall, now);
-  finishedCall.machineStoppedMinutes = machine ? calculateMachineStoppedMinutes(machine, now) : 0;
-  const newCalls = calls.map((c) => (c.id === params.callId ? finishedCall : c));
-  const newMachines = machines.map((m) =>
-    m.id === call.machineId
-      ? {
-          ...m,
-          andonStatus: "none" as const,
-          currentCallId: null,
-          lastStatusChangedAt: now,
-        }
-      : m,
-  );
-  return { machines: newMachines, calls: newCalls };
-}
+    (call.status === "post_maintenance"
+      ? diffMinutes(
+          call.maintenanceCompletedAt,
+          now,
+        )
+      : 0);
 
+  finishedCall.totalCallMinutes =
+    calculateTotalCallMinutes(
+      finishedCall,
+      now,
+    );
+
+  finishedCall.machineStoppedMinutes =
+    machine
+      ? calculateMachineStoppedMinutes(
+          machine,
+          now,
+        )
+      : 0;
+
+  return {
+    calls: calls.map((item) =>
+      item.id === params.callId
+        ? finishedCall
+        : item,
+    ),
+
+    machines: machines.map((item) =>
+      item.id === call.machineId
+        ? {
+            ...item,
+            andonStatus: "none" as const,
+            currentCallId: null,
+            lastStatusChangedAt: now,
+          }
+        : item,
+    ),
+  };
+}
 export function cancelAndonCall(
   machines: Machine[],
   calls: AndonCall[],

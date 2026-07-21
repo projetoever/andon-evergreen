@@ -18,6 +18,9 @@ import {
   getAlertLevel,
   getCallSubtypeLabel,
 } from "@/utils/statusUtils";
+import {
+  getEffectiveAssetLocationLabel,
+} from "@/utils/assetLocationUtils";
 
 interface MachineCardProps {
   machine: Machine;
@@ -75,8 +78,12 @@ export function MachineCard({ machine }: MachineCardProps) {
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
-  const machineSetLabel = currentCall?.machineSetNameSnapshot || currentCall?.machineSetCodeSnapshot || null;
-  const machineSetMeta = currentCall?.machineSetTypeSnapshot || currentCall?.machineSetCodeSnapshot || null;
+  const assetLocation = currentCall
+    ? getEffectiveAssetLocationLabel(
+        currentCall,
+        "Sem conjunto informado",
+      )
+    : null;
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
@@ -135,16 +142,18 @@ export function MachineCard({ machine }: MachineCardProps) {
               )}
               <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
             </div>
-            {machineSetLabel && (
+            {assetLocation && (
               <div
                 className="flex w-fit max-w-full min-w-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary 2xl:text-xs"
-                title={`Conjunto: ${machineSetLabel}${machineSetMeta ? ` • ${machineSetMeta}` : ""}`}
+                title={`Localização: ${assetLocation}`}
               >
-                <span className="shrink-0 text-muted-foreground">Conjunto:</span>
-                <span className="min-w-0 truncate">{machineSetLabel}</span>
-                {machineSetMeta && machineSetMeta !== machineSetLabel && (
-                  <span className="shrink-0 opacity-80">• {machineSetMeta}</span>
-                )}
+                <span className="shrink-0 text-muted-foreground">
+                  Localização:
+                </span>
+
+                <span className="min-w-0 truncate">
+                  {assetLocation}
+                </span>
               </div>
             )}
             {callElapsedLabel && callElapsedMinutes !== null && (
