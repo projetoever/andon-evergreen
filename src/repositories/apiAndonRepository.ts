@@ -346,8 +346,6 @@ export class ApiAndonRepository implements AndonRepository {
         params.confirmedMachineSetId,
       confirmedMachineSubsetId:
         params.confirmedMachineSubsetId,
-      assetConfirmedBy:
-        params.assetConfirmedBy,
       assetChangeReason:
         params.assetChangeReason,
     });

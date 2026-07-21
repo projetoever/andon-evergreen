@@ -56,7 +56,6 @@ type FinishAndonCallBody = {
   assetConfirmed?: unknown;
   confirmedMachineSetId?: unknown;
   confirmedMachineSubsetId?: unknown;
-  assetConfirmedBy?: unknown;
   assetChangeReason?: unknown;
 };
 
@@ -236,6 +235,96 @@ async function findActiveMachineSubsetForCall(
 class FinishCallValidationError extends Error {}
 
 class FinishCallNotFoundError extends Error {}
+
+type AssetConfirmationResponsibleCall = {
+  category: string;
+  technicianName: string | null;
+  technicianNames: string[];
+  technicianSessions: Array<{
+    technicianName: string;
+    endedAt: Date | null;
+  }>;
+};
+
+function uniqueRegisteredTechnicianNames(
+  names: Array<string | null | undefined>,
+) {
+  return Array.from(
+    new Set(
+      names
+        .map(
+          (name) => name?.trim(),
+        )
+        .filter(
+          (name): name is string =>
+            Boolean(name),
+        ),
+    ),
+  );
+}
+
+function resolveAutomaticAssetConfirmedBy(
+  call: AssetConfirmationResponsibleCall,
+) {
+  const activeSessionNames =
+    uniqueRegisteredTechnicianNames(
+      call.technicianSessions
+        .filter(
+          (session) =>
+            !session.endedAt,
+        )
+        .map(
+          (session) =>
+            session.technicianName,
+        ),
+    );
+
+  const allSessionNames =
+    uniqueRegisteredTechnicianNames(
+      call.technicianSessions.map(
+        (session) =>
+          session.technicianName,
+      ),
+    );
+
+  const legacyNames =
+    uniqueRegisteredTechnicianNames([
+      ...call.technicianNames,
+      call.technicianName,
+    ]);
+
+  const responsibleNames =
+    activeSessionNames.length
+      ? activeSessionNames
+      : allSessionNames.length
+        ? allSessionNames
+        : legacyNames;
+
+  if (
+    call.category === "maintenance" &&
+    responsibleNames.length === 0
+  ) {
+    throw new FinishCallValidationError(
+      "O chamado de manutenção não possui mantenedor registrado",
+    );
+  }
+
+  return responsibleNames.length
+    ? responsibleNames.join(", ")
+    : "Operação";
+}
+
+function resolveAssetChangeReason(
+  locationChanged: boolean,
+  reason: string | undefined,
+) {
+  if (!locationChanged) {
+    return null;
+  }
+
+  return reason?.trim() ||
+    "Não justificado";
+}
 
 function assetSnapshotKey(
   id: string | null,
@@ -648,7 +737,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         },
       });
 
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress" } });
+      if (!call.isSystemTest) {
+
+
+        await tx.machine.update({
+
+
+          where: { id: call.machineId },
+
+
+          data: { andonStatus: "in_progress" },
+
+
+        });
+
+
+      }
 
       await createMissingActiveTechnicianSessions(tx, {
         callId: call.id,
@@ -800,7 +904,17 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           notes: appendNote(call.notes, optionalString(request.body?.notes), "Conclusão da manutenção"),
         },
       });
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "post_maintenance" } });
+      if (!call.isSystemTest) {
+
+        await tx.machine.update({
+
+          where: { id: call.machineId },
+
+          data: { andonStatus: "post_maintenance" },
+
+        });
+
+      }
       return findCallWithSessions(tx, call.id);
     });
 
@@ -824,7 +938,17 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           notes: appendNote(call.notes, optionalString(request.body?.reason), "Retorno à manutenção"),
         },
       });
-      await tx.machine.update({ where: { id: call.machineId }, data: { andonStatus: "in_progress" } });
+      if (!call.isSystemTest) {
+
+        await tx.machine.update({
+
+          where: { id: call.machineId },
+
+          data: { andonStatus: "in_progress" },
+
+        });
+
+      }
       return findCallWithSessions(tx, call.id);
     });
 
@@ -840,9 +964,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     );
     const confirmedMachineSubsetId = optionalString(
       body.confirmedMachineSubsetId,
-    );
-    const assetConfirmedBy = optionalString(
-      body.assetConfirmedBy,
     );
     const assetChangeReason = optionalString(
       body.assetChangeReason,
@@ -865,12 +986,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       );
     }
 
-    if (!assetConfirmedBy) {
-      return badRequest(
-        reply,
-        "Campo assetConfirmedBy é obrigatório",
-      );
-    }
 
     if (
       confirmedMachineSubsetId &&
@@ -888,6 +1003,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const call = await tx.andonCall.findUnique({
             include: {
               machine: true,
+              technicianSessions: {
+                orderBy: {
+                  startedAt: "asc",
+                },
+              },
             },
             where: {
               id: request.params.id,
@@ -1045,14 +1165,16 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             openingSetKey !== confirmedSetKey ||
             openingSubsetKey !== confirmedSubsetKey;
 
-          if (
-            locationChanged &&
-            !assetChangeReason
-          ) {
-            throw new FinishCallValidationError(
-              "A justificativa é obrigatória quando a localização confirmada for diferente da abertura",
+          const assetConfirmedBy =
+            resolveAutomaticAssetConfirmedBy(
+              call,
             );
-          }
+
+          const normalizedAssetChangeReason =
+            resolveAssetChangeReason(
+              locationChanged,
+              assetChangeReason,
+            );
 
           const now = new Date();
 
@@ -1130,21 +1252,41 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               assetLocationChanged:
                 locationChanged,
               assetChangeReason:
-                locationChanged
-                  ? assetChangeReason
-                  : null,
+                normalizedAssetChangeReason,
             },
           });
 
-          await tx.machine.update({
-            where: {
-              id: call.machineId,
-            },
-            data: {
-              andonStatus: "normal",
-              currentCallId: null,
-            },
-          });
+          if (!call.isSystemTest) {
+
+
+            await tx.machine.update({
+
+
+              where: {
+
+
+                id: call.machineId,
+
+
+              },
+
+
+              data: {
+
+
+                andonStatus: "normal",
+
+
+                currentCallId: null,
+
+
+              },
+
+
+            });
+
+
+          }
 
           await tx.technicianSession.updateMany({
             where: {

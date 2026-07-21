@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
@@ -125,10 +124,6 @@ export function FinishCallModal({
     setConfirmedMachineSubsetId,
   ] = useState<string | null>(null);
 
-  const [
-    assetConfirmedBy,
-    setAssetConfirmedBy,
-  ] = useState("");
 
   const [
     assetConfirmed,
@@ -252,11 +247,6 @@ export function FinishCallModal({
       call.machineSubsetId ?? null,
     );
 
-    setAssetConfirmedBy(
-      call.technicianName ??
-        initialNames[0] ??
-        "",
-    );
 
     setAssetConfirmed(false);
     setAssetChangeReason("");
@@ -483,14 +473,9 @@ export function FinishCallModal({
       !assetLoadFailed &&
       !isSubmitting &&
       assetConfirmed &&
-      assetConfirmedBy.trim() &&
       (
         !hasActiveSets ||
         selectedMachineSet
-      ) &&
-      (
-        !locationChanged ||
-        assetChangeReason.trim()
       ) &&
       (
         !requiresTechnician ||
@@ -632,12 +617,10 @@ export function FinishCallModal({
         confirmedMachineSubsetTypeSnapshot:
           finalMachineSubsetType,
 
-        assetConfirmedBy:
-          assetConfirmedBy.trim(),
 
         assetChangeReason:
           locationChanged
-            ? assetChangeReason.trim()
+            ? assetChangeReason.trim() || null
             : null,
       });
 
@@ -887,12 +870,18 @@ export function FinishCallModal({
               em relação à abertura.
             </p>
           )}
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            O responsável será registrado
+            automaticamente com base nos
+            atendimentos deste chamado.
+          </p>
         </div>
 
         {locationChanged && (
           <div>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Justificativa da correção
+              Justificativa da correção (opcional)
             </h4>
 
             <Textarea
@@ -905,28 +894,11 @@ export function FinishCallModal({
                 )
               }
               rows={3}
-              placeholder="Explique a correção do conjunto ou subconjunto."
+              placeholder="Explique a correção, se necessário. Em branco será registrado como Não justificado."
             />
           </div>
         )}
 
-        <div>
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Confirmado por
-          </h4>
-
-          <Input
-            value={
-              assetConfirmedBy
-            }
-            onChange={(event) =>
-              setAssetConfirmedBy(
-                event.target.value,
-              )
-            }
-            placeholder="Nome de quem confirmou a localização"
-          />
-        </div>
 
         <button
           type="button"

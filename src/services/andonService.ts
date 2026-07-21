@@ -73,7 +73,6 @@ export interface FinishAndonCallParams {
   confirmedMachineSubsetCodeSnapshot: string | null;
   confirmedMachineSubsetNameSnapshot: string | null;
   confirmedMachineSubsetTypeSnapshot: string | null;
-  assetConfirmedBy: string;
   assetChangeReason?: string | null;
 }
 
@@ -95,6 +94,89 @@ export interface EndTechnicianSessionParams {
   sessionId: string;
   notes?: string | null;
   endReason: TechnicianSessionEndReason;
+}
+
+function uniqueRegisteredTechnicianNames(
+  names: Array<string | null | undefined>,
+) {
+  return Array.from(
+    new Set(
+      names
+        .map(
+          (name) => name?.trim(),
+        )
+        .filter(
+          (name): name is string =>
+            Boolean(name),
+        ),
+    ),
+  );
+}
+
+function resolveAutomaticAssetConfirmedBy(
+  call: AndonCall,
+) {
+  const sessions =
+    call.technicianSessions ?? [];
+
+  const activeSessionNames =
+    uniqueRegisteredTechnicianNames(
+      sessions
+        .filter(
+          (session) =>
+            !session.endedAt,
+        )
+        .map(
+          (session) =>
+            session.technicianName,
+        ),
+    );
+
+  const allSessionNames =
+    uniqueRegisteredTechnicianNames(
+      sessions.map(
+        (session) =>
+          session.technicianName,
+      ),
+    );
+
+  const legacyNames =
+    uniqueRegisteredTechnicianNames([
+      ...(call.technicianNames ?? []),
+      call.technicianName,
+    ]);
+
+  const responsibleNames =
+    activeSessionNames.length
+      ? activeSessionNames
+      : allSessionNames.length
+        ? allSessionNames
+        : legacyNames;
+
+  if (
+    requiresMaintenanceTechnician(call) &&
+    responsibleNames.length === 0
+  ) {
+    throw new Error(
+      "O chamado de manutenção não possui mantenedor registrado",
+    );
+  }
+
+  return responsibleNames.length
+    ? responsibleNames.join(", ")
+    : "Operação";
+}
+
+function resolveAssetChangeReason(
+  locationChanged: boolean,
+  reason: string | null | undefined,
+) {
+  if (!locationChanged) {
+    return null;
+  }
+
+  return reason?.trim() ||
+    "Não justificado";
 }
 
 function createSession(call: AndonCall, machine: Machine | undefined, technician: SelectedTechnicianInput, now: string, notes?: string | null): TechnicianAttendanceSession {
@@ -542,13 +624,9 @@ export function finishAndonCall(
   }
 
   const assetConfirmedBy =
-    params.assetConfirmedBy.trim();
-
-  if (!assetConfirmedBy) {
-    throw new Error(
-      "Informe quem confirmou a localização do ativo",
+    resolveAutomaticAssetConfirmedBy(
+      call,
     );
-  }
 
   const sessionNames = Array.from(
     new Set(
@@ -636,16 +714,10 @@ export function finishAndonCall(
       );
 
   const assetChangeReason =
-    params.assetChangeReason?.trim() || null;
-
-  if (
-    locationChanged &&
-    !assetChangeReason
-  ) {
-    throw new Error(
-      "Informe a justificativa da correção da localização",
+    resolveAssetChangeReason(
+      locationChanged,
+      params.assetChangeReason,
     );
-  }
 
   const now = new Date().toISOString();
 
