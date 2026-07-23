@@ -383,9 +383,10 @@ function Assert-AndonCorePrerequisites {
 }
 
 function Sync-AndonRepositoryAndTools {
-    Write-AndonHeader "REPOSITORIO E TOOLS"
+    Write-AndonHeader "REPOSITORIO, INSTALADOR E TOOLS"
     Initialize-AndonFolders
     $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
+
     if (Test-Path "$Global:AndonProjectPath\.git") {
         Write-Host "Repositorio encontrado: $Global:AndonProjectPath"
         Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "fetch", "--all", "--prune")
@@ -396,9 +397,71 @@ function Sync-AndonRepositoryAndTools {
     } else {
         Invoke-AndonProcess $git @("clone", "--branch", $Global:AndonBranch, $Global:AndonRepoUrl, $Global:AndonProjectPath) $Global:AndonBasePath
     }
-    New-Item -ItemType Directory -Force $Global:AndonToolsPath | Out-Null
-    if (Test-Path "$Global:AndonProjectPath\install-tools") { Copy-Item "$Global:AndonProjectPath\install-tools\*" $Global:AndonToolsPath -Recurse -Force -ErrorAction SilentlyContinue }
-    Write-AndonOk "Repositorio e tools sincronizados."
+
+    $projectInstallerPath =
+        "$Global:AndonProjectPath\installer"
+
+    if (!(Test-Path $projectInstallerPath)) {
+        throw "Instalador oficial nao encontrado no projeto: $projectInstallerPath"
+    }
+
+    New-Item `
+        -ItemType Directory `
+        -Force `
+        $Global:AndonInstallerPath |
+        Out-Null
+
+    $installerScripts = @(
+        Get-ChildItem `
+            -LiteralPath $projectInstallerPath `
+            -Filter "*.ps1" `
+            -File `
+            -ErrorAction Stop
+    )
+
+    if ($installerScripts.Count -eq 0) {
+        throw "Nenhum script PowerShell encontrado no instalador oficial."
+    }
+
+    foreach ($installerScript in $installerScripts) {
+        $destinationPath =
+            Join-Path `
+                $Global:AndonInstallerPath `
+                $installerScript.Name
+
+        Copy-Item `
+            -LiteralPath $installerScript.FullName `
+            -Destination $destinationPath `
+            -Force `
+            -ErrorAction Stop
+    }
+
+    Write-AndonOk (
+        "Instalador externo sincronizado: " +
+        $installerScripts.Count +
+        " script(s)."
+    )
+
+    New-Item `
+        -ItemType Directory `
+        -Force `
+        $Global:AndonToolsPath |
+        Out-Null
+
+    if (Test-Path "$Global:AndonProjectPath\install-tools") {
+        Copy-Item `
+            "$Global:AndonProjectPath\install-tools\*" `
+            $Global:AndonToolsPath `
+            -Recurse `
+            -Force `
+            -ErrorAction Stop
+
+        Write-AndonOk "Ferramentas externas sincronizadas."
+    } else {
+        Write-AndonWarn "Pasta install-tools nao encontrada no projeto."
+    }
+
+    Write-AndonOk "Repositorio, instalador e tools sincronizados."
 }
 
 function Apply-AndonFirewallRules {
