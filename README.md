@@ -1,187 +1,339 @@
-﻿# Andon Web Industrial
+# ANDON Web Industrial
 
-Sistema ANDON industrial para chão de fábrica, desenvolvido para monitoramento visual de máquinas, abertura de chamados, acompanhamento de manutenção, histórico operacional e evolução para integração com banco de dados, API local e automação industrial.
+> Gestão visual, resposta rápida e rastreabilidade para o chão de fábrica.
 
-O projeto nasceu como uma aplicação frontend local para validação rápida do fluxo operacional, mas está sendo evoluído para uma plataforma industrial completa, instalável em ambiente local da empresa, com arquitetura preparada para PostgreSQL, API Node.js, Docker Compose, modo kiosk e futuras integrações com Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
+O **ANDON Web Industrial** é uma plataforma local para conectar operação, manutenção e liderança em torno do mesmo fluxo de atendimento. O sistema transforma ocorrências de máquina em chamados rastreáveis, acompanha a atuação técnica em tempo real e preserva o histórico necessário para análise, melhoria contínua e tomada de decisão.
 
----
+A solução foi desenhada para ambientes industriais que precisam de implantação controlada, funcionamento na rede interna e domínio sobre seus próprios dados — sem depender de uma nuvem externa para a operação diária.
 
-## Objetivo do projeto
+## Estado oficial
 
-O objetivo do Andon Web Industrial é fornecer uma solução simples, visual e eficiente para o chão de fábrica, permitindo que produção, liderança e manutenção tenham visão clara do status das máquinas, chamados abertos, tempos de atendimento e histórico de ocorrências.
+| Item | Estado |
+|---|---|
+| Produto | ANDON Web Industrial |
+| Release atual | `1.0.0-pilot.2` |
+| Canal | Piloto |
+| Branch oficial | `main` |
+| Baseline auditada | `b1c100edf5593d4ae0dba4f53d8607e94dd8d5c1` |
+| Frontend produtivo | Modo API obrigatório |
+| Backend | Fastify + Prisma |
+| Banco de dados | PostgreSQL |
+| Implantação do piloto | Windows, com banco em Docker |
+| Operação normal | Local e independente de internet após a instalação |
+| Próxima release | `1.0.0-pilot.3` — planejada |
 
-A plataforma busca reduzir o tempo de resposta da manutenção, melhorar a comunicação entre áreas, registrar dados operacionais e criar uma base para indicadores industriais.
+Esta página descreve apenas funcionalidades comprovadas na `main`. Recursos futuros são identificados explicitamente como planejados.
 
----
+## Por que o ANDON
 
-## Estado atual do projeto
+O valor do sistema está em tornar o problema visível, organizar a resposta e transformar cada atendimento em informação útil.
 
-A versão atual consolida a base funcional do painel Andon e a arquitetura está sendo preparada para operação completa com API, PostgreSQL, Docker Compose e instalador Windows.
+- **Para a operação:** abertura simples de chamados, visão clara do estado das máquinas e acompanhamento do atendimento.
+- **Para a manutenção:** fila organizada, registro de mantenedores, sessões técnicas, histórico do ativo e confirmação precisa da localização da falha.
+- **Para a liderança:** tempos rastreáveis, visão das ocorrências, retornos de manutenção, histórico consolidado e base confiável para indicadores.
+- **Para a empresa:** implantação local, dados sob controle, operação em rede, atualização administrada e arquitetura preparada para expansão.
 
-Funcionalidades já consideradas no escopo atual:
+## Funcionalidades entregues na `1.0.0-pilot.2`
 
-- Painel geral de máquinas;
-- Tela individual por máquina;
-- Status independente da máquina e do chamado Andon;
-- Abertura de chamados;
-- Atendimento de manutenção;
-- Criticidade do chamado;
-- Produção programada e não programada;
-- Acompanhamento pós-manutenção;
-- Histórico de eventos;
-- Relatórios e indicadores em evolução;
-- Preparação para persistência via API;
-- Preparação para PostgreSQL;
-- Operação em navegador Chromium/Edge em modo kiosk;
-- Base para empacotamento via Docker Compose;
-- Planejamento de instalador Windows.
+### Gestão visual e operação
 
----
+- painel geral de máquinas;
+- tela individual por máquina;
+- estados independentes de máquina e chamado;
+- modos de produção programada e não programada;
+- abertura de chamados por categoria, subtipo e criticidade;
+- acompanhamento visual do ciclo completo;
+- histórico operacional por máquina.
 
-## Arquitetura atual e evolução
+### Atendimento e manutenção
 
-A arquitetura do produto está sendo organizada em camadas:
+- início e acompanhamento do atendimento;
+- seleção de múltiplos técnicos;
+- sessões individuais de mantenedores;
+- registro de tempos de espera, atendimento, pós-manutenção e duração total;
+- conclusão técnica e validação pós-manutenção;
+- retorno do chamado à manutenção;
+- contagem de retornos;
+- finalização e cancelamento auditáveis.
 
-Frontend React/Vite
-API Node.js
-PostgreSQL
-Docker Compose / Instalador Local
+### Hierarquia técnica dos ativos
 
-A versão inicial do frontend utilizava LocalStorage para validação rápida. A evolução atual do produto considera a persistência centralizada em banco de dados PostgreSQL, com comunicação por API Node.js.
+O modelo oficial organiza os ativos em três níveis:
 
----
+```text
+Máquina
+└── Conjunto ou módulo
+    └── Subconjunto ou equipamento
+```
 
-## Stack principal
+Conjuntos e subconjuntos possuem códigos, tipos, descrições e estado de ativação. O histórico utiliza referências e snapshots para preservar a informação registrada no momento do chamado.
 
-- React;
-- TypeScript;
-- Vite;
-- Tailwind CSS;
-- shadcn/ui;
-- TanStack Router;
-- Node.js;
-- PostgreSQL;
-- Prisma;
-- Docker Compose;
-- Futuro suporte a Node-RED, MQTT, ESP32, Raspberry Pi e CLP.
+### Confirmação da localização
 
----
+A `pilot.2` adiciona uma etapa auditável de confirmação da localização técnica antes do encerramento:
 
-## Conceitos principais
+1. a localização informada na abertura permanece preservada;
+2. a manutenção confirma ou corrige conjunto e subconjunto;
+3. uma alteração registra responsável, data, hora e justificativa;
+4. chamados antigos continuam compatíveis por meio da localização original.
 
-- MachineStatus representa o estado da máquina: rodando ou parada;
-- AndonStatus representa o estado do chamado: sem chamado, aberto, em atendimento ou finalizado;
-- O status da máquina e o status do chamado são independentes;
-- Um chamado Andon pode estar ativo mesmo com a máquina em funcionamento;
-- Cada máquina possui sua própria tela individual;
-- A tela da máquina concentra operação, manutenção, histórico e indicadores;
-- A arquitetura foi preparada para evoluir de persistência local para API e banco de dados.
+Essa separação evita que uma correção posterior apague o contexto original da ocorrência.
 
----
+### Testes automáticos isolados
 
-## Funcionalidades principais
+O health check pode criar um chamado técnico marcado como `isSystemTest = true`. Esse registro:
 
-- Painel visual de máquinas;
-- Tela detalhada por máquina;
-- Chamados Andon por área;
-- Criticidade baixa, média e alta;
-- Atendimento de manutenção;
-- Seleção de múltiplos técnicos;
-- Acompanhamento pós-manutenção;
-- Botão para voltar à manutenção;
-- Contagem de retornos de manutenção;
-- Produção programada e não programada;
-- Histórico de chamados;
-- Registro de tempos;
-- Relatórios por máquina;
-- Preparação para indicadores de eficiência;
-- Preparação para integração industrial.
+- não substitui o estado operacional real da máquina;
+- não ocupa o chamado atual;
+- não interfere no fluxo produtivo;
+- permanece identificado no histórico como **Teste automático**;
+- é excluído dos indicadores operacionais comuns.
 
----
+## Arquitetura
+
+```mermaid
+flowchart TD
+    K["Terminais e kiosk"] --> F["Frontend React/Vite"]
+    F --> A["API Fastify"]
+    A --> P["Prisma ORM"]
+    P --> D["PostgreSQL"]
+    I["Instalador e runtime Windows"] --> F
+    I --> A
+    I --> D
+```
+
+### Componentes principais
+
+| Camada | Tecnologia | Responsabilidade |
+|---|---|---|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, TanStack Router | interface operacional, painel, cadastros, históricos e indicadores |
+| API | Node.js, Fastify, TypeScript | regras de negócio, validações e contratos HTTP |
+| Dados | PostgreSQL, Prisma | persistência centralizada, migrations e relacionamentos |
+| Implantação | PowerShell, tarefas agendadas e Docker | instalação, inicialização, atualização, reparação e banco do piloto |
+| Operação | Google Chrome em modo kiosk | exibição dedicada no servidor ou em terminal remoto |
+
+Em builds de produção, o frontend opera obrigatoriamente pela API. O modo LocalStorage permanece disponível somente para desenvolvimento e não é utilizado como fonte produtiva.
+
+## Fluxo do chamado
+
+```mermaid
+flowchart LR
+    A["Chamado aberto"] --> B["Em atendimento"]
+    B --> C["Manutenção concluída"]
+    C --> D{"Operação valida?"}
+    D -->|Sim| E["Finalizado"]
+    D -->|Não| B
+```
+
+Durante o fluxo, o sistema registra contexto da máquina, localização do ativo, responsáveis, sessões, tempos e mudanças relevantes para auditoria.
+
+## Instalação Windows
+
+O método oficial utiliza o launcher:
+
+```text
+ABRIR_MENU_ANDON.bat
+```
+
+Diretório padrão do produto:
+
+```text
+C:\web-andon-industrial
+```
+
+Repositório local esperado:
+
+```text
+C:\web-andon-industrial\andon
+```
+
+O launcher:
+
+1. verifica privilégios administrativos;
+2. solicita elevação quando necessário;
+3. valida o instalador oficial dentro do repositório;
+4. sincroniza somente os scripts PowerShell com o instalador externo;
+5. interrompe o processo se a sincronização falhar;
+6. abre o menu operacional atualizado.
+
+### Capacidades do menu
+
+- instalação limpa com PostgreSQL local recomendado;
+- atualização pela `main`, preservando banco e configurações;
+- reparação da instalação;
+- início e parada temporária do ANDON;
+- verificação de saúde;
+- recriação e controle das tarefas automáticas;
+- configuração de IP, rede e PostgreSQL;
+- desinstalação preservando o banco;
+- desinstalação limpa.
+
+> **Atenção:** instalação limpa, atualização, reparação, desinstalação e restauração são procedimentos diferentes. Faça backup antes de mudanças e não execute instalação limpa sobre um ambiente produtivo existente.
+
+As opções de instalação, atualização e reparação precisam de internet. Depois de instalado, o ANDON opera localmente sem depender de acesso externo.
+
+## Endereços e portas
+
+Valores padrão da release:
+
+| Serviço | Endereço local | Porta |
+|---|---|---:|
+| Frontend | `http://127.0.0.1:8080` | `8080` |
+| API | `http://127.0.0.1:3001` | `3001` |
+| PostgreSQL do piloto | `127.0.0.1` | `5432` |
+
+Em clientes da rede:
+
+```text
+http://IP-DO-SERVIDOR:8080
+```
+
+As portas podem ser configuradas. O instalador mantém regras de firewall para frontend e API de acordo com os valores definidos no ambiente.
+
+### Readiness e health check
+
+```text
+GET /health
+GET /health/db
+GET /api/machines?includeInactive=true
+```
+
+O teste completo verifica serviços, banco, leitura da API e um ciclo de escrita isolado da operação.
 
 ## Modo kiosk
 
-O sistema foi pensado para uso em ambiente fabril, podendo ser executado em Chromium ou Microsoft Edge em modo kiosk.
+O servidor pode abrir o Google Chrome em modo kiosk com perfil próprio e tarefas automáticas. Um terminal Windows remoto também pode acessar o frontend pela rede, desde que servidor, API, firewall e CORS estejam configurados corretamente.
 
-Exemplo com Microsoft Edge:
+O terminal remoto:
 
-msedge --kiosk http://localhost:8080 --edge-kiosk-type=fullscreen
+- não hospeda o banco;
+- não utiliza LocalStorage como fonte produtiva;
+- depende da disponibilidade do servidor e da rede interna.
 
-Ou em outro terminal da rede:
+O cliente Raspberry Pi ainda não possui evidência suficiente para ser declarado como entregue.
 
-http://IP-DO-SERVIDOR:8080
+## Desenvolvimento
 
----
+### Pré-requisitos
 
-## Modo de dados do frontend
+- Node.js e npm;
+- PostgreSQL acessível ou Docker;
+- Git;
+- variáveis de ambiente configuradas para frontend e servidor.
 
-O frontend mantém suporte ao modo local, mas está preparado para operar com API.
+### Frontend
 
-Exemplo de configuração para API:
+```bash
+npm install
+npm run dev
+npm run build
+npm run lint
+```
 
+### Backend
+
+```bash
+cd server
+npm install
+npm run db:generate
+npm run db:migrate
+npm run dev
+```
+
+O reset e o seed do banco são operações destrutivas ou de inicialização. Não os execute em ambiente produtivo sem procedimento aprovado e backup válido.
+
+### Variáveis principais
+
+Frontend:
+
+```dotenv
 VITE_ANDON_DATA_MODE=api
 VITE_ANDON_API_BASE_URL=http://localhost:3001
+```
 
-Variáveis:
+Servidor:
 
-- VITE_ANDON_DATA_MODE=api ativa o modo API;
-- VITE_ANDON_API_BASE_URL define o endereço da API;
-- Se não configurado, o frontend pode operar em modo local conforme configuração da versão.
+```dotenv
+PORT=3001
+HOST=0.0.0.0
+DATABASE_URL="postgresql://USUARIO:SENHA@HOST:PORTA/BANCO?schema=public"
+CORS_ORIGINS="http://localhost:8080"
+```
+
+Credenciais produtivas não devem ser versionadas.
+
+## Estrutura do repositório
+
+```text
+.
+├── src/                    # frontend e domínio da interface
+├── server/                 # API Fastify, Prisma e migrations
+├── installer/              # instalação e administração Windows
+├── install-tools/          # ferramentas auxiliares de instalação
+├── scripts/                # runtime, kiosk e rotinas operacionais
+├── docker-compose.yml      # PostgreSQL do ambiente Docker
+├── release-manifest.json   # estado oficial da release
+└── ABRIR_MENU_ANDON.bat    # launcher oficial
+```
+
+## Dados, backup e atualização
+
+- PostgreSQL é a fonte produtiva de dados.
+- Migrations devem ser aplicadas pelo fluxo controlado.
+- Backup é obrigatório antes de implantação ou atualização.
+- Atualizações usam `fetch`, checkout da `main` e `pull --ff-only`.
+- A sincronização atualiza o instalador externo e as ferramentas operacionais.
+- Desinstalar preservando o banco é diferente de executar uma limpeza total.
+
+## Limites atuais
+
+A `1.0.0-pilot.2` não declara como entregues:
+
+- autenticação centralizada;
+- gestão corporativa de usuários;
+- perfis de instalação;
+- instalador e watchdog próprios para Raspberry Pi;
+- integração produtiva com Node-RED, MQTT, ESP32, sensores ou CLP;
+- manutenção preditiva e análises industriais avançadas.
+
+## Roadmap
+
+### `1.0.0-pilot.3` — planejada
+
+Evolução aprovada para implementação:
+
+- perfis de instalação;
+- seed modular;
+- maior separação entre produto genérico e configuração de cada implantação;
+- compatibilidade controlada com instalações existentes.
+
+Os perfis ainda não estão implementados na `main`. Não existe um “Perfil Evergreen” oficial no instalador atual.
+
+### Evoluções posteriores
+
+- documentação e cliente dedicado para Raspberry Pi;
+- integrações com Node-RED e MQTT;
+- comunicação com ESP32, sensores e CLPs;
+- autenticação centralizada e gestão de usuários;
+- indicadores e análises industriais avançadas;
+- manutenção preventiva e preditiva.
+
+## Governança da release
+
+A fonte de verdade segue esta ordem:
+
+1. commit oficial da `main`;
+2. código e migrations;
+3. `release-manifest.json`;
+4. evidência do ambiente instalado;
+5. documentação controlada.
+
+Quando uma instrução antiga contradiz a release atual, prevalecem o código, o manifesto e a evidência validada.
+
+## Posicionamento do produto
+
+O ANDON Web Industrial combina implantação local, interface voltada ao chão de fábrica e rastreabilidade do atendimento técnico. Sua arquitetura permite começar com o fluxo essencial de Andon e evoluir de forma controlada para uma plataforma industrial mais ampla, mantendo os dados, a operação e as decisões sob domínio da empresa.
 
 ---
 
-## Comandos principais
-
-Instalar dependências:
-
-npm install
-
-Rodar em desenvolvimento:
-
-npm run dev
-
-Gerar build:
-
-npm run build
-
-Visualizar build:
-
-npm run preview
-
-Executar lint:
-
-npm run lint
-
-Formatar código:
-
-npm run format
-
----
-
-## Documentação
-
-A documentação principal está organizada em:
-
-- docs/ESTADO_ATUAL.md
-- docs/ARQUITETURA.md
-- docs/ROADMAP.md
-- docs/INSTALACAO.md
-
----
-
-## Roadmap resumido
-
-- v1.15 - Base funcional do Andon;
-- v1.16 - Consolidação API Node.js + PostgreSQL;
-- v1.17 - Docker Compose completo;
-- v1.18 - Scripts de instalação, backup e atualização;
-- v1.19 - Instalador Windows;
-- v2.0 - Integração industrial com Node-RED, MQTT, sensores, ESP32 e CLP.
-
----
-
-## Visão de produto
-
-O Andon Web Industrial está sendo estruturado para se tornar uma solução local instalável para empresas industriais, com operação em rede interna, banco de dados local, API própria, backup, atualização controlada, modo kiosk e possibilidade de expansão para integrações industriais.
-
-A proposta é transformar o sistema em uma plataforma replicável, adaptável por cliente e preparada para ambientes fabris de médio e grande porte.
+**ANDON Web Industrial** — visibilidade para agir, histórico para melhorar.
