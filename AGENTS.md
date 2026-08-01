@@ -9,7 +9,7 @@ As regras valem para frontend, backend, banco de dados, instalador, runtime, scr
 ## 2. Estado oficial do produto
 
 - Produto: **ANDON Web Industrial**
-- Release atual: `1.0.0-pilot.2`
+- Release atual: `1.0.0-pilot.3`
 - Canal: `pilot`
 - Branch oficial: `main`
 - Frontend produtivo: modo API obrigatório
@@ -17,7 +17,7 @@ As regras valem para frontend, backend, banco de dados, instalador, runtime, scr
 - Persistência: PostgreSQL + Prisma
 - Implantação atual do piloto: Windows, com PostgreSQL em Docker
 - Operação normal: local e independente de internet após a instalação
-- Próxima release: `1.0.0-pilot.3`, planejada
+- Perfis de instalação entregues: `empty`, `starter` e `demo`, com camada interna `core`
 
 A fonte de verdade deve ser consultada nesta ordem:
 
@@ -257,12 +257,11 @@ Se um teste não puder ser executado, registre claramente a razão e o risco res
 
 ## 12. Limites e roadmap
 
-Na `1.0.0-pilot.2`, não trate como entregues:
+Na `1.0.0-pilot.3`, não trate como entregues:
 
 - autenticação centralizada e gestão corporativa de usuários;
-- perfis de instalação;
 - cliente ou watchdog homologado para Raspberry Pi;
 - integração produtiva com Node-RED, MQTT, ESP32, sensores ou CLP;
 - manutenção preditiva e análises industriais avançadas.
 
-A `1.0.0-pilot.3` e os `installation profiles` estão planejados/aprovados para implementação. Só altere esse estado quando houver código, testes e evidência oficial na `main`.
+Os perfis são aplicados somente por instalação limpa. Atualização e reparação não podem executar seed nem alterar o perfil registrado em `andon-config.json`.

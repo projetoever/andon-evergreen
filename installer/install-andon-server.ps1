@@ -8,6 +8,8 @@ try {
     Assert-AndonCorePrerequisites
     Write-AndonHeader "INSTALACAO LIMPA DO ANDON"
     if (!(Confirm-AndonTyped -Message "A instalacao limpa prepara banco, roda db:migrate, db:seed e build. Use apenas em ambiente novo ou apos backup confirmado." -Expected "APAGAR")) { Write-AndonWarn "Instalacao cancelada."; exit 0 }
+    $installationProfile = Select-AndonInstallationProfile
+    Write-AndonOk "Perfil inicial selecionado: $installationProfile"
     Sync-AndonRepositoryAndTools
     Initialize-AndonFolders
     $network = Select-AndonServerIp
@@ -26,16 +28,18 @@ try {
             default { Write-AndonFail "Opcao invalida." }
         }
     } while (!$dbConfig)
+    $dbConfig.installationProfile = $installationProfile
+    Save-AndonConfig $dbConfig
     Stop-AndonRuntime
     Write-AndonBackendEnv -Config $dbConfig -NetworkConfig $network
-    Invoke-AndonNodePipeline -RunSeed $true -InstallDependencies $true
+    Invoke-AndonNodePipeline -RunSeed $true -InstallDependencies $true -SeedProfile $installationProfile
     Apply-AndonFirewallRules
     Clear-AndonChromeProfile
     Recreate-AndonTasks
     Start-AndonRuntime
     Invoke-AndonHealthCheck -Full
     Write-AndonHeader "INSTALACAO LIMPA FINALIZADA"
-    Write-AndonOk "ANDON instalado com databaseMode=$($dbConfig.databaseMode)."
+    Write-AndonOk "ANDON instalado com databaseMode=$($dbConfig.databaseMode) e installationProfile=$installationProfile."
     Write-Host "Acesso Raspberry/clients: http://$($network.serverIp):$Global:AndonFrontendPort"
     exit 0
 } catch { Write-AndonHeader "ERRO"; Write-AndonFail "$($_.Exception.Message)"; Write-Host "Envie este bloco completo para ajuste."; exit 1 }

@@ -1,49 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 
+import {
+  assertInstallationProfileCompatibility,
+  getInstallationProfile,
+  seedInstallationProfile,
+} from "./seeds/profiles.js";
+
 const prisma = new PrismaClient();
 
-const machineIds = ["9", "10", "11", "12", "15", "17", "32", "37", "38"];
-
-const shifts = [
-  { id: "morning", name: "Manhã", startTime: "06:00", endTime: "14:00" },
-  { id: "afternoon", name: "Tarde", startTime: "14:00", endTime: "22:00" },
-  { id: "night", name: "Noite", startTime: "22:00", endTime: "06:00" },
-  { id: "business", name: "Comercial", startTime: "06:00", endTime: "16:00" },
-];
-
-const failureClassifications = [
-  { label: "Falha real da máquina", value: "real_machine_failure" },
-  { label: "Falha operacional", value: "operational_failure" },
-  { label: "Simulação manual", value: "manual_simulation" },
-  { label: "Ajuste", value: "adjustment" },
-  { label: "Teste", value: "test" },
-];
-
 async function main() {
-  await prisma.machine.createMany({
-    data: machineIds.map((id) => ({
-      id,
-      name: `Máquina ${id}`,
-      machineStatus: "running",
-      andonStatus: "normal",
-      productionMode: "scheduled",
-      isActive: true,
-      displayOrder: Number(id),
-    })),
-    skipDuplicates: true,
-  });
+  const profile = getInstallationProfile();
 
-  await prisma.shift.createMany({
-    data: shifts,
-    skipDuplicates: true,
-  });
+  await assertInstallationProfileCompatibility(prisma, profile);
+  await seedInstallationProfile(prisma, profile);
 
-  await prisma.failureClassification.createMany({
-    data: failureClassifications,
-    skipDuplicates: true,
-  });
-
-  console.log("Seed inicial do ANDON concluído.");
+  console.log(`Seed do ANDON concluído com o perfil "${profile}".`);
 }
 
 main()
