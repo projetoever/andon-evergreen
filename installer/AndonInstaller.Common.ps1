@@ -1,8 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
-$Global:AndonInstallerVersion = "1.0.0-pilot.2"
+$Global:AndonInstallerVersion = "1.0.0-pilot.3"
 
 # ==================================================
-# ANDON WEB INDUSTRIAL - INSTALLER COMMON 1.0.0-pilot.2
+# ANDON WEB INDUSTRIAL - INSTALLER COMMON 1.0.0-pilot.3
 # Produto: piloto atual em Docker; PostgreSQL local recomendado para o HOST pos-piloto
 # Fonte da verdade: C:\web-andon-industrial\andon-config.json
 # ==================================================
@@ -91,6 +91,27 @@ function Confirm-AndonTyped {
     Write-Host ""
     $confirm = Read-Host "Digite $Expected para continuar"
     return ($confirm -eq $Expected)
+}
+
+function Select-AndonInstallationProfile {
+    Write-AndonHeader "PERFIL INICIAL DA INSTALACAO"
+    Write-Host "1 - Vazio (empty) - somente configuracoes essenciais; nenhuma maquina"
+    Write-Host "2 - Inicial (starter) - configuracoes essenciais e uma maquina generica"
+    Write-Host "3 - Demonstracao (demo) - tres maquinas e hierarquia generica de exemplo"
+    Write-Host "0 - Cancelar"
+    Write-Host ""
+    Write-AndonWarn "O perfil e aplicado apenas nesta instalacao limpa. Atualizacao e reparacao nunca executam seed."
+
+    do {
+        $choice = Read-Host "Escolha o perfil inicial"
+        switch ($choice) {
+            "1" { return "empty" }
+            "2" { return "starter" }
+            "3" { return "demo" }
+            "0" { Write-AndonWarn "Instalacao cancelada."; exit 0 }
+            default { Write-AndonFail "Opcao invalida." }
+        }
+    } while ($true)
 }
 
 function Read-AndonPort {
@@ -198,6 +219,7 @@ function Get-AndonDefaultConfig {
         toolsPath = $Global:AndonToolsPath
         dockerContainer = $Global:AndonDockerContainer
         dockerVolume = $Global:AndonDockerVolume
+        installationProfile = "legacy"
     }
 }
 
@@ -226,7 +248,7 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
                 if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") { $config.$key = $fileConfig.$key }
             }
         } catch { Write-AndonWarn "Falha ao ler andon-config.json. Usando defaults. Erro: $($_.Exception.Message)" }
@@ -252,6 +274,7 @@ function Save-AndonConfig {
         toolsPath = "$($Config.toolsPath)"
         dockerContainer = "$($Config.dockerContainer)"
         dockerVolume = "$($Config.dockerVolume)"
+        installationProfile = if ($Config.installationProfile) { "$($Config.installationProfile)" } else { "legacy" }
     }
     $configToSave | ConvertTo-Json -Depth 6 | Set-Content $Global:AndonConfigPath -Encoding UTF8
     Update-AndonGlobalsFromConfig ([pscustomobject]$configToSave)
@@ -262,6 +285,7 @@ function Save-AndonConfig {
     Write-Host "Usuario DB:    $($configToSave.databaseUser)"
     Write-Host "API:           $($configToSave.apiPort)"
     Write-Host "Frontend:      $($configToSave.frontendPort)"
+    Write-Host "Perfil inicial: $($configToSave.installationProfile)"
 }
 
 function Get-AndonNetworkConfig {
@@ -505,7 +529,11 @@ function Get-AndonKioskProcess {
 }
 
 function Invoke-AndonNodePipeline {
-    param([bool]$RunSeed = $false, [bool]$InstallDependencies = $true)
+    param(
+        [bool]$RunSeed = $false,
+        [bool]$InstallDependencies = $true,
+        [string]$SeedProfile = ""
+    )
     $config = Import-AndonConfig
     $networkConfig = Ensure-AndonNetworkConfig
     Write-AndonBackendEnv -Config $config -NetworkConfig $networkConfig
@@ -517,7 +545,26 @@ function Invoke-AndonNodePipeline {
     if ($InstallDependencies) { Invoke-AndonProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $serverPath }
     Invoke-AndonProcess $npm @("run", "db:generate") $serverPath
     Invoke-AndonProcess $npm @("run", "db:migrate") $serverPath
-    if ($RunSeed) { Write-AndonWarn "Instalacao limpa: db:seed sera executado."; Invoke-AndonProcess $npm @("run", "db:seed") $serverPath } else { Write-AndonOk "db:seed nao sera executado neste procedimento." }
+    if ($RunSeed) {
+        if (@("empty", "starter", "demo") -notcontains $SeedProfile) {
+            throw "Perfil de seed invalido ou ausente: $SeedProfile"
+        }
+
+        Write-AndonWarn "Instalacao limpa: db:seed sera executado com o perfil $SeedProfile."
+        $previousSeedProfile = $env:ANDON_INSTALL_PROFILE
+        $env:ANDON_INSTALL_PROFILE = $SeedProfile
+        try {
+            Invoke-AndonProcess $npm @("run", "db:seed") $serverPath
+        } finally {
+            if ($null -eq $previousSeedProfile) {
+                Remove-Item Env:\ANDON_INSTALL_PROFILE -ErrorAction SilentlyContinue
+            } else {
+                $env:ANDON_INSTALL_PROFILE = $previousSeedProfile
+            }
+        }
+    } else {
+        Write-AndonOk "db:seed nao sera executado neste procedimento."
+    }
     Invoke-AndonProcess $npm @("run", "build") $serverPath
     Remove-Item "$Global:AndonProjectPath\dist" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
@@ -578,6 +625,7 @@ function Show-AndonStatus {
         Write-Host "Database:      $($config.databaseName)"
         Write-Host "API:           $($config.apiPort)"
         Write-Host "Frontend:      $($config.frontendPort)"
+        Write-Host "Perfil inicial: $($config.installationProfile)"
     } else { Write-AndonWarn "andon-config.json ainda nao existe." }
     Write-Host ""
     $ports = @($Global:AndonApiPort, $Global:AndonFrontendPort, [int]$config.postgresPort) | Select-Object -Unique

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Factory } from "lucide-react";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { useAndon } from "@/context/AndonProvider";
+import { EmptyState } from "@/components/common/EmptyState";
 import { MachineCard } from "./MachineCard";
 
 const MAX_DASHBOARD_CARDS = 14;
@@ -22,7 +23,10 @@ function getMachineNumber(machine: Machine): number {
 }
 
 function compareByMachineNumber(a: Machine, b: Machine): number {
-  return getMachineNumber(a) - getMachineNumber(b) || a.id.localeCompare(b.id, "pt-BR", { numeric: true });
+  return (
+    getMachineNumber(a) - getMachineNumber(b) ||
+    a.id.localeCompare(b.id, "pt-BR", { numeric: true })
+  );
 }
 
 function getCurrentCall(machine: Machine, calls: AndonCall[]): AndonCall | null {
@@ -117,6 +121,18 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
     return () => window.clearTimeout(timer);
   }, [pageIndex]);
 
+  if (numericMachines.length === 0) {
+    return (
+      <div className={cn("flex h-full min-h-0 items-center justify-center", className)}>
+        <EmptyState
+          icon={<Factory className="h-12 w-12" />}
+          title="Nenhuma máquina cadastrada"
+          description="Abra as configurações administrativas para cadastrar a primeira máquina do ANDON."
+        />
+      </div>
+    );
+  }
+
   if (!hasOverflow) {
     return (
       <div className={cn("h-full min-h-0", className)}>
@@ -135,10 +151,22 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
         type="button"
         onClick={handleSlideClick}
         className="absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-border bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
-        title={pageIndex === 0 ? `Ver ${overflowCount} máquina(s) restante(s)` : "Voltar aos cards principais"}
-        aria-label={pageIndex === 0 ? `Ver ${overflowCount} máquina(s) restante(s)` : "Voltar aos cards principais"}
+        title={
+          pageIndex === 0
+            ? `Ver ${overflowCount} máquina(s) restante(s)`
+            : "Voltar aos cards principais"
+        }
+        aria-label={
+          pageIndex === 0
+            ? `Ver ${overflowCount} máquina(s) restante(s)`
+            : "Voltar aos cards principais"
+        }
       >
-        {pageIndex === 0 ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        {pageIndex === 0 ? (
+          <ChevronRight className="h-5 w-5" />
+        ) : (
+          <ChevronLeft className="h-5 w-5" />
+        )}
       </button>
 
       <div className="h-full min-h-0 w-full overflow-hidden">

@@ -11,16 +11,14 @@ A solução foi desenhada para ambientes industriais que precisam de implantaç�
 | Item | Estado |
 |---|---|
 | Produto | ANDON Web Industrial |
-| Release atual | `1.0.0-pilot.2` |
+| Release atual | `1.0.0-pilot.3` |
 | Canal | Piloto |
 | Branch oficial | `main` |
-| Baseline auditada | `b1c100edf5593d4ae0dba4f53d8607e94dd8d5c1` |
 | Frontend produtivo | Modo API obrigatório |
 | Backend | Fastify + Prisma |
 | Banco de dados | PostgreSQL |
 | Implantação do piloto | Windows, com banco em Docker |
 | Operação normal | Local e independente de internet após a instalação |
-| Próxima release | `1.0.0-pilot.3` — planejada |
 
 Esta página descreve apenas funcionalidades comprovadas na `main`. Recursos futuros são identificados explicitamente como planejados.
 
@@ -33,7 +31,19 @@ O valor do sistema está em tornar o problema visível, organizar a resposta e t
 - **Para a liderança:** tempos rastreáveis, visão das ocorrências, retornos de manutenção, histórico consolidado e base confiável para indicadores.
 - **Para a empresa:** implantação local, dados sob controle, operação em rede, atualização administrada e arquitetura preparada para expansão.
 
-## Funcionalidades entregues na `1.0.0-pilot.2`
+## Funcionalidades entregues na `1.0.0-pilot.3`
+
+### Perfis de instalação
+
+A instalação limpa permite escolher o conteúdo inicial sem vincular o produto a uma empresa específica:
+
+| Perfil | Conteúdo inicial | Uso recomendado |
+|---|---|---|
+| `empty` | turnos e classificações essenciais, sem máquinas | implantação real com cadastro manual |
+| `starter` | conteúdo essencial e uma máquina genérica | primeiro contato e configuração assistida |
+| `demo` | conteúdo essencial, três máquinas e hierarquia genérica | demonstração funcional sem chamados fictícios |
+
+A camada interna `core` reúne apenas os registros essenciais compartilhados pelos três perfis. Não existe perfil específico da Evergreen. Atualizações e reparações preservam o perfil registrado e nunca executam seed.
 
 ### Gestão visual e operação
 
@@ -240,7 +250,7 @@ npm run db:migrate
 npm run dev
 ```
 
-O reset e o seed do banco são operações destrutivas ou de inicialização. Não os execute em ambiente produtivo sem procedimento aprovado e backup válido.
+O reset e o seed do banco são operações destrutivas ou de inicialização. Não os execute em ambiente produtivo sem procedimento aprovado e backup válido. Para desenvolvimento controlado, os comandos explícitos são `npm run db:seed:empty`, `npm run db:seed:starter` e `npm run db:seed:demo` dentro de `server/`.
 
 ### Variáveis principais
 
@@ -287,27 +297,15 @@ Credenciais produtivas não devem ser versionadas.
 
 ## Limites atuais
 
-A `1.0.0-pilot.2` não declara como entregues:
+A `1.0.0-pilot.3` não declara como entregues:
 
 - autenticação centralizada;
 - gestão corporativa de usuários;
-- perfis de instalação;
 - instalador e watchdog próprios para Raspberry Pi;
 - integração produtiva com Node-RED, MQTT, ESP32, sensores ou CLP;
 - manutenção preditiva e análises industriais avançadas.
 
 ## Roadmap
-
-### `1.0.0-pilot.3` — planejada
-
-Evolução aprovada para implementação:
-
-- perfis de instalação;
-- seed modular;
-- maior separação entre produto genérico e configuração de cada implantação;
-- compatibilidade controlada com instalações existentes.
-
-Os perfis ainda não estão implementados na `main`. Não existe um “Perfil Evergreen” oficial no instalador atual.
 
 ### Evoluções posteriores
 

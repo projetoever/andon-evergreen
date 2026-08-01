@@ -1,13 +1,13 @@
 {
   "product": "ANDON Web Industrial",
-  "version": "1.0.0-pilot.2",
+  "version": "1.0.0-pilot.3",
   "channel": "pilot",
-  "branch": "chore/release-installer-1.0.0-pilot.2",
+  "branch": "main",
   "components": {
-    "frontend": "1.0.0-pilot.2",
-    "backend": "1.0.0-pilot.2",
-    "windowsInstaller": "1.0.0-pilot.2",
-    "windowsRuntime": "1.0.0-pilot.2"
+    "frontend": "1.0.0-pilot.3",
+    "backend": "1.0.0-pilot.3",
+    "windowsInstaller": "1.0.0-pilot.3",
+    "windowsRuntime": "1.0.0-pilot.3"
   },
   "deployment": {
     "currentPilotDatabaseMode": "docker",
@@ -34,10 +34,22 @@
   ],
   "database": {
     "engine": "PostgreSQL",
-    "migration": "20260715043000_add_andon_call_system_test_metadata",
+    "migration": "20260716120000_add_call_asset_confirmation",
     "migrationType": "additive",
     "migrationApplied": true,
     "backupRequiredBeforeDeploy": true
+  },
+  "installationProfiles": {
+    "public": [
+      "empty",
+      "starter",
+      "demo"
+    ],
+    "internalBase": "core",
+    "appliesOn": "clean_install_only",
+    "runsOnUpdate": false,
+    "runsOnRepair": false,
+    "recordedIn": "C:\\web-andon-industrial\\andon-config.json"
   },
   "automaticHealthTest": {
     "origin": "installer_health_check",

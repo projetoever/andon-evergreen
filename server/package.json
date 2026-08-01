@@ -1,6 +1,6 @@
 {
   "name": "andon-evergreen-server",
-  "version": "1.0.0-pilot.2",
+  "version": "1.0.0-pilot.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev --name init",
     "db:seed": "prisma db seed",
+    "db:seed:empty": "tsx prisma/seed.ts --profile=empty",
+    "db:seed:starter": "tsx prisma/seed.ts --profile=starter",
+    "db:seed:demo": "tsx prisma/seed.ts --profile=demo",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset"
   },
