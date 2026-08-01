@@ -12,6 +12,7 @@ import { registerMachineCatalogRoutes } from "./routes/machineCatalogs.js";
 import { registerMachineSetRoutes } from "./routes/machineSets.js";
 import { registerMachineSubsetRoutes } from "./routes/machineSubsets.js";
 import { registerShiftRoutes } from "./routes/shifts.js";
+import { registerSystemSettingsRoutes } from "./routes/systemSettings.js";
 import { registerTechnicianRoutes } from "./routes/technicians.js";
 
 const DEFAULT_PORT = 3001;
@@ -49,6 +50,7 @@ export function buildServer() {
   void registerMachineSubsetRoutes(app);
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
+  void registerSystemSettingsRoutes(app);
   void registerTechnicianRoutes(app);
   void registerShiftRoutes(app);
   void registerFailureClassificationRoutes(app);

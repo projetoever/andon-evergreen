@@ -71,3 +71,36 @@ export function formatDurationMinutes(minutes: number): string {
   if (mins > 0) return `${mins} min ${secs.toString().padStart(2, "0")} s`;
   return `${secs} s`;
 }
+
+export function formatCompactDurationMinutes(minutes: number, emptyLabel = "sem registro"): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return emptyLabel;
+
+  const totalMinutes = Math.floor(minutes);
+
+  if (totalMinutes < 1) return "menos de 1 min";
+
+  const units = [
+    { minutes: 365 * 24 * 60, singular: "ano", plural: "anos" },
+    { minutes: 30 * 24 * 60, singular: "mês", plural: "meses" },
+    { minutes: 24 * 60, singular: "d", plural: "d" },
+    { minutes: 60, singular: "h", plural: "h" },
+    { minutes: 1, singular: "min", plural: "min" },
+  ];
+
+  let remainingMinutes = totalMinutes;
+  const parts: string[] = [];
+
+  for (const unit of units) {
+    const value = Math.floor(remainingMinutes / unit.minutes);
+
+    if (value <= 0) continue;
+
+    const label = value === 1 ? unit.singular : unit.plural;
+    parts.push(`${value} ${label}`);
+    remainingMinutes %= unit.minutes;
+
+    if (parts.length === 2) break;
+  }
+
+  return parts.join(" ");
+}
