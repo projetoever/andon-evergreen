@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import { allowsWholeSetCalls } from "../services/systemSettings.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
 
 type AndonCallQuery = {
@@ -629,6 +630,23 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         reply,
         "Subconjunto inválido, inativo ou não pertence ao conjunto selecionado",
       );
+    }
+
+    if (!isSystemTest && machineSet && !machineSubset && !(await allowsWholeSetCalls())) {
+      const activeSubsetCount = await prisma.machineSubset.count({
+        where: {
+          machineSetId: machineSet.id,
+          isActive: true,
+          subsetType: { isActive: true },
+        },
+      });
+
+      if (activeSubsetCount > 0) {
+        return badRequest(
+          reply,
+          "Selecione um subconjunto ou equipamento para abrir o ANDON neste conjunto",
+        );
+      }
     }
 
     const now = new Date();

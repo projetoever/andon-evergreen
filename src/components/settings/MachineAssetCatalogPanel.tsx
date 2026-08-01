@@ -26,6 +26,7 @@ import {
   updateMachineSetType,
   updateMachineSubsetType,
 } from "@/services/machineAssetService";
+import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
 import type {
   MachineAssetCatalogItem,
   MachineCatalogDraft,
@@ -33,6 +34,7 @@ import type {
   MachineSetType,
   MachineSubsetType,
 } from "@/types/machineSet";
+import type { SystemSettings } from "@/types/systemSettings";
 
 type CatalogKind = "set" | "subset";
 
@@ -146,6 +148,12 @@ export function MachineAssetCatalogPanel() {
   const [isSaving, setIsSaving] =
     useState(false);
 
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
+
+  const [isLoadingPolicy, setIsLoadingPolicy] = useState(false);
+
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false);
+
   const [newForm, setNewForm] =
     useState<CatalogFormState>(
       createEmptyForm,
@@ -205,8 +213,21 @@ export function MachineAssetCatalogPanel() {
     }
   }
 
+  async function loadSelectionPolicy() {
+    setIsLoadingPolicy(true);
+
+    try {
+      setSystemSettings(await getSystemSettings());
+    } catch (error) {
+      toast.error(`Não foi possível carregar a política de abertura: ${getErrorMessage(error)}`);
+    } finally {
+      setIsLoadingPolicy(false);
+    }
+  }
+
   useEffect(() => {
     void loadCatalogs();
+    void loadSelectionPolicy();
   }, []);
 
   useEffect(() => {
@@ -404,8 +425,61 @@ export function MachineAssetCatalogPanel() {
     }
   }
 
+  async function handleWholeSetPolicyChange(allowWholeSetCalls: boolean) {
+    try {
+      setIsSavingPolicy(true);
+
+      const updatedSettings = await updateSystemSettings({
+        allowWholeSetCalls,
+      });
+
+      setSystemSettings(updatedSettings);
+      toast.success(
+        allowWholeSetCalls
+          ? "Chamados no conjunto inteiro foram habilitados."
+          : "Equipamento obrigatório quando houver opções ativas.",
+      );
+    } catch (error) {
+      toast.error(`Não foi possível atualizar a política: ${getErrorMessage(error)}`);
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Política de abertura de chamados</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <Label htmlFor="allow-whole-set-calls" className="text-base font-black">
+                Permitir chamados no conjunto inteiro
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Quando desativada, o operador deve escolher um equipamento ou subconjunto ativo. Se
+                o conjunto não possuir nenhum, o chamado continua permitido para o conjunto inteiro.
+              </p>
+            </div>
+
+            <Switch
+              id="allow-whole-set-calls"
+              checked={systemSettings?.allowWholeSetCalls ?? true}
+              onCheckedChange={handleWholeSetPolicyChange}
+              disabled={!systemSettings || isLoadingPolicy || isSavingPolicy}
+              aria-label="Permitir chamados no conjunto inteiro"
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            A regra é global e vale para todos os terminais conectados ao mesmo banco.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>

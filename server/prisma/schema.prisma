@@ -7,6 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model SystemSettings {
+  id                 String   @id @default("global")
+  allowWholeSetCalls Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
 model Machine {
   id                  String                   @id
   name                String

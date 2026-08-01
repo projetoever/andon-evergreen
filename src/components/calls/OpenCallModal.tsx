@@ -13,7 +13,9 @@ import type { CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
 import type { MachineSet } from "@/types/machineSet";
 import { listMachineSets } from "@/services/machineAssetService";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import { CallTypeSelector } from "./CallTypeSelector";
+import { MachineAssetSelector } from "./MachineAssetSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,10 @@ export function OpenCallModal({
   const [machineSets, setMachineSets] = useState<MachineSet[]>([]);
   const [machineSetId, setMachineSetId] = useState<string | null>(null);
   const [machineSubsetId, setMachineSubsetId] = useState<string | null>(null);
+  const [isWholeSetSelected, setIsWholeSetSelected] = useState(false);
+  const [allowWholeSetCalls, setAllowWholeSetCalls] = useState(true);
+  const [isLoadingSystemSettings, setIsLoadingSystemSettings] = useState(false);
+  const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
   const [isLoadingMachineSets, setIsLoadingMachineSets] = useState(false);
   const machinesRef = useRef(machines);
   const wasOpenRef = useRef(false);
@@ -67,11 +73,47 @@ export function OpenCallModal({
     setSubtype(null);
     setMachineSetId(null);
     setMachineSubsetId(null);
+    setIsWholeSetSelected(false);
     setMachineSets([]);
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
     setMachineCondition(selectedMachine?.machineStatus ?? "running");
   }, [open, preselectedMachineId]);
+
+  useEffect(() => {
+    if (!open) {
+      setIsLoadingSystemSettings(false);
+      setSystemSettingsLoadFailed(false);
+      return;
+    }
+
+    let isCurrent = true;
+
+    setIsLoadingSystemSettings(true);
+    setSystemSettingsLoadFailed(false);
+
+    getSystemSettings()
+      .then((settings) => {
+        if (!isCurrent) return;
+        setAllowWholeSetCalls(settings.allowWholeSetCalls);
+        if (!settings.allowWholeSetCalls) {
+          setIsWholeSetSelected(false);
+        }
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setSystemSettingsLoadFailed(true);
+        toast.error("Não foi possível carregar a política de seleção de ativos");
+      })
+      .finally(() => {
+        if (!isCurrent) return;
+        setIsLoadingSystemSettings(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || !machineId || machineConditionTouchedRef.current) return;
@@ -85,6 +127,7 @@ export function OpenCallModal({
       setMachineSets([]);
       setMachineSetId(null);
       setMachineSubsetId(null);
+      setIsWholeSetSelected(false);
       setIsLoadingMachineSets(false);
       return;
     }
@@ -94,6 +137,7 @@ export function OpenCallModal({
     setIsLoadingMachineSets(true);
     setMachineSetId(null);
     setMachineSubsetId(null);
+    setIsWholeSetSelected(false);
 
     listMachineSets(machineId, {
       includeSubsets: "list",
@@ -143,6 +187,17 @@ export function OpenCallModal({
   function handleSelectMachineSet(nextMachineSetId: string) {
     setMachineSetId(nextMachineSetId);
     setMachineSubsetId(null);
+    setIsWholeSetSelected(false);
+  }
+
+  function handleSelectMachineSubset(nextMachineSubsetId: string) {
+    setMachineSubsetId(nextMachineSubsetId);
+    setIsWholeSetSelected(false);
+  }
+
+  function handleSelectWholeSet() {
+    setMachineSubsetId(null);
+    setIsWholeSetSelected(true);
   }
 
   function handleSelectMachineCondition(condition: MachineStatus) {
@@ -176,10 +231,20 @@ export function OpenCallModal({
 
   const shouldRequireMachineSet = machineSets.length > 0;
 
+  const hasValidAssetSelection = Boolean(
+    !shouldRequireMachineSet ||
+      (selectedMachineSet &&
+        (selectedMachineSubsets.length === 0 ||
+          selectedMachineSubset ||
+          (allowWholeSetCalls && isWholeSetSelected))),
+  );
+
   const canConfirm = Boolean(
     machineId &&
       subtype &&
-      (!shouldRequireMachineSet || machineSetId),
+      hasValidAssetSelection &&
+      (!shouldRequireMachineSet ||
+        (!isLoadingSystemSettings && !systemSettingsLoadFailed)),
   );
 
   function handleConfirm() {
@@ -187,6 +252,21 @@ export function OpenCallModal({
     if (shouldRequireMachineSet && !selectedMachineSet) {
       toast.error("Selecione o conjunto da máquina para abrir o ANDON");
       return;
+    }
+    if (shouldRequireMachineSet && systemSettingsLoadFailed) {
+      toast.error("Reabra o modal para carregar a política de seleção de ativos");
+      return;
+    }
+    if (selectedMachineSubsets.length > 0 && !selectedMachineSubset) {
+      if (!allowWholeSetCalls) {
+        toast.error("Selecione um equipamento ou subconjunto para abrir o ANDON");
+        return;
+      }
+
+      if (!isWholeSetSelected) {
+        toast.error("Selecione um equipamento ou o conjunto inteiro");
+        return;
+      }
     }
 
     const opt = getCallTypeOption(subtype);
@@ -223,11 +303,11 @@ export function OpenCallModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-3xl">Abrir ANDON</DialogTitle>
           <DialogDescription className="text-base">
-            Selecione a máquina, o tipo de chamado, o conjunto e, opcionalmente, o subconjunto.
+            Selecione a máquina, o tipo de chamado e a localização da falha.
           </DialogDescription>
         </DialogHeader>
 
@@ -273,120 +353,31 @@ export function OpenCallModal({
 
         <CallTypeSelector value={subtype} onChange={setSubtype} />
 
-        {machineId && (
-          <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Conjunto da máquina
-            </h4>
-            {isLoadingMachineSets ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Carregando conjuntos cadastrados...
-              </div>
-            ) : machineSets.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Esta máquina ainda não possui conjuntos cadastrados. O chamado será aberto sem conjunto.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {machineSets.map((set) => (
-                  <button
-                    key={set.id}
-                    type="button"
-                    onClick={() => handleSelectMachineSet(set.id)}
-                    className={cn(
-                      "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
-                      machineSetId === set.id
-                        ? "border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-ring/30"
-                        : "border-border bg-card text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <div className="text-lg font-black uppercase tracking-wider">{set.name}</div>
-                    <div className="mt-1 text-xs opacity-80">
-                      Código: {set.code}{set.type ? ` • Tipo: ${set.type}` : ""}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {selectedMachineSet && (
-          <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Subconjunto do conjunto
-            </h4>
-
-            <p className="mb-3 text-sm text-muted-foreground">
-              Opcional. Selecione um item específico ou mantenha o chamado no conjunto inteiro.
-            </p>
-
-            {selectedMachineSubsets.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Este conjunto não possui subconjuntos ativos. O chamado será aberto para o conjunto inteiro.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setMachineSubsetId(null)}
-                  className={cn(
-                    "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
-                    machineSubsetId === null
-                      ? "border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-ring/30"
-                      : "border-border bg-card text-foreground hover:bg-accent",
-                  )}
-                >
-                  <div className="text-lg font-black uppercase tracking-wider">
-                    Conjunto inteiro
-                  </div>
-                  <div className="mt-1 text-xs opacity-80">
-                    Sem subconjunto específico
-                  </div>
-                </button>
-
-                {selectedMachineSubsets.map((subset) => (
-                  <button
-                    key={subset.id}
-                    type="button"
-                    onClick={() => setMachineSubsetId(subset.id)}
-                    className={cn(
-                      "min-h-[72px] rounded-xl border-2 p-4 text-left transition-all hover:scale-[1.01]",
-                      machineSubsetId === subset.id
-                        ? "border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-ring/30"
-                        : "border-border bg-card text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <div className="text-lg font-black uppercase tracking-wider">
-                      {subset.name}
-                    </div>
-
-                    <div className="mt-1 text-xs opacity-80">
-                      Código: {subset.code}
-                      {subset.subsetType?.name
-                        ? ` • Tipo: ${subset.subsetType.name}`
-                        : ""}
-                    </div>
-
-                    {(subset.manufacturer ||
-                      subset.model ||
-                      subset.assetTag) && (
-                      <div className="mt-1 text-xs opacity-80">
-                        {[
-                          subset.manufacturer,
-                          subset.model,
-                          subset.assetTag,
-                        ]
-                          .filter(Boolean)
-                          .join(" • ")}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {machineId &&
+          (isLoadingMachineSets || isLoadingSystemSettings ? (
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Carregando conjuntos, equipamentos e política de seleção...
+            </div>
+          ) : machineSets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Esta máquina ainda não possui conjuntos cadastrados. O chamado será aberto sem conjunto.
+            </div>
+          ) : systemSettingsLoadFailed ? (
+            <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+              Não foi possível carregar a política de seleção de ativos. Feche e reabra o modal antes de continuar.
+            </div>
+          ) : (
+            <MachineAssetSelector
+              machineSets={machineSets}
+              selectedMachineSetId={machineSetId}
+              selectedMachineSubsetId={machineSubsetId}
+              isWholeSetSelected={isWholeSetSelected}
+              allowWholeSetCalls={allowWholeSetCalls}
+              onSelectMachineSet={handleSelectMachineSet}
+              onSelectMachineSubset={handleSelectMachineSubset}
+              onSelectWholeSet={handleSelectWholeSet}
+            />
+          ))}
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

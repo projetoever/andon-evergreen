@@ -12,8 +12,10 @@ import {
   calculateCallWaitingMinutes,
   calculateMachineStoppedMinutes,
   calculatePostMaintenanceMinutes,
+  formatCompactDurationMinutes,
   formatDurationMinutes,
 } from "@/utils/durationUtils";
+import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
   getAlertLevel,
   getCallSubtypeLabel,
@@ -24,18 +26,6 @@ import {
 
 interface MachineCardProps {
   machine: Machine;
-}
-
-function formatLastFailureDuration(minutes: number): string {
-  if (!Number.isFinite(minutes) || minutes <= 0) return "sem registro";
-
-  const totalSeconds = Math.max(0, Math.round(minutes * 60));
-  const totalMinutes = Math.floor(totalSeconds / 60);
-
-  if (totalMinutes <= 0) return "menos de 1 min";
-  if (totalMinutes === 1) return "1 min";
-
-  return `${totalMinutes} min`;
 }
 
 export function MachineCard({ machine }: MachineCardProps) {
@@ -84,6 +74,18 @@ export function MachineCard({ machine }: MachineCardProps) {
         "Sem conjunto informado",
       )
     : null;
+  const lastCompletedStop = machine.stopHistory.find((event) => event.resumedAt);
+  const lastFailureDetails =
+    machine.lastStopDurationMinutes > 0
+      ? [
+          `Duração exata: ${formatDurationMinutes(machine.lastStopDurationMinutes)}`,
+          lastCompletedStop?.resumedAt
+            ? `Encerrada em ${formatDateTime(lastCompletedStop.resumedAt)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" • ")
+      : "Nenhuma falha encerrada registrada";
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
@@ -127,8 +129,11 @@ export function MachineCard({ machine }: MachineCardProps) {
           </div>
         )}
         {machine.machineStatus === "running" && (
-          <div className="truncate rounded-md bg-muted/35 px-2 py-1">
-            Última falha: <strong className="text-foreground">{formatLastFailureDuration(machine.lastStopDurationMinutes)}</strong>
+          <div className="truncate rounded-md bg-muted/35 px-2 py-1" title={lastFailureDetails}>
+            Última falha:{" "}
+            <strong className="text-foreground">
+              {formatCompactDurationMinutes(machine.lastStopDurationMinutes)}
+            </strong>
           </div>
         )}
 
