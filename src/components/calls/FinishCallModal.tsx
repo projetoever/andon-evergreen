@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -32,6 +31,15 @@ import {
 import {
   getCallSubtypeLabel,
 } from "@/utils/statusUtils";
+import {
+  calculateAttendanceMinutes,
+  formatCompactDurationMinutes,
+} from "@/utils/durationUtils";
+import { useTicker } from "@/hooks/useTicker";
+import {
+  Check,
+  MapPin,
+} from "lucide-react";
 import { toast } from "sonner";
 import { TechnicianSelector } from "./TechnicianSelector";
 
@@ -94,6 +102,8 @@ export function FinishCallModal({
     calls,
     finishCall,
   } = useAndon();
+
+  useTicker(60_000);
 
   const call = callId
     ? calls.find(
@@ -376,6 +386,36 @@ export function FinishCallModal({
         machineSet.isActive,
     );
 
+  const openingMachineSet =
+    call?.machineSetId
+      ? selectableMachineSets.find(
+          (machineSet) =>
+            machineSet.id ===
+            call.machineSetId,
+        ) ?? null
+      : null;
+
+  const openingMachineSubsetAvailable =
+    !call?.machineSubsetId ||
+    Boolean(
+      openingMachineSet?.subsets?.some(
+        (subset) =>
+          subset.id ===
+          call.machineSubsetId,
+      ),
+    );
+
+  const canConfirmOpeningLocation =
+    !isLoadingAssets &&
+    !assetLoadFailed &&
+    (
+      !hasActiveSets ||
+      Boolean(
+        openingMachineSet &&
+        openingMachineSubsetAvailable,
+      )
+    );
+
   const preserveLegacySetSnapshot =
     !hasActiveSets &&
     !selectedMachineSet;
@@ -488,6 +528,52 @@ export function FinishCallModal({
   }
 
   const currentCall = call;
+
+  const openingLocationLabel =
+    formatAssetLocation(
+      currentCall
+        .machineSetNameSnapshot,
+      currentCall
+        .machineSubsetNameSnapshot,
+    );
+
+  const confirmedLocationLabel =
+    formatAssetLocation(
+      finalMachineSetName,
+      finalMachineSubsetName,
+    );
+
+  const attendanceDurationLabel =
+    formatCompactDurationMinutes(
+      calculateAttendanceMinutes(
+        currentCall,
+      ),
+      "menos de 1 min",
+    );
+
+  const technicianSummary =
+    technicianNames.length > 0
+      ? technicianNames.join(", ")
+      : requiresTechnician
+        ? "Mantenedor não selecionado"
+        : "Sem mantenedor obrigatório";
+
+  function handleConfirmOpeningLocation() {
+    if (!canConfirmOpeningLocation) {
+      return;
+    }
+
+    setConfirmedMachineSetId(
+      currentCall.machineSetId ?? null,
+    );
+
+    setConfirmedMachineSubsetId(
+      currentCall.machineSubsetId ?? null,
+    );
+
+    setAssetChangeReason("");
+    setAssetConfirmed(true);
+  }
 
   function resolveSelectedTechnicians() {
     const configs = JSON.parse(
@@ -651,326 +737,350 @@ export function FinishCallModal({
         }
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-3xl">
-            Finalizar Chamado
+      <DialogContent className="grid max-h-[92vh] w-[calc(100%-1rem)] max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-4 py-4 pr-12 sm:px-5">
+          <DialogTitle className="text-2xl sm:text-3xl">
+            Finalizar chamado
           </DialogTitle>
 
-          <DialogDescription className="text-base">
-            Máquina{" "}
-            {currentCall.machineId} ·{" "}
-            {getCallSubtypeLabel(
-              currentCall.subtype,
-            )}
+          <DialogDescription className="flex flex-wrap items-center gap-2 pt-1 text-sm">
+            <span className="rounded-lg bg-muted px-2.5 py-1 font-black text-foreground">
+              Máquina {currentCall.machineId}
+            </span>
+
+            <span className="rounded-lg border border-border px-2.5 py-1 font-bold text-foreground">
+              {getCallSubtypeLabel(currentCall.subtype)}
+            </span>
+
+            <span className="rounded-lg border border-info/30 bg-info/10 px-2.5 py-1 font-bold text-info">
+              Atendimento: {attendanceDurationLabel}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        {requiresTechnician &&
-          option?.technicianArea && (
-            <div>
-              <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Manutentores
-              </h4>
+        <div className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
+          {requiresTechnician && option?.technicianArea && (
+            <section>
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Mantenedores
+                  </h4>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Selecione um ou mais responsáveis pelo atendimento.
+                  </p>
+                </div>
+              </div>
 
               <TechnicianSelector
-                area={
-                  option.technicianArea
-                }
-                value={
-                  technicianNames
-                }
-                onChange={
-                  setTechnicianNames
-                }
-                optionalAreas={
-                  optionalTechnicianAreas
-                }
+                area={option.technicianArea}
+                value={technicianNames}
+                onChange={setTechnicianNames}
+                optionalAreas={optionalTechnicianAreas}
+                variant="compact"
               />
-            </div>
+            </section>
           )}
 
-        <div className="rounded-xl border border-border bg-muted/30 p-4">
-          <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Localização informada na abertura
-          </h4>
+          <section className="rounded-2xl border border-border bg-muted/10 p-3 sm:p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Localização do atendimento
+                </h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Confirme o local informado ou corrija a seleção.
+                </p>
+              </div>
 
-          <p className="mt-2 text-lg font-black">
-            {formatAssetLocation(
-              currentCall
-                .machineSetNameSnapshot,
-              currentCall
-                .machineSubsetNameSnapshot,
-            )}
-          </p>
-        </div>
-
-        <div>
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Confirme o conjunto correto
-          </h4>
-
-          {isLoadingAssets ? (
-            <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Carregando conjuntos...
-            </div>
-          ) : assetLoadFailed ? (
-            <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-              Não foi possível carregar
-              os conjuntos. Feche e abra
-              novamente.
-            </div>
-          ) : selectableMachineSets
-              .length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Esta máquina não possui
-              conjuntos cadastrados. A
-              localização histórica será
-              preservada.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {selectableMachineSets.map(
-                (machineSet) => (
-                  <button
-                    key={
-                      machineSet.id
-                    }
-                    type="button"
-                    onClick={() => {
-                      setConfirmedMachineSetId(
-                        machineSet.id,
-                      );
-
-                      setConfirmedMachineSubsetId(
-                        null,
-                      );
-
-                      setAssetConfirmed(
-                        false,
-                      );
-                    }}
-                    className={cn(
-                      "min-h-[72px] rounded-xl border-2 p-4 text-left",
-                      confirmedMachineSetId ===
-                        machineSet.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:bg-accent",
-                    )}
-                  >
-                    <div className="text-lg font-black">
-                      {machineSet.name}
-                    </div>
-
-                    <div className="mt-1 text-xs opacity-80">
-                      {machineSet.code}
-
-                      {!machineSet.isActive
-                        ? " • Inativo — localização da abertura"
-                        : ""}
-                    </div>
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-
-        {selectedMachineSet && (
-          <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Confirme o subconjunto
-            </h4>
-
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmedMachineSubsetId(
-                    null,
-                  );
-
-                  setAssetConfirmed(
-                    false,
-                  );
-                }}
+              <span
                 className={cn(
-                  "min-h-[72px] rounded-xl border-2 p-4 text-left",
-                  confirmedMachineSubsetId ===
-                    null
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card hover:bg-accent",
+                  "rounded-full border px-3 py-1 text-xs font-bold",
+                  assetConfirmed
+                    ? locationChanged
+                      ? "border-warning/40 bg-warning/10 text-warning"
+                      : "border-success/40 bg-success/10 text-success"
+                    : "border-border bg-card text-muted-foreground",
                 )}
               >
-                <div className="text-lg font-black">
-                  Conjunto inteiro
-                </div>
+                {assetConfirmed
+                  ? locationChanged
+                    ? "Localização corrigida"
+                    : "Sem alteração"
+                  : "Aguardando confirmação"}
+              </span>
+            </div>
 
-                <div className="mt-1 text-xs opacity-80">
-                  Sem subconjunto
-                  específico
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <MapPin className="h-5 w-5" />
+                </span>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Informada na abertura
+                  </p>
+                  <p className="truncate text-base font-black" title={openingLocationLabel}>
+                    {openingLocationLabel}
+                  </p>
                 </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleConfirmOpeningLocation}
+                disabled={!canConfirmOpeningLocation}
+                className={cn(
+                  "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                  assetConfirmed && !locationChanged
+                    ? "border-success bg-success/10 text-success"
+                    : "border-primary/40 text-primary hover:bg-primary/10",
+                )}
+              >
+                {assetConfirmed && !locationChanged && <Check className="h-4 w-4" />}
+                {assetConfirmed && !locationChanged
+                  ? "Sem alteração confirmada"
+                  : "Confirmar sem alteração"}
               </button>
+            </div>
 
-              {selectableMachineSubsets.map(
-                (subset) => (
-                  <button
-                    key={subset.id}
-                    type="button"
-                    onClick={() => {
-                      setConfirmedMachineSubsetId(
-                        subset.id,
-                      );
+            <div className="mt-4">
+              <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Conjunto correto
+              </h5>
 
-                      setAssetConfirmed(
-                        false,
-                      );
-                    }}
-                    className={cn(
-                      "min-h-[72px] rounded-xl border-2 p-4 text-left",
-                      confirmedMachineSubsetId ===
-                        subset.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:bg-accent",
-                    )}
-                  >
-                    <div className="text-lg font-black">
-                      {subset.name}
-                    </div>
+              {isLoadingAssets ? (
+                <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  Carregando conjuntos...
+                </div>
+              ) : assetLoadFailed ? (
+                <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+                  Não foi possível carregar os conjuntos. Feche e abra novamente.
+                </div>
+              ) : selectableMachineSets.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  Esta máquina não possui conjuntos cadastrados. A localização histórica será
+                  preservada.
+                </div>
+              ) : (
+                <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                  {selectableMachineSets.map((machineSet) => {
+                    const selected = confirmedMachineSetId === machineSet.id;
 
-                    <div className="mt-1 text-xs opacity-80">
-                      {subset.code}
+                    return (
+                      <button
+                        key={machineSet.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setConfirmedMachineSetId(machineSet.id);
+                          setConfirmedMachineSubsetId(null);
+                          setAssetConfirmed(false);
+                        }}
+                        className={cn(
+                          "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                          selected
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                        )}
+                      >
+                        {selected && (
+                          <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        )}
 
-                      {!subset.isActive
-                        ? " • Inativo — localização da abertura"
-                        : ""}
-                    </div>
-                  </button>
-                ),
+                        <div className="truncate pr-6 text-base font-black">{machineSet.name}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {machineSet.code}
+                          {!machineSet.isActive ? " • Inativo — abertura" : ""}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          </div>
-        )}
 
-        <div className="rounded-xl border border-border p-4">
-          <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Localização confirmada
-          </h4>
+            {selectedMachineSet && (
+              <div className="mt-4">
+                <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Equipamento ou subconjunto
+                </h5>
 
-          <p className="mt-2 text-lg font-black">
-            {formatAssetLocation(
-              finalMachineSetName,
-              finalMachineSubsetName,
+                <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                  <button
+                    type="button"
+                    aria-pressed={confirmedMachineSubsetId === null}
+                    onClick={() => {
+                      setConfirmedMachineSubsetId(null);
+                      setAssetConfirmed(false);
+                    }}
+                    className={cn(
+                      "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                      confirmedMachineSubsetId === null
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                    )}
+                  >
+                    {confirmedMachineSubsetId === null && (
+                      <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+
+                    <div className="truncate pr-6 text-base font-black">Conjunto inteiro</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      Sem equipamento específico
+                    </div>
+                  </button>
+
+                  {selectableMachineSubsets.map((subset) => {
+                    const selected = confirmedMachineSubsetId === subset.id;
+
+                    return (
+                      <button
+                        key={subset.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setConfirmedMachineSubsetId(subset.id);
+                          setAssetConfirmed(false);
+                        }}
+                        className={cn(
+                          "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                          selected
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                        )}
+                      >
+                        {selected && (
+                          <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+
+                        <div className="truncate pr-6 text-base font-black">{subset.name}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {subset.code}
+                          {!subset.isActive ? " • Inativo — abertura" : ""}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          </p>
 
-          {locationChanged && (
-            <p className="mt-2 text-sm font-semibold text-warning">
-              A localização foi corrigida
-              em relação à abertura.
+            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Localização selecionada
+                </p>
+                <p className="truncate text-base font-black" title={confirmedLocationLabel}>
+                  {confirmedLocationLabel}
+                </p>
+                {locationChanged && (
+                  <p className="mt-1 text-xs font-semibold text-warning">
+                    {openingLocationLabel} → {confirmedLocationLabel}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                aria-pressed={assetConfirmed}
+                onClick={() => setAssetConfirmed(true)}
+                disabled={
+                  isLoadingAssets ||
+                  assetLoadFailed ||
+                  (hasActiveSets && !selectedMachineSet)
+                }
+                className={cn(
+                  "inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                  assetConfirmed
+                    ? "border-success bg-success/10 text-success"
+                    : "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+                )}
+              >
+                {assetConfirmed && <Check className="h-4 w-4" />}
+                {assetConfirmed ? "Localização confirmada" : "Confirmar localização"}
+              </button>
+            </div>
+
+            {locationChanged && (
+              <div className="mt-4">
+                <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Justificativa da correção (opcional)
+                </h5>
+
+                <Textarea
+                  value={assetChangeReason}
+                  onChange={(event) => setAssetChangeReason(event.target.value)}
+                  rows={2}
+                  placeholder="Explique a correção, se necessário. Em branco será registrado como Não justificado."
+                />
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-muted-foreground">
+              O responsável pela confirmação será registrado automaticamente com base nos
+              atendimentos deste chamado.
             </p>
-          )}
+          </section>
 
-          <p className="mt-2 text-xs text-muted-foreground">
-            O responsável será registrado
-            automaticamente com base nos
-            atendimentos deste chamado.
-          </p>
-        </div>
-
-        {locationChanged && (
-          <div>
+          <section>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Justificativa da correção (opcional)
+              Observações do atendimento (opcional)
             </h4>
 
             <Textarea
-              value={
-                assetChangeReason
-              }
-              onChange={(event) =>
-                setAssetChangeReason(
-                  event.target.value,
-                )
-              }
-              rows={3}
-              placeholder="Explique a correção, se necessário. Em branco será registrado como Não justificado."
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              rows={2}
+              placeholder="Descreva o atendimento, peças trocadas, ajustes ou orientações."
             />
-          </div>
-        )}
-
-
-        <button
-          type="button"
-          onClick={() =>
-            setAssetConfirmed(
-              (current) => !current,
-            )
-          }
-          disabled={
-            isLoadingAssets ||
-            assetLoadFailed ||
-            (
-              hasActiveSets &&
-              !selectedMachineSet
-            )
-          }
-          className={cn(
-            "min-h-[64px] rounded-xl border-2 px-4 text-lg font-black disabled:opacity-50",
-            assetConfirmed
-              ? "border-success bg-success/10 text-success"
-              : "border-border bg-card hover:bg-accent",
-          )}
-        >
-          {assetConfirmed
-            ? "Localização confirmada"
-            : "Confirmar a localização acima"}
-        </button>
-
-        <div>
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Observações (opcional)
-          </h4>
-
-          <Textarea
-            value={notes}
-            onChange={(event) =>
-              setNotes(
-                event.target.value,
-              )
-            }
-            rows={3}
-            placeholder="Descreva o atendimento, peças trocadas, etc."
-          />
+          </section>
         </div>
 
-        <DialogFooter className="gap-2">
-          <BigButton
-            tone="neutral"
-            size="md"
-            onClick={() =>
-              onOpenChange(false)
-            }
-            disabled={
-              isSubmitting
-            }
-          >
-            Cancelar
-          </BigButton>
+        <div className="flex flex-col gap-3 border-t border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="min-w-0 text-left">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Resumo da finalização
+            </p>
+            <p
+              className="truncate text-sm font-bold text-foreground"
+              title={`${technicianSummary} · ${confirmedLocationLabel}`}
+            >
+              {technicianSummary} · {confirmedLocationLabel}
+            </p>
+          </div>
 
-          <BigButton
-            tone="success"
-            size="md"
-            onClick={() => {
-              void handleConfirm();
-            }}
-            disabled={!canFinish}
-          >
-            {isSubmitting
-              ? "Finalizando..."
-              : "Finalizar chamado"}
-          </BigButton>
-        </DialogFooter>
+          <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
+            <BigButton
+              tone="neutral"
+              size="md"
+              className="w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </BigButton>
+
+            <BigButton
+              tone="success"
+              size="md"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                void handleConfirm();
+              }}
+              disabled={!canFinish}
+            >
+              {isSubmitting ? "Finalizando..." : "Finalizar chamado"}
+            </BigButton>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
