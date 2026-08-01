@@ -343,11 +343,13 @@ export function OpenCallModal({
         )}
 
         {preselectedMachineId && (
-          <div className="rounded-xl bg-muted/40 p-4">
-            <span className="text-xs uppercase tracking-widest text-muted-foreground">
+          <div className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 px-4 py-2.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Máquina selecionada
             </span>
-            <div className="text-4xl font-black text-foreground">{preselectedMachineId}</div>
+            <div className="text-3xl font-black leading-none text-foreground">
+              {preselectedMachineId}
+            </div>
           </div>
         )}
 
