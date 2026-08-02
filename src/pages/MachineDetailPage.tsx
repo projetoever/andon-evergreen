@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAndon } from "@/context/AndonProvider";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import { getCallTypeOption } from "@/data/callTypes";
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentStatusPanel";
@@ -25,7 +26,7 @@ import { getMachineScreenLock, lockMachineScreen, unlockMachineScreen } from "@/
 import { useTicker } from "@/hooks/useTicker";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
-import type { TechnicianArea } from "@/types/andon";
+import type { TechnicianArea, TechnicianSessionEndReason } from "@/types/andon";
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
@@ -43,6 +44,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     settings,
     audioUnlocked,
   } = useAndon();
+  const { findTechnicianByName } = useTechnicians();
 
   const navigate = useNavigate();
   const machine = machines.find((m) => m.id === machineId);
@@ -59,7 +61,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [names, setNames] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [endNotes, setEndNotes] = useState("");
-  const [endReason, setEndReason] = useState("handover");
+  const [endReason, setEndReason] = useState<TechnicianSessionEndReason>("handover");
   const [sessionId, setSessionId] = useState("");
   const tick = useTicker(1000);
 
@@ -173,9 +175,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   function resolveSelected() {
-    const configs = JSON.parse(localStorage.getItem("andonTechniciansConfig") ?? "[]") as any[];
     return names.map((name) => {
-      const config = configs.find((t) => t.name === name);
+      const config = findTechnicianByName(name);
       return {
         name,
         id: config?.id,
@@ -213,7 +214,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       callId: currentCall.id,
       sessionId,
       notes: endNotes,
-      endReason: endReason as any,
+      endReason,
     });
     setEndOpen(false);
     toast.success("Atendimento individual encerrado");
@@ -479,7 +480,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 <select
                   className="h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
                   value={endReason}
-                  onChange={(e) => setEndReason(e.target.value)}
+                  onChange={(e) => setEndReason(e.target.value as TechnicianSessionEndReason)}
                 >
                   <option value="handover">Troca de turno</option>
                   <option value="support_completed">Apoio encerrado</option>
@@ -522,4 +523,3 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     </div>
   );
 }
-

@@ -1,47 +1,80 @@
-import { TECHNICIANS } from "@/data/technicians";
+import { createAndonApiClient } from "@/api/andonApiClient";
+import type { CallSubtype } from "@/types/andon";
 import type { TechnicianConfig } from "@/types/settings";
 
-const KEY = "andonTechniciansConfig";
+const apiClient = createAndonApiClient();
 
-function normalizeTechnicianConfig(config: Partial<TechnicianConfig>): TechnicianConfig {
-  const legacyShiftIds = Array.isArray(config.shiftIds)
-    ? config.shiftIds
-    : Array.isArray((config as { shifts?: string[] }).shifts)
-      ? (config as { shifts?: string[] }).shifts
-      : [];
-  const shiftId = config.shiftId ?? legacyShiftIds[0] ?? "";
+const TECHNICIAN_AREAS = new Set<CallSubtype>([
+  "electrical",
+  "mechanical",
+  "hot_melt",
+  "quality",
+  "leadership",
+]);
 
+interface ApiTechnician {
+  id: string;
+  name: string;
+  technicalArea: string | null;
+  shiftId: string | null;
+  active: boolean;
+}
+
+export interface TechnicianConfigDraft {
+  name: string;
+  area: CallSubtype;
+  shiftId: string;
+  active: boolean;
+}
+
+function normalizeArea(value: string | null): CallSubtype {
+  return value && TECHNICIAN_AREAS.has(value as CallSubtype)
+    ? (value as CallSubtype)
+    : "electrical";
+}
+
+function mapTechnician(technician: ApiTechnician): TechnicianConfig {
   return {
-    id: config.id ?? "",
-    name: config.name ?? "",
-    area: (config.area ?? "electrical") as TechnicianConfig["area"],
-    shiftId,
-    shiftIds: legacyShiftIds,
-    active: config.active ?? true,
+    id: technician.id,
+    name: technician.name,
+    area: normalizeArea(technician.technicalArea),
+    shiftId: technician.shiftId ?? "",
+    shiftIds: technician.shiftId ? [technician.shiftId] : [],
+    active: technician.active,
   };
 }
 
-function getDefaultConfigs(): TechnicianConfig[] {
-  return TECHNICIANS.map((t) => ({ id: t.id, name: t.name, area: t.area, shiftId: "", shiftIds: [], active: t.active }));
+export async function listTechnicianConfigs(): Promise<TechnicianConfig[]> {
+  const technicians = await apiClient.get<ApiTechnician[]>("/api/technicians");
+  return technicians.map(mapTechnician);
 }
 
-export function getTechnicianConfigs() {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return [] as TechnicianConfig[];
-  try {
-    const parsed = JSON.parse(raw) as Partial<TechnicianConfig>[];
-    return parsed.map(normalizeTechnicianConfig);
-  } catch {
-    return [];
-  }
+export async function createTechnicianConfig(
+  draft: TechnicianConfigDraft,
+): Promise<TechnicianConfig> {
+  const technician = await apiClient.post<ApiTechnician>("/api/technicians", {
+    name: draft.name,
+    technicalArea: draft.area,
+    shiftId: draft.shiftId,
+    active: draft.active,
+  });
+
+  return mapTechnician(technician);
 }
 
-export function saveTechnicianConfigs(configs: TechnicianConfig[]) {
-  localStorage.setItem(KEY, JSON.stringify(configs));
-}
+export async function updateTechnicianConfig(
+  id: string,
+  patch: Partial<TechnicianConfigDraft>,
+): Promise<TechnicianConfig> {
+  const technician = await apiClient.patch<ApiTechnician>(
+    `/api/technicians/${encodeURIComponent(id)}`,
+    {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.area !== undefined ? { technicalArea: patch.area } : {}),
+      ...(patch.shiftId !== undefined ? { shiftId: patch.shiftId } : {}),
+      ...(patch.active !== undefined ? { active: patch.active } : {}),
+    },
+  );
 
-export function getActiveTechniciansForArea(area: string): TechnicianConfig[] {
-  const configured = getTechnicianConfigs().filter((t) => t.active && t.area === area);
-  if (configured.length > 0) return configured;
-  return getDefaultConfigs().filter((t) => t.active && t.area === area);
+  return mapTechnician(technician);
 }

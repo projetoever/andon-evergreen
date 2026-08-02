@@ -14,6 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import { getCallTypeOption } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import {
@@ -103,6 +104,7 @@ export function FinishCallModal({
     calls,
     finishCall,
   } = useAndon();
+  const { findTechnicianByName } = useTechnicians();
 
   useTicker(60_000);
 
@@ -596,23 +598,10 @@ export function FinishCallModal({
         : "Sem mantenedor obrigatório";
 
   function resolveSelectedTechnicians() {
-    const configs = JSON.parse(
-      localStorage.getItem(
-        "andonTechniciansConfig",
-      ) ?? "[]",
-    ) as Array<{
-      id?: string;
-      name?: string;
-      shiftId?: string;
-      area?: TechnicianArea;
-    }>;
-
     return technicianNames.map(
       (name) => {
-        const config = configs.find(
-          (item) =>
-            item.name === name,
-        );
+        const config =
+          findTechnicianByName(name);
 
         const activeSession = (
           currentCall

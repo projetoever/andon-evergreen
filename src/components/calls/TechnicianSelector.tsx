@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, Search } from "lucide-react";
-import { getActiveTechniciansForArea } from "@/services/technicianConfigService";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import {
   getCurrentShiftFromConfig,
   getTechnicianShiftFilterConfig,
@@ -57,6 +57,7 @@ export function TechnicianSelector({
   optionalAreas = [],
   variant = "default",
 }: TechnicianSelectorProps) {
+  const { technicians, isLoading, error, refreshTechnicians } = useTechnicians();
   const [showAll, setShowAll] = useState(false);
   const [visibleOptionalAreas, setVisibleOptionalAreas] = useState<TechnicianArea[]>([]);
   const [areaFilter, setAreaFilter] = useState<TechnicianArea | "all">(area);
@@ -95,7 +96,9 @@ export function TechnicianSelector({
     const excluded = new Set(excludeNames);
 
     const allActive = uniqueByName(
-      visibleAreas.flatMap((currentArea) => getActiveTechniciansForArea(currentArea)),
+      visibleAreas.flatMap((currentArea) =>
+        technicians.filter((technician) => technician.active && technician.area === currentArea),
+      ),
     ).filter((technician) => !excluded.has(technician.name));
 
     const config = getTechnicianShiftFilterConfig();
@@ -110,7 +113,7 @@ export function TechnicianSelector({
     if (inShift.length > 0) return { list: inShift, hasShiftFallback: false };
 
     return { list: allActive, hasShiftFallback: true };
-  }, [visibleAreas, showAll, excludeNames]);
+  }, [visibleAreas, showAll, excludeNames, technicians]);
 
   const filteredList = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
@@ -218,7 +221,22 @@ export function TechnicianSelector({
           </label>
         )}
 
-        {filteredList.length === 0 ? (
+        {error ? (
+          <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="font-bold underline"
+              onClick={() => void refreshTechnicians()}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : isLoading ? (
+          <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Carregando mantenedores...
+          </p>
+        ) : filteredList.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
             {searchTerm
               ? "Nenhum mantenedor encontrado para esta busca."
@@ -301,7 +319,20 @@ export function TechnicianSelector({
         ))}
       </div>
 
-      {list.length === 0 ? (
+      {error ? (
+        <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+          <p>{error}</p>
+          <button
+            type="button"
+            className="font-bold underline"
+            onClick={() => void refreshTechnicians()}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
+      ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nenhum manutentor cadastrado para esta seleção.
         </p>
