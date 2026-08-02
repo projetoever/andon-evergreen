@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAndon } from "@/context/AndonProvider";
+import { useTechnicians } from "@/hooks/useTechnicians";
 import { getCallTypeOption } from "@/data/callTypes";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ interface StartAttendanceModalProps {
 
 export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttendanceModalProps) {
   const { calls, attendCall } = useAndon();
+  const { findTechnicianByName } = useTechnicians();
   const [names, setNames] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
 
@@ -32,9 +34,8 @@ export function StartAttendanceModal({ open, onOpenChange, callId }: StartAttend
   if (!call) return null;
 
   function resolveSelected() {
-    const configs = JSON.parse(localStorage.getItem("andonTechniciansConfig") ?? "[]") as any[];
     return names.map((name) => {
-      const config = configs.find((t) => t.name === name);
+      const config = findTechnicianByName(name);
       return {
         name,
         id: config?.id,

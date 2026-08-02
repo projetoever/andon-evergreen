@@ -9,14 +9,14 @@ import { getCategoryConfigs, saveCategoryConfigs } from "@/services/categoryConf
 import { getSoundBlob, getSoundConfig, listSoundConfigs, removeSoundConfig, saveSoundConfig } from "@/services/soundStorageService";
 import { DEFAULT_SHIFTS, getShiftConfigs, saveShiftConfigs } from "@/services/shiftConfigService";
 import { getTechnicianShiftFilterConfig, saveTechnicianShiftFilterConfig } from "@/services/technicianShiftFilterService";
-import { getTechnicianConfigs, saveTechnicianConfigs } from "@/services/technicianConfigService";
 import type { CallSubtype } from "@/types/andon";
 import { DEFAULT_SOUND_MACHINE_ID, type AndonSoundConfig, type SoundMachineId } from "@/types/sound";
-import type { AndonCategoryConfig, FailureClassificationConfig, SettingsTab, ShiftConfig, TechnicianConfig } from "@/types/settings";
+import type { AndonCategoryConfig, FailureClassificationConfig, SettingsTab, ShiftConfig } from "@/types/settings";
 import { toast } from "sonner";
 import { getFailureClassificationConfigs, saveFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import { MachineAdminPanel } from "./MachineAdminPanel";
 import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
+import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "sounds", label: "Sons do ANDON" },
@@ -26,14 +26,6 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "classifications", label: "Classificações" },
   { id: "assetCatalogs", label: "Catálogos de ativos" },
   { id: "machines", label: "Máquinas" },
-];
-
-const areaOptions: Array<{ id: CallSubtype; label: string }> = [
-  { id: "electrical", label: "Elétrica" },
-  { id: "mechanical", label: "Mecânica" },
-  { id: "hot_melt", label: "Hot Melt" },
-  { id: "quality", label: "Qualidade" },
-  { id: "leadership", label: "Liderança" },
 ];
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
@@ -70,7 +62,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         </div>
 
         {tab === "sounds" && <SoundsTab isOpen={open} isActive={tab === "sounds"} />}
-        {tab === "technicians" && <TechniciansTab />}
+        {tab === "technicians" && <TechniciansSettingsTab />}
         {tab === "categories" && <CategoriesTab />}
         {tab === "shifts" && <ShiftsTab />}
         {tab === "classifications" && <ClassificationsTab />}
@@ -224,9 +216,6 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
     </div>
   );
 }
-
-function TechniciansTab() { const [items,setItems]=useState<TechnicianConfig[]>([]); const [selectedId,setSelectedId]=useState<string|null>(null); const emptyDraft:TechnicianConfig={id:"",name:"",area:"electrical",shiftId:"",shiftIds:[],active:true}; const [draft,setDraft]=useState<TechnicianConfig>(emptyDraft); const [shifts,setShifts]=useState<ShiftConfig[]>([]); useEffect(()=>{setItems(getTechnicianConfigs()); setShifts(getShiftConfigs());},[]); const shiftNameById=useMemo(()=>Object.fromEntries(shifts.map((s)=>[s.id,s.name])),[shifts]); const handleAddTechnician=()=>{setSelectedId(null);setDraft(emptyDraft)}; const handleSelect=(item:TechnicianConfig)=>{setSelectedId(item.id);setDraft({...item})}; const persist=(next:TechnicianConfig[])=>{setItems(next);saveTechnicianConfigs(next)}; const handleSave=()=>{const trimmed=draft.name.trim(); if(!trimmed)return toast.error("Informe o nome do manutentor."); if(!draft.shiftId)return toast.error("Selecione o turno do manutentor."); const duplicate=items.some((t)=>t.id!==draft.id&&t.name.trim().toLowerCase()===trimmed.toLowerCase()); if(duplicate)return toast.error("Já existe manutentor com este nome."); const id=draft.id||`tech-${Date.now()}`; const nextItem={...draft,id,name:trimmed,shiftIds:draft.shiftId?[draft.shiftId]:[]}; const next=[...items.filter((t)=>t.id!==id),nextItem].sort((a,b)=>a.name.localeCompare(b.name)); persist(next); setSelectedId(id); setDraft(nextItem); toast.success("Manutentor salvo.");}; const handleToggleActive=()=>{ if(!draft.id)return; const next=items.map((t)=>(t.id===draft.id?{...t,active:!t.active}:t)); persist(next); setDraft((prev)=>({...prev,active:!prev.active}));};
-return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Manutentores</h3><p className="text-sm text-muted-foreground">Cadastre, edite e inative manutentores por área e turno.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Manutentores cadastrados"><BigButton tone="neutral" size="md" onClick={handleAddTechnician}>Adicionar manutentor</BigButton><div className="space-y-2">{items.length===0&&<p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{areaOptions.find((a)=>a.id===item.area)?.label} · {(item.shiftId?shiftNameById[item.shiftId]:"Sem turno")}</p><p className="text-xs text-muted-foreground">{item.active?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar manutentor":"Novo manutentor"}><label className="text-sm font-semibold">Nome do manutentor<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.name} onChange={(e)=>setDraft({...draft,name:e.target.value})}/></label><label className="text-sm font-semibold">Área técnica<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.area} onChange={(e)=>setDraft({...draft,area:e.target.value as CallSubtype})}>{areaOptions.map((area)=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label><label className="text-sm font-semibold">Turno do manutentor<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.shiftId} onChange={(e)=>setDraft({...draft,shiftId:e.target.value})}><option value="">Selecione um turno</option>{shifts.map((shift)=><option key={shift.id} value={shift.id}>{shift.name}</option>)}</select></label><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar manutentor</BigButton><BigButton tone="neutral" size="md" onClick={handleAddTechnician}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={handleToggleActive} disabled={!draft.id}>{draft.active?"Inativar":"Reativar"}</BigButton></div></CardSection></div></div>; }
 
 function CategoriesTab() { const [items,setItems]=useState<AndonCategoryConfig[]>([]); const [selectedId,setSelectedId]=useState<string>("electrical"); const [draft,setDraft]=useState<AndonCategoryConfig|null>(null); useEffect(()=>{const list=getCategoryConfigs(); setItems(list); const first=list.find((x)=>x.id==="electrical")??list[0]; setSelectedId(first.id); setDraft({...first});},[]); const persist=(next:AndonCategoryConfig[])=>{setItems(next);saveCategoryConfigs(next)}; const handleSelect=(item:AndonCategoryConfig)=>{setSelectedId(item.id);setDraft({...item})}; const handleSave=()=>{if(!draft)return; persist(items.map((x)=>x.id===draft.id?draft:x)); toast.success("Categoria salva.");}; const handleCancel=()=>{const original=items.find((x)=>x.id===selectedId); if(original)setDraft({...original});}; if(!draft)return null;
 return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Categorias</h3><p className="text-sm text-muted-foreground">Edite nome exibido e status das categorias base sem alterar IDs internos.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Categorias"><BigButton tone="neutral" size="md" disabled>Adicionar categoria (em breve)</BigButton><div className="space-y-2">{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.displayName}</p><p className="text-xs text-muted-foreground">ID: {item.id} · {item.active?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title="Editar categoria"><label className="text-sm font-semibold">ID interno<input readOnly value={draft.id} className="mt-1 h-10 w-full rounded-md border bg-muted px-2 text-muted-foreground" /></label><label className="text-sm font-semibold">Nome exibido<input value={draft.displayName} onChange={(e)=>setDraft({...draft,displayName:e.target.value})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar categoria</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={()=>setDraft((prev)=>prev?{...prev,active:!prev.active}:prev)}>{draft.active?"Inativar":"Ativar"}</BigButton></div></CardSection></div></div>; }
