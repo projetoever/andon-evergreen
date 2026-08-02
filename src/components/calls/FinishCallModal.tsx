@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import {
   listMachineSets,
 } from "@/services/machineAssetService";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import type {
   TechnicianArea,
 } from "@/types/andon";
@@ -153,6 +154,21 @@ export function FinishCallModal({
   const [
     assetLoadFailed,
     setAssetLoadFailed,
+  ] = useState(false);
+
+  const [
+    allowWholeSetCalls,
+    setAllowWholeSetCalls,
+  ] = useState(false);
+
+  const [
+    isLoadingSystemSettings,
+    setIsLoadingSystemSettings,
+  ] = useState(false);
+
+  const [
+    systemSettingsLoadFailed,
+    setSystemSettingsLoadFailed,
   ] = useState(false);
 
   const [
@@ -316,6 +332,50 @@ export function FinishCallModal({
     call?.machineId,
   ]);
 
+  useEffect(() => {
+    if (!open) {
+      setAllowWholeSetCalls(false);
+      setIsLoadingSystemSettings(false);
+      setSystemSettingsLoadFailed(false);
+
+      return;
+    }
+
+    let current = true;
+
+    setAllowWholeSetCalls(false);
+    setIsLoadingSystemSettings(true);
+    setSystemSettingsLoadFailed(false);
+
+    getSystemSettings()
+      .then((settings) => {
+        if (current) {
+          setAllowWholeSetCalls(settings.allowWholeSetCalls);
+        }
+      })
+      .catch(() => {
+        if (!current) {
+          return;
+        }
+
+        setAllowWholeSetCalls(false);
+        setSystemSettingsLoadFailed(true);
+
+        toast.error(
+          "Não foi possível carregar a política de seleção de ativos",
+        );
+      })
+      .finally(() => {
+        if (current) {
+          setIsLoadingSystemSettings(false);
+        }
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [open]);
+
   const selectableMachineSets =
     useMemo(
       () =>
@@ -386,35 +446,15 @@ export function FinishCallModal({
         machineSet.isActive,
     );
 
-  const openingMachineSet =
-    call?.machineSetId
-      ? selectableMachineSets.find(
-          (machineSet) =>
-            machineSet.id ===
-            call.machineSetId,
-        ) ?? null
-      : null;
-
-  const openingMachineSubsetAvailable =
-    !call?.machineSubsetId ||
-    Boolean(
-      openingMachineSet?.subsets?.some(
-        (subset) =>
-          subset.id ===
-          call.machineSubsetId,
-      ),
-    );
-
-  const canConfirmOpeningLocation =
-    !isLoadingAssets &&
-    !assetLoadFailed &&
-    (
-      !hasActiveSets ||
-      Boolean(
-        openingMachineSet &&
-        openingMachineSubsetAvailable,
-      )
-    );
+  const hasValidAssetSelection = Boolean(
+    (!hasActiveSets && !selectedMachineSet) ||
+      (selectedMachineSet &&
+        (selectableMachineSubsets.length === 0 ||
+          selectedMachineSubset ||
+          (allowWholeSetCalls &&
+            !isLoadingSystemSettings &&
+            !systemSettingsLoadFailed))),
+  );
 
   const preserveLegacySetSnapshot =
     !hasActiveSets &&
@@ -513,10 +553,7 @@ export function FinishCallModal({
       !assetLoadFailed &&
       !isSubmitting &&
       assetConfirmed &&
-      (
-        !hasActiveSets ||
-        selectedMachineSet
-      ) &&
+      hasValidAssetSelection &&
       (
         !requiresTechnician ||
         technicianNames.length > 0
@@ -557,23 +594,6 @@ export function FinishCallModal({
       : requiresTechnician
         ? "Mantenedor não selecionado"
         : "Sem mantenedor obrigatório";
-
-  function handleConfirmOpeningLocation() {
-    if (!canConfirmOpeningLocation) {
-      return;
-    }
-
-    setConfirmedMachineSetId(
-      currentCall.machineSetId ?? null,
-    );
-
-    setConfirmedMachineSubsetId(
-      currentCall.machineSubsetId ?? null,
-    );
-
-    setAssetChangeReason("");
-    setAssetConfirmed(true);
-  }
 
   function resolveSelectedTechnicians() {
     const configs = JSON.parse(
@@ -811,7 +831,7 @@ export function FinishCallModal({
               </span>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <MapPin className="h-5 w-5" />
@@ -826,23 +846,6 @@ export function FinishCallModal({
                   </p>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={handleConfirmOpeningLocation}
-                disabled={!canConfirmOpeningLocation}
-                className={cn(
-                  "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                  assetConfirmed && !locationChanged
-                    ? "border-success bg-success/10 text-success"
-                    : "border-primary/40 text-primary hover:bg-primary/10",
-                )}
-              >
-                {assetConfirmed && !locationChanged && <Check className="h-4 w-4" />}
-                {assetConfirmed && !locationChanged
-                  ? "Sem alteração confirmada"
-                  : "Confirmar sem alteração"}
-              </button>
             </div>
 
             <div className="mt-4">
@@ -905,71 +908,106 @@ export function FinishCallModal({
 
             {selectedMachineSet && (
               <div className="mt-4">
-                <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Equipamento ou subconjunto
-                </h5>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Equipamento ou subconjunto
+                  </h5>
 
-                <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
-                  <button
-                    type="button"
-                    aria-pressed={confirmedMachineSubsetId === null}
-                    onClick={() => {
-                      setConfirmedMachineSubsetId(null);
-                      setAssetConfirmed(false);
-                    }}
-                    className={cn(
-                      "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
-                      confirmedMachineSubsetId === null
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                    )}
-                  >
-                    {confirmedMachineSubsetId === null && (
-                      <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <Check className="h-3.5 w-3.5" />
+                  {selectableMachineSubsets.length > 0 &&
+                    (isLoadingSystemSettings ? (
+                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                        Verificando política
                       </span>
+                    ) : !allowWholeSetCalls || systemSettingsLoadFailed ? (
+                      <span className="rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-bold text-warning">
+                        Equipamento obrigatório
+                      </span>
+                    ) : null)}
+                </div>
+
+                {selectableMachineSubsets.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
+                    Este conjunto não possui equipamento cadastrado. A localização será confirmada
+                    no próprio conjunto.
+                  </div>
+                ) : (
+                  <>
+                    {systemSettingsLoadFailed && (
+                      <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                        Não foi possível validar a opção de conjunto inteiro. Selecione um
+                        equipamento específico ou reabra o modal.
+                      </p>
                     )}
 
-                    <div className="truncate pr-6 text-base font-black">Conjunto inteiro</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      Sem equipamento específico
+                    <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                      {allowWholeSetCalls &&
+                        !isLoadingSystemSettings &&
+                        !systemSettingsLoadFailed && (
+                          <button
+                            type="button"
+                            aria-pressed={confirmedMachineSubsetId === null}
+                            onClick={() => {
+                              setConfirmedMachineSubsetId(null);
+                              setAssetConfirmed(false);
+                            }}
+                            className={cn(
+                              "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                              confirmedMachineSubsetId === null
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                            )}
+                          >
+                            {confirmedMachineSubsetId === null && (
+                              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+
+                            <div className="truncate pr-6 text-base font-black">
+                              Conjunto inteiro
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              Sem equipamento específico
+                            </div>
+                          </button>
+                        )}
+
+                      {selectableMachineSubsets.map((subset) => {
+                        const selected = confirmedMachineSubsetId === subset.id;
+
+                        return (
+                          <button
+                            key={subset.id}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => {
+                              setConfirmedMachineSubsetId(subset.id);
+                              setAssetConfirmed(false);
+                            }}
+                            className={cn(
+                              "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                              selected
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                            )}
+                          >
+                            {selected && (
+                              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+
+                            <div className="truncate pr-6 text-base font-black">{subset.name}</div>
+                            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {subset.code}
+                              {!subset.isActive ? " • Inativo — abertura" : ""}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </button>
-
-                  {selectableMachineSubsets.map((subset) => {
-                    const selected = confirmedMachineSubsetId === subset.id;
-
-                    return (
-                      <button
-                        key={subset.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => {
-                          setConfirmedMachineSubsetId(subset.id);
-                          setAssetConfirmed(false);
-                        }}
-                        className={cn(
-                          "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
-                          selected
-                            ? "border-primary bg-primary/10 text-foreground"
-                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                        )}
-                      >
-                        {selected && (
-                          <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-
-                        <div className="truncate pr-6 text-base font-black">{subset.name}</div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {subset.code}
-                          {!subset.isActive ? " • Inativo — abertura" : ""}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -992,11 +1030,7 @@ export function FinishCallModal({
                 type="button"
                 aria-pressed={assetConfirmed}
                 onClick={() => setAssetConfirmed(true)}
-                disabled={
-                  isLoadingAssets ||
-                  assetLoadFailed ||
-                  (hasActiveSets && !selectedMachineSet)
-                }
+                disabled={isLoadingAssets || assetLoadFailed || !hasValidAssetSelection}
                 className={cn(
                   "inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
                   assetConfirmed
@@ -1005,7 +1039,13 @@ export function FinishCallModal({
                 )}
               >
                 {assetConfirmed && <Check className="h-4 w-4" />}
-                {assetConfirmed ? "Localização confirmada" : "Confirmar localização"}
+                {assetConfirmed
+                  ? locationChanged
+                    ? "Correção confirmada"
+                    : "Sem alteração confirmada"
+                  : locationChanged
+                    ? "Confirmar correção"
+                    : "Confirmar sem alteração"}
               </button>
             </div>
 

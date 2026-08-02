@@ -1101,6 +1101,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             );
           }
 
+          if (
+            !call.isSystemTest &&
+            confirmedMachineSet &&
+            !confirmedMachineSubset &&
+            !(await allowsWholeSetCalls())
+          ) {
+            const activeSubsetCount = await tx.machineSubset.count({
+              where: {
+                machineSetId: confirmedMachineSet.id,
+                isActive: true,
+                subsetType: { isActive: true },
+              },
+            });
+
+            if (activeSubsetCount > 0) {
+              throw new FinishCallValidationError(
+                "Selecione um subconjunto ou equipamento para confirmar a localização neste conjunto",
+              );
+            }
+          }
+
           const preserveLegacyOpeningSnapshot =
             !hasActiveSets &&
             !confirmedMachineSetId;
