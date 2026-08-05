@@ -3,6 +3,10 @@ import Fastify from "fastify";
 
 import { registerCorsSupport } from "./config/cors.js";
 import { prisma } from "./db/prisma.js";
+import {
+  createPlcRuntime,
+  registerPlcHealthRoute,
+} from "./integrations/plc/index.js";
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
 import { registerFailureEventRoutes } from "./routes/failureEvents.js";
@@ -20,6 +24,12 @@ const DEFAULT_HOST = "0.0.0.0";
 
 export function buildServer() {
   const app = Fastify({ logger: true });
+  const plcRuntime = createPlcRuntime({
+    debug: (bindings, message) => app.log.debug(bindings, message),
+    info: (bindings, message) => app.log.info(bindings, message),
+    warn: (bindings, message) => app.log.warn(bindings, message),
+    error: (bindings, message) => app.log.error(bindings, message),
+  });
 
   registerCorsSupport(app);
 
@@ -44,6 +54,7 @@ export function buildServer() {
   }));
 
   void registerHealthDbRoute(app);
+  void registerPlcHealthRoute(app, plcRuntime);
   void registerMachineRoutes(app);
   void registerMachineCatalogRoutes(app);
   void registerMachineSetRoutes(app);
@@ -54,6 +65,14 @@ export function buildServer() {
   void registerTechnicianRoutes(app);
   void registerShiftRoutes(app);
   void registerFailureClassificationRoutes(app);
+
+  app.addHook("onReady", async () => {
+    await plcRuntime.start();
+  });
+
+  app.addHook("onClose", async () => {
+    await plcRuntime.stop();
+  });
 
   return app;
 }
