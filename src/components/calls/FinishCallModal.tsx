@@ -14,16 +14,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
-import { useTechnicians } from "@/hooks/useTechnicians";
 import { getCallTypeOption } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import {
   listMachineSets,
 } from "@/services/machineAssetService";
 import { getSystemSettings } from "@/services/systemSettingsService";
-import type {
-  TechnicianArea,
-} from "@/types/andon";
 import type {
   MachineSet,
 } from "@/types/machineSet";
@@ -43,19 +39,12 @@ import {
   MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
-import { TechnicianSelector } from "./TechnicianSelector";
 
 interface FinishCallModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   callId: string | null;
 }
-
-const SUPPORT_AREAS: TechnicianArea[] = [
-  "electrical",
-  "mechanical",
-  "hot_melt",
-];
 
 function assetKey(
   id: string | null | undefined,
@@ -104,7 +93,6 @@ export function FinishCallModal({
     calls,
     finishCall,
   } = useAndon();
-  const { findTechnicianByName } = useTechnicians();
 
   useTicker(60_000);
 
@@ -113,11 +101,6 @@ export function FinishCallModal({
         (item) => item.id === callId,
       ) ?? null
     : null;
-
-  const [
-    technicianNames,
-    setTechnicianNames,
-  ] = useState<string[]>([]);
 
   const [notes, setNotes] =
     useState("");
@@ -137,11 +120,6 @@ export function FinishCallModal({
     setConfirmedMachineSubsetId,
   ] = useState<string | null>(null);
 
-
-  const [
-    assetConfirmed,
-    setAssetConfirmed,
-  ] = useState(false);
 
   const [
     assetChangeReason,
@@ -227,18 +205,11 @@ export function FinishCallModal({
     [call?.technicianSessions],
   );
 
-  const optionalTechnicianAreas =
-    useMemo<TechnicianArea[]>(
-      () =>
-        option?.technicianArea
-          ? SUPPORT_AREAS.filter(
-              (area) =>
-                area !==
-                option.technicianArea,
-            )
-          : [],
-      [option?.technicianArea],
-    );
+  const technicianNames = activeSessionNames.length
+    ? activeSessionNames
+    : allSessionNames.length
+      ? allSessionNames
+      : Array.from(new Set([...(call?.technicianNames ?? []), call?.technicianName].filter(Boolean))) as string[];
 
   useEffect(() => {
     if (!open) {
@@ -259,12 +230,6 @@ export function FinishCallModal({
     initializedCallIdRef.current =
       call.id;
 
-    const initialNames =
-      activeSessionNames.length
-        ? activeSessionNames
-        : allSessionNames;
-
-    setTechnicianNames(initialNames);
     setNotes("");
 
     setConfirmedMachineSetId(
@@ -276,7 +241,6 @@ export function FinishCallModal({
     );
 
 
-    setAssetConfirmed(false);
     setAssetChangeReason("");
     setIsSubmitting(false);
   }, [
@@ -519,8 +483,25 @@ export function FinishCallModal({
         null
       : null);
 
+  const openingLocationExists = Boolean(
+    call &&
+      (assetKey(
+        call.machineSetId,
+        call.machineSetCodeSnapshot,
+        call.machineSetNameSnapshot,
+        call.machineSetTypeSnapshot,
+      ) ||
+        assetKey(
+          call.machineSubsetId,
+          call.machineSubsetCodeSnapshot,
+          call.machineSubsetNameSnapshot,
+          call.machineSubsetTypeSnapshot,
+        )),
+  );
+
   const locationChanged = Boolean(
     call &&
+      openingLocationExists &&
       (
         assetKey(
           call.machineSetId,
@@ -554,7 +535,6 @@ export function FinishCallModal({
       !isLoadingAssets &&
       !assetLoadFailed &&
       !isSubmitting &&
-      assetConfirmed &&
       hasValidAssetSelection &&
       (
         !requiresTechnician ||
@@ -600,9 +580,6 @@ export function FinishCallModal({
   function resolveSelectedTechnicians() {
     return technicianNames.map(
       (name) => {
-        const config =
-          findTechnicianByName(name);
-
         const activeSession = (
           currentCall
             .technicianSessions ??
@@ -628,23 +605,19 @@ export function FinishCallModal({
           name,
 
           id:
-            config?.id ??
             activeSession
               ?.technicianId ??
             anySession?.technicianId,
 
           shiftId:
-            config?.shiftId ??
             activeSession?.shiftId ??
             anySession?.shiftId,
 
           shiftName:
-            config?.shiftId ??
             activeSession?.shiftName ??
             anySession?.shiftName,
 
           technicalArea:
-            config?.area ??
             activeSession
               ?.technicalArea ??
             anySession
@@ -685,8 +658,6 @@ export function FinishCallModal({
 
         notes:
           notes.trim() || null,
-
-        assetConfirmed: true,
 
         confirmedMachineSetId:
           finalMachineSetId,
@@ -769,57 +740,32 @@ export function FinishCallModal({
 
         <div className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
           {requiresTechnician && option?.technicianArea && (
-            <section>
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Mantenedores
-                  </h4>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Selecione um ou mais responsáveis pelo atendimento.
-                  </p>
-                </div>
-              </div>
-
-              <TechnicianSelector
-                area={option.technicianArea}
-                value={technicianNames}
-                onChange={setTechnicianNames}
-                optionalAreas={optionalTechnicianAreas}
-                variant="compact"
-              />
+            <section className="rounded-xl border border-border bg-muted/10 p-3">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Mantenedores registrados no atendimento
+              </h4>
+              <p className="mt-1 text-sm font-bold text-foreground">
+                {technicianNames.length ? technicianNames.join(", ") : "Nenhum mantenedor registrado"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A finalização usa somente as identificações realmente registradas nas sessões.
+              </p>
             </section>
           )}
 
           <section className="rounded-2xl border border-border bg-muted/10 p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Localização do atendimento
-                </h4>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confirme o local informado ou corrija a seleção.
-                </p>
-              </div>
-
-              <span
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-bold",
-                  assetConfirmed
-                    ? locationChanged
-                      ? "border-warning/40 bg-warning/10 text-warning"
-                      : "border-success/40 bg-success/10 text-success"
-                    : "border-border bg-card text-muted-foreground",
-                )}
-              >
-                {assetConfirmed
-                  ? locationChanged
-                    ? "Localização corrigida"
-                    : "Sem alteração"
-                  : "Aguardando confirmação"}
-              </span>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Localização técnica final
+                  </h4>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Selecione o conjunto e o equipamento identificados durante o atendimento.
+                  </p>
+                </div>
             </div>
 
+            {openingLocationExists && (
             <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -836,10 +782,11 @@ export function FinishCallModal({
                 </div>
               </div>
             </div>
+            )}
 
             <div className="mt-4">
               <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Conjunto correto
+                Conjunto
               </h5>
 
               {isLoadingAssets ? (
@@ -868,7 +815,6 @@ export function FinishCallModal({
                         onClick={() => {
                           setConfirmedMachineSetId(machineSet.id);
                           setConfirmedMachineSubsetId(null);
-                          setAssetConfirmed(false);
                         }}
                         className={cn(
                           "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
@@ -937,7 +883,6 @@ export function FinishCallModal({
                             aria-pressed={confirmedMachineSubsetId === null}
                             onClick={() => {
                               setConfirmedMachineSubsetId(null);
-                              setAssetConfirmed(false);
                             }}
                             className={cn(
                               "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
@@ -971,7 +916,6 @@ export function FinishCallModal({
                             aria-pressed={selected}
                             onClick={() => {
                               setConfirmedMachineSubsetId(subset.id);
-                              setAssetConfirmed(false);
                             }}
                             className={cn(
                               "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
@@ -1000,7 +944,7 @@ export function FinishCallModal({
               </div>
             )}
 
-            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-4 rounded-xl border border-success/40 bg-success/10 p-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   Localização selecionada
@@ -1014,28 +958,6 @@ export function FinishCallModal({
                   </p>
                 )}
               </div>
-
-              <button
-                type="button"
-                aria-pressed={assetConfirmed}
-                onClick={() => setAssetConfirmed(true)}
-                disabled={isLoadingAssets || assetLoadFailed || !hasValidAssetSelection}
-                className={cn(
-                  "inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                  assetConfirmed
-                    ? "border-success bg-success/10 text-success"
-                    : "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-              >
-                {assetConfirmed && <Check className="h-4 w-4" />}
-                {assetConfirmed
-                  ? locationChanged
-                    ? "Correção confirmada"
-                    : "Sem alteração confirmada"
-                  : locationChanged
-                    ? "Confirmar correção"
-                    : "Confirmar sem alteração"}
-              </button>
             </div>
 
             {locationChanged && (
@@ -1054,8 +976,7 @@ export function FinishCallModal({
             )}
 
             <p className="mt-3 text-xs text-muted-foreground">
-              O responsável pela confirmação será registrado automaticamente com base nos
-              atendimentos deste chamado.
+              A localização e os responsáveis serão registrados automaticamente ao finalizar.
             </p>
           </section>
 

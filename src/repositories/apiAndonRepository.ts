@@ -293,6 +293,21 @@ export class ApiAndonRepository implements AndonRepository {
     return { ...result, call };
   }
 
+  async openCalls(_machines: Machine[], _calls: AndonCall[], params: OpenAndonCallParams[]) {
+    const first = params[0];
+    if (!first || params.some((item) => item.machineId !== first.machineId)) {
+      throw new Error("Os chamados em lote devem pertencer à mesma máquina");
+    }
+
+    await this.apiClient.post<ApiAndonCall[]>("/api/andon-calls/batch", {
+      machineId: first.machineId,
+      subtypes: params.map((item) => item.subtype),
+      criticality: first.criticality ?? "medium",
+      machineCondition: first.machineCondition,
+    });
+    return this.loadResult();
+  }
+
   async attendCall(_machines: Machine[], _calls: AndonCall[], params: string | StartAttendanceParams) {
     const callId = typeof params === "string" ? params : params.callId;
     const technicians = typeof params === "string" ? [] : params.technicians;
@@ -300,6 +315,9 @@ export class ApiAndonRepository implements AndonRepository {
       technicianName: technicians[0]?.name,
       technicianNames: technicians.map((technician) => technician.name),
       technicianArea: technicians[0]?.technicalArea,
+      credentials: technicians
+        .map((technician) => technician.credential)
+        .filter(Boolean),
     });
     return this.loadResult();
   }
@@ -317,12 +335,13 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async addTechnicianSessions(_machines: Machine[], _calls: AndonCall[], params: AddTechnicianSessionsParams) {
-    for (const technician of params.technicians) {
-      await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
-        technicianName: technician.name,
-        technicianArea: technician.technicalArea,
-      });
-    }
+    await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
+      technicianNames: params.technicians.map((technician) => technician.name),
+      technicianArea: params.technicians[0]?.technicalArea,
+      credentials: params.technicians
+        .map((technician) => technician.credential)
+        .filter(Boolean),
+    });
     return this.loadResult();
   }
 
@@ -341,7 +360,6 @@ export class ApiAndonRepository implements AndonRepository {
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
-      assetConfirmed: params.assetConfirmed,
       confirmedMachineSetId:
         params.confirmedMachineSetId,
       confirmedMachineSubsetId:

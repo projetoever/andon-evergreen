@@ -34,9 +34,9 @@
   ],
   "database": {
     "engine": "PostgreSQL",
-    "migration": "20260716120000_add_call_asset_confirmation",
+    "migration": "20260812183000_add_streamlined_call_flow",
     "migrationType": "additive",
-    "migrationApplied": true,
+    "migrationApplied": false,
     "backupRequiredBeforeDeploy": true
   },
   "installationProfiles": {

@@ -1,124 +1,155 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bell, CheckCheck, History, RotateCcw, Wrench, Play, Square, FileWarning, XCircle } from "lucide-react";
-import type { Machine } from "@/types/machine";
-import type { AndonCall } from "@/types/andon";
+import {
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  FileWarning,
+  History,
+  RotateCcw,
+  Send,
+  Wrench,
+  XCircle,
+} from "lucide-react";
+
 import { BigButton } from "@/components/common/BigButton";
+import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
+import type { AndonCall, CallSubtype } from "@/types/andon";
+import type { Machine } from "@/types/machine";
 
 interface MachineActionPanelProps {
   machine: Machine;
   currentCall: AndonCall | null;
-  onOpenCall: () => void;
+  selectedSubtypes: CallSubtype[];
+  activeSubtypes: Set<CallSubtype>;
+  onToggleSubtype: (subtype: CallSubtype) => void;
+  onOpenSelected: () => void;
   onAttend: () => void;
   onCancelCall: () => void;
   onFinish: () => void;
   onCompleteMaintenance: () => void;
   onReturnToMaintenance: () => void;
-  onStop: () => void;
-  onResume: () => void;
-  prominentNoCall?: boolean;
   screenLocked?: boolean;
 }
 
 export function MachineActionPanel({
   machine,
   currentCall,
-  onOpenCall,
+  selectedSubtypes,
+  activeSubtypes,
+  onToggleSubtype,
+  onOpenSelected,
   onAttend,
   onCancelCall,
   onFinish,
   onCompleteMaintenance,
   onReturnToMaintenance,
-  onStop,
-  onResume,
-  prominentNoCall = false,
   screenLocked = false,
 }: MachineActionPanelProps) {
-  const actionButtonClass = prominentNoCall
-    ? "min-h-[76px] px-5 text-lg md:min-h-[86px] md:text-xl 2xl:min-h-[92px]"
-    : "min-h-[44px] px-3 text-sm";
-  const primaryActionClass = cn(
-    actionButtonClass,
-    prominentNoCall && "ring-2 ring-warning/50 shadow-xl shadow-warning/10",
-  );
-  const dangerActionClass = cn(
-    actionButtonClass,
-    prominentNoCall && "ring-2 ring-danger/40 shadow-xl shadow-danger/10",
-  );
-  const secondaryActionClass = prominentNoCall
-    ? "inline-flex min-h-[62px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-accent md:min-h-[70px] md:text-base 2xl:min-h-[76px]"
-    : "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-sm";
+  const secondaryActionClass =
+    "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-accent md:text-sm";
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-card shadow-md",
-        prominentNoCall ? "p-4 ring-1 ring-warning/25 md:p-5" : "p-3",
+    <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-md">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+            Abrir novo chamado
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Selecione um ou mais setores. Setores já ativos ficam bloqueados.
+          </p>
+        </div>
+        {selectedSubtypes.length > 0 && (
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+            {selectedSubtypes.length} selecionado{selectedSubtypes.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        {CALL_TYPE_OPTIONS.map((option) => {
+          const active = activeSubtypes.has(option.id);
+          const selected = selectedSubtypes.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={selected}
+              disabled={active}
+              onClick={() => onToggleSubtype(option.id)}
+              className={cn(
+                "relative min-h-[58px] rounded-xl border-2 px-3 py-2 text-sm font-black uppercase tracking-wide transition-all",
+                active && "cursor-not-allowed border-border bg-muted text-muted-foreground opacity-60",
+                !active && !selected && "border-border bg-background hover:border-primary/50 hover:bg-accent",
+                selected && option.category === "maintenance" && "border-warning bg-warning/15 text-warning ring-2 ring-warning/20",
+                selected && option.category === "production" && "border-info bg-info/15 text-info ring-2 ring-info/20",
+              )}
+            >
+              {selected && (
+                <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+              )}
+              <span>{option.label}</span>
+              {active && <span className="mt-0.5 block text-[10px] normal-case tracking-normal">Chamado ativo</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedSubtypes.length > 0 && (
+        <BigButton tone="warning" size="md" className="w-full" onClick={onOpenSelected}>
+          <Send className="h-5 w-5" />
+          Informar condição e abrir
+        </BigButton>
       )}
-    >
-      <h3 className={cn("font-bold uppercase tracking-wider text-foreground", prominentNoCall ? "mb-4 text-base md:text-lg" : "mb-2 text-sm md:text-base")}>Ações</h3>
-      <div className={cn("grid grid-cols-2 lg:grid-cols-3", prominentNoCall ? "gap-3 md:gap-4" : "gap-2")}>
-        {machine.andonStatus === "none" && (
-          <BigButton tone="warning" size="md" className={primaryActionClass} onClick={onOpenCall}>
-            <Bell className="h-6 w-6" /> Abrir ANDON
-          </BigButton>
-        )}
-        {currentCall?.status === "open" && (
-          <BigButton tone="info" size="md" className={actionButtonClass} onClick={onAttend}>
-            <Wrench className="h-6 w-6" /> Atender
-          </BigButton>
-        )}
-        {currentCall?.status === "open" && !currentCall.attendedAt && !(currentCall.technicianSessions ?? []).length && (
-          <BigButton tone="danger" size="md" className={actionButtonClass} onClick={onCancelCall}>
-            <XCircle className="h-6 w-6" /> Cancelar chamado
-          </BigButton>
-        )}
-        {currentCall?.status === "in_progress" && currentCall.category === "maintenance" && (
-          <BigButton tone="info" size="md" className={actionButtonClass} onClick={onCompleteMaintenance}>
-            <CheckCheck className="h-6 w-6" /> Concluir Manutenção
-          </BigButton>
-        )}
-        {currentCall?.status === "in_progress" && currentCall.category === "production" && (
-          <BigButton tone="success" size="md" className={actionButtonClass} onClick={onFinish}>
-            <CheckCheck className="h-6 w-6" /> Finalizar
-          </BigButton>
-        )}
-        {currentCall?.status === "post_maintenance" && currentCall.category === "maintenance" && (
-          <BigButton tone="info" size="md" className={actionButtonClass} onClick={onReturnToMaintenance}>
-            <RotateCcw className="h-6 w-6" /> Voltar à Manutenção
-          </BigButton>
-        )}
-        {currentCall?.status === "post_maintenance" && (
-          <BigButton tone="success" size="md" className={actionButtonClass} onClick={onFinish}>
-            <CheckCheck className="h-6 w-6" /> Finalizar Chamado
-          </BigButton>
-        )}
-        <BigButton tone="danger" size="md" className={dangerActionClass} onClick={onStop} disabled={machine.machineStatus === "stopped"}>
-          <Square className="h-6 w-6" /> Gerar Falha
-        </BigButton>
-        <BigButton tone="success" size="md" className={actionButtonClass} onClick={onResume} disabled={machine.machineStatus === "running"}>
-          <Play className="h-6 w-6" /> Pronta para Rodar
-        </BigButton>
-        <Link
-          to="/machines/$machineId/call-history"
-          params={{ machineId: machine.id }}
-          className={secondaryActionClass}
-        >
-          <History className="h-6 w-6" /> Histórico de Chamados
+
+      {currentCall && (
+        <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 lg:grid-cols-3">
+          {currentCall.status === "open" && (
+            <BigButton tone="info" size="md" className="min-h-[44px] px-3 text-sm" onClick={onAttend}>
+              <Wrench className="h-5 w-5" /> Atender selecionado
+            </BigButton>
+          )}
+          {currentCall.status === "open" && !currentCall.attendedAt && !(currentCall.technicianSessions ?? []).length && (
+            <BigButton tone="danger" size="md" className="min-h-[44px] px-3 text-sm" onClick={onCancelCall}>
+              <XCircle className="h-5 w-5" /> Cancelar selecionado
+            </BigButton>
+          )}
+          {currentCall.status === "in_progress" && currentCall.category === "maintenance" && (
+            <BigButton tone="info" size="md" className="min-h-[44px] px-3 text-sm" onClick={onCompleteMaintenance}>
+              <CheckCheck className="h-5 w-5" /> Concluir manutenção
+            </BigButton>
+          )}
+          {currentCall.status === "in_progress" && currentCall.category === "production" && (
+            <BigButton tone="success" size="md" className="min-h-[44px] px-3 text-sm" onClick={onFinish}>
+              <CheckCheck className="h-5 w-5" /> Finalizar
+            </BigButton>
+          )}
+          {currentCall.status === "post_maintenance" && currentCall.category === "maintenance" && (
+            <BigButton tone="info" size="md" className="min-h-[44px] px-3 text-sm" onClick={onReturnToMaintenance}>
+              <RotateCcw className="h-5 w-5" /> Voltar à manutenção
+            </BigButton>
+          )}
+          {currentCall.status === "post_maintenance" && (
+            <BigButton tone="success" size="md" className="min-h-[44px] px-3 text-sm" onClick={onFinish}>
+              <CheckCheck className="h-5 w-5" /> Finalizar chamado
+            </BigButton>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 lg:grid-cols-3">
+        <Link to="/machines/$machineId/call-history" params={{ machineId: machine.id }} className={secondaryActionClass}>
+          <History className="h-5 w-5" /> Histórico de chamados
         </Link>
-        <Link
-          to="/machines/$machineId/failure-history"
-          params={{ machineId: machine.id }}
-          className={secondaryActionClass}
-        >
-          <FileWarning className="h-6 w-6" /> Histórico de Falhas
+        <Link to="/machines/$machineId/failure-history" params={{ machineId: machine.id }} className={secondaryActionClass}>
+          <FileWarning className="h-5 w-5" /> Histórico de falhas
         </Link>
         {!screenLocked && (
-          <Link
-            to="/"
-            className={secondaryActionClass}
-          >
-            <ArrowLeft className="h-6 w-6" /> Voltar ao Painel
+          <Link to="/" className={secondaryActionClass}>
+            <ArrowLeft className="h-5 w-5" /> Voltar ao painel
           </Link>
         )}
       </div>

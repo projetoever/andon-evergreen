@@ -8,10 +8,14 @@ datasource db {
 }
 
 model SystemSettings {
-  id                 String   @id @default("global")
-  allowWholeSetCalls Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                     String   @id @default("global")
+  allowWholeSetCalls     Boolean  @default(true)
+  attendanceMode         String   @default("name")
+  rfidReaderMode         String   @default("keyboard_hid")
+  rfidInputTerminator    String   @default("enter")
+  rfidCodeLength         Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@map("system_settings")
 }
@@ -295,6 +299,8 @@ model Technician {
   shiftId                    String?
   shift                      Shift?                     @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   active                     Boolean                    @default(true)
+  pinHash                    String?
+  tagHash                    String?
   createdAt                  DateTime                   @default(now())
   updatedAt                  DateTime                   @updatedAt
   technicianSessions         TechnicianSession[]
