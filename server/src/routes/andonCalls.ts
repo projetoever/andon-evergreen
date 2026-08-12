@@ -151,7 +151,7 @@ class AndonCallValidationError extends Error {}
 
 async function lockMachineCallFlow(tx: Prisma.TransactionClient, machineId: string) {
   await tx.$queryRaw(Prisma.sql`
-    SELECT pg_advisory_xact_lock(hashtext(${machineId}))
+    SELECT pg_advisory_xact_lock(hashtext(${machineId}))::text AS "lockResult"
   `);
 }
 
