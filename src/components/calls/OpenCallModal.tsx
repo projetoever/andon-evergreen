@@ -247,7 +247,7 @@ export function OpenCallModal({
         (!isLoadingSystemSettings && !systemSettingsLoadFailed)),
   );
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!machineId || !subtype) return;
     if (shouldRequireMachineSet && !selectedMachineSet) {
       toast.error("Selecione o conjunto da máquina para abrir o ANDON");
@@ -293,7 +293,7 @@ export function OpenCallModal({
     };
 
     try {
-      openCall(params);
+      await openCall(params);
       toast.success(`ANDON aberto para Máquina ${machineId}`);
       onOpenChange(false);
     } catch (err) {
@@ -414,7 +414,7 @@ export function OpenCallModal({
           <BigButton
             tone="warning"
             size="md"
-            onClick={handleConfirm}
+            onClick={() => void handleConfirm()}
             disabled={!canConfirm || isLoadingMachineSets}
           >
             Abrir ANDON

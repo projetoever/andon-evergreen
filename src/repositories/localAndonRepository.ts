@@ -85,6 +85,51 @@ export class LocalAndonRepository implements AndonRepository {
     return applyMachineSetSnapshotToLocalCall(andonService.openAndonCall(machines, calls, params), params);
   }
 
+  async openCalls(
+    machines: Machine[],
+    calls: AndonCall[],
+    params: andonService.OpenAndonCallParams[],
+  ) {
+    const requestedKeys = new Set<string>();
+    for (const item of params) {
+      const key = `${item.machineId}:${item.subtype}`;
+      if (requestedKeys.has(key)) throw new Error("Há setores duplicados na abertura em lote");
+      requestedKeys.add(key);
+      const duplicate = calls.find(
+        (call) =>
+          call.machineId === item.machineId &&
+          call.subtype === item.subtype &&
+          !call.isSystemTest &&
+          (call.status === "open" ||
+            call.status === "in_progress" ||
+            call.status === "post_maintenance"),
+      );
+      if (duplicate) throw new Error("Já existe um chamado ativo deste setor para a máquina");
+    }
+
+    let nextMachines = machines;
+    let nextCalls = calls;
+    const baseOpenedAt = Date.now();
+    for (const [index, item] of params.entries()) {
+      const result = andonService.openAndonCall(nextMachines, nextCalls, item);
+      const openedAt = new Date(baseOpenedAt + index).toISOString();
+      const prioritizedCall = {
+        ...result.call,
+        openedAt,
+        updatedAt: openedAt,
+      };
+      nextMachines = result.machines.map((machine) =>
+        machine.id === item.machineId
+          ? { ...machine, lastStatusChangedAt: openedAt }
+          : machine,
+      );
+      nextCalls = result.calls.map((call) =>
+        call.id === prioritizedCall.id ? prioritizedCall : call,
+      );
+    }
+    return { machines: nextMachines, calls: nextCalls };
+  }
+
   async attendCall(
     machines: Machine[],
     calls: AndonCall[],

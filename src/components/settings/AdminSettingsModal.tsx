@@ -17,9 +17,11 @@ import { getFailureClassificationConfigs, saveFailureClassificationConfigs } fro
 import { MachineAdminPanel } from "./MachineAdminPanel";
 import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
 import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
+import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "sounds", label: "Sons do ANDON" },
+  { id: "attendance", label: "Modo de atendimento" },
   { id: "technicians", label: "Manutentores" },
   { id: "categories", label: "Categorias" },
   { id: "shifts", label: "Turnos" },
@@ -62,6 +64,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         </div>
 
         {tab === "sounds" && <SoundsTab isOpen={open} isActive={tab === "sounds"} />}
+        {tab === "attendance" && <AttendanceModeSettingsTab />}
         {tab === "technicians" && <TechniciansSettingsTab />}
         {tab === "categories" && <CategoriesTab />}
         {tab === "shifts" && <ShiftsTab />}

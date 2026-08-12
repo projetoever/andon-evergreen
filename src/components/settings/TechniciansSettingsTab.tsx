@@ -22,6 +22,10 @@ const EMPTY_DRAFT: TechnicianConfig = {
   shiftId: "",
   shiftIds: [],
   active: true,
+  hasPin: false,
+  hasTag: false,
+  pin: "",
+  tag: "",
 };
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
@@ -57,13 +61,20 @@ export function TechniciansSettingsTab() {
 
   function handleSelect(item: TechnicianConfig) {
     setSelectedId(item.id);
-    setDraft({ ...item });
+    setDraft({ ...item, pin: "", tag: "" });
   }
 
   async function handleSave() {
     const trimmedName = draft.name.trim();
     if (!trimmedName) return toast.error("Informe o nome do manutentor.");
     if (!draft.shiftId) return toast.error("Selecione o turno do manutentor.");
+    const pin = draft.pin?.trim() ?? "";
+    if ((!draft.id || !draft.hasPin) && !/^\d{4,8}$/.test(pin)) {
+      return toast.error("Informe um PIN obrigatório de 4 a 8 números.");
+    }
+    if (pin && !/^\d{4,8}$/.test(pin)) {
+      return toast.error("O PIN deve conter de 4 a 8 números.");
+    }
 
     const duplicate = technicians.some(
       (technician) =>
@@ -80,13 +91,15 @@ export function TechniciansSettingsTab() {
         area: draft.area,
         shiftId: draft.shiftId,
         active: draft.active,
+        ...(pin ? { pin } : {}),
+        ...(draft.tag?.trim() ? { tag: draft.tag.trim() } : {}),
       };
       const saved = draft.id
         ? await updateTechnician(draft.id, input)
         : await createTechnician(input);
 
       setSelectedId(saved.id);
-      setDraft(saved);
+      setDraft({ ...saved, pin: "", tag: "" });
       toast.success("Manutentor salvo no banco de dados.");
     } catch (saveError) {
       toast.error(
@@ -166,6 +179,9 @@ export function TechniciansSettingsTab() {
                   {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
                 </p>
                 <p className="text-xs text-muted-foreground">{item.active ? "Ativo" : "Inativo"}</p>
+                <p className="text-xs text-muted-foreground">
+                  PIN: {item.hasPin ? "configurado" : "pendente"} · Tag: {item.hasTag ? "configurada" : "não cadastrada"}
+                </p>
               </button>
             ))}
           </div>
@@ -180,6 +196,33 @@ export function TechniciansSettingsTab() {
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
             />
           </label>
+          <label className="text-sm font-semibold">
+            PIN obrigatório
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={8}
+              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
+              value={draft.pin ?? ""}
+              onChange={(event) => setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })}
+              placeholder={draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"}
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Código da tag RF (opcional)
+            <input
+              autoComplete="off"
+              maxLength={64}
+              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono uppercase"
+              value={draft.tag ?? ""}
+              onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
+              placeholder={draft.hasTag ? "Deixe em branco para manter a tag atual" : "Aproxime a tag ou digite o código"}
+            />
+          </label>
+          <p className="text-xs text-muted-foreground">
+            PIN e tag são protegidos no banco e nunca são exibidos novamente.
+          </p>
           <label className="text-sm font-semibold">
             Área técnica
             <select

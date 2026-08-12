@@ -60,6 +60,11 @@ export interface AndonRepository {
     calls: AndonCall[],
     params: OpenAndonCallParams,
   ): Promise<AndonRepositoryCallResult>;
+  openCalls(
+    machines: Machine[],
+    calls: AndonCall[],
+    params: OpenAndonCallParams[],
+  ): Promise<AndonRepositoryResult>;
   attendCall(
     machines: Machine[],
     calls: AndonCall[],

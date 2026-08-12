@@ -73,7 +73,7 @@ export function MachineCurrentCallPanel({
           <div className="text-muted-foreground"><Inbox className="h-9 w-9" /></div>
           <h3 className="text-lg font-semibold text-foreground">Sem chamado ativo</h3>
           <p className="max-w-md text-sm text-muted-foreground">
-            Use o botão ABRIR ANDON para registrar um novo chamado para esta máquina.
+            Selecione um dos setores abaixo para registrar um novo chamado.
           </p>
         </div>
       );
@@ -83,7 +83,7 @@ export function MachineCurrentCallPanel({
       <EmptyState
         icon={<Inbox className="h-12 w-12" />}
         title="Sem chamado ativo"
-        description="Use o botão ABRIR ANDON para registrar um novo chamado para esta máquina."
+        description="Selecione um dos setores abaixo para registrar um novo chamado."
         className={cn("h-full min-h-0 border-solid bg-card px-6 py-8 shadow-md", className)}
       />
     );

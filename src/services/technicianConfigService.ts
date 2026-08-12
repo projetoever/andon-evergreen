@@ -18,6 +18,9 @@ interface ApiTechnician {
   technicalArea: string | null;
   shiftId: string | null;
   active: boolean;
+  hasPin: boolean;
+  hasTag: boolean;
+  shiftName?: string | null;
 }
 
 export interface TechnicianConfigDraft {
@@ -25,6 +28,17 @@ export interface TechnicianConfigDraft {
   area: CallSubtype;
   shiftId: string;
   active: boolean;
+  pin?: string;
+  tag?: string;
+}
+
+export type TechnicianCredentialMethod = "pin" | "rfid";
+
+export interface IdentifiedTechnicianConfig extends TechnicianConfig {
+  credential: {
+    method: TechnicianCredentialMethod;
+    value: string;
+  };
 }
 
 function normalizeArea(value: string | null): CallSubtype {
@@ -41,6 +55,8 @@ function mapTechnician(technician: ApiTechnician): TechnicianConfig {
     shiftId: technician.shiftId ?? "",
     shiftIds: technician.shiftId ? [technician.shiftId] : [],
     active: technician.active,
+    hasPin: technician.hasPin,
+    hasTag: technician.hasTag,
   };
 }
 
@@ -57,6 +73,8 @@ export async function createTechnicianConfig(
     technicalArea: draft.area,
     shiftId: draft.shiftId,
     active: draft.active,
+    pin: draft.pin,
+    tag: draft.tag,
   });
 
   return mapTechnician(technician);
@@ -73,8 +91,25 @@ export async function updateTechnicianConfig(
       ...(patch.area !== undefined ? { technicalArea: patch.area } : {}),
       ...(patch.shiftId !== undefined ? { shiftId: patch.shiftId } : {}),
       ...(patch.active !== undefined ? { active: patch.active } : {}),
+      ...(patch.pin !== undefined ? { pin: patch.pin } : {}),
+      ...(patch.tag !== undefined ? { tag: patch.tag } : {}),
     },
   );
 
   return mapTechnician(technician);
+}
+
+export async function identifyTechnicianConfig(
+  method: TechnicianCredentialMethod,
+  value: string,
+): Promise<IdentifiedTechnicianConfig> {
+  const technician = await apiClient.post<ApiTechnician>("/api/technicians/identify", {
+    method,
+    value,
+  });
+
+  return {
+    ...mapTechnician(technician),
+    credential: { method, value },
+  };
 }

@@ -25,11 +25,11 @@ export function ActiveCallsPage() {
     [calls],
   );
 
-  function handleAttend(callId: string) {
+  async function handleAttend(callId: string) {
     const call = calls.find((item) => item.id === callId);
     if (call && !requiresMaintenanceTechnician(call)) {
       try {
-        attendCall({ callId, technicians: [] });
+        await attendCall({ callId, technicians: [] });
         toast.success("Chamado em atendimento");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Erro ao atender chamado");
@@ -40,30 +40,30 @@ export function ActiveCallsPage() {
     setStartAttendanceCallId(callId);
   }
 
-  function handleCompleteMaintenance(callId: string) {
+  async function handleCompleteMaintenance(callId: string) {
     try {
-      completeMaintenance(callId);
-      toast.success("ManutenÃ§Ã£o concluÃ­da. Chamado em acompanhamento");
+      await completeMaintenance(callId);
+      toast.success("Manutenção concluída. Chamado em acompanhamento");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
   }
 
-  function handleReturnToMaintenance(callId: string) {
+  async function handleReturnToMaintenance(callId: string) {
     try {
-      returnToMaintenance(callId);
-      toast.success("Chamado voltou Ã  manutenÃ§Ã£o");
+      await returnToMaintenance(callId);
+      toast.success("Chamado voltou à manutenção");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
   }
 
-  function handleCancel(callId: string) {
+  async function handleCancel(callId: string) {
     try {
-      cancelCall({ callId, reason: "Aberto por engano", cancelledBy: "operador" });
+      await cancelCall({ callId, reason: "Aberto por engano", cancelledBy: "operador" });
       toast.success("Chamado cancelado.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "NÃ£o Ã© possÃ­vel cancelar chamado jÃ¡ atendido.");
+      toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
     }
   }
 
@@ -74,11 +74,11 @@ export function ActiveCallsPage() {
       </h2>
       <ActiveCallList
         calls={activeCalls}
-        onAttend={handleAttend}
+        onAttend={(callId) => void handleAttend(callId)}
         onFinish={setFinishCallId}
-        onCancel={handleCancel}
-        onCompleteMaintenance={handleCompleteMaintenance}
-        onReturnToMaintenance={handleReturnToMaintenance}
+        onCancel={(callId) => void handleCancel(callId)}
+        onCompleteMaintenance={(callId) => void handleCompleteMaintenance(callId)}
+        onReturnToMaintenance={(callId) => void handleReturnToMaintenance(callId)}
       />
       <FinishCallModal
         open={finishCallId !== null}
@@ -93,4 +93,3 @@ export function ActiveCallsPage() {
     </div>
   );
 }
-

@@ -40,14 +40,15 @@ interface AndonContextValue {
   audioUnlocked: boolean;
   serverTimeOffsetMs: number;
   setAudioUnlocked: (unlocked: boolean) => void;
-  openCall: (params: andonService.OpenAndonCallParams) => AndonCall;
-  attendCall: (params: string | andonService.StartAttendanceParams) => void;
-  addTechnicianSessions: (params: andonService.AddTechnicianSessionsParams) => void;
+  openCall: (params: andonService.OpenAndonCallParams) => Promise<AndonCall>;
+  openCalls: (params: andonService.OpenAndonCallParams[]) => Promise<void>;
+  attendCall: (params: string | andonService.StartAttendanceParams) => Promise<void>;
+  addTechnicianSessions: (params: andonService.AddTechnicianSessionsParams) => Promise<void>;
   endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => void;
-  completeMaintenance: (callId: string) => AndonCall;
-  returnToMaintenance: (callId: string) => AndonCall;
+  completeMaintenance: (callId: string) => Promise<AndonCall>;
+  returnToMaintenance: (callId: string) => Promise<AndonCall>;
   finishCall: (params: andonService.FinishAndonCallParams) => Promise<void>;
-  cancelCall: (params: andonService.CancelAndonCallParams) => void;
+  cancelCall: (params: andonService.CancelAndonCallParams) => Promise<void>;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
   createMachine: (params: { id: string; name?: string; productionMode?: ProductionMode }) => void;
@@ -184,26 +185,32 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openCall = useCallback(
-    (params: andonService.OpenAndonCallParams) => {
-      const optimisticResult = andonService.openAndonCall(machines, calls, params);
-      void andonRepository.openCall(machines, calls, params).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
-      return optimisticResult.call;
+    async (params: andonService.OpenAndonCallParams) => {
+      const result = await andonRepository.openCall(machines, calls, params);
+      setMachines(result.machines);
+      setCalls(result.calls);
+      return result.call;
     },
     [machines, calls, handleRepositoryError],
   );
 
+  const openCalls = useCallback(
+    async (params: andonService.OpenAndonCallParams[]) => {
+      const result = await andonRepository.openCalls(machines, calls, params);
+      setMachines(result.machines);
+      setCalls(result.calls);
+    },
+    [machines, calls],
+  );
+
   const attendCall = useCallback(
-    (params: string | andonService.StartAttendanceParams) => {
+    async (params: string | andonService.StartAttendanceParams) => {
       const callId = typeof params === "string" ? params : params.callId;
       const currentCall = calls.find((call) => call.id === callId);
+      const result = await andonRepository.attendCall(machines, calls, params);
+      setMachines(result.machines);
+      setCalls(result.calls);
       stopAndonSound(currentCall?.machineId);
-      void andonRepository.attendCall(machines, calls, params).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
     },
     [machines, calls, handleRepositoryError],
   );
@@ -211,10 +218,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
 
   const addTechnicianSessions = useCallback(
-    (params: andonService.AddTechnicianSessionsParams) => {
-      void andonRepository.addTechnicianSessions(machines, calls, params).then((result) => {
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
+    async (params: andonService.AddTechnicianSessionsParams) => {
+      const result = await andonRepository.addTechnicianSessions(machines, calls, params);
+      setCalls(result.calls);
     },
     [machines, calls, handleRepositoryError],
   );
@@ -229,25 +235,21 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const completeMaintenance = useCallback(
-    (callId: string) => {
-      const optimisticResult = andonService.completeMaintenanceAttendance(machines, calls, callId);
-      void andonRepository.completeMaintenance(machines, calls, callId).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
-      return optimisticResult.call;
+    async (callId: string) => {
+      const result = await andonRepository.completeMaintenance(machines, calls, callId);
+      setMachines(result.machines);
+      setCalls(result.calls);
+      return result.call;
     },
     [machines, calls, handleRepositoryError],
   );
 
   const returnToMaintenance = useCallback(
-    (callId: string) => {
-      const optimisticResult = andonService.returnToMaintenance(machines, calls, callId);
-      void andonRepository.returnToMaintenance(machines, calls, callId).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
-      return optimisticResult.call;
+    async (callId: string) => {
+      const result = await andonRepository.returnToMaintenance(machines, calls, callId);
+      setMachines(result.machines);
+      setCalls(result.calls);
+      return result.call;
     },
     [machines, calls, handleRepositoryError],
   );
@@ -270,13 +272,12 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const cancelCall = useCallback(
-    (params: andonService.CancelAndonCallParams) => {
+    async (params: andonService.CancelAndonCallParams) => {
       const currentCall = calls.find((call) => call.id === params.callId);
+      const result = await andonRepository.cancelCall(machines, calls, params);
+      setMachines(result.machines);
+      setCalls(result.calls);
       stopAndonSound(currentCall?.machineId);
-      void andonRepository.cancelCall(machines, calls, params).then((result) => {
-        setMachines(result.machines);
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
     },
     [machines, calls, handleRepositoryError],
   );
@@ -408,6 +409,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       serverTimeOffsetMs: serverTimeOffsetStateMs,
       setAudioUnlocked,
       openCall,
+      openCalls,
       attendCall,
       addTechnicianSessions,
       endTechnicianSession,
@@ -434,6 +436,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       audioUnlocked,
       serverTimeOffsetStateMs,
       openCall,
+      openCalls,
       attendCall,
       addTechnicianSessions,
       endTechnicianSession,
