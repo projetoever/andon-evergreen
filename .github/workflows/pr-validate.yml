@@ -1,0 +1,77 @@
+name: Validar pull request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Build, PostgreSQL e fluxos críticos
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: andon
+          POSTGRES_PASSWORD: andon_test_password
+          POSTGRES_DB: andon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andon -d andon_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://andon:andon_test_password@127.0.0.1:5432/andon_test?schema=public
+      HOST: 127.0.0.1
+      NODE_ENV: test
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - name: Instalar dependências
+        run: |
+          npm ci
+          npm ci --prefix server
+
+      - name: Aplicar migrations no PostgreSQL 16
+        run: |
+          npm run db:generate --prefix server
+          npm run db:migrate --prefix server
+
+      - name: Validar backend e credenciais
+        run: |
+          npm run build --prefix server
+          npm run test:auth --prefix server
+          npm run test:plc --prefix server
+
+      - name: Validar API e fluxos críticos
+        run: |
+          npm run start --prefix server > /tmp/andon-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          ANDON_INTEGRATION_TEST=1 npm run test:integration --prefix server || {
+            cat /tmp/andon-api.log
+            exit 1
+          }
+
+      - name: Validar frontend e SSR
+        run: npm run build
