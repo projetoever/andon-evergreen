@@ -347,12 +347,19 @@ export class ApiAndonRepository implements AndonRepository {
 
   async endTechnicianSession(_machines: Machine[], calls: AndonCall[], params: EndTechnicianSessionParams) {
     const call = calls.find((item) => item.id === params.callId);
-    const session = call?.technicianSessions?.find((item) => item.id === params.sessionId);
-    if (!session) throw new Error("Sessão de manutentor não encontrada");
+    const session = call?.technicianSessions?.find((item) =>
+      params.sessionId ? item.id === params.sessionId : item.technicianName === params.technicianName,
+    );
+    if (!params.credential && !session) throw new Error("Sessão de manutentor não encontrada");
 
     await this.apiClient.patch(
-      `/api/andon-calls/${params.callId}/technicians/${encodeURIComponent(session.technicianName)}/end`,
-      { reason: params.notes ?? params.endReason },
+      `/api/andon-calls/${params.callId}/technicians/end`,
+      {
+        technicianName: params.technicianName ?? session?.technicianName,
+        credential: params.credential,
+        reason: params.endReason,
+        notes: params.notes,
+      },
     );
     return this.loadResult();
   }

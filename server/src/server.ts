@@ -8,6 +8,7 @@ import {
   registerPlcHealthRoute,
 } from "./integrations/plc/index.js";
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
+import { registerAndonCategoryRoutes } from "./routes/andonCategories.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
 import { registerFailureEventRoutes } from "./routes/failureEvents.js";
 import { registerHealthDbRoute } from "./routes/healthDb.js";
@@ -59,6 +60,7 @@ export function buildServer() {
   void registerMachineCatalogRoutes(app);
   void registerMachineSetRoutes(app);
   void registerMachineSubsetRoutes(app);
+  void registerAndonCategoryRoutes(app);
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
   void registerSystemSettingsRoutes(app);

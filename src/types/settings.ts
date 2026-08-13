@@ -72,7 +72,11 @@ export interface AndonCategoryConfig {
   id: CallSubtype;
   categoryGroup: "maintenance" | "production";
   displayName: string;
+  color: string;
   active: boolean;
+  displayOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TechnicianCategory {

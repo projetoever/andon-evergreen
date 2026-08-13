@@ -56,6 +56,9 @@ type BatchOpenAndonCallsBody = {
 
 type EndTechnicianBody = {
   reason?: unknown;
+  notes?: unknown;
+  technicianName?: unknown;
+  credential?: TechnicianCredentialBody;
 };
 
 type NotesBody = {
@@ -112,16 +115,6 @@ const INSTALLER_HEALTH_ORIGIN = "installer_health_check";
 const INSTALLER_HEALTH_CREATED_BY = "installer-health";
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const OPEN_CALL_STATUSES = ["open", "in_progress", "post_maintenance"];
-const CALL_SUBTYPE_CATEGORIES = {
-  electrical: "maintenance",
-  mechanical: "maintenance",
-  hot_melt: "maintenance",
-  quality: "production",
-  leadership: "production",
-} as const;
-
-type SupportedCallSubtype = keyof typeof CALL_SUBTYPE_CATEGORIES;
-
 type TechnicianCredentialBody = {
   method?: unknown;
   value?: unknown;
@@ -236,8 +229,14 @@ async function resolveAttendanceTechnicians(
     throw new AndonCallValidationError("Identifique pelo menos um mantenedor");
   }
 
+  const supportCategories = allowSupportAreas
+    ? await tx.andonCategory.findMany({
+        where: { categoryGroup: "maintenance", active: true },
+        select: { id: true },
+      })
+    : [];
   const allowedAreas = allowSupportAreas
-    ? new Set(["electrical", "mechanical", "hot_melt"])
+    ? new Set([call.subtype, ...supportCategories.map((category) => category.id)])
     : new Set([call.subtype]);
   const incompatible = uniqueTechnicians.find(
     (technician) => !technician.technicalArea || !allowedAreas.has(technician.technicalArea),
@@ -719,12 +718,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!category) return badRequest(reply, "Campo category é obrigatório");
     if (!CALL_CATEGORIES.has(category)) return badRequest(reply, "Categoria inválida");
-    if (!subtype || !(subtype in CALL_SUBTYPE_CATEGORIES)) {
-      return badRequest(reply, "Tipo de chamado inválido");
-    }
-    if (CALL_SUBTYPE_CATEGORIES[subtype as SupportedCallSubtype] !== category) {
-      return badRequest(reply, "Tipo de chamado incompatível com a categoria");
-    }
+    if (!subtype) return badRequest(reply, "Tipo de chamado inválido");
     if (!CALL_CRITICALITIES.has(criticality)) return badRequest(reply, "Criticidade inválida");
     if (!CALL_ORIGINS.has(origin)) return badRequest(reply, "Origem do chamado inválida");
 
@@ -740,6 +734,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Metadados de teste automático inválidos");
     }
     if (machineCondition && !MACHINE_STATUSES.has(machineCondition)) return badRequest(reply, "Condição da máquina inválida");
+
+    const configuredCategory = await prisma.andonCategory.findUnique({ where: { id: subtype } });
+    if (!configuredCategory || (!configuredCategory.active && !isSystemTest)) {
+      return badRequest(reply, "Setor inválido ou inativo");
+    }
+    if (configuredCategory.categoryGroup !== category) {
+      return badRequest(reply, "Setor incompatível com a categoria");
+    }
 
     const machine = await prisma.machine.findUnique({ where: { id: machineId } });
     if (!machine) return notFound(reply, "Máquina não encontrada");
@@ -902,11 +904,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const machineCondition = optionalString(body.machineCondition);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
-    if (!subtypes.length || subtypes.length > Object.keys(CALL_SUBTYPE_CATEGORIES).length) {
-      return badRequest(reply, "Selecione de um a cinco setores para abrir os chamados");
-    }
-    if (subtypes.some((subtype) => !(subtype in CALL_SUBTYPE_CATEGORIES))) {
-      return badRequest(reply, "Um ou mais tipos de chamado são inválidos");
+    if (!subtypes.length || subtypes.length > 20) {
+      return badRequest(reply, "Selecione de um a vinte setores para abrir os chamados");
     }
     if (!CALL_CRITICALITIES.has(criticality)) return badRequest(reply, "Criticidade inválida");
     if (machineCondition && !MACHINE_STATUSES.has(machineCondition)) {
@@ -919,10 +918,21 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
 
+        const configuredCategories = await tx.andonCategory.findMany({
+          where: { id: { in: subtypes }, active: true },
+        });
+        const categoryBySubtype = new Map(
+          configuredCategories.map((category) => [category.id, category]),
+        );
+        if (configuredCategories.length !== subtypes.length) {
+          throw new AndonCallValidationError("Um ou mais setores são inválidos ou estão inativos");
+        }
+
         for (const subtype of subtypes) {
           if (await findDuplicateActiveSectorCall(tx, machineId, subtype)) {
+            const displayName = categoryBySubtype.get(subtype)?.displayName ?? subtype;
             throw new AndonCallValidationError(
-              `Já existe um chamado ativo do setor ${subtype} para esta máquina`,
+              `Já existe um chamado ativo do setor ${displayName} para esta máquina`,
             );
           }
         }
@@ -935,7 +945,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const createdCall = await tx.andonCall.create({
             data: {
               machineId,
-              category: CALL_SUBTYPE_CATEGORIES[subtype as SupportedCallSubtype],
+              category: categoryBySubtype.get(subtype)?.categoryGroup ?? "maintenance",
               subtype,
               status: "open",
               criticality,
@@ -1139,6 +1149,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string; technicianName: string }; Body: EndTechnicianBody }>("/api/andon-calls/:id/technicians/:technicianName/end", async (request, reply) => {
     const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
     if (!call) return notFound(reply, "Chamado não encontrado");
+    if ((await getAttendanceMode()) !== "name") {
+      return badRequest(reply, "Identifique o mantenedor por PIN ou tag");
+    }
 
     const technicianName = decodeURIComponent(request.params.technicianName);
     const activeSession = await prisma.technicianSession.findFirst({
@@ -1164,6 +1177,64 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
     return updatedCall;
   });
+
+  app.patch<{ Params: { id: string }; Body: EndTechnicianBody }>(
+    "/api/andon-calls/:id/technicians/end",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({
+        include: { machine: true },
+        where: { id: request.params.id },
+      });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+
+      const attendanceMode = await getAttendanceMode();
+      const requestedName = optionalString(request.body?.technicianName);
+      const credential = request.body?.credential;
+      const identified = credential ? await identifyTechnician(credential) : null;
+
+      if (credential && !identified) {
+        return notFound(reply, "PIN ou tag não reconhecido para um mantenedor ativo");
+      }
+      if (!identified && attendanceMode !== "name") {
+        return badRequest(reply, "Identifique o mantenedor por PIN ou tag");
+      }
+      if (!identified && !requestedName) {
+        return badRequest(reply, "Selecione o mantenedor em atendimento");
+      }
+
+      const activeSession = await prisma.technicianSession.findFirst({
+        where: {
+          callId: call.id,
+          endedAt: null,
+          ...(identified
+            ? { technicianId: identified.id }
+            : { technicianName: { equals: requestedName, mode: "insensitive" } }),
+        },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!activeSession) {
+        return notFound(reply, "Este mantenedor não possui atendimento ativo neste chamado");
+      }
+
+      const now = new Date();
+      const updatedCall = await prisma.$transaction(async (tx) => {
+        await tx.technicianSession.update({
+          where: { id: activeSession.id },
+          data: {
+            endedAt: now,
+            endReason: optionalString(request.body?.reason) ?? "manual",
+            notes: optionalString(request.body?.notes) ?? activeSession.notes,
+            productionModeAtEnd: call.machine.productionMode,
+            machineStatusAtEnd: call.machine.machineStatus,
+          },
+        });
+
+        return findCallWithSessions(tx, call.id);
+      });
+
+      return updatedCall;
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: NotesBody }>("/api/andon-calls/:id/finish-maintenance", async (request, reply) => {
     const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });

@@ -16,8 +16,6 @@ import {
 } from "../services/technicianIdentity.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
-const TECHNICAL_AREAS = new Set(["electrical", "mechanical", "hot_melt", "quality", "leadership"]);
-
 type TechnicianQuery = {
   active?: string;
   technicalArea?: string;
@@ -58,6 +56,15 @@ async function shiftExists(shiftId: string) {
   return Boolean(
     await prisma.shift.findUnique({
       where: { id: shiftId },
+      select: { id: true },
+    }),
+  );
+}
+
+async function technicalAreaExists(technicalArea: string) {
+  return Boolean(
+    await prisma.andonCategory.findFirst({
+      where: { id: technicalArea, categoryGroup: "maintenance", active: true },
       select: { id: true },
     }),
   );
@@ -109,7 +116,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     const tag = request.body && "tag" in request.body ? normalizeTag(request.body.tag) : null;
 
     if (!name) return badRequest(reply, "Informe o nome do manutentor");
-    if (!technicalArea || !TECHNICAL_AREAS.has(technicalArea)) {
+    if (!technicalArea || !(await technicalAreaExists(technicalArea))) {
       return badRequest(reply, "Área técnica inválida");
     }
     if (!shiftId) return badRequest(reply, "Informe o turno do manutentor");
@@ -189,7 +196,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       if (
         request.body &&
         "technicalArea" in request.body &&
-        (!technicalArea || !TECHNICAL_AREAS.has(technicalArea))
+        (!technicalArea || !(await technicalAreaExists(technicalArea)))
       ) {
         return badRequest(reply, "Área técnica inválida");
       }

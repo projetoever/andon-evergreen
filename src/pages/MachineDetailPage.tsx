@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
+import { EndTechnicianSessionModal } from "@/components/calls/EndTechnicianSessionModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { QuickOpenCallModal } from "@/components/calls/QuickOpenCallModal";
 import { TechnicianIdentificationModal } from "@/components/calls/TechnicianIdentificationModal";
@@ -15,15 +16,6 @@ import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentS
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { ProductionSchedulePanel } from "@/components/machines/ProductionSchedulePanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import { useTicker } from "@/hooks/useTicker";
@@ -36,8 +28,10 @@ import {
   isMachineSoundEnabled,
   setMachineSoundEnabled,
 } from "@/services/machineSoundPreferenceService";
+import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
-import type { CallSubtype, TechnicianSessionEndReason } from "@/types/andon";
+import type { CallSubtype } from "@/types/andon";
+import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
@@ -50,7 +44,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     calls,
     attendCall,
     cancelCall,
-    endTechnicianSession,
     completeMaintenance,
     returnToMaintenance,
     updateMachineProductionMode,
@@ -62,7 +55,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const navigate = useNavigate();
   const machine = machines.find((item) => item.id === machineId);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
-  const [selectedSubtypes, setSelectedSubtypes] = useState<CallSubtype[]>([]);
+  const [selectedSubtype, setSelectedSubtype] = useState<CallSubtype | null>(null);
+  const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [machineSoundEnabled, setMachineSoundEnabledState] = useState(true);
@@ -71,9 +65,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [startOpen, setStartOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
-  const [endNotes, setEndNotes] = useState("");
-  const [endReason, setEndReason] = useState<TechnicianSessionEndReason>("handover");
-  const [sessionId, setSessionId] = useState("");
   const tick = useTicker(1000);
 
   const activeCalls = useMemo(
@@ -81,9 +72,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       calls
         .filter(
           (call) =>
-            call.machineId === machineId &&
-            !call.isSystemTest &&
-            ACTIVE_STATUSES.has(call.status),
+            call.machineId === machineId && !call.isSystemTest && ACTIVE_STATUSES.has(call.status),
         )
         .sort((current, next) => next.openedAt.localeCompare(current.openedAt)),
     [calls, machineId],
@@ -95,12 +84,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       return;
     }
     if (selectedCallId && activeCalls.some((call) => call.id === selectedCallId)) return;
-    const preferred = activeCalls.find((call) => call.id === machine?.currentCallId) ?? activeCalls[0];
+    const preferred =
+      activeCalls.find((call) => call.id === machine?.currentCallId) ?? activeCalls[0];
     setSelectedCallId(preferred.id);
   }, [activeCalls, machine?.currentCallId, selectedCallId]);
 
   const currentCall = selectedCallId
-    ? activeCalls.find((call) => call.id === selectedCallId) ?? null
+    ? (activeCalls.find((call) => call.id === selectedCallId) ?? null)
     : null;
   const activeSubtypes = useMemo(
     () => new Set(activeCalls.map((call) => call.subtype)),
@@ -109,8 +99,22 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const latestOpenCall = activeCalls.find((call) => call.status === "open") ?? null;
 
   useEffect(() => {
-    setSelectedSubtypes((current) => current.filter((subtype) => !activeSubtypes.has(subtype)));
-  }, [activeSubtypes]);
+    let cancelled = false;
+    getCategoryConfigs({ activeOnly: true })
+      .then((items) => {
+        if (!cancelled) setCategories(items);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error ? error.message : "Não foi possível carregar os setores",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const lockedScreen = getMachineScreenLock();
@@ -133,8 +137,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     () =>
       (currentCall?.technicianSessions ?? [])
         .slice()
-        .sort((current, next) =>
-          new Date(current.startedAt).getTime() - new Date(next.startedAt).getTime(),
+        .sort(
+          (current, next) =>
+            new Date(current.startedAt).getTime() - new Date(next.startedAt).getTime(),
         ),
     [currentCall?.technicianSessions],
   );
@@ -142,10 +147,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const firstSessionStartedAt = sessions[0]?.startedAt ?? null;
   const hasLegacyUnassignedPeriod = Boolean(
     currentCall?.currentAttendanceStartedAt &&
-      (!firstSessionStartedAt ||
-        new Date(firstSessionStartedAt).getTime() -
-          new Date(currentCall.currentAttendanceStartedAt).getTime() >
-          1000),
+    (!firstSessionStartedAt ||
+      new Date(firstSessionStartedAt).getTime() -
+        new Date(currentCall.currentAttendanceStartedAt).getTime() >
+        1000),
   );
   const requiresTechnician = currentCall ? requiresMaintenanceTechnician(currentCall) : false;
   const timeWithoutTechnicianMinutes =
@@ -234,18 +239,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
   }
 
-  function confirmEnd() {
-    if (!currentCall || !sessionId) return;
-    endTechnicianSession({
-      callId: currentCall.id,
-      sessionId,
-      notes: endNotes,
-      endReason,
-    });
-    setEndOpen(false);
-    toast.success("Atendimento individual encerrado");
-  }
-
   if (!machine) {
     return (
       <EmptyState
@@ -257,7 +250,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-2 overflow-x-hidden overflow-y-auto p-2 md:p-3">
+    <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2 xl:overflow-y-hidden">
       <MachineDetailHeader
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
@@ -293,7 +286,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onSelect={setSelectedCallId}
       />
 
-      <div className="grid min-h-[220px] grid-cols-1 items-stretch gap-2 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+      <div className="grid min-h-[200px] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
           compactNormal={!currentCall && machine.machineStatus === "running"}
@@ -306,87 +299,93 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       </div>
 
       {currentCall?.status === "in_progress" && requiresTechnician && (
-        <section className="rounded-xl border border-border bg-card p-3 shadow-md">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-            Atendimento por mantenedor · chamado selecionado
-          </h3>
-          {sessions.length === 0 ? (
-            <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-xs text-warning">
-              Nenhum mantenedor ativo no momento. Adicione um responsável para registrar o tempo individual.
-              <div className="mt-1 font-semibold text-foreground">
-                Tempo sem mantenedor apontado: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
-              </div>
+        <section className="rounded-xl border border-border bg-card p-2.5 shadow-md">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+              Atendimento por mantenedor
+            </h3>
+            <div className="grid min-w-[310px] flex-1 grid-cols-2 gap-1.5 md:max-w-2xl">
+              <BigButton
+                tone="info"
+                size="md"
+                className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
+                onClick={() => setAddOpen(true)}
+              >
+                Adicionar mantenedor
+              </BigButton>
+              <BigButton
+                tone="warning"
+                size="md"
+                className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
+                disabled={activeSessions.length === 0}
+                onClick={() => setEndOpen(true)}
+              >
+                Encerrar atendimento individual
+              </BigButton>
+            </div>
+          </div>
+
+          {activeSessions.length === 0 ? (
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+              <span>
+                Nenhum mantenedor ativo. Adicione um responsável para registrar o tempo individual.
+              </span>
+              <strong className="whitespace-nowrap text-foreground">
+                Sem mantenedor: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
+              </strong>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className="mt-1.5 grid gap-1.5"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
+            >
               {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
-                <div className="rounded-lg border border-dashed border-border bg-muted/10 p-2.5 text-xs">
-                  <div className="text-sm font-bold text-foreground">Sem mantenedor apontado</div>
-                  <div className="font-semibold text-info">
-                    Tempo:{" "}
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/10 px-2.5 py-1.5 text-xs">
+                  <span className="truncate text-sm font-bold text-foreground">
+                    Sem mantenedor apontado
+                  </span>
+                  <strong className="whitespace-nowrap text-info">
                     {formatDurationMinutes(
                       diffMinutes(
                         currentCall.currentAttendanceStartedAt,
                         sessions[0]?.startedAt ?? nowIso,
                       ),
                     )}
-                  </div>
+                  </strong>
                 </div>
               )}
               {activeSessions.map((session) => (
-                <div key={session.id} className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs">
-                  <div className="text-sm font-bold text-foreground">{session.technicianName}</div>
-                  {session.shiftName && (
-                    <div className="text-muted-foreground">Turno: {formatShiftName(session.shiftName)}</div>
-                  )}
-                  <div className="font-semibold text-info">
-                    Tempo: {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
-                  </div>
+                <div
+                  key={session.id}
+                  className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs"
+                >
+                  <span className="min-w-0 truncate text-sm font-bold text-foreground">
+                    {session.technicianName}
+                    {session.shiftName && (
+                      <small className="ml-1 font-normal text-muted-foreground">
+                        · {formatShiftName(session.shiftName)}
+                      </small>
+                    )}
+                  </span>
+                  <strong className="whitespace-nowrap text-info">
+                    {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
+                  </strong>
                 </div>
               ))}
             </div>
           )}
-
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <BigButton
-              tone="info"
-              size="md"
-              className="min-h-[40px] whitespace-nowrap px-3 text-xs shadow"
-              onClick={() => setAddOpen(true)}
-            >
-              Adicionar mantenedor
-            </BigButton>
-            <BigButton
-              tone="warning"
-              size="md"
-              className="min-h-[40px] whitespace-nowrap px-3 text-xs shadow"
-              disabled={activeSessions.length === 0}
-              onClick={() => {
-                setSessionId(activeSessions[0]?.id ?? "");
-                setEndReason("handover");
-                setEndNotes("");
-                setEndOpen(true);
-              }}
-            >
-              Encerrar atendimento individual
-            </BigButton>
-          </div>
         </section>
       )}
 
       <MachineActionPanel
         machine={machine}
         currentCall={currentCall}
-        selectedSubtypes={selectedSubtypes}
+        categories={categories}
         activeSubtypes={activeSubtypes}
-        onToggleSubtype={(subtype) =>
-          setSelectedSubtypes((current) =>
-            current.includes(subtype)
-              ? current.filter((item) => item !== subtype)
-              : [...current, subtype],
-          )
-        }
-        onOpenSelected={() => setConditionDialogOpen(true)}
+        onOpenSubtype={(subtype) => {
+          setSelectedSubtype(subtype);
+          setConditionDialogOpen(true);
+        }}
         onAttend={() => void handleAttend()}
         onCancelCall={() => void handleCancelCall()}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
@@ -399,8 +398,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         open={conditionDialogOpen}
         onOpenChange={setConditionDialogOpen}
         machineId={machine.id}
-        subtypes={selectedSubtypes}
-        onSuccess={() => setSelectedSubtypes([])}
+        subtype={selectedSubtype}
       />
       <TechnicianIdentificationModal
         open={startOpen}
@@ -428,75 +426,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onOpenChange={(isOpen) => !isOpen && setFinishCallId(null)}
         callId={finishCallId}
       />
-
-      <Dialog open={endOpen} onOpenChange={setEndOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto overflow-x-hidden">
-          <DialogHeader>
-            <DialogTitle className="text-3xl">Encerrar atendimento individual</DialogTitle>
-            <DialogDescription className="text-base">
-              Registre o encerramento de um mantenedor sem finalizar a ocorrência.
-            </DialogDescription>
-          </DialogHeader>
-
-          {activeSessions.length === 0 ? (
-            <div className="rounded-lg border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
-              Não há mantenedor ativo para encerrar.
-            </div>
-          ) : (
-            <>
-              <label className="text-sm font-bold">
-                Mantenedor em atendimento
-                <select
-                  className="mt-1 h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
-                  value={sessionId}
-                  onChange={(event) => setSessionId(event.target.value)}
-                >
-                  <option value="" disabled>Selecione o mantenedor</option>
-                  {activeSessions.map((session) => (
-                    <option key={session.id} value={session.id}>{session.technicianName}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-bold">
-                Motivo do encerramento
-                <select
-                  className="mt-1 h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
-                  value={endReason}
-                  onChange={(event) => setEndReason(event.target.value as TechnicianSessionEndReason)}
-                >
-                  <option value="handover">Troca de turno</option>
-                  <option value="support_finished">Apoio encerrado</option>
-                  <option value="transferred">Serviço transferido</option>
-                  <option value="break">Intervalo</option>
-                  <option value="other">Outro</option>
-                </select>
-              </label>
-              <label className="text-sm font-bold">
-                Observação
-                <Textarea
-                  value={endNotes}
-                  onChange={(event) => setEndNotes(event.target.value)}
-                  rows={4}
-                  className="mt-1 text-base"
-                  placeholder="Descreva o que foi realizado ou a condição deixada para o próximo mantenedor."
-                />
-              </label>
-            </>
-          )}
-
-          <DialogFooter className="gap-2">
-            <BigButton tone="neutral" size="md" onClick={() => setEndOpen(false)}>Cancelar</BigButton>
-            <BigButton
-              tone="warning"
-              size="md"
-              onClick={confirmEnd}
-              disabled={activeSessions.length === 0 || !sessionId}
-            >
-              Encerrar atendimento
-            </BigButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EndTechnicianSessionModal
+        open={endOpen}
+        onOpenChange={setEndOpen}
+        callId={currentCall?.id ?? null}
+        sessions={activeSessions}
+      />
     </div>
   );
 }

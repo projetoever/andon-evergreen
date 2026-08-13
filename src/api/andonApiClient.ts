@@ -50,6 +50,7 @@ export interface AndonApiClient {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body: unknown): Promise<T>;
   patch<T>(path: string, body: unknown): Promise<T>;
+  delete<T>(path: string): Promise<T>;
 }
 
 function buildErrorMessage(
@@ -158,6 +159,10 @@ export function createAndonApiClient(
       request(path, {
         method: "PATCH",
         body: JSON.stringify(body),
+      }),
+    delete: (path) =>
+      request(path, {
+        method: "DELETE",
       }),
   };
 }

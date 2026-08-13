@@ -19,19 +19,19 @@ interface TechnicianSelectorProps {
   variant?: "default" | "compact";
 }
 
-const AREA_LABELS: Record<TechnicianArea, string> = {
+const AREA_LABELS: Partial<Record<TechnicianArea, string>> = {
   electrical: "eletricistas",
   mechanical: "mecânicos",
   hot_melt: "hot melt",
 };
 
-const AREA_FILTER_LABELS: Record<TechnicianArea, string> = {
+const AREA_FILTER_LABELS: Partial<Record<TechnicianArea, string>> = {
   electrical: "Elétrica",
   mechanical: "Mecânica",
   hot_melt: "Hot Melt",
 };
 
-const AREA_ROLE_LABELS: Record<TechnicianArea, string> = {
+const AREA_ROLE_LABELS: Partial<Record<TechnicianArea, string>> = {
   electrical: "Eletricista",
   mechanical: "Mecânico",
   hot_melt: "Hot Melt",
@@ -165,7 +165,7 @@ export function TechnicianSelector({
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                {AREA_FILTER_LABELS[availableArea]}
+                {AREA_FILTER_LABELS[availableArea] ?? availableArea}
               </button>
             ))}
 
@@ -314,7 +314,7 @@ export function TechnicianSelector({
             className="text-xs font-semibold text-primary underline"
             onClick={() => showOptionalArea(optionalArea)}
           >
-            Mostrar {AREA_LABELS[optionalArea]}
+            Mostrar {AREA_LABELS[optionalArea] ?? optionalArea}
           </button>
         ))}
       </div>

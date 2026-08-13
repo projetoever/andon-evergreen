@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { CircleHelp, CreditCard, Hash } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,33 +13,21 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
-import { getCallTypeOption } from "@/data/callTypes";
-import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
-import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import {
   identifyTechnicianConfig,
-  type IdentifiedTechnicianConfig,
   type TechnicianCredentialMethod,
 } from "@/services/technicianConfigService";
-import type { SelectedTechnicianInput } from "@/services/andonService";
-import type { TechnicianArea } from "@/types/andon";
+import type { TechnicianAttendanceSession, TechnicianSessionEndReason } from "@/types/andon";
 import type { AttendanceMode, SystemSettings } from "@/types/systemSettings";
-import { TechnicianSelector } from "./TechnicianSelector";
 
-interface TechnicianIdentificationModalProps {
+interface EndTechnicianSessionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   callId: string | null;
-  purpose: "start" | "add";
-  excludeNames?: string[];
-  onSuccess?: () => void;
+  sessions: TechnicianAttendanceSession[];
 }
-
-const DEFAULT_SUPPORT_AREAS = DEFAULT_CATEGORIES.filter(
-  (category) => category.categoryGroup === "maintenance",
-).map((category) => category.id as TechnicianArea);
 
 function methodLabel(method: AttendanceMode) {
   if (method === "pin") return "PIN";
@@ -47,28 +35,23 @@ function methodLabel(method: AttendanceMode) {
   return "nome";
 }
 
-export function TechnicianIdentificationModal({
+export function EndTechnicianSessionModal({
   open,
   onOpenChange,
   callId,
-  purpose,
-  excludeNames = [],
-  onSuccess,
-}: TechnicianIdentificationModalProps) {
-  const { calls, attendCall, addTechnicianSessions } = useAndon();
-  const { findTechnicianByName } = useTechnicians();
-  const call = callId ? (calls.find((item) => item.id === callId) ?? null) : null;
-  const option = call ? getCallTypeOption(call.subtype) : null;
-  const area = (option?.technicianArea ?? call?.subtype ?? null) as TechnicianArea | null;
-
+  sessions,
+}: EndTechnicianSessionModalProps) {
+  const { endTechnicianSession } = useAndon();
+  const activeSessions = sessions.filter((session) => !session.endedAt);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
   const [showAlternatives, setShowAlternatives] = useState(false);
-  const [supportAreas, setSupportAreas] = useState<TechnicianArea[]>(DEFAULT_SUPPORT_AREAS);
-  const [names, setNames] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState("");
   const [credentialValue, setCredentialValue] = useState("");
+  const [reason, setReason] = useState<TechnicianSessionEndReason>("support_finished");
   const [notes, setNotes] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const initializedCallRef = useRef<string | null>(null);
   const submittingRef = useRef(false);
@@ -82,22 +65,19 @@ export function TechnicianIdentificationModal({
     initializedCallRef.current = callId;
     setSettings(null);
     setLoadFailed(false);
-    setNames([]);
+    setSessionId(activeSessions[0]?.id ?? "");
     setCredentialValue("");
+    setReason("support_finished");
     setNotes("");
+    setShowNotes(false);
     setShowAlternatives(false);
     setIsSubmitting(false);
     submittingRef.current = false;
 
-    Promise.all([getSystemSettings(), getCategoryConfigs({ activeOnly: true })])
-      .then(([systemSettings, categories]) => {
+    getSystemSettings()
+      .then((systemSettings) => {
         setSettings(systemSettings);
         setMethod(systemSettings.attendanceMode);
-        setSupportAreas(
-          categories
-            .filter((category) => category.categoryGroup === "maintenance")
-            .map((category) => category.id as TechnicianArea),
-        );
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -107,44 +87,38 @@ export function TechnicianIdentificationModal({
             : "Não foi possível carregar o modo de atendimento",
         );
       });
-  }, [open, callId]);
+  }, [activeSessions, callId, open]);
 
-  const excluded = useMemo(
-    () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
-    [excludeNames],
-  );
-  const optionalAreas = useMemo(
-    () => (purpose === "add" && area ? supportAreas.filter((candidate) => candidate !== area) : []),
-    [area, purpose, supportAreas],
-  );
-
-  async function registerTechnicians(
-    technicians: SelectedTechnicianInput[],
+  async function finishSession(
+    target: TechnicianAttendanceSession,
+    credential?: {
+      method: TechnicianCredentialMethod;
+      value: string;
+    },
     submissionAlreadyStarted = false,
   ) {
-    if (!call || !technicians.length || (!submissionAlreadyStarted && submittingRef.current)) {
-      return;
-    }
-
+    if (!callId || (!submissionAlreadyStarted && submittingRef.current)) return;
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      if (purpose === "start") {
-        await attendCall({ callId: call.id, technicians, notes: notes.trim() || null });
-        toast.success("Chamado em atendimento");
-      } else {
-        await addTechnicianSessions({ callId: call.id, technicians });
-        toast.success("Mantenedor adicionado ao atendimento");
-      }
+      await endTechnicianSession({
+        callId,
+        sessionId: target.id,
+        technicianName: target.technicianName,
+        credential,
+        endReason: reason,
+        notes: notes.trim() || null,
+      });
+      toast.success(`Atendimento de ${target.technicianName} encerrado`);
       onOpenChange(false);
-      onSuccess?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Não foi possível registrar o atendimento",
+        error instanceof Error ? error.message : "Não foi possível encerrar o atendimento",
       );
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
+      setCredentialValue("");
     }
   }
 
@@ -156,62 +130,31 @@ export function TechnicianIdentificationModal({
     ) {
       return;
     }
-
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const value = credentialValue.trim();
-      const technician = await identifyTechnicianConfig(
-        method as TechnicianCredentialMethod,
-        value,
+      const technician = await identifyTechnicianConfig(method, value);
+      const target = activeSessions.find(
+        (session) =>
+          session.technicianId === technician.id ||
+          session.technicianName.toLocaleLowerCase("pt-BR") ===
+            technician.name.toLocaleLowerCase("pt-BR"),
       );
-      validateTechnician(technician);
-      await registerTechnicians(
-        [
-          {
-            id: technician.id,
-            name: technician.name,
-            shiftId: technician.shiftId,
-            shiftName: technician.shiftId,
-            technicalArea: technician.area as TechnicianArea,
-            credential: technician.credential,
-          },
-        ],
-        true,
-      );
+      if (!target) throw new Error(`${technician.name} não possui atendimento ativo neste chamado`);
+      await finishSession(target, technician.credential, true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Credencial não reconhecida");
+      setCredentialValue("");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
-      setCredentialValue("");
-    }
-  }
-
-  function validateTechnician(technician: IdentifiedTechnicianConfig) {
-    if (excluded.has(technician.name.toLocaleLowerCase("pt-BR"))) {
-      throw new Error(`${technician.name} já está neste atendimento`);
-    }
-    if (purpose === "start" && area && technician.area !== area) {
-      throw new Error(`${technician.name} não pertence à área deste chamado`);
-    }
-    if (purpose === "add" && !supportAreas.includes(technician.area as TechnicianArea)) {
-      throw new Error(`${technician.name} não pertence a uma área de manutenção`);
     }
   }
 
   function handleNameSubmit() {
-    const technicians = names.map((name) => {
-      const technician = findTechnicianByName(name);
-      return {
-        id: technician?.id,
-        name,
-        shiftId: technician?.shiftId,
-        shiftName: technician?.shiftId,
-        technicalArea: technician?.area as TechnicianArea | undefined,
-      };
-    });
-    void registerTechnicians(technicians);
+    const target = activeSessions.find((session) => session.id === sessionId);
+    if (target) void finishSession(target);
   }
 
   const submitFixedLengthCredential = useEffectEvent(handleCredentialSubmit);
@@ -235,11 +178,8 @@ export function TechnicianIdentificationModal({
     submitFixedLengthCredential,
   ]);
 
-  if (!call) return null;
-
   const allowedMethods: AttendanceMode[] =
     settings?.attendanceMode === "name" ? ["name", "pin", "rfid"] : ["pin", "rfid"];
-  const actionLabel = purpose === "start" ? "Iniciar atendimento" : "Adicionar mantenedor";
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
@@ -247,11 +187,13 @@ export function TechnicianIdentificationModal({
         <DialogHeader>
           <div className="flex items-start justify-between gap-3 pr-8">
             <div>
-              <DialogTitle className="text-2xl sm:text-3xl">{actionLabel}</DialogTitle>
+              <DialogTitle className="text-2xl sm:text-3xl">
+                Encerrar atendimento individual
+              </DialogTitle>
               <DialogDescription className="mt-1 text-base">
                 {method === "name"
-                  ? "Selecione o nome e confirme."
-                  : `Digite o ${methodLabel(method)} e pressione Enter ou ${actionLabel.toLocaleLowerCase("pt-BR")}.`}
+                  ? "Selecione o mantenedor e encerre."
+                  : `Digite o ${methodLabel(method)} e pressione Enter ou Encerrar.`}
               </DialogDescription>
             </div>
             <button
@@ -274,7 +216,6 @@ export function TechnicianIdentificationModal({
                 type="button"
                 onClick={() => {
                   setMethod(candidate);
-                  setNames([]);
                   setCredentialValue("");
                   setShowAlternatives(false);
                 }}
@@ -305,23 +246,35 @@ export function TechnicianIdentificationModal({
             Não foi possível validar o modo de atendimento. Feche e abra novamente.
           </p>
         )}
-
-        {settings && method === "name" && area && (
-          <TechnicianSelector
-            area={area}
-            value={names}
-            onChange={setNames}
-            excludeNames={excludeNames}
-            optionalAreas={optionalAreas}
-            variant="compact"
-          />
+        {settings && activeSessions.length === 0 && (
+          <p className="rounded-xl border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
+            Não há mantenedor ativo para encerrar.
+          </p>
         )}
 
-        {settings && (method === "pin" || method === "rfid") && (
+        {settings && activeSessions.length > 0 && method === "name" && (
+          <label className="block text-sm font-bold">
+            Mantenedor em atendimento
+            <select
+              autoFocus
+              className="mt-1 h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
+              value={sessionId}
+              onChange={(event) => setSessionId(event.target.value)}
+            >
+              {activeSessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.technicianName}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {settings && activeSessions.length > 0 && (method === "pin" || method === "rfid") && (
           <label className="block text-sm font-bold">
             {method === "pin" ? "PIN do mantenedor" : "Aproxime a tag no leitor"}
             <div className="mt-1 flex min-w-0 gap-2">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-primary">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-warning">
                 {method === "pin" ? (
                   <Hash className="h-6 w-6" />
                 ) : (
@@ -356,15 +309,41 @@ export function TechnicianIdentificationModal({
           </label>
         )}
 
-        {purpose === "start" && (
+        {settings && activeSessions.length > 0 && (
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <label className="block text-sm font-bold">
+              Motivo
+              <select
+                className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                value={reason}
+                onChange={(event) => setReason(event.target.value as TechnicianSessionEndReason)}
+              >
+                <option value="support_finished">Apoio encerrado</option>
+                <option value="handover">Troca de turno</option>
+                <option value="transferred">Serviço transferido</option>
+                <option value="break">Intervalo</option>
+                <option value="other">Outro</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="h-11 rounded-xl border border-border bg-card px-3 text-sm font-bold hover:bg-accent"
+              onClick={() => setShowNotes((value) => !value)}
+            >
+              {showNotes ? "Ocultar observação" : "Adicionar observação"}
+            </button>
+          </div>
+        )}
+
+        {showNotes && (
           <label className="block text-sm font-bold">
-            Observação inicial (opcional)
+            Observação (opcional)
             <Textarea
               className="mt-1"
               rows={2}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              placeholder="Descreva o contexto inicial do atendimento."
+              placeholder="Descreva a condição deixada para o próximo mantenedor."
             />
           </label>
         )}
@@ -379,17 +358,18 @@ export function TechnicianIdentificationModal({
             Cancelar
           </BigButton>
           <BigButton
-            tone={purpose === "start" ? "success" : "info"}
+            tone="warning"
             size="md"
             onClick={() => (method === "name" ? handleNameSubmit() : void handleCredentialSubmit())}
             disabled={
               !settings ||
               loadFailed ||
+              activeSessions.length === 0 ||
               isSubmitting ||
-              (method === "name" ? names.length === 0 : !credentialValue.trim())
+              (method === "name" ? !sessionId : !credentialValue.trim())
             }
           >
-            {isSubmitting ? "Registrando..." : actionLabel}
+            {isSubmitting ? "Encerrando..." : "Encerrar atendimento"}
           </BigButton>
         </DialogFooter>
       </DialogContent>

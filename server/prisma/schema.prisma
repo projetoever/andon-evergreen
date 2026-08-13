@@ -20,6 +20,21 @@ model SystemSettings {
   @@map("system_settings")
 }
 
+model AndonCategory {
+  id            String   @id
+  displayName   String
+  categoryGroup String
+  color         String
+  active        Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([active])
+  @@index([displayOrder])
+  @@map("andon_categories")
+}
+
 model Machine {
   id                  String                   @id
   name                String

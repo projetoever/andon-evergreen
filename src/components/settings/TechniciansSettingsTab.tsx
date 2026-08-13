@@ -4,16 +4,14 @@ import { BigButton } from "@/components/common/BigButton";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
 import { getShiftConfigs } from "@/services/shiftConfigService";
+import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import type { CallSubtype } from "@/types/andon";
-import type { ShiftConfig, TechnicianConfig } from "@/types/settings";
+import type { AndonCategoryConfig, ShiftConfig, TechnicianConfig } from "@/types/settings";
 
-const AREA_OPTIONS: Array<{ id: CallSubtype; label: string }> = [
-  { id: "electrical", label: "Elétrica" },
-  { id: "mechanical", label: "Mecânica" },
-  { id: "hot_melt", label: "Hot Melt" },
-  { id: "quality", label: "Qualidade" },
-  { id: "leadership", label: "Liderança" },
-];
+const DEFAULT_AREA_OPTIONS = DEFAULT_CATEGORIES.map((category) => ({
+  id: category.id,
+  label: category.displayName,
+}));
 
 const EMPTY_DRAFT: TechnicianConfig = {
   id: "",
@@ -43,11 +41,26 @@ export function TechniciansSettingsTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TechnicianConfig>(EMPTY_DRAFT);
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
+  const [categories, setCategories] = useState<AndonCategoryConfig[]>(DEFAULT_CATEGORIES);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setShifts(getShiftConfigs());
+    getCategoryConfigs()
+      .then(setCategories)
+      .catch((loadError) =>
+        toast.error(
+          loadError instanceof Error ? loadError.message : "Não foi possível carregar os setores.",
+        ),
+      );
   }, []);
+
+  const areaOptions = useMemo(() => {
+    const activeOptions = categories
+      .filter((category) => category.active && category.categoryGroup === "maintenance")
+      .map((category) => ({ id: category.id, label: category.displayName }));
+    return activeOptions.length ? activeOptions : DEFAULT_AREA_OPTIONS;
+  }, [categories]);
 
   const shiftNameById = useMemo(
     () => Object.fromEntries(shifts.map((shift) => [shift.id, shift.name])),
@@ -175,12 +188,13 @@ export function TechniciansSettingsTab() {
               >
                 <p className="text-sm font-bold">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {AREA_OPTIONS.find((area) => area.id === item.area)?.label} ·{" "}
+                  {categories.find((area) => area.id === item.area)?.displayName ?? item.area} ·{" "}
                   {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
                 </p>
                 <p className="text-xs text-muted-foreground">{item.active ? "Ativo" : "Inativo"}</p>
                 <p className="text-xs text-muted-foreground">
-                  PIN: {item.hasPin ? "configurado" : "pendente"} · Tag: {item.hasTag ? "configurada" : "não cadastrada"}
+                  PIN: {item.hasPin ? "configurado" : "pendente"} · Tag:{" "}
+                  {item.hasTag ? "configurada" : "não cadastrada"}
                 </p>
               </button>
             ))}
@@ -205,8 +219,12 @@ export function TechniciansSettingsTab() {
               maxLength={8}
               className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
               value={draft.pin ?? ""}
-              onChange={(event) => setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })}
-              placeholder={draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"}
+              onChange={(event) =>
+                setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })
+              }
+              placeholder={
+                draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"
+              }
             />
           </label>
           <label className="text-sm font-semibold">
@@ -217,7 +235,11 @@ export function TechniciansSettingsTab() {
               className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono uppercase"
               value={draft.tag ?? ""}
               onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
-              placeholder={draft.hasTag ? "Deixe em branco para manter a tag atual" : "Aproxime a tag ou digite o código"}
+              placeholder={
+                draft.hasTag
+                  ? "Deixe em branco para manter a tag atual"
+                  : "Aproxime a tag ou digite o código"
+              }
             />
           </label>
           <p className="text-xs text-muted-foreground">
@@ -230,7 +252,7 @@ export function TechniciansSettingsTab() {
               value={draft.area}
               onChange={(event) => setDraft({ ...draft, area: event.target.value as CallSubtype })}
             >
-              {AREA_OPTIONS.map((area) => (
+              {areaOptions.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.label}
                 </option>
