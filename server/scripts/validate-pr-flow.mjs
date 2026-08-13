@@ -26,7 +26,7 @@ async function request(path, options = {}, expectedStatus = 200) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "content-type": "application/json",
+      ...(options.body === undefined ? {} : { "content-type": "application/json" }),
       ...options.headers,
     },
   });
