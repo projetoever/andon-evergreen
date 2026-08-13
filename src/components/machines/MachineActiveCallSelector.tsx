@@ -19,8 +19,8 @@ export function MachineActiveCallSelector({
   if (calls.length < 2) return null;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-2.5 shadow-md">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <section className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-md lg:flex-nowrap">
+      <div className="flex min-w-[210px] shrink-0 items-center justify-between gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Chamados ativos nesta máquina
         </h3>
@@ -28,7 +28,10 @@ export function MachineActiveCallSelector({
           {calls.length} ativos
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div
+        className="grid min-w-0 flex-1 gap-1.5"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))" }}
+      >
         {calls.map((call) => {
           const selected = call.id === selectedCallId;
           return (
@@ -38,7 +41,7 @@ export function MachineActiveCallSelector({
               aria-pressed={selected}
               onClick={() => onSelect(call.id)}
               className={cn(
-                "min-w-0 rounded-xl border-2 px-3 py-2 text-left transition-colors",
+                "min-w-0 rounded-lg border-2 px-2.5 py-1.5 text-left transition-colors",
                 selected
                   ? "border-primary bg-primary/10"
                   : "border-border bg-background hover:border-primary/40 hover:bg-accent",

@@ -11,7 +11,7 @@ export function isMaintenanceCategory(category: CallCategory): category is "main
 }
 
 export function isMaintenanceCall(call: Pick<AndonCall, "category" | "subtype">): boolean {
-  return isMaintenanceCategory(call.category) && isMaintenanceSubtype(call.subtype);
+  return isMaintenanceCategory(call.category);
 }
 
 export function requiresMaintenanceTechnician(call: Pick<AndonCall, "category" | "subtype">): boolean {

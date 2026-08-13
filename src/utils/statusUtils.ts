@@ -1,5 +1,6 @@
 import type { AndonStatus, CallCriticality, CallSubtype } from "@/types/andon";
 import type { MachineStatus, ProductionMode } from "@/types/machine";
+import { getCallTypeOption } from "@/data/callTypes";
 
 export type AlertLevel = "normal" | "warning" | "critical";
 
@@ -25,18 +26,14 @@ export function getAndonStatusLabel(status: AndonStatus): string {
 }
 
 export function getCallSubtypeLabel(subtype: CallSubtype): string {
-  switch (subtype) {
-    case "electrical":
-      return "Elétrica";
-    case "mechanical":
-      return "Mecânica";
-    case "hot_melt":
-      return "Hot Melt";
-    case "quality":
-      return "Qualidade";
-    case "leadership":
-      return "Liderança";
-  }
+  return (
+    getCallTypeOption(subtype)?.label ??
+    subtype
+      .split("_")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toLocaleUpperCase("pt-BR") + part.slice(1))
+      .join(" ")
+  );
 }
 
 export function getCriticalityLabel(criticality: CallCriticality | null | undefined): string {
@@ -97,7 +94,6 @@ export function getProductionModeLabel(productionMode: ProductionMode): string {
 export function getMachineConditionLabel(status: MachineStatus | null | undefined): string {
   return status === "stopped" ? "Em falha" : "Pronta para rodar";
 }
-
 
 export function getTechnicianAreaLabel(area: string | null | undefined): string {
   switch (area) {

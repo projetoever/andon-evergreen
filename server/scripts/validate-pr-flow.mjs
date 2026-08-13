@@ -18,6 +18,8 @@ const ids = {
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
   mechanicalTechnician: "pr47-tech-mechanical",
+  category: "pr48_pneumatic",
+  unusedCategory: "pr48_unused",
 };
 
 async function request(path, options = {}, expectedStatus = 200) {
@@ -78,6 +80,9 @@ async function cleanup() {
     where: { id: { in: [ids.electricalTechnician, ids.mechanicalTechnician] } },
   });
   await prisma.shift.deleteMany({ where: { id: ids.shift } });
+  await prisma.andonCategory.deleteMany({
+    where: { id: { in: [ids.category, ids.unusedCategory] } },
+  });
   await prisma.systemSettings.deleteMany({ where: { id: "global" } });
 }
 
@@ -85,6 +90,43 @@ async function run() {
   await waitForApi();
   await request("/health/db");
   await cleanup();
+
+  const defaultCategories = await request("/api/andon-categories?active=true");
+  assert.ok(defaultCategories.some((category) => category.id === "electrical"));
+  assert.ok(defaultCategories.every((category) => /^#[0-9A-F]{6}$/i.test(category.color)));
+
+  await request(
+    "/api/andon-categories",
+    json("POST", {
+      id: ids.category,
+      displayName: "Pneumática CI",
+      categoryGroup: "maintenance",
+      color: "#14B8A6",
+      active: true,
+      displayOrder: 60,
+    }),
+    201,
+  );
+  const editedCategory = await request(
+    `/api/andon-categories/${ids.category}`,
+    json("PATCH", { displayName: "Pneumática", color: "#0D9488", displayOrder: 55 }),
+  );
+  assert.equal(editedCategory.displayName, "Pneumática");
+  assert.equal(editedCategory.color, "#0D9488");
+
+  await request(
+    "/api/andon-categories",
+    json("POST", {
+      id: ids.unusedCategory,
+      displayName: "Setor removível CI",
+      categoryGroup: "production",
+      color: "#334155",
+      active: true,
+      displayOrder: 999,
+    }),
+    201,
+  );
+  await request(`/api/andon-categories/${ids.unusedCategory}`, { method: "DELETE" }, 204);
 
   await prisma.shift.create({
     data: {
@@ -158,11 +200,7 @@ async function run() {
     json("POST", { method: "pin", value: "4821" }),
   );
   assert.equal(identifiedByPin.id, electrical.id, "PIN deve continuar disponível como alternativa");
-  await request(
-    "/api/technicians/identify",
-    json("POST", { method: "pin", value: "0000" }),
-    404,
-  );
+  await request("/api/technicians/identify", json("POST", { method: "pin", value: "0000" }), 404);
 
   const openedCalls = await request(
     "/api/andon-calls/batch",
@@ -190,6 +228,24 @@ async function run() {
   const qualityCall = openedCalls[2];
   const machineAfterBatch = await request(`/api/machines/${ids.machine}`);
   assert.equal(machineAfterBatch.currentCallId, qualityCall.id);
+
+  const customCalls = await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.machine,
+      subtypes: [ids.category],
+      criticality: "medium",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(customCalls[0].category, "maintenance");
+  assert.equal(customCalls[0].subtype, ids.category);
+  await request(
+    `/api/andon-calls/${customCalls[0].id}/cancel`,
+    json("PATCH", { reason: "Validação de setor dinâmico", cancelledBy: "CI" }),
+  );
+  await request(`/api/andon-categories/${ids.category}`, { method: "DELETE" }, 409);
 
   await request(
     "/api/andon-calls/batch",
@@ -219,6 +275,20 @@ async function run() {
     201,
   );
   assert.equal(withSupport.technicianSessions.length, 2);
+
+  const endedByCredential = await request(
+    `/api/andon-calls/${electricalCall.id}/technicians/end`,
+    json("PATCH", {
+      credential: { method: "rfid", value: "TAG-MECHANICAL-47" },
+      reason: "support_finished",
+      notes: "Encerramento direto por tag",
+    }),
+  );
+  const endedSupportSession = endedByCredential.technicianSessions.find(
+    (session) => session.technicianId === mechanical.id,
+  );
+  assert.ok(endedSupportSession.endedAt);
+  assert.equal(endedSupportSession.endReason, "support_finished");
 
   await request(
     `/api/andon-calls/${electricalCall.id}/finish-maintenance`,
@@ -296,7 +366,7 @@ async function run() {
   assert.ok(publicTechnicians.every((technician) => !("pinHash" in technician)));
   assert.ok(publicTechnicians.every((technician) => !("tagHash" in technician)));
 
-  console.log("Fluxo PostgreSQL/API do PR #47: OK");
+  console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");
 }
 
 try {

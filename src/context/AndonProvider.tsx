@@ -22,6 +22,7 @@ import { andonRepository } from "@/repositories/selectedAndonRepository";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { setSoundVolume, stopAllSounds, stopAndonSound } from "@/services/soundService";
 import { setServerTimeOffsetMs } from "@/utils/serverClock";
+import { getCategoryConfigs } from "@/services/categoryConfigService";
 
 const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
 const MIN_API_SYNC_INTERVAL_MS = 500;
@@ -44,7 +45,7 @@ interface AndonContextValue {
   openCalls: (params: andonService.OpenAndonCallParams[]) => Promise<void>;
   attendCall: (params: string | andonService.StartAttendanceParams) => Promise<void>;
   addTechnicianSessions: (params: andonService.AddTechnicianSessionsParams) => Promise<void>;
-  endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => void;
+  endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => Promise<void>;
   completeMaintenance: (callId: string) => Promise<AndonCall>;
   returnToMaintenance: (callId: string) => Promise<AndonCall>;
   finishCall: (params: andonService.FinishAndonCallParams) => Promise<void>;
@@ -101,6 +102,15 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const apiSyncInFlightRef = useRef(false);
 
   const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
+
+  useEffect(() => {
+    if (isLocalDataMode) return;
+    void getCategoryConfigs().catch((error) => {
+      console.error(
+        error instanceof Error ? error.message : "Falha ao carregar os setores do ANDON.",
+      );
+    });
+  }, [isLocalDataMode]);
 
   useEffect(() => {
     if (isLocalDataMode) return;
@@ -226,12 +236,11 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const endTechnicianSession = useCallback(
-    (params: andonService.EndTechnicianSessionParams) => {
-      void andonRepository.endTechnicianSession(machines, calls, params).then((result) => {
-        setCalls(result.calls);
-      }).catch(handleRepositoryError);
+    async (params: andonService.EndTechnicianSessionParams) => {
+      const result = await andonRepository.endTechnicianSession(machines, calls, params);
+      setCalls(result.calls);
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls],
   );
 
   const completeMaintenance = useCallback(

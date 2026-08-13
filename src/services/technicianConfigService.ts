@@ -4,14 +4,6 @@ import type { TechnicianConfig } from "@/types/settings";
 
 const apiClient = createAndonApiClient();
 
-const TECHNICIAN_AREAS = new Set<CallSubtype>([
-  "electrical",
-  "mechanical",
-  "hot_melt",
-  "quality",
-  "leadership",
-]);
-
 interface ApiTechnician {
   id: string;
   name: string;
@@ -42,9 +34,7 @@ export interface IdentifiedTechnicianConfig extends TechnicianConfig {
 }
 
 function normalizeArea(value: string | null): CallSubtype {
-  return value && TECHNICIAN_AREAS.has(value as CallSubtype)
-    ? (value as CallSubtype)
-    : "electrical";
+  return (value?.trim() || "electrical") as CallSubtype;
 }
 
 function mapTechnician(technician: ApiTechnician): TechnicianConfig {

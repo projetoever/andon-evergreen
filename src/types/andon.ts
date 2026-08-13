@@ -10,13 +10,13 @@ export type MaintenanceSubtype = "electrical" | "mechanical" | "hot_melt";
 
 export type ProductionSubtype = "quality" | "leadership";
 
-export type CallSubtype = MaintenanceSubtype | ProductionSubtype;
+export type CallSubtype = MaintenanceSubtype | ProductionSubtype | (string & {});
 
-export type TechnicianArea = "electrical" | "mechanical" | "hot_melt";
+export type TechnicianArea = CallSubtype;
 
 export type CallCriticality = "low" | "medium" | "high";
 
-export type SoundKey = "electrical" | "mechanical" | "hot_melt" | "quality" | "leadership";
+export type SoundKey = CallSubtype;
 
 export type TechnicianSessionEndReason = "handover" | "support_finished" | "final_call" | "transferred" | "break" | "manual" | "other";
 
@@ -122,4 +122,7 @@ export interface CallTypeOption {
   technicianArea: TechnicianArea | null;
   soundKey: SoundKey;
   colorClass: string;
+  color: string;
+  active: boolean;
+  displayOrder: number;
 }

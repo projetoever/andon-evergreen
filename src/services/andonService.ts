@@ -94,7 +94,12 @@ export interface AddTechnicianSessionsParams {
 
 export interface EndTechnicianSessionParams {
   callId: string;
-  sessionId: string;
+  sessionId?: string;
+  technicianName?: string;
+  credential?: {
+    method: "pin" | "rfid";
+    value: string;
+  };
   notes?: string | null;
   endReason: TechnicianSessionEndReason;
 }
@@ -625,7 +630,15 @@ export function endTechnicianSession(
   if (!call) throw new Error("Chamado não encontrado");
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
-  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:(c.technicianSessions??[]).map((s)=> s.id===params.sessionId ? { ...s, endedAt: now, endReason: params.endReason, notes: params.notes ?? s.notes, productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus } : s), updatedAt: now } : c);
+  const targetSession = (call.technicianSessions ?? []).find(
+    (session) =>
+      !session.endedAt &&
+      (params.sessionId
+        ? session.id === params.sessionId
+        : session.technicianName === params.technicianName),
+  );
+  if (!targetSession) throw new Error("Sessão ativa do mantenedor não encontrada");
+  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:(c.technicianSessions??[]).map((s)=> s.id===targetSession.id ? { ...s, endedAt: now, endReason: params.endReason, notes: params.notes ?? s.notes, productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus } : s), updatedAt: now } : c);
   return { machines, calls: newCalls };
 }
 

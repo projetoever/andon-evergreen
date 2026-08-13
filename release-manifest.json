@@ -34,7 +34,7 @@
   ],
   "database": {
     "engine": "PostgreSQL",
-    "migration": "20260812183000_add_streamlined_call_flow",
+    "migration": "20260813183000_add_configurable_andon_categories",
     "migrationType": "additive",
     "migrationApplied": false,
     "backupRequiredBeforeDeploy": true

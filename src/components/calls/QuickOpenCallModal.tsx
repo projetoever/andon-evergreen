@@ -19,46 +19,36 @@ interface QuickOpenCallModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   machineId: string;
-  subtypes: CallSubtype[];
-  onSuccess: () => void;
+  subtype: CallSubtype | null;
 }
 
 export function QuickOpenCallModal({
   open,
   onOpenChange,
   machineId,
-  subtypes,
-  onSuccess,
+  subtype,
 }: QuickOpenCallModalProps) {
   const { openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const option = subtype ? getCallTypeOption(subtype) : null;
 
   async function handleCondition(machineCondition: MachineStatus) {
-    if (!subtypes.length || isSubmitting) return;
+    if (!subtype || !option || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await openCalls(
-        subtypes.map((subtype) => {
-          const option = getCallTypeOption(subtype);
-          if (!option) throw new Error("Tipo de chamado inválido");
-          return {
-            machineId,
-            category: option.category,
-            subtype,
-            criticality: "medium" as const,
-            machineCondition,
-          };
-        }),
-      );
-      toast.success(
-        subtypes.length === 1
-          ? `Chamado de ${getCallTypeOption(subtypes[0])?.label} aberto.`
-          : `${subtypes.length} chamados abertos para a Máquina ${machineId}.`,
-      );
+      await openCalls([
+        {
+          machineId,
+          category: option.category,
+          subtype,
+          criticality: "medium",
+          machineCondition,
+        },
+      ]);
+      toast.success(`Chamado de ${option.label} aberto.`);
       onOpenChange(false);
-      onSuccess();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível abrir os chamados");
+      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
     } finally {
       setIsSubmitting(false);
     }
@@ -70,27 +60,17 @@ export function QuickOpenCallModal({
         <DialogHeader>
           <DialogTitle className="text-2xl sm:text-3xl">A máquina está parada agora?</DialogTitle>
           <DialogDescription className="text-base">
-            Informe a condição atual. A ocorrência pode ser registrada mesmo que não tenha causado a parada,
-            como durante uma troca de receita.
+            Informe a condição atual para abrir o chamado de {option?.label ?? "setor"}.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="rounded-xl border border-border bg-muted/20 p-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Setores selecionados
-          </p>
-          <p className="mt-1 text-lg font-black">
-            {subtypes.map((subtype) => getCallTypeOption(subtype)?.label ?? subtype).join(" + ")}
-          </p>
-        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <BigButton
             tone="danger"
             size="lg"
-            className="min-h-28 whitespace-normal px-4 text-center"
+            className="min-h-24 whitespace-normal px-4 text-center"
             onClick={() => void handleCondition("stopped")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !option}
           >
             <CircleStop className="h-8 w-8 shrink-0" />
             <span>Sim — está parada</span>
@@ -98,9 +78,9 @@ export function QuickOpenCallModal({
           <BigButton
             tone="success"
             size="lg"
-            className="min-h-28 whitespace-normal px-4 text-center"
+            className="min-h-24 whitespace-normal px-4 text-center"
             onClick={() => void handleCondition("running")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !option}
           >
             <CheckCircle2 className="h-8 w-8 shrink-0" />
             <span>Não — está operando</span>
