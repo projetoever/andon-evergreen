@@ -188,7 +188,6 @@ async function resolveAttendanceTechnicians(
   tx: Prisma.TransactionClient,
   call: { category: string; subtype: string | null },
   body: AttendAndonCallBody | AddTechnicianBody,
-  allowSupportAreas: boolean,
 ) {
   if (call.category !== "maintenance") return [];
 
@@ -196,9 +195,7 @@ async function resolveAttendanceTechnicians(
   const requestedNames = uniqueNames([
     optionalString(body.technicianName),
     ...(Array.isArray(body.technicianNames)
-      ? body.technicianNames
-          .map(optionalString)
-          .filter((name): name is string => Boolean(name))
+      ? body.technicianNames.map(optionalString).filter((name): name is string => Boolean(name))
       : []),
   ]);
   const attendanceMode = await getAttendanceMode();
@@ -215,7 +212,9 @@ async function resolveAttendanceTechnicians(
   } else if (attendanceMode === "name") {
     technicians.push(...(await resolveTechniciansByNames(requestedNames, tx)));
     if (technicians.length !== requestedNames.length) {
-      throw new AndonCallValidationError("Um ou mais mantenedores não foram encontrados ou estão inativos");
+      throw new AndonCallValidationError(
+        "Um ou mais mantenedores não foram encontrados ou estão inativos",
+      );
     }
   } else {
     throw new AndonCallValidationError("Identifique o mantenedor por PIN ou tag");
@@ -228,22 +227,11 @@ async function resolveAttendanceTechnicians(
     throw new AndonCallValidationError("Identifique pelo menos um mantenedor");
   }
 
-  const supportCategories = allowSupportAreas
-    ? await tx.andonCategory.findMany({
-        where: { categoryGroup: "maintenance", active: true },
-        select: { id: true },
-      })
-    : [];
-  const allowedAreas = allowSupportAreas
-    ? new Set([call.subtype, ...supportCategories.map((category) => category.id)])
-    : new Set([call.subtype]);
   const incompatible = uniqueTechnicians.find(
-    (technician) => !technician.technicalArea || !allowedAreas.has(technician.technicalArea),
+    (technician) => !technician.technicalArea || technician.technicalArea !== call.subtype,
   );
   if (incompatible) {
-    throw new AndonCallValidationError(
-      `${incompatible.name} não está cadastrado na área permitida para este atendimento`,
-    );
+    throw new AndonCallValidationError(`${incompatible.name} não pertence à área deste chamado`);
   }
 
   return uniqueTechnicians;
@@ -311,6 +299,69 @@ async function calculateStoppedMinutesForPeriod(
   }
 
   return Math.max(0, Math.round(totalMilliseconds / 60000));
+}
+
+type OpenFailureEvent = {
+  id: string;
+  callId: string | null;
+  startedAt: Date;
+  notes: string | null;
+};
+
+async function getOpenFailureState(tx: Prisma.TransactionClient, machineId: string) {
+  const openEvents: OpenFailureEvent[] = await tx.failureEvent.findMany({
+    where: { machineId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+    select: {
+      id: true,
+      callId: true,
+      startedAt: true,
+      notes: true,
+    },
+  });
+  const ownerCallIds = openEvents
+    .map((event) => event.callId)
+    .filter((callId): callId is string => Boolean(callId));
+  const activeOwners = ownerCallIds.length
+    ? await tx.andonCall.findMany({
+        where: {
+          id: { in: ownerCallIds },
+          machineId,
+          isSystemTest: false,
+          status: { in: OPEN_CALL_STATUSES },
+        },
+        select: { id: true },
+      })
+    : [];
+  const activeOwnerIds = new Set(activeOwners.map((call) => call.id));
+
+  return {
+    openEvents,
+    activeOwnerEvent:
+      openEvents.find((event) => event.callId && activeOwnerIds.has(event.callId)) ?? null,
+  };
+}
+
+async function closeOpenFailureEventsForRecovery(
+  tx: Prisma.TransactionClient,
+  events: OpenFailureEvent[],
+  finishedAt: Date,
+) {
+  for (const event of events) {
+    await tx.failureEvent.update({
+      where: { id: event.id },
+      data: {
+        endedAt: finishedAt,
+        durationSeconds: diffSeconds(event.startedAt, finishedAt),
+        machineStatus: "running",
+        notes: appendNote(
+          event.notes,
+          "Condição informada como pronta para rodar na abertura de um novo chamado",
+          "Retomada",
+        ),
+      },
+    });
+  }
 }
 
 async function resumeMachineWhenFinishingOwnedStop(
@@ -452,10 +503,7 @@ async function findActiveMachineSetForCall(machineId: string, machineSetId: stri
   return rows[0] ?? null;
 }
 
-async function findActiveMachineSubsetForCall(
-  machineSetId: string,
-  machineSubsetId: string,
-) {
+async function findActiveMachineSubsetForCall(machineSetId: string, machineSubsetId: string) {
   const rows = await prisma.$queryRaw<MachineSubsetSnapshot[]>(Prisma.sql`
     SELECT
       subset."id",
@@ -489,84 +537,47 @@ type AssetConfirmationResponsibleCall = {
   }>;
 };
 
-function uniqueRegisteredTechnicianNames(
-  names: Array<string | null | undefined>,
-) {
+function uniqueRegisteredTechnicianNames(names: Array<string | null | undefined>) {
   return Array.from(
-    new Set(
-      names
-        .map(
-          (name) => name?.trim(),
-        )
-        .filter(
-          (name): name is string =>
-            Boolean(name),
-        ),
-    ),
+    new Set(names.map((name) => name?.trim()).filter((name): name is string => Boolean(name))),
   );
 }
 
-function resolveAutomaticAssetConfirmedBy(
-  call: AssetConfirmationResponsibleCall,
-) {
-  const activeSessionNames =
-    uniqueRegisteredTechnicianNames(
-      call.technicianSessions
-        .filter(
-          (session) =>
-            !session.endedAt,
-        )
-        .map(
-          (session) =>
-            session.technicianName,
-        ),
-    );
+function resolveAutomaticAssetConfirmedBy(call: AssetConfirmationResponsibleCall) {
+  const activeSessionNames = uniqueRegisteredTechnicianNames(
+    call.technicianSessions
+      .filter((session) => !session.endedAt)
+      .map((session) => session.technicianName),
+  );
 
-  const allSessionNames =
-    uniqueRegisteredTechnicianNames(
-      call.technicianSessions.map(
-        (session) =>
-          session.technicianName,
-      ),
-    );
+  const allSessionNames = uniqueRegisteredTechnicianNames(
+    call.technicianSessions.map((session) => session.technicianName),
+  );
 
-  const legacyNames =
-    uniqueRegisteredTechnicianNames([
-      ...call.technicianNames,
-      call.technicianName,
-    ]);
+  const legacyNames = uniqueRegisteredTechnicianNames([
+    ...call.technicianNames,
+    call.technicianName,
+  ]);
 
-  const responsibleNames =
-    activeSessionNames.length
-      ? activeSessionNames
-      : allSessionNames.length
-        ? allSessionNames
-        : legacyNames;
+  const responsibleNames = activeSessionNames.length
+    ? activeSessionNames
+    : allSessionNames.length
+      ? allSessionNames
+      : legacyNames;
 
-  if (
-    call.category === "maintenance" &&
-    responsibleNames.length === 0
-  ) {
-    throw new FinishCallValidationError(
-      "O chamado de manutenção não possui mantenedor registrado",
-    );
+  if (call.category === "maintenance" && responsibleNames.length === 0) {
+    throw new FinishCallValidationError("O chamado de manutenção não possui mantenedor registrado");
   }
 
-  return responsibleNames.length
-    ? responsibleNames.join(", ")
-    : "Operação";
+  return responsibleNames.length ? responsibleNames.join(", ") : "Operação";
 }
 
-function resolveAssetChangeReason(
-  locationChanged: boolean,
-  reason: string | undefined,
-) {
+function resolveAssetChangeReason(locationChanged: boolean, reason: string | undefined) {
   if (!locationChanged) {
     return null;
   }
 
-  return reason?.trim() ||
-    "Não justificado";
+  return reason?.trim() || "Não justificado";
 }
 
 function assetSnapshotKey(
@@ -579,15 +590,9 @@ function assetSnapshotKey(
     return `id:${id}`;
   }
 
-  const snapshotParts = [
-    code?.trim() ?? "",
-    name?.trim() ?? "",
-    type?.trim() ?? "",
-  ];
+  const snapshotParts = [code?.trim() ?? "", name?.trim() ?? "", type?.trim() ?? ""];
 
-  return snapshotParts.some(Boolean)
-    ? `snapshot:${snapshotParts.join("|")}`
-    : null;
+  return snapshotParts.some(Boolean) ? `snapshot:${snapshotParts.join("|")}` : null;
 }
 
 async function findMachineSetForConfirmation(
@@ -641,10 +646,7 @@ async function findMachineSubsetForConfirmation(
   return rows[0] ?? null;
 }
 
-async function machineHasActiveSets(
-  tx: Prisma.TransactionClient,
-  machineId: string,
-) {
+async function machineHasActiveSets(tx: Prisma.TransactionClient, machineId: string) {
   const activeSetCount = await tx.machineSet.count({
     where: {
       machineId,
@@ -718,6 +720,8 @@ async function ensureOpenFailureEventForStoppedCall(
     callId: string;
     startedAt: Date;
     productionMode?: string | null;
+    existingEventId?: string | null;
+    claimExistingEvent?: boolean;
   },
 ) {
   const openEvents = await tx.failureEvent.findMany({
@@ -730,10 +734,11 @@ async function ensureOpenFailureEventForStoppedCall(
     },
   });
 
-  const activeEvent = openEvents[0];
+  const activeEvent =
+    openEvents.find((event) => event.id === params.existingEventId) ?? openEvents[0];
 
   if (activeEvent) {
-    if (!activeEvent.callId) {
+    if (params.claimExistingEvent || !activeEvent.callId) {
       await tx.failureEvent.update({
         where: { id: activeEvent.id },
         data: { callId: params.callId },
@@ -826,8 +831,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (!CALL_CRITICALITIES.has(criticality)) return badRequest(reply, "Criticidade inválida");
     if (!CALL_ORIGINS.has(origin)) return badRequest(reply, "Origem do chamado inválida");
 
-    const usesInstallerHealthMetadata =
-      origin === INSTALLER_HEALTH_ORIGIN || isSystemTest;
+    const usesInstallerHealthMetadata = origin === INSTALLER_HEALTH_ORIGIN || isSystemTest;
 
     const hasValidInstallerHealthMetadata =
       origin === INSTALLER_HEALTH_ORIGIN &&
@@ -837,7 +841,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (usesInstallerHealthMetadata && !hasValidInstallerHealthMetadata) {
       return badRequest(reply, "Metadados de teste automático inválidos");
     }
-    if (machineCondition && !MACHINE_STATUSES.has(machineCondition)) return badRequest(reply, "Condição da máquina inválida");
+    if (machineCondition && !MACHINE_STATUSES.has(machineCondition))
+      return badRequest(reply, "Condição da máquina inválida");
 
     const configuredCategory = await prisma.andonCategory.findUnique({ where: { id: subtype } });
     if (!configuredCategory || (!configuredCategory.active && !isSystemTest)) {
@@ -850,10 +855,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const machine = await prisma.machine.findUnique({ where: { id: machineId } });
     if (!machine) return notFound(reply, "Máquina não encontrada");
     if (machineSubsetId && !machineSetId) {
-      return badRequest(
-        reply,
-        "machineSetId é obrigatório quando machineSubsetId for informado",
-      );
+      return badRequest(reply, "machineSetId é obrigatório quando machineSubsetId for informado");
     }
 
     const machineSet = machineSetId
@@ -861,18 +863,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       : null;
 
     if (machineSetId && !machineSet) {
-      return badRequest(
-        reply,
-        "Conjunto inválido ou inativo para esta máquina",
-      );
+      return badRequest(reply, "Conjunto inválido ou inativo para esta máquina");
     }
 
     const machineSubset =
       machineSetId && machineSubsetId
-        ? await findActiveMachineSubsetForCall(
-            machineSetId,
-            machineSubsetId,
-          )
+        ? await findActiveMachineSubsetForCall(machineSetId, machineSubsetId)
         : null;
 
     if (machineSubsetId && !machineSubset) {
@@ -902,46 +898,60 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const now = new Date();
     try {
       const call = await prisma.$transaction(async (tx) => {
-      await lockMachineCallFlow(tx, machineId);
-      const lockedMachine = await tx.machine.findUnique({ where: { id: machineId } });
-      if (!lockedMachine) throw new AndonCallValidationError("Máquina não encontrada");
-      if (
-        !isSystemTest &&
-        (await findDuplicateActiveSectorCall(tx, machineId, subtype))
-      ) {
-        throw new AndonCallValidationError("Já existe um chamado ativo deste setor para a máquina");
-      }
+        await lockMachineCallFlow(tx, machineId);
+        const lockedMachine = await tx.machine.findUnique({ where: { id: machineId } });
+        if (!lockedMachine) throw new AndonCallValidationError("Máquina não encontrada");
+        if (!isSystemTest && (await findDuplicateActiveSectorCall(tx, machineId, subtype))) {
+          throw new AndonCallValidationError(
+            "Já existe um chamado ativo deste setor para a máquina",
+          );
+        }
 
-      const effectiveMachineCondition =
-        lockedMachine.machineStatus === "stopped"
+        const failureState = !isSystemTest
+          ? await getOpenFailureState(tx, machineId)
+          : { openEvents: [], activeOwnerEvent: null };
+        const mustInheritActiveStop = Boolean(
+          lockedMachine.machineStatus === "stopped" && failureState.activeOwnerEvent,
+        );
+
+        const effectiveMachineCondition = mustInheritActiveStop
           ? "stopped"
-          : machineCondition ?? lockedMachine.machineStatus;
+          : (machineCondition ?? lockedMachine.machineStatus);
 
-      const createdCall = await tx.andonCall.create({
-        data: {
-          machineId,
-          category,
-          subtype,
-          status: "open",
-          criticality,
-          machineCondition: effectiveMachineCondition,
-          openedAt: now,
-          callWaitingMinutes: 0,
-          attendanceMinutes: 0,
-          postMaintenanceMinutes: 0,
-          totalCallMinutes: 0,
-          machineStoppedMinutes: 0,
-          notes: description ?? null,
-          createdBy,
-          origin,
-          isSystemTest,
-          productionModeAtOpen: lockedMachine.productionMode,
-          machineStatusAtOpen: effectiveMachineCondition,
-        },
-      });
+        if (
+          !isSystemTest &&
+          lockedMachine.machineStatus === "stopped" &&
+          !failureState.activeOwnerEvent &&
+          effectiveMachineCondition === "running"
+        ) {
+          await closeOpenFailureEventsForRecovery(tx, failureState.openEvents, now);
+        }
 
-      if (machineSet) {
-        await tx.$executeRaw(Prisma.sql`
+        const createdCall = await tx.andonCall.create({
+          data: {
+            machineId,
+            category,
+            subtype,
+            status: "open",
+            criticality,
+            machineCondition: effectiveMachineCondition,
+            openedAt: now,
+            callWaitingMinutes: 0,
+            attendanceMinutes: 0,
+            postMaintenanceMinutes: 0,
+            totalCallMinutes: 0,
+            machineStoppedMinutes: 0,
+            notes: description ?? null,
+            createdBy,
+            origin,
+            isSystemTest,
+            productionModeAtOpen: lockedMachine.productionMode,
+            machineStatusAtOpen: effectiveMachineCondition,
+          },
+        });
+
+        if (machineSet) {
+          await tx.$executeRaw(Prisma.sql`
           UPDATE "andon_calls"
           SET
             "machineSetId" = ${machineSet.id},
@@ -954,43 +964,41 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             "machineSubsetTypeSnapshot" = ${machineSubset?.type ?? null}
           WHERE "id" = ${createdCall.id}
         `);
-      }
+        }
 
-      const failureStartedAt =
-        !isSystemTest && effectiveMachineCondition === "stopped"
-          ? await ensureOpenFailureEventForStoppedCall(tx, {
-              machineId,
-              callId: createdCall.id,
-              startedAt: now,
-              productionMode: lockedMachine.productionMode,
-            })
-          : null;
+        const failureStartedAt =
+          !isSystemTest && effectiveMachineCondition === "stopped"
+            ? await ensureOpenFailureEventForStoppedCall(tx, {
+                machineId,
+                callId: createdCall.id,
+                startedAt: now,
+                productionMode: lockedMachine.productionMode,
+                existingEventId:
+                  failureState.activeOwnerEvent?.id ?? failureState.openEvents[0]?.id,
+                claimExistingEvent: !failureState.activeOwnerEvent,
+              })
+            : null;
 
-      if (!isSystemTest) {
-        const machineStatusChanged =
-          effectiveMachineCondition !== lockedMachine.machineStatus;
+        if (!isSystemTest) {
+          const machineStatusChanged = effectiveMachineCondition !== lockedMachine.machineStatus;
 
-        await tx.machine.update({
-          where: { id: machineId },
-          data: {
-            andonStatus: "open",
-            currentCallId: createdCall.id,
-            ...(machineStatusChanged
-              ? {
-                  machineStatus: effectiveMachineCondition,
-                  lastStatusChangedAt: failureStartedAt ?? now,
-                }
-              : {}),
-          },
-        });
-      }
+          await tx.machine.update({
+            where: { id: machineId },
+            data: {
+              andonStatus: "open",
+              currentCallId: createdCall.id,
+              ...(machineStatusChanged
+                ? {
+                    machineStatus: effectiveMachineCondition,
+                    lastStatusChangedAt: failureStartedAt ?? now,
+                  }
+                : {}),
+            },
+          });
+        }
 
-      const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
-      return attachAssetSnapshots(
-        createdCallWithSessions,
-        machineSet,
-        machineSubset,
-      );
+        const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
+        return attachAssetSnapshots(createdCallWithSessions, machineSet, machineSubset);
       });
 
       return reply.status(201).send(call);
@@ -1030,10 +1038,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
 
-        const effectiveMachineCondition =
-          machine.machineStatus === "stopped"
-            ? "stopped"
-            : machineCondition ?? machine.machineStatus;
+        const failureState = await getOpenFailureState(tx, machineId);
+        const mustInheritActiveStop = Boolean(
+          machine.machineStatus === "stopped" && failureState.activeOwnerEvent,
+        );
+
+        const effectiveMachineCondition = mustInheritActiveStop
+          ? "stopped"
+          : (machineCondition ?? machine.machineStatus);
+
+        if (
+          machine.machineStatus === "stopped" &&
+          !failureState.activeOwnerEvent &&
+          effectiveMachineCondition === "running"
+        ) {
+          await closeOpenFailureEventsForRecovery(tx, failureState.openEvents, new Date());
+        }
 
         const configuredCategories = await tx.andonCategory.findMany({
           where: { id: { in: subtypes }, active: true },
@@ -1056,6 +1076,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
         const baseOpenedAt = new Date();
         const createdCalls = [];
+        let stopOwnerAssigned = Boolean(failureState.activeOwnerEvent);
 
         for (const [index, subtype] of subtypes.entries()) {
           const openedAt = new Date(baseOpenedAt.getTime() + index);
@@ -1087,7 +1108,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               callId: createdCall.id,
               startedAt: openedAt,
               productionMode: machine.productionMode,
+              existingEventId: failureState.activeOwnerEvent?.id ?? failureState.openEvents[0]?.id,
+              claimExistingEvent: !stopOwnerAssigned,
             });
+            stopOwnerAssigned = true;
           }
 
           createdCalls.push(await findCallWithSessions(tx, createdCall.id));
@@ -1096,8 +1120,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const referenceCall = createdCalls.at(-1);
         if (!referenceCall) throw new AndonCallValidationError("Nenhum chamado foi criado");
 
-        const machineStatusChanged =
-          effectiveMachineCondition !== machine.machineStatus;
+        const machineStatusChanged = effectiveMachineCondition !== machine.machineStatus;
 
         await tx.machine.update({
           where: { id: machineId },
@@ -1123,189 +1146,233 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     }
   });
 
-  app.patch<{ Params: { id: string }; Body: AttendAndonCallBody }>("/api/andon-calls/:id/attend", async (request, reply) => {
-    const body = request.body ?? {};
-    const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-    if (call.status !== "open") return badRequest(reply, "Chamado não está aberto");
+  app.patch<{ Params: { id: string }; Body: AttendAndonCallBody }>(
+    "/api/andon-calls/:id/attend",
+    async (request, reply) => {
+      const body = request.body ?? {};
+      const call = await prisma.andonCall.findUnique({
+        include: { machine: true },
+        where: { id: request.params.id },
+      });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if (call.status !== "open") return badRequest(reply, "Chamado não está aberto");
 
-    try {
+      try {
+        const now = new Date();
+        const updatedCall = await prisma.$transaction(async (tx) => {
+          const technicians = await resolveAttendanceTechnicians(tx, call, body);
+          const names = technicians.map((technician) => technician.name);
+          const technicianArea = technicians[0]?.technicalArea ?? call.technicianArea;
+
+          await tx.andonCall.update({
+            where: { id: call.id },
+            data: {
+              status: "in_progress",
+              attendedAt: call.attendedAt ?? now,
+              currentAttendanceStartedAt: now,
+              technicianName: names[0] ?? call.technicianName,
+              technicianNames: names.length
+                ? uniqueNames([...call.technicianNames, ...names])
+                : call.technicianNames,
+              technicianArea,
+              productionModeAtAttend: call.machine.productionMode,
+              machineStatusAtAttend: call.machine.machineStatus,
+            },
+          });
+
+          await createMissingActiveTechnicianSessions(tx, {
+            callId: call.id,
+            machineId: call.machineId,
+            technicians,
+            startedAt: now,
+            productionModeAtStart: call.machine.productionMode,
+            machineStatusAtStart: call.machine.machineStatus,
+          });
+
+          if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+          return findCallWithSessions(tx, call.id);
+        });
+
+        return updatedCall;
+      } catch (error) {
+        if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
+        throw error;
+      }
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>(
+    "/api/andon-calls/:id/cancel",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({
+        include: { technicianSessions: true },
+        where: { id: request.params.id },
+      });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if (call.status !== "open")
+        return badRequest(reply, "Não é possível cancelar chamado já atendido.");
+
+      const hasTechnician = Boolean(
+        call.technicianName || call.technicianNames.length || call.technicianArea,
+      );
+      const hasAttendance = Boolean(
+        call.attendedAt || call.currentAttendanceStartedAt || call.technicianSessions.length,
+      );
+      if (hasTechnician || hasAttendance) {
+        return badRequest(reply, "Não é possível cancelar chamado já atendido.");
+      }
+
       const now = new Date();
+      const reason = optionalString(request.body?.reason);
+      const cancelledBy = optionalString(request.body?.cancelledBy);
+      const cancellationNoteParts = [
+        reason ? `Motivo: ${reason}` : undefined,
+        cancelledBy ? `Cancelado por: ${cancelledBy}` : undefined,
+      ].filter((part): part is string => Boolean(part));
+      const cancellationNote = cancellationNoteParts.length
+        ? cancellationNoteParts.join(" | ")
+        : undefined;
+
       const updatedCall = await prisma.$transaction(async (tx) => {
-        const technicians = await resolveAttendanceTechnicians(tx, call, body, false);
-        const names = technicians.map((technician) => technician.name);
-        const technicianArea = technicians[0]?.technicalArea ?? call.technicianArea;
+        await lockMachineCallFlow(tx, call.machineId);
+        const currentMachine = await tx.machine.findUnique({
+          where: { id: call.machineId },
+          select: { machineStatus: true },
+        });
+        if (!currentMachine) {
+          throw new AndonCallValidationError("Máquina não encontrada");
+        }
+
+        const finalMachineStatus = call.isSystemTest
+          ? call.machineStatusAtOpen
+          : await resumeMachineWhenFinishingOwnedStop(tx, {
+              callId: call.id,
+              machineId: call.machineId,
+              currentMachineStatus: currentMachine.machineStatus,
+              finishedAt: now,
+            });
+        const machineStoppedMinutes = call.isSystemTest
+          ? 0
+          : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
 
         await tx.andonCall.update({
           where: { id: call.id },
           data: {
-            status: "in_progress",
-            attendedAt: call.attendedAt ?? now,
-            currentAttendanceStartedAt: now,
-            technicianName: names[0] ?? call.technicianName,
-            technicianNames: names.length
-              ? uniqueNames([...call.technicianNames, ...names])
-              : call.technicianNames,
-            technicianArea,
-            productionModeAtAttend: call.machine.productionMode,
-            machineStatusAtAttend: call.machine.machineStatus,
+            status: "cancelled",
+            finishedAt: now,
+            currentAttendanceStartedAt: null,
+            callWaitingMinutes: diffMinutes(call.openedAt, now),
+            attendanceMinutes: 0,
+            postMaintenanceMinutes: 0,
+            totalCallMinutes: diffMinutes(call.openedAt, now),
+            machineStoppedMinutes,
+            productionModeAtFinish: call.productionModeAtOpen,
+            machineStatusAtFinish: finalMachineStatus,
+            notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
           },
         });
 
-        await createMissingActiveTechnicianSessions(tx, {
-          callId: call.id,
+        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+
+        return findCallWithSessions(tx, call.id);
+      });
+
+      const [enrichedCall] = await enrichCallsWithAssetSnapshots(updatedCall ? [updatedCall] : []);
+      return reply.send(
+        enrichedCall ?? {
+          id: call.id,
           machineId: call.machineId,
-          technicians,
-          startedAt: now,
-          productionModeAtStart: call.machine.productionMode,
-          machineStatusAtStart: call.machine.machineStatus,
+          status: "cancelled",
+          reason,
+          cancelledBy,
+        },
+      );
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: AddTechnicianBody }>(
+    "/api/andon-calls/:id/technicians",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({
+        include: { machine: true },
+        where: { id: request.params.id },
+      });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if (call.status !== "in_progress")
+        return badRequest(reply, "Chamado não está em atendimento");
+
+      try {
+        const now = new Date();
+        const updatedCall = await prisma.$transaction(async (tx) => {
+          const technicians = await resolveAttendanceTechnicians(tx, call, request.body ?? {});
+          const names = technicians.map((technician) => technician.name);
+
+          await createMissingActiveTechnicianSessions(tx, {
+            callId: call.id,
+            machineId: call.machineId,
+            technicians,
+            startedAt: now,
+            productionModeAtStart: call.machine.productionMode,
+            machineStatusAtStart: call.machine.machineStatus,
+          });
+
+          await tx.andonCall.update({
+            where: { id: call.id },
+            data: {
+              technicianName: call.technicianName ?? names[0],
+              technicianNames: uniqueNames([...call.technicianNames, ...names]),
+              technicianArea: call.technicianArea ?? technicians[0]?.technicalArea,
+            },
+          });
+
+          return findCallWithSessions(tx, call.id);
         });
 
-        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+        return reply.status(201).send(updatedCall);
+      } catch (error) {
+        if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
+        throw error;
+      }
+    },
+  );
+
+  app.patch<{ Params: { id: string; technicianName: string }; Body: EndTechnicianBody }>(
+    "/api/andon-calls/:id/technicians/:technicianName/end",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({
+        include: { machine: true },
+        where: { id: request.params.id },
+      });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if ((await getAttendanceMode()) !== "name") {
+        return badRequest(reply, "Identifique o mantenedor por PIN ou tag");
+      }
+
+      const technicianName = decodeURIComponent(request.params.technicianName);
+      const activeSession = await prisma.technicianSession.findFirst({
+        where: { callId: call.id, technicianName, endedAt: null },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!activeSession) return notFound(reply, "Sessão ativa do manutentor não encontrada");
+
+      const now = new Date();
+      const updatedCall = await prisma.$transaction(async (tx) => {
+        await tx.technicianSession.update({
+          where: { id: activeSession.id },
+          data: {
+            endedAt: now,
+            endReason: optionalString(request.body?.reason) ?? "manual",
+            productionModeAtEnd: call.machine.productionMode,
+            machineStatusAtEnd: call.machine.machineStatus,
+          },
+        });
+
         return findCallWithSessions(tx, call.id);
       });
 
       return updatedCall;
-    } catch (error) {
-      if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
-      throw error;
-    }
-  });
-
-  app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>("/api/andon-calls/:id/cancel", async (request, reply) => {
-    const call = await prisma.andonCall.findUnique({
-      include: { technicianSessions: true, currentForMachine: true },
-      where: { id: request.params.id },
-    });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-    if (call.status !== "open") return badRequest(reply, "Não é possível cancelar chamado já atendido.");
-
-    const hasTechnician = Boolean(call.technicianName || call.technicianNames.length || call.technicianArea);
-    const hasAttendance = Boolean(call.attendedAt || call.currentAttendanceStartedAt || call.technicianSessions.length);
-    if (hasTechnician || hasAttendance) {
-      return badRequest(reply, "Não é possível cancelar chamado já atendido.");
-    }
-
-    const now = new Date();
-    const reason = optionalString(request.body?.reason);
-    const cancelledBy = optionalString(request.body?.cancelledBy);
-    const cancellationNoteParts = [
-      reason ? `Motivo: ${reason}` : undefined,
-      cancelledBy ? `Cancelado por: ${cancelledBy}` : undefined,
-    ].filter((part): part is string => Boolean(part));
-    const cancellationNote = cancellationNoteParts.length ? cancellationNoteParts.join(" | ") : undefined;
-
-    const updatedCall = await prisma.$transaction(async (tx) => {
-      const machineStoppedMinutes = call.isSystemTest
-        ? 0
-        : await calculateStoppedMinutesForPeriod(
-            tx,
-            call.machineId,
-            call.openedAt,
-            now,
-          );
-
-      await tx.andonCall.update({
-        where: { id: call.id },
-        data: {
-          status: "cancelled",
-          finishedAt: now,
-          currentAttendanceStartedAt: null,
-          callWaitingMinutes: diffMinutes(call.openedAt, now),
-          attendanceMinutes: 0,
-          postMaintenanceMinutes: 0,
-          totalCallMinutes: diffMinutes(call.openedAt, now),
-          machineStoppedMinutes,
-          productionModeAtFinish: call.productionModeAtOpen,
-          machineStatusAtFinish: call.machineStatusAtOpen,
-          notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
-        },
-      });
-
-      if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-
-      return findCallWithSessions(tx, call.id);
-    });
-
-    const [enrichedCall] = await enrichCallsWithAssetSnapshots(updatedCall ? [updatedCall] : []);
-    return reply.send(enrichedCall ?? { id: call.id, machineId: call.machineId, status: "cancelled", reason, cancelledBy });
-  });
-
-  app.post<{ Params: { id: string }; Body: AddTechnicianBody }>("/api/andon-calls/:id/technicians", async (request, reply) => {
-    const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-    if (call.status !== "in_progress") return badRequest(reply, "Chamado não está em atendimento");
-
-    try {
-      const now = new Date();
-      const updatedCall = await prisma.$transaction(async (tx) => {
-        const technicians = await resolveAttendanceTechnicians(
-          tx,
-          call,
-          request.body ?? {},
-          true,
-        );
-        const names = technicians.map((technician) => technician.name);
-
-        await createMissingActiveTechnicianSessions(tx, {
-          callId: call.id,
-          machineId: call.machineId,
-          technicians,
-          startedAt: now,
-          productionModeAtStart: call.machine.productionMode,
-          machineStatusAtStart: call.machine.machineStatus,
-        });
-
-        await tx.andonCall.update({
-          where: { id: call.id },
-          data: {
-            technicianName: call.technicianName ?? names[0],
-            technicianNames: uniqueNames([...call.technicianNames, ...names]),
-            technicianArea: call.technicianArea ?? technicians[0]?.technicalArea,
-          },
-        });
-
-        return findCallWithSessions(tx, call.id);
-      });
-
-      return reply.status(201).send(updatedCall);
-    } catch (error) {
-      if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
-      throw error;
-    }
-  });
-
-  app.patch<{ Params: { id: string; technicianName: string }; Body: EndTechnicianBody }>("/api/andon-calls/:id/technicians/:technicianName/end", async (request, reply) => {
-    const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-    if ((await getAttendanceMode()) !== "name") {
-      return badRequest(reply, "Identifique o mantenedor por PIN ou tag");
-    }
-
-    const technicianName = decodeURIComponent(request.params.technicianName);
-    const activeSession = await prisma.technicianSession.findFirst({
-      where: { callId: call.id, technicianName, endedAt: null },
-      orderBy: { startedAt: "desc" },
-    });
-    if (!activeSession) return notFound(reply, "Sessão ativa do manutentor não encontrada");
-
-    const now = new Date();
-    const updatedCall = await prisma.$transaction(async (tx) => {
-      await tx.technicianSession.update({
-        where: { id: activeSession.id },
-        data: {
-          endedAt: now,
-          endReason: optionalString(request.body?.reason) ?? "manual",
-          productionModeAtEnd: call.machine.productionMode,
-          machineStatusAtEnd: call.machine.machineStatus,
-        },
-      });
-
-      return findCallWithSessions(tx, call.id);
-    });
-
-    return updatedCall;
-  });
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: EndTechnicianBody }>(
     "/api/andon-calls/:id/technicians/end",
@@ -1365,104 +1432,117 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     },
   );
 
-  app.patch<{ Params: { id: string }; Body: NotesBody }>("/api/andon-calls/:id/finish-maintenance", async (request, reply) => {
-    const call = await prisma.andonCall.findUnique({ include: { machine: true }, where: { id: request.params.id } });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-
-    const now = new Date();
-    const updatedCall = await prisma.$transaction(async (tx) => {
-      await tx.andonCall.update({
-        where: { id: call.id },
-        data: {
-          status: "post_maintenance",
-          currentAttendanceStartedAt: null,
-          maintenanceCompletedAt: now,
-          attendanceMinutes: (call.attendanceMinutes ?? 0) + diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
-          notes: appendNote(call.notes, optionalString(request.body?.notes), "Conclusão da manutenção"),
-        },
+  app.patch<{ Params: { id: string }; Body: NotesBody }>(
+    "/api/andon-calls/:id/finish-maintenance",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({
+        include: { machine: true },
+        where: { id: request.params.id },
       });
-      if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-      return findCallWithSessions(tx, call.id);
-    });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if (call.category !== "maintenance") {
+        return badRequest(reply, "Apenas chamados de manutenção podem entrar em acompanhamento");
+      }
+      if (call.status !== "in_progress") {
+        return badRequest(reply, "Chamado não está em atendimento");
+      }
 
-    return updatedCall;
-  });
-
-  app.patch<{ Params: { id: string }; Body: ReturnToMaintenanceBody }>("/api/andon-calls/:id/return-to-maintenance", async (request, reply) => {
-    const call = await prisma.andonCall.findUnique({ where: { id: request.params.id } });
-    if (!call) return notFound(reply, "Chamado não encontrado");
-
-    const now = new Date();
-    const updatedCall = await prisma.$transaction(async (tx) => {
-      await tx.andonCall.update({
-        where: { id: call.id },
-        data: {
-          status: "in_progress",
-          currentAttendanceStartedAt: now,
-          maintenanceCompletedAt: null,
-          postMaintenanceMinutes: (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
-          maintenanceReturnCount: { increment: 1 },
-          notes: appendNote(call.notes, optionalString(request.body?.reason), "Retorno à manutenção"),
-        },
+      const now = new Date();
+      const updatedCall = await prisma.$transaction(async (tx) => {
+        await tx.andonCall.update({
+          where: { id: call.id },
+          data: {
+            status: "post_maintenance",
+            currentAttendanceStartedAt: null,
+            maintenanceCompletedAt: now,
+            attendanceMinutes:
+              (call.attendanceMinutes ?? 0) +
+              diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
+            notes: appendNote(
+              call.notes,
+              optionalString(request.body?.notes),
+              "Conclusão da manutenção",
+            ),
+          },
+        });
+        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+        return findCallWithSessions(tx, call.id);
       });
-      if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-      return findCallWithSessions(tx, call.id);
-    });
 
-    return updatedCall;
-  });
+      return updatedCall;
+    },
+  );
 
-  app.patch<{ Params: { id: string }; Body: FinishAndonCallBody }>("/api/andon-calls/:id/finish", async (request, reply) => {
-    const body = request.body ?? {};
-    const requestedMachineStatus = optionalString(body.machineStatus);
-    const confirmedMachineSetId = optionalString(
-      body.confirmedMachineSetId,
-    );
-    const confirmedMachineSubsetId = optionalString(
-      body.confirmedMachineSubsetId,
-    );
-    const assetChangeReason = optionalString(
-      body.assetChangeReason,
-    );
+  app.patch<{ Params: { id: string }; Body: ReturnToMaintenanceBody }>(
+    "/api/andon-calls/:id/return-to-maintenance",
+    async (request, reply) => {
+      const call = await prisma.andonCall.findUnique({ where: { id: request.params.id } });
+      if (!call) return notFound(reply, "Chamado não encontrado");
+      if (call.category !== "maintenance") {
+        return badRequest(reply, "Apenas chamados de manutenção podem voltar ao atendimento");
+      }
+      if (call.status !== "post_maintenance") {
+        return badRequest(reply, "Chamado não está em acompanhamento");
+      }
 
-    if (
-      requestedMachineStatus &&
-      !MACHINE_STATUSES.has(requestedMachineStatus)
-    ) {
-      return badRequest(
-        reply,
-        "Status operacional inválido",
-      );
-    }
+      const now = new Date();
+      const updatedCall = await prisma.$transaction(async (tx) => {
+        await tx.andonCall.update({
+          where: { id: call.id },
+          data: {
+            status: "in_progress",
+            currentAttendanceStartedAt: now,
+            maintenanceCompletedAt: null,
+            postMaintenanceMinutes:
+              (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
+            maintenanceReturnCount: { increment: 1 },
+            notes: appendNote(
+              call.notes,
+              optionalString(request.body?.reason),
+              "Retorno à manutenção",
+            ),
+          },
+        });
+        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+        return findCallWithSessions(tx, call.id);
+      });
 
-    if (
-      confirmedMachineSubsetId &&
-      !confirmedMachineSetId
-    ) {
-      return badRequest(
-        reply,
-        "confirmedMachineSetId é obrigatório quando confirmedMachineSubsetId for informado",
-      );
-    }
+      return updatedCall;
+    },
+  );
 
-    try {
-      const updatedCall = await prisma.$transaction(
-        async (tx) => {
+  app.patch<{ Params: { id: string }; Body: FinishAndonCallBody }>(
+    "/api/andon-calls/:id/finish",
+    async (request, reply) => {
+      const body = request.body ?? {};
+      const requestedMachineStatus = optionalString(body.machineStatus);
+      const confirmedMachineSetId = optionalString(body.confirmedMachineSetId);
+      const confirmedMachineSubsetId = optionalString(body.confirmedMachineSubsetId);
+      const assetChangeReason = optionalString(body.assetChangeReason);
+
+      if (requestedMachineStatus && !MACHINE_STATUSES.has(requestedMachineStatus)) {
+        return badRequest(reply, "Status operacional inválido");
+      }
+
+      if (confirmedMachineSubsetId && !confirmedMachineSetId) {
+        return badRequest(
+          reply,
+          "confirmedMachineSetId é obrigatório quando confirmedMachineSubsetId for informado",
+        );
+      }
+
+      try {
+        const updatedCall = await prisma.$transaction(async (tx) => {
           const callReference = await tx.andonCall.findUnique({
             where: { id: request.params.id },
             select: { machineId: true },
           });
 
           if (!callReference) {
-            throw new FinishCallNotFoundError(
-              "Chamado não encontrado",
-            );
+            throw new FinishCallNotFoundError("Chamado não encontrado");
           }
 
-          await lockMachineCallFlow(
-            tx,
-            callReference.machineId,
-          );
+          await lockMachineCallFlow(tx, callReference.machineId);
 
           const call = await tx.andonCall.findUnique({
             include: {
@@ -1479,44 +1559,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           });
 
           if (!call) {
-            throw new FinishCallNotFoundError(
-              "Chamado não encontrado",
-            );
+            throw new FinishCallNotFoundError("Chamado não encontrado");
           }
 
-          if (
-            call.status === "finished" ||
-            call.status === "cancelled"
-          ) {
-            throw new FinishCallValidationError(
-              "Chamado já está encerrado",
-            );
+          if (call.status === "finished" || call.status === "cancelled") {
+            throw new FinishCallValidationError("Chamado já está encerrado");
           }
 
-          const requiresAssetConfirmation =
-            call.category === "maintenance";
+          const requiresAssetConfirmation = call.category === "maintenance";
 
-          const hasActiveSets =
-            requiresAssetConfirmation
-              ? await machineHasActiveSets(
-                  tx,
-                  call.machineId,
-                )
-              : false;
+          const hasActiveSets = requiresAssetConfirmation
+            ? await machineHasActiveSets(tx, call.machineId)
+            : false;
 
-          if (
-            requiresAssetConfirmation &&
-            hasActiveSets &&
-            !confirmedMachineSetId
-          ) {
+          if (requiresAssetConfirmation && hasActiveSets && !confirmedMachineSetId) {
             throw new FinishCallValidationError(
               "O conjunto confirmado é obrigatório para esta máquina",
             );
           }
 
           const confirmedMachineSet =
-            requiresAssetConfirmation &&
-            confirmedMachineSetId
+            requiresAssetConfirmation && confirmedMachineSetId
               ? await findMachineSetForConfirmation(
                   tx,
                   call.machineId,
@@ -1525,20 +1588,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 )
               : null;
 
-          if (
-            requiresAssetConfirmation &&
-            confirmedMachineSetId &&
-            !confirmedMachineSet
-          ) {
+          if (requiresAssetConfirmation && confirmedMachineSetId && !confirmedMachineSet) {
             throw new FinishCallValidationError(
               "Conjunto confirmado inválido, inativo ou não pertence à máquina",
             );
           }
 
           const confirmedMachineSubset =
-            requiresAssetConfirmation &&
-            confirmedMachineSetId &&
-            confirmedMachineSubsetId
+            requiresAssetConfirmation && confirmedMachineSetId && confirmedMachineSubsetId
               ? await findMachineSubsetForConfirmation(
                   tx,
                   confirmedMachineSetId,
@@ -1547,11 +1604,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 )
               : null;
 
-          if (
-            requiresAssetConfirmation &&
-            confirmedMachineSubsetId &&
-            !confirmedMachineSubset
-          ) {
+          if (requiresAssetConfirmation && confirmedMachineSubsetId && !confirmedMachineSubset) {
             throw new FinishCallValidationError(
               "Subconjunto confirmado inválido, inativo ou incompatível com o conjunto",
             );
@@ -1580,55 +1633,38 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
 
           const preserveLegacyOpeningSnapshot =
-            requiresAssetConfirmation &&
-            !hasActiveSets &&
-            !confirmedMachineSetId;
+            requiresAssetConfirmation && !hasActiveSets && !confirmedMachineSetId;
 
-          const finalMachineSetId =
-            confirmedMachineSet?.id ?? null;
+          const finalMachineSetId = confirmedMachineSet?.id ?? null;
 
           const finalMachineSetCodeSnapshot =
             confirmedMachineSet?.code ??
-            (preserveLegacyOpeningSnapshot
-              ? call.machineSetCodeSnapshot
-              : null);
+            (preserveLegacyOpeningSnapshot ? call.machineSetCodeSnapshot : null);
 
           const finalMachineSetNameSnapshot =
             confirmedMachineSet?.name ??
-            (preserveLegacyOpeningSnapshot
-              ? call.machineSetNameSnapshot
-              : null);
+            (preserveLegacyOpeningSnapshot ? call.machineSetNameSnapshot : null);
 
           const finalMachineSetTypeSnapshot =
             confirmedMachineSet?.type ??
-            (preserveLegacyOpeningSnapshot
-              ? call.machineSetTypeSnapshot
-              : null);
+            (preserveLegacyOpeningSnapshot ? call.machineSetTypeSnapshot : null);
 
           const preserveLegacyOpeningSubsetSnapshot =
-            preserveLegacyOpeningSnapshot &&
-            !confirmedMachineSubsetId;
+            preserveLegacyOpeningSnapshot && !confirmedMachineSubsetId;
 
-          const finalMachineSubsetId =
-            confirmedMachineSubset?.id ?? null;
+          const finalMachineSubsetId = confirmedMachineSubset?.id ?? null;
 
           const finalMachineSubsetCodeSnapshot =
             confirmedMachineSubset?.code ??
-            (preserveLegacyOpeningSubsetSnapshot
-              ? call.machineSubsetCodeSnapshot
-              : null);
+            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetCodeSnapshot : null);
 
           const finalMachineSubsetNameSnapshot =
             confirmedMachineSubset?.name ??
-            (preserveLegacyOpeningSubsetSnapshot
-              ? call.machineSubsetNameSnapshot
-              : null);
+            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetNameSnapshot : null);
 
           const finalMachineSubsetTypeSnapshot =
             confirmedMachineSubset?.type ??
-            (preserveLegacyOpeningSubsetSnapshot
-              ? call.machineSubsetTypeSnapshot
-              : null);
+            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetTypeSnapshot : null);
 
           const openingSetKey = assetSnapshotKey(
             call.machineSetId,
@@ -1659,50 +1695,36 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           );
 
           const openingLocationExists = Boolean(
-            requiresAssetConfirmation &&
-              (openingSetKey || openingSubsetKey),
+            requiresAssetConfirmation && (openingSetKey || openingSubsetKey),
           );
           const locationChanged = Boolean(
             openingLocationExists &&
-              (openingSetKey !== confirmedSetKey || openingSubsetKey !== confirmedSubsetKey),
+            (openingSetKey !== confirmedSetKey || openingSubsetKey !== confirmedSubsetKey),
           );
 
-          const assetConfirmedBy =
-            requiresAssetConfirmation
-              ? resolveAutomaticAssetConfirmedBy(
-                  call,
-                )
-              : null;
+          const assetConfirmedBy = requiresAssetConfirmation
+            ? resolveAutomaticAssetConfirmedBy(call)
+            : null;
 
-          const normalizedAssetChangeReason =
-            resolveAssetChangeReason(
-              locationChanged,
-              assetChangeReason,
-            );
+          const normalizedAssetChangeReason = resolveAssetChangeReason(
+            locationChanged,
+            assetChangeReason,
+          );
 
           const now = new Date();
 
           const finalMachineStatus = call.isSystemTest
             ? call.machine.machineStatus
-            : await resumeMachineWhenFinishingOwnedStop(
-                tx,
-                {
-                  callId: call.id,
-                  machineId: call.machineId,
-                  currentMachineStatus:
-                    call.machine.machineStatus,
-                  finishedAt: now,
-                },
-              );
+            : await resumeMachineWhenFinishingOwnedStop(tx, {
+                callId: call.id,
+                machineId: call.machineId,
+                currentMachineStatus: call.machine.machineStatus,
+                finishedAt: now,
+              });
 
           const machineStoppedMinutes = call.isSystemTest
             ? 0
-            : await calculateStoppedMinutesForPeriod(
-                tx,
-                call.machineId,
-                call.openedAt,
-                now,
-              );
+            : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
 
           await tx.andonCall.update({
             where: {
@@ -1712,69 +1734,37 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: appendNote(
-                call.notes,
-                optionalString(body.notes),
-                "Finalização",
-              ),
-              callWaitingMinutes: diffMinutes(
-                call.openedAt,
-                call.attendedAt ?? now,
-              ),
+              notes: appendNote(call.notes, optionalString(body.notes), "Finalização"),
+              callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +
                 (call.status === "in_progress"
-                  ? diffMinutes(
-                      call.currentAttendanceStartedAt ??
-                        call.attendedAt,
-                      now,
-                    )
+                  ? diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
                   : 0),
               postMaintenanceMinutes:
                 (call.postMaintenanceMinutes ?? 0) +
                 (call.status === "post_maintenance"
-                  ? diffMinutes(
-                      call.maintenanceCompletedAt,
-                      now,
-                    )
+                  ? diffMinutes(call.maintenanceCompletedAt, now)
                   : 0),
-              totalCallMinutes: diffMinutes(
-                call.openedAt,
-                now,
-              ),
+              totalCallMinutes: diffMinutes(call.openedAt, now),
               machineStoppedMinutes,
-              productionModeAtFinish:
-                call.machine.productionMode,
-              machineStatusAtFinish:
-                finalMachineStatus,
+              productionModeAtFinish: call.machine.productionMode,
+              machineStatusAtFinish: finalMachineStatus,
 
-              confirmedMachineSetId:
-                finalMachineSetId,
-              confirmedMachineSetCodeSnapshot:
-                finalMachineSetCodeSnapshot,
-              confirmedMachineSetNameSnapshot:
-                finalMachineSetNameSnapshot,
-              confirmedMachineSetTypeSnapshot:
-                finalMachineSetTypeSnapshot,
+              confirmedMachineSetId: finalMachineSetId,
+              confirmedMachineSetCodeSnapshot: finalMachineSetCodeSnapshot,
+              confirmedMachineSetNameSnapshot: finalMachineSetNameSnapshot,
+              confirmedMachineSetTypeSnapshot: finalMachineSetTypeSnapshot,
 
-              confirmedMachineSubsetId:
-                finalMachineSubsetId,
-              confirmedMachineSubsetCodeSnapshot:
-                finalMachineSubsetCodeSnapshot,
-              confirmedMachineSubsetNameSnapshot:
-                finalMachineSubsetNameSnapshot,
-              confirmedMachineSubsetTypeSnapshot:
-                finalMachineSubsetTypeSnapshot,
+              confirmedMachineSubsetId: finalMachineSubsetId,
+              confirmedMachineSubsetCodeSnapshot: finalMachineSubsetCodeSnapshot,
+              confirmedMachineSubsetNameSnapshot: finalMachineSubsetNameSnapshot,
+              confirmedMachineSubsetTypeSnapshot: finalMachineSubsetTypeSnapshot,
 
-              assetConfirmedAt:
-                requiresAssetConfirmation
-                  ? now
-                  : null,
+              assetConfirmedAt: requiresAssetConfirmation ? now : null,
               assetConfirmedBy,
-              assetLocationChanged:
-                locationChanged,
-              assetChangeReason:
-                normalizedAssetChangeReason,
+              assetLocationChanged: locationChanged,
+              assetChangeReason: normalizedAssetChangeReason,
             },
           });
 
@@ -1788,10 +1778,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             data: {
               endedAt: now,
               endReason: "final_call",
-              productionModeAtEnd:
-                call.machine.productionMode,
-              machineStatusAtEnd:
-                finalMachineStatus,
+              productionModeAtEnd: call.machine.productionMode,
+              machineStatusAtEnd: finalMachineStatus,
             },
           });
 
@@ -1803,39 +1791,26 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             data: {
               endedAt: now,
               endReason: "final_call",
-              productionModeAtEnd:
-                call.machine.productionMode,
-              machineStatusAtEnd:
-                finalMachineStatus,
+              productionModeAtEnd: call.machine.productionMode,
+              machineStatusAtEnd: finalMachineStatus,
             },
           });
 
-          return findCallWithSessions(
-            tx,
-            call.id,
-          );
-        },
-      );
+          return findCallWithSessions(tx, call.id);
+        });
 
-      return updatedCall;
-    } catch (error) {
-      if (error instanceof FinishCallNotFoundError) {
-        return notFound(
-          reply,
-          error.message,
-        );
+        return updatedCall;
+      } catch (error) {
+        if (error instanceof FinishCallNotFoundError) {
+          return notFound(reply, error.message);
+        }
+
+        if (error instanceof FinishCallValidationError) {
+          return badRequest(reply, error.message);
+        }
+
+        throw error;
       }
-
-      if (
-        error instanceof FinishCallValidationError
-      ) {
-        return badRequest(
-          reply,
-          error.message,
-        );
-      }
-
-      throw error;
-    }
-  });
+    },
+  );
 }

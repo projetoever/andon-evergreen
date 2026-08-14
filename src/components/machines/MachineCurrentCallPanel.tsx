@@ -17,9 +17,6 @@ import {
   getCriticalityLabel,
   getMachineConditionLabel,
 } from "@/utils/statusUtils";
-import {
-  getEffectiveAssetLocationLabel,
-} from "@/utils/assetLocationUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
 
@@ -70,7 +67,9 @@ export function MachineCurrentCallPanel({
             className,
           )}
         >
-          <div className="text-muted-foreground"><Inbox className="h-9 w-9" /></div>
+          <div className="text-muted-foreground">
+            <Inbox className="h-9 w-9" />
+          </div>
           <h3 className="text-lg font-semibold text-foreground">Sem chamado ativo</h3>
           <p className="max-w-md text-sm text-muted-foreground">
             Selecione um dos setores abaixo para registrar um novo chamado.
@@ -91,23 +90,15 @@ export function MachineCurrentCallPanel({
   const waiting = calculateCallWaitingMinutes(call);
   const attending = calculateAttendanceMinutes(call);
   const postMaintenance =
-    call.status === "finished" ? call.postMaintenanceMinutes : calculatePostMaintenanceMinutes(call);
+    call.status === "finished"
+      ? call.postMaintenanceMinutes
+      : calculatePostMaintenanceMinutes(call);
   const total = calculateTotalCallMinutes(call);
-  const displayedMachineCondition =
-    currentMachineStatus ??
-    call.machineCondition;
+  const displayedMachineCondition = currentMachineStatus ?? call.machineCondition;
 
   const showOpeningCondition = Boolean(
-    currentMachineStatus &&
-      currentMachineStatus !==
-        call.machineCondition,
+    currentMachineStatus && currentMachineStatus !== call.machineCondition,
   );
-
-  const assetLocation =
-    getEffectiveAssetLocationLabel(
-      call,
-      "Sem conjunto informado",
-    );
 
   return (
     <div
@@ -139,18 +130,6 @@ export function MachineCurrentCallPanel({
           </dd>
         </div>
 
-        <div className="col-span-2 lg:col-span-3">
-          <dt className="text-xs uppercase text-muted-foreground">
-            Localização do chamado
-          </dt>
-
-          <dd
-            className="truncate text-base font-bold leading-tight text-primary md:text-lg"
-            title={assetLocation}
-          >
-            {assetLocation}
-          </dd>
-        </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
           <dd
@@ -164,19 +143,21 @@ export function MachineCurrentCallPanel({
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Aberto em</dt>
-          <dd className="font-mono text-sm leading-tight text-foreground">{formatDateTime(call.openedAt)}</dd>
+          <dd className="font-mono text-sm leading-tight text-foreground">
+            {formatDateTime(call.openedAt)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Atendido em</dt>
-          <dd className="font-mono text-sm leading-tight text-foreground">{formatDateTime(call.attendedAt)}</dd>
+          <dd className="font-mono text-sm leading-tight text-foreground">
+            {formatDateTime(call.attendedAt)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt>
-          <dd className="font-mono text-sm leading-tight text-foreground">{formatDateTime(call.maintenanceCompletedAt)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Finalizado em</dt>
-          <dd className="font-mono text-sm leading-tight text-foreground">{formatDateTime(call.finishedAt)}</dd>
+          <dd className="font-mono text-sm leading-tight text-foreground">
+            {formatDateTime(call.maintenanceCompletedAt)}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Condição atual da máquina</dt>
@@ -194,8 +175,16 @@ export function MachineCurrentCallPanel({
         )}
         <div className="col-span-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/15 p-2 lg:col-span-3 xl:grid-cols-4">
           <TimerMetric label="Aguardando" value={formatDurationMinutes(waiting)} tone="warning" />
-          <TimerMetric label="Em atendimento" value={formatDurationMinutes(attending)} tone="info" />
-          <TimerMetric label="Acompanhamento" value={formatDurationMinutes(postMaintenance)} tone="info" />
+          <TimerMetric
+            label="Em atendimento"
+            value={formatDurationMinutes(attending)}
+            tone="info"
+          />
+          <TimerMetric
+            label="Acompanhamento"
+            value={formatDurationMinutes(postMaintenance)}
+            tone="info"
+          />
           <TimerMetric label="Total" value={formatDurationMinutes(total)} />
         </div>
         {call.notes && (

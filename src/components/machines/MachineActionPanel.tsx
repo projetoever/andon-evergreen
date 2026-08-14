@@ -20,6 +20,7 @@ interface MachineActionPanelProps {
   currentCall: AndonCall | null;
   categories: AndonCategoryConfig[];
   activeSubtypes: Set<CallSubtype>;
+  hasActiveStopOwner: boolean;
   onOpenSubtype: (subtype: CallSubtype) => void;
   onAttend: () => void;
   onCancelCall: () => void;
@@ -43,6 +44,7 @@ export function MachineActionPanel({
   currentCall,
   categories,
   activeSubtypes,
+  hasActiveStopOwner,
   onOpenSubtype,
   onAttend,
   onCancelCall,
@@ -52,11 +54,24 @@ export function MachineActionPanel({
   screenLocked = false,
 }: MachineActionPanelProps) {
   const hasActiveCall = activeSubtypes.size > 0;
+  const layoutStage = !hasActiveCall ? "idle" : currentCall?.status === "open" ? "open" : "busy";
+  const sectorActionClass =
+    layoutStage === "idle"
+      ? "min-h-[clamp(4rem,7.5vh,5.75rem)] text-base lg:text-lg"
+      : layoutStage === "open"
+        ? "min-h-[clamp(3.5rem,6vh,4.5rem)] text-base"
+        : "min-h-12 text-sm";
+  const workflowActionClass =
+    layoutStage === "open"
+      ? "min-h-[clamp(3rem,5vh,3.75rem)] px-2 text-xs md:text-sm"
+      : "min-h-11 px-2 text-xs";
   const secondaryActionClass = cn(
     "inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 font-bold uppercase tracking-wide text-foreground shadow-sm transition hover:bg-accent",
-    hasActiveCall
-      ? "min-h-9 text-[11px] md:text-xs"
-      : "min-h-[clamp(3rem,5.5vh,4.25rem)] text-xs md:text-sm",
+    layoutStage === "idle"
+      ? "min-h-[clamp(4rem,7vh,5.25rem)] text-sm"
+      : layoutStage === "open"
+        ? "min-h-[clamp(3.25rem,5.5vh,4rem)] text-xs md:text-sm"
+        : "min-h-12 text-xs md:text-sm",
   );
 
   return (
@@ -66,7 +81,7 @@ export function MachineActionPanel({
           Abrir novo chamado
         </h3>
         <p className="text-xs text-muted-foreground">
-          {machine.machineStatus === "stopped"
+          {machine.machineStatus === "stopped" && hasActiveStopOwner
             ? "Máquina parada: toque no setor para abrir diretamente. Setores ativos ficam bloqueados."
             : "Toque no setor para informar a condição e abrir. Setores ativos ficam bloqueados."}
         </p>
@@ -86,7 +101,7 @@ export function MachineActionPanel({
               onClick={() => onOpenSubtype(category.id)}
               className={cn(
                 "rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60",
-                hasActiveCall ? "min-h-11 text-sm" : "min-h-[clamp(3.5rem,7vh,5.25rem)] text-base",
+                sectorActionClass,
               )}
               style={
                 active
@@ -110,7 +125,7 @@ export function MachineActionPanel({
       {currentCall && (
         <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2 lg:grid-cols-3">
           {currentCall.status === "open" && (
-            <BigButton tone="info" size="md" className="min-h-9 px-2 text-xs" onClick={onAttend}>
+            <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> Atender selecionado
             </BigButton>
           )}
@@ -120,7 +135,7 @@ export function MachineActionPanel({
               <BigButton
                 tone="danger"
                 size="md"
-                className="min-h-9 px-2 text-xs"
+                className={workflowActionClass}
                 onClick={onCancelCall}
               >
                 <XCircle className="h-4 w-4" /> Cancelar selecionado
@@ -130,14 +145,14 @@ export function MachineActionPanel({
             <BigButton
               tone="info"
               size="md"
-              className="min-h-9 px-2 text-xs"
+              className={workflowActionClass}
               onClick={onCompleteMaintenance}
             >
               <CheckCheck className="h-4 w-4" /> Concluir manutenção
             </BigButton>
           )}
           {currentCall.status === "in_progress" && currentCall.category === "production" && (
-            <BigButton tone="success" size="md" className="min-h-9 px-2 text-xs" onClick={onFinish}>
+            <BigButton tone="success" size="md" className={workflowActionClass} onClick={onFinish}>
               <CheckCheck className="h-4 w-4" /> Finalizar
             </BigButton>
           )}
@@ -145,14 +160,14 @@ export function MachineActionPanel({
             <BigButton
               tone="info"
               size="md"
-              className="min-h-9 px-2 text-xs"
+              className={workflowActionClass}
               onClick={onReturnToMaintenance}
             >
               <RotateCcw className="h-4 w-4" /> Voltar à manutenção
             </BigButton>
           )}
           {currentCall.status === "post_maintenance" && (
-            <BigButton tone="success" size="md" className="min-h-9 px-2 text-xs" onClick={onFinish}>
+            <BigButton tone="success" size="md" className={workflowActionClass} onClick={onFinish}>
               <CheckCheck className="h-4 w-4" /> Finalizar chamado
             </BigButton>
           )}

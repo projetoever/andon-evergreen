@@ -125,22 +125,18 @@ function mapProductionEvent(event: ApiProductionEvent): MachineProductionEvent {
 function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) {
   const openedAt = toIso(call.openedAt, nowIso);
   const attendedAt = call.attendedAt ? toIso(call.attendedAt) : null;
-  const maintenanceCompletedAt = call.maintenanceCompletedAt ? toIso(call.maintenanceCompletedAt) : null;
   const finishedAt = call.finishedAt ? toIso(call.finishedAt) : null;
   const activeEnd = finishedAt ?? nowIso;
-  const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? nowIso : null);
-  const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? nowIso : null);
   const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
   const hasPersistedStoppedDuration =
     finishedAt !== null && typeof call.machineStoppedMinutes === "number";
 
   return {
     callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, nowIso),
-    attendanceMinutes: attendedAt && attendanceEnd ? diffMinutes(attendedAt, attendanceEnd) : (call.attendanceMinutes ?? 0),
-    postMaintenanceMinutes:
-      maintenanceCompletedAt && postMaintenanceEnd
-        ? diffMinutes(maintenanceCompletedAt, postMaintenanceEnd)
-        : (call.postMaintenanceMinutes ?? 0),
+    // These fields contain only completed cycles. The live segment is added by durationUtils,
+    // keeping repeated maintenance/follow-up cycles cumulative instead of replacing the total.
+    attendanceMinutes: call.attendanceMinutes ?? 0,
+    postMaintenanceMinutes: call.postMaintenanceMinutes ?? 0,
     totalCallMinutes: diffMinutes(openedAt, activeEnd),
     machineStoppedMinutes: hasPersistedStoppedDuration
       ? call.machineStoppedMinutes ?? 0
