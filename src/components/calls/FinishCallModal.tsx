@@ -167,6 +167,9 @@ export function FinishCallModal({
     ? requiresMaintenanceTechnician(call)
     : false;
 
+  const requiresAssetConfirmation =
+    call?.category === "maintenance";
+
   const activeSessionNames =
     useMemo(
       () =>
@@ -249,7 +252,7 @@ export function FinishCallModal({
   ]);
 
   useEffect(() => {
-    if (!open || !call) {
+    if (!open || !call || !requiresAssetConfirmation) {
       setMachineSets([]);
       setIsLoadingAssets(false);
       setAssetLoadFailed(false);
@@ -296,10 +299,11 @@ export function FinishCallModal({
     open,
     callId,
     call?.machineId,
+    requiresAssetConfirmation,
   ]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !requiresAssetConfirmation) {
       setAllowWholeSetCalls(false);
       setIsLoadingSystemSettings(false);
       setSystemSettingsLoadFailed(false);
@@ -340,7 +344,7 @@ export function FinishCallModal({
     return () => {
       current = false;
     };
-  }, [open]);
+  }, [open, requiresAssetConfirmation]);
 
   const selectableMachineSets =
     useMemo(
@@ -413,7 +417,8 @@ export function FinishCallModal({
     );
 
   const hasValidAssetSelection = Boolean(
-    (!hasActiveSets && !selectedMachineSet) ||
+    !requiresAssetConfirmation ||
+      (!hasActiveSets && !selectedMachineSet) ||
       (selectedMachineSet &&
         (selectableMachineSubsets.length === 0 ||
           selectedMachineSubset ||
@@ -423,6 +428,7 @@ export function FinishCallModal({
   );
 
   const preserveLegacySetSnapshot =
+    requiresAssetConfirmation &&
     !hasActiveSets &&
     !selectedMachineSet;
 
@@ -484,7 +490,8 @@ export function FinishCallModal({
       : null);
 
   const openingLocationExists = Boolean(
-    call &&
+    requiresAssetConfirmation &&
+      call &&
       (assetKey(
         call.machineSetId,
         call.machineSetCodeSnapshot,
@@ -532,8 +539,9 @@ export function FinishCallModal({
 
   const canFinish = Boolean(
     call &&
-      !isLoadingAssets &&
-      !assetLoadFailed &&
+      (!requiresAssetConfirmation ||
+        (!isLoadingAssets &&
+          !assetLoadFailed)) &&
       !isSubmitting &&
       hasValidAssetSelection &&
       (
@@ -717,7 +725,14 @@ export function FinishCallModal({
         }
       }}
     >
-      <DialogContent className="grid max-h-[92vh] w-[calc(100%-1rem)] max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0">
+      <DialogContent
+        className={cn(
+          "grid max-h-[92vh] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0",
+          requiresAssetConfirmation
+            ? "max-w-5xl"
+            : "max-w-2xl",
+        )}
+      >
         <DialogHeader className="border-b border-border px-4 py-4 pr-12 sm:px-5">
           <DialogTitle className="text-2xl sm:text-3xl">
             Finalizar chamado
@@ -753,6 +768,7 @@ export function FinishCallModal({
             </section>
           )}
 
+          {requiresAssetConfirmation && (
           <section className="rounded-2xl border border-border bg-muted/10 p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -979,6 +995,7 @@ export function FinishCallModal({
               A localização e os responsáveis serão registrados automaticamente ao finalizar.
             </p>
           </section>
+          )}
 
           <section>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -989,7 +1006,11 @@ export function FinishCallModal({
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={2}
-              placeholder="Descreva o atendimento, peças trocadas, ajustes ou orientações."
+              placeholder={
+                requiresAssetConfirmation
+                  ? "Descreva o atendimento, peças trocadas, ajustes ou orientações."
+                  : "Registre uma observação sobre o atendimento, se necessário."
+              }
             />
           </section>
         </div>
@@ -1001,9 +1022,15 @@ export function FinishCallModal({
             </p>
             <p
               className="truncate text-sm font-bold text-foreground"
-              title={`${technicianSummary} · ${confirmedLocationLabel}`}
+              title={
+                requiresAssetConfirmation
+                  ? `${technicianSummary} · ${confirmedLocationLabel}`
+                  : "Produção / apoio · observação opcional"
+              }
             >
-              {technicianSummary} · {confirmedLocationLabel}
+              {requiresAssetConfirmation
+                ? `${technicianSummary} · ${confirmedLocationLabel}`
+                : "Produção / apoio · observação opcional"}
             </p>
           </div>
 

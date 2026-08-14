@@ -366,8 +366,16 @@ export function calculateOperationalImpactBreakdown(params: OperationalImpactPar
 
 export function formatBreakdownDuration(seconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(safeSeconds / 60);
+  const days = Math.floor(safeSeconds / 86400);
+  const hours = Math.floor((safeSeconds % 86400) / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
   const secondsRemainder = safeSeconds % 60;
+  if (days > 0) {
+    return `${days} d ${hours.toString().padStart(2, "0")} h ${minutes
+      .toString()
+      .padStart(2, "0")} min`;
+  }
+  if (hours > 0) return `${hours} h ${minutes.toString().padStart(2, "0")} min`;
   if (minutes === 0) return `${secondsRemainder} s`;
   return `${minutes} min ${secondsRemainder.toString().padStart(2, "0")} s`;
 }

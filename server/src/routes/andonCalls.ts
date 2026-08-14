@@ -180,7 +180,6 @@ async function syncMachineOperationalState(tx: Prisma.TransactionClient, machine
     data: {
       currentCallId: referenceCall?.id ?? null,
       andonStatus: referenceCall?.status ?? "normal",
-      lastStatusChangedAt: new Date(),
     },
   });
 }
@@ -256,6 +255,111 @@ function diffMinutes(start?: Date | null, end = new Date()) {
   }
 
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+}
+
+function diffSeconds(start: Date, end = new Date()) {
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+}
+
+async function calculateStoppedMinutesForPeriod(
+  tx: Prisma.TransactionClient,
+  machineId: string,
+  periodStart: Date,
+  periodEnd: Date,
+) {
+  const events = await tx.failureEvent.findMany({
+    where: {
+      machineId,
+      startedAt: { lt: periodEnd },
+      OR: [{ endedAt: null }, { endedAt: { gt: periodStart } }],
+    },
+    select: { startedAt: true, endedAt: true },
+    orderBy: { startedAt: "asc" },
+  });
+
+  const intervals = events
+    .map((event) => ({
+      start: Math.max(periodStart.getTime(), event.startedAt.getTime()),
+      end: Math.min(periodEnd.getTime(), (event.endedAt ?? periodEnd).getTime()),
+    }))
+    .filter((interval) => interval.end > interval.start)
+    .sort((current, next) => current.start - next.start);
+
+  let totalMilliseconds = 0;
+  let activeStart: number | null = null;
+  let activeEnd: number | null = null;
+
+  for (const interval of intervals) {
+    if (activeStart === null || activeEnd === null) {
+      activeStart = interval.start;
+      activeEnd = interval.end;
+      continue;
+    }
+
+    if (interval.start <= activeEnd) {
+      activeEnd = Math.max(activeEnd, interval.end);
+      continue;
+    }
+
+    totalMilliseconds += activeEnd - activeStart;
+    activeStart = interval.start;
+    activeEnd = interval.end;
+  }
+
+  if (activeStart !== null && activeEnd !== null) {
+    totalMilliseconds += activeEnd - activeStart;
+  }
+
+  return Math.max(0, Math.round(totalMilliseconds / 60000));
+}
+
+async function resumeMachineWhenFinishingOwnedStop(
+  tx: Prisma.TransactionClient,
+  params: {
+    callId: string;
+    machineId: string;
+    currentMachineStatus: string;
+    finishedAt: Date;
+  },
+) {
+  if (params.currentMachineStatus !== "stopped") {
+    return params.currentMachineStatus;
+  }
+
+  const ownedOpenEvent = await tx.failureEvent.findFirst({
+    where: {
+      machineId: params.machineId,
+      callId: params.callId,
+      endedAt: null,
+    },
+    orderBy: { startedAt: "desc" },
+  });
+
+  if (!ownedOpenEvent) {
+    return params.currentMachineStatus;
+  }
+
+  await tx.failureEvent.update({
+    where: { id: ownedOpenEvent.id },
+    data: {
+      endedAt: params.finishedAt,
+      durationSeconds: diffSeconds(ownedOpenEvent.startedAt, params.finishedAt),
+      machineStatus: "running",
+      notes:
+        ownedOpenEvent.notes ??
+        "Falha encerrada automaticamente na finalização do chamado responsável",
+    },
+  });
+
+  await tx.machine.update({
+    where: { id: params.machineId },
+    data: {
+      machineStatus: "running",
+      lastStatusChangedAt: params.finishedAt,
+    },
+  });
+
+  return "running";
 }
 
 function appendNote(currentNotes: string | null, note: string | undefined, prefix: string) {
@@ -808,6 +912,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         throw new AndonCallValidationError("Já existe um chamado ativo deste setor para a máquina");
       }
 
+      const effectiveMachineCondition =
+        lockedMachine.machineStatus === "stopped"
+          ? "stopped"
+          : machineCondition ?? lockedMachine.machineStatus;
+
       const createdCall = await tx.andonCall.create({
         data: {
           machineId,
@@ -815,7 +924,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           subtype,
           status: "open",
           criticality,
-          machineCondition: machineCondition ?? lockedMachine.machineStatus,
+          machineCondition: effectiveMachineCondition,
           openedAt: now,
           callWaitingMinutes: 0,
           attendanceMinutes: 0,
@@ -827,7 +936,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           origin,
           isSystemTest,
           productionModeAtOpen: lockedMachine.productionMode,
-          machineStatusAtOpen: machineCondition ?? lockedMachine.machineStatus,
+          machineStatusAtOpen: effectiveMachineCondition,
         },
       });
 
@@ -848,7 +957,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       const failureStartedAt =
-        !isSystemTest && machineCondition === "stopped"
+        !isSystemTest && effectiveMachineCondition === "stopped"
           ? await ensureOpenFailureEventForStoppedCall(tx, {
               machineId,
               callId: createdCall.id,
@@ -858,14 +967,17 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           : null;
 
       if (!isSystemTest) {
+        const machineStatusChanged =
+          effectiveMachineCondition !== lockedMachine.machineStatus;
+
         await tx.machine.update({
           where: { id: machineId },
           data: {
             andonStatus: "open",
             currentCallId: createdCall.id,
-            ...(machineCondition
+            ...(machineStatusChanged
               ? {
-                  machineStatus: machineCondition,
+                  machineStatus: effectiveMachineCondition,
                   lastStatusChangedAt: failureStartedAt ?? now,
                 }
               : {}),
@@ -918,6 +1030,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
 
+        const effectiveMachineCondition =
+          machine.machineStatus === "stopped"
+            ? "stopped"
+            : machineCondition ?? machine.machineStatus;
+
         const configuredCategories = await tx.andonCategory.findMany({
           where: { id: { in: subtypes }, active: true },
         });
@@ -949,7 +1066,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               subtype,
               status: "open",
               criticality,
-              machineCondition: machineCondition ?? machine.machineStatus,
+              machineCondition: effectiveMachineCondition,
               openedAt,
               callWaitingMinutes: 0,
               attendanceMinutes: 0,
@@ -960,11 +1077,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               origin: "kiosk",
               isSystemTest: false,
               productionModeAtOpen: machine.productionMode,
-              machineStatusAtOpen: machineCondition ?? machine.machineStatus,
+              machineStatusAtOpen: effectiveMachineCondition,
             },
           });
 
-          if (machineCondition === "stopped") {
+          if (effectiveMachineCondition === "stopped") {
             await ensureOpenFailureEventForStoppedCall(tx, {
               machineId,
               callId: createdCall.id,
@@ -979,14 +1096,17 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const referenceCall = createdCalls.at(-1);
         if (!referenceCall) throw new AndonCallValidationError("Nenhum chamado foi criado");
 
+        const machineStatusChanged =
+          effectiveMachineCondition !== machine.machineStatus;
+
         await tx.machine.update({
           where: { id: machineId },
           data: {
             andonStatus: "open",
             currentCallId: referenceCall.id,
-            ...(machineCondition
+            ...(machineStatusChanged
               ? {
-                  machineStatus: machineCondition,
+                  machineStatus: effectiveMachineCondition,
                   lastStatusChangedAt: baseOpenedAt,
                 }
               : {}),
@@ -1076,6 +1196,15 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const cancellationNote = cancellationNoteParts.length ? cancellationNoteParts.join(" | ") : undefined;
 
     const updatedCall = await prisma.$transaction(async (tx) => {
+      const machineStoppedMinutes = call.isSystemTest
+        ? 0
+        : await calculateStoppedMinutesForPeriod(
+            tx,
+            call.machineId,
+            call.openedAt,
+            now,
+          );
+
       await tx.andonCall.update({
         where: { id: call.id },
         data: {
@@ -1086,7 +1215,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           attendanceMinutes: 0,
           postMaintenanceMinutes: 0,
           totalCallMinutes: diffMinutes(call.openedAt, now),
-          machineStoppedMinutes: call.machineCondition === "stopped" ? diffMinutes(call.openedAt, now) : 0,
+          machineStoppedMinutes,
           productionModeAtFinish: call.productionModeAtOpen,
           machineStatusAtFinish: call.machineStatusAtOpen,
           notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
@@ -1319,6 +1448,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     try {
       const updatedCall = await prisma.$transaction(
         async (tx) => {
+          const callReference = await tx.andonCall.findUnique({
+            where: { id: request.params.id },
+            select: { machineId: true },
+          });
+
+          if (!callReference) {
+            throw new FinishCallNotFoundError(
+              "Chamado não encontrado",
+            );
+          }
+
+          await lockMachineCallFlow(
+            tx,
+            callReference.machineId,
+          );
+
           const call = await tx.andonCall.findUnique({
             include: {
               machine: true,
@@ -1348,13 +1493,19 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             );
           }
 
+          const requiresAssetConfirmation =
+            call.category === "maintenance";
+
           const hasActiveSets =
-            await machineHasActiveSets(
-              tx,
-              call.machineId,
-            );
+            requiresAssetConfirmation
+              ? await machineHasActiveSets(
+                  tx,
+                  call.machineId,
+                )
+              : false;
 
           if (
+            requiresAssetConfirmation &&
             hasActiveSets &&
             !confirmedMachineSetId
           ) {
@@ -1364,6 +1515,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
 
           const confirmedMachineSet =
+            requiresAssetConfirmation &&
             confirmedMachineSetId
               ? await findMachineSetForConfirmation(
                   tx,
@@ -1374,6 +1526,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               : null;
 
           if (
+            requiresAssetConfirmation &&
             confirmedMachineSetId &&
             !confirmedMachineSet
           ) {
@@ -1383,6 +1536,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
 
           const confirmedMachineSubset =
+            requiresAssetConfirmation &&
             confirmedMachineSetId &&
             confirmedMachineSubsetId
               ? await findMachineSubsetForConfirmation(
@@ -1394,6 +1548,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               : null;
 
           if (
+            requiresAssetConfirmation &&
             confirmedMachineSubsetId &&
             !confirmedMachineSubset
           ) {
@@ -1403,6 +1558,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
 
           if (
+            requiresAssetConfirmation &&
             !call.isSystemTest &&
             confirmedMachineSet &&
             !confirmedMachineSubset &&
@@ -1424,6 +1580,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
 
           const preserveLegacyOpeningSnapshot =
+            requiresAssetConfirmation &&
             !hasActiveSets &&
             !confirmedMachineSetId;
 
@@ -1501,16 +1658,21 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             finalMachineSubsetTypeSnapshot,
           );
 
-          const openingLocationExists = Boolean(openingSetKey || openingSubsetKey);
+          const openingLocationExists = Boolean(
+            requiresAssetConfirmation &&
+              (openingSetKey || openingSubsetKey),
+          );
           const locationChanged = Boolean(
             openingLocationExists &&
               (openingSetKey !== confirmedSetKey || openingSubsetKey !== confirmedSubsetKey),
           );
 
           const assetConfirmedBy =
-            resolveAutomaticAssetConfirmedBy(
-              call,
-            );
+            requiresAssetConfirmation
+              ? resolveAutomaticAssetConfirmedBy(
+                  call,
+                )
+              : null;
 
           const normalizedAssetChangeReason =
             resolveAssetChangeReason(
@@ -1519,6 +1681,28 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             );
 
           const now = new Date();
+
+          const finalMachineStatus = call.isSystemTest
+            ? call.machine.machineStatus
+            : await resumeMachineWhenFinishingOwnedStop(
+                tx,
+                {
+                  callId: call.id,
+                  machineId: call.machineId,
+                  currentMachineStatus:
+                    call.machine.machineStatus,
+                  finishedAt: now,
+                },
+              );
+
+          const machineStoppedMinutes = call.isSystemTest
+            ? 0
+            : await calculateStoppedMinutesForPeriod(
+                tx,
+                call.machineId,
+                call.openedAt,
+                now,
+              );
 
           await tx.andonCall.update({
             where: {
@@ -1558,18 +1742,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 call.openedAt,
                 now,
               ),
-              machineStoppedMinutes:
-                call.machineCondition === "stopped" ||
-                call.machine.machineStatus === "stopped"
-                  ? diffMinutes(
-                      call.openedAt,
-                      now,
-                    )
-                  : 0,
+              machineStoppedMinutes,
               productionModeAtFinish:
                 call.machine.productionMode,
               machineStatusAtFinish:
-                call.machine.machineStatus,
+                finalMachineStatus,
 
               confirmedMachineSetId:
                 finalMachineSetId,
@@ -1589,7 +1766,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               confirmedMachineSubsetTypeSnapshot:
                 finalMachineSubsetTypeSnapshot,
 
-              assetConfirmedAt: now,
+              assetConfirmedAt:
+                requiresAssetConfirmation
+                  ? now
+                  : null,
               assetConfirmedBy,
               assetLocationChanged:
                 locationChanged,
@@ -1611,7 +1791,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               productionModeAtEnd:
                 call.machine.productionMode,
               machineStatusAtEnd:
-                call.machine.machineStatus,
+                finalMachineStatus,
             },
           });
 
@@ -1626,7 +1806,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               productionModeAtEnd:
                 call.machine.productionMode,
               machineStatusAtEnd:
-                call.machine.machineStatus,
+                finalMachineStatus,
             },
           });
 

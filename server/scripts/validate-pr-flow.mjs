@@ -15,6 +15,7 @@ const prisma = new PrismaClient();
 const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
+  impactMachine: "pr49-impact-machine",
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
   mechanicalTechnician: "pr47-tech-mechanical",
@@ -59,7 +60,7 @@ async function waitForApi() {
 }
 
 async function cleanup() {
-  const machineIds = [ids.machine, ids.raceMachine];
+  const machineIds = [ids.machine, ids.raceMachine, ids.impactMachine];
   const calls = await prisma.andonCall.findMany({
     where: { machineId: { in: machineIds } },
     select: { id: true },
@@ -141,6 +142,15 @@ async function run() {
   await request(
     "/api/machines",
     json("POST", { id: ids.machine, name: "Máquina PR 47", productionMode: "scheduled" }),
+    201,
+  );
+  await request(
+    "/api/machines",
+    json("POST", {
+      id: ids.impactMachine,
+      name: "Máquina PR 49 impacto compartilhado",
+      productionMode: "scheduled",
+    }),
     201,
   );
   await request(
@@ -322,6 +332,121 @@ async function run() {
   const machineAfterFinish = await request(`/api/machines/${ids.machine}`);
   assert.equal(machineAfterFinish.currentCallId, null);
   assert.equal(machineAfterFinish.andonStatus, "normal");
+
+  const leadershipRunning = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "leadership",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${leadershipRunning.id}/attend`, json("PATCH", {}));
+
+  const leadershipOpenedAt = new Date(Date.now() - 10 * 60 * 1000);
+  await prisma.andonCall.update({
+    where: { id: leadershipRunning.id },
+    data: {
+      openedAt: leadershipOpenedAt,
+      attendedAt: leadershipOpenedAt,
+      currentAttendanceStartedAt: leadershipOpenedAt,
+    },
+  });
+
+  const qualityStopped = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${qualityStopped.id}/attend`, json("PATCH", {}));
+
+  const stoppedAt = new Date(Date.now() - 5 * 60 * 1000);
+  const ownedFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: {
+      machineId: ids.impactMachine,
+      callId: qualityStopped.id,
+      endedAt: null,
+    },
+  });
+  await prisma.$transaction([
+    prisma.failureEvent.update({
+      where: { id: ownedFailureEvent.id },
+      data: { startedAt: stoppedAt },
+    }),
+    prisma.machine.update({
+      where: { id: ids.impactMachine },
+      data: { lastStatusChangedAt: stoppedAt },
+    }),
+  ]);
+
+  const finishedLeadership = await request(
+    `/api/andon-calls/${leadershipRunning.id}/finish`,
+    json("PATCH", { notes: "Apoio encerrado sem localização técnica" }),
+  );
+  assert.equal(finishedLeadership.status, "finished");
+  assert.equal(finishedLeadership.assetConfirmedAt, null);
+  assert.equal(finishedLeadership.confirmedMachineSetId, null);
+  assert.ok(
+    finishedLeadership.machineStoppedMinutes >= 4 && finishedLeadership.machineStoppedMinutes <= 6,
+    "chamado anterior deve contabilizar somente o intervalo compartilhado de parada",
+  );
+
+  const machineStillStopped = await request(`/api/machines/${ids.impactMachine}`);
+  assert.equal(
+    machineStillStopped.machineStatus,
+    "stopped",
+    "finalizar chamado que não originou a parada não pode liberar a máquina",
+  );
+
+  const leadershipDuringStop = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "leadership",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(
+    leadershipDuringStop.machineCondition,
+    "stopped",
+    "novos chamados devem herdar a parada ativa sem aceitar condição divergente",
+  );
+
+  const openFailureEvents = await prisma.failureEvent.findMany({
+    where: { machineId: ids.impactMachine, endedAt: null },
+  });
+  assert.equal(openFailureEvents.length, 1);
+  assert.equal(openFailureEvents[0].callId, qualityStopped.id);
+
+  await request(`/api/andon-calls/${leadershipDuringStop.id}/attend`, json("PATCH", {}));
+  const finishedStopOwner = await request(
+    `/api/andon-calls/${qualityStopped.id}/finish`,
+    json("PATCH", { notes: "Condição normalizada" }),
+  );
+  assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
+  assert.equal(finishedStopOwner.assetConfirmedAt, null);
+
+  const resumedMachine = await request(`/api/machines/${ids.impactMachine}`);
+  assert.equal(resumedMachine.machineStatus, "running");
+  const finishedFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: ownedFailureEvent.id },
+  });
+  assert.ok(finishedFailureEvent.endedAt);
+  assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
+
+  await request(
+    `/api/andon-calls/${leadershipDuringStop.id}/finish`,
+    json("PATCH", { notes: "Chamado simultâneo encerrado" }),
+  );
 
   await prisma.$disconnect();
 

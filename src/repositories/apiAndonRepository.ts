@@ -82,6 +82,7 @@ function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
   return {
     id: event.id,
     machineId: event.machineId,
+    callId: event.callId ?? null,
     stoppedAt: toIso(event.startedAt),
     resumedAt: event.endedAt ? toIso(event.endedAt) : null,
     durationMinutes:
@@ -130,6 +131,8 @@ function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) 
   const attendanceEnd = maintenanceCompletedAt ?? finishedAt ?? (call.status === "in_progress" ? nowIso : null);
   const postMaintenanceEnd = finishedAt ?? (call.status === "post_maintenance" ? nowIso : null);
   const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
+  const hasPersistedStoppedDuration =
+    finishedAt !== null && typeof call.machineStoppedMinutes === "number";
 
   return {
     callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, nowIso),
@@ -139,7 +142,11 @@ function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) 
         ? diffMinutes(maintenanceCompletedAt, postMaintenanceEnd)
         : (call.postMaintenanceMinutes ?? 0),
     totalCallMinutes: diffMinutes(openedAt, activeEnd),
-    machineStoppedMinutes: wasStopped ? diffMinutes(openedAt, activeEnd) : (call.machineStoppedMinutes ?? 0),
+    machineStoppedMinutes: hasPersistedStoppedDuration
+      ? call.machineStoppedMinutes ?? 0
+      : wasStopped
+        ? diffMinutes(openedAt, activeEnd)
+        : (call.machineStoppedMinutes ?? 0),
   };
 }
 

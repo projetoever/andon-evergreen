@@ -58,11 +58,17 @@ export function calculateMachineStoppedMinutes(machine: Machine, nowIso?: string
 
 export function formatDurationMinutes(minutes: number): string {
   const totalSeconds = Math.max(0, Math.floor(minutes * 60));
-  const hours = Math.floor(totalSeconds / 3600);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
   const remainingSeconds = totalSeconds % 3600;
   const mins = Math.floor(remainingSeconds / 60);
   const secs = remainingSeconds % 60;
 
+  if (days > 0) {
+    return `${days} d ${hours.toString().padStart(2, "0")} h ${mins
+      .toString()
+      .padStart(2, "0")} min`;
+  }
   if (hours > 0) {
     return `${hours} h ${mins.toString().padStart(2, "0")} min ${secs
       .toString()
