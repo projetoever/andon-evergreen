@@ -42,6 +42,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
     machines,
     calls,
+    openCalls,
     attendCall,
     cancelCall,
     completeMaintenance,
@@ -132,7 +133,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     if (machine) setMachineSoundEnabledState(isMachineSoundEnabled(machine.id));
   }, [machine]);
 
-  const nowIso = useMemo(() => new Date().toISOString(), [tick]);
+  const nowIso = useMemo(() => {
+    void tick;
+    return new Date().toISOString();
+  }, [tick]);
   const sessions = useMemo(
     () =>
       (currentCall?.technicianSessions ?? [])
@@ -236,6 +240,38 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       toast.success("Chamado voltou à manutenção.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao retornar à manutenção");
+    }
+  }
+
+  async function handleOpenSubtype(subtype: CallSubtype) {
+    if (!machine) return;
+
+    setSelectedSubtype(subtype);
+
+    if (machine.machineStatus !== "stopped") {
+      setConditionDialogOpen(true);
+      return;
+    }
+
+    const category = categories.find((item) => item.id === subtype);
+    if (!category) {
+      toast.error("Setor não encontrado ou inativo");
+      return;
+    }
+
+    try {
+      await openCalls([
+        {
+          machineId: machine.id,
+          category: category.categoryGroup,
+          subtype,
+          criticality: "medium",
+          machineCondition: "stopped",
+        },
+      ]);
+      toast.success(`Chamado de ${category.displayName} aberto com a máquina parada.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
     }
   }
 
@@ -382,10 +418,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         currentCall={currentCall}
         categories={categories}
         activeSubtypes={activeSubtypes}
-        onOpenSubtype={(subtype) => {
-          setSelectedSubtype(subtype);
-          setConditionDialogOpen(true);
-        }}
+        onOpenSubtype={(subtype) => void handleOpenSubtype(subtype)}
         onAttend={() => void handleAttend()}
         onCancelCall={() => void handleCancelCall()}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}

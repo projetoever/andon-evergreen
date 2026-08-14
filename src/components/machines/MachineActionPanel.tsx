@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { BigButton } from "@/components/common/BigButton";
+import { cn } from "@/lib/utils";
 import type { AndonCall, CallSubtype } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AndonCategoryConfig } from "@/types/settings";
@@ -50,8 +51,13 @@ export function MachineActionPanel({
   onReturnToMaintenance,
   screenLocked = false,
 }: MachineActionPanelProps) {
-  const secondaryActionClass =
-    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 text-[11px] font-bold uppercase tracking-wide text-foreground hover:bg-accent md:text-xs";
+  const hasActiveCall = activeSubtypes.size > 0;
+  const secondaryActionClass = cn(
+    "inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 font-bold uppercase tracking-wide text-foreground shadow-sm transition hover:bg-accent",
+    hasActiveCall
+      ? "min-h-9 text-[11px] md:text-xs"
+      : "min-h-[clamp(3rem,5.5vh,4.25rem)] text-xs md:text-sm",
+  );
 
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
@@ -60,7 +66,9 @@ export function MachineActionPanel({
           Abrir novo chamado
         </h3>
         <p className="text-xs text-muted-foreground">
-          Toque no setor para informar a condição e abrir. Setores ativos ficam bloqueados.
+          {machine.machineStatus === "stopped"
+            ? "Máquina parada: toque no setor para abrir diretamente. Setores ativos ficam bloqueados."
+            : "Toque no setor para informar a condição e abrir. Setores ativos ficam bloqueados."}
         </p>
       </div>
 
@@ -76,7 +84,10 @@ export function MachineActionPanel({
               type="button"
               disabled={active}
               onClick={() => onOpenSubtype(category.id)}
-              className="min-h-11 rounded-lg border-2 px-2 py-1.5 text-sm font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60"
+              className={cn(
+                "rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60",
+                hasActiveCall ? "min-h-11 text-sm" : "min-h-[clamp(3.5rem,7vh,5.25rem)] text-base",
+              )}
               style={
                 active
                   ? undefined

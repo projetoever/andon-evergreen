@@ -23,6 +23,7 @@ export type ShiftType = "A" | "B" | "C" | "HC";
 export interface MachineStopEvent {
   id: string;
   machineId: string;
+  callId?: string | null;
   stoppedAt: string;
   resumedAt: string | null;
   durationMinutes: number;

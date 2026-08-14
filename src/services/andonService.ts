@@ -18,12 +18,12 @@ import type {
 import { generateId } from "@/utils/idUtils";
 import {
   calculateCallWaitingMinutes,
-  calculateMachineStoppedMinutes,
   calculateTotalCallMinutes,
   diffMinutes,
 } from "@/utils/durationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
+import { calculateMachineConditionBreakdownForPeriod } from "@/utils/timeBreakdownUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -418,7 +418,10 @@ export function openAndonCall(
     throw new Error("Já existe um chamado ativo deste setor para a máquina");
   }
   const now = new Date().toISOString();
-  const condition = params.machineCondition ?? machine.machineStatus;
+  const condition =
+    machine.machineStatus === "stopped"
+      ? "stopped"
+      : params.machineCondition ?? machine.machineStatus;
   const call: AndonCall = {
     id: generateId("call"),
     machineId: params.machineId,
@@ -441,7 +444,7 @@ export function openAndonCall(
     subtype: params.subtype,
     status: "open",
     criticality: params.criticality ?? "medium",
-    machineCondition: params.machineCondition ?? machine.machineStatus,
+    machineCondition: condition,
     openedAt: now,
     attendedAt: null,
     currentAttendanceStartedAt: null,
@@ -465,10 +468,15 @@ export function openAndonCall(
     productionModeAtOpen: machine.productionMode,
     machineStatusAtOpen: condition,
   };
-  const statusResult = updateMachineStatus(machines, params.machineId, condition);
+  const statusResult = updateMachineStatus(
+    machines,
+    params.machineId,
+    condition,
+    call.id,
+  );
   const newMachines = statusResult.machines.map((m) =>
     m.id === params.machineId
-      ? { ...m, andonStatus: "open" as const, currentCallId: call.id, lastStatusChangedAt: now }
+      ? { ...m, andonStatus: "open" as const, currentCallId: call.id }
       : m,
   );
   return { machines: newMachines, calls: [...calls, call], call };
@@ -478,7 +486,6 @@ function syncLocalMachineOperationalState(
   machines: Machine[],
   calls: AndonCall[],
   machineId: string,
-  now: string,
 ) {
   const referenceCall = calls
     .map((call, index) => ({ call, index }))
@@ -502,7 +509,6 @@ function syncLocalMachineOperationalState(
           ...machine,
           andonStatus: referenceCall?.status ?? ("none" as const),
           currentCallId: referenceCall?.id ?? null,
-          lastStatusChangedAt: now,
         }
       : machine,
   );
@@ -542,7 +548,7 @@ export function attendAndonCall(
         }
       : c,
   );
-  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId, now);
+  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId);
   return { machines: newMachines, calls: newCalls };
 }
 
@@ -571,7 +577,7 @@ export function completeMaintenanceAttendance(
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
-  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId, now);
+  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId);
   return { machines: newMachines, calls: newCalls, call: updatedCall };
 }
 
@@ -600,7 +606,7 @@ export function returnToMaintenance(
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
-  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId, now);
+  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId);
   return { machines: newMachines, calls: newCalls, call: updatedCall };
 }
 
@@ -660,10 +666,15 @@ export function finishAndonCall(
     throw new Error("Chamado já encerrado");
   }
 
+  const requiresAssetConfirmation =
+    call.category === "maintenance";
+
   const assetConfirmedBy =
-    resolveAutomaticAssetConfirmedBy(
-      call,
-    );
+    requiresAssetConfirmation
+      ? resolveAutomaticAssetConfirmedBy(
+          call,
+        )
+      : null;
 
   const sessionNames = Array.from(
     new Set(
@@ -727,7 +738,8 @@ export function finishAndonCall(
       call.machineSubsetTypeSnapshot,
     );
   const locationChanged = Boolean(
-    (openingSetKey || openingSubsetKey) &&
+    requiresAssetConfirmation &&
+      (openingSetKey || openingSubsetKey) &&
       (openingSetKey !== assetKey(
         params.confirmedMachineSetId,
         params.confirmedMachineSetCodeSnapshot,
@@ -751,6 +763,27 @@ export function finishAndonCall(
   const now = new Date().toISOString();
 
   const machine = machines.find(
+    (item) => item.id === call.machineId,
+  );
+
+  const shouldResumeOwnedStop = Boolean(
+    machine?.machineStatus === "stopped" &&
+      machine.stopHistory.some(
+        (event) =>
+          !event.resumedAt &&
+          event.callId === call.id,
+      ),
+  );
+
+  const finalMachines = shouldResumeOwnedStop
+    ? updateMachineStatus(
+        machines,
+        call.machineId,
+        "running",
+      ).machines
+    : machines;
+
+  const finalMachine = finalMachines.find(
     (item) => item.id === call.machineId,
   );
 
@@ -785,29 +818,48 @@ export function finishAndonCall(
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
     productionModeAtFinish:
-      machine?.productionMode,
+      finalMachine?.productionMode,
     machineStatusAtFinish:
-      machine?.machineStatus,
+      finalMachine?.machineStatus,
 
     confirmedMachineSetId:
-      params.confirmedMachineSetId,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSetId
+        : null,
     confirmedMachineSetCodeSnapshot:
-      params.confirmedMachineSetCodeSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSetCodeSnapshot
+        : null,
     confirmedMachineSetNameSnapshot:
-      params.confirmedMachineSetNameSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSetNameSnapshot
+        : null,
     confirmedMachineSetTypeSnapshot:
-      params.confirmedMachineSetTypeSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSetTypeSnapshot
+        : null,
 
     confirmedMachineSubsetId:
-      params.confirmedMachineSubsetId,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSubsetId
+        : null,
     confirmedMachineSubsetCodeSnapshot:
-      params.confirmedMachineSubsetCodeSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSubsetCodeSnapshot
+        : null,
     confirmedMachineSubsetNameSnapshot:
-      params.confirmedMachineSubsetNameSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSubsetNameSnapshot
+        : null,
     confirmedMachineSubsetTypeSnapshot:
-      params.confirmedMachineSubsetTypeSnapshot,
+      requiresAssetConfirmation
+        ? params.confirmedMachineSubsetTypeSnapshot
+        : null,
 
-    assetConfirmedAt: now,
+    assetConfirmedAt:
+      requiresAssetConfirmation
+        ? now
+        : null,
     assetConfirmedBy,
     assetLocationChanged:
       locationChanged,
@@ -826,9 +878,9 @@ export function finishAndonCall(
                 endedAt: now,
                 endReason: "final_call",
                 productionModeAtEnd:
-                  machine?.productionMode,
+                  finalMachine?.productionMode,
                 machineStatusAtEnd:
-                  machine?.machineStatus,
+                  finalMachine?.machineStatus,
               },
       ),
 
@@ -868,11 +920,15 @@ export function finishAndonCall(
     );
 
   finishedCall.machineStoppedMinutes =
-    machine
-      ? calculateMachineStoppedMinutes(
-          machine,
-          now,
-        )
+    finalMachine
+      ? calculateMachineConditionBreakdownForPeriod({
+          periodStart: call.openedAt,
+          periodEnd: now,
+          stopHistory: finalMachine.stopHistory,
+          fallbackMachineCondition:
+            call.machineStatusAtOpen ??
+            call.machineCondition,
+        }).failureSeconds / 60
       : 0;
 
   const finishedCalls = calls.map((item) =>
@@ -883,7 +939,7 @@ export function finishAndonCall(
 
   return {
     calls: finishedCalls,
-    machines: syncLocalMachineOperationalState(machines, finishedCalls, call.machineId, now),
+    machines: syncLocalMachineOperationalState(finalMachines, finishedCalls, call.machineId),
   };
 }
 export function cancelAndonCall(
@@ -899,9 +955,8 @@ export function cancelAndonCall(
     throw new Error("Não é possível cancelar chamado já atendido.");
   }
 
-  const now = new Date().toISOString();
   const newCalls = calls.filter((c) => c.id !== params.callId);
-  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId, now);
+  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId);
   return { machines: newMachines, calls: newCalls };
 }
 
@@ -909,6 +964,7 @@ export function updateMachineStatus(
   machines: Machine[],
   machineId: string,
   newStatus: MachineStatus,
+  ownerCallId?: string,
 ): { machines: Machine[] } {
   const now = new Date().toISOString();
   const newMachines = machines.map((m) => {
@@ -918,6 +974,7 @@ export function updateMachineStatus(
       const stopEvent: MachineStopEvent = {
         id: generateId("stop"),
         machineId: m.id,
+        callId: ownerCallId ?? null,
         stoppedAt: now,
         resumedAt: null,
         durationMinutes: 0,
