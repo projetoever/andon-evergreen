@@ -97,6 +97,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     () => new Set(activeCalls.map((call) => call.subtype)),
     [activeCalls],
   );
+  const openStopOwnerCallId = machine?.stopHistory.find((event) => !event.resumedAt)?.callId;
+  const hasActiveStopOwner = Boolean(
+    openStopOwnerCallId && activeCalls.some((call) => call.id === openStopOwnerCallId),
+  );
   const latestOpenCall = activeCalls.find((call) => call.status === "open") ?? null;
 
   useEffect(() => {
@@ -248,7 +252,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
     setSelectedSubtype(subtype);
 
-    if (machine.machineStatus !== "stopped") {
+    if (machine.machineStatus !== "stopped" || !hasActiveStopOwner) {
       setConditionDialogOpen(true);
       return;
     }
@@ -418,6 +422,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         currentCall={currentCall}
         categories={categories}
         activeSubtypes={activeSubtypes}
+        hasActiveStopOwner={hasActiveStopOwner}
         onOpenSubtype={(subtype) => void handleOpenSubtype(subtype)}
         onAttend={() => void handleAttend()}
         onCancelCall={() => void handleCancelCall()}

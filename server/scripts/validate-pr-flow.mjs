@@ -18,6 +18,7 @@ const ids = {
   impactMachine: "pr49-impact-machine",
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
+  electricalSupportTechnician: "pr50-tech-electrical-support",
   mechanicalTechnician: "pr47-tech-mechanical",
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
@@ -78,7 +79,11 @@ async function cleanup() {
   await prisma.machineProductionEvent.deleteMany({ where: { machineId: { in: machineIds } } });
   await prisma.machine.deleteMany({ where: { id: { in: machineIds } } });
   await prisma.technician.deleteMany({
-    where: { id: { in: [ids.electricalTechnician, ids.mechanicalTechnician] } },
+    where: {
+      id: {
+        in: [ids.electricalTechnician, ids.electricalSupportTechnician, ids.mechanicalTechnician],
+      },
+    },
   });
   await prisma.shift.deleteMany({ where: { id: ids.shift } });
   await prisma.andonCategory.deleteMany({
@@ -187,8 +192,21 @@ async function run() {
     }),
     201,
   );
+  const electricalSupport = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Apoio Elétrico PR 50",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "6943",
+      tag: "TAG-ELECTRICAL-SUPPORT-50",
+    }),
+    201,
+  );
 
   ids.electricalTechnician = electrical.id;
+  ids.electricalSupportTechnician = electricalSupport.id;
   ids.mechanicalTechnician = mechanical.id;
   assert.equal(electrical.hasPin, true);
   assert.equal(electrical.hasTag, true);
@@ -279,31 +297,89 @@ async function run() {
   assert.equal(attended.status, "in_progress");
   assert.equal(attended.technicianSessions.length, 1);
 
-  const withSupport = await request(
+  await request(
     `/api/andon-calls/${electricalCall.id}/technicians`,
     json("POST", { credentials: [{ method: "rfid", value: "TAG-MECHANICAL-47" }] }),
+    400,
+  );
+  await request(
+    `/api/andon-calls/${electricalCall.id}/technicians`,
+    json("POST", { credentials: [{ method: "pin", value: "5832" }] }),
+    400,
+  );
+
+  await request("/api/system-settings", json("PATCH", { attendanceMode: "name" }));
+  await request(
+    `/api/andon-calls/${electricalCall.id}/technicians`,
+    json("POST", { technicianNames: [mechanical.name] }),
+    400,
+  );
+  const withElectricalSupport = await request(
+    `/api/andon-calls/${electricalCall.id}/technicians`,
+    json("POST", { technicianNames: [electricalSupport.name] }),
     201,
   );
-  assert.equal(withSupport.technicianSessions.length, 2);
+  assert.equal(withElectricalSupport.technicianSessions.length, 2);
+  await request("/api/system-settings", json("PATCH", { attendanceMode: "rfid" }));
 
   const endedByCredential = await request(
     `/api/andon-calls/${electricalCall.id}/technicians/end`,
     json("PATCH", {
-      credential: { method: "rfid", value: "TAG-MECHANICAL-47" },
+      credential: { method: "rfid", value: "TAG-ELECTRICAL-SUPPORT-50" },
       reason: "support_finished",
       notes: "Encerramento direto por tag",
     }),
   );
   const endedSupportSession = endedByCredential.technicianSessions.find(
-    (session) => session.technicianId === mechanical.id,
+    (session) => session.technicianId === electricalSupport.id,
   );
   assert.ok(endedSupportSession.endedAt);
   assert.equal(endedSupportSession.endReason, "support_finished");
 
-  await request(
+  const firstFollowUp = await request(
     `/api/andon-calls/${electricalCall.id}/finish-maintenance`,
     json("PATCH", { notes: "Integração concluída" }),
   );
+  assert.equal(firstFollowUp.status, "post_maintenance");
+  const firstFollowUpStartedAt = new Date(Date.now() - 3 * 60 * 1000);
+  await prisma.andonCall.update({
+    where: { id: electricalCall.id },
+    data: { maintenanceCompletedAt: firstFollowUpStartedAt },
+  });
+
+  const returnedToMaintenance = await request(
+    `/api/andon-calls/${electricalCall.id}/return-to-maintenance`,
+    json("PATCH", { reason: "Falha voltou a ocorrer" }),
+  );
+  assert.equal(returnedToMaintenance.status, "in_progress");
+  assert.equal(returnedToMaintenance.maintenanceReturnCount, 1);
+  assert.ok(
+    returnedToMaintenance.postMaintenanceMinutes >= 2 &&
+      returnedToMaintenance.postMaintenanceMinutes <= 4,
+    "o primeiro período de acompanhamento deve ser preservado no retorno à manutenção",
+  );
+
+  const secondAttendanceStartedAt = new Date(Date.now() - 2 * 60 * 1000);
+  await prisma.andonCall.update({
+    where: { id: electricalCall.id },
+    data: { currentAttendanceStartedAt: secondAttendanceStartedAt },
+  });
+  const secondFollowUp = await request(
+    `/api/andon-calls/${electricalCall.id}/finish-maintenance`,
+    json("PATCH", { notes: "Segunda conclusão da manutenção" }),
+  );
+  assert.equal(secondFollowUp.status, "post_maintenance");
+  assert.ok(secondFollowUp.attendanceMinutes >= 2);
+  assert.ok(
+    secondFollowUp.postMaintenanceMinutes >= 2 && secondFollowUp.postMaintenanceMinutes <= 4,
+    "o acompanhamento acumulado não pode zerar ao concluir novamente",
+  );
+
+  const secondFollowUpStartedAt = new Date(Date.now() - 4 * 60 * 1000);
+  await prisma.andonCall.update({
+    where: { id: electricalCall.id },
+    data: { maintenanceCompletedAt: secondFollowUpStartedAt },
+  });
   const finishedMaintenance = await request(
     `/api/andon-calls/${electricalCall.id}/finish`,
     json("PATCH", {
@@ -313,9 +389,14 @@ async function run() {
     }),
   );
   assert.equal(finishedMaintenance.status, "finished");
+  assert.ok(
+    finishedMaintenance.postMaintenanceMinutes >= 6 &&
+      finishedMaintenance.postMaintenanceMinutes <= 8,
+    "a finalização deve somar todos os períodos de acompanhamento",
+  );
   assert.deepEqual(
     new Set(finishedMaintenance.technicianNames),
-    new Set(["Mantenedor Elétrico PR 47", "Mantenedor Mecânico PR 47"]),
+    new Set(["Mantenedor Elétrico PR 47", "Apoio Elétrico PR 50"]),
   );
   assert.ok(finishedMaintenance.technicianSessions.every((session) => session.endedAt));
 
@@ -446,6 +527,88 @@ async function run() {
   await request(
     `/api/andon-calls/${leadershipDuringStop.id}/finish`,
     json("PATCH", { notes: "Chamado simultâneo encerrado" }),
+  );
+
+  const orphanStopToRecover = await request(
+    "/api/failure-events",
+    json("POST", {
+      machineId: ids.impactMachine,
+      classification: "unidentified_stop",
+      source: "manual",
+      machineStatus: "stopped",
+      notes: "Falha sem chamado ativo para validar recuperação",
+    }),
+    201,
+  );
+  assert.equal(orphanStopToRecover.event.callId, null);
+
+  const runningCallAfterOrphanStop = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "leadership",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(
+    runningCallAfterOrphanStop.machineCondition,
+    "running",
+    "falha sem chamado ativo deve aceitar a condição pronta para rodar",
+  );
+  const machineRecoveredWhileOpening = await request(`/api/machines/${ids.impactMachine}`);
+  assert.equal(machineRecoveredWhileOpening.machineStatus, "running");
+  const recoveredOrphanEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: orphanStopToRecover.event.id },
+  });
+  assert.ok(recoveredOrphanEvent.endedAt);
+
+  await request(`/api/andon-calls/${runningCallAfterOrphanStop.id}/cancel`, {
+    method: "PATCH",
+  });
+
+  const orphanStopToClaim = await request(
+    "/api/failure-events",
+    json("POST", {
+      machineId: ids.impactMachine,
+      classification: "unidentified_stop",
+      source: "manual",
+      machineStatus: "stopped",
+      notes: "Falha sem chamado ativo para validar nova responsabilidade",
+    }),
+    201,
+  );
+  const stoppedCallClaimingOrphan = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  const claimedOrphanEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: orphanStopToClaim.event.id },
+  });
+  assert.equal(
+    claimedOrphanEvent.callId,
+    stoppedCallClaimingOrphan.id,
+    "novo chamado parado deve assumir a falha órfã existente",
+  );
+
+  await request(`/api/andon-calls/${stoppedCallClaimingOrphan.id}/cancel`, {
+    method: "PATCH",
+  });
+  const machineRecoveredOnCancel = await request(`/api/machines/${ids.impactMachine}`);
+  assert.equal(machineRecoveredOnCancel.machineStatus, "running");
+  assert.equal(
+    await prisma.failureEvent.count({
+      where: { machineId: ids.impactMachine, endedAt: null },
+    }),
+    0,
+    "cancelar o chamado responsável não pode deixar falha órfã aberta",
   );
 
   await prisma.$disconnect();

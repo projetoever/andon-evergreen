@@ -16,7 +16,6 @@ import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
-import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import {
   identifyTechnicianConfig,
@@ -36,10 +35,6 @@ interface TechnicianIdentificationModalProps {
   excludeNames?: string[];
   onSuccess?: () => void;
 }
-
-const DEFAULT_SUPPORT_AREAS = DEFAULT_CATEGORIES.filter(
-  (category) => category.categoryGroup === "maintenance",
-).map((category) => category.id as TechnicianArea);
 
 function methodLabel(method: AttendanceMode) {
   if (method === "pin") return "PIN";
@@ -65,7 +60,6 @@ export function TechnicianIdentificationModal({
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
   const [showAlternatives, setShowAlternatives] = useState(false);
-  const [supportAreas, setSupportAreas] = useState<TechnicianArea[]>(DEFAULT_SUPPORT_AREAS);
   const [names, setNames] = useState<string[]>([]);
   const [credentialValue, setCredentialValue] = useState("");
   const [notes, setNotes] = useState("");
@@ -89,15 +83,10 @@ export function TechnicianIdentificationModal({
     setIsSubmitting(false);
     submittingRef.current = false;
 
-    Promise.all([getSystemSettings(), getCategoryConfigs({ activeOnly: true })])
-      .then(([systemSettings, categories]) => {
+    getSystemSettings()
+      .then((systemSettings) => {
         setSettings(systemSettings);
         setMethod(systemSettings.attendanceMode);
-        setSupportAreas(
-          categories
-            .filter((category) => category.categoryGroup === "maintenance")
-            .map((category) => category.id as TechnicianArea),
-        );
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -113,11 +102,6 @@ export function TechnicianIdentificationModal({
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
     [excludeNames],
   );
-  const optionalAreas = useMemo(
-    () => (purpose === "add" && area ? supportAreas.filter((candidate) => candidate !== area) : []),
-    [area, purpose, supportAreas],
-  );
-
   async function registerTechnicians(
     technicians: SelectedTechnicianInput[],
     submissionAlreadyStarted = false,
@@ -192,11 +176,8 @@ export function TechnicianIdentificationModal({
     if (excluded.has(technician.name.toLocaleLowerCase("pt-BR"))) {
       throw new Error(`${technician.name} já está neste atendimento`);
     }
-    if (purpose === "start" && area && technician.area !== area) {
+    if (area && technician.area !== area) {
       throw new Error(`${technician.name} não pertence à área deste chamado`);
-    }
-    if (purpose === "add" && !supportAreas.includes(technician.area as TechnicianArea)) {
-      throw new Error(`${technician.name} não pertence a uma área de manutenção`);
     }
   }
 
@@ -312,7 +293,6 @@ export function TechnicianIdentificationModal({
             value={names}
             onChange={setNames}
             excludeNames={excludeNames}
-            optionalAreas={optionalAreas}
             variant="compact"
           />
         )}

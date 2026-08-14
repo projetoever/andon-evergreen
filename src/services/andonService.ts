@@ -53,7 +53,6 @@ export interface SelectedTechnicianInput {
   };
 }
 
-
 export interface CancelAndonCallParams {
   callId: string;
   reason?: string | null;
@@ -79,8 +78,6 @@ export interface FinishAndonCallParams {
   assetChangeReason?: string | null;
 }
 
-
-
 export interface StartAttendanceParams {
   callId: string;
   technicians: SelectedTechnicianInput[];
@@ -104,95 +101,69 @@ export interface EndTechnicianSessionParams {
   endReason: TechnicianSessionEndReason;
 }
 
-function uniqueRegisteredTechnicianNames(
-  names: Array<string | null | undefined>,
-) {
+function uniqueRegisteredTechnicianNames(names: Array<string | null | undefined>) {
   return Array.from(
-    new Set(
-      names
-        .map(
-          (name) => name?.trim(),
-        )
-        .filter(
-          (name): name is string =>
-            Boolean(name),
-        ),
-    ),
+    new Set(names.map((name) => name?.trim()).filter((name): name is string => Boolean(name))),
   );
 }
 
-function resolveAutomaticAssetConfirmedBy(
-  call: AndonCall,
-) {
-  const sessions =
-    call.technicianSessions ?? [];
+function resolveAutomaticAssetConfirmedBy(call: AndonCall) {
+  const sessions = call.technicianSessions ?? [];
 
-  const activeSessionNames =
-    uniqueRegisteredTechnicianNames(
-      sessions
-        .filter(
-          (session) =>
-            !session.endedAt,
-        )
-        .map(
-          (session) =>
-            session.technicianName,
-        ),
-    );
+  const activeSessionNames = uniqueRegisteredTechnicianNames(
+    sessions.filter((session) => !session.endedAt).map((session) => session.technicianName),
+  );
 
-  const allSessionNames =
-    uniqueRegisteredTechnicianNames(
-      sessions.map(
-        (session) =>
-          session.technicianName,
-      ),
-    );
+  const allSessionNames = uniqueRegisteredTechnicianNames(
+    sessions.map((session) => session.technicianName),
+  );
 
-  const legacyNames =
-    uniqueRegisteredTechnicianNames([
-      ...(call.technicianNames ?? []),
-      call.technicianName,
-    ]);
+  const legacyNames = uniqueRegisteredTechnicianNames([
+    ...(call.technicianNames ?? []),
+    call.technicianName,
+  ]);
 
-  const responsibleNames =
-    activeSessionNames.length
-      ? activeSessionNames
-      : allSessionNames.length
-        ? allSessionNames
-        : legacyNames;
+  const responsibleNames = activeSessionNames.length
+    ? activeSessionNames
+    : allSessionNames.length
+      ? allSessionNames
+      : legacyNames;
 
-  if (
-    requiresMaintenanceTechnician(call) &&
-    responsibleNames.length === 0
-  ) {
-    throw new Error(
-      "O chamado de manutenção não possui mantenedor registrado",
-    );
+  if (requiresMaintenanceTechnician(call) && responsibleNames.length === 0) {
+    throw new Error("O chamado de manutenção não possui mantenedor registrado");
   }
 
-  return responsibleNames.length
-    ? responsibleNames.join(", ")
-    : "Operação";
+  return responsibleNames.length ? responsibleNames.join(", ") : "Operação";
 }
 
-function resolveAssetChangeReason(
-  locationChanged: boolean,
-  reason: string | null | undefined,
-) {
+function resolveAssetChangeReason(locationChanged: boolean, reason: string | null | undefined) {
   if (!locationChanged) {
     return null;
   }
 
-  return reason?.trim() ||
-    "Não justificado";
+  return reason?.trim() || "Não justificado";
 }
 
-function createSession(call: AndonCall, machine: Machine | undefined, technician: SelectedTechnicianInput, now: string, notes?: string | null): TechnicianAttendanceSession {
+function createSession(
+  call: AndonCall,
+  machine: Machine | undefined,
+  technician: SelectedTechnicianInput,
+  now: string,
+  notes?: string | null,
+): TechnicianAttendanceSession {
   return {
-    id: generateId("session"), callId: call.id, machineId: call.machineId,
-    technicianId: technician.id, technicianName: technician.name, technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
-    shiftId: technician.shiftId, shiftName: technician.shiftName, startedAt: now,
-    notes: notes ?? undefined, productionModeAtStart: machine?.productionMode, machineStatusAtStart: machine?.machineStatus,
+    id: generateId("session"),
+    callId: call.id,
+    machineId: call.machineId,
+    technicianId: technician.id,
+    technicianName: technician.name,
+    technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
+    shiftId: technician.shiftId,
+    shiftName: technician.shiftName,
+    startedAt: now,
+    notes: notes ?? undefined,
+    productionModeAtStart: machine?.productionMode,
+    machineStatusAtStart: machine?.machineStatus,
   };
 }
 
@@ -221,8 +192,14 @@ export function normalizeMachine(machine: Machine): Machine {
   return {
     ...machine,
     productionMode: isProductionMode(source.productionMode) ? source.productionMode : "scheduled",
-    isActive: typeof (source as { isActive?: unknown }).isActive === "boolean" ? (source as { isActive: boolean }).isActive : true,
-    displayOrder: typeof (source as { displayOrder?: unknown }).displayOrder === "number" ? (source as { displayOrder: number }).displayOrder : null,
+    isActive:
+      typeof (source as { isActive?: unknown }).isActive === "boolean"
+        ? (source as { isActive: boolean }).isActive
+        : true,
+    displayOrder:
+      typeof (source as { displayOrder?: unknown }).displayOrder === "number"
+        ? (source as { displayOrder: number }).displayOrder
+        : null,
     productionModeChangedAt:
       typeof source.productionModeChangedAt === "string" && source.productionModeChangedAt
         ? source.productionModeChangedAt
@@ -284,26 +261,14 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
 
   return {
     ...call,
-    machineSetId:
-      typeof source.machineSetId === "string"
-        ? source.machineSetId
-        : null,
+    machineSetId: typeof source.machineSetId === "string" ? source.machineSetId : null,
     machineSetCodeSnapshot:
-      typeof source.machineSetCodeSnapshot === "string"
-        ? source.machineSetCodeSnapshot
-        : null,
+      typeof source.machineSetCodeSnapshot === "string" ? source.machineSetCodeSnapshot : null,
     machineSetNameSnapshot:
-      typeof source.machineSetNameSnapshot === "string"
-        ? source.machineSetNameSnapshot
-        : null,
+      typeof source.machineSetNameSnapshot === "string" ? source.machineSetNameSnapshot : null,
     machineSetTypeSnapshot:
-      typeof source.machineSetTypeSnapshot === "string"
-        ? source.machineSetTypeSnapshot
-        : null,
-    machineSubsetId:
-      typeof source.machineSubsetId === "string"
-        ? source.machineSubsetId
-        : null,
+      typeof source.machineSetTypeSnapshot === "string" ? source.machineSetTypeSnapshot : null,
+    machineSubsetId: typeof source.machineSubsetId === "string" ? source.machineSubsetId : null,
     machineSubsetCodeSnapshot:
       typeof source.machineSubsetCodeSnapshot === "string"
         ? source.machineSubsetCodeSnapshot
@@ -317,9 +282,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
         ? source.machineSubsetTypeSnapshot
         : null,
     confirmedMachineSetId:
-      typeof source.confirmedMachineSetId === "string"
-        ? source.confirmedMachineSetId
-        : null,
+      typeof source.confirmedMachineSetId === "string" ? source.confirmedMachineSetId : null,
     confirmedMachineSetCodeSnapshot:
       typeof source.confirmedMachineSetCodeSnapshot === "string"
         ? source.confirmedMachineSetCodeSnapshot
@@ -333,9 +296,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
         ? source.confirmedMachineSetTypeSnapshot
         : null,
     confirmedMachineSubsetId:
-      typeof source.confirmedMachineSubsetId === "string"
-        ? source.confirmedMachineSubsetId
-        : null,
+      typeof source.confirmedMachineSubsetId === "string" ? source.confirmedMachineSubsetId : null,
     confirmedMachineSubsetCodeSnapshot:
       typeof source.confirmedMachineSubsetCodeSnapshot === "string"
         ? source.confirmedMachineSubsetCodeSnapshot
@@ -348,20 +309,11 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
       typeof source.confirmedMachineSubsetTypeSnapshot === "string"
         ? source.confirmedMachineSubsetTypeSnapshot
         : null,
-    assetConfirmedAt:
-      typeof source.assetConfirmedAt === "string"
-        ? source.assetConfirmedAt
-        : null,
-    assetConfirmedBy:
-      typeof source.assetConfirmedBy === "string"
-        ? source.assetConfirmedBy
-        : null,
-    assetLocationChanged:
-      source.assetLocationChanged === true,
+    assetConfirmedAt: typeof source.assetConfirmedAt === "string" ? source.assetConfirmedAt : null,
+    assetConfirmedBy: typeof source.assetConfirmedBy === "string" ? source.assetConfirmedBy : null,
+    assetLocationChanged: source.assetLocationChanged === true,
     assetChangeReason:
-      typeof source.assetChangeReason === "string"
-        ? source.assetChangeReason
-        : null,
+      typeof source.assetChangeReason === "string" ? source.assetChangeReason : null,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
       source.machineCondition === "stopped" || source.machineCondition === "running"
@@ -386,12 +338,32 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
       Number.isFinite(source.maintenanceReturnCount)
         ? source.maintenanceReturnCount
         : 0,
-    productionModeAtOpen: source.productionModeAtOpen === "scheduled" || source.productionModeAtOpen === "not_scheduled" ? source.productionModeAtOpen : undefined,
-    productionModeAtAttend: source.productionModeAtAttend === "scheduled" || source.productionModeAtAttend === "not_scheduled" ? source.productionModeAtAttend : undefined,
-    productionModeAtFinish: source.productionModeAtFinish === "scheduled" || source.productionModeAtFinish === "not_scheduled" ? source.productionModeAtFinish : undefined,
-    machineStatusAtOpen: source.machineStatusAtOpen === "running" || source.machineStatusAtOpen === "stopped" ? source.machineStatusAtOpen : undefined,
-    machineStatusAtAttend: source.machineStatusAtAttend === "running" || source.machineStatusAtAttend === "stopped" ? source.machineStatusAtAttend : undefined,
-    machineStatusAtFinish: source.machineStatusAtFinish === "running" || source.machineStatusAtFinish === "stopped" ? source.machineStatusAtFinish : undefined,
+    productionModeAtOpen:
+      source.productionModeAtOpen === "scheduled" || source.productionModeAtOpen === "not_scheduled"
+        ? source.productionModeAtOpen
+        : undefined,
+    productionModeAtAttend:
+      source.productionModeAtAttend === "scheduled" ||
+      source.productionModeAtAttend === "not_scheduled"
+        ? source.productionModeAtAttend
+        : undefined,
+    productionModeAtFinish:
+      source.productionModeAtFinish === "scheduled" ||
+      source.productionModeAtFinish === "not_scheduled"
+        ? source.productionModeAtFinish
+        : undefined,
+    machineStatusAtOpen:
+      source.machineStatusAtOpen === "running" || source.machineStatusAtOpen === "stopped"
+        ? source.machineStatusAtOpen
+        : undefined,
+    machineStatusAtAttend:
+      source.machineStatusAtAttend === "running" || source.machineStatusAtAttend === "stopped"
+        ? source.machineStatusAtAttend
+        : undefined,
+    machineStatusAtFinish:
+      source.machineStatusAtFinish === "running" || source.machineStatusAtFinish === "stopped"
+        ? source.machineStatusAtFinish
+        : undefined,
     createdBy: typeof source.createdBy === "string" ? source.createdBy : null,
     origin: source.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
     isSystemTest: source.isSystemTest === true,
@@ -418,28 +390,33 @@ export function openAndonCall(
     throw new Error("Já existe um chamado ativo deste setor para a máquina");
   }
   const now = new Date().toISOString();
+  const openStop = machine.stopHistory.find((event) => !event.resumedAt);
+  const hasActiveStopOwner = Boolean(
+    openStop?.callId &&
+    calls.some(
+      (call) =>
+        call.id === openStop.callId &&
+        !call.isSystemTest &&
+        (call.status === "open" ||
+          call.status === "in_progress" ||
+          call.status === "post_maintenance"),
+    ),
+  );
   const condition =
-    machine.machineStatus === "stopped"
+    machine.machineStatus === "stopped" && hasActiveStopOwner
       ? "stopped"
-      : params.machineCondition ?? machine.machineStatus;
+      : (params.machineCondition ?? machine.machineStatus);
   const call: AndonCall = {
     id: generateId("call"),
     machineId: params.machineId,
     machineSetId: params.machineSetId ?? null,
-    machineSetCodeSnapshot:
-      params.machineSetCodeSnapshot ?? null,
-    machineSetNameSnapshot:
-      params.machineSetNameSnapshot ?? null,
-    machineSetTypeSnapshot:
-      params.machineSetTypeSnapshot ?? null,
-    machineSubsetId:
-      params.machineSubsetId ?? null,
-    machineSubsetCodeSnapshot:
-      params.machineSubsetCodeSnapshot ?? null,
-    machineSubsetNameSnapshot:
-      params.machineSubsetNameSnapshot ?? null,
-    machineSubsetTypeSnapshot:
-      params.machineSubsetTypeSnapshot ?? null,
+    machineSetCodeSnapshot: params.machineSetCodeSnapshot ?? null,
+    machineSetNameSnapshot: params.machineSetNameSnapshot ?? null,
+    machineSetTypeSnapshot: params.machineSetTypeSnapshot ?? null,
+    machineSubsetId: params.machineSubsetId ?? null,
+    machineSubsetCodeSnapshot: params.machineSubsetCodeSnapshot ?? null,
+    machineSubsetNameSnapshot: params.machineSubsetNameSnapshot ?? null,
+    machineSubsetTypeSnapshot: params.machineSubsetTypeSnapshot ?? null,
     category: params.category,
     subtype: params.subtype,
     status: "open",
@@ -468,17 +445,22 @@ export function openAndonCall(
     productionModeAtOpen: machine.productionMode,
     machineStatusAtOpen: condition,
   };
-  const statusResult = updateMachineStatus(
-    machines,
-    params.machineId,
-    condition,
-    call.id,
-  );
-  const newMachines = statusResult.machines.map((m) =>
-    m.id === params.machineId
-      ? { ...m, andonStatus: "open" as const, currentCallId: call.id }
-      : m,
-  );
+  const statusResult = updateMachineStatus(machines, params.machineId, condition, call.id);
+  const newMachines = statusResult.machines.map((m) => {
+    if (m.id !== params.machineId) return m;
+
+    const stopHistory =
+      condition === "stopped" && !hasActiveStopOwner
+        ? m.stopHistory.map((event) => (!event.resumedAt ? { ...event, callId: call.id } : event))
+        : m.stopHistory;
+
+    return {
+      ...m,
+      stopHistory,
+      andonStatus: "open" as const,
+      currentCallId: call.id,
+    };
+  });
   return { machines: newMachines, calls: [...calls, call], call };
 }
 
@@ -499,8 +481,7 @@ function syncLocalMachineOperationalState(
     )
     .sort(
       (current, next) =>
-        next.call.openedAt.localeCompare(current.call.openedAt) ||
-        next.index - current.index,
+        next.call.openedAt.localeCompare(current.call.openedAt) || next.index - current.index,
     )[0]?.call;
 
   return machines.map((machine) =>
@@ -512,6 +493,18 @@ function syncLocalMachineOperationalState(
         }
       : machine,
   );
+}
+
+function assertTechniciansMatchCallArea(
+  call: Pick<AndonCall, "subtype">,
+  technicians: SelectedTechnicianInput[],
+) {
+  const incompatible = technicians.find(
+    (technician) => !technician.technicalArea || technician.technicalArea !== call.subtype,
+  );
+  if (incompatible) {
+    throw new Error(`${incompatible.name} não pertence à área deste chamado`);
+  }
 }
 
 export function attendAndonCall(
@@ -530,9 +523,14 @@ export function attendAndonCall(
   if (shouldRequireTechnician && selectedTechnicians.length === 0) {
     throw new Error("Selecione pelo menos um manutentor para iniciar o atendimento.");
   }
+  if (shouldRequireTechnician) {
+    assertTechniciansMatchCallArea(call, selectedTechnicians);
+  }
   const sessions = call.technicianSessions ?? [];
   const createdSessions = shouldRequireTechnician
-    ? selectedTechnicians.map((t) => createSession(call, machine, t, now, typeof params === "string" ? null : params.notes))
+    ? selectedTechnicians.map((t) =>
+        createSession(call, machine, t, now, typeof params === "string" ? null : params.notes),
+      )
     : [];
   const newCalls = calls.map((c) =>
     c.id === callId
@@ -618,12 +616,19 @@ export function addTechnicianSessions(
   const call = calls.find((c) => c.id === params.callId);
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status !== "in_progress") throw new Error("Chamado não está em atendimento");
+  assertTechniciansMatchCallArea(call, params.technicians);
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
   const currentSessions = call.technicianSessions ?? [];
-  const active = new Set(currentSessions.filter((s)=>!s.endedAt).map((s)=>s.technicianName));
-  const additions = params.technicians.filter((t)=>!active.has(t.name)).map((t)=>createSession(call,machine,t,now));
-  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:[...currentSessions,...additions], updatedAt: now } : c);
+  const active = new Set(currentSessions.filter((s) => !s.endedAt).map((s) => s.technicianName));
+  const additions = params.technicians
+    .filter((t) => !active.has(t.name))
+    .map((t) => createSession(call, machine, t, now));
+  const newCalls = calls.map((c) =>
+    c.id === params.callId
+      ? { ...c, technicianSessions: [...currentSessions, ...additions], updatedAt: now }
+      : c,
+  );
   return { machines, calls: newCalls };
 }
 
@@ -644,7 +649,26 @@ export function endTechnicianSession(
         : session.technicianName === params.technicianName),
   );
   if (!targetSession) throw new Error("Sessão ativa do mantenedor não encontrada");
-  const newCalls = calls.map((c)=> c.id===params.callId ? { ...c, technicianSessions:(c.technicianSessions??[]).map((s)=> s.id===targetSession.id ? { ...s, endedAt: now, endReason: params.endReason, notes: params.notes ?? s.notes, productionModeAtEnd: machine?.productionMode, machineStatusAtEnd: machine?.machineStatus } : s), updatedAt: now } : c);
+  const newCalls = calls.map((c) =>
+    c.id === params.callId
+      ? {
+          ...c,
+          technicianSessions: (c.technicianSessions ?? []).map((s) =>
+            s.id === targetSession.id
+              ? {
+                  ...s,
+                  endedAt: now,
+                  endReason: params.endReason,
+                  notes: params.notes ?? s.notes,
+                  productionModeAtEnd: machine?.productionMode,
+                  machineStatusAtEnd: machine?.machineStatus,
+                }
+              : s,
+          ),
+          updatedAt: now,
+        }
+      : c,
+  );
   return { machines, calls: newCalls };
 }
 
@@ -659,29 +683,18 @@ export function finishAndonCall(
     throw new Error("Chamado não encontrado");
   }
 
-  if (
-    call.status === "finished" ||
-    call.status === "cancelled"
-  ) {
+  if (call.status === "finished" || call.status === "cancelled") {
     throw new Error("Chamado já encerrado");
   }
 
-  const requiresAssetConfirmation =
-    call.category === "maintenance";
+  const requiresAssetConfirmation = call.category === "maintenance";
 
-  const assetConfirmedBy =
-    requiresAssetConfirmation
-      ? resolveAutomaticAssetConfirmedBy(
-          call,
-        )
-      : null;
+  const assetConfirmedBy = requiresAssetConfirmation
+    ? resolveAutomaticAssetConfirmedBy(call)
+    : null;
 
   const sessionNames = Array.from(
-    new Set(
-      (call.technicianSessions ?? []).map(
-        (session) => session.technicianName,
-      ),
-    ),
+    new Set((call.technicianSessions ?? []).map((session) => session.technicianName)),
   );
 
   const legacyNames = uniqueRegisteredTechnicianNames([
@@ -690,18 +703,10 @@ export function finishAndonCall(
   ]);
   const technicianNames = sessionNames.length ? sessionNames : legacyNames;
 
-  const technicianName =
-    technicianNames[0] ??
-    params.technicianName ??
-    null;
+  const technicianName = technicianNames[0] ?? params.technicianName ?? null;
 
-  if (
-    requiresMaintenanceTechnician(call) &&
-    !technicianName
-  ) {
-    throw new Error(
-      "Selecione um manutentor para chamados de manutenção",
-    );
+  if (requiresMaintenanceTechnician(call) && !technicianName) {
+    throw new Error("Selecione um manutentor para chamados de manutenção");
   }
 
   function assetKey(
@@ -714,99 +719,71 @@ export function finishAndonCall(
       return `id:${id}`;
     }
 
-    const values = [
-      code?.trim() ?? "",
-      name?.trim() ?? "",
-      type?.trim() ?? "",
-    ];
+    const values = [code?.trim() ?? "", name?.trim() ?? "", type?.trim() ?? ""];
 
-    return values.some(Boolean)
-      ? `snapshot:${values.join("|")}`
-      : null;
+    return values.some(Boolean) ? `snapshot:${values.join("|")}` : null;
   }
 
   const openingSetKey = assetKey(
-      call.machineSetId,
-      call.machineSetCodeSnapshot,
-      call.machineSetNameSnapshot,
-      call.machineSetTypeSnapshot,
-    );
+    call.machineSetId,
+    call.machineSetCodeSnapshot,
+    call.machineSetNameSnapshot,
+    call.machineSetTypeSnapshot,
+  );
   const openingSubsetKey = assetKey(
-      call.machineSubsetId,
-      call.machineSubsetCodeSnapshot,
-      call.machineSubsetNameSnapshot,
-      call.machineSubsetTypeSnapshot,
-    );
+    call.machineSubsetId,
+    call.machineSubsetCodeSnapshot,
+    call.machineSubsetNameSnapshot,
+    call.machineSubsetTypeSnapshot,
+  );
   const locationChanged = Boolean(
     requiresAssetConfirmation &&
-      (openingSetKey || openingSubsetKey) &&
-      (openingSetKey !== assetKey(
+    (openingSetKey || openingSubsetKey) &&
+    (openingSetKey !==
+      assetKey(
         params.confirmedMachineSetId,
         params.confirmedMachineSetCodeSnapshot,
         params.confirmedMachineSetNameSnapshot,
         params.confirmedMachineSetTypeSnapshot,
       ) ||
-        openingSubsetKey !== assetKey(
-        params.confirmedMachineSubsetId,
-        params.confirmedMachineSubsetCodeSnapshot,
-        params.confirmedMachineSubsetNameSnapshot,
-        params.confirmedMachineSubsetTypeSnapshot,
-      )),
+      openingSubsetKey !==
+        assetKey(
+          params.confirmedMachineSubsetId,
+          params.confirmedMachineSubsetCodeSnapshot,
+          params.confirmedMachineSubsetNameSnapshot,
+          params.confirmedMachineSubsetTypeSnapshot,
+        )),
   );
 
-  const assetChangeReason =
-    resolveAssetChangeReason(
-      locationChanged,
-      params.assetChangeReason,
-    );
+  const assetChangeReason = resolveAssetChangeReason(locationChanged, params.assetChangeReason);
 
   const now = new Date().toISOString();
 
-  const machine = machines.find(
-    (item) => item.id === call.machineId,
-  );
+  const machine = machines.find((item) => item.id === call.machineId);
 
   const shouldResumeOwnedStop = Boolean(
     machine?.machineStatus === "stopped" &&
-      machine.stopHistory.some(
-        (event) =>
-          !event.resumedAt &&
-          event.callId === call.id,
-      ),
+    machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
   );
 
   const finalMachines = shouldResumeOwnedStop
-    ? updateMachineStatus(
-        machines,
-        call.machineId,
-        "running",
-      ).machines
+    ? updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
-  const finalMachine = finalMachines.find(
-    (item) => item.id === call.machineId,
+  const finalMachine = finalMachines.find((item) => item.id === call.machineId);
+
+  const selectedTechnicianIdsByName = new Map(
+    (params.selectedTechnicians ?? [])
+      .map((technician) => [technician.name.trim(), technician.id] as const)
+      .filter(([name]) => Boolean(name)),
   );
 
-  const selectedTechnicianIdsByName =
-    new Map(
-      (params.selectedTechnicians ?? [])
-        .map(
-          (technician) =>
-            [
-              technician.name.trim(),
-              technician.id,
-            ] as const,
-        )
-        .filter(([name]) => Boolean(name)),
-    );
-
-  const technicianTimeAllocations =
-    buildTechnicianTimeAllocations({
-      call,
-      finalizedAt: now,
-      technicianNames,
-      selectedTechnicianIdsByName,
-    });
+  const technicianTimeAllocations = buildTechnicianTimeAllocations({
+    call,
+    finalizedAt: now,
+    technicianNames,
+    selectedTechnicianIdsByName,
+  });
 
   const finishedCall: AndonCall = {
     ...call,
@@ -817,125 +794,76 @@ export function finishAndonCall(
     technicianNames,
     technicianArea: params.technicianArea,
     notes: params.notes ?? null,
-    productionModeAtFinish:
-      finalMachine?.productionMode,
-    machineStatusAtFinish:
-      finalMachine?.machineStatus,
+    productionModeAtFinish: finalMachine?.productionMode,
+    machineStatusAtFinish: finalMachine?.machineStatus,
 
-    confirmedMachineSetId:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSetId
-        : null,
-    confirmedMachineSetCodeSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSetCodeSnapshot
-        : null,
-    confirmedMachineSetNameSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSetNameSnapshot
-        : null,
-    confirmedMachineSetTypeSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSetTypeSnapshot
-        : null,
+    confirmedMachineSetId: requiresAssetConfirmation ? params.confirmedMachineSetId : null,
+    confirmedMachineSetCodeSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSetCodeSnapshot
+      : null,
+    confirmedMachineSetNameSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSetNameSnapshot
+      : null,
+    confirmedMachineSetTypeSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSetTypeSnapshot
+      : null,
 
-    confirmedMachineSubsetId:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSubsetId
-        : null,
-    confirmedMachineSubsetCodeSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSubsetCodeSnapshot
-        : null,
-    confirmedMachineSubsetNameSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSubsetNameSnapshot
-        : null,
-    confirmedMachineSubsetTypeSnapshot:
-      requiresAssetConfirmation
-        ? params.confirmedMachineSubsetTypeSnapshot
-        : null,
+    confirmedMachineSubsetId: requiresAssetConfirmation ? params.confirmedMachineSubsetId : null,
+    confirmedMachineSubsetCodeSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSubsetCodeSnapshot
+      : null,
+    confirmedMachineSubsetNameSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSubsetNameSnapshot
+      : null,
+    confirmedMachineSubsetTypeSnapshot: requiresAssetConfirmation
+      ? params.confirmedMachineSubsetTypeSnapshot
+      : null,
 
-    assetConfirmedAt:
-      requiresAssetConfirmation
-        ? now
-        : null,
+    assetConfirmedAt: requiresAssetConfirmation ? now : null,
     assetConfirmedBy,
-    assetLocationChanged:
-      locationChanged,
-    assetChangeReason:
-      locationChanged
-        ? assetChangeReason
-        : null,
+    assetLocationChanged: locationChanged,
+    assetChangeReason: locationChanged ? assetChangeReason : null,
 
-    technicianSessions:
-      (call.technicianSessions ?? []).map(
-        (session) =>
-          session.endedAt
-            ? session
-            : {
-                ...session,
-                endedAt: now,
-                endReason: "final_call",
-                productionModeAtEnd:
-                  finalMachine?.productionMode,
-                machineStatusAtEnd:
-                  finalMachine?.machineStatus,
-              },
-      ),
+    technicianSessions: (call.technicianSessions ?? []).map((session) =>
+      session.endedAt
+        ? session
+        : {
+            ...session,
+            endedAt: now,
+            endReason: "final_call",
+            productionModeAtEnd: finalMachine?.productionMode,
+            machineStatusAtEnd: finalMachine?.machineStatus,
+          },
+    ),
 
     technicianTimeAllocations,
     updatedAt: now,
   };
 
-  finishedCall.callWaitingMinutes =
-    calculateCallWaitingMinutes(
-      finishedCall,
-      now,
-    );
+  finishedCall.callWaitingMinutes = calculateCallWaitingMinutes(finishedCall, now);
 
   finishedCall.attendanceMinutes =
     (call.attendanceMinutes ?? 0) +
     (call.status === "in_progress"
-      ? diffMinutes(
-          call.currentAttendanceStartedAt ??
-            call.attendedAt,
-          now,
-        )
+      ? diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
       : 0);
 
   finishedCall.postMaintenanceMinutes =
     (call.postMaintenanceMinutes ?? 0) +
-    (call.status === "post_maintenance"
-      ? diffMinutes(
-          call.maintenanceCompletedAt,
-          now,
-        )
-      : 0);
+    (call.status === "post_maintenance" ? diffMinutes(call.maintenanceCompletedAt, now) : 0);
 
-  finishedCall.totalCallMinutes =
-    calculateTotalCallMinutes(
-      finishedCall,
-      now,
-    );
+  finishedCall.totalCallMinutes = calculateTotalCallMinutes(finishedCall, now);
 
-  finishedCall.machineStoppedMinutes =
-    finalMachine
-      ? calculateMachineConditionBreakdownForPeriod({
-          periodStart: call.openedAt,
-          periodEnd: now,
-          stopHistory: finalMachine.stopHistory,
-          fallbackMachineCondition:
-            call.machineStatusAtOpen ??
-            call.machineCondition,
-        }).failureSeconds / 60
-      : 0;
+  finishedCall.machineStoppedMinutes = finalMachine
+    ? calculateMachineConditionBreakdownForPeriod({
+        periodStart: call.openedAt,
+        periodEnd: now,
+        stopHistory: finalMachine.stopHistory,
+        fallbackMachineCondition: call.machineStatusAtOpen ?? call.machineCondition,
+      }).failureSeconds / 60
+    : 0;
 
-  const finishedCalls = calls.map((item) =>
-      item.id === params.callId
-        ? finishedCall
-        : item,
-    );
+  const finishedCalls = calls.map((item) => (item.id === params.callId ? finishedCall : item));
 
   return {
     calls: finishedCalls,
@@ -949,14 +877,30 @@ export function cancelAndonCall(
 ): { machines: Machine[]; calls: AndonCall[] } {
   const call = calls.find((c) => c.id === params.callId);
   if (!call) throw new Error("Chamado não encontrado");
-  const hasTechnician = Boolean(call.technicianName || call.technicianNames?.length || call.technicianArea);
-  const hasAttendanceSession = Boolean((call.technicianSessions ?? []).length || call.currentAttendanceStartedAt);
+  const hasTechnician = Boolean(
+    call.technicianName || call.technicianNames?.length || call.technicianArea,
+  );
+  const hasAttendanceSession = Boolean(
+    (call.technicianSessions ?? []).length || call.currentAttendanceStartedAt,
+  );
   if (call.status !== "open" || call.attendedAt || hasTechnician || hasAttendanceSession) {
     throw new Error("Não é possível cancelar chamado já atendido.");
   }
 
   const newCalls = calls.filter((c) => c.id !== params.callId);
-  const newMachines = syncLocalMachineOperationalState(machines, newCalls, call.machineId);
+  const ownsOpenStop = machines.some(
+    (machine) =>
+      machine.id === call.machineId &&
+      machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
+  );
+  const machinesAfterStopRecovery = ownsOpenStop
+    ? updateMachineStatus(machines, call.machineId, "running").machines
+    : machines;
+  const newMachines = syncLocalMachineOperationalState(
+    machinesAfterStopRecovery,
+    newCalls,
+    call.machineId,
+  );
   return { machines: newMachines, calls: newCalls };
 }
 
@@ -993,7 +937,12 @@ export function updateMachineStatus(
     // running -> fechar última em falha aberta
     const updatedHistory = m.stopHistory.map((s, idx) => {
       if (idx === 0 && s.resumedAt === null) {
-        return { ...s, resumedAt: now, durationMinutes: diffMinutes(s.stoppedAt, now), productionModeAtEnd: m.productionMode };
+        return {
+          ...s,
+          resumedAt: now,
+          durationMinutes: diffMinutes(s.stoppedAt, now),
+          productionModeAtEnd: m.productionMode,
+        };
       }
       return s;
     });
