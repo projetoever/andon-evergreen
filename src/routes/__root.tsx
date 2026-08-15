@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
+import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 
 import appCss from "../styles.css?url";
 
@@ -75,6 +76,7 @@ function RootComponent() {
     <AndonProvider>
       <TechnicianProvider>
         <Outlet />
+        <VirtualKeyboard />
       </TechnicianProvider>
     </AndonProvider>
   );
