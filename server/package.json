@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "test:auth": "node --import tsx --test src/security/technicianCredentials.test.ts",
     "test:dashboard": "node --import tsx --test ../tests/dashboardPriority.test.ts",
-    "test:impact": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/callImpactAttribution.test.ts",
+    "test:impact": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/callImpactAttribution.test.ts ../tests/failureDescriptionUtils.test.ts",
     "test:installer": "node --import tsx --test src/installerPreservation.test.ts",
     "test:integration": "node scripts/validate-pr-flow.mjs",
     "test:plc": "node --import tsx --test src/integrations/plc/plcFoundation.test.ts",
