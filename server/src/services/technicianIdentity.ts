@@ -82,8 +82,10 @@ export async function lockTechnicianCredential(
     .update(`${credential.method}:${credential.value}`)
     .digest("hex");
 
-  await client.$queryRaw`
-    SELECT pg_advisory_xact_lock(hashtext(${`andon-technician-credential:${fingerprint}`}))
+  await client.$queryRaw<Array<{ locked: string | null }>>`
+    SELECT pg_advisory_xact_lock(
+      hashtext(${`andon-technician-credential:${fingerprint}`})
+    )::text AS locked
   `;
 }
 
