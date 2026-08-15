@@ -658,6 +658,9 @@ async function run() {
     stoppedAt.getTime(),
     "transferir a responsabilidade não pode reiniciar o timer de falha",
   );
+  assert.match(transferredFailureEvent.notes ?? "", /Liderança/);
+  assert.doesNotMatch(transferredFailureEvent.notes ?? "", new RegExp(leadershipDuringStop.id));
+  assert.doesNotMatch(transferredFailureEvent.notes ?? "", new RegExp(qualityStopped.id));
 
   const finishedOwnerImpact = await prisma.callImpactInterval.findUniqueOrThrow({
     where: { id: ownedImpactInterval.id },
