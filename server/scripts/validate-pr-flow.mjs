@@ -423,12 +423,21 @@ async function run() {
   assert.ok(endedSupportSession.endedAt);
   assert.equal(endedSupportSession.endReason, "support_finished");
 
+  const firstAttendanceStartedAt = new Date(Date.now() - 11 * 1000);
+  await prisma.andonCall.update({
+    where: { id: electricalCall.id },
+    data: { currentAttendanceStartedAt: firstAttendanceStartedAt },
+  });
   const firstFollowUp = await request(
     `/api/andon-calls/${electricalCall.id}/finish-maintenance`,
     json("PATCH", { notes: "Integração concluída" }),
   );
   assert.equal(firstFollowUp.status, "post_maintenance");
-  const firstFollowUpStartedAt = new Date(Date.now() - 3 * 60 * 1000);
+  assert.ok(
+    firstFollowUp.attendanceMinutes >= 0.15 && firstFollowUp.attendanceMinutes < 0.5,
+    "um atendimento inferior a um minuto deve ser persistido ao iniciar o acompanhamento",
+  );
+  const firstFollowUpStartedAt = new Date(Date.now() - 20 * 1000);
   await prisma.andonCall.update({
     where: { id: electricalCall.id },
     data: { maintenanceCompletedAt: firstFollowUpStartedAt },
@@ -441,9 +450,9 @@ async function run() {
   assert.equal(returnedToMaintenance.status, "in_progress");
   assert.equal(returnedToMaintenance.maintenanceReturnCount, 1);
   assert.ok(
-    returnedToMaintenance.postMaintenanceMinutes >= 2 &&
-      returnedToMaintenance.postMaintenanceMinutes <= 4,
-    "o primeiro período de acompanhamento deve ser preservado no retorno à manutenção",
+    returnedToMaintenance.postMaintenanceMinutes >= 0.25 &&
+      returnedToMaintenance.postMaintenanceMinutes < 0.75,
+    "um acompanhamento inferior a um minuto deve ser preservado no retorno à manutenção",
   );
 
   const secondAttendanceStartedAt = new Date(Date.now() - 2 * 60 * 1000);
@@ -456,9 +465,12 @@ async function run() {
     json("PATCH", { notes: "Segunda conclusão da manutenção" }),
   );
   assert.equal(secondFollowUp.status, "post_maintenance");
-  assert.ok(secondFollowUp.attendanceMinutes >= 2);
   assert.ok(
-    secondFollowUp.postMaintenanceMinutes >= 2 && secondFollowUp.postMaintenanceMinutes <= 4,
+    secondFollowUp.attendanceMinutes >= 2.15,
+    "o segundo atendimento deve acumular o primeiro período sem zerá-lo",
+  );
+  assert.ok(
+    secondFollowUp.postMaintenanceMinutes >= 0.25 && secondFollowUp.postMaintenanceMinutes < 0.75,
     "o acompanhamento acumulado não pode zerar ao concluir novamente",
   );
 
@@ -477,8 +489,8 @@ async function run() {
   );
   assert.equal(finishedMaintenance.status, "finished");
   assert.ok(
-    finishedMaintenance.postMaintenanceMinutes >= 6 &&
-      finishedMaintenance.postMaintenanceMinutes <= 8,
+    finishedMaintenance.postMaintenanceMinutes >= 4.25 &&
+      finishedMaintenance.postMaintenanceMinutes < 5,
     "a finalização deve somar todos os períodos de acompanhamento",
   );
   assert.deepEqual(
