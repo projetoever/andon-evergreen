@@ -62,6 +62,7 @@ jobs:
           npm run build --prefix server
           npm run test:auth --prefix server
           npm run test:dashboard --prefix server
+          npm run test:impact --prefix server
           npm run test:installer --prefix server
           npm run test:plc --prefix server
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -56,6 +56,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const navigate = useNavigate();
   const machine = machines.find((item) => item.id === machineId);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const knownActiveCallIdsRef = useRef<Set<string>>(new Set());
+  const selectionMachineIdRef = useRef(machineId);
   const [selectedSubtype, setSelectedSubtype] = useState<CallSubtype | null>(null);
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
@@ -80,15 +82,30 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   );
 
   useEffect(() => {
+    if (selectionMachineIdRef.current !== machineId) {
+      selectionMachineIdRef.current = machineId;
+      knownActiveCallIdsRef.current = new Set();
+    }
+
+    const previousIds = knownActiveCallIdsRef.current;
+    const currentIds = new Set(activeCalls.map((call) => call.id));
+    knownActiveCallIdsRef.current = currentIds;
+
     if (!activeCalls.length) {
       setSelectedCallId(null);
       return;
     }
-    if (selectedCallId && activeCalls.some((call) => call.id === selectedCallId)) return;
+
+    const newlyOpenedCall = activeCalls.find((call) => !previousIds.has(call.id));
+    if (previousIds.size > 0 && newlyOpenedCall) {
+      setSelectedCallId(newlyOpenedCall.id);
+      return;
+    }
+
     const preferred =
       activeCalls.find((call) => call.id === machine?.currentCallId) ?? activeCalls[0];
-    setSelectedCallId(preferred.id);
-  }, [activeCalls, machine?.currentCallId, selectedCallId]);
+    setSelectedCallId((current) => (current && currentIds.has(current) ? current : preferred.id));
+  }, [activeCalls, machine?.currentCallId, machineId]);
 
   const currentCall = selectedCallId
     ? (activeCalls.find((call) => call.id === selectedCallId) ?? null)

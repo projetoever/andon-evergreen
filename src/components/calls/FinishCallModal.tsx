@@ -170,6 +170,16 @@ export function FinishCallModal({
     setConditionConfirmationOpen,
   ] = useState(false);
 
+  const [
+    machineContinuesStopped,
+    setMachineContinuesStopped,
+  ] = useState(false);
+
+  const [
+    selectedImpactCallIds,
+    setSelectedImpactCallIds,
+  ] = useState<string[]>([]);
+
   const initializedCallIdRef =
     useRef<string | null>(null);
 
@@ -292,6 +302,8 @@ export function FinishCallModal({
     setAssetChangeReason("");
     setIsSubmitting(false);
     setConditionConfirmationOpen(false);
+    setMachineContinuesStopped(false);
+    setSelectedImpactCallIds([]);
   }, [
     open,
     call?.id,
@@ -682,7 +694,10 @@ export function FinishCallModal({
     );
   }
 
-  async function submitFinish(machineStatus?: "running" | "stopped") {
+  async function submitFinish(
+    machineStatus?: "running" | "stopped",
+    impactCallIds: string[] = [],
+  ) {
     if (!canFinish) {
       return;
     }
@@ -697,6 +712,8 @@ export function FinishCallModal({
         callId: currentCall.id,
 
         machineStatus,
+
+        impactCallIds,
 
         technicianName:
           technicianNames[0] ?? null,
@@ -777,6 +794,12 @@ export function FinishCallModal({
     }
 
     if (requiresConditionConfirmation) {
+      setMachineContinuesStopped(false);
+      setSelectedImpactCallIds(
+        remainingActiveCalls
+          .filter((item) => item.impactIntervals?.some((interval) => !interval.endedAt))
+          .map((item) => item.id),
+      );
       setConditionConfirmationOpen(true);
       return;
     }
@@ -870,9 +893,11 @@ export function FinishCallModal({
 
             <div className="mt-3 grid gap-3 lg:grid-cols-2 lg:items-start">
             <div className={cn("min-w-0", !selectedMachineSet && "lg:col-span-2")}>
-              <h5 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Conjunto
-              </h5>
+              <div className="mb-1.5 flex min-h-8 items-center">
+                <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Conjunto
+                </h5>
+              </div>
 
               {isLoadingAssets ? (
                 <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -928,7 +953,7 @@ export function FinishCallModal({
 
             {selectedMachineSet && (
               <div className="min-w-0">
-                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="mb-1.5 flex min-h-8 flex-wrap items-center justify-between gap-2">
                   <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Equipamento ou subconjunto
                   </h5>
@@ -1132,6 +1157,10 @@ export function FinishCallModal({
         onOpenChange={(nextOpen) => {
           if (!isSubmitting) {
             setConditionConfirmationOpen(nextOpen);
+            if (!nextOpen) {
+              setMachineContinuesStopped(false);
+              setSelectedImpactCallIds([]);
+            }
           }
         }}
       >
@@ -1151,7 +1180,7 @@ export function FinishCallModal({
               tone="danger"
               size="lg"
               className="min-h-24 whitespace-normal px-4 text-center"
-              onClick={() => void submitFinish("stopped")}
+              onClick={() => setMachineContinuesStopped(true)}
               disabled={isSubmitting}
             >
               <CircleStop className="h-8 w-8 shrink-0" />
@@ -1169,6 +1198,79 @@ export function FinishCallModal({
               <span>Não — pronta para rodar</span>
             </BigButton>
           </div>
+
+          {machineContinuesStopped && (
+            <div className="space-y-3 rounded-xl border border-danger/35 bg-danger/5 p-3 sm:p-4">
+              <div>
+                <h4 className="font-black text-foreground">
+                  Quais chamados passam a responder pela parada?
+                </h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Selecione um ou mais. O impacto produtivo começa agora somente nos chamados
+                  marcados, sem alterar os tempos anteriores.
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {remainingActiveCalls.map((item) => {
+                  const selected = selectedImpactCallIds.includes(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setSelectedImpactCallIds((current) =>
+                          current.includes(item.id)
+                            ? current.filter((callId) => callId !== item.id)
+                            : [...current, item.id],
+                        );
+                      }}
+                      className={cn(
+                        "flex min-h-14 items-center justify-between gap-3 rounded-xl border-2 px-3 py-2 text-left transition-colors",
+                        selected
+                          ? "border-danger bg-danger/10"
+                          : "border-border bg-card hover:border-danger/50",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-black">
+                          {getCallSubtypeLabel(item.subtype)}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {item.status === "in_progress"
+                            ? "Em atendimento"
+                            : item.status === "post_maintenance"
+                              ? "Em acompanhamento"
+                              : "Aberto"}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2",
+                          selected
+                            ? "border-danger bg-danger text-danger-foreground"
+                            : "border-muted-foreground/50",
+                        )}
+                      >
+                        {selected && <Check className="h-4 w-4" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <BigButton
+                tone="danger"
+                size="md"
+                className="w-full"
+                onClick={() => void submitFinish("stopped", selectedImpactCallIds)}
+                disabled={isSubmitting || selectedImpactCallIds.length === 0}
+              >
+                Confirmar continuidade da falha
+              </BigButton>
+            </div>
+          )}
 
           <BigButton
             tone="neutral"

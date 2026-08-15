@@ -55,6 +55,18 @@ export interface TechnicianAttendanceSession {
   machineStatusAtEnd?: MachineStatus;
 }
 
+export interface CallImpactInterval {
+  id: string;
+  callId: string;
+  machineId: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds?: number | null;
+  source: string;
+  assignedByCallId?: string | null;
+  notes?: string | null;
+}
+
 export interface AndonCall {
   id: string;
   machineId: string;
@@ -102,6 +114,8 @@ export interface AndonCall {
   maintenanceReturnCount: number;
   totalCallMinutes: number;
   machineStoppedMinutes: number;
+  impactTrackingVersion?: number | null;
+  impactIntervals?: CallImpactInterval[];
   productionModeAtOpen?: "scheduled" | "not_scheduled";
   productionModeAtAttend?: "scheduled" | "not_scheduled";
   productionModeAtFinish?: "scheduled" | "not_scheduled";

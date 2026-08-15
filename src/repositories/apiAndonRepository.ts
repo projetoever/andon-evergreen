@@ -1,7 +1,7 @@
 import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient";
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
-import type { AndonCall, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
+import type { AndonCall, CallImpactInterval, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
 import type { FailureClassification, Machine, MachineProductionEvent, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
@@ -78,6 +78,14 @@ function toIso(value: unknown, fallback = getServerNowIso()) {
   return fallback;
 }
 
+function mapCallImpactInterval(interval: CallImpactInterval): CallImpactInterval {
+  return {
+    ...interval,
+    startedAt: toIso(interval.startedAt),
+    endedAt: interval.endedAt ? toIso(interval.endedAt) : null,
+  };
+}
+
 function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
   return {
     id: event.id,
@@ -130,6 +138,10 @@ function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) 
   const wasStopped = call.machineCondition === "stopped" || call.machineStatusAtOpen === "stopped";
   const hasPersistedStoppedDuration =
     finishedAt !== null && typeof call.machineStoppedMinutes === "number";
+  const trackedImpactMinutes = (call.impactIntervals ?? []).reduce((total, interval) => {
+    const intervalEnd = interval.endedAt ? toIso(interval.endedAt) : activeEnd;
+    return total + diffMinutes(toIso(interval.startedAt), intervalEnd);
+  }, 0);
 
   return {
     callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, nowIso),
@@ -138,11 +150,15 @@ function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) 
     attendanceMinutes: call.attendanceMinutes ?? 0,
     postMaintenanceMinutes: call.postMaintenanceMinutes ?? 0,
     totalCallMinutes: diffMinutes(openedAt, activeEnd),
-    machineStoppedMinutes: hasPersistedStoppedDuration
-      ? call.machineStoppedMinutes ?? 0
-      : wasStopped
-        ? diffMinutes(openedAt, activeEnd)
-        : (call.machineStoppedMinutes ?? 0),
+    machineStoppedMinutes: call.impactTrackingVersion === 1
+      ? hasPersistedStoppedDuration
+        ? call.machineStoppedMinutes ?? trackedImpactMinutes
+        : trackedImpactMinutes
+      : hasPersistedStoppedDuration
+        ? call.machineStoppedMinutes ?? 0
+        : wasStopped
+          ? diffMinutes(openedAt, activeEnd)
+          : (call.machineStoppedMinutes ?? 0),
   };
 }
 
@@ -216,6 +232,9 @@ function mapCall(call: ApiAndonCall, nowIso = getServerNowIso()): AndonCall {
       : [],
     technicianTimeAllocations: Array.isArray(call.technicianTimeAllocations)
       ? call.technicianTimeAllocations.map(mapTechnicianTimeAllocation)
+      : [],
+    impactIntervals: Array.isArray(call.impactIntervals)
+      ? call.impactIntervals.map(mapCallImpactInterval)
       : [],
     notes: call.notes ?? null,
     createdBy: typeof call.createdBy === "string" ? call.createdBy : null,
@@ -371,6 +390,7 @@ export class ApiAndonRepository implements AndonRepository {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
       machineStatus: params.machineStatus,
+      impactCallIds: params.impactCallIds,
       confirmedMachineSetId:
         params.confirmedMachineSetId,
       confirmedMachineSubsetId:

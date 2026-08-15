@@ -7,6 +7,7 @@ import type {
   TechnicianAttendanceSession,
   TechnicianSessionEndReason,
   TechnicianTimeAllocation,
+  CallImpactInterval,
 } from "@/types/andon";
 import type {
   Machine,
@@ -62,6 +63,7 @@ export interface CancelAndonCallParams {
 export interface FinishAndonCallParams {
   callId: string;
   machineStatus?: MachineStatus;
+  impactCallIds?: string[];
   technicianName: string | null;
   technicianNames?: string[];
   technicianArea: TechnicianArea | null;
@@ -244,6 +246,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     assetConfirmedBy?: unknown;
     assetLocationChanged?: unknown;
     assetChangeReason?: unknown;
+    impactTrackingVersion?: unknown;
+    impactIntervals?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -315,6 +319,11 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     assetLocationChanged: source.assetLocationChanged === true,
     assetChangeReason:
       typeof source.assetChangeReason === "string" ? source.assetChangeReason : null,
+    impactTrackingVersion:
+      typeof source.impactTrackingVersion === "number" ? source.impactTrackingVersion : null,
+    impactIntervals: Array.isArray(source.impactIntervals)
+      ? (source.impactIntervals as CallImpactInterval[])
+      : [],
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
       source.machineCondition === "stopped" || source.machineCondition === "running"
@@ -407,8 +416,9 @@ export function openAndonCall(
     machine.machineStatus === "stopped" && hasActiveStopOwner
       ? "stopped"
       : (params.machineCondition ?? machine.machineStatus);
+  const callId = generateId("call");
   const call: AndonCall = {
-    id: generateId("call"),
+    id: callId,
     machineId: params.machineId,
     machineSetId: params.machineSetId ?? null,
     machineSetCodeSnapshot: params.machineSetCodeSnapshot ?? null,
@@ -437,6 +447,21 @@ export function openAndonCall(
     maintenanceReturnCount: 0,
     totalCallMinutes: 0,
     machineStoppedMinutes: 0,
+    impactTrackingVersion: 1,
+    impactIntervals:
+      condition === "stopped" && !hasActiveStopOwner
+        ? [
+            {
+              id: generateId("impact"),
+              callId,
+              machineId: params.machineId,
+              startedAt: now,
+              endedAt: null,
+              source: "call_opened_stopped",
+              notes: "Chamado informou a parada da máquina",
+            },
+          ]
+        : [],
     notes: null,
     createdBy: "kiosk",
     origin: "kiosk",
@@ -767,7 +792,7 @@ export function finishAndonCall(
     machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
   );
 
-  const nextResponsibleCall = calls
+  const remainingActiveCalls = calls
     .filter(
       (item) =>
         item.id !== call.id &&
@@ -775,21 +800,77 @@ export function finishAndonCall(
         !item.isSystemTest &&
         ["open", "in_progress", "post_maintenance"].includes(item.status),
     )
-    .sort((current, next) => current.openedAt.localeCompare(next.openedAt))[0];
+    .sort((current, next) => current.openedAt.localeCompare(next.openedAt));
 
-  if (shouldResumeOwnedStop && nextResponsibleCall && !params.machineStatus) {
+  if (shouldResumeOwnedStop && remainingActiveCalls.length > 0 && !params.machineStatus) {
     throw new Error("Informe se a máquina continua em falha antes de finalizar este chamado");
   }
 
+  const selectedImpactCallIds = Array.from(new Set(params.impactCallIds ?? []));
+  if (shouldResumeOwnedStop && params.machineStatus === "stopped") {
+    const remainingIds = new Set(remainingActiveCalls.map((item) => item.id));
+    if (!selectedImpactCallIds.length) {
+      throw new Error("Selecione ao menos um chamado responsável se a máquina continua em falha");
+    }
+    if (selectedImpactCallIds.some((callId) => !remainingIds.has(callId))) {
+      throw new Error("Um ou mais chamados selecionados não estão ativos nesta máquina");
+    }
+  }
+
+  const closeOpenImpactIntervals = (intervals: CallImpactInterval[] | undefined) =>
+    (intervals ?? []).map((interval) =>
+      interval.endedAt
+        ? interval
+        : {
+            ...interval,
+            endedAt: now,
+            durationSeconds: Math.max(
+              0,
+              Math.round((new Date(now).getTime() - new Date(interval.startedAt).getTime()) / 1000),
+            ),
+          },
+    );
+
+  const callsAfterImpactTransfer = calls.map((item) => {
+    if (item.id === call.id) {
+      return { ...item, impactIntervals: closeOpenImpactIntervals(item.impactIntervals) };
+    }
+    if (!shouldResumeOwnedStop || item.machineId !== call.machineId) return item;
+    if (params.machineStatus !== "stopped") {
+      return { ...item, impactIntervals: closeOpenImpactIntervals(item.impactIntervals) };
+    }
+    if (!selectedImpactCallIds.includes(item.id)) {
+      return { ...item, impactIntervals: closeOpenImpactIntervals(item.impactIntervals) };
+    }
+    if (item.impactIntervals?.some((interval) => !interval.endedAt)) return item;
+    return {
+      ...item,
+      impactTrackingVersion: 1,
+      impactIntervals: [
+        ...(item.impactIntervals ?? []),
+        {
+          id: generateId("impact"),
+          callId: item.id,
+          machineId: item.machineId,
+          startedAt: now,
+          endedAt: null,
+          source: "failure_handoff",
+          assignedByCallId: call.id,
+          notes: `Impacto atribuído após finalização do chamado ${call.id}`,
+        },
+      ],
+    };
+  });
+
   const finalMachines = shouldResumeOwnedStop
-    ? nextResponsibleCall && params.machineStatus === "stopped"
+    ? remainingActiveCalls.length > 0 && params.machineStatus === "stopped"
       ? machines.map((item) =>
           item.id === call.machineId
             ? {
                 ...item,
                 stopHistory: item.stopHistory.map((event) =>
                   !event.resumedAt && event.callId === call.id
-                    ? { ...event, callId: nextResponsibleCall.id }
+                    ? { ...event, callId: selectedImpactCallIds[0] }
                     : event,
                 ),
               }
@@ -815,6 +896,8 @@ export function finishAndonCall(
 
   const finishedCall: AndonCall = {
     ...call,
+    impactIntervals:
+      callsAfterImpactTransfer.find((item) => item.id === call.id)?.impactIntervals ?? [],
     status: "finished",
     currentAttendanceStartedAt: null,
     finishedAt: now,
@@ -882,16 +965,24 @@ export function finishAndonCall(
 
   finishedCall.totalCallMinutes = calculateTotalCallMinutes(finishedCall, now);
 
-  finishedCall.machineStoppedMinutes = finalMachine
-    ? calculateMachineConditionBreakdownForPeriod({
-        periodStart: call.openedAt,
-        periodEnd: now,
-        stopHistory: finalMachine.stopHistory,
-        fallbackMachineCondition: call.machineStatusAtOpen ?? call.machineCondition,
-      }).failureSeconds / 60
-    : 0;
+  finishedCall.machineStoppedMinutes =
+    call.impactTrackingVersion === 1
+      ? (finishedCall.impactIntervals ?? []).reduce(
+          (total, interval) => total + diffMinutes(interval.startedAt, interval.endedAt ?? now),
+          0,
+        )
+      : finalMachine
+        ? calculateMachineConditionBreakdownForPeriod({
+            periodStart: call.openedAt,
+            periodEnd: now,
+            stopHistory: finalMachine.stopHistory,
+            fallbackMachineCondition: call.machineStatusAtOpen ?? call.machineCondition,
+          }).failureSeconds / 60
+        : 0;
 
-  const finishedCalls = calls.map((item) => (item.id === params.callId ? finishedCall : item));
+  const finishedCalls = callsAfterImpactTransfer.map((item) =>
+    item.id === params.callId ? finishedCall : item,
+  );
 
   return {
     calls: finishedCalls,
