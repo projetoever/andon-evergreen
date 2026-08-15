@@ -499,7 +499,7 @@ async function resumeMachineWhenFinishingOwnedStop(
       status: { in: OPEN_CALL_STATUSES },
     },
     orderBy: [{ openedAt: "asc" }, { id: "asc" }],
-    select: { id: true },
+    select: { id: true, subtype: true },
   });
 
   if (remainingCalls.length) {
@@ -536,19 +536,44 @@ async function resumeMachineWhenFinishingOwnedStop(
           startedAt: params.finishedAt,
           source: "failure_handoff",
           assignedByCallId: params.callId,
-          notes: `Impacto atribuído após finalização do chamado ${params.callId}`,
+          notes: "Impacto atribuído na continuidade da falha",
         });
       }
 
       const primaryCallId =
         remainingCalls.find((call) => requestedIds.includes(call.id))?.id ?? requestedIds[0];
+      const selectedCalls = remainingCalls.filter((call) => requestedIds.includes(call.id));
+      const selectedSubtypeIds = selectedCalls
+        .map((call) => call.subtype)
+        .filter((subtype): subtype is string => Boolean(subtype));
+      const selectedCategories = selectedSubtypeIds.length
+        ? await tx.andonCategory.findMany({
+            where: { id: { in: selectedSubtypeIds } },
+            select: { id: true, displayName: true },
+          })
+        : [];
+      const categoryNameById = new Map(
+        selectedCategories.map((category) => [category.id, category.displayName]),
+      );
+      const selectedCategoryNames = Array.from(
+        new Set(
+          selectedCalls
+            .map((call) => (call.subtype ? categoryNameById.get(call.subtype) : undefined))
+            .filter((name): name is string => Boolean(name)),
+        ),
+      );
+      const transferDescription = selectedCategoryNames.length
+        ? `Máquina permaneceu parada. Impacto transferido para: ${selectedCategoryNames.join(", ")}.`
+        : requestedIds.length === 1
+          ? "Máquina permaneceu parada. Impacto transferido para outro chamado ativo."
+          : `Máquina permaneceu parada. Impacto transferido para ${requestedIds.length} chamados ativos.`;
       await tx.failureEvent.update({
         where: { id: ownedOpenEvent.id },
         data: {
           callId: primaryCallId,
           notes: appendNote(
             ownedOpenEvent.notes,
-            `Impacto transferido aos chamados ${requestedIds.join(", ")} após finalização do chamado ${params.callId}`,
+            transferDescription,
             "Continuidade da falha",
           ),
         },
