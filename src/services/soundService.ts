@@ -33,12 +33,17 @@ try {
 const audioElements: Partial<Record<SoundKey, HTMLAudioElement>> = {};
 const repeatTimers: Partial<Record<SoundKey, number>> = {};
 const andonAudioInstances = new Set<HTMLAudioElement>();
+const customAudioUrls = new WeakMap<HTMLAudioElement, string>();
 
 let unlocked = false;
 let currentVolume = 0.8;
 let currentAndonAudio: HTMLAudioElement | null = null;
 let currentAndonMachineId: string | null = null;
 let currentPlaybackToken = 0;
+let currentEndedListener: {
+  audio: HTMLAudioElement;
+  listener: () => void;
+} | null = null;
 
 function ensureAudio(key: SoundKey): HTMLAudioElement | null {
   const url = soundUrls[key];
@@ -55,7 +60,7 @@ function ensureAudio(key: SoundKey): HTMLAudioElement | null {
 function stopTimer(key: SoundKey): void {
   const id = repeatTimers[key];
   if (id) {
-    window.clearInterval(id);
+    window.clearTimeout(id);
     delete repeatTimers[key];
   }
 }
@@ -75,6 +80,21 @@ function stopAudioElement(audio: HTMLAudioElement): void {
   }
 }
 
+function releaseCustomAudio(audio: HTMLAudioElement): void {
+  const url = customAudioUrls.get(audio);
+  if (url) {
+    URL.revokeObjectURL(url);
+    customAudioUrls.delete(audio);
+  }
+  andonAudioInstances.delete(audio);
+}
+
+function detachCurrentEndedListener(): void {
+  if (!currentEndedListener) return;
+  currentEndedListener.audio.removeEventListener("ended", currentEndedListener.listener);
+  currentEndedListener = null;
+}
+
 async function playAudio(audio: HTMLAudioElement): Promise<void> {
   audio.currentTime = 0;
   audio.volume = currentVolume;
@@ -82,12 +102,15 @@ async function playAudio(audio: HTMLAudioElement): Promise<void> {
 }
 
 function stopCurrentAndonAudio(): void {
+  detachCurrentEndedListener();
+
   if (currentAndonAudio) {
     stopAudioElement(currentAndonAudio);
   }
 
   for (const audio of andonAudioInstances) {
     stopAudioElement(audio);
+    releaseCustomAudio(audio);
   }
 
   andonAudioInstances.clear();
@@ -96,9 +119,15 @@ function stopCurrentAndonAudio(): void {
   currentPlaybackToken += 1;
 }
 
-async function createCustomAudio(machineId: SoundMachineId, subtype: CallSubtype): Promise<HTMLAudioElement | null> {
+async function createCustomAudio(
+  machineId: SoundMachineId,
+  subtype: CallSubtype,
+): Promise<HTMLAudioElement | null> {
   const machineBlob = await getSoundBlob(machineId, subtype);
-  const fallbackBlob = machineId === DEFAULT_SOUND_MACHINE_ID ? null : await getSoundBlob(DEFAULT_SOUND_MACHINE_ID, subtype);
+  const fallbackBlob =
+    machineId === DEFAULT_SOUND_MACHINE_ID
+      ? null
+      : await getSoundBlob(DEFAULT_SOUND_MACHINE_ID, subtype);
   const blob = machineBlob ?? fallbackBlob;
   if (!blob) return null;
 
@@ -106,10 +135,7 @@ async function createCustomAudio(machineId: SoundMachineId, subtype: CallSubtype
   const audio = new Audio(url);
   audio.preload = "auto";
   audio.volume = currentVolume;
-  audio.onended = () => {
-    URL.revokeObjectURL(url);
-    andonAudioInstances.delete(audio);
-  };
+  customAudioUrls.set(audio, url);
   return audio;
 }
 
@@ -118,10 +144,13 @@ export function unlockAudio(): void {
   for (const key of Object.keys(soundUrls) as SoundKey[]) {
     const audio = ensureAudio(key);
     if (!audio) continue;
-    audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }).catch(() => {});
+    audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      })
+      .catch(() => {});
   }
 }
 
@@ -139,12 +168,11 @@ export function stopCallSound(key: SoundKey): void {
   stopTimer(key);
   const audio = audioElements[key];
   if (audio) {
-    stopAudioElement(audio);
     if (currentAndonAudio === audio) {
-      currentAndonAudio = null;
-      currentAndonMachineId = null;
-      currentPlaybackToken += 1;
+      stopCurrentAndonAudio();
+      return;
     }
+    stopAudioElement(audio);
   }
 }
 
@@ -163,7 +191,11 @@ export function stopAndonSound(machineId?: string): void {
   }
 }
 
-export async function playAndonSound(machineId: string, subtype: CallSubtype, repeatIntervalSeconds = 10): Promise<void> {
+export async function playAndonSound(
+  machineId: string,
+  subtype: CallSubtype,
+  repeatIntervalSeconds = 10,
+): Promise<void> {
   if (!unlocked) return;
   if (!isMachineSoundEnabled(machineId)) return;
 
@@ -180,7 +212,10 @@ export async function playAndonSound(machineId: string, subtype: CallSubtype, re
   let audio = await createCustomAudio(machineId, subtype);
 
   if (playbackToken !== currentPlaybackToken) {
-    if (audio) stopAudioElement(audio);
+    if (audio) {
+      stopAudioElement(audio);
+      releaseCustomAudio(audio);
+    }
     return;
   }
 
@@ -196,6 +231,7 @@ export async function playAndonSound(machineId: string, subtype: CallSubtype, re
     andonAudioInstances.add(audio);
     await playAudio(audio);
   } catch (err) {
+    releaseCustomAudio(audio);
     if (playbackToken === currentPlaybackToken) {
       console.warn("[sound] play failed", err);
     }
@@ -204,22 +240,48 @@ export async function playAndonSound(machineId: string, subtype: CallSubtype, re
 
   if (playbackToken !== currentPlaybackToken) {
     stopAudioElement(audio);
+    releaseCustomAudio(audio);
     return;
   }
 
-  if (repeatIntervalSeconds > 0) {
-    repeatTimers[key] = window.setInterval(() => {
+  const endedListener = () => {
+    if (playbackToken !== currentPlaybackToken) return;
+
+    if (repeatIntervalSeconds <= 0) {
+      releaseCustomAudio(audio);
+      return;
+    }
+
+    stopTimer(key);
+    repeatTimers[key] = window.setTimeout(() => {
+      delete repeatTimers[key];
       if (playbackToken !== currentPlaybackToken) return;
-      void playAudio(audio as HTMLAudioElement).catch(() => undefined);
+      void playAudio(audio).catch((error) => {
+        if (playbackToken === currentPlaybackToken) {
+          console.warn("[sound] repeat failed", error);
+        }
+      });
     }, repeatIntervalSeconds * 1000);
-  }
+  };
+
+  audio.addEventListener("ended", endedListener);
+  currentEndedListener = { audio, listener: endedListener };
 }
 
-export async function testAndonSound(machineId: SoundMachineId, subtype: CallSubtype): Promise<boolean> {
+export async function testAndonSound(
+  machineId: SoundMachineId,
+  subtype: CallSubtype,
+): Promise<boolean> {
   if (!unlocked) return false;
   const customAudio = await createCustomAudio(machineId, subtype);
   if (customAudio) {
-    await playAudio(customAudio);
+    customAudio.addEventListener("ended", () => releaseCustomAudio(customAudio), { once: true });
+    try {
+      await playAudio(customAudio);
+    } catch (error) {
+      releaseCustomAudio(customAudio);
+      throw error;
+    }
     return true;
   }
 
