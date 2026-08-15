@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Factory } from "lucide-react";
-import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { useAndon } from "@/context/AndonProvider";
 import { EmptyState } from "@/components/common/EmptyState";
+import {
+  MAX_DASHBOARD_CARDS,
+  compareByMachineNumber,
+  getDashboardPrioritySignature,
+  splitMachinesByDashboardPriority,
+} from "@/utils/dashboardPriorityUtils";
 import { MachineCard } from "./MachineCard";
 
-const MAX_DASHBOARD_CARDS = 14;
 const AUTO_RETURN_MS = 30_000;
 const GRID_CLASS =
   "grid h-full min-h-0 grid-cols-2 grid-rows-[repeat(7,minmax(0,1fr))] items-stretch gap-1.5 overflow-visible p-2 sm:grid-cols-3 sm:grid-rows-[repeat(5,minmax(0,1fr))] md:grid-cols-4 md:grid-rows-[repeat(4,minmax(0,1fr))] lg:grid-cols-5 lg:grid-rows-[repeat(3,minmax(0,1fr))] xl:grid-cols-7 xl:grid-rows-2 2xl:gap-2";
@@ -15,74 +19,6 @@ const GRID_CLASS =
 interface MachineGridProps {
   machines: Machine[];
   className?: string;
-}
-
-function getMachineNumber(machine: Machine): number {
-  const value = Number(machine.id);
-  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
-}
-
-function compareByMachineNumber(a: Machine, b: Machine): number {
-  return (
-    getMachineNumber(a) - getMachineNumber(b) ||
-    a.id.localeCompare(b.id, "pt-BR", { numeric: true })
-  );
-}
-
-function getCurrentCall(machine: Machine, calls: AndonCall[]): AndonCall | null {
-  if (!machine.currentCallId) return null;
-  return calls.find((call) => call.id === machine.currentCallId) ?? null;
-}
-
-function isActiveAttendance(call: AndonCall | null): boolean {
-  return call?.status === "in_progress" || call?.status === "post_maintenance";
-}
-
-function getDashboardPriority(machine: Machine, calls: AndonCall[]): number {
-  const call = getCurrentCall(machine, calls);
-  const isScheduled = machine.productionMode === "scheduled";
-  const isStopped = machine.machineStatus === "stopped";
-  const isOpen = call?.status === "open";
-  const isAttending = isActiveAttendance(call);
-
-  if (isScheduled) {
-    if (isStopped && isOpen) return 1;
-    if (isStopped && !call) return 2;
-    if (isStopped && isAttending) return 3;
-    if (!isStopped && isAttending) return 4;
-    if (!isStopped && isOpen) return 5;
-    return 9;
-  }
-
-  if (isStopped && isOpen) return 6;
-  if (isStopped && !call) return 7;
-  if (isStopped && isAttending) return 8;
-  if (!isStopped && isAttending) return 9;
-  if (!isStopped && isOpen) return 10;
-  return 10;
-}
-
-function splitMachinesByPriority(machines: Machine[], calls: AndonCall[]): Machine[][] {
-  const selectedIds = new Set(
-    machines
-      .slice()
-      .sort((a, b) => {
-        const priorityDiff = getDashboardPriority(a, calls) - getDashboardPriority(b, calls);
-        return priorityDiff || compareByMachineNumber(a, b);
-      })
-      .slice(0, MAX_DASHBOARD_CARDS)
-      .map((machine) => machine.id),
-  );
-
-  const firstPage = machines.filter((machine) => selectedIds.has(machine.id));
-  const remaining = machines.filter((machine) => !selectedIds.has(machine.id));
-  const pages = [firstPage];
-
-  for (let index = 0; index < remaining.length; index += MAX_DASHBOARD_CARDS) {
-    pages.push(remaining.slice(index, index + MAX_DASHBOARD_CARDS));
-  }
-
-  return pages;
 }
 
 function MachinePageGrid({ machines }: { machines: Machine[] }) {
@@ -104,8 +40,12 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
 
   const pages = useMemo(() => {
     if (!hasOverflow) return [numericMachines];
-    return splitMachinesByPriority(numericMachines, calls);
+    return splitMachinesByDashboardPriority(numericMachines, calls);
   }, [calls, hasOverflow, numericMachines]);
+  const prioritySignature = useMemo(
+    () => getDashboardPrioritySignature(numericMachines, calls),
+    [calls, numericMachines],
+  );
 
   const overflowCount = Math.max(0, numericMachines.length - MAX_DASHBOARD_CARDS);
 
@@ -113,6 +53,10 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
     if (pageIndex <= pages.length - 1) return;
     setPageIndex(0);
   }, [pageIndex, pages.length]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [prioritySignature]);
 
   useEffect(() => {
     if (pageIndex === 0) return;
