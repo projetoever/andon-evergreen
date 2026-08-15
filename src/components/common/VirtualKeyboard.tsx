@@ -8,10 +8,14 @@ import {
   Delete,
   Keyboard,
   Space,
-  X,
 } from "lucide-react";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import {
+  getSystemSettings,
+  VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT,
+} from "@/services/systemSettingsService";
 import {
   applyVirtualKeyboardEdit,
   isVirtualKeyboardTarget,
@@ -140,33 +144,58 @@ function KeyButton({
 
 export function VirtualKeyboard() {
   const targetRef = useRef<EditableTarget | null>(null);
+  const launcherHostRef = useRef<HTMLElement | null>(null);
+  const launcherHostPositionRef = useRef("");
   const openRef = useRef(false);
+  const [enabled, setEnabled] = useState(true);
   const [target, setTarget] = useState<EditableTarget | null>(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<KeyboardView>("letters");
   const [uppercase, setUppercase] = useState(false);
   const [preview, setPreview] = useState("");
-  const [launcherPosition, setLauncherPosition] = useState({ left: 16, top: 16 });
+  const [launcherPosition, setLauncherPosition] = useState({
+    left: 0,
+    top: 0,
+    width: 34,
+    height: 34,
+  });
 
   const updateLauncherPosition = useCallback((candidate = targetRef.current) => {
-    if (!candidate?.isConnected) {
+    const host = launcherHostRef.current;
+    if (!candidate?.isConnected || !host?.isConnected) {
       targetRef.current = null;
       setTarget(null);
       return;
     }
     const rect = candidate.getBoundingClientRect();
-    const size = 46;
-    const gap = 7;
-    const outsideLeft = rect.right + gap;
-    const left =
-      outsideLeft + size <= window.innerWidth - 8
-        ? outsideLeft
-        : Math.max(8, Math.min(rect.right - size - 4, window.innerWidth - size - 8));
-    const top = Math.max(
-      8,
-      Math.min(rect.top + (rect.height - size) / 2, window.innerHeight - size - 8),
-    );
-    setLauncherPosition({ left, top });
+    const hostRect = host.getBoundingClientRect();
+    const size = Math.min(38, Math.max(30, rect.height - 6));
+    const left = rect.right - hostRect.left - size - 4;
+    const top = rect.top - hostRect.top + Math.max(3, (rect.height - size) / 2);
+    setLauncherPosition({ left, top, width: size, height: size });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    void getSystemSettings()
+      .then((settings) => {
+        if (active) setEnabled(settings.virtualKeyboardEnabled !== false);
+      })
+      .catch(() => {
+        // Mantém habilitado como padrão para instalações ainda não atualizadas.
+      });
+
+    const handleSettingChange = (event: Event) => {
+      const customEvent = event as CustomEvent<boolean>;
+      if (typeof customEvent.detail === "boolean") setEnabled(customEvent.detail);
+    };
+
+    window.addEventListener(VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT, handleSettingChange);
+    return () => {
+      active = false;
+      window.removeEventListener(VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT, handleSettingChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -174,14 +203,45 @@ export function VirtualKeyboard() {
   }, [open]);
 
   useEffect(() => {
+    const previousHost = launcherHostRef.current;
+    if (previousHost) previousHost.style.position = launcherHostPositionRef.current;
+    launcherHostRef.current = null;
+    target?.classList.remove("virtual-keyboard-target");
+
+    if (!enabled || !target?.isConnected || !target.parentElement) return;
+
+    const host = target.parentElement;
+    launcherHostRef.current = host;
+    launcherHostPositionRef.current = host.style.position;
+    if (window.getComputedStyle(host).position === "static") host.style.position = "relative";
+    target.classList.add("virtual-keyboard-target");
+    updateLauncherPosition(target);
+
+    return () => {
+      target.classList.remove("virtual-keyboard-target");
+      if (launcherHostRef.current === host) {
+        host.style.position = launcherHostPositionRef.current;
+        launcherHostRef.current = null;
+      }
+    };
+  }, [enabled, target, updateLauncherPosition]);
+
+  useEffect(() => {
+    if (enabled) return;
+    openRef.current = false;
+    setOpen(false);
+    targetRef.current = null;
+    setTarget(null);
+  }, [enabled]);
+
+  useEffect(() => {
     const handleFocusIn = (event: FocusEvent) => {
-      if (!isVirtualKeyboardTarget(event.target)) return;
+      if (!enabled || !isVirtualKeyboardTarget(event.target)) return;
       targetRef.current = event.target;
       setTarget(event.target);
       setPreview(event.target.value);
       setView(resolveVirtualKeyboardLayout(event.target.type, event.target.inputMode));
       setUppercase(false);
-      updateLauncherPosition(event.target);
     };
 
     const handleFocusOut = () => {
@@ -211,21 +271,11 @@ export function VirtualKeyboard() {
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
-  }, [updateLauncherPosition]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [open]);
+  }, [enabled, updateLauncherPosition]);
 
   const insertKey = (rawKey: string) => {
     const candidate = targetRef.current;
     if (!candidate?.isConnected) return;
-    candidate.focus({ preventScroll: true });
     const key = uppercase && /[a-zà-üç]/i.test(rawKey) ? rawKey.toLocaleUpperCase("pt-BR") : rawKey;
     const selection = getSelection(candidate);
     const result = applyVirtualKeyboardEdit({
@@ -242,7 +292,6 @@ export function VirtualKeyboard() {
   const backspace = () => {
     const candidate = targetRef.current;
     if (!candidate?.isConnected) return;
-    candidate.focus({ preventScroll: true });
     const selection = getSelection(candidate);
     const result = applyVirtualKeyboardEdit({
       value: candidate.value,
@@ -260,7 +309,6 @@ export function VirtualKeyboard() {
     if (!candidate?.isConnected) return;
     const selection = getSelection(candidate);
     const cursor = Math.max(0, Math.min(selection.start + offset, candidate.value.length));
-    candidate.focus({ preventScroll: true });
     try {
       candidate.setSelectionRange(cursor, cursor);
     } catch {
@@ -275,25 +323,25 @@ export function VirtualKeyboard() {
       insertKey("\n");
       return;
     }
-    candidate.focus({ preventScroll: true });
     const shouldSubmit = dispatchSpecialKey(candidate, "Enter");
     if (shouldSubmit && candidate.form) candidate.form.requestSubmit();
-    setOpen(false);
+    handleOpenChange(false);
   };
 
   const handleTab = () => {
     const candidate = targetRef.current;
     if (!candidate?.isConnected) return;
-    candidate.focus({ preventScroll: true });
     if (!dispatchSpecialKey(candidate, "Tab")) {
-      setOpen(false);
+      handleOpenChange(false);
       return;
     }
     const eligible = Array.from(document.querySelectorAll("input, textarea")).filter(
       isVirtualKeyboardTarget,
     );
     const currentIndex = eligible.indexOf(candidate);
-    eligible[(currentIndex + 1) % eligible.length]?.focus();
+    const nextTarget = eligible[(currentIndex + 1) % eligible.length];
+    handleOpenChange(false, false);
+    window.setTimeout(() => nextTarget?.focus({ preventScroll: true }), 0);
   };
 
   if (typeof document === "undefined") return null;
@@ -309,41 +357,52 @@ export function VirtualKeyboard() {
         : NUMERIC_ROWS;
   const rows = view === "numeric" ? numericRows : view === "symbols" ? SYMBOL_ROWS : LETTER_ROWS;
   const visiblePreview = target?.type === "password" ? "•".repeat(preview.length) : preview;
+  const launcherHost = launcherHostRef.current;
 
-  return createPortal(
+  function handleOpenChange(nextOpen: boolean, restoreFocus = true) {
+    openRef.current = nextOpen;
+    setOpen(nextOpen);
+    if (!nextOpen && restoreFocus) {
+      window.setTimeout(() => targetRef.current?.focus({ preventScroll: true }), 0);
+    }
+  }
+
+  return (
     <>
-      {target && !open && (
-        <button
-          type="button"
-          data-virtual-keyboard-ui
-          aria-label={`Abrir teclado virtual para ${getTargetLabel(target)}`}
-          title="Abrir teclado virtual"
-          className="fixed z-[190] flex h-[46px] w-[46px] touch-manipulation items-center justify-center rounded-xl border-2 border-primary bg-card text-primary shadow-xl transition-transform hover:scale-105 active:scale-95"
-          style={launcherPosition}
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => {
-            setView(resolveVirtualKeyboardLayout(target.type, target.inputMode));
-            setPreview(target.value);
-            setOpen(true);
-          }}
-        >
-          <Keyboard className="h-6 w-6" />
-        </button>
-      )}
+      {enabled &&
+        target &&
+        launcherHost &&
+        !open &&
+        createPortal(
+          <button
+            type="button"
+            data-virtual-keyboard-ui
+            aria-label={`Abrir teclado virtual para ${getTargetLabel(target)}`}
+            title="Abrir teclado virtual"
+            className="absolute z-[190] flex touch-manipulation items-center justify-center rounded-lg border border-primary bg-card text-primary shadow-lg transition-transform hover:scale-105 active:scale-95"
+            style={launcherPosition}
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setView(resolveVirtualKeyboardLayout(target.type, target.inputMode));
+              setPreview(target.value);
+              handleOpenChange(true);
+            }}
+          >
+            <Keyboard className="h-5 w-5" />
+          </button>,
+          launcherHost,
+        )}
 
-      {target && open && (
-        <div
-          data-virtual-keyboard-ui
-          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-2 backdrop-blur-[2px] sm:p-3"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) {
-              event.preventDefault();
-              setOpen(false);
-            }
-          }}
-        >
-          <section className="max-h-[96vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-border bg-card p-2.5 shadow-2xl sm:p-4">
-            <header className="mb-2 flex items-center gap-2 sm:mb-3">
+      {enabled && target && (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+          <DialogContent
+            data-virtual-keyboard-ui
+            className="max-h-[96vh] max-w-6xl gap-0 overflow-y-auto rounded-2xl p-2.5 sm:p-4"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+          >
+            <DialogTitle className="sr-only">Teclado virtual</DialogTitle>
+            <header className="mb-2 flex items-center gap-2 pr-10 sm:mb-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
                 <Keyboard className="h-6 w-6" />
               </div>
@@ -355,15 +414,6 @@ export function VirtualKeyboard() {
                   {visiblePreview || "Digite usando o teclado abaixo"}
                 </p>
               </div>
-              <button
-                type="button"
-                aria-label="Fechar teclado virtual"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary hover:bg-accent"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => setOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </button>
             </header>
 
             <div
@@ -473,10 +523,9 @@ export function VirtualKeyboard() {
                 Enter
               </KeyButton>
             </div>
-          </section>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
-    </>,
-    document.body,
+    </>
   );
 }
