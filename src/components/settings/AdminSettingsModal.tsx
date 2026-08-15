@@ -18,8 +18,10 @@ import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
 import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
+import { GeneralSettingsTab } from "./GeneralSettingsTab";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
+  { id: "general", label: "Configurações gerais" },
   { id: "sounds", label: "Sons do ANDON" },
   { id: "attendance", label: "Modo de atendimento" },
   { id: "technicians", label: "Manutentores" },
@@ -40,7 +42,7 @@ function CardSection({ title, children }: { title: string; children: ReactNode }
 }
 
 export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [tab, setTab] = useState<SettingsTab>("sounds");
+  const [tab, setTab] = useState<SettingsTab>("general");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,6 +65,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
           ))}
         </div>
 
+        {tab === "general" && <GeneralSettingsTab />}
         {tab === "sounds" && <SoundsTab isOpen={open} isActive={tab === "sounds"} />}
         {tab === "attendance" && <AttendanceModeSettingsTab />}
         {tab === "technicians" && <TechniciansSettingsTab />}
