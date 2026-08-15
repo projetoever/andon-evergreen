@@ -72,6 +72,7 @@ type ReturnToMaintenanceBody = {
 type FinishAndonCallBody = {
   notes?: unknown;
   machineStatus?: unknown;
+  impactCallIds?: unknown;
   confirmedMachineSetId?: unknown;
   confirmedMachineSubsetId?: unknown;
   assetChangeReason?: unknown;
@@ -123,6 +124,7 @@ type TechnicianCredentialBody = {
 const andonCallInclude = {
   technicianSessions: { orderBy: { startedAt: "asc" } },
   technicianTimeAllocations: { orderBy: { startedAt: "asc" } },
+  impactIntervals: { orderBy: { startedAt: "asc" } },
 } satisfies Prisma.AndonCallInclude;
 
 function optionalString(value: unknown) {
@@ -309,6 +311,92 @@ async function calculateStoppedMinutesForPeriod(
   return Math.max(0, Math.round(totalMilliseconds / 60000));
 }
 
+async function calculateCallImpactMinutes(
+  tx: Prisma.TransactionClient,
+  callId: string,
+  periodEnd: Date,
+) {
+  const intervals = await tx.callImpactInterval.findMany({
+    where: { callId, startedAt: { lt: periodEnd } },
+    select: { startedAt: true, endedAt: true },
+    orderBy: { startedAt: "asc" },
+  });
+
+  const normalized = intervals
+    .map((interval) => ({
+      start: interval.startedAt.getTime(),
+      end: Math.min(periodEnd.getTime(), (interval.endedAt ?? periodEnd).getTime()),
+    }))
+    .filter((interval) => interval.end > interval.start);
+
+  let totalMilliseconds = 0;
+  let activeStart: number | null = null;
+  let activeEnd: number | null = null;
+
+  for (const interval of normalized) {
+    if (activeStart === null || activeEnd === null) {
+      activeStart = interval.start;
+      activeEnd = interval.end;
+    } else if (interval.start <= activeEnd) {
+      activeEnd = Math.max(activeEnd, interval.end);
+    } else {
+      totalMilliseconds += activeEnd - activeStart;
+      activeStart = interval.start;
+      activeEnd = interval.end;
+    }
+  }
+
+  if (activeStart !== null && activeEnd !== null) {
+    totalMilliseconds += activeEnd - activeStart;
+  }
+
+  return Math.max(0, Math.round(totalMilliseconds / 60000));
+}
+
+async function closeImpactIntervals(
+  tx: Prisma.TransactionClient,
+  where: Prisma.CallImpactIntervalWhereInput,
+  endedAt: Date,
+) {
+  const openIntervals = await tx.callImpactInterval.findMany({
+    where: { ...where, endedAt: null },
+    select: { id: true, startedAt: true },
+  });
+
+  for (const interval of openIntervals) {
+    await tx.callImpactInterval.update({
+      where: { id: interval.id },
+      data: {
+        endedAt,
+        durationSeconds: diffSeconds(interval.startedAt, endedAt),
+      },
+    });
+  }
+}
+
+async function ensureOpenCallImpactInterval(
+  tx: Prisma.TransactionClient,
+  params: {
+    callId: string;
+    machineId: string;
+    startedAt: Date;
+    source: string;
+    assignedByCallId?: string | null;
+    notes?: string | null;
+  },
+) {
+  const existing = await tx.callImpactInterval.findFirst({
+    where: { callId: params.callId, endedAt: null },
+    select: { id: true },
+  });
+  if (existing) return existing;
+
+  return tx.callImpactInterval.create({
+    data: params,
+    select: { id: true },
+  });
+}
+
 type OpenFailureEvent = {
   id: string;
   callId: string | null;
@@ -380,9 +468,12 @@ async function resumeMachineWhenFinishingOwnedStop(
     currentMachineStatus: string;
     finishedAt: Date;
     requestedMachineStatus?: string | null;
+    requestedImpactCallIds?: string[];
     requireStatusConfirmation?: boolean;
   },
 ) {
+  await closeImpactIntervals(tx, { callId: params.callId }, params.finishedAt);
+
   if (params.currentMachineStatus !== "stopped") {
     return params.currentMachineStatus;
   }
@@ -400,35 +491,64 @@ async function resumeMachineWhenFinishingOwnedStop(
     return params.currentMachineStatus;
   }
 
-  const nextResponsibleCall = await tx.andonCall.findFirst({
+  const remainingCalls = await tx.andonCall.findMany({
     where: {
       id: { not: params.callId },
       machineId: params.machineId,
       isSystemTest: false,
       status: { in: OPEN_CALL_STATUSES },
     },
-    orderBy: [
-      { openedAt: "asc" },
-      { id: "asc" },
-    ],
+    orderBy: [{ openedAt: "asc" }, { id: "asc" }],
     select: { id: true },
   });
 
-  if (nextResponsibleCall) {
+  if (remainingCalls.length) {
     if (params.requireStatusConfirmation && !params.requestedMachineStatus) {
       throw new FinishCallValidationError(
         "Informe se a máquina continua em falha antes de finalizar este chamado",
       );
     }
 
-    if (params.requestedMachineStatus !== "running") {
+    if (params.requestedMachineStatus === "stopped") {
+      const requestedIds = Array.from(new Set(params.requestedImpactCallIds ?? []));
+      const remainingIds = new Set(remainingCalls.map((call) => call.id));
+      if (!requestedIds.length) {
+        throw new FinishCallValidationError(
+          "Selecione ao menos um chamado responsável se a máquina continua em falha",
+        );
+      }
+      if (requestedIds.some((callId) => !remainingIds.has(callId))) {
+        throw new FinishCallValidationError(
+          "Um ou mais chamados selecionados não estão ativos nesta máquina",
+        );
+      }
+
+      await closeImpactIntervals(
+        tx,
+        { machineId: params.machineId, callId: { notIn: requestedIds } },
+        params.finishedAt,
+      );
+
+      for (const callId of requestedIds) {
+        await ensureOpenCallImpactInterval(tx, {
+          callId,
+          machineId: params.machineId,
+          startedAt: params.finishedAt,
+          source: "failure_handoff",
+          assignedByCallId: params.callId,
+          notes: `Impacto atribuído após finalização do chamado ${params.callId}`,
+        });
+      }
+
+      const primaryCallId =
+        remainingCalls.find((call) => requestedIds.includes(call.id))?.id ?? requestedIds[0];
       await tx.failureEvent.update({
         where: { id: ownedOpenEvent.id },
         data: {
-          callId: nextResponsibleCall.id,
+          callId: primaryCallId,
           notes: appendNote(
             ownedOpenEvent.notes,
-            `Responsabilidade transferida ao chamado ${nextResponsibleCall.id} após finalização do chamado ${params.callId}`,
+            `Impacto transferido aos chamados ${requestedIds.join(", ")} após finalização do chamado ${params.callId}`,
             "Continuidade da falha",
           ),
         },
@@ -436,7 +556,27 @@ async function resumeMachineWhenFinishingOwnedStop(
 
       return "stopped";
     }
+
+    if (!params.requireStatusConfirmation && !params.requestedMachineStatus) {
+      const existingImpact = await tx.callImpactInterval.findFirst({
+        where: {
+          machineId: params.machineId,
+          callId: { in: remainingCalls.map((call) => call.id) },
+          endedAt: null,
+        },
+        orderBy: { startedAt: "asc" },
+      });
+      if (existingImpact) {
+        await tx.failureEvent.update({
+          where: { id: ownedOpenEvent.id },
+          data: { callId: existingImpact.callId },
+        });
+        return "stopped";
+      }
+    }
   }
+
+  await closeImpactIntervals(tx, { machineId: params.machineId }, params.finishedAt);
 
   await tx.failureEvent.update({
     where: { id: ownedOpenEvent.id },
@@ -989,6 +1129,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             postMaintenanceMinutes: 0,
             totalCallMinutes: 0,
             machineStoppedMinutes: 0,
+            impactTrackingVersion: isSystemTest ? null : 1,
             notes: description ?? null,
             createdBy,
             origin,
@@ -1026,6 +1167,20 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 claimExistingEvent: !failureState.activeOwnerEvent,
               })
             : null;
+
+        if (
+          !isSystemTest &&
+          effectiveMachineCondition === "stopped" &&
+          !failureState.activeOwnerEvent
+        ) {
+          await ensureOpenCallImpactInterval(tx, {
+            callId: createdCall.id,
+            machineId,
+            startedAt: now,
+            source: "call_opened_stopped",
+            notes: "Chamado informou a parada da máquina",
+          });
+        }
 
         if (!isSystemTest) {
           const machineStatusChanged = effectiveMachineCondition !== lockedMachine.machineStatus;
@@ -1142,6 +1297,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               postMaintenanceMinutes: 0,
               totalCallMinutes: 0,
               machineStoppedMinutes: 0,
+              impactTrackingVersion: 1,
               createdBy: "kiosk",
               origin: "kiosk",
               isSystemTest: false,
@@ -1160,6 +1316,16 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               claimExistingEvent: !stopOwnerAssigned,
             });
             stopOwnerAssigned = true;
+
+            if (!failureState.activeOwnerEvent && index === 0) {
+              await ensureOpenCallImpactInterval(tx, {
+                callId: createdCall.id,
+                machineId,
+                startedAt: openedAt,
+                source: "call_opened_stopped",
+                notes: "Primeiro chamado do lote informou a parada da máquina",
+              });
+            }
           }
 
           createdCalls.push(await findCallWithSessions(tx, createdCall.id));
@@ -1302,7 +1468,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             });
         const machineStoppedMinutes = call.isSystemTest
           ? 0
-          : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
+          : call.impactTrackingVersion === 1
+            ? await calculateCallImpactMinutes(tx, call.id, now)
+            : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
 
         await tx.andonCall.update({
           where: { id: call.id },
@@ -1566,6 +1734,15 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const body = request.body ?? {};
       const requestedMachineStatus = optionalString(body.machineStatus);
+      const requestedImpactCallIds = Array.isArray(body.impactCallIds)
+        ? Array.from(
+            new Set(
+              body.impactCallIds
+                .map(optionalString)
+                .filter((callId): callId is string => Boolean(callId)),
+            ),
+          )
+        : [];
       const confirmedMachineSetId = optionalString(body.confirmedMachineSetId);
       const confirmedMachineSubsetId = optionalString(body.confirmedMachineSubsetId);
       const assetChangeReason = optionalString(body.assetChangeReason);
@@ -1774,12 +1951,15 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 currentMachineStatus: call.machine.machineStatus,
                 finishedAt: now,
                 requestedMachineStatus,
+                requestedImpactCallIds,
                 requireStatusConfirmation: true,
               });
 
           const machineStoppedMinutes = call.isSystemTest
             ? 0
-            : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
+            : call.impactTrackingVersion === 1
+              ? await calculateCallImpactMinutes(tx, call.id, now)
+              : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
 
           await tx.andonCall.update({
             where: {

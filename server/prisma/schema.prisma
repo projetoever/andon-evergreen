@@ -52,6 +52,7 @@ model Machine {
   machineSets         MachineSet[]
   technicianSessions  TechnicianSession[]
   failureEvents       FailureEvent[]
+  callImpactIntervals CallImpactInterval[]
   productionEvents    MachineProductionEvent[]
   kioskDevices        KioskDevice[]
 
@@ -191,6 +192,7 @@ model AndonCall {
   postMaintenanceMinutes      Float?
   totalCallMinutes            Int?
   machineStoppedMinutes       Int?
+  impactTrackingVersion       Int?
   maintenanceReturnCount      Int                         @default(0)
   notes                       String?
   createdBy                   String?
@@ -207,6 +209,7 @@ model AndonCall {
   technicianSessions          TechnicianSession[]
   technicianTimeAllocations   TechnicianTimeAllocation[]
   failureEvents               FailureEvent[]
+  impactIntervals             CallImpactInterval[]
 
   @@index([machineId])
   @@index([machineSetId])
@@ -289,6 +292,29 @@ model FailureEvent {
   @@index([callId])
   @@index([startedAt])
   @@map("failure_events")
+}
+
+model CallImpactInterval {
+  id               String    @id @default(cuid())
+  callId           String
+  call             AndonCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  machineId        String
+  machine          Machine   @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  startedAt        DateTime
+  endedAt          DateTime?
+  durationSeconds  Int?
+  source           String
+  assignedByCallId String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([callId])
+  @@index([machineId])
+  @@index([callId, endedAt])
+  @@index([machineId, endedAt])
+  @@index([startedAt])
+  @@map("call_impact_intervals")
 }
 
 model MachineProductionEvent {

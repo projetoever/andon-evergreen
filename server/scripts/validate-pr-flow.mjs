@@ -555,6 +555,13 @@ async function run() {
       endedAt: null,
     },
   });
+  const ownedImpactInterval = await prisma.callImpactInterval.findFirstOrThrow({
+    where: {
+      machineId: ids.impactMachine,
+      callId: qualityStopped.id,
+      endedAt: null,
+    },
+  });
   await prisma.$transaction([
     prisma.failureEvent.update({
       where: { id: ownedFailureEvent.id },
@@ -563,6 +570,10 @@ async function run() {
     prisma.machine.update({
       where: { id: ids.impactMachine },
       data: { lastStatusChangedAt: stoppedAt },
+    }),
+    prisma.callImpactInterval.update({
+      where: { id: ownedImpactInterval.id },
+      data: { startedAt: stoppedAt },
     }),
   ]);
 
@@ -573,9 +584,10 @@ async function run() {
   assert.equal(finishedLeadership.status, "finished");
   assert.equal(finishedLeadership.assetConfirmedAt, null);
   assert.equal(finishedLeadership.confirmedMachineSetId, null);
-  assert.ok(
-    finishedLeadership.machineStoppedMinutes >= 4 && finishedLeadership.machineStoppedMinutes <= 6,
-    "chamado anterior deve contabilizar somente o intervalo compartilhado de parada",
+  assert.equal(
+    finishedLeadership.machineStoppedMinutes,
+    0,
+    "chamado que não causou a parada não pode herdar impacto produtivo de outro chamado",
   );
 
   const machineStillStopped = await request(`/api/machines/${ids.impactMachine}`);
@@ -615,11 +627,22 @@ async function run() {
   );
   assert.match(missingConditionResponse.message, /máquina continua em falha/i);
 
+  const missingResponsibleCallResponse = await request(
+    `/api/andon-calls/${qualityStopped.id}/finish`,
+    json("PATCH", {
+      notes: "Máquina permanece parada sem atribuição",
+      machineStatus: "stopped",
+    }),
+    400,
+  );
+  assert.match(missingResponsibleCallResponse.message, /selecione ao menos um chamado/i);
+
   const continuedStopOwner = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", {
       notes: "Atendimento finalizado, mas a máquina continua parada",
       machineStatus: "stopped",
+      impactCallIds: [leadershipDuringStop.id],
     }),
   );
   assert.equal(continuedStopOwner.machineStatusAtFinish, "stopped");
@@ -634,6 +657,20 @@ async function run() {
     transferredFailureEvent.startedAt.getTime(),
     stoppedAt.getTime(),
     "transferir a responsabilidade não pode reiniciar o timer de falha",
+  );
+
+  const finishedOwnerImpact = await prisma.callImpactInterval.findUniqueOrThrow({
+    where: { id: ownedImpactInterval.id },
+  });
+  assert.ok(finishedOwnerImpact.endedAt);
+  assert.ok((finishedOwnerImpact.durationSeconds ?? 0) >= 4 * 60);
+
+  const transferredImpact = await prisma.callImpactInterval.findFirstOrThrow({
+    where: { callId: leadershipDuringStop.id, endedAt: null },
+  });
+  assert.ok(
+    transferredImpact.startedAt.getTime() > stoppedAt.getTime(),
+    "o novo responsável deve contabilizar impacto somente a partir da transferência",
   );
 
   const machineStillStoppedAfterHandoff = await request(`/api/machines/${ids.impactMachine}`);

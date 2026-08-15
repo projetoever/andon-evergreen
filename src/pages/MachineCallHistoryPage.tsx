@@ -90,17 +90,33 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
         const impactPeriodStart = call.openedAt;
         const impactPeriodEnd = call.finishedAt ?? now.toISOString();
+        const callImpactHistory = call.impactTrackingVersion === 1
+          ? (call.impactIntervals ?? []).map((interval) => ({
+              id: interval.id,
+              machineId: interval.machineId,
+              callId: interval.callId,
+              stoppedAt: interval.startedAt,
+              resumedAt: interval.endedAt,
+              durationMinutes:
+                typeof interval.durationSeconds === "number"
+                  ? interval.durationSeconds / 60
+                  : 0,
+              source: "system" as const,
+              failureClassification: "unidentified_stop" as const,
+            }))
+          : machine.stopHistory;
         const impactBreakdown = calculateOperationalImpactBreakdown({
           periodStart: impactPeriodStart,
           periodEnd: impactPeriodEnd,
-          stopHistory: machine.stopHistory,
+          stopHistory: callImpactHistory,
           productionHistory: machine.productionHistory,
-          fallbackMachineCondition:
-            call.machineStatusAtOpen ??
-            call.machineCondition ??
-            call.machineStatusAtAttend ??
-            call.machineStatusAtFinish ??
-            machine.machineStatus,
+          fallbackMachineCondition: call.impactTrackingVersion === 1
+            ? "running"
+            : call.machineStatusAtOpen ??
+              call.machineCondition ??
+              call.machineStatusAtAttend ??
+              call.machineStatusAtFinish ??
+              machine.machineStatus,
           fallbackProductionMode:
             call.productionModeAtOpen ??
             call.productionModeAtAttend ??
