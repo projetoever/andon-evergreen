@@ -18,6 +18,7 @@ import {
   getServerTimeOffsetMs,
   setServerClockFromTimestamp,
 } from "@/utils/serverClock";
+import { sanitizeFailureDescription } from "@/utils/failureDescriptionUtils";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
 type ApiHealth = {
@@ -100,7 +101,7 @@ function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
           ? diffMinutes(toIso(event.startedAt), toIso(event.endedAt))
           : 0,
     source: (event.source === "manual" ? "manual" : "system") as StopSource,
-    failureDescription: event.notes ?? undefined,
+    failureDescription: sanitizeFailureDescription(event.notes) || undefined,
     failureClassification: (event.classification ?? "unidentified_stop") as FailureClassification,
     productionModeAtStart:
       event.productionMode === "not_scheduled" || event.productionMode === "scheduled"
