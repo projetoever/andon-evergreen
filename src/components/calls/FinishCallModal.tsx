@@ -795,65 +795,65 @@ export function FinishCallModal({
     >
       <DialogContent
         className={cn(
-          "grid max-h-[92vh] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0",
+          "grid max-h-[96dvh] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0",
           requiresAssetConfirmation
             ? "max-w-5xl"
             : "max-w-2xl",
         )}
       >
-        <DialogHeader className="border-b border-border px-4 py-4 pr-12 sm:px-5">
-          <DialogTitle className="text-2xl sm:text-3xl">
-            Finalizar chamado
-          </DialogTitle>
+        <DialogHeader className="border-b border-border px-4 py-3 pr-11 sm:px-5">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <DialogTitle className="shrink-0 text-2xl sm:text-3xl">
+              Finalizar chamado
+            </DialogTitle>
 
-          <DialogDescription className="flex flex-wrap items-center gap-2 pt-1 text-sm">
-            <span className="rounded-lg bg-muted px-2.5 py-1 font-black text-foreground">
-              Máquina {currentCall.machineId}
-            </span>
+            <DialogDescription className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm sm:ml-2">
+              <span className="rounded-lg bg-muted px-2.5 py-1 font-black text-foreground">
+                Máquina {currentCall.machineId}
+              </span>
 
-            <span className="rounded-lg border border-border px-2.5 py-1 font-bold text-foreground">
-              {getCallSubtypeLabel(currentCall.subtype)}
-            </span>
+              <span className="rounded-lg border border-border px-2.5 py-1 font-bold text-foreground">
+                {getCallSubtypeLabel(currentCall.subtype)}
+              </span>
 
-            <span className="rounded-lg border border-info/30 bg-info/10 px-2.5 py-1 font-bold text-info">
-              Atendimento: {attendanceDurationLabel}
-            </span>
-          </DialogDescription>
+              <span className="rounded-lg border border-info/30 bg-info/10 px-2.5 py-1 font-bold text-info">
+                Atendimento: {attendanceDurationLabel}
+              </span>
+            </DialogDescription>
+          </div>
+
+          {requiresTechnician && option?.technicianArea && (
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-left text-xs">
+              <span className="font-bold uppercase tracking-wide text-muted-foreground">
+                Mantenedor
+              </span>
+              <span className="truncate text-sm font-bold text-foreground" title={technicianSummary}>
+                {technicianNames.length ? technicianNames.join(", ") : "Nenhum registrado"}
+              </span>
+              <span className="text-muted-foreground">Sessões registradas no atendimento</span>
+            </div>
+          )}
         </DialogHeader>
 
-        <div className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
-          {requiresTechnician && option?.technicianArea && (
-            <section className="rounded-xl border border-border bg-muted/10 p-3">
-              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Mantenedores registrados no atendimento
-              </h4>
-              <p className="mt-1 text-sm font-bold text-foreground">
-                {technicianNames.length ? technicianNames.join(", ") : "Nenhum mantenedor registrado"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                A finalização usa somente as identificações realmente registradas nas sessões.
-              </p>
-            </section>
-          )}
-
+        <div className="min-h-0 space-y-3 overflow-y-auto p-3 sm:p-4">
           {requiresAssetConfirmation && (
-          <section className="rounded-2xl border border-border bg-muted/10 p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <section className="rounded-xl border border-border bg-muted/10 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
                   <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Localização técnica final
                   </h4>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
                     Selecione o conjunto e o equipamento identificados durante o atendimento.
                   </p>
                 </div>
             </div>
 
             {openingLocationExists && (
-            <div className="rounded-xl border border-border bg-card p-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <MapPin className="h-5 w-5" />
+            <div className="rounded-xl border border-border bg-card px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="h-4 w-4" />
                 </span>
 
                 <div className="min-w-0">
@@ -868,8 +868,9 @@ export function FinishCallModal({
             </div>
             )}
 
-            <div className="mt-4">
-              <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="mt-3 grid gap-3 lg:grid-cols-2 lg:items-start">
+            <div className={cn("min-w-0", !selectedMachineSet && "lg:col-span-2")}>
+              <h5 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Conjunto
               </h5>
 
@@ -887,7 +888,7 @@ export function FinishCallModal({
                   preservada.
                 </div>
               ) : (
-                <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                <div className="grid max-h-[160px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
                   {selectableMachineSets.map((machineSet) => {
                     const selected = confirmedMachineSetId === machineSet.id;
 
@@ -901,7 +902,7 @@ export function FinishCallModal({
                           setConfirmedMachineSubsetId(null);
                         }}
                         className={cn(
-                          "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                          "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
                           selected
                             ? "border-primary bg-primary/10 text-foreground"
                             : "border-border bg-card hover:border-primary/40 hover:bg-accent",
@@ -926,8 +927,8 @@ export function FinishCallModal({
             </div>
 
             {selectedMachineSet && (
-              <div className="mt-4">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
                   <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Equipamento ou subconjunto
                   </h5>
@@ -958,7 +959,7 @@ export function FinishCallModal({
                       </p>
                     )}
 
-                    <div className="grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                    <div className="grid max-h-[160px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
                       {allowWholeSetCalls &&
                         !isLoadingSystemSettings &&
                         !systemSettingsLoadFailed && (
@@ -969,7 +970,7 @@ export function FinishCallModal({
                               setConfirmedMachineSubsetId(null);
                             }}
                             className={cn(
-                              "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                              "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
                               confirmedMachineSubsetId === null
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-border bg-card hover:border-primary/40 hover:bg-accent",
@@ -1002,7 +1003,7 @@ export function FinishCallModal({
                               setConfirmedMachineSubsetId(subset.id);
                             }}
                             className={cn(
-                              "relative min-h-[60px] rounded-xl border-2 p-3 text-left transition-colors",
+                              "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
                               selected
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-border bg-card hover:border-primary/40 hover:bg-accent",
@@ -1027,9 +1028,10 @@ export function FinishCallModal({
                 )}
               </div>
             )}
+            </div>
 
-            <div className="mt-4 rounded-xl border border-success/40 bg-success/10 p-3">
-              <div className="min-w-0">
+            <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   Localização selecionada
                 </p>
@@ -1037,7 +1039,7 @@ export function FinishCallModal({
                   {confirmedLocationLabel}
                 </p>
                 {locationChanged && (
-                  <p className="mt-1 text-xs font-semibold text-warning">
+                  <p className="basis-full truncate text-xs font-semibold text-warning">
                     {openingLocationLabel} → {confirmedLocationLabel}
                   </p>
                 )}
@@ -1059,14 +1061,11 @@ export function FinishCallModal({
               </div>
             )}
 
-            <p className="mt-3 text-xs text-muted-foreground">
-              A localização e os responsáveis serão registrados automaticamente ao finalizar.
-            </p>
           </section>
           )}
 
           <section>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <h4 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Observações do atendimento (opcional)
             </h4>
 
@@ -1083,7 +1082,7 @@ export function FinishCallModal({
           </section>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="flex flex-col gap-2 border-t border-border bg-background px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0 text-left">
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Resumo da finalização
