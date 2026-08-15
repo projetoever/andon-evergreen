@@ -61,6 +61,7 @@ export interface CancelAndonCallParams {
 
 export interface FinishAndonCallParams {
   callId: string;
+  machineStatus?: MachineStatus;
   technicianName: string | null;
   technicianNames?: string[];
   technicianArea: TechnicianArea | null;
@@ -766,8 +767,35 @@ export function finishAndonCall(
     machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
   );
 
+  const nextResponsibleCall = calls
+    .filter(
+      (item) =>
+        item.id !== call.id &&
+        item.machineId === call.machineId &&
+        !item.isSystemTest &&
+        ["open", "in_progress", "post_maintenance"].includes(item.status),
+    )
+    .sort((current, next) => current.openedAt.localeCompare(next.openedAt))[0];
+
+  if (shouldResumeOwnedStop && nextResponsibleCall && !params.machineStatus) {
+    throw new Error("Informe se a máquina continua em falha antes de finalizar este chamado");
+  }
+
   const finalMachines = shouldResumeOwnedStop
-    ? updateMachineStatus(machines, call.machineId, "running").machines
+    ? nextResponsibleCall && params.machineStatus === "stopped"
+      ? machines.map((item) =>
+          item.id === call.machineId
+            ? {
+                ...item,
+                stopHistory: item.stopHistory.map((event) =>
+                  !event.resumedAt && event.callId === call.id
+                    ? { ...event, callId: nextResponsibleCall.id }
+                    : event,
+                ),
+              }
+            : item,
+        )
+      : updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
   const finalMachine = finalMachines.find((item) => item.id === call.machineId);

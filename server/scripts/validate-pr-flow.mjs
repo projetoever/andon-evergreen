@@ -20,6 +20,10 @@ const ids = {
   electricalTechnician: "pr47-tech-electrical",
   electricalSupportTechnician: "pr50-tech-electrical-support",
   mechanicalTechnician: "pr47-tech-mechanical",
+  unusedSetType: "pr51-unused-set-type",
+  unusedSubsetType: "pr51-unused-subset-type",
+  inactiveSet: "pr51-inactive-set",
+  inactiveSubset: "pr51-inactive-subset",
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
 };
@@ -76,6 +80,12 @@ async function cleanup() {
   await prisma.technicianSession.deleteMany({ where: { callId: { in: callIds } } });
   await prisma.failureEvent.deleteMany({ where: { machineId: { in: machineIds } } });
   await prisma.andonCall.deleteMany({ where: { id: { in: callIds } } });
+  await prisma.machineSubset.deleteMany({
+    where: { machineSet: { machineId: { in: machineIds } } },
+  });
+  await prisma.machineSet.deleteMany({ where: { machineId: { in: machineIds } } });
+  await prisma.machineSubsetType.deleteMany({ where: { id: ids.unusedSubsetType } });
+  await prisma.machineSetType.deleteMany({ where: { id: ids.unusedSetType } });
   await prisma.machineProductionEvent.deleteMany({ where: { machineId: { in: machineIds } } });
   await prisma.machine.deleteMany({ where: { id: { in: machineIds } } });
   await prisma.technician.deleteMany({
@@ -149,6 +159,63 @@ async function run() {
     json("POST", { id: ids.machine, name: "Máquina PR 47", productionMode: "scheduled" }),
     201,
   );
+
+  await prisma.machineSetType.create({
+    data: {
+      id: ids.unusedSetType,
+      code: ids.unusedSetType,
+      name: "Tipo sem uso ativo",
+    },
+  });
+  await prisma.machineSet.create({
+    data: {
+      id: ids.inactiveSet,
+      machineId: ids.machine,
+      typeId: ids.unusedSetType,
+      code: ids.inactiveSet,
+      name: "Conjunto histórico inativo",
+      isActive: false,
+    },
+  });
+  await prisma.machineSubsetType.create({
+    data: {
+      id: ids.unusedSubsetType,
+      code: ids.unusedSubsetType,
+      name: "Tipo de subconjunto sem uso ativo",
+    },
+  });
+  await prisma.machineSubset.create({
+    data: {
+      id: ids.inactiveSubset,
+      machineSetId: ids.inactiveSet,
+      typeId: ids.unusedSubsetType,
+      code: ids.inactiveSubset,
+      name: "Subconjunto histórico inativo",
+      isActive: false,
+    },
+  });
+
+  const deletedSetType = await request(
+    `/api/machine-set-types/${ids.unusedSetType}`,
+    { method: "DELETE" },
+  );
+  assert.equal(deletedSetType.deleted, true);
+  assert.equal(
+    (await prisma.machineSet.findUniqueOrThrow({ where: { id: ids.inactiveSet } })).typeId,
+    null,
+    "a exclusão do catálogo deve preservar o conjunto inativo sem o vínculo removido",
+  );
+
+  const deletedSubsetType = await request(
+    `/api/machine-subset-types/${ids.unusedSubsetType}`,
+    { method: "DELETE" },
+  );
+  assert.equal(deletedSubsetType.deleted, true);
+  assert.equal(
+    (await prisma.machineSubset.findUniqueOrThrow({ where: { id: ids.inactiveSubset } })).typeId,
+    null,
+    "a exclusão do catálogo deve preservar o subconjunto inativo sem o vínculo removido",
+  );
   await request(
     "/api/machines",
     json("POST", {
@@ -204,6 +271,26 @@ async function run() {
     }),
     201,
   );
+
+  const duplicatePinResponse = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "PIN duplicado PR 51",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "4821",
+    }),
+    400,
+  );
+  assert.match(duplicatePinResponse.message, /PIN já está cadastrado/i);
+
+  const duplicatePinUpdateResponse = await request(
+    `/api/technicians/${mechanical.id}`,
+    json("PATCH", { pin: "4821" }),
+    400,
+  );
+  assert.match(duplicatePinUpdateResponse.message, /PIN já está cadastrado/i);
 
   ids.electricalTechnician = electrical.id;
   ids.electricalSupportTechnician = electricalSupport.id;
@@ -509,9 +596,40 @@ async function run() {
   assert.equal(openFailureEvents[0].callId, qualityStopped.id);
 
   await request(`/api/andon-calls/${leadershipDuringStop.id}/attend`, json("PATCH", {}));
-  const finishedStopOwner = await request(
+  const missingConditionResponse = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", { notes: "Condição normalizada" }),
+    400,
+  );
+  assert.match(missingConditionResponse.message, /máquina continua em falha/i);
+
+  const continuedStopOwner = await request(
+    `/api/andon-calls/${qualityStopped.id}/finish`,
+    json("PATCH", {
+      notes: "Atendimento finalizado, mas a máquina continua parada",
+      machineStatus: "stopped",
+    }),
+  );
+  assert.equal(continuedStopOwner.machineStatusAtFinish, "stopped");
+  assert.equal(continuedStopOwner.assetConfirmedAt, null);
+
+  const transferredFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: ownedFailureEvent.id },
+  });
+  assert.equal(transferredFailureEvent.endedAt, null);
+  assert.equal(transferredFailureEvent.callId, leadershipDuringStop.id);
+  assert.equal(
+    transferredFailureEvent.startedAt.getTime(),
+    stoppedAt.getTime(),
+    "transferir a responsabilidade não pode reiniciar o timer de falha",
+  );
+
+  const machineStillStoppedAfterHandoff = await request(`/api/machines/${ids.impactMachine}`);
+  assert.equal(machineStillStoppedAfterHandoff.machineStatus, "stopped");
+
+  const finishedStopOwner = await request(
+    `/api/andon-calls/${leadershipDuringStop.id}/finish`,
+    json("PATCH", { notes: "Último chamado simultâneo encerrado" }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
   assert.equal(finishedStopOwner.assetConfirmedAt, null);
@@ -523,11 +641,6 @@ async function run() {
   });
   assert.ok(finishedFailureEvent.endedAt);
   assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
-
-  await request(
-    `/api/andon-calls/${leadershipDuringStop.id}/finish`,
-    json("PATCH", { notes: "Chamado simultâneo encerrado" }),
-  );
 
   const orphanStopToRecover = await request(
     "/api/failure-events",

@@ -1,4 +1,5 @@
 import type { Prisma, Technician } from "@prisma/client";
+import { createHash } from "node:crypto";
 
 import { prisma } from "../db/prisma.js";
 import {
@@ -58,8 +59,9 @@ export async function identifyTechnician(
 export async function credentialBelongsToAnotherTechnician(
   credential: TechnicianCredential,
   excludedId?: string,
+  client: Pick<Prisma.TransactionClient, "technician"> = prisma,
 ) {
-  const technicians = await prisma.technician.findMany({
+  const technicians = await client.technician.findMany({
     where: excludedId ? { id: { not: excludedId } } : undefined,
     select: { id: true, pinHash: true, tagHash: true },
   });
@@ -70,6 +72,19 @@ export async function credentialBelongsToAnotherTechnician(
   }
 
   return false;
+}
+
+export async function lockTechnicianCredential(
+  client: Pick<Prisma.TransactionClient, "$queryRaw">,
+  credential: TechnicianCredential,
+) {
+  const fingerprint = createHash("sha256")
+    .update(`${credential.method}:${credential.value}`)
+    .digest("hex");
+
+  await client.$queryRaw`
+    SELECT pg_advisory_xact_lock(hashtext(${`andon-technician-credential:${fingerprint}`}))
+  `;
 }
 
 export async function resolveTechniciansByNames(

@@ -119,8 +119,8 @@ model MachineSubset {
   id           String            @id @default(cuid())
   machineSetId String
   machineSet   MachineSet        @relation(fields: [machineSetId], references: [id], onDelete: Restrict)
-  typeId       String
-  subsetType   MachineSubsetType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  typeId       String?
+  subsetType   MachineSubsetType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
   code         String
   name         String
   description  String?

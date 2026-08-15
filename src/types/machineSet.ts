@@ -27,7 +27,7 @@ export type MachineSubsetType =
 export interface MachineSubset {
   id: MachineSubsetId;
   machineSetId: MachineSetId;
-  typeId: MachineSubsetTypeId;
+  typeId: MachineSubsetTypeId | null;
   code: string;
   name: string;
   description: string | null;
@@ -36,7 +36,7 @@ export interface MachineSubset {
   assetTag: string | null;
   isActive: boolean;
   displayOrder: number | null;
-  subsetType?: MachineAssetTypeSummary;
+  subsetType?: MachineAssetTypeSummary | null;
   createdAt: string;
   updatedAt: string;
 }

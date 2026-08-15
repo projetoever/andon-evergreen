@@ -503,6 +503,21 @@ function Clear-AndonChromeProfile {
     Write-AndonOk "Chrome profile limpo: $Global:AndonChromeProfilePath"
 }
 
+function Prepare-AndonChromeProfileForReuse {
+    New-Item -ItemType Directory -Force $Global:AndonChromeProfilePath | Out-Null
+
+    foreach ($lockName in @(
+        "SingletonCookie",
+        "SingletonLock",
+        "SingletonSocket"
+    )) {
+        $lockPath = Join-Path $Global:AndonChromeProfilePath $lockName
+        Remove-Item -Path $lockPath -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-AndonOk "Chrome profile preservado (sons e configuracoes locais mantidos): $Global:AndonChromeProfilePath"
+}
+
 function Write-AndonRobustKioskScript {
     $scriptPath = "$Global:AndonProjectPath\scripts\open-kiosk-chrome.ps1"
     $scriptsPath = Split-Path -Parent $scriptPath

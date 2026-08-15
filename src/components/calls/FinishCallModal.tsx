@@ -36,9 +36,17 @@ import {
 import { useTicker } from "@/hooks/useTicker";
 import {
   Check,
+  CheckCircle2,
+  CircleStop,
   MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const ACTIVE_CALL_STATUSES = new Set([
+  "open",
+  "in_progress",
+  "post_maintenance",
+]);
 
 interface FinishCallModalProps {
   open: boolean;
@@ -92,6 +100,7 @@ export function FinishCallModal({
   const {
     calls,
     finishCall,
+    machines,
   } = useAndon();
 
   useTicker(60_000);
@@ -156,6 +165,11 @@ export function FinishCallModal({
     setIsSubmitting,
   ] = useState(false);
 
+  const [
+    conditionConfirmationOpen,
+    setConditionConfirmationOpen,
+  ] = useState(false);
+
   const initializedCallIdRef =
     useRef<string | null>(null);
 
@@ -214,6 +228,37 @@ export function FinishCallModal({
       ? allSessionNames
       : Array.from(new Set([...(call?.technicianNames ?? []), call?.technicianName].filter(Boolean))) as string[];
 
+  const machine = call
+    ? machines.find((item) => item.id === call.machineId) ?? null
+    : null;
+
+  const remainingActiveCalls = call
+    ? calls
+        .filter(
+          (item) =>
+            item.id !== call.id &&
+            item.machineId === call.machineId &&
+            !item.isSystemTest &&
+            ACTIVE_CALL_STATUSES.has(item.status),
+        )
+        .sort((current, next) => current.openedAt.localeCompare(next.openedAt))
+    : [];
+
+  const ownsCurrentStop = Boolean(
+    call &&
+      machine?.machineStatus === "stopped" &&
+      machine.stopHistory.some(
+        (event) => !event.resumedAt && event.callId === call.id,
+      ),
+  );
+
+  const requiresConditionConfirmation =
+    ownsCurrentStop && remainingActiveCalls.length > 0;
+
+  const remainingCallLabels = Array.from(
+    new Set(remainingActiveCalls.map((item) => getCallSubtypeLabel(item.subtype))),
+  ).join(", ");
+
   useEffect(() => {
     if (!open) {
       initializedCallIdRef.current =
@@ -246,6 +291,7 @@ export function FinishCallModal({
 
     setAssetChangeReason("");
     setIsSubmitting(false);
+    setConditionConfirmationOpen(false);
   }, [
     open,
     call?.id,
@@ -483,10 +529,9 @@ export function FinishCallModal({
   const finalMachineSubsetType =
     selectedMachineSubset
       ?.subsetType?.code ??
-    (preserveLegacySubsetSnapshot
-      ? call
-          ?.machineSubsetTypeSnapshot ??
-        null
+    (selectedMachineSubset?.id === call?.machineSubsetId ||
+    preserveLegacySubsetSnapshot
+      ? call?.machineSubsetTypeSnapshot ?? null
       : null);
 
   const openingLocationExists = Boolean(
@@ -637,7 +682,7 @@ export function FinishCallModal({
     );
   }
 
-  async function handleConfirm() {
+  async function submitFinish(machineStatus?: "running" | "stopped") {
     if (!canFinish) {
       return;
     }
@@ -650,6 +695,8 @@ export function FinishCallModal({
 
       await finishCall({
         callId: currentCall.id,
+
+        machineStatus,
 
         technicianName:
           technicianNames[0] ?? null,
@@ -702,18 +749,39 @@ export function FinishCallModal({
         `Chamado da Máquina ${currentCall.machineId} finalizado`,
       );
 
+      setConditionConfirmationOpen(false);
       onOpenChange(false);
     }
     catch (error) {
-      toast.error(
+      const message =
         error instanceof Error
           ? error.message
-          : "Erro ao finalizar chamado",
+          : "Erro ao finalizar chamado";
+
+      if (message.includes("máquina continua em falha")) {
+        setConditionConfirmationOpen(true);
+      }
+
+      toast.error(
+        message,
       );
     }
     finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleConfirm() {
+    if (!canFinish) {
+      return;
+    }
+
+    if (requiresConditionConfirmation) {
+      setConditionConfirmationOpen(true);
+      return;
+    }
+
+    void submitFinish();
   }
 
   return (
@@ -1050,7 +1118,7 @@ export function FinishCallModal({
               size="md"
               className="w-full sm:w-auto"
               onClick={() => {
-                void handleConfirm();
+                handleConfirm();
               }}
               disabled={!canFinish}
             >
@@ -1059,6 +1127,61 @@ export function FinishCallModal({
           </div>
         </div>
       </DialogContent>
+
+      <Dialog
+        open={conditionConfirmationOpen}
+        onOpenChange={(nextOpen) => {
+          if (!isSubmitting) {
+            setConditionConfirmationOpen(nextOpen);
+          }
+        }}
+      >
+        <DialogContent className="w-[calc(100%-1rem)] max-w-2xl overflow-x-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-2xl sm:text-3xl">
+              A máquina continua em falha?
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Este chamado originou a parada, mas {remainingCallLabels || "outro chamado"} ainda
+              permanece ativo. Confirme a condição atual antes de concluir.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <BigButton
+              tone="danger"
+              size="lg"
+              className="min-h-24 whitespace-normal px-4 text-center"
+              onClick={() => void submitFinish("stopped")}
+              disabled={isSubmitting}
+            >
+              <CircleStop className="h-8 w-8 shrink-0" />
+              <span>Sim — continua parada</span>
+            </BigButton>
+
+            <BigButton
+              tone="success"
+              size="lg"
+              className="min-h-24 whitespace-normal px-4 text-center"
+              onClick={() => void submitFinish("running")}
+              disabled={isSubmitting}
+            >
+              <CheckCircle2 className="h-8 w-8 shrink-0" />
+              <span>Não — pronta para rodar</span>
+            </BigButton>
+          </div>
+
+          <BigButton
+            tone="neutral"
+            size="md"
+            className="w-full"
+            onClick={() => setConditionConfirmationOpen(false)}
+            disabled={isSubmitting}
+          >
+            Voltar à finalização
+          </BigButton>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

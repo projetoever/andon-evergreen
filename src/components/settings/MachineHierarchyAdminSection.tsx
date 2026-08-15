@@ -101,7 +101,7 @@ function subsetToForm(
   return {
     code: subset.code,
     name: subset.name,
-    typeId: subset.typeId,
+    typeId: subset.typeId ?? "",
     description: subset.description ?? "",
     manufacturer: subset.manufacturer ?? "",
     model: subset.model ?? "",

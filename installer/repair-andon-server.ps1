@@ -15,7 +15,7 @@ try {
     Write-AndonBackendEnv -Config $config -NetworkConfig $network
     Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true
     Apply-AndonFirewallRules
-    Clear-AndonChromeProfile
+    Prepare-AndonChromeProfileForReuse
     Recreate-AndonTasks
     Start-AndonRuntime
     Invoke-AndonHealthCheck -Full

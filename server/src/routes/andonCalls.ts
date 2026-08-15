@@ -371,6 +371,8 @@ async function resumeMachineWhenFinishingOwnedStop(
     machineId: string;
     currentMachineStatus: string;
     finishedAt: Date;
+    requestedMachineStatus?: string | null;
+    requireStatusConfirmation?: boolean;
   },
 ) {
   if (params.currentMachineStatus !== "stopped") {
@@ -388,6 +390,44 @@ async function resumeMachineWhenFinishingOwnedStop(
 
   if (!ownedOpenEvent) {
     return params.currentMachineStatus;
+  }
+
+  const nextResponsibleCall = await tx.andonCall.findFirst({
+    where: {
+      id: { not: params.callId },
+      machineId: params.machineId,
+      isSystemTest: false,
+      status: { in: OPEN_CALL_STATUSES },
+    },
+    orderBy: [
+      { openedAt: "asc" },
+      { id: "asc" },
+    ],
+    select: { id: true },
+  });
+
+  if (nextResponsibleCall) {
+    if (params.requireStatusConfirmation && !params.requestedMachineStatus) {
+      throw new FinishCallValidationError(
+        "Informe se a máquina continua em falha antes de finalizar este chamado",
+      );
+    }
+
+    if (params.requestedMachineStatus !== "running") {
+      await tx.failureEvent.update({
+        where: { id: ownedOpenEvent.id },
+        data: {
+          callId: nextResponsibleCall.id,
+          notes: appendNote(
+            ownedOpenEvent.notes,
+            `Responsabilidade transferida ao chamado ${nextResponsibleCall.id} após finalização do chamado ${params.callId}`,
+            "Continuidade da falha",
+          ),
+        },
+      });
+
+      return "stopped";
+    }
   }
 
   await tx.failureEvent.update({
@@ -629,7 +669,7 @@ async function findMachineSubsetForConfirmation(
       subset."name",
       subset_type."code" AS "type"
     FROM "machine_subsets" AS subset
-    INNER JOIN "machine_subset_types" AS subset_type
+    LEFT JOIN "machine_subset_types" AS subset_type
       ON subset_type."id" = subset."typeId"
     WHERE subset."id" = ${machineSubsetId}
       AND subset."machineSetId" = ${machineSetId}
@@ -1250,6 +1290,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               machineId: call.machineId,
               currentMachineStatus: currentMachine.machineStatus,
               finishedAt: now,
+              requireStatusConfirmation: false,
             });
         const machineStoppedMinutes = call.isSystemTest
           ? 0
@@ -1664,7 +1705,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
           const finalMachineSubsetTypeSnapshot =
             confirmedMachineSubset?.type ??
-            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetTypeSnapshot : null);
+            (confirmedMachineSubset?.id === call.machineSubsetId ||
+            preserveLegacyOpeningSubsetSnapshot
+              ? call.machineSubsetTypeSnapshot
+              : null);
 
           const openingSetKey = assetSnapshotKey(
             call.machineSetId,
@@ -1720,6 +1764,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 machineId: call.machineId,
                 currentMachineStatus: call.machine.machineStatus,
                 finishedAt: now,
+                requestedMachineStatus,
+                requireStatusConfirmation: true,
               });
 
           const machineStoppedMinutes = call.isSystemTest
