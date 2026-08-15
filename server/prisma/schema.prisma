@@ -187,8 +187,8 @@ model AndonCall {
   technicianNames             String[]                    @default([])
   technicianArea              String?
   callWaitingMinutes          Int?
-  attendanceMinutes           Int?
-  postMaintenanceMinutes      Int?
+  attendanceMinutes           Float?
+  postMaintenanceMinutes      Float?
   totalCallMinutes            Int?
   machineStoppedMinutes       Int?
   maintenanceReturnCount      Int                         @default(0)

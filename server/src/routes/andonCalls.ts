@@ -245,6 +245,14 @@ function diffMinutes(start?: Date | null, end = new Date()) {
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
 }
 
+function diffPreciseMinutes(start?: Date | null, end = new Date()) {
+  if (!start) {
+    return 0;
+  }
+
+  return Math.max(0, (end.getTime() - start.getTime()) / 60000);
+}
+
 function diffSeconds(start: Date, end = new Date()) {
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
 }
@@ -1498,7 +1506,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             maintenanceCompletedAt: now,
             attendanceMinutes:
               (call.attendanceMinutes ?? 0) +
-              diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
+              diffPreciseMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
             notes: appendNote(
               call.notes,
               optionalString(request.body?.notes),
@@ -1535,7 +1543,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             currentAttendanceStartedAt: now,
             maintenanceCompletedAt: null,
             postMaintenanceMinutes:
-              (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
+              (call.postMaintenanceMinutes ?? 0) +
+              diffPreciseMinutes(call.maintenanceCompletedAt, now),
             maintenanceReturnCount: { increment: 1 },
             notes: appendNote(
               call.notes,
@@ -1785,12 +1794,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +
                 (call.status === "in_progress"
-                  ? diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
+                  ? diffPreciseMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
                   : 0),
               postMaintenanceMinutes:
                 (call.postMaintenanceMinutes ?? 0) +
                 (call.status === "post_maintenance"
-                  ? diffMinutes(call.maintenanceCompletedAt, now)
+                  ? diffPreciseMinutes(call.maintenanceCompletedAt, now)
                   : 0),
               totalCallMinutes: diffMinutes(call.openedAt, now),
               machineStoppedMinutes,
