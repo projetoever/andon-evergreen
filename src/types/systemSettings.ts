@@ -4,6 +4,7 @@ export type RfidInputTerminator = "enter" | "tab" | "fixed_length";
 export interface SystemSettings {
   id: string;
   allowWholeSetCalls: boolean;
+  virtualKeyboardEnabled: boolean;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;
@@ -14,6 +15,7 @@ export interface SystemSettings {
 
 export interface SystemSettingsPatch {
   allowWholeSetCalls?: boolean;
+  virtualKeyboardEnabled?: boolean;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";
   rfidInputTerminator?: RfidInputTerminator;

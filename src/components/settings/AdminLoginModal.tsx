@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, type FormEvent } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BigButton } from "@/components/common/BigButton";
 import { loginAdmin } from "@/services/adminAuthService";
 
@@ -24,7 +30,8 @@ export function AdminLoginModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  function handleSubmit() {
+  function handleSubmit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (loginAdmin(username, password)) {
       setError("");
       setPassword("");
@@ -42,19 +49,37 @@ export function AdminLoginModal({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <label className="text-sm">
-          Usuário
-          <input className="mt-1 w-full rounded border p-2" value={username} onChange={(e) => setUsername(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          Senha
-          <input type="password" className="mt-1 w-full rounded border p-2" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <div className="flex gap-2">
-          <BigButton tone="primary" size="md" onClick={handleSubmit}>{successLabel}</BigButton>
-          <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>Cancelar</BigButton>
-        </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="block text-sm">
+            Usuário
+            <input
+              autoFocus
+              autoComplete="username"
+              className="mt-1 w-full rounded border p-2"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm">
+            Senha
+            <input
+              type="password"
+              autoComplete="current-password"
+              className="mt-1 w-full rounded border p-2"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="flex gap-2">
+            <BigButton type="submit" tone="primary" size="md">
+              {successLabel}
+            </BigButton>
+            <BigButton type="button" tone="neutral" size="md" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </BigButton>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -171,6 +171,10 @@
 }
 
 @layer utilities {
+  .virtual-keyboard-target {
+    padding-right: 3rem !important;
+  }
+
   @keyframes andon-pulse {
     0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
     50% { box-shadow: 0 0 0 8px transparent; opacity: 0.85; }

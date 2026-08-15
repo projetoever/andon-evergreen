@@ -10,6 +10,7 @@ datasource db {
 model SystemSettings {
   id                     String   @id @default("global")
   allowWholeSetCalls     Boolean  @default(true)
+  virtualKeyboardEnabled Boolean  @default(true)
   attendanceMode         String   @default("name")
   rfidReaderMode         String   @default("keyboard_hid")
   rfidInputTerminator    String   @default("enter")
