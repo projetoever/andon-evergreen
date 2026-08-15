@@ -11,6 +11,7 @@ import {
 import {
   credentialBelongsToAnotherTechnician,
   identifyTechnician,
+  lockTechnicianCredential,
   technicianIdentitySelect,
   toPublicTechnician,
 } from "../services/technicianIdentity.js";
@@ -37,6 +38,14 @@ type IdentifyTechnicianBody = {
   method?: unknown;
   value?: unknown;
 };
+
+class TechnicianCredentialConflictError extends Error {}
+
+function duplicateCredentialMessage(method: "pin" | "rfid") {
+  return method === "pin"
+    ? "Este PIN já está cadastrado para outro mantenedor. Informe um PIN diferente"
+    : "Esta tag já está cadastrada para outro mantenedor. Informe outra tag";
+}
 
 function requiredString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -128,38 +137,69 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       return badRequest(reply, "Status do manutentor inválido");
     }
 
-    const [duplicate, hasShift, duplicatePin, duplicateTag] = await Promise.all([
+    const [duplicate, hasShift] = await Promise.all([
       findDuplicateName(name),
       shiftExists(shiftId),
-      credentialBelongsToAnotherTechnician({ method: "pin", value: pin }),
-      tag
-        ? credentialBelongsToAnotherTechnician({ method: "rfid", value: tag })
-        : Promise.resolve(false),
     ]);
 
     if (duplicate) return badRequest(reply, "Já existe manutentor com este nome");
     if (!hasShift) return badRequest(reply, "Turno não encontrado");
-    if (duplicatePin) return badRequest(reply, "Este PIN já pertence a outro manutentor");
-    if (duplicateTag) return badRequest(reply, "Esta tag já pertence a outro manutentor");
 
     const [pinHash, tagHash] = await Promise.all([
       hashCredential(pin),
       tag ? hashCredential(tag) : Promise.resolve(null),
     ]);
 
-    const technician = await prisma.technician.create({
-      data: {
-        name,
-        technicalArea,
-        shiftId,
-        active,
-        pinHash,
-        tagHash,
-      },
-      select: technicianIdentitySelect,
-    });
+    try {
+      const technician = await prisma.$transaction(async (tx) => {
+        await lockTechnicianCredential(tx, { method: "pin", value: pin });
 
-    return reply.status(201).send(toPublicTechnician(technician));
+        if (tag) {
+          await lockTechnicianCredential(tx, { method: "rfid", value: tag });
+        }
+
+        if (
+          await credentialBelongsToAnotherTechnician(
+            { method: "pin", value: pin },
+            undefined,
+            tx,
+          )
+        ) {
+          throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
+        }
+
+        if (
+          tag &&
+          await credentialBelongsToAnotherTechnician(
+            { method: "rfid", value: tag },
+            undefined,
+            tx,
+          )
+        ) {
+          throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
+        }
+
+        return tx.technician.create({
+          data: {
+            name,
+            technicalArea,
+            shiftId,
+            active,
+            pinHash,
+            tagHash,
+          },
+          select: technicianIdentitySelect,
+        });
+      }, { timeout: 30_000 });
+
+      return reply.status(201).send(toPublicTechnician(technician));
+    } catch (error) {
+      if (error instanceof TechnicianCredentialConflictError) {
+        return badRequest(reply, error.message);
+      }
+
+      throw error;
+    }
   });
 
   app.patch<{ Params: { id: string }; Body: UpdateTechnicianBody }>(
@@ -220,45 +260,66 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         return badRequest(reply, "Turno não encontrado");
       }
 
-      if (
-        pin &&
-        (await credentialBelongsToAnotherTechnician(
-          { method: "pin", value: pin },
-          current.id,
-        ))
-      ) {
-        return badRequest(reply, "Este PIN já pertence a outro manutentor");
-      }
-      if (
-        tag &&
-        (await credentialBelongsToAnotherTechnician(
-          { method: "rfid", value: tag },
-          current.id,
-        ))
-      ) {
-        return badRequest(reply, "Esta tag já pertence a outro manutentor");
-      }
-
       const [pinHash, tagHash] = await Promise.all([
         pin ? hashCredential(pin) : Promise.resolve(undefined),
         tag ? hashCredential(tag) : Promise.resolve(undefined),
       ]);
 
-      const technician = await prisma.technician.update({
-        where: { id: current.id },
-        data: {
-          ...(name ? { name } : {}),
-          ...(technicalArea ? { technicalArea } : {}),
-          ...(shiftId ? { shiftId } : {}),
-          ...(active !== undefined ? { active } : {}),
-          ...(pinHash ? { pinHash } : {}),
-          ...(tagHash ? { tagHash } : {}),
-          ...(shouldClearTag ? { tagHash: null } : {}),
-        },
-        select: technicianIdentitySelect,
-      });
+      try {
+        const technician = await prisma.$transaction(async (tx) => {
+          if (pin) {
+            await lockTechnicianCredential(tx, { method: "pin", value: pin });
+          }
 
-      return toPublicTechnician(technician);
+          if (tag) {
+            await lockTechnicianCredential(tx, { method: "rfid", value: tag });
+          }
+
+          if (
+            pin &&
+            await credentialBelongsToAnotherTechnician(
+              { method: "pin", value: pin },
+              current.id,
+              tx,
+            )
+          ) {
+            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
+          }
+
+          if (
+            tag &&
+            await credentialBelongsToAnotherTechnician(
+              { method: "rfid", value: tag },
+              current.id,
+              tx,
+            )
+          ) {
+            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
+          }
+
+          return tx.technician.update({
+            where: { id: current.id },
+            data: {
+              ...(name ? { name } : {}),
+              ...(technicalArea ? { technicalArea } : {}),
+              ...(shiftId ? { shiftId } : {}),
+              ...(active !== undefined ? { active } : {}),
+              ...(pinHash ? { pinHash } : {}),
+              ...(tagHash ? { tagHash } : {}),
+              ...(shouldClearTag ? { tagHash: null } : {}),
+            },
+            select: technicianIdentitySelect,
+          });
+        }, { timeout: 30_000 });
+
+        return toPublicTechnician(technician);
+      } catch (error) {
+        if (error instanceof TechnicianCredentialConflictError) {
+          return badRequest(reply, error.message);
+        }
+
+        throw error;
+      }
     },
   );
 }

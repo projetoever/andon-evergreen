@@ -61,6 +61,7 @@ jobs:
         run: |
           npm run build --prefix server
           npm run test:auth --prefix server
+          npm run test:installer --prefix server
           npm run test:plc --prefix server
 
       - name: Validar API e fluxos críticos

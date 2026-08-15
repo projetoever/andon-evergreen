@@ -317,11 +317,14 @@ export async function registerMachineCatalogRoutes(
         );
       }
 
-      const usageCount = await prisma.machineSet.count({
-        where: { typeId: request.params.id },
+      const activeUsageCount = await prisma.machineSet.count({
+        where: {
+          typeId: request.params.id,
+          isActive: true,
+        },
       });
 
-      if (usageCount > 0) {
+      if (activeUsageCount > 0) {
         const updated =
           await prisma.machineSetType.update({
             where: { id: request.params.id },
@@ -570,12 +573,15 @@ export async function registerMachineCatalogRoutes(
         );
       }
 
-      const usageCount =
+      const activeUsageCount =
         await prisma.machineSubset.count({
-          where: { typeId: request.params.id },
+          where: {
+            typeId: request.params.id,
+            isActive: true,
+          },
         });
 
-      if (usageCount > 0) {
+      if (activeUsageCount > 0) {
         const updated =
           await prisma.machineSubsetType.update({
             where: { id: request.params.id },

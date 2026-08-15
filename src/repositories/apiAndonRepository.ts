@@ -370,6 +370,7 @@ export class ApiAndonRepository implements AndonRepository {
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
+      machineStatus: params.machineStatus,
       confirmedMachineSetId:
         params.confirmedMachineSetId,
       confirmedMachineSubsetId:

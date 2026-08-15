@@ -624,6 +624,13 @@ export async function registerMachineSubsetRoutes(
         );
       }
 
+      if (nextIsActive && !nextTypeId) {
+        return badRequest(
+          reply,
+          "Selecione um tipo de subconjunto ativo antes de reativar este item",
+        );
+      }
+
       const nextDisplayOrder =
         request.body?.displayOrder ===
         undefined

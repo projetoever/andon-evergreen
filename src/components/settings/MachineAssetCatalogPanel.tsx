@@ -396,7 +396,7 @@ export function MachineAssetCatalogPanel() {
     item: MachineAssetCatalogItem,
   ) {
     const confirmed = window.confirm(
-      `Excluir o tipo "${item.name}"? Se ele já estiver em uso, será apenas inativado para preservar os cadastros existentes.`,
+      `Excluir o tipo "${item.name}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.`,
     );
 
     if (!confirmed) {
@@ -416,7 +416,7 @@ export function MachineAssetCatalogPanel() {
       toast.success(
         result.deleted
           ? "Tipo de ativo excluído."
-          : "Tipo em uso; o registro foi inativado.",
+          : "Tipo ligado a um ativo em uso; o registro foi inativado.",
       );
     } catch (error) {
       toast.error(getErrorMessage(error));
