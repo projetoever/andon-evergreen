@@ -300,15 +300,22 @@ async function run() {
   assert.equal("pinHash" in electrical, false);
   assert.equal("tagHash" in electrical, false);
 
-  await request(
+  const updatedSystemSettings = await request(
     "/api/system-settings",
     json("PATCH", {
+      virtualKeyboardEnabled: false,
       attendanceMode: "rfid",
       rfidReaderMode: "keyboard_hid",
       rfidInputTerminator: "enter",
       rfidCodeLength: null,
     }),
   );
+  assert.equal(updatedSystemSettings.virtualKeyboardEnabled, false);
+  const restoredSystemSettings = await request(
+    "/api/system-settings",
+    json("PATCH", { virtualKeyboardEnabled: true }),
+  );
+  assert.equal(restoredSystemSettings.virtualKeyboardEnabled, true);
 
   const identifiedByPin = await request(
     "/api/technicians/identify",
