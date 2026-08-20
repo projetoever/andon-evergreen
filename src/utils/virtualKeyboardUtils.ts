@@ -1,6 +1,8 @@
 export type VirtualKeyboardLayout = "letters" | "numeric";
 export type VirtualKeyboardEditKey = string | "backspace";
 
+export const VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE = "data-andon-virtual-keyboard-open";
+
 const SUPPORTED_INPUT_TYPES = new Set([
   "email",
   "number",
