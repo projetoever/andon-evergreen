@@ -8,6 +8,7 @@ import {
   Delete,
   Keyboard,
   Space,
+  X,
 } from "lucide-react";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -363,7 +364,18 @@ export function VirtualKeyboard() {
     openRef.current = nextOpen;
     setOpen(nextOpen);
     if (!nextOpen && restoreFocus) {
-      window.setTimeout(() => targetRef.current?.focus({ preventScroll: true }), 0);
+      const candidate = targetRef.current;
+      const selection = candidate?.isConnected ? getSelection(candidate) : null;
+      window.setTimeout(() => {
+        if (!candidate?.isConnected) return;
+        candidate.focus({ preventScroll: true });
+        if (!selection) return;
+        try {
+          candidate.setSelectionRange(selection.start, selection.end);
+        } catch {
+          // Campos numéricos mantêm o foco, mas não oferecem seleção programática.
+        }
+      }, 0);
     }
   }
 
@@ -397,12 +409,13 @@ export function VirtualKeyboard() {
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogContent
             data-virtual-keyboard-ui
+            hideDefaultClose
             className="max-h-[96vh] max-w-6xl gap-0 overflow-y-auto rounded-2xl p-2.5 sm:p-4"
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
           >
             <DialogTitle className="sr-only">Teclado virtual</DialogTitle>
-            <header className="mb-2 flex items-center gap-2 pr-10 sm:mb-3">
+            <header className="mb-2 flex items-center gap-2 sm:mb-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
                 <Keyboard className="h-6 w-6" />
               </div>
@@ -414,6 +427,17 @@ export function VirtualKeyboard() {
                   {visiblePreview || "Digite usando o teclado abaixo"}
                 </p>
               </div>
+              <button
+                type="button"
+                aria-label="Fechar teclado virtual e voltar ao campo"
+                title="Fechar teclado e voltar ao campo"
+                className="flex h-10 shrink-0 touch-manipulation items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-3 font-bold text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] sm:h-12 sm:px-4"
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => handleOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+                <span className="hidden sm:inline">Fechar teclado</span>
+              </button>
             </header>
 
             <div
