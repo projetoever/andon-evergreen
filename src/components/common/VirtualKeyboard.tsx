@@ -21,6 +21,7 @@ import {
   applyVirtualKeyboardEdit,
   isVirtualKeyboardTarget,
   resolveVirtualKeyboardLayout,
+  VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE,
   type VirtualKeyboardLayout,
 } from "@/utils/virtualKeyboardUtils";
 
@@ -201,6 +202,14 @@ export function VirtualKeyboard() {
 
   useEffect(() => {
     openRef.current = open;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const root = document.documentElement;
+    root.setAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE, "true");
+    return () => root.removeAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE);
   }, [open]);
 
   useEffect(() => {
@@ -410,6 +419,7 @@ export function VirtualKeyboard() {
           <DialogContent
             data-virtual-keyboard-ui
             hideDefaultClose
+            virtualKeyboard
             className="max-h-[96vh] max-w-6xl gap-0 overflow-y-auto rounded-2xl p-2.5 sm:p-4"
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
