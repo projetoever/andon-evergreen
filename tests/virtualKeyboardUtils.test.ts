@@ -5,6 +5,7 @@ import {
   applyVirtualKeyboardEdit,
   isVirtualKeyboardInputType,
   resolveVirtualKeyboardLayout,
+  scheduleVirtualKeyboardProtectionRelease,
 } from "../src/utils/virtualKeyboardUtils";
 
 test("reconhece somente tipos de entrada compatíveis", () => {
@@ -70,4 +71,42 @@ test("respeita o tamanho máximo do campo", () => {
     }),
     { value: "12345678", cursor: 8 },
   );
+});
+
+test("mantém a proteção até restaurar o foco e concluir o próximo frame", () => {
+  const frames: Array<() => void> = [];
+  const events: string[] = [];
+
+  scheduleVirtualKeyboardProtectionRelease({
+    scheduleFrame: (callback) => frames.push(callback),
+    restoreFocus: () => events.push("focus"),
+    isKeyboardOpen: () => false,
+    releaseProtection: () => events.push("release"),
+  });
+
+  assert.deepEqual(events, []);
+  frames.shift()?.();
+  assert.deepEqual(events, ["focus"]);
+  frames.shift()?.();
+  assert.deepEqual(events, ["focus", "release"]);
+});
+
+test("não remove a proteção se o teclado for reaberto durante o fechamento", () => {
+  const frames: Array<() => void> = [];
+  const events: string[] = [];
+  let open = false;
+
+  scheduleVirtualKeyboardProtectionRelease({
+    scheduleFrame: (callback) => frames.push(callback),
+    restoreFocus: () => {
+      events.push("focus");
+      open = true;
+    },
+    isKeyboardOpen: () => open,
+    releaseProtection: () => events.push("release"),
+  });
+
+  frames.shift()?.();
+  frames.shift()?.();
+  assert.deepEqual(events, ["focus"]);
 });
