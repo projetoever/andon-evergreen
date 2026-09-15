@@ -3,6 +3,27 @@ export type VirtualKeyboardEditKey = string | "backspace";
 
 export const VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE = "data-andon-virtual-keyboard-open";
 
+type ScheduleProtectionReleaseParams = {
+  scheduleFrame: (callback: () => void) => void;
+  restoreFocus: () => void;
+  isKeyboardOpen: () => boolean;
+  releaseProtection: () => void;
+};
+
+export function scheduleVirtualKeyboardProtectionRelease({
+  scheduleFrame,
+  restoreFocus,
+  isKeyboardOpen,
+  releaseProtection,
+}: ScheduleProtectionReleaseParams) {
+  scheduleFrame(() => {
+    restoreFocus();
+    scheduleFrame(() => {
+      if (!isKeyboardOpen()) releaseProtection();
+    });
+  });
+}
+
 const SUPPORTED_INPUT_TYPES = new Set([
   "email",
   "number",

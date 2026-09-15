@@ -21,6 +21,7 @@ import {
   applyVirtualKeyboardEdit,
   isVirtualKeyboardTarget,
   resolveVirtualKeyboardLayout,
+  scheduleVirtualKeyboardProtectionRelease,
   VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE,
   type VirtualKeyboardLayout,
 } from "@/utils/virtualKeyboardUtils";
@@ -133,7 +134,7 @@ function KeyButton({
       type="button"
       aria-label={label}
       className={cn(
-        "flex h-10 min-w-0 flex-1 touch-manipulation items-center justify-center rounded-lg border border-border bg-secondary px-2 text-base font-black text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] md:h-12 md:text-lg",
+        "flex h-9 min-w-0 flex-1 touch-manipulation items-center justify-center rounded-md border border-border bg-secondary px-1.5 text-sm font-black text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] sm:h-10 sm:text-base md:h-11",
         className,
       )}
       onPointerDown={(event) => event.preventDefault()}
@@ -149,11 +150,18 @@ export function VirtualKeyboard() {
   const launcherHostRef = useRef<HTMLElement | null>(null);
   const launcherHostPositionRef = useRef("");
   const openRef = useRef(false);
+  const closeCompletedRef = useRef(true);
+  const closeFallbackRef = useRef<number | null>(null);
+  const focusAfterCloseRef = useRef<{
+    target: EditableTarget;
+    selection: { start: number; end: number } | null;
+  } | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [target, setTarget] = useState<EditableTarget | null>(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<KeyboardView>("letters");
   const [uppercase, setUppercase] = useState(false);
+  const [showAccents, setShowAccents] = useState(false);
   const [preview, setPreview] = useState("");
   const [launcherPosition, setLauncherPosition] = useState({
     left: 0,
@@ -204,13 +212,44 @@ export function VirtualKeyboard() {
     openRef.current = open;
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
+  const finishKeyboardClose = useCallback(() => {
+    if (closeCompletedRef.current) return;
+    closeCompletedRef.current = true;
+    if (closeFallbackRef.current !== null) {
+      window.clearTimeout(closeFallbackRef.current);
+      closeFallbackRef.current = null;
+    }
 
-    const root = document.documentElement;
-    root.setAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE, "true");
-    return () => root.removeAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE);
-  }, [open]);
+    const focusRequest = focusAfterCloseRef.current;
+    focusAfterCloseRef.current = null;
+    scheduleVirtualKeyboardProtectionRelease({
+      scheduleFrame: (callback) => window.requestAnimationFrame(callback),
+      restoreFocus: () => {
+        const candidate = focusRequest?.target;
+        if (!candidate?.isConnected) return;
+        candidate.focus({ preventScroll: true });
+        if (!focusRequest.selection) return;
+        try {
+          candidate.setSelectionRange(focusRequest.selection.start, focusRequest.selection.end);
+        } catch {
+          // Campos numéricos mantêm o foco, mas não oferecem seleção programática.
+        }
+      },
+      isKeyboardOpen: () => openRef.current,
+      releaseProtection: () =>
+        document.documentElement.removeAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE),
+    });
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (closeFallbackRef.current !== null) {
+        window.clearTimeout(closeFallbackRef.current);
+      }
+      document.documentElement.removeAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE);
+    },
+    [],
+  );
 
   useEffect(() => {
     const previousHost = launcherHostRef.current;
@@ -240,6 +279,13 @@ export function VirtualKeyboard() {
     if (enabled) return;
     openRef.current = false;
     setOpen(false);
+    closeCompletedRef.current = true;
+    focusAfterCloseRef.current = null;
+    if (closeFallbackRef.current !== null) {
+      window.clearTimeout(closeFallbackRef.current);
+      closeFallbackRef.current = null;
+    }
+    document.documentElement.removeAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE);
     targetRef.current = null;
     setTarget(null);
   }, [enabled]);
@@ -252,6 +298,7 @@ export function VirtualKeyboard() {
       setPreview(event.target.value);
       setView(resolveVirtualKeyboardLayout(event.target.type, event.target.inputMode));
       setUppercase(false);
+      setShowAccents(false);
     };
 
     const handleFocusOut = () => {
@@ -350,8 +397,7 @@ export function VirtualKeyboard() {
     );
     const currentIndex = eligible.indexOf(candidate);
     const nextTarget = eligible[(currentIndex + 1) % eligible.length];
-    handleOpenChange(false, false);
-    window.setTimeout(() => nextTarget?.focus({ preventScroll: true }), 0);
+    handleOpenChange(false, false, nextTarget);
   };
 
   if (typeof document === "undefined") return null;
@@ -369,23 +415,34 @@ export function VirtualKeyboard() {
   const visiblePreview = target?.type === "password" ? "•".repeat(preview.length) : preview;
   const launcherHost = launcherHostRef.current;
 
-  function handleOpenChange(nextOpen: boolean, restoreFocus = true) {
+  function handleOpenChange(
+    nextOpen: boolean,
+    restoreFocus = true,
+    nextFocusTarget?: EditableTarget,
+  ) {
     openRef.current = nextOpen;
-    setOpen(nextOpen);
-    if (!nextOpen && restoreFocus) {
-      const candidate = targetRef.current;
-      const selection = candidate?.isConnected ? getSelection(candidate) : null;
-      window.setTimeout(() => {
-        if (!candidate?.isConnected) return;
-        candidate.focus({ preventScroll: true });
-        if (!selection) return;
-        try {
-          candidate.setSelectionRange(selection.start, selection.end);
-        } catch {
-          // Campos numéricos mantêm o foco, mas não oferecem seleção programática.
-        }
-      }, 0);
+    if (nextOpen) {
+      if (closeFallbackRef.current !== null) {
+        window.clearTimeout(closeFallbackRef.current);
+        closeFallbackRef.current = null;
+      }
+      closeCompletedRef.current = true;
+      focusAfterCloseRef.current = null;
+      document.documentElement.setAttribute(VIRTUAL_KEYBOARD_OPEN_ATTRIBUTE, "true");
+      setOpen(true);
+      return;
     }
+
+    const candidate = nextFocusTarget ?? (restoreFocus ? targetRef.current : null);
+    focusAfterCloseRef.current = candidate?.isConnected
+      ? {
+          target: candidate,
+          selection: candidate === targetRef.current ? getSelection(candidate) : null,
+        }
+      : null;
+    closeCompletedRef.current = false;
+    setOpen(false);
+    closeFallbackRef.current = window.setTimeout(finishKeyboardClose, 350);
   }
 
   return (
@@ -405,6 +462,7 @@ export function VirtualKeyboard() {
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => {
               setView(resolveVirtualKeyboardLayout(target.type, target.inputMode));
+              setShowAccents(false);
               setPreview(target.value);
               handleOpenChange(true);
             }}
@@ -420,20 +478,23 @@ export function VirtualKeyboard() {
             data-virtual-keyboard-ui
             hideDefaultClose
             virtualKeyboard
-            className="max-h-[96vh] max-w-6xl gap-0 overflow-y-auto rounded-2xl p-2.5 sm:p-4"
+            className="bottom-2 left-1/2 top-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-6xl translate-x-[-50%] translate-y-0 gap-0 overflow-y-auto rounded-2xl p-2 sm:p-3"
             onOpenAutoFocus={(event) => event.preventDefault()}
-            onCloseAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              finishKeyboardClose();
+            }}
           >
             <DialogTitle className="sr-only">Teclado virtual</DialogTitle>
-            <header className="mb-2 flex items-center gap-2 sm:mb-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Keyboard className="h-6 w-6" />
+            <header className="mb-1.5 flex items-center gap-1.5 sm:gap-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Keyboard className="h-5 w-5" />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <p className="hidden max-w-40 shrink-0 truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground lg:block">
                   {getTargetLabel(target)}
                 </p>
-                <p className="truncate rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-sm text-foreground sm:text-base">
+                <p className="flex h-9 min-w-0 flex-1 items-center truncate rounded-lg border border-border bg-background px-3 font-mono text-sm text-foreground">
                   {visiblePreview || "Digite usando o teclado abaixo"}
                 </p>
               </div>
@@ -441,20 +502,20 @@ export function VirtualKeyboard() {
                 type="button"
                 aria-label="Fechar teclado virtual e voltar ao campo"
                 title="Fechar teclado e voltar ao campo"
-                className="flex h-10 shrink-0 touch-manipulation items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-3 font-bold text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] sm:h-12 sm:px-4"
+                className="flex h-9 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 text-sm font-bold text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] sm:px-3"
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => handleOpenChange(false)}
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
                 <span className="hidden sm:inline">Fechar teclado</span>
               </button>
             </header>
 
             <div
-              className={cn("space-y-1.5 sm:space-y-2", view === "numeric" && "mx-auto max-w-md")}
+              className={cn("space-y-1 sm:space-y-1.5", view === "numeric" && "mx-auto max-w-sm")}
             >
               {rows.map((row, rowIndex) => (
-                <div key={`${view}-${rowIndex}`} className="flex justify-center gap-1.5 sm:gap-2">
+                <div key={`${view}-${rowIndex}`} className="flex justify-center gap-1 sm:gap-1.5">
                   {row.map((key, keyIndex) =>
                     key ? (
                       <KeyButton key={`${key}-${keyIndex}`} onClick={() => insertKey(key)}>
@@ -466,7 +527,7 @@ export function VirtualKeyboard() {
                   )}
                 </div>
               ))}
-              {view === "letters" && (
+              {view === "letters" && showAccents && (
                 <div className="flex justify-center gap-1 overflow-x-auto pb-0.5">
                   {ACCENT_KEYS.map((key) => (
                     <KeyButton
@@ -483,19 +544,20 @@ export function VirtualKeyboard() {
 
             <div
               className={cn(
-                "mt-2 grid gap-1.5 sm:gap-2",
+                "mt-1.5 grid gap-1 sm:gap-1.5",
                 numericOnly
                   ? "grid-cols-3 sm:grid-cols-5"
-                  : "grid-cols-4 sm:grid-cols-[auto_auto_auto_minmax(12rem,1fr)_auto_auto_auto]",
+                  : "grid-cols-5 sm:grid-cols-[auto_auto_auto_auto_minmax(10rem,1fr)_auto_auto_auto_auto]",
               )}
             >
               {!numericOnly && (
                 <KeyButton
                   className="px-3 sm:min-w-20"
                   label={view === "letters" ? "Exibir números e símbolos" : "Exibir letras"}
-                  onClick={() =>
-                    setView((current) => (current === "letters" ? "symbols" : "letters"))
-                  }
+                  onClick={() => {
+                    setShowAccents(false);
+                    setView((current) => (current === "letters" ? "symbols" : "letters"));
+                  }}
                 >
                   {view === "letters" ? "123" : "ABC"}
                 </KeyButton>
@@ -512,6 +574,18 @@ export function VirtualKeyboard() {
                   <CaseUpper className="h-5 w-5" />
                 </KeyButton>
               )}
+              {!numericOnly && view === "letters" && (
+                <KeyButton
+                  className={cn(
+                    "px-2.5 sm:min-w-14",
+                    showAccents && "bg-primary text-primary-foreground",
+                  )}
+                  label={showAccents ? "Ocultar acentos" : "Exibir acentos"}
+                  onClick={() => setShowAccents((current) => !current)}
+                >
+                  ÁÇ
+                </KeyButton>
+              )}
               <KeyButton
                 className="px-3 sm:min-w-16"
                 label="Mover cursor para a esquerda"
@@ -521,7 +595,7 @@ export function VirtualKeyboard() {
               </KeyButton>
               {!numericOnly && (
                 <KeyButton
-                  className="col-span-2 px-4 sm:col-span-1"
+                  className="col-span-2 px-3 sm:col-span-1"
                   label="Espaço"
                   onClick={() => insertKey(" ")}
                 >
@@ -547,7 +621,7 @@ export function VirtualKeyboard() {
                 Tab
               </KeyButton>
               <KeyButton
-                className="col-span-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90 sm:col-span-1 sm:min-w-28"
+                className="col-span-2 bg-primary px-3 text-primary-foreground hover:bg-primary/90 sm:col-span-1 sm:min-w-24"
                 label={
                   target instanceof HTMLTextAreaElement ? "Quebrar linha" : "Confirmar com Enter"
                 }
