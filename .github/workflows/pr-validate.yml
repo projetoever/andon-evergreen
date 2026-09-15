@@ -9,6 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  validate-installer-windows:
+    name: Instalador no Windows PowerShell 5.1
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Validar parser e regressões do instalador
+        shell: powershell
+        run: .\installer\tests\installer-runtime-regression.ps1
+
   validate:
     name: Build, PostgreSQL e fluxos críticos
     runs-on: ubuntu-latest

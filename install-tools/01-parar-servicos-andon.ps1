@@ -30,10 +30,52 @@ foreach ($proc in $andonChromeProcesses) {
 }
 
 Write-Host "Parando somente processos Node pertencentes ao ANDON..."
+
+function Test-AndonNodeProcessOwned {
+  param(
+    [string]$ExecutablePath,
+    [string]$CommandLine
+  )
+
+  if (
+    [string]::IsNullOrWhiteSpace($ExecutablePath) -or
+    [string]::IsNullOrWhiteSpace($CommandLine)
+  ) {
+    return $false
+  }
+
+  $normalizedExecutablePath = $ExecutablePath.Replace("/", "\").ToLowerInvariant()
+  $normalizedCommandLine = $CommandLine.Replace("/", "\").ToLowerInvariant()
+  $normalizedProjectPath = $ProjectPath.Replace("/", "\").TrimEnd("\").ToLowerInvariant()
+  $normalizedAndonNodePath = $AndonNodePath.Replace("/", "\").ToLowerInvariant()
+  $apiMarker = "$normalizedProjectPath\server\dist\server.js"
+  $hasApiMarker = $normalizedCommandLine.Contains($apiMarker)
+  $hasProjectMarker = $normalizedCommandLine.Contains("$normalizedProjectPath\")
+  $hasViteEntrypoint =
+    $normalizedCommandLine.Contains("\vite\bin\vite.js") -or
+    $normalizedCommandLine.Contains("\vite\dist\node\cli.js")
+  $hasFrontendMarker =
+    $hasProjectMarker -and
+    $normalizedCommandLine.Contains("\node_modules\") -and
+    $hasViteEntrypoint -and
+    $normalizedCommandLine -match '(^|\s)preview(\s|$)'
+
+  if (!$hasApiMarker -and !$hasFrontendMarker) {
+    return $false
+  }
+
+  if ($normalizedExecutablePath -eq $normalizedAndonNodePath) {
+    return $true
+  }
+
+  return $hasProjectMarker
+}
+
 $andonNodeProcesses = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue |
   Where-Object {
-    $_.ExecutablePath -eq $AndonNodePath -and
-    $_.CommandLine -like "*$ProjectPath*"
+    Test-AndonNodeProcessOwned `
+      -ExecutablePath "$($_.ExecutablePath)" `
+      -CommandLine "$($_.CommandLine)"
   }
 
 foreach ($proc in $andonNodeProcesses) {

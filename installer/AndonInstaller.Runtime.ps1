@@ -310,6 +310,66 @@ function Start-AndonRuntime {
     Write-AndonOk "Inicializacao automatica habilitada."
 }
 
+function Test-AndonNodeProcessOwned {
+    param(
+        [string]$ExecutablePath,
+        [string]$CommandLine,
+        [string]$ProjectPath = $Global:AndonProjectPath,
+        [string]$DedicatedNodePath = $Global:AndonNodeExePath
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace($ExecutablePath) -or
+        [string]::IsNullOrWhiteSpace($CommandLine) -or
+        [string]::IsNullOrWhiteSpace($ProjectPath)
+    ) {
+        return $false
+    }
+
+    $normalizedExecutablePath =
+        $ExecutablePath.Replace("/", "\").ToLowerInvariant()
+
+    $normalizedCommandLine =
+        $CommandLine.Replace("/", "\").ToLowerInvariant()
+
+    $normalizedProjectPath =
+        $ProjectPath.Replace("/", "\").TrimEnd("\").ToLowerInvariant()
+
+    $normalizedDedicatedNodePath =
+        $DedicatedNodePath.Replace("/", "\").ToLowerInvariant()
+
+    $apiMarker =
+        "$normalizedProjectPath\server\dist\server.js"
+
+    $hasApiMarker =
+        $normalizedCommandLine.Contains($apiMarker)
+
+    $hasProjectMarker =
+        $normalizedCommandLine.Contains("$normalizedProjectPath\")
+
+    $hasViteEntrypoint =
+        $normalizedCommandLine.Contains("\vite\bin\vite.js") -or
+        $normalizedCommandLine.Contains("\vite\dist\node\cli.js")
+
+    $hasFrontendMarker =
+        $hasProjectMarker -and
+        $normalizedCommandLine.Contains("\node_modules\") -and
+        $hasViteEntrypoint -and
+        $normalizedCommandLine -match '(^|\s)preview(\s|$)'
+
+    if (!$hasApiMarker -and !$hasFrontendMarker) {
+        return $false
+    }
+
+    if ($normalizedExecutablePath -eq $normalizedDedicatedNodePath) {
+        return $true
+    }
+
+    # Migracao: um Node global so e aceito quando a linha de comando contem
+    # um caminho absoluto e um entrypoint oficial dentro do projeto ANDON.
+    return $hasProjectMarker
+}
+
 function Stop-AndonRuntime {
     param(
         [switch]$PromptAutoStart,
@@ -343,8 +403,9 @@ function Stop-AndonRuntime {
 
     Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue |
         Where-Object {
-            $_.ExecutablePath -eq $Global:AndonNodeExePath -and
-            $_.CommandLine -like "*$Global:AndonProjectPath*"
+            Test-AndonNodeProcessOwned `
+                -ExecutablePath "$($_.ExecutablePath)" `
+                -CommandLine "$($_.CommandLine)"
         } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
