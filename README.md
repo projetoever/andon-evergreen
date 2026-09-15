@@ -166,6 +166,18 @@ O launcher:
 5. interrompe o processo se a sincronização falhar;
 6. abre o menu operacional atualizado.
 
+O bootstrap oficial `INSTALAR_ANDON_SERVIDOR.ps1` também provisiona o Node.js
+22.23.2 x64 exclusivo do ANDON em:
+
+```text
+C:\web-andon-industrial\runtime\node
+```
+
+O pacote ZIP vem de `nodejs.org`, tem SHA-256 fixado no instalador e é validado
+antes da ativação. O Node.js global do Windows não é atualizado, removido,
+reconfigurado nem usado pelo runtime do ANDON. O PATH é ajustado somente dentro
+dos processos filhos do ANDON.
+
 ### Capacidades do menu
 
 - instalação limpa com PostgreSQL local recomendado;
@@ -182,6 +194,25 @@ O launcher:
 
 As opções de instalação, atualização e reparação precisam de internet. Depois de instalado, o ANDON opera localmente sem depender de acesso externo.
 
+### PostgreSQL no servidor corporativo
+
+O modo corporativo reutiliza o PostgreSQL local já instalado e permite configurar
+host, porta, nome do banco e usuário dedicado. Os padrões são:
+
+| Campo | Padrão corporativo |
+|---|---|
+| Host | `127.0.0.1` |
+| Porta | `5432` |
+| Banco | `andon_web_industrial` |
+| Usuário | `andon_web` |
+
+O banco local `andon_db` é tratado como recurso externo protegido: o instalador
+recusa seu uso em `.env`, migrations, seed e desinstalação. Banco ou usuário
+preexistente não tem owner, senha ou privilégios alterados. Migrations em banco
+preexistente dependem de confirmação digitada em cada instalação, atualização ou
+reparação. A desinstalação só oferece remoção para recursos registrados como
+criados pelo próprio instalador e exige confirmações separadas para banco e role.
+
 ## Endereços e portas
 
 Valores padrão da release:
@@ -190,7 +221,7 @@ Valores padrão da release:
 |---|---|---:|
 | Frontend | `http://127.0.0.1:8080` | `8080` |
 | API | `http://127.0.0.1:3001` | `3001` |
-| PostgreSQL do piloto | `127.0.0.1` | `5432` |
+| PostgreSQL corporativo | `127.0.0.1` | `5432` |
 
 Em clientes da rede:
 

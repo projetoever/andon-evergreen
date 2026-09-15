@@ -1,6 +1,7 @@
 ﻿$BasePath = "C:\web-andon-industrial"
 $ProjectPath = "$BasePath\andon"
 $ChromeProfilePath = "$ProjectPath\chrome-profile"
+$AndonNodePath = "$BasePath\runtime\node\node.exe"
 
 Write-Host "===== ANDON - PARAR SERVICOS ====="
 
@@ -28,8 +29,17 @@ foreach ($proc in $andonChromeProcesses) {
     Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "Parando processos Node..."
-Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Write-Host "Parando somente processos Node pertencentes ao ANDON..."
+$andonNodeProcesses = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object {
+    $_.ExecutablePath -eq $AndonNodePath -and
+    $_.CommandLine -like "*$ProjectPath*"
+  }
+
+foreach ($proc in $andonNodeProcesses) {
+    Write-Host "Finalizando Node ANDON PID $($proc.ProcessId)"
+    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host "Verificando portas 3001 e 8080..."
 
@@ -38,10 +48,12 @@ $portPids = Get-NetTCPConnection -LocalPort 3001,8080 -ErrorAction SilentlyConti
   Select-Object -ExpandProperty OwningProcess -Unique
 
 foreach ($pidItem in $portPids) {
-    $process = Get-Process -Id $pidItem -ErrorAction SilentlyContinue
-    if ($process) {
-        Write-Host "Finalizando processo na porta 3001/8080. PID: $pidItem - Processo: $($process.ProcessName)"
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $pidItem" -ErrorAction SilentlyContinue
+    if ($process -and $process.CommandLine -like "*$ProjectPath*") {
+        Write-Host "Finalizando processo ANDON na porta 3001/8080. PID: $pidItem - Processo: $($process.Name)"
         Stop-Process -Id $pidItem -Force -ErrorAction SilentlyContinue
+    } elseif ($process) {
+        Write-Host "Processo externo preservado na porta 3001/8080. PID: $pidItem - Processo: $($process.Name)"
     }
 }
 

@@ -12,6 +12,7 @@ try {
     Write-AndonOk "Modo preservado: $($config.databaseMode)"
     Stop-AndonRuntime
     Sync-AndonRepositoryAndTools
+    Ensure-AndonDedicatedNodeRuntime
     $network = Ensure-AndonNetworkConfig
     Write-AndonBackendEnv -Config $config -NetworkConfig $network
     Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true

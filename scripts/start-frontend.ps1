@@ -76,12 +76,8 @@ if ($portProcessIds.Count -gt 0) {
     Start-Sleep -Seconds 3
 }
 
-$npmPath =
-    Get-AndonRuntimeCommandPath `
-        -CommandName "npm.cmd" `
-        -FallbackPaths @(
-            "C:\Program Files\nodejs\npm.cmd"
-        )
+$npmPath = $context.NpmPath
+Enable-AndonRuntimeNodeEnvironment
 
 $previousLocation = Get-Location
 
@@ -93,7 +89,7 @@ try {
     Write-FrontendLog `
         -Message (
             "Iniciando frontend em 0.0.0.0:" +
-            "$($context.FrontendPort)."
+            "$($context.FrontendPort) com npm ANDON: $npmPath."
         )
 
     & $npmPath run preview -- `

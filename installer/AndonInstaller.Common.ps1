@@ -16,6 +16,16 @@ $Global:AndonBackupsPath = "$Global:AndonProjectPath\backups"
 $Global:AndonChromeProfilePath = "$Global:AndonProjectPath\chrome-profile"
 $Global:AndonConfigPath = "$Global:AndonBasePath\andon-config.json"
 $Global:AndonNetworkConfigPath = "$Global:AndonInstallerPath\andon-network.config.json"
+$Global:AndonRuntimeRoot = "$Global:AndonBasePath\runtime"
+$Global:AndonNodeRuntimePath = "$Global:AndonRuntimeRoot\node"
+$Global:AndonNodeExePath = "$Global:AndonNodeRuntimePath\node.exe"
+$Global:AndonNpmCmdPath = "$Global:AndonNodeRuntimePath\npm.cmd"
+
+$Global:AndonNodeVersion = "22.23.2"
+$Global:AndonNodeVersionLabel = "v$Global:AndonNodeVersion"
+$Global:AndonNodeArchiveName = "node-v$Global:AndonNodeVersion-win-x64.zip"
+$Global:AndonNodeDownloadUrl = "https://nodejs.org/dist/v$Global:AndonNodeVersion/$Global:AndonNodeArchiveName"
+$Global:AndonNodeArchiveSha256 = "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97"
 
 $Global:AndonRepoUrl = "https://github.com/projetoever/andon-evergreen.git"
 $Global:AndonBranch = "main"
@@ -24,11 +34,11 @@ $Global:AndonApiPort = 3001
 $Global:AndonFrontendPort = 8080
 
 $Global:AndonPostgresHost = "127.0.0.1"
-$Global:AndonPostgresPort = 5433
-$Global:AndonDatabaseName = "andon_db"
-$Global:AndonDatabaseUser = "andon"
+$Global:AndonPostgresPort = 5432
+$Global:AndonDatabaseName = "andon_web_industrial"
+$Global:AndonDatabaseUser = "andon_web"
 $Global:AndonDatabasePassword = "andon_dev_password"
-$Global:AndonDatabaseMode = "docker"
+$Global:AndonDatabaseMode = "local"
 
 $Global:AndonDockerContainer = "andon-postgres"
 $Global:AndonDockerVolume = "andon-postgres-data"
@@ -54,6 +64,7 @@ function Initialize-AndonFolders {
     New-Item -ItemType Directory -Force $Global:AndonBasePath | Out-Null
     New-Item -ItemType Directory -Force $Global:AndonInstallerPath | Out-Null
     New-Item -ItemType Directory -Force $Global:AndonToolsPath | Out-Null
+    New-Item -ItemType Directory -Force $Global:AndonRuntimeRoot | Out-Null
     if (Test-Path $Global:AndonProjectPath) {
         New-Item -ItemType Directory -Force $Global:AndonLogsPath | Out-Null
         New-Item -ItemType Directory -Force $Global:AndonBackupsPath | Out-Null
@@ -185,6 +196,198 @@ function Invoke-AndonNativeSafe {
     }
 }
 
+function Get-AndonNodeExe {
+    if (Test-Path $Global:AndonNodeExePath -PathType Leaf) {
+        return $Global:AndonNodeExePath
+    }
+    return $null
+}
+
+function Get-AndonNpmCmd {
+    if (Test-Path $Global:AndonNpmCmdPath -PathType Leaf) {
+        return $Global:AndonNpmCmdPath
+    }
+    return $null
+}
+
+function Get-AndonNodeRuntimeVersion {
+    param([string]$NodePath = $Global:AndonNodeExePath)
+
+    if (!(Test-Path $NodePath -PathType Leaf)) { return $null }
+
+    try {
+        $version = Invoke-AndonNativeSafe { & $NodePath --version 2>$null }
+        if ($LASTEXITCODE -ne 0) { return $null }
+        return "$version".Trim()
+    } catch {
+        return $null
+    }
+}
+
+function Test-AndonDedicatedNodeRuntime {
+    $version = Get-AndonNodeRuntimeVersion
+    return (
+        $version -eq $Global:AndonNodeVersionLabel -and
+        (Test-Path $Global:AndonNpmCmdPath -PathType Leaf)
+    )
+}
+
+function Assert-AndonNodePlatformSupport {
+    if ($env:OS -ne "Windows_NT") {
+        throw "O runtime Node dedicado do ANDON so pode ser instalado no Windows."
+    }
+
+    if (![Environment]::Is64BitOperatingSystem) {
+        throw "O runtime oficial do ANDON requer Windows x64."
+    }
+
+    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $osVersion = [version]$os.Version
+    $minimumVersion = [version]"10.0.14393"
+
+    if ($osVersion -lt $minimumVersion) {
+        throw (
+            "Sistema operacional nao suportado pelo Node 22 do ANDON: " +
+            "$($os.Caption) $($os.Version). Minimo: Windows Server 2016 " +
+            "ou Windows 10 x64."
+        )
+    }
+
+    Write-AndonOk "Sistema compativel com Node 22: $($os.Caption) $($os.Version)."
+}
+
+function Install-AndonDedicatedNodeRuntime {
+    Write-AndonHeader "RUNTIME NODE DEDICADO DO ANDON"
+
+    if (Test-AndonDedicatedNodeRuntime) {
+        Write-AndonOk "Node ANDON ja esta pronto: $Global:AndonNodeExePath ($Global:AndonNodeVersionLabel)."
+        return
+    }
+
+    Assert-AndonNodePlatformSupport
+    Initialize-AndonFolders
+
+    $operationId = [guid]::NewGuid().ToString("N")
+    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) "andon-node-$operationId"
+    $archivePath = Join-Path $tempRoot $Global:AndonNodeArchiveName
+    $extractPath = Join-Path $tempRoot "extract"
+    $archiveFolder = "node-v$Global:AndonNodeVersion-win-x64"
+    $extractedRuntime = Join-Path $extractPath $archiveFolder
+    $previousRuntime = Join-Path $Global:AndonRuntimeRoot "node.previous.$operationId"
+    $movedPreviousRuntime = $false
+    $installedNewRuntime = $false
+
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+
+        [Net.ServicePointManager]::SecurityProtocol =
+            [Net.ServicePointManager]::SecurityProtocol -bor
+            [Net.SecurityProtocolType]::Tls12
+
+        Write-Host "Baixando runtime oficial: $Global:AndonNodeDownloadUrl" -ForegroundColor DarkCyan
+        Invoke-WebRequest `
+            -Uri $Global:AndonNodeDownloadUrl `
+            -OutFile $archivePath `
+            -UseBasicParsing `
+            -TimeoutSec 300
+
+        $actualHash = (Get-FileHash -Path $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualHash -ne $Global:AndonNodeArchiveSha256) {
+            throw "SHA-256 invalido para $Global:AndonNodeArchiveName. Download rejeitado."
+        }
+        Write-AndonOk "SHA-256 do runtime Node validado."
+
+        Expand-Archive -Path $archivePath -DestinationPath $extractPath -Force
+
+        $stagedNode = Join-Path $extractedRuntime "node.exe"
+        $stagedNpm = Join-Path $extractedRuntime "npm.cmd"
+        if (!(Test-Path $stagedNode -PathType Leaf) -or !(Test-Path $stagedNpm -PathType Leaf)) {
+            throw "Pacote Node extraido sem node.exe ou npm.cmd."
+        }
+
+        $stagedVersion = Get-AndonNodeRuntimeVersion -NodePath $stagedNode
+        if ($stagedVersion -ne $Global:AndonNodeVersionLabel) {
+            throw "Versao Node extraida inesperada: $stagedVersion."
+        }
+
+        if (Test-Path $Global:AndonNodeRuntimePath) {
+            Move-Item -LiteralPath $Global:AndonNodeRuntimePath -Destination $previousRuntime -ErrorAction Stop
+            $movedPreviousRuntime = $true
+        }
+
+        Move-Item -LiteralPath $extractedRuntime -Destination $Global:AndonNodeRuntimePath -ErrorAction Stop
+        $installedNewRuntime = $true
+
+        if (!(Test-AndonDedicatedNodeRuntime)) {
+            throw "Runtime Node dedicado falhou na validacao apos a instalacao."
+        }
+
+        if ($movedPreviousRuntime -and (Test-Path $previousRuntime)) {
+            Remove-Item -LiteralPath $previousRuntime -Recurse -Force -ErrorAction Stop
+        }
+
+        Write-AndonOk "Node ANDON instalado: $Global:AndonNodeExePath ($Global:AndonNodeVersionLabel)."
+        Write-AndonOk "Node global do Windows nao foi alterado."
+    } catch {
+        if (
+            ($installedNewRuntime -or $movedPreviousRuntime) -and
+            (Test-Path $Global:AndonNodeRuntimePath)
+        ) {
+            Remove-Item -LiteralPath $Global:AndonNodeRuntimePath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if ($movedPreviousRuntime -and (Test-Path $previousRuntime)) {
+            Move-Item -LiteralPath $previousRuntime -Destination $Global:AndonNodeRuntimePath -ErrorAction SilentlyContinue
+        }
+        throw
+    } finally {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Ensure-AndonDedicatedNodeRuntime {
+    if (Test-AndonDedicatedNodeRuntime) {
+        Write-AndonOk "Node ANDON preservado: $Global:AndonNodeExePath ($Global:AndonNodeVersionLabel)."
+        return
+    }
+
+    Write-AndonWarn "Runtime Node dedicado ausente, incompleto ou em versao diferente."
+    Install-AndonDedicatedNodeRuntime
+}
+
+function Invoke-AndonNodeProcess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = "",
+        [string]$ErrorMessage = ""
+    )
+
+    if (!(Test-AndonDedicatedNodeRuntime)) {
+        throw "Runtime Node dedicado do ANDON nao esta pronto em $Global:AndonNodeRuntimePath."
+    }
+
+    $previousPath = $env:Path
+    $previousNode = $env:NODE
+    try {
+        $env:Path = "$Global:AndonNodeRuntimePath;$previousPath"
+        $env:NODE = $Global:AndonNodeExePath
+        Invoke-AndonProcess `
+            -FilePath $FilePath `
+            -Arguments $Arguments `
+            -WorkingDirectory $WorkingDirectory `
+            -ErrorMessage $ErrorMessage
+    } finally {
+        $env:Path = $previousPath
+        if ($null -eq $previousNode) {
+            Remove-Item Env:\NODE -ErrorAction SilentlyContinue
+        } else {
+            $env:NODE = $previousNode
+        }
+    }
+}
+
 function Test-AndonPortInUse {
     param([int]$Port)
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -207,12 +410,14 @@ function Get-AndonMappedDockerPort {
 
 function Get-AndonDefaultConfig {
     return [pscustomobject]@{
-        databaseMode = "docker"
+        databaseMode = "local"
         postgresHost = "127.0.0.1"
-        postgresPort = 5433
-        databaseName = "andon_db"
-        databaseUser = "andon"
+        postgresPort = 5432
+        databaseName = "andon_web_industrial"
+        databaseUser = "andon_web"
         databasePassword = "andon_dev_password"
+        databaseCreatedByInstaller = $false
+        databaseUserCreatedByInstaller = $false
         apiPort = 3001
         frontendPort = 8080
         projectPath = $Global:AndonProjectPath
@@ -248,7 +453,7 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","databaseCreatedByInstaller","databaseUserCreatedByInstaller","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
                 if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") { $config.$key = $fileConfig.$key }
             }
         } catch { Write-AndonWarn "Falha ao ler andon-config.json. Usando defaults. Erro: $($_.Exception.Message)" }
@@ -260,6 +465,7 @@ function Import-AndonConfig {
 function Save-AndonConfig {
     param([object]$Config)
     if (!$Config) { throw "Config invalida." }
+    Assert-AndonDatabaseTargetSafe -Config $Config
     Initialize-AndonFolders
     $configToSave = [ordered]@{
         databaseMode = "$($Config.databaseMode)"
@@ -268,6 +474,8 @@ function Save-AndonConfig {
         databaseName = "$($Config.databaseName)"
         databaseUser = "$($Config.databaseUser)"
         databasePassword = "$($Config.databasePassword)"
+        databaseCreatedByInstaller = [bool]$Config.databaseCreatedByInstaller
+        databaseUserCreatedByInstaller = [bool]$Config.databaseUserCreatedByInstaller
         apiPort = [int]$Config.apiPort
         frontendPort = [int]$Config.frontendPort
         projectPath = "$($Config.projectPath)"
@@ -357,14 +565,45 @@ function Ensure-AndonNetworkConfig {
     return Select-AndonServerIp
 }
 
+function Assert-AndonDatabaseTargetSafe {
+    param([object]$Config)
+
+    if (!$Config) { throw "Configuracao de banco ausente." }
+
+    if ("$($Config.databaseMode)".Trim().ToLowerInvariant() -ne "local") { return }
+
+    $databaseName = "$($Config.databaseName)".Trim().ToLowerInvariant()
+    $databaseUser = "$($Config.databaseUser)".Trim().ToLowerInvariant()
+
+    if ($databaseName -eq "andon_db") {
+        throw (
+            "O banco local andon_db e um recurso legado protegido e nao pode " +
+            "ser usado, migrado, semeado, alterado ou removido pelo ANDON. " +
+            "Configure outro banco, como andon_web_industrial."
+        )
+    }
+
+    if ($databaseName -in @("postgres", "template0", "template1")) {
+        throw "O banco de sistema $databaseName nao pode ser usado pelo ANDON."
+    }
+
+    if ($databaseUser -eq "postgres") {
+        throw "O superusuario postgres nao pode ser configurado como usuario da aplicacao ANDON."
+    }
+}
+
 function Write-AndonBackendEnv {
     param([object]$Config = $null, [object]$NetworkConfig = $null)
     if (!$Config) { $Config = Import-AndonConfig }
     Update-AndonGlobalsFromConfig $Config
+    Assert-AndonDatabaseTargetSafe -Config $Config
     if (!$NetworkConfig) { $NetworkConfig = Ensure-AndonNetworkConfig }
     $serverPath = "$Global:AndonProjectPath\server"
     if (!(Test-Path $serverPath)) { throw "Backend nao encontrado: $serverPath" }
-    $databaseUrl = "postgresql://$($Config.databaseUser):$($Config.databasePassword)@$($Config.postgresHost):$($Config.postgresPort)/$($Config.databaseName)?schema=public"
+    $databaseUser = [uri]::EscapeDataString("$($Config.databaseUser)")
+    $databasePassword = [uri]::EscapeDataString("$($Config.databasePassword)")
+    $databaseName = [uri]::EscapeDataString("$($Config.databaseName)")
+    $databaseUrl = "postgresql://${databaseUser}:${databasePassword}@$($Config.postgresHost):$($Config.postgresPort)/${databaseName}?schema=public"
     $envPath = "$serverPath\.env"
 @"
 PORT=$($Config.apiPort)
@@ -373,14 +612,6 @@ DATABASE_URL="$databaseUrl"
 CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"
-}
-
-function Get-AndonNpmCmd {
-    $cmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-    $default = "C:\Program Files\nodejs\npm.cmd"
-    if (Test-Path $default) { return $default }
-    return $null
 }
 
 function Get-AndonChromePath {
@@ -397,10 +628,14 @@ function Assert-AndonCorePrerequisites {
     if (Test-AndonAdmin) { Write-AndonOk "PowerShell como Administrador." } else { Write-AndonFail "PowerShell nao esta como Administrador."; $hasError = $true }
     $git = Get-Command git.exe -ErrorAction SilentlyContinue
     if ($git) { Write-AndonOk "Git: $($git.Source)" } else { Write-AndonFail "Git nao encontrado."; $hasError = $true }
-    $node = Get-Command node.exe -ErrorAction SilentlyContinue
-    if ($node) { Write-AndonOk "Node.js: $($node.Source)" } else { Write-AndonFail "Node.js nao encontrado."; $hasError = $true }
-    $npm = Get-AndonNpmCmd
-    if ($npm) { Write-AndonOk "npm.cmd: $npm" } else { Write-AndonFail "npm.cmd nao encontrado."; $hasError = $true }
+    $globalNode = Get-Command node.exe -ErrorAction SilentlyContinue
+    if ($globalNode) {
+        $globalVersion = Get-AndonNodeRuntimeVersion -NodePath $globalNode.Source
+        Write-Host "Node global (informativo): $($globalNode.Source) ($globalVersion)"
+    } else {
+        Write-Host "Node global (informativo): nao encontrado"
+    }
+    Write-Host "Node global nao sera usado pelo ANDON."
     $chrome = Get-AndonChromePath
     if ($chrome) { Write-AndonOk "Chrome: $chrome" } else { Write-AndonWarn "Chrome nao encontrado. Kiosk local pode nao funcionar." }
     if ($hasError) { throw "Pre-requisitos gerais ausentes." }
@@ -550,16 +785,28 @@ function Invoke-AndonNodePipeline {
         [string]$SeedProfile = ""
     )
     $config = Import-AndonConfig
+    Assert-AndonDatabaseTargetSafe -Config $config
+    if (!(Test-AndonDedicatedNodeRuntime)) {
+        throw "Runtime Node dedicado do ANDON nao esta pronto em $Global:AndonNodeRuntimePath."
+    }
     $networkConfig = Ensure-AndonNetworkConfig
     Write-AndonBackendEnv -Config $config -NetworkConfig $networkConfig
     $npm = Get-AndonNpmCmd
-    if (!$npm) { throw "npm.cmd nao encontrado." }
+    if (!$npm) { throw "npm.cmd dedicado nao encontrado em $Global:AndonNpmCmdPath." }
     $serverPath = "$Global:AndonProjectPath\server"
     if (!(Test-Path $serverPath)) { throw "Backend nao encontrado: $serverPath" }
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
-    if ($InstallDependencies) { Invoke-AndonProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $serverPath }
-    Invoke-AndonProcess $npm @("run", "db:generate") $serverPath
-    Invoke-AndonProcess $npm @("run", "db:migrate") $serverPath
+    if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $serverPath }
+    Invoke-AndonNodeProcess $npm @("run", "db:generate") $serverPath
+    if (
+        $config.databaseMode -eq "local" -and
+        ![bool]$config.databaseCreatedByInstaller
+    ) {
+        if (!(Confirm-AndonTyped -Message "O banco $($config.databaseName) ja existia antes desta instalacao. Para autorizar explicitamente migrations somente nesse banco, digite MIGRAR_BANCO." -Expected "MIGRAR_BANCO")) {
+            throw "Migrations canceladas. O banco preexistente nao foi alterado."
+        }
+    }
+    Invoke-AndonNodeProcess $npm @("run", "db:migrate") $serverPath
     if ($RunSeed) {
         if (@("empty", "starter", "demo") -notcontains $SeedProfile) {
             throw "Perfil de seed invalido ou ausente: $SeedProfile"
@@ -569,7 +816,7 @@ function Invoke-AndonNodePipeline {
         $previousSeedProfile = $env:ANDON_INSTALL_PROFILE
         $env:ANDON_INSTALL_PROFILE = $SeedProfile
         try {
-            Invoke-AndonProcess $npm @("run", "db:seed") $serverPath
+            Invoke-AndonNodeProcess $npm @("run", "db:seed") $serverPath
         } finally {
             if ($null -eq $previousSeedProfile) {
                 Remove-Item Env:\ANDON_INSTALL_PROFILE -ErrorAction SilentlyContinue
@@ -580,15 +827,15 @@ function Invoke-AndonNodePipeline {
     } else {
         Write-AndonOk "db:seed nao sera executado neste procedimento."
     }
-    Invoke-AndonProcess $npm @("run", "build") $serverPath
+    Invoke-AndonNodeProcess $npm @("run", "build") $serverPath
     Remove-Item "$Global:AndonProjectPath\dist" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
     Remove-Item Env:\VITE_ANDON_API_BASE_URL -ErrorAction SilentlyContinue
     $env:VITE_ANDON_DATA_MODE = "api"
     $env:VITE_ANDON_API_PORT = "$($config.apiPort)"
     try {
-        if ($InstallDependencies) { Invoke-AndonProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $Global:AndonProjectPath }
-        Invoke-AndonProcess $npm @("run", "build") $Global:AndonProjectPath
+        if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $Global:AndonProjectPath }
+        Invoke-AndonNodeProcess $npm @("run", "build") $Global:AndonProjectPath
     } finally {
         Remove-Item Env:\VITE_ANDON_DATA_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\VITE_ANDON_API_PORT -ErrorAction SilentlyContinue
@@ -632,6 +879,9 @@ function Show-AndonStatus {
     Write-Host "Tools:         $Global:AndonToolsPath"
     Write-Host "Installer:     $Global:AndonInstallerPath"
     Write-Host "Config global: $Global:AndonConfigPath"
+    Write-Host "Node ANDON:   $Global:AndonNodeExePath"
+    $nodeVersion = Get-AndonNodeRuntimeVersion
+    if ($nodeVersion) { Write-Host "Versao Node:  $nodeVersion" } else { Write-AndonWarn "Runtime Node dedicado ainda nao esta pronto." }
     Write-Host ""
     $config = Import-AndonConfig
     if (Test-Path $Global:AndonConfigPath) {

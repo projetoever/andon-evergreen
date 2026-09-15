@@ -11,11 +11,12 @@ try {
     $installationProfile = Select-AndonInstallationProfile
     Write-AndonOk "Perfil inicial selecionado: $installationProfile"
     Sync-AndonRepositoryAndTools
+    Ensure-AndonDedicatedNodeRuntime
     Initialize-AndonFolders
     $network = Select-AndonServerIp
     Write-AndonHeader "ESCOLHA DO BANCO DE DADOS"
     Write-Host "1 - PostgreSQL local no Windows - recomendado para HOST/producao"
-    Write-Host "2 - PostgreSQL via Docker - desenvolvimento, notebook ou testes"
+    Write-Host "2 - PostgreSQL via Docker - somente desenvolvimento, notebook ou testes"
     Write-Host "0 - Cancelar"
     Write-Host ""
     $dbConfig = $null

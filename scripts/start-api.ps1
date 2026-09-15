@@ -99,12 +99,8 @@ if ($portProcessIds.Count -gt 0) {
     Start-Sleep -Seconds 3
 }
 
-$nodePath =
-    Get-AndonRuntimeCommandPath `
-        -CommandName "node.exe" `
-        -FallbackPaths @(
-            "C:\Program Files\nodejs\node.exe"
-        )
+$nodePath = $context.NodePath
+Enable-AndonRuntimeNodeEnvironment
 
 $previousLocation = Get-Location
 
@@ -118,7 +114,7 @@ try {
     Write-ApiLog `
         -Message (
             "Iniciando API em 0.0.0.0:$($context.ApiPort) " +
-            "com Node.js."
+            "com Node ANDON: $nodePath."
         )
 
     & $nodePath $apiBuild

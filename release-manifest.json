@@ -11,9 +11,17 @@
   },
   "deployment": {
     "currentPilotDatabaseMode": "docker",
-    "companyHostPostPilotRecommendation": "local",
+    "corporateServerDatabaseMode": "local",
     "developmentDatabaseMode": "docker",
     "normalOperation": "local_offline",
+    "nodeRuntime": {
+      "version": "22.23.2",
+      "architecture": "x64",
+      "path": "C:\\web-andon-industrial\\runtime\\node",
+      "source": "nodejs.org",
+      "sha256": "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97",
+      "usesGlobalPath": false
+    },
     "runtimeOrder": [
       "database",
       "api",
@@ -25,7 +33,7 @@
     "apiDefault": 3001,
     "frontendDefault": 8080,
     "currentPilotPostgresPort": 5432,
-    "companyPostgresRecommendedPort": 5433
+    "companyPostgresRecommendedPort": 5432
   },
   "readiness": [
     "/health",
@@ -34,6 +42,9 @@
   ],
   "database": {
     "engine": "PostgreSQL",
+    "corporateDefaultName": "andon_web_industrial",
+    "corporateDefaultUser": "andon_web",
+    "protectedExternalDatabase": "andon_db",
     "migration": "20260813183000_add_configurable_andon_categories",
     "migrationType": "additive",
     "migrationApplied": false,

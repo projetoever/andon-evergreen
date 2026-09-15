@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $script:AndonRuntimeContext = $null
+$script:AndonRequiredNodeVersion = "v22.23.2"
 
 function Get-AndonRuntimeConfigPath {
     if (![string]::IsNullOrWhiteSpace($env:ANDON_CONFIG_PATH)) {
@@ -55,6 +56,21 @@ function Get-AndonRuntimeContext {
         throw "databaseMode invalido: $databaseMode"
     }
 
+    if ($databaseMode -eq "local") {
+        $databaseName = "$($config.databaseName)".Trim().ToLowerInvariant()
+        $databaseUser = "$($config.databaseUser)".Trim().ToLowerInvariant()
+
+        if ($databaseName -eq "andon_db") {
+            throw "O banco local legado andon_db e protegido e nao pode ser usado pelo runtime do ANDON."
+        }
+        if ($databaseName -in @("postgres", "template0", "template1")) {
+            throw "O banco de sistema $databaseName nao pode ser usado pelo runtime do ANDON."
+        }
+        if ($databaseUser -eq "postgres") {
+            throw "O superusuario postgres nao pode ser usado como usuario da aplicacao ANDON."
+        }
+    }
+
     $postgresPort = 0
     $apiPort = 0
     $frontendPort = 0
@@ -94,6 +110,8 @@ function Get-AndonRuntimeContext {
 
     $projectPath = "$($config.projectPath)".Trim()
     $toolsPath = "$($config.toolsPath)".Trim()
+    $basePath = Split-Path -Parent $configPath
+    $nodeRuntimePath = Join-Path $basePath "runtime\node"
 
     $dockerContainer = if (
         $null -ne $config.dockerContainer -and
@@ -115,6 +133,7 @@ function Get-AndonRuntimeContext {
 
     $script:AndonRuntimeContext = [pscustomobject]@{
         ConfigPath        = $configPath
+        BasePath          = $basePath
         DatabaseMode     = $databaseMode
         PostgresHost      = "$($config.postgresHost)".Trim()
         PostgresPort      = $postgresPort
@@ -125,6 +144,9 @@ function Get-AndonRuntimeContext {
         FrontendPort      = $frontendPort
         ProjectPath       = $projectPath
         ToolsPath         = $toolsPath
+        NodeRuntimePath   = $nodeRuntimePath
+        NodePath          = Join-Path $nodeRuntimePath "node.exe"
+        NpmPath           = Join-Path $nodeRuntimePath "npm.cmd"
         ScriptsPath       = Join-Path $projectPath "scripts"
         LogsPath          = Join-Path $projectPath "logs"
         ChromeProfilePath = Join-Path $projectPath "chrome-profile"
@@ -135,6 +157,32 @@ function Get-AndonRuntimeContext {
     }
 
     return $script:AndonRuntimeContext
+}
+
+function Assert-AndonRuntimeNode {
+    $context = Get-AndonRuntimeContext
+
+    if (!(Test-Path $context.NodePath -PathType Leaf)) {
+        throw "Node dedicado do ANDON nao encontrado: $($context.NodePath)"
+    }
+    if (!(Test-Path $context.NpmPath -PathType Leaf)) {
+        throw "npm dedicado do ANDON nao encontrado: $($context.NpmPath)"
+    }
+
+    $version = & $context.NodePath --version 2>$null
+    if ($LASTEXITCODE -ne 0 -or "$version".Trim() -ne $script:AndonRequiredNodeVersion) {
+        throw "Runtime Node dedicado invalido em $($context.NodePath). Esperado: $script:AndonRequiredNodeVersion. Encontrado: $version"
+    }
+
+    return "$version".Trim()
+}
+
+function Enable-AndonRuntimeNodeEnvironment {
+    $context = Get-AndonRuntimeContext
+    Assert-AndonRuntimeNode | Out-Null
+
+    $env:Path = "$($context.NodeRuntimePath);$($env:Path)"
+    $env:NODE = $context.NodePath
 }
 
 function Write-AndonRuntimeLog {

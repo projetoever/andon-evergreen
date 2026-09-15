@@ -343,9 +343,8 @@ function Stop-AndonRuntime {
 
     Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue |
         Where-Object {
-            $_.CommandLine -like "*$Global:AndonProjectPath*" -or
-            $_.CommandLine -like "*dist/server.js*" -or
-            $_.CommandLine -like "*vite*preview*"
+            $_.ExecutablePath -eq $Global:AndonNodeExePath -and
+            $_.CommandLine -like "*$Global:AndonProjectPath*"
         } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
@@ -373,12 +372,32 @@ function Invoke-AndonHealthCheck {
 
     $config = Import-AndonConfig
     $hasCriticalError = $false
+    Assert-AndonDatabaseTargetSafe -Config $config
 
     Write-Host "databaseMode: $($config.databaseMode)"
     Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"
     Write-Host "Banco:         $($config.databaseName)"
     Write-Host "API:           $($config.apiPort)"
     Write-Host "Frontend:      $($config.frontendPort)"
+    Write-Host ""
+
+    $andonNodeVersion = Get-AndonNodeRuntimeVersion
+    if (Test-AndonDedicatedNodeRuntime) {
+        Write-AndonOk "Node ANDON: $Global:AndonNodeExePath"
+        Write-Host "Versao:     $andonNodeVersion"
+    } else {
+        Write-AndonFail "Node ANDON ausente ou invalido: $Global:AndonNodeExePath"
+        $hasCriticalError = $true
+    }
+
+    $globalNode = Get-Command node.exe -ErrorAction SilentlyContinue
+    if ($globalNode) {
+        $globalVersion = Get-AndonNodeRuntimeVersion -NodePath $globalNode.Source
+        Write-Host "Node global (somente informativo): $($globalNode.Source) ($globalVersion)"
+    } else {
+        Write-Host "Node global (somente informativo): nao encontrado"
+    }
+    Write-Host "O Node global nao e usado quando o runtime dedicado esta disponivel."
 
     if ($config.databaseMode -eq "docker") {
         $docker = Get-Command docker.exe -ErrorAction SilentlyContinue

@@ -14,6 +14,7 @@ try {
     if (Test-Path $Global:AndonProjectPath) { Remove-Item $Global:AndonProjectPath -Recurse -Force -ErrorAction SilentlyContinue; Write-AndonOk "Projeto removido: $Global:AndonProjectPath" }
     if (Test-Path $Global:AndonToolsPath) { Remove-Item $Global:AndonToolsPath -Recurse -Force -ErrorAction SilentlyContinue; Write-AndonOk "Tools removidas: $Global:AndonToolsPath" }
     if ($config.databaseMode -eq "docker") { Remove-AndonDockerDatabaseClean } elseif ($config.databaseMode -eq "local") { Remove-AndonLocalDatabaseClean } else { Write-AndonWarn "databaseMode desconhecido: $($config.databaseMode). Banco nao removido." }
+    if (Test-Path $Global:AndonNodeRuntimePath) { Remove-Item $Global:AndonNodeRuntimePath -Recurse -Force -ErrorAction SilentlyContinue; Write-AndonOk "Runtime Node exclusivo removido: $Global:AndonNodeRuntimePath" }
     if (Confirm-AndonTyped -Message "Para remover tambem andon-config.json, digite APAGAR_CONFIG." -Expected "APAGAR_CONFIG") { Remove-Item $Global:AndonConfigPath -Force -ErrorAction SilentlyContinue; Remove-Item $Global:AndonNetworkConfigPath -Force -ErrorAction SilentlyContinue; Write-AndonOk "Configs removidas." } else { Write-AndonWarn "Configs preservadas." }
     Write-AndonOk "Desinstalacao limpa finalizada."
     exit 0

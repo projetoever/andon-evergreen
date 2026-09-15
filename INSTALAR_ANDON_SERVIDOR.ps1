@@ -6,6 +6,7 @@ $InstallerPath = "$BasePath\installer"
 $ToolsPath = "$BasePath\andon-tools"
 $RepoUrl = "https://github.com/projetoever/andon-evergreen.git"
 $Branch = "main"
+$BootstrapVersion = "3.0"
 
 function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -37,7 +38,7 @@ function Write-Fail {
     Write-Host "[FALHA] $Message" -ForegroundColor Red
 }
 
-Write-Header "ANDON WEB INDUSTRIAL - BOOTSTRAP DO INSTALADOR"
+Write-Header "ANDON WEB INDUSTRIAL - BOOTSTRAP $BootstrapVersion"
 
 if (!(Test-IsAdmin)) {
     Write-Fail "Execute este script como Administrador."
@@ -135,7 +136,21 @@ if (Test-Path "$ProjectPath\install-tools") {
     Write-Warn "Pasta install-tools nao encontrada. Tools nao foram copiadas."
 }
 
-Write-Header "4. Bootstrap concluido"
+Write-Header "4. Preparando Node exclusivo do ANDON"
+
+$commonInstaller = "$InstallerPath\AndonInstaller.Common.ps1"
+if (!(Test-Path $commonInstaller -PathType Leaf)) {
+    Write-Fail "Modulo comum do instalador nao encontrado: $commonInstaller"
+    exit 1
+}
+
+. $commonInstaller
+Ensure-AndonDedicatedNodeRuntime
+
+Write-Ok "Node ANDON: $Global:AndonNodeExePath"
+Write-Host "Node global do Windows nao foi alterado nem sera usado pelo ANDON."
+
+Write-Header "5. Bootstrap concluido"
 
 Write-Host "Menu do instalador:"
 Write-Host "$InstallerPath\menu-andon-installer.ps1"
@@ -145,7 +160,9 @@ Write-Host "1 - Instalacao limpa" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Durante a instalacao, o sistema perguntara a porta do PostgreSQL."
 Write-Host "Padrao: 5432"
-Write-Host "Alternativa: 5433, se 5432 estiver ocupada por outro PostgreSQL."
+Write-Host "Banco padrao: andon_web_industrial"
+Write-Host "Usuario padrao: andon_web"
+Write-Host "O banco legado andon_db nao sera utilizado ou alterado."
 Write-Host ""
 
 $openMenu = Read-Host "Abrir menu do instalador agora? [S/n]"
