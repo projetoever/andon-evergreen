@@ -73,32 +73,26 @@ test("instalação, atualização e reparo mantêm o runtime dedicado", async ()
   }
 });
 
-test("PostgreSQL corporativo protege andon_db e não altera roles preexistentes", async () => {
+test("PostgreSQL permanece no comportamento original da main", async () => {
   const [common, localDatabase] = await Promise.all([
     readInstaller("AndonInstaller.Common.ps1"),
     readInstaller("AndonInstaller.Database.Local.ps1"),
   ]);
 
-  assert.match(common, /AndonDatabaseName = "andon_web_industrial"/);
-  assert.match(common, /AndonDatabaseUser = "andon_web"/);
-  assert.match(common, /AndonPostgresPort = 5432/);
-  assert.match(common, /banco local andon_db e um recurso legado protegido/i);
-  assert.match(common, /@\("postgres", "template0", "template1"\)/);
-  assert.match(common, /superusuario postgres nao pode ser configurado/i);
-  assert.match(common, /MIGRAR_BANCO/);
-  assert.match(common, /databaseCreatedByInstaller/);
-  assert.match(common, /databaseUserCreatedByInstaller/);
+  assert.match(common, /AndonDatabaseMode = "docker"/);
+  assert.match(common, /AndonDatabaseName = "andon_db"/);
+  assert.match(common, /AndonDatabaseUser = "andon"/);
+  assert.match(common, /AndonPostgresPort = 5433/);
+  assert.doesNotMatch(common, /andon_web_industrial|andon_web|MIGRAR_BANCO/);
+  assert.doesNotMatch(common, /database(?:User)?CreatedByInstaller/);
 
-  assert.match(localDatabase, /USAR_BANCO_EXISTENTE/);
-  assert.match(localDatabase, /CREATE ROLE/);
+  assert.match(localDatabase, /ALTER USER/);
+  assert.match(localDatabase, /GRANT ALL PRIVILEGES/);
+  assert.match(localDatabase, /CREATEDB/);
   assert.match(localDatabase, /CREATE DATABASE/);
-  assert.match(localDatabase, /databaseUser = \$databaseUser/);
-  assert.match(localDatabase, /\$roleCreatedInThisRun/);
-  assert.doesNotMatch(localDatabase, /ALTER (USER|ROLE)/i);
-  assert.doesNotMatch(localDatabase, /GRANT ALL PRIVILEGES/i);
-  assert.doesNotMatch(localDatabase, /\bCREATEDB\b/i);
-  assert.match(localDatabase, /APAGAR_BANCO_ANDON/);
-  assert.match(localDatabase, /APAGAR_USUARIO_ANDON/);
+  assert.match(localDatabase, /Expected "APAGAR_BANCO"/);
+  assert.doesNotMatch(localDatabase, /USAR_BANCO_EXISTENTE/);
+  assert.doesNotMatch(localDatabase, /APAGAR_(BANCO|USUARIO)_ANDON/);
 });
 
 test("ferramenta de parada não encerra processos Node globais", async () => {

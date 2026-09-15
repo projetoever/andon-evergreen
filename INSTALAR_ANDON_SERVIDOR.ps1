@@ -160,9 +160,7 @@ Write-Host "1 - Instalacao limpa" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Durante a instalacao, o sistema perguntara a porta do PostgreSQL."
 Write-Host "Padrao: 5432"
-Write-Host "Banco padrao: andon_web_industrial"
-Write-Host "Usuario padrao: andon_web"
-Write-Host "O banco legado andon_db nao sera utilizado ou alterado."
+Write-Host "Alternativa: 5433, se 5432 estiver ocupada por outro PostgreSQL."
 Write-Host ""
 
 $openMenu = Read-Host "Abrir menu do instalador agora? [S/n]"

@@ -56,21 +56,6 @@ function Get-AndonRuntimeContext {
         throw "databaseMode invalido: $databaseMode"
     }
 
-    if ($databaseMode -eq "local") {
-        $databaseName = "$($config.databaseName)".Trim().ToLowerInvariant()
-        $databaseUser = "$($config.databaseUser)".Trim().ToLowerInvariant()
-
-        if ($databaseName -eq "andon_db") {
-            throw "O banco local legado andon_db e protegido e nao pode ser usado pelo runtime do ANDON."
-        }
-        if ($databaseName -in @("postgres", "template0", "template1")) {
-            throw "O banco de sistema $databaseName nao pode ser usado pelo runtime do ANDON."
-        }
-        if ($databaseUser -eq "postgres") {
-            throw "O superusuario postgres nao pode ser usado como usuario da aplicacao ANDON."
-        }
-    }
-
     $postgresPort = 0
     $apiPort = 0
     $frontendPort = 0

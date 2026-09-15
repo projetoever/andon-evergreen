@@ -372,7 +372,6 @@ function Invoke-AndonHealthCheck {
 
     $config = Import-AndonConfig
     $hasCriticalError = $false
-    Assert-AndonDatabaseTargetSafe -Config $config
 
     Write-Host "databaseMode: $($config.databaseMode)"
     Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"

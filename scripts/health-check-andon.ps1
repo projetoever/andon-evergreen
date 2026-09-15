@@ -12,9 +12,8 @@ $ApiPort = 3001
 $FrontendPort = 8080
 $PostgresHost = "127.0.0.1"
 $PostgresPort = 5432
-$DatabaseName = "andon_web_industrial"
-$DatabaseUser = "andon_web"
-$DatabaseMode = "local"
+$DatabaseName = "andon_db"
+$DatabaseUser = "andon"
 
 $hasError = $false
 
@@ -45,10 +44,6 @@ if (Test-Path $ConfigPath) {
         if ($config.databaseUser) {
             $DatabaseUser = "$($config.databaseUser)"
         }
-
-        if ($config.databaseMode) {
-            $DatabaseMode = "$($config.databaseMode)"
-        }
     } catch {
         Write-Host "[AVISO] Falha ao ler $ConfigPath. Usando padroes." -ForegroundColor Yellow
     }
@@ -65,11 +60,6 @@ Write-Host "Frontend:   http://127.0.0.1:$FrontendPort"
 Write-Host "PostgreSQL: $PostgresHost`:$PostgresPort"
 Write-Host "Banco:      $DatabaseName"
 Write-Host "Usuario DB: $DatabaseUser"
-
-if ($DatabaseMode -eq "local" -and $DatabaseName.ToLowerInvariant() -eq "andon_db") {
-    Write-Host "[FALHA] O banco local legado andon_db e protegido e nao pode ser usado pelo ANDON." -ForegroundColor Red
-    $hasError = $true
-}
 
 Write-Host ""
 Write-Host "Runtime Node:"

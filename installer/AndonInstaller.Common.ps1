@@ -34,11 +34,11 @@ $Global:AndonApiPort = 3001
 $Global:AndonFrontendPort = 8080
 
 $Global:AndonPostgresHost = "127.0.0.1"
-$Global:AndonPostgresPort = 5432
-$Global:AndonDatabaseName = "andon_web_industrial"
-$Global:AndonDatabaseUser = "andon_web"
+$Global:AndonPostgresPort = 5433
+$Global:AndonDatabaseName = "andon_db"
+$Global:AndonDatabaseUser = "andon"
 $Global:AndonDatabasePassword = "andon_dev_password"
-$Global:AndonDatabaseMode = "local"
+$Global:AndonDatabaseMode = "docker"
 
 $Global:AndonDockerContainer = "andon-postgres"
 $Global:AndonDockerVolume = "andon-postgres-data"
@@ -410,14 +410,12 @@ function Get-AndonMappedDockerPort {
 
 function Get-AndonDefaultConfig {
     return [pscustomobject]@{
-        databaseMode = "local"
+        databaseMode = "docker"
         postgresHost = "127.0.0.1"
-        postgresPort = 5432
-        databaseName = "andon_web_industrial"
-        databaseUser = "andon_web"
+        postgresPort = 5433
+        databaseName = "andon_db"
+        databaseUser = "andon"
         databasePassword = "andon_dev_password"
-        databaseCreatedByInstaller = $false
-        databaseUserCreatedByInstaller = $false
         apiPort = 3001
         frontendPort = 8080
         projectPath = $Global:AndonProjectPath
@@ -453,7 +451,7 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","databaseCreatedByInstaller","databaseUserCreatedByInstaller","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
                 if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") { $config.$key = $fileConfig.$key }
             }
         } catch { Write-AndonWarn "Falha ao ler andon-config.json. Usando defaults. Erro: $($_.Exception.Message)" }
@@ -465,7 +463,6 @@ function Import-AndonConfig {
 function Save-AndonConfig {
     param([object]$Config)
     if (!$Config) { throw "Config invalida." }
-    Assert-AndonDatabaseTargetSafe -Config $Config
     Initialize-AndonFolders
     $configToSave = [ordered]@{
         databaseMode = "$($Config.databaseMode)"
@@ -474,8 +471,6 @@ function Save-AndonConfig {
         databaseName = "$($Config.databaseName)"
         databaseUser = "$($Config.databaseUser)"
         databasePassword = "$($Config.databasePassword)"
-        databaseCreatedByInstaller = [bool]$Config.databaseCreatedByInstaller
-        databaseUserCreatedByInstaller = [bool]$Config.databaseUserCreatedByInstaller
         apiPort = [int]$Config.apiPort
         frontendPort = [int]$Config.frontendPort
         projectPath = "$($Config.projectPath)"
@@ -565,45 +560,14 @@ function Ensure-AndonNetworkConfig {
     return Select-AndonServerIp
 }
 
-function Assert-AndonDatabaseTargetSafe {
-    param([object]$Config)
-
-    if (!$Config) { throw "Configuracao de banco ausente." }
-
-    if ("$($Config.databaseMode)".Trim().ToLowerInvariant() -ne "local") { return }
-
-    $databaseName = "$($Config.databaseName)".Trim().ToLowerInvariant()
-    $databaseUser = "$($Config.databaseUser)".Trim().ToLowerInvariant()
-
-    if ($databaseName -eq "andon_db") {
-        throw (
-            "O banco local andon_db e um recurso legado protegido e nao pode " +
-            "ser usado, migrado, semeado, alterado ou removido pelo ANDON. " +
-            "Configure outro banco, como andon_web_industrial."
-        )
-    }
-
-    if ($databaseName -in @("postgres", "template0", "template1")) {
-        throw "O banco de sistema $databaseName nao pode ser usado pelo ANDON."
-    }
-
-    if ($databaseUser -eq "postgres") {
-        throw "O superusuario postgres nao pode ser configurado como usuario da aplicacao ANDON."
-    }
-}
-
 function Write-AndonBackendEnv {
     param([object]$Config = $null, [object]$NetworkConfig = $null)
     if (!$Config) { $Config = Import-AndonConfig }
     Update-AndonGlobalsFromConfig $Config
-    Assert-AndonDatabaseTargetSafe -Config $Config
     if (!$NetworkConfig) { $NetworkConfig = Ensure-AndonNetworkConfig }
     $serverPath = "$Global:AndonProjectPath\server"
     if (!(Test-Path $serverPath)) { throw "Backend nao encontrado: $serverPath" }
-    $databaseUser = [uri]::EscapeDataString("$($Config.databaseUser)")
-    $databasePassword = [uri]::EscapeDataString("$($Config.databasePassword)")
-    $databaseName = [uri]::EscapeDataString("$($Config.databaseName)")
-    $databaseUrl = "postgresql://${databaseUser}:${databasePassword}@$($Config.postgresHost):$($Config.postgresPort)/${databaseName}?schema=public"
+    $databaseUrl = "postgresql://$($Config.databaseUser):$($Config.databasePassword)@$($Config.postgresHost):$($Config.postgresPort)/$($Config.databaseName)?schema=public"
     $envPath = "$serverPath\.env"
 @"
 PORT=$($Config.apiPort)
@@ -785,7 +749,6 @@ function Invoke-AndonNodePipeline {
         [string]$SeedProfile = ""
     )
     $config = Import-AndonConfig
-    Assert-AndonDatabaseTargetSafe -Config $config
     if (!(Test-AndonDedicatedNodeRuntime)) {
         throw "Runtime Node dedicado do ANDON nao esta pronto em $Global:AndonNodeRuntimePath."
     }
@@ -798,14 +761,6 @@ function Invoke-AndonNodePipeline {
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
     if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $serverPath }
     Invoke-AndonNodeProcess $npm @("run", "db:generate") $serverPath
-    if (
-        $config.databaseMode -eq "local" -and
-        ![bool]$config.databaseCreatedByInstaller
-    ) {
-        if (!(Confirm-AndonTyped -Message "O banco $($config.databaseName) ja existia antes desta instalacao. Para autorizar explicitamente migrations somente nesse banco, digite MIGRAR_BANCO." -Expected "MIGRAR_BANCO")) {
-            throw "Migrations canceladas. O banco preexistente nao foi alterado."
-        }
-    }
     Invoke-AndonNodeProcess $npm @("run", "db:migrate") $serverPath
     if ($RunSeed) {
         if (@("empty", "starter", "demo") -notcontains $SeedProfile) {

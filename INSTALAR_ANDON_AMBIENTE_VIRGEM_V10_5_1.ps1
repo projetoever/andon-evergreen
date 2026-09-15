@@ -4,7 +4,7 @@
 $currentBootstrap = Join-Path $PSScriptRoot "INSTALAR_ANDON_SERVIDOR.ps1"
 
 Write-Host "[AVISO] O bootstrap V10.5.1 esta obsoleto." -ForegroundColor Yellow
-Write-Host "Use o Bootstrap 3.0, que instala o Node dedicado e protege o PostgreSQL corporativo."
+Write-Host "Use o Bootstrap 3.0, que instala o runtime Node dedicado do ANDON."
 
 if (!(Test-Path $currentBootstrap -PathType Leaf)) {
     Write-Host "[FALHA] Bootstrap 3.0 nao encontrado: $currentBootstrap" -ForegroundColor Red
