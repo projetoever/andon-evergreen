@@ -166,6 +166,18 @@ O launcher:
 5. interrompe o processo se a sincronização falhar;
 6. abre o menu operacional atualizado.
 
+O bootstrap oficial `INSTALAR_ANDON_SERVIDOR.ps1` também provisiona o Node.js
+22.23.2 x64 exclusivo do ANDON em:
+
+```text
+C:\web-andon-industrial\runtime\node
+```
+
+O pacote ZIP vem de `nodejs.org`, tem SHA-256 fixado no instalador e é validado
+antes da ativação. O Node.js global do Windows não é atualizado, removido,
+reconfigurado nem usado pelo runtime do ANDON. O PATH é ajustado somente dentro
+dos processos filhos do ANDON.
+
 ### Capacidades do menu
 
 - instalação limpa com PostgreSQL local recomendado;

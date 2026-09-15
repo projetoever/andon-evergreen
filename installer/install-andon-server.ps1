@@ -11,6 +11,7 @@ try {
     $installationProfile = Select-AndonInstallationProfile
     Write-AndonOk "Perfil inicial selecionado: $installationProfile"
     Sync-AndonRepositoryAndTools
+    Ensure-AndonDedicatedNodeRuntime
     Initialize-AndonFolders
     $network = Select-AndonServerIp
     Write-AndonHeader "ESCOLHA DO BANCO DE DADOS"

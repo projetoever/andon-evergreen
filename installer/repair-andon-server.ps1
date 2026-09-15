@@ -11,6 +11,7 @@ try {
     if (!(Test-Path $Global:AndonConfigPath)) { throw "andon-config.json nao encontrado. Rode uma instalacao limpa antes." }
     Write-AndonOk "Modo preservado: $($config.databaseMode)"
     Stop-AndonRuntime
+    Ensure-AndonDedicatedNodeRuntime
     $network = Ensure-AndonNetworkConfig
     Write-AndonBackendEnv -Config $config -NetworkConfig $network
     Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true

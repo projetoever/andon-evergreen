@@ -3,6 +3,10 @@ $ProjectPath = "$BasePath\andon"
 $ToolsPath = "$BasePath\andon-tools"
 $ConfigPath = "$BasePath\andon-config.json"
 $ChromeProfilePath = "$ProjectPath\chrome-profile"
+$NodeRuntimePath = "$BasePath\runtime\node"
+$AndonNodePath = "$NodeRuntimePath\node.exe"
+$AndonNpmPath = "$NodeRuntimePath\npm.cmd"
+$ExpectedNodeVersion = "v22.23.2"
 
 $ApiPort = 3001
 $FrontendPort = 8080
@@ -56,6 +60,31 @@ Write-Host "Frontend:   http://127.0.0.1:$FrontendPort"
 Write-Host "PostgreSQL: $PostgresHost`:$PostgresPort"
 Write-Host "Banco:      $DatabaseName"
 Write-Host "Usuario DB: $DatabaseUser"
+
+Write-Host ""
+Write-Host "Runtime Node:"
+if ((Test-Path $AndonNodePath -PathType Leaf) -and (Test-Path $AndonNpmPath -PathType Leaf)) {
+    $andonNodeVersion = & $AndonNodePath --version 2>$null
+    if ($LASTEXITCODE -eq 0 -and "$andonNodeVersion".Trim() -eq $ExpectedNodeVersion) {
+        Write-Host "[OK] Node ANDON: $AndonNodePath" -ForegroundColor Green
+        Write-Host "Versao: $andonNodeVersion"
+    } else {
+        Write-Host "[FALHA] Node ANDON invalido: $AndonNodePath. Esperado: $ExpectedNodeVersion. Encontrado: $andonNodeVersion" -ForegroundColor Red
+        $hasError = $true
+    }
+} else {
+    Write-Host "[FALHA] Node/npm ANDON nao encontrados em $NodeRuntimePath" -ForegroundColor Red
+    $hasError = $true
+}
+
+$globalNode = Get-Command node.exe -ErrorAction SilentlyContinue
+if ($globalNode) {
+    $globalVersion = & $globalNode.Source --version 2>$null
+    Write-Host "Node global (somente informativo): $($globalNode.Source) ($globalVersion)"
+} else {
+    Write-Host "Node global (somente informativo): nao encontrado"
+}
+Write-Host "O Node global nao e usado pelo ANDON quando o runtime dedicado esta disponivel."
 
 Write-Host ""
 Write-Host "0. Conferindo arquivos de build..."
@@ -130,14 +159,18 @@ foreach ($portInfo in @(
 }
 
 Write-Host ""
-Write-Host "5. Processos Node"
+Write-Host "5. Processos Node do ANDON"
 
-$nodeProcesses = Get-Process node -ErrorAction SilentlyContinue
+$nodeProcesses = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.ExecutablePath -eq $AndonNodePath -or
+        $_.CommandLine -like "*$ProjectPath*"
+    }
 
 if ($nodeProcesses) {
-    $nodeProcesses | Select-Object Id, ProcessName, StartTime | Format-Table -AutoSize
+    $nodeProcesses | Select-Object ProcessId, ExecutablePath, CommandLine | Format-List
 } else {
-    Write-Host "[AVISO] Nenhum processo node encontrado." -ForegroundColor Yellow
+    Write-Host "[AVISO] Nenhum processo Node do ANDON encontrado." -ForegroundColor Yellow
 }
 
 Write-Host ""
