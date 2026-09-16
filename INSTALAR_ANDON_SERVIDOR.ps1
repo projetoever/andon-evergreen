@@ -73,15 +73,34 @@ Write-Ok "Tools:      $ToolsPath"
 
 Write-Header "2. Obtendo projeto ANDON"
 
+$SelectedCommit = ""
+
 if (Test-Path "$ProjectPath\.git") {
     Write-Host "Repositorio existente encontrado."
-    Write-Host "Atualizando pela branch $Branch..."
+    Write-Host "Sincronizando uma revisao fixa da branch $Branch..."
 
     Set-Location $ProjectPath
 
-    git fetch --all --prune
+    $LocalChanges = @(git status --porcelain)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "git status falhou."
+        exit 1
+    }
+    if ($LocalChanges.Count -gt 0) {
+        Write-Fail "Repositorio possui alteracoes locais e nao sera atualizado automaticamente."
+        Write-Host "Preserve/reconcilie o hotfix antes de continuar."
+        exit 1
+    }
+
+    git fetch origin $Branch --prune
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "git fetch falhou."
+        exit 1
+    }
+
+    $SelectedCommit = "$(git rev-parse origin/$Branch)".Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0 -or $SelectedCommit -notmatch '^[0-9a-f]{40}$') {
+        Write-Fail "Nao foi possivel fixar o SHA de origin/$Branch."
         exit 1
     }
 
@@ -91,13 +110,13 @@ if (Test-Path "$ProjectPath\.git") {
         exit 1
     }
 
-    git pull --ff-only origin $Branch
+    git merge --ff-only $SelectedCommit
     if ($LASTEXITCODE -ne 0) {
-        Write-Fail "git pull falhou. Verifique alteracoes locais com git status."
+        Write-Fail "git merge --ff-only falhou. O repositorio nao foi forcado."
         exit 1
     }
 
-    Write-Ok "Repositorio atualizado."
+    Write-Ok "Repositorio sincronizado no SHA $SelectedCommit."
 } elseif (Test-Path $ProjectPath) {
     Write-Fail "A pasta do projeto existe, mas nao e um repositorio Git valido:"
     Write-Host $ProjectPath
@@ -109,14 +128,27 @@ if (Test-Path "$ProjectPath\.git") {
     Write-Host "Clonando projeto..."
     Set-Location $BasePath
 
-    git clone --branch $Branch $RepoUrl $ProjectPath
+    git clone --no-checkout $RepoUrl $ProjectPath
 
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "git clone falhou."
         exit 1
     }
 
+    $SelectedCommit = "$(git -C $ProjectPath rev-parse origin/$Branch)".Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0 -or $SelectedCommit -notmatch '^[0-9a-f]{40}$') {
+        Write-Fail "Nao foi possivel fixar o SHA de origin/$Branch apos o clone."
+        exit 1
+    }
+
+    git -C $ProjectPath checkout -B $Branch $SelectedCommit
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "git checkout do SHA fixado falhou."
+        exit 1
+    }
+
     Write-Ok "Projeto clonado em: $ProjectPath"
+    Write-Ok "SHA selecionado: $SelectedCommit"
 }
 
 Write-Header "3. Copiando instalador e ferramentas"

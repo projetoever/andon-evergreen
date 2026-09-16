@@ -68,7 +68,6 @@ function Initialize-AndonDockerDatabase {
     $config.toolsPath = $Global:AndonToolsPath
     $config.dockerContainer = $Global:AndonDockerContainer
     $config.dockerVolume = $Global:AndonDockerVolume
-    Save-AndonConfig $config
     Write-AndonOk "Banco Docker validado."
     return $config
 }

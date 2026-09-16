@@ -17,8 +17,18 @@ try {
     $choice = Read-Host "Escolha uma opcao"
     switch ($choice) {
         "1" { $newPort = Read-AndonPort "Nova porta PostgreSQL" ([int]$config.postgresPort); $config.postgresHost = "127.0.0.1"; $config.postgresPort = [int]$newPort; Save-AndonConfig $config; $network = Ensure-AndonNetworkConfig; Write-AndonBackendEnv -Config $config -NetworkConfig $network }
-        "2" { Initialize-AndonDockerDatabase | Out-Null }
-        "3" { Initialize-AndonLocalDatabase | Out-Null }
+        "2" {
+            $newConfig = Initialize-AndonDockerDatabase
+            $newConfig = Set-AndonConfigProperty -Config $newConfig -Name "installationProfile" -Value $config.installationProfile
+            $newConfig = Set-AndonConfigProperty -Config $newConfig -Name "installedCommit" -Value $config.installedCommit
+            Save-AndonConfig $newConfig
+        }
+        "3" {
+            $newConfig = Initialize-AndonLocalDatabase
+            $newConfig = Set-AndonConfigProperty -Config $newConfig -Name "installationProfile" -Value $config.installationProfile
+            $newConfig = Set-AndonConfigProperty -Config $newConfig -Name "installedCommit" -Value $config.installedCommit
+            Save-AndonConfig $newConfig
+        }
         "0" { Write-AndonWarn "Cancelado."; exit 0 }
         default { throw "Opcao invalida." }
     }

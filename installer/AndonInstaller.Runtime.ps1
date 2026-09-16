@@ -531,7 +531,10 @@ function Invoke-AndonHealthCheck {
     }
 
     if ($Full) {
-        if (!(Test-AndonApiWrite)) { $hasCriticalError = $true }
+        $writeResult = Test-AndonApiWrite
+        if ($writeResult.Status -eq "FAIL") {
+            $hasCriticalError = $true
+        }
     }
 
     if ($hasCriticalError) {
