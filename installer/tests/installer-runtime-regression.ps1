@@ -269,6 +269,8 @@ $updateScript =
     Get-Content $updateScriptPath -Raw
 
 $syncIndex = $updateScript.IndexOf("Sync-AndonRepositoryAndTools")
+$installedCommitIndex = $updateScript.IndexOf('-Name "installedCommit"')
+$saveConfigIndex = $updateScript.IndexOf("Save-AndonConfig `$config")
 $relaunchIndex = $updateScript.IndexOf("& `$powershellPath")
 $runtimeModuleIndex = $updateScript.IndexOf("AndonInstaller.Runtime.ps1")
 $stopIndex = $updateScript.IndexOf("Stop-AndonRuntime")
@@ -282,6 +284,14 @@ Assert-AndonTest `
 Assert-AndonTest `
     -Condition ($relaunchIndex -gt $syncIndex) `
     -Message "Relancamento deve ocorrer depois do sync"
+
+Assert-AndonTest `
+    -Condition (
+        $installedCommitIndex -gt $syncIndex -and
+        $saveConfigIndex -gt $installedCommitIndex -and
+        $relaunchIndex -gt $saveConfigIndex
+    ) `
+    -Message "installedCommit deve refletir o working tree antes do relancamento"
 
 Assert-AndonTest `
     -Condition ($runtimeModuleIndex -gt $relaunchIndex) `
@@ -323,6 +333,18 @@ Assert-AndonTest `
 Assert-AndonTest `
     -Condition ($updateScript -notmatch 'Invoke-AndonNodePipeline -RunSeed \$true') `
     -Message "Update nao pode habilitar seed"
+
+Assert-AndonTest `
+    -Condition ([regex]::Matches($updateScript, '-Name "installedCommit"').Count -eq 1) `
+    -Message "Update deve persistir installedCommit uma unica vez"
+
+Assert-AndonTest `
+    -Condition ([regex]::Matches($updateScript, 'Save-AndonConfig \$config').Count -eq 1) `
+    -Message "Update deve salvar config uma unica vez, antes da aplicacao"
+
+Assert-AndonTest `
+    -Condition ($updateScript -match '\$configuredCommit -ne \$pinnedCommit') `
+    -Message "Segunda fase deve rejeitar divergencia de installedCommit"
 
 Write-Host "Fluxo de primeira atualizacao legada aprovado."
 Write-Host "Todos os testes de regressao do instalador foram aprovados."

@@ -24,6 +24,12 @@ try {
         Write-AndonOk "O ANDON permanecera ativo durante a sincronizacao do instalador."
 
         $selectedCommit = Sync-AndonRepositoryAndTools
+        $config = Set-AndonConfigProperty `
+            -Config $config `
+            -Name "installedCommit" `
+            -Value $selectedCommit
+        Save-AndonConfig $config
+        Write-AndonOk "SHA do working tree registrado antes da aplicacao: $selectedCommit."
 
         $updatedScriptPath =
             Join-Path `
@@ -74,6 +80,13 @@ try {
         if (!(Test-Path $Global:AndonConfigPath)) {
             throw "andon-config.json nao encontrado. Rode uma instalacao limpa antes."
         }
+        $configuredCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+        if ($configuredCommit -ne $pinnedCommit) {
+            throw (
+                "installedCommit diverge do SHA fixado para a atualizacao. " +
+                "Configurado: $configuredCommit. Esperado: $pinnedCommit."
+            )
+        }
 
         Write-AndonOk "Modo preservado: $($config.databaseMode)"
 
@@ -87,11 +100,6 @@ try {
         Recreate-AndonTasks
         Start-AndonRuntime
         Invoke-AndonHealthCheck
-        $config = Set-AndonConfigProperty `
-            -Config $config `
-            -Name "installedCommit" `
-            -Value $pinnedCommit
-        Save-AndonConfig $config
         Write-AndonHeader "ATUALIZACAO FINALIZADA"
         Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }

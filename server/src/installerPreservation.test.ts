@@ -119,6 +119,8 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assert.match(updateScript, /\[string\]\$ExpectedCommit/);
 
   const syncIndex = updateScript.indexOf("Sync-AndonRepositoryAndTools");
+  const installedCommitIndex = updateScript.indexOf('-Name "installedCommit"');
+  const saveConfigIndex = updateScript.indexOf("Save-AndonConfig $config");
   const relaunchIndex = updateScript.indexOf("& $powershellPath");
   const newRuntimeModuleIndex = updateScript.indexOf("AndonInstaller.Runtime.ps1");
   const stopIndex = updateScript.indexOf("Stop-AndonRuntime");
@@ -126,6 +128,14 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   const pipelineIndex = updateScript.indexOf("Invoke-AndonNodePipeline");
 
   assert.ok(syncIndex >= 0, "a instalação legada deve sincronizar os scripts novos");
+  assert.ok(
+    installedCommitIndex > syncIndex && saveConfigIndex > installedCommitIndex,
+    "installedCommit deve ser persistido imediatamente após o sync",
+  );
+  assert.ok(
+    relaunchIndex > saveConfigIndex,
+    "a configuração deve refletir o working tree antes do relançamento",
+  );
   assert.ok(relaunchIndex > syncIndex, "o script atualizado deve ser relançado após o sync");
   assert.ok(
     newRuntimeModuleIndex > relaunchIndex,
@@ -138,7 +148,10 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assert.match(updateScript, /-File \$updatedScriptPath\s*`\s*\r?\n\s*-ContinueAfterSync/);
   assert.match(updateScript, /-ExpectedCommit \$selectedCommit/);
   assert.match(updateScript, /Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit/);
+  assert.match(updateScript, /\$configuredCommit -ne \$pinnedCommit/);
   assertAppearsOnce(updateScript, /Sync-AndonRepositoryAndTools/, "sync");
+  assertAppearsOnce(updateScript, /-Name "installedCommit"/, "persistência de installedCommit");
+  assertAppearsOnce(updateScript, /Save-AndonConfig \$config/, "gravação da configuração");
   assertAppearsOnce(updateScript, /Stop-AndonRuntime/, "parada");
   assertAppearsOnce(
     updateScript,
