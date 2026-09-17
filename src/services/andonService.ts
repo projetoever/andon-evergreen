@@ -56,7 +56,7 @@ export interface SelectedTechnicianInput {
 
 export interface CancelAndonCallParams {
   callId: string;
-  reason?: string | null;
+  reason: string;
   cancelledBy?: string | null;
 }
 

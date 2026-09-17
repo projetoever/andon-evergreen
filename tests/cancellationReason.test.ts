@@ -41,8 +41,38 @@ test("persiste cancelReason no banco e no repositório local", async () => {
 
   assert.match(schema, /cancelReason\s+String\?/);
   assert.match(migration, /ADD COLUMN "cancelReason" TEXT/);
-  assert.match(route, /cancelReason: reason \?\? null/);
+  assert.match(route, /cancelReason: reason/);
   assert.match(localRepository, /cancelReason: params\.reason\?\.trim\(\) \|\| null/);
+});
+
+test("backend valida a justificativa antes de consultar ou alterar o chamado", async () => {
+  const route = await readFile(
+    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
+    "utf8",
+  );
+  const cancelRoute = route.slice(
+    route.indexOf('"/api/andon-calls/:id/cancel"'),
+    route.indexOf('"/api/andon-calls/:id/technicians"'),
+  );
+
+  const validationPosition = cancelRoute.indexOf(
+    'badRequest(reply, "Justificativa do cancelamento é obrigatória.")',
+  );
+  const lookupPosition = cancelRoute.indexOf("prisma.andonCall.findUnique");
+  const transactionPosition = cancelRoute.indexOf("prisma.$transaction");
+
+  assert.ok(validationPosition >= 0);
+  assert.ok(validationPosition < lookupPosition);
+  assert.ok(validationPosition < transactionPosition);
+});
+
+test("health check do installer continua enviando justificativa válida", async () => {
+  const installer = await readFile(
+    new URL("../installer/AndonInstaller.Common.ps1", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(installer, /reason = "Teste automatico do instalador"/);
 });
 
 test("histórico exibe a justificativa somente quando ela existe", async () => {

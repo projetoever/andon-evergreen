@@ -1443,6 +1443,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>(
     "/api/andon-calls/:id/cancel",
     async (request, reply) => {
+      const reason = optionalString(request.body?.reason);
+      if (!reason) return badRequest(reply, "Justificativa do cancelamento é obrigatória.");
+
       const call = await prisma.andonCall.findUnique({
         include: { technicianSessions: true },
         where: { id: request.params.id },
@@ -1462,10 +1465,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       const now = new Date();
-      const reason = optionalString(request.body?.reason);
       const cancelledBy = optionalString(request.body?.cancelledBy);
       const cancellationNoteParts = [
-        reason ? `Motivo: ${reason}` : undefined,
+        `Motivo: ${reason}`,
         cancelledBy ? `Cancelado por: ${cancelledBy}` : undefined,
       ].filter((part): part is string => Boolean(part));
       const cancellationNote = cancellationNoteParts.length
@@ -1510,7 +1512,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             machineStoppedMinutes,
             productionModeAtFinish: call.productionModeAtOpen,
             machineStatusAtFinish: finalMachineStatus,
-            cancelReason: reason ?? null,
+            cancelReason: reason,
             notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
           },
         });

@@ -506,10 +506,12 @@ async function run() {
   );
   assert.ok(finishedMaintenance.technicianSessions.every((session) => session.endedAt));
 
-  await request(
+  const cancelledMechanicalCall = await request(
     `/api/andon-calls/${mechanicalCall.id}/cancel`,
-    json("PATCH", { reason: "Validação do cancelamento", cancelledBy: "CI" }),
+    json("PATCH", { reason: "  Validação do cancelamento  ", cancelledBy: "CI" }),
   );
+  assert.equal(cancelledMechanicalCall.cancelReason, "Validação do cancelamento");
+  assert.match(cancelledMechanicalCall.notes, /Motivo: Validação do cancelamento/);
   await request(`/api/andon-calls/${qualityCall.id}/attend`, json("PATCH", {}));
   await request(
     `/api/andon-calls/${qualityCall.id}/finish`,
@@ -736,9 +738,10 @@ async function run() {
   });
   assert.ok(recoveredOrphanEvent.endedAt);
 
-  await request(`/api/andon-calls/${runningCallAfterOrphanStop.id}/cancel`, {
-    method: "PATCH",
-  });
+  await request(
+    `/api/andon-calls/${runningCallAfterOrphanStop.id}/cancel`,
+    json("PATCH", { reason: "Validação da recuperação de falha órfã" }),
+  );
 
   const orphanStopToClaim = await request(
     "/api/failure-events",
@@ -770,9 +773,10 @@ async function run() {
     "novo chamado parado deve assumir a falha órfã existente",
   );
 
-  await request(`/api/andon-calls/${stoppedCallClaimingOrphan.id}/cancel`, {
-    method: "PATCH",
-  });
+  await request(
+    `/api/andon-calls/${stoppedCallClaimingOrphan.id}/cancel`,
+    json("PATCH", { reason: "Validação da recuperação ao cancelar o chamado responsável" }),
+  );
   const machineRecoveredOnCancel = await request(`/api/machines/${ids.impactMachine}`);
   assert.equal(machineRecoveredOnCancel.machineStatus, "running");
   assert.equal(
