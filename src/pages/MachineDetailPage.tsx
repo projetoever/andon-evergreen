@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { EndTechnicianSessionModal } from "@/components/calls/EndTechnicianSessionModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { QuickOpenCallModal } from "@/components/calls/QuickOpenCallModal";
@@ -62,6 +63,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
+  const [cancelCallId, setCancelCallId] = useState<string | null>(null);
   const [machineSoundEnabled, setMachineSoundEnabledState] = useState(true);
   const [screenLock, setScreenLock] = useState(() => getMachineScreenLock());
   const [unlockLoginOpen, setUnlockLoginOpen] = useState(false);
@@ -213,12 +215,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     toast.success("Tela desbloqueada. Navegação liberada.");
   }
 
-  async function handleCancelCall() {
-    if (!currentCall || !machine) return;
+  async function handleCancelCall(reason: string) {
+    if (!cancelCallId || !machine) return;
     try {
       await cancelCall({
-        callId: currentCall.id,
-        reason: "Aberto por engano",
+        callId: cancelCallId,
+        reason,
         cancelledBy: "operador",
       });
       toast.success("Chamado cancelado.");
@@ -226,6 +228,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       toast.error(
         error instanceof Error ? error.message : "Não é possível cancelar chamado já atendido.",
       );
+      throw error;
     }
   }
 
@@ -337,12 +340,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onChange={(productionMode) => updateMachineProductionMode(machine.id, productionMode)}
       />
 
-      <MachineActiveCallSelector
-        calls={activeCalls}
-        selectedCallId={currentCall?.id ?? null}
-        onSelect={setSelectedCallId}
-      />
-
       <div className="grid min-h-[200px] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
@@ -434,6 +431,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         </section>
       )}
 
+      <MachineActiveCallSelector
+        calls={activeCalls}
+        selectedCallId={currentCall?.id ?? null}
+        onSelect={setSelectedCallId}
+      />
+
       <MachineActionPanel
         machine={machine}
         currentCall={currentCall}
@@ -442,7 +445,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         hasActiveStopOwner={hasActiveStopOwner}
         onOpenSubtype={(subtype) => void handleOpenSubtype(subtype)}
         onAttend={() => void handleAttend()}
-        onCancelCall={() => void handleCancelCall()}
+        onCancelCall={() => currentCall && setCancelCallId(currentCall.id)}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => void handleCompleteMaintenance()}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
@@ -454,6 +457,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onOpenChange={setConditionDialogOpen}
         machineId={machine.id}
         subtype={selectedSubtype}
+      />
+      <CancelCallModal
+        open={cancelCallId !== null}
+        onOpenChange={(open) => !open && setCancelCallId(null)}
+        onConfirm={handleCancelCall}
       />
       <TechnicianIdentificationModal
         open={startOpen}

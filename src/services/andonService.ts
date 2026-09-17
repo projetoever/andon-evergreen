@@ -56,7 +56,7 @@ export interface SelectedTechnicianInput {
 
 export interface CancelAndonCallParams {
   callId: string;
-  reason?: string | null;
+  reason: string;
   cancelledBy?: string | null;
 }
 
@@ -246,6 +246,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     assetConfirmedBy?: unknown;
     assetLocationChanged?: unknown;
     assetChangeReason?: unknown;
+    cancelReason?: unknown;
     impactTrackingVersion?: unknown;
     impactIntervals?: unknown;
   };
@@ -319,6 +320,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     assetLocationChanged: source.assetLocationChanged === true,
     assetChangeReason:
       typeof source.assetChangeReason === "string" ? source.assetChangeReason : null,
+    cancelReason: typeof source.cancelReason === "string" ? source.cancelReason : null,
     impactTrackingVersion:
       typeof source.impactTrackingVersion === "number" ? source.impactTrackingVersion : null,
     impactIntervals: Array.isArray(source.impactIntervals)

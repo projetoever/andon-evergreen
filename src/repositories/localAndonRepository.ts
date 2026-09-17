@@ -187,6 +187,7 @@ export class LocalAndonRepository implements AndonRepository {
       finishedAt: now,
       currentAttendanceStartedAt: null,
       totalCallMinutes: andonService.normalizeAndonCall({ ...cancelledSourceCall, finishedAt: now }).totalCallMinutes,
+      cancelReason: params.reason?.trim() || null,
       notes: appendAuditNote(cancelledSourceCall.notes, params.reason),
       updatedAt: now,
     };

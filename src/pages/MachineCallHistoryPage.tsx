@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, History } from "lucide-react";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { useAndon } from "@/context/AndonProvider";
 import {
   calculateAttendanceMinutes,
@@ -26,7 +27,6 @@ import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import {
   getConfirmedAssetLocationLabel,
   getEffectiveAssetLocationLabel,
-  getOpeningAssetLocationLabel,
   hasAssetConfirmation,
 } from "@/utils/assetLocationUtils";
 import { cn } from "@/lib/utils";
@@ -66,12 +66,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             : isMaintenance
               ? "Sem manutentor apontado"
               : "Não aplicável";
-        const openingAssetLocation =
-          getOpeningAssetLocationLabel(
-            call,
-            "Não informado",
-          );
-
         const confirmedAssetLocation =
           getConfirmedAssetLocationLabel(
             call,
@@ -168,6 +162,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-widest text-muted-foreground">{formatDateTime(call.openedAt)}</div>
               <h2 className="truncate text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
+              <CallIdLabel callId={call.id} className="mt-0.5" />
               {call.isSystemTest && <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">Teste automático</div>}
               <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
                 Localização: {effectiveAssetLocation}
@@ -195,15 +190,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 </dt>
                 <dd className="font-bold text-primary">
                   {effectiveAssetLocation}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-xs uppercase text-muted-foreground">
-                  Localização na abertura
-                </dt>
-                <dd className="font-bold">
-                  {openingAssetLocation}
                 </dd>
               </div>
 
@@ -280,6 +266,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de ANDON</dt><dd className="font-bold text-warning">{formatDurationMinutes(waitingMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de atendimento</dt><dd className="font-bold text-info">{formatDurationMinutes(attendanceMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
+              {call.status === "cancelled" && call.cancelReason && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <dt className="text-xs uppercase text-muted-foreground">Justificativa do cancelamento</dt>
+                  <dd className="whitespace-pre-line font-semibold">{call.cancelReason}</dd>
+                </div>
+              )}
               <div><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd></div>
             </dl>
 

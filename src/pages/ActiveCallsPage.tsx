@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { ActiveCallList } from "@/components/calls/ActiveCallList";
+import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ export function ActiveCallsPage() {
   const { calls, attendCall, completeMaintenance, returnToMaintenance, cancelCall } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
+  const [cancelCallId, setCancelCallId] = useState<string | null>(null);
 
   const activeCalls = useMemo(
     () =>
@@ -58,12 +60,15 @@ export function ActiveCallsPage() {
     }
   }
 
-  async function handleCancel(callId: string) {
+  async function handleCancel(reason: string) {
+    if (!cancelCallId) return;
+
     try {
-      await cancelCall({ callId, reason: "Aberto por engano", cancelledBy: "operador" });
+      await cancelCall({ callId: cancelCallId, reason, cancelledBy: "operador" });
       toast.success("Chamado cancelado.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
+      throw err;
     }
   }
 
@@ -76,7 +81,7 @@ export function ActiveCallsPage() {
         calls={activeCalls}
         onAttend={(callId) => void handleAttend(callId)}
         onFinish={setFinishCallId}
-        onCancel={(callId) => void handleCancel(callId)}
+        onCancel={setCancelCallId}
         onCompleteMaintenance={(callId) => void handleCompleteMaintenance(callId)}
         onReturnToMaintenance={(callId) => void handleReturnToMaintenance(callId)}
       />
@@ -89,6 +94,11 @@ export function ActiveCallsPage() {
         open={startAttendanceCallId !== null}
         onOpenChange={(open) => !open && setStartAttendanceCallId(null)}
         callId={startAttendanceCallId}
+      />
+      <CancelCallModal
+        open={cancelCallId !== null}
+        onOpenChange={(open) => !open && setCancelCallId(null)}
+        onConfirm={handleCancel}
       />
     </div>
   );
