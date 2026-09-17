@@ -122,6 +122,7 @@ export interface AndonCall {
   machineStatusAtOpen?: MachineStatus;
   machineStatusAtAttend?: MachineStatus;
   machineStatusAtFinish?: MachineStatus;
+  cancelReason?: string | null;
   notes: string | null;
   createdBy: string | null;
   origin: CallOrigin;

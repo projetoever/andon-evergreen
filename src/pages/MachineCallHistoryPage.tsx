@@ -280,6 +280,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de ANDON</dt><dd className="font-bold text-warning">{formatDurationMinutes(waitingMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de atendimento</dt><dd className="font-bold text-info">{formatDurationMinutes(attendanceMinutes)}</dd></div>
               <div><dt className="text-xs uppercase text-muted-foreground">Tempo de acompanhamento</dt><dd className="font-bold text-info">{formatDurationMinutes(postMaintenanceMinutes)}</dd></div>
+              {call.status === "cancelled" && call.cancelReason && (
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <dt className="text-xs uppercase text-muted-foreground">Justificativa do cancelamento</dt>
+                  <dd className="whitespace-pre-line font-semibold">{call.cancelReason}</dd>
+                </div>
+              )}
               <div><dt className="text-xs uppercase text-muted-foreground">Descrição</dt><dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd></div>
             </dl>
 

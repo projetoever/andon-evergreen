@@ -195,6 +195,7 @@ model AndonCall {
   machineStoppedMinutes       Int?
   impactTrackingVersion       Int?
   maintenanceReturnCount      Int                         @default(0)
+  cancelReason                String?
   notes                       String?
   createdBy                   String?
   origin                      String                      @default("kiosk")

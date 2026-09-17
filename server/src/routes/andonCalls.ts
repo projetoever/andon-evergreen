@@ -1510,6 +1510,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             machineStoppedMinutes,
             productionModeAtFinish: call.productionModeAtOpen,
             machineStatusAtFinish: finalMachineStatus,
+            cancelReason: reason ?? null,
             notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
           },
         });
