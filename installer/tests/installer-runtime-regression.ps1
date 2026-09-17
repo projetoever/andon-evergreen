@@ -14,6 +14,28 @@ function Assert-AndonTest {
     }
 }
 
+function Assert-AndonThrows {
+    param(
+        [scriptblock]$Action,
+        [string]$ExpectedMessage,
+        [string]$Message
+    )
+
+    $caught = $null
+    try {
+        & $Action
+    } catch {
+        $caught = $_.Exception.Message
+    }
+
+    Assert-AndonTest `
+        -Condition (
+            ![string]::IsNullOrWhiteSpace("$caught") -and
+            "$caught" -match $ExpectedMessage
+        ) `
+        -Message $Message
+}
+
 Write-Host "Validando parser PowerShell..."
 
 $powerShellFiles = @(
@@ -276,6 +298,11 @@ $runtimeModuleIndex = $updateScript.IndexOf("AndonInstaller.Runtime.ps1")
 $stopIndex = $updateScript.IndexOf("Stop-AndonRuntime")
 $ensureNodeIndex = $updateScript.IndexOf("Ensure-AndonDedicatedNodeRuntime")
 $pipelineIndex = $updateScript.IndexOf("Invoke-AndonNodePipeline")
+$legacyFallbackIndex = $updateScript.LastIndexOf('if ($legacyRelaunch)')
+$legacyInstalledCommitIndex =
+    $updateScript.IndexOf('-Name "installedCommit"', $legacyFallbackIndex)
+$legacySaveConfigIndex =
+    $updateScript.IndexOf("Save-AndonConfig `$config", $legacyFallbackIndex)
 
 Assert-AndonTest `
     -Condition ($syncIndex -ge 0) `
@@ -309,6 +336,15 @@ Assert-AndonTest `
     -Condition ($pipelineIndex -gt $ensureNodeIndex) `
     -Message "Pipeline deve rodar depois da preparacao do Node dedicado"
 
+Assert-AndonTest `
+    -Condition (
+        $legacyFallbackIndex -ge 0 -and
+        $legacyInstalledCommitIndex -gt $legacyFallbackIndex -and
+        $legacySaveConfigIndex -gt $legacyInstalledCommitIndex -and
+        $stopIndex -gt $legacySaveConfigIndex
+    ) `
+    -Message "Relaunch legado deve persistir installedCommit antes de parar ou aplicar"
+
 foreach ($singleExecutionMarker in @(
     "Sync-AndonRepositoryAndTools",
     "Stop-AndonRuntime",
@@ -335,16 +371,146 @@ Assert-AndonTest `
     -Message "Update nao pode habilitar seed"
 
 Assert-AndonTest `
-    -Condition ([regex]::Matches($updateScript, '-Name "installedCommit"').Count -eq 1) `
-    -Message "Update deve persistir installedCommit uma unica vez"
+    -Condition ([regex]::Matches($updateScript, '-Name "installedCommit"').Count -eq 2) `
+    -Message "Update deve persistir installedCommit no sync moderno e no fallback legado"
 
 Assert-AndonTest `
-    -Condition ([regex]::Matches($updateScript, 'Save-AndonConfig \$config').Count -eq 1) `
-    -Message "Update deve salvar config uma unica vez, antes da aplicacao"
+    -Condition ([regex]::Matches($updateScript, 'Save-AndonConfig \$config').Count -eq 2) `
+    -Message "Update deve salvar config no sync moderno e no fallback legado"
 
 Assert-AndonTest `
     -Condition ($updateScript -match '\$configuredCommit -ne \$pinnedCommit') `
     -Message "Segunda fase deve rejeitar divergencia de installedCommit"
+
+Assert-AndonTest `
+    -Condition (
+        $updateScript -match '\$legacyRelaunch = \[string\]::IsNullOrWhiteSpace\(\$ExpectedCommit\)' -and
+        $updateScript -match '\$pinnedCommit = Get-AndonLegacyRelaunchCommit' -and
+        $updateScript -match 'Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit'
+    ) `
+    -Message "Fallback legado deve ser exclusivo de ExpectedCommit vazio e preservar caminho moderno"
+
+$updateTokens = $null
+$updateParseErrors = $null
+$updateAst =
+    [System.Management.Automation.Language.Parser]::ParseFile(
+        $updateScriptPath,
+        [ref]$updateTokens,
+        [ref]$updateParseErrors
+    )
+$legacyResolverAst =
+    $updateAst.Find(
+        {
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq "Get-AndonLegacyRelaunchCommit"
+        },
+        $true
+    )
+
+Assert-AndonTest `
+    -Condition ($null -ne $legacyResolverAst) `
+    -Message "Resolver seguro do relaunch legado deve existir"
+
+$legacyResolverSource = $legacyResolverAst.Extent.Text
+Assert-AndonTest `
+    -Condition ($legacyResolverSource -notmatch '\bfetch\b|\bpull\b') `
+    -Message "Fallback legado nao pode executar fetch ou pull"
+
+Invoke-Expression $legacyResolverSource
+
+$script:legacyTreeDirty = $false
+$script:legacyBranch = "main"
+$script:legacyHead = "a" * 40
+$script:legacyOriginMain = "a" * 40
+$script:legacyCallOrder = New-Object System.Collections.Generic.List[string]
+$script:legacyWarning = ""
+
+function Reset-AndonLegacyScenario {
+    $script:legacyTreeDirty = $false
+    $script:legacyBranch = "main"
+    $script:legacyHead = "a" * 40
+    $script:legacyOriginMain = "a" * 40
+    $script:legacyCallOrder.Clear()
+    $script:legacyWarning = ""
+}
+
+function Assert-AndonRepositoryClean {
+    param([string]$ProjectPath)
+
+    $script:legacyCallOrder.Add("working-tree") | Out-Null
+    if ($script:legacyTreeDirty) {
+        throw "Repositorio ANDON possui alteracoes locais."
+    }
+}
+
+function Get-AndonCommandPath {
+    param([string]$Name, [string]$FailureMessage)
+    return "git.exe"
+}
+
+function Invoke-AndonGitRead {
+    param(
+        [string]$GitPath,
+        [string[]]$GitArguments,
+        [string]$FailureMessage
+    )
+
+    $command = $GitArguments -join " "
+    $script:legacyCallOrder.Add($command) | Out-Null
+    if ($command -eq "symbolic-ref --short HEAD") { return $script:legacyBranch }
+    if ($command -eq "rev-parse HEAD") { return $script:legacyHead }
+    if ($command -eq "rev-parse origin/main") { return $script:legacyOriginMain }
+    throw $FailureMessage
+}
+
+function Write-AndonWarn {
+    param([string]$Message)
+    $script:legacyWarning = $Message
+}
+
+Reset-AndonLegacyScenario
+$legacyPinnedCommit = Get-AndonLegacyRelaunchCommit
+Assert-AndonTest `
+    -Condition ($legacyPinnedCommit -eq $script:legacyHead) `
+    -Message "Fallback legado deve fixar o SHA em HEAD"
+Assert-AndonTest `
+    -Condition (
+        ($script:legacyCallOrder -join "|") -eq
+        "working-tree|symbolic-ref --short HEAD|rev-parse HEAD|rev-parse origin/main"
+    ) `
+    -Message "Fallback legado deve validar tree, branch, HEAD e origin/main nessa ordem"
+Assert-AndonTest `
+    -Condition ($script:legacyWarning -match 'Relaunch legado detectado sem ExpectedCommit') `
+    -Message "Fallback legado deve registrar warning explicito"
+
+Reset-AndonLegacyScenario
+$script:legacyTreeDirty = $true
+Assert-AndonThrows `
+    -Action { Get-AndonLegacyRelaunchCommit | Out-Null } `
+    -ExpectedMessage "alteracoes locais" `
+    -Message "Fallback legado deve rejeitar working tree sujo"
+
+Reset-AndonLegacyScenario
+$script:legacyBranch = "feature/teste"
+Assert-AndonThrows `
+    -Action { Get-AndonLegacyRelaunchCommit | Out-Null } `
+    -ExpectedMessage "somente na branch main" `
+    -Message "Fallback legado deve rejeitar branch diferente de main"
+
+Reset-AndonLegacyScenario
+$script:legacyOriginMain = "b" * 40
+Assert-AndonThrows `
+    -Action { Get-AndonLegacyRelaunchCommit | Out-Null } `
+    -ExpectedMessage "HEAD diverge de origin/main" `
+    -Message "Fallback legado deve rejeitar HEAD diferente de origin/main"
+
+Reset-AndonLegacyScenario
+$script:legacyHead = "sha-invalido"
+Assert-AndonThrows `
+    -Action { Get-AndonLegacyRelaunchCommit | Out-Null } `
+    -ExpectedMessage "SHA HEAD invalido" `
+    -Message "Fallback legado deve rejeitar SHA invalido"
 
 Write-Host "Fluxo de primeira atualizacao legada aprovado."
 Write-Host "Todos os testes de regressao do instalador foram aprovados."

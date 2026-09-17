@@ -126,6 +126,15 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   const stopIndex = updateScript.indexOf("Stop-AndonRuntime");
   const ensureNodeIndex = updateScript.indexOf("Ensure-AndonDedicatedNodeRuntime");
   const pipelineIndex = updateScript.indexOf("Invoke-AndonNodePipeline");
+  const legacyFallbackIndex = updateScript.lastIndexOf("if ($legacyRelaunch)");
+  const legacyInstalledCommitIndex = updateScript.indexOf(
+    '-Name "installedCommit"',
+    legacyFallbackIndex,
+  );
+  const legacySaveConfigIndex = updateScript.indexOf(
+    "Save-AndonConfig $config",
+    legacyFallbackIndex,
+  );
 
   assert.ok(syncIndex >= 0, "a instalação legada deve sincronizar os scripts novos");
   assert.ok(
@@ -144,14 +153,34 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assert.ok(stopIndex > newRuntimeModuleIndex, "a parada deve usar o módulo Runtime novo");
   assert.ok(ensureNodeIndex > stopIndex, "o Node dedicado deve ser garantido após a parada");
   assert.ok(pipelineIndex > ensureNodeIndex, "build e migrations devem rodar uma única vez no fim");
+  assert.ok(
+    legacyFallbackIndex >= 0 &&
+      legacyInstalledCommitIndex > legacyFallbackIndex &&
+      legacySaveConfigIndex > legacyInstalledCommitIndex &&
+      stopIndex > legacySaveConfigIndex,
+    "fallback legado deve persistir installedCommit antes de parar ou aplicar",
+  );
 
   assert.match(updateScript, /-File \$updatedScriptPath\s*`\s*\r?\n\s*-ContinueAfterSync/);
   assert.match(updateScript, /-ExpectedCommit \$selectedCommit/);
+  assert.match(
+    updateScript,
+    /\$legacyRelaunch = \[string\]::IsNullOrWhiteSpace\(\$ExpectedCommit\)/,
+  );
+  assert.match(updateScript, /\$pinnedCommit = Get-AndonLegacyRelaunchCommit/);
   assert.match(updateScript, /Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit/);
   assert.match(updateScript, /\$configuredCommit -ne \$pinnedCommit/);
   assertAppearsOnce(updateScript, /Sync-AndonRepositoryAndTools/, "sync");
-  assertAppearsOnce(updateScript, /-Name "installedCommit"/, "persistência de installedCommit");
-  assertAppearsOnce(updateScript, /Save-AndonConfig \$config/, "gravação da configuração");
+  assert.equal(
+    (updateScript.match(/-Name "installedCommit"/g) ?? []).length,
+    2,
+    "installedCommit deve ser persistido no sync moderno e no fallback legado",
+  );
+  assert.equal(
+    (updateScript.match(/Save-AndonConfig \$config/g) ?? []).length,
+    2,
+    "config deve ser salva no sync moderno e no fallback legado",
+  );
   assertAppearsOnce(updateScript, /Stop-AndonRuntime/, "parada");
   assertAppearsOnce(
     updateScript,
@@ -161,6 +190,37 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assertAppearsOnce(updateScript, /Invoke-AndonNodePipeline/, "pipeline de atualização");
   assert.match(updateScript, /Invoke-AndonNodePipeline -RunSeed \$false/);
   assert.doesNotMatch(updateScript, /Invoke-AndonNodePipeline -RunSeed \$true/);
+});
+
+test("updater novo aceita com segurança o contrato de relaunch do commit d54f656", async () => {
+  const updateScript = await readInstaller("update-andon-server.ps1");
+  const legacyD54RelaunchContract = [
+    "param(",
+    "    [switch]$ContinueAfterSync",
+    ")",
+    "& $powershellPath `",
+    "    -File $updatedScriptPath `",
+    "    -ContinueAfterSync",
+  ].join("\n");
+
+  assert.match(legacyD54RelaunchContract, /\[switch\]\$ContinueAfterSync/);
+  assert.doesNotMatch(legacyD54RelaunchContract, /ExpectedCommit/);
+  assert.match(updateScript, /O updater d54f656 relanca o script novo somente com -ContinueAfterSync/);
+  assert.match(updateScript, /Assert-AndonRepositoryClean/);
+  assert.match(updateScript, /symbolic-ref", "--short", "HEAD"/);
+  assert.match(updateScript, /\$branch -ne "main"/);
+  assert.match(updateScript, /rev-parse", "HEAD"/);
+  assert.match(updateScript, /rev-parse", "origin\/main"/);
+  assert.match(updateScript, /\$head -notmatch '\^\[0-9a-f\]\{40\}\$'/);
+  assert.match(updateScript, /\$originMain -notmatch '\^\[0-9a-f\]\{40\}\$'/);
+  assert.match(updateScript, /\$head -ne \$originMain/);
+  assert.match(updateScript, /Relaunch legado detectado sem ExpectedCommit/);
+
+  const legacyResolver = updateScript.slice(
+    updateScript.indexOf("function Get-AndonLegacyRelaunchCommit"),
+    updateScript.indexOf("try {"),
+  );
+  assert.doesNotMatch(legacyResolver, /\bfetch\b|\bpull\b/);
 });
 
 test("PostgreSQL local valida login, privilégios e ownership antes de alterar", async () => {

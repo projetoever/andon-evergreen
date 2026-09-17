@@ -8,6 +8,74 @@
 $exitCode = 0
 $logStarted = $false
 
+function Invoke-AndonGitRead {
+    param(
+        [Parameter(Mandatory = $true)][string]$GitPath,
+        [Parameter(Mandatory = $true)][string[]]$GitArguments,
+        [Parameter(Mandatory = $true)][string]$FailureMessage
+    )
+
+    $output = @(
+        Invoke-AndonNativeSafe {
+            & $GitPath -C $Global:AndonProjectPath $GitArguments 2>$null
+        }
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw $FailureMessage
+    }
+
+    $value = ($output -join "`n").Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw $FailureMessage
+    }
+
+    return $value
+}
+
+function Get-AndonLegacyRelaunchCommit {
+    # O updater d54f656 relanca o script novo somente com -ContinueAfterSync.
+    # Esta compatibilidade usa apenas o repositorio ja sincronizado e nunca busca outro SHA.
+    Assert-AndonRepositoryClean -ProjectPath $Global:AndonProjectPath
+
+    $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
+    $branch =
+        Invoke-AndonGitRead `
+            -GitPath $git `
+            -GitArguments @("symbolic-ref", "--short", "HEAD") `
+            -FailureMessage "Nao foi possivel determinar a branch atual no relaunch legado."
+
+    if ($branch -ne "main") {
+        throw "Relaunch legado permitido somente na branch main. Branch atual: $branch."
+    }
+
+    $head =
+        Invoke-AndonGitRead `
+            -GitPath $git `
+            -GitArguments @("rev-parse", "HEAD") `
+            -FailureMessage "Nao foi possivel determinar HEAD no relaunch legado."
+    $originMain =
+        Invoke-AndonGitRead `
+            -GitPath $git `
+            -GitArguments @("rev-parse", "origin/main") `
+            -FailureMessage "Nao foi possivel determinar origin/main no relaunch legado."
+
+    if ($head -notmatch '^[0-9a-f]{40}$') {
+        throw "SHA HEAD invalido no relaunch legado: $head"
+    }
+    if ($originMain -notmatch '^[0-9a-f]{40}$') {
+        throw "SHA origin/main invalido no relaunch legado: $originMain"
+    }
+    if ($head -ne $originMain) {
+        throw "HEAD diverge de origin/main no relaunch legado. HEAD: $head. origin/main: $originMain."
+    }
+
+    Write-AndonWarn (
+        "Relaunch legado detectado sem ExpectedCommit; " +
+        "SHA atual validado contra origin/main: $head."
+    )
+    return $head
+}
+
 try {
     Assert-AndonAdmin
     Assert-AndonCorePrerequisites
@@ -60,11 +128,12 @@ try {
         }
 
     } else {
-        if ([string]::IsNullOrWhiteSpace($ExpectedCommit)) {
-            throw "SHA esperado ausente na fase principal da atualizacao."
+        $legacyRelaunch = [string]::IsNullOrWhiteSpace($ExpectedCommit)
+        if ($legacyRelaunch) {
+            $pinnedCommit = Get-AndonLegacyRelaunchCommit
+        } else {
+            $pinnedCommit = Assert-AndonRepositoryCommit -ExpectedCommit $ExpectedCommit
         }
-
-        $pinnedCommit = Assert-AndonRepositoryCommit -ExpectedCommit $ExpectedCommit
         Start-AndonInstallerLog -Operation "update" -CommitSha $pinnedCommit
         $logStarted = $true
 
@@ -80,12 +149,22 @@ try {
         if (!(Test-Path $Global:AndonConfigPath)) {
             throw "andon-config.json nao encontrado. Rode uma instalacao limpa antes."
         }
-        $configuredCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
-        if ($configuredCommit -ne $pinnedCommit) {
-            throw (
-                "installedCommit diverge do SHA fixado para a atualizacao. " +
-                "Configurado: $configuredCommit. Esperado: $pinnedCommit."
-            )
+
+        if ($legacyRelaunch) {
+            $config = Set-AndonConfigProperty `
+                -Config $config `
+                -Name "installedCommit" `
+                -Value $pinnedCommit
+            Save-AndonConfig $config
+            Write-AndonOk "SHA validado do relaunch legado registrado: $pinnedCommit."
+        } else {
+            $configuredCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+            if ($configuredCommit -ne $pinnedCommit) {
+                throw (
+                    "installedCommit diverge do SHA fixado para a atualizacao. " +
+                    "Configurado: $configuredCommit. Esperado: $pinnedCommit."
+                )
+            }
         }
 
         Write-AndonOk "Modo preservado: $($config.databaseMode)"
