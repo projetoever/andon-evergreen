@@ -1,8 +1,12 @@
 ﻿param(
-    [switch]$ContinueAfterSync
+    [switch]$ContinueAfterSync,
+    [string]$ExpectedCommit = ""
 )
 
 . "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
+
+$exitCode = 0
+$logStarted = $false
 
 try {
     Assert-AndonAdmin
@@ -19,7 +23,13 @@ try {
         Write-AndonOk "Modo preservado: $($config.databaseMode)"
         Write-AndonOk "O ANDON permanecera ativo durante a sincronizacao do instalador."
 
-        Sync-AndonRepositoryAndTools
+        $selectedCommit = Sync-AndonRepositoryAndTools
+        $config = Set-AndonConfigProperty `
+            -Config $config `
+            -Name "installedCommit" `
+            -Value $selectedCommit
+        Save-AndonConfig $config
+        Write-AndonOk "SHA do working tree registrado antes da aplicacao: $selectedCommit."
 
         $updatedScriptPath =
             Join-Path `
@@ -41,46 +51,64 @@ try {
             -NoProfile `
             -ExecutionPolicy Bypass `
             -File $updatedScriptPath `
-            -ContinueAfterSync
+            -ContinueAfterSync `
+            -ExpectedCommit $selectedCommit
 
         $updatedProcessExitCode = $LASTEXITCODE
         if ($updatedProcessExitCode -ne 0) {
             throw "A fase atualizada terminou com codigo $updatedProcessExitCode."
         }
 
-        exit 0
+    } else {
+        if ([string]::IsNullOrWhiteSpace($ExpectedCommit)) {
+            throw "SHA esperado ausente na fase principal da atualizacao."
+        }
+
+        $pinnedCommit = Assert-AndonRepositoryCommit -ExpectedCommit $ExpectedCommit
+        Start-AndonInstallerLog -Operation "update" -CommitSha $pinnedCommit
+        $logStarted = $true
+
+        # Esta fase roda em um novo powershell.exe. Por isso, os modulos abaixo
+        # sao necessariamente os arquivos novos copiados pela sincronizacao.
+        . "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
+        . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
+        . "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
+
+        Write-AndonHeader "ATUALIZAR PELA MAIN - APLICACAO"
+
+        $config = Import-AndonConfig
+        if (!(Test-Path $Global:AndonConfigPath)) {
+            throw "andon-config.json nao encontrado. Rode uma instalacao limpa antes."
+        }
+        $configuredCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+        if ($configuredCommit -ne $pinnedCommit) {
+            throw (
+                "installedCommit diverge do SHA fixado para a atualizacao. " +
+                "Configurado: $configuredCommit. Esperado: $pinnedCommit."
+            )
+        }
+
+        Write-AndonOk "Modo preservado: $($config.databaseMode)"
+
+        Stop-AndonRuntime
+        Ensure-AndonDedicatedNodeRuntime
+        $network = Ensure-AndonNetworkConfig
+        Write-AndonBackendEnv -Config $config -NetworkConfig $network
+        Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true
+        Apply-AndonFirewallRules
+        Prepare-AndonChromeProfileForReuse
+        Recreate-AndonTasks
+        Start-AndonRuntime
+        Invoke-AndonHealthCheck
+        Write-AndonHeader "ATUALIZACAO FINALIZADA"
+        Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }
-
-    # Esta fase roda em um novo powershell.exe. Por isso, os modulos abaixo
-    # sao necessariamente os arquivos novos copiados pela sincronizacao.
-    . "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
-    . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
-    . "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
-
-    Write-AndonHeader "ATUALIZAR PELA MAIN - APLICACAO"
-
-    $config = Import-AndonConfig
-    if (!(Test-Path $Global:AndonConfigPath)) {
-        throw "andon-config.json nao encontrado. Rode uma instalacao limpa antes."
-    }
-
-    Write-AndonOk "Modo preservado: $($config.databaseMode)"
-
-    Stop-AndonRuntime
-    Ensure-AndonDedicatedNodeRuntime
-    $network = Ensure-AndonNetworkConfig
-    Write-AndonBackendEnv -Config $config -NetworkConfig $network
-    Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true
-    Apply-AndonFirewallRules
-    Prepare-AndonChromeProfileForReuse
-    Recreate-AndonTasks
-    Start-AndonRuntime
-    Invoke-AndonHealthCheck
-    Write-AndonHeader "ATUALIZACAO FINALIZADA"
-    Write-AndonOk "Atualizacao concluida sem db:seed."
-    exit 0
 } catch {
+    $exitCode = 1
     Write-AndonHeader "ERRO"
     Write-AndonFail "$($_.Exception.Message)"
-    exit 1
+} finally {
+    if ($logStarted) { Stop-AndonInstallerLog }
 }
+
+exit $exitCode

@@ -115,9 +115,12 @@ test("instalação, atualização e reparo mantêm o runtime dedicado", async ()
 test("primeira atualização legada sincroniza e relança antes de parar e atualizar", async () => {
   const updateScript = await readInstaller("update-andon-server.ps1");
 
-  assert.match(updateScript, /param\(\s*\[switch\]\$ContinueAfterSync\s*\)/);
+  assert.match(updateScript, /\[switch\]\$ContinueAfterSync/);
+  assert.match(updateScript, /\[string\]\$ExpectedCommit/);
 
   const syncIndex = updateScript.indexOf("Sync-AndonRepositoryAndTools");
+  const installedCommitIndex = updateScript.indexOf('-Name "installedCommit"');
+  const saveConfigIndex = updateScript.indexOf("Save-AndonConfig $config");
   const relaunchIndex = updateScript.indexOf("& $powershellPath");
   const newRuntimeModuleIndex = updateScript.indexOf("AndonInstaller.Runtime.ps1");
   const stopIndex = updateScript.indexOf("Stop-AndonRuntime");
@@ -125,6 +128,14 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   const pipelineIndex = updateScript.indexOf("Invoke-AndonNodePipeline");
 
   assert.ok(syncIndex >= 0, "a instalação legada deve sincronizar os scripts novos");
+  assert.ok(
+    installedCommitIndex > syncIndex && saveConfigIndex > installedCommitIndex,
+    "installedCommit deve ser persistido imediatamente após o sync",
+  );
+  assert.ok(
+    relaunchIndex > saveConfigIndex,
+    "a configuração deve refletir o working tree antes do relançamento",
+  );
   assert.ok(relaunchIndex > syncIndex, "o script atualizado deve ser relançado após o sync");
   assert.ok(
     newRuntimeModuleIndex > relaunchIndex,
@@ -135,7 +146,12 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assert.ok(pipelineIndex > ensureNodeIndex, "build e migrations devem rodar uma única vez no fim");
 
   assert.match(updateScript, /-File \$updatedScriptPath\s*`\s*\r?\n\s*-ContinueAfterSync/);
+  assert.match(updateScript, /-ExpectedCommit \$selectedCommit/);
+  assert.match(updateScript, /Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit/);
+  assert.match(updateScript, /\$configuredCommit -ne \$pinnedCommit/);
   assertAppearsOnce(updateScript, /Sync-AndonRepositoryAndTools/, "sync");
+  assertAppearsOnce(updateScript, /-Name "installedCommit"/, "persistência de installedCommit");
+  assertAppearsOnce(updateScript, /Save-AndonConfig \$config/, "gravação da configuração");
   assertAppearsOnce(updateScript, /Stop-AndonRuntime/, "parada");
   assertAppearsOnce(
     updateScript,
@@ -147,7 +163,7 @@ test("primeira atualização legada sincroniza e relança antes de parar e atual
   assert.doesNotMatch(updateScript, /Invoke-AndonNodePipeline -RunSeed \$true/);
 });
 
-test("PostgreSQL permanece no comportamento original da main", async () => {
+test("PostgreSQL local valida login, privilégios e ownership antes de alterar", async () => {
   const [common, localDatabase] = await Promise.all([
     readInstaller("AndonInstaller.Common.ps1"),
     readInstaller("AndonInstaller.Database.Local.ps1"),
@@ -160,13 +176,125 @@ test("PostgreSQL permanece no comportamento original da main", async () => {
   assert.doesNotMatch(common, /andon_web_industrial|andon_web|MIGRAR_BANCO/);
   assert.doesNotMatch(common, /database(?:User)?CreatedByInstaller/);
 
-  assert.match(localDatabase, /ALTER USER/);
-  assert.match(localDatabase, /GRANT ALL PRIVILEGES/);
-  assert.match(localDatabase, /CREATEDB/);
+  const precheckIndex = localDatabase.indexOf("PRECHECK POSTGRESQL LOCAL");
+  const mutableIndex = localDatabase.indexOf("$mutableStatements = @()");
+  assert.ok(precheckIndex >= 0, "precheck PostgreSQL deve existir");
+  assert.ok(mutableIndex > precheckIndex, "SQL mutável deve ocorrer somente após o precheck");
+
+  assert.match(localDatabase, /Usuario administrativo PostgreSQL \[postgres\]/);
+  assert.match(localDatabase, /rolcanlogin, rolsuper, rolcreatedb, rolcreaterole/);
+  assert.match(localDatabase, /possui NOLOGIN/);
+  assert.match(localDatabase, /nao possui CREATEROLE/);
+  assert.match(localDatabase, /nao possui CREATEDB/);
+  assert.match(localDatabase, /CREATE ROLE \$Global:AndonDatabaseUser LOGIN PASSWORD/);
   assert.match(localDatabase, /CREATE DATABASE/);
+  assert.doesNotMatch(localDatabase, /ALTER USER/);
+  assert.doesNotMatch(localDatabase, /GRANT ALL PRIVILEGES/);
+  assert.doesNotMatch(
+    localDatabase.slice(0, localDatabase.indexOf("function Remove-AndonLocalDatabaseClean")),
+    /pg_terminate_backend/,
+  );
   assert.match(localDatabase, /Expected "APAGAR_BANCO"/);
-  assert.doesNotMatch(localDatabase, /USAR_BANCO_EXISTENTE/);
-  assert.doesNotMatch(localDatabase, /APAGAR_(BANCO|USUARIO)_ANDON/);
+});
+
+test("installationProfile aceita config legada e só é persistido depois da seleção", async () => {
+  const [common, installScript, localDatabase, dockerDatabase] = await Promise.all([
+    readInstaller("AndonInstaller.Common.ps1"),
+    readInstaller("install-andon-server.ps1"),
+    readInstaller("AndonInstaller.Database.Local.ps1"),
+    readInstaller("AndonInstaller.Database.Docker.ps1"),
+  ]);
+
+  assert.match(common, /function Set-AndonConfigProperty/);
+  assert.match(common, /Add-Member\s*`?\s*-NotePropertyName \$Name/);
+  assert.match(installScript, /-Name "installationProfile"/);
+  assert.match(installScript, /-Value \$installationProfile/);
+  assert.match(installScript, /-SeedProfile \$installationProfile/);
+  assert.doesNotMatch(installScript, /\$dbConfig\.installationProfile\s*=/);
+  assert.doesNotMatch(localDatabase, /Save-AndonConfig/);
+  assert.doesNotMatch(dockerDatabase, /Save-AndonConfig/);
+});
+
+test("fresh install fixa SHA, relança scripts sincronizados e bloqueia configuração existente", async () => {
+  const [common, installScript, bootstrap] = await Promise.all([
+    readInstaller("AndonInstaller.Common.ps1"),
+    readInstaller("install-andon-server.ps1"),
+    readRepositoryFile("INSTALAR_ANDON_SERVIDOR.ps1"),
+  ]);
+
+  const syncIndex = installScript.indexOf("Sync-AndonRepositoryAndTools");
+  const relaunchIndex = installScript.indexOf("& $powershellPath");
+  const runtimeModuleIndex = installScript.indexOf("AndonInstaller.Runtime.ps1");
+  assert.ok(syncIndex >= 0, "fresh install deve sincronizar antes da execução principal");
+  assert.ok(relaunchIndex > syncIndex, "fresh install deve relançar após sincronizar");
+  assert.ok(runtimeModuleIndex > relaunchIndex, "módulos novos só devem ser carregados após relançar");
+
+  assert.match(installScript, /-ExpectedCommit \$selectedCommit/);
+  assert.match(installScript, /Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit/);
+  assert.match(common, /installedCommit = ""/);
+  assert.match(common, /Assert-AndonFreshInstallTarget/);
+  assert.match(common, /git\.exe/);
+  assert.match(common, /"merge", "--ff-only", \$selectedCommit/);
+  assert.doesNotMatch(common, /"pull", "--ff-only"/);
+  assert.match(bootstrap, /git merge --ff-only \$SelectedCommit/);
+  assert.doesNotMatch(bootstrap, /git pull --ff-only/);
+});
+
+test("runtime Node usa staging controlado, retry, cópia fallback e rollback validado", async () => {
+  const common = await readInstaller("AndonInstaller.Common.ps1");
+
+  assert.match(common, /node\.staging\.\$operationId/);
+  assert.match(common, /function Invoke-AndonMoveItemWithRetry/);
+  assert.match(common, /function Copy-AndonRuntimeContent/);
+  assert.match(common, /fallback seguro por copia/);
+  assert.match(common, /Runtime Node anterior restaurado e validado/);
+  assert.match(common, /Test-AndonNodeRuntimeAtPath -RuntimePath \$stagingRuntime/);
+  assert.match(common, /Test-AndonDedicatedNodeRuntime/);
+  assert.doesNotMatch(common, /C:\\Program Files\\nodejs\\npm\.cmd/);
+});
+
+test("health check representa PASS WARN SKIP FAIL e empty sem máquina não é crítico", async () => {
+  const [common, runtime] = await Promise.all([
+    readInstaller("AndonInstaller.Common.ps1"),
+    readInstaller("AndonInstaller.Runtime.ps1"),
+  ]);
+
+  for (const status of ["PASS", "WARN", "SKIP", "FAIL"]) {
+    assert.match(common, new RegExp(`"${status}"`));
+  }
+  assert.match(common, /-Status "SKIP"[\s\S]*nenhuma maquina livre/);
+  assert.match(runtime, /if \(\$writeResult\.Status -eq "FAIL"\)/);
+  assert.doesNotMatch(runtime, /if \(!\(Test-AndonApiWrite\)\)/);
+});
+
+test("multi-IP permanece escolha explícita e não usa rota automática", async () => {
+  const common = await readInstaller("AndonInstaller.Common.ps1");
+  const selectionStart = common.indexOf("function Select-AndonServerIp");
+  const selectionEnd = common.indexOf("function Ensure-AndonNetworkConfig");
+  const selection = common.slice(selectionStart, selectionEnd);
+
+  assert.match(selection, /Read-Host "Escolha o IP/);
+  assert.match(selection, /Read-Host "Digite o IP/);
+  assert.doesNotMatch(selection, /DefaultIPGateway|Get-NetRoute/);
+  assert.doesNotMatch(common, /189\.201\.137\.232/);
+});
+
+test("logs de install update repair registram SHA sem expor credenciais em previews", async () => {
+  const [common, installScript, updateScript, repairScript] = await Promise.all([
+    readInstaller("AndonInstaller.Common.ps1"),
+    readInstaller("install-andon-server.ps1"),
+    readInstaller("update-andon-server.ps1"),
+    readInstaller("repair-andon-server.ps1"),
+  ]);
+
+  assert.match(common, /function Protect-AndonLogText/);
+  assert.match(common, /POSTGRES_PASSWORD=/);
+  assert.match(common, /function Write-AndonInstallerLogLine/);
+  assert.match(common, /Add-Content/);
+  assert.doesNotMatch(common, /Start-Transcript|Stop-Transcript/);
+  assert.match(installScript, /Start-AndonInstallerLog -Operation "install"/);
+  assert.match(updateScript, /Start-AndonInstallerLog -Operation "update"/);
+  assert.match(repairScript, /Start-AndonInstallerLog -Operation "repair"/);
 });
 
 test("parada encerra Node dedicado e Node global legado somente com marcadores inequívocos", async () => {

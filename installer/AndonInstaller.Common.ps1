@@ -29,6 +29,9 @@ $Global:AndonNodeArchiveSha256 = "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb4
 
 $Global:AndonRepoUrl = "https://github.com/projetoever/andon-evergreen.git"
 $Global:AndonBranch = "main"
+$Global:AndonInstalledCommit = ""
+$Global:AndonInstallerLogActive = $false
+$Global:AndonInstallerLogPath = ""
 
 $Global:AndonApiPort = 3001
 $Global:AndonFrontendPort = 8080
@@ -54,11 +57,150 @@ function Write-AndonHeader {
     Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host " $Title" -ForegroundColor Cyan
     Write-Host "==================================================" -ForegroundColor Cyan
+    Write-AndonInstallerLogLine -Level "ETAPA" -Message $Title
 }
 
-function Write-AndonOk { param([string]$Message) Write-Host "[OK] $Message" -ForegroundColor Green }
-function Write-AndonWarn { param([string]$Message) Write-Host "[AVISO] $Message" -ForegroundColor Yellow }
-function Write-AndonFail { param([string]$Message) Write-Host "[FALHA] $Message" -ForegroundColor Red }
+function Write-AndonOk {
+    param([string]$Message)
+    Write-Host "[OK] $Message" -ForegroundColor Green
+    Write-AndonInstallerLogLine -Level "OK" -Message $Message
+}
+
+function Write-AndonWarn {
+    param([string]$Message)
+    Write-Host "[AVISO] $Message" -ForegroundColor Yellow
+    Write-AndonInstallerLogLine -Level "AVISO" -Message $Message
+}
+
+function Write-AndonFail {
+    param([string]$Message)
+    Write-Host "[FALHA] $Message" -ForegroundColor Red
+    Write-AndonInstallerLogLine -Level "FALHA" -Message $Message
+}
+
+function Protect-AndonLogText {
+    param([AllowEmptyString()][string]$Text)
+
+    if ($null -eq $Text) { return "" }
+
+    $sanitized = $Text
+    $sanitized = [regex]::Replace(
+        $sanitized,
+        '(?i)(postgres(?:ql)?://[^:\s]+:)[^@\s]+(@)',
+        '$1***$2'
+    )
+    $sanitized = [regex]::Replace(
+        $sanitized,
+        '(?i)(POSTGRES_PASSWORD=)[^\s]+',
+        '$1***'
+    )
+    $sanitized = [regex]::Replace(
+        $sanitized,
+        '(?i)(databasePassword["''\s:=]+)[^,}\s"]+',
+        '$1***'
+    )
+    return $sanitized
+}
+
+function Write-AndonInstallerLogLine {
+    param(
+        [Parameter(Mandatory = $true)][string]$Level,
+        [AllowEmptyString()][string]$Message
+    )
+
+    if (!$Global:AndonInstallerLogActive -or [string]::IsNullOrWhiteSpace($Global:AndonInstallerLogPath)) {
+        return
+    }
+
+    $safeMessage = Protect-AndonLogText $Message
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content `
+        -Path $Global:AndonInstallerLogPath `
+        -Value "[$timestamp] [$Level] $safeMessage" `
+        -Encoding UTF8
+}
+
+function Set-AndonConfigProperty {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if (!$Config) { throw "Config invalida para definir $Name." }
+
+    $Config |
+        Add-Member `
+            -NotePropertyName $Name `
+            -NotePropertyValue $Value `
+            -Force
+
+    return $Config
+}
+
+function New-AndonHealthResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("PASS", "WARN", "SKIP", "FAIL")]
+        [string]$Status,
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    return [pscustomobject]@{
+        Status = $Status
+        Message = $Message
+    }
+}
+
+function Write-AndonHealthResult {
+    param([Parameter(Mandatory = $true)][object]$Result)
+
+    switch ("$($Result.Status)") {
+        "PASS" { Write-Host "[PASS] $($Result.Message)" -ForegroundColor Green }
+        "WARN" { Write-Host "[WARN] $($Result.Message)" -ForegroundColor Yellow }
+        "SKIP" { Write-Host "[SKIP] $($Result.Message)" -ForegroundColor Yellow }
+        "FAIL" { Write-Host "[FAIL] $($Result.Message)" -ForegroundColor Red }
+        default { throw "Status de health check invalido: $($Result.Status)" }
+    }
+    Write-AndonInstallerLogLine -Level "$($Result.Status)" -Message "$($Result.Message)"
+}
+
+function Start-AndonInstallerLog {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("install", "update", "repair")]
+        [string]$Operation,
+        [string]$CommitSha = ""
+    )
+
+    Initialize-AndonFolders
+    $logRoot = Join-Path $Global:AndonLogsPath "installer"
+    New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+
+    $executionId = [guid]::NewGuid().ToString("N")
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $logPath = Join-Path $logRoot "$Operation-$timestamp-$executionId.log"
+
+    New-Item -ItemType File -Path $logPath -Force | Out-Null
+    $Global:AndonInstallerLogActive = $true
+    $Global:AndonInstallerLogPath = $logPath
+
+    Write-AndonInstallerLogLine -Level "INFO" -Message "Execucao installer: $executionId"
+    Write-AndonInstallerLogLine -Level "INFO" -Message "Operacao: $Operation"
+    Write-AndonInstallerLogLine -Level "INFO" -Message "SHA: $(if ($CommitSha) { $CommitSha } else { 'nao informado' })"
+    Write-AndonOk "Log persistente: $logPath"
+}
+
+function Stop-AndonInstallerLog {
+    if (!$Global:AndonInstallerLogActive) { return }
+
+    Write-AndonInstallerLogLine -Level "INFO" -Message "Execucao finalizada."
+    $Global:AndonInstallerLogActive = $false
+}
 
 function Initialize-AndonFolders {
     New-Item -ItemType Directory -Force $Global:AndonBasePath | Out-Null
@@ -158,9 +300,11 @@ function Invoke-AndonProcess {
         [string]$WorkingDirectory = "",
         [string]$ErrorMessage = ""
     )
-    $preview = if ($Arguments.Count -gt 0) { "$FilePath $($Arguments -join ' ')" } else { $FilePath }
+    $rawPreview = if ($Arguments.Count -gt 0) { "$FilePath $($Arguments -join ' ')" } else { $FilePath }
+    $preview = Protect-AndonLogText $rawPreview
     Write-Host ""
     Write-Host "Executando: $preview" -ForegroundColor DarkCyan
+    Write-AndonInstallerLogLine -Level "EXEC" -Message $preview
     $oldLocation = $null
     if ($WorkingDirectory) {
         if (!(Test-Path $WorkingDirectory)) { throw "Diretorio nao encontrado: $WorkingDirectory" }
@@ -225,11 +369,69 @@ function Get-AndonNodeRuntimeVersion {
 }
 
 function Test-AndonDedicatedNodeRuntime {
-    $version = Get-AndonNodeRuntimeVersion
+    return Test-AndonNodeRuntimeAtPath -RuntimePath $Global:AndonNodeRuntimePath
+}
+
+function Test-AndonNodeRuntimeAtPath {
+    param([Parameter(Mandatory = $true)][string]$RuntimePath)
+
+    $nodePath = Join-Path $RuntimePath "node.exe"
+    $npmPath = Join-Path $RuntimePath "npm.cmd"
+    $version = Get-AndonNodeRuntimeVersion -NodePath $nodePath
     return (
         $version -eq $Global:AndonNodeVersionLabel -and
-        (Test-Path $Global:AndonNpmCmdPath -PathType Leaf)
+        (Test-Path $npmPath -PathType Leaf)
     )
+}
+
+function Invoke-AndonMoveItemWithRetry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [int]$Attempts = 3,
+        [int]$DelaySeconds = 2
+    )
+
+    $lastError = $null
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        try {
+            Move-Item `
+                -LiteralPath $Source `
+                -Destination $Destination `
+                -ErrorAction Stop
+            return
+        } catch {
+            $lastError = $_
+            if ($attempt -lt $Attempts) {
+                Write-AndonWarn "Move-Item falhou na tentativa $attempt de $Attempts. Nova tentativa em $DelaySeconds segundo(s)."
+                Start-Sleep -Seconds $DelaySeconds
+            }
+        }
+    }
+
+    throw $lastError
+}
+
+function Copy-AndonRuntimeContent {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    if (!(Test-Path $Source -PathType Container)) {
+        throw "Origem do runtime Node nao encontrada: $Source"
+    }
+    if (Test-Path $Destination) {
+        throw "Destino do runtime Node ja existe: $Destination"
+    }
+
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    Copy-Item `
+        -Path (Join-Path $Source "*") `
+        -Destination $Destination `
+        -Recurse `
+        -Force `
+        -ErrorAction Stop
 }
 
 function Assert-AndonNodePlatformSupport {
@@ -273,9 +475,12 @@ function Install-AndonDedicatedNodeRuntime {
     $extractPath = Join-Path $tempRoot "extract"
     $archiveFolder = "node-v$Global:AndonNodeVersion-win-x64"
     $extractedRuntime = Join-Path $extractPath $archiveFolder
+    $stagingRuntime = Join-Path $Global:AndonRuntimeRoot "node.staging.$operationId"
     $previousRuntime = Join-Path $Global:AndonRuntimeRoot "node.previous.$operationId"
     $movedPreviousRuntime = $false
-    $installedNewRuntime = $false
+    $previousNodeExisted = $false
+    $previousNpmExisted = $false
+    $previousVersion = $null
 
     try {
         New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
@@ -311,37 +516,106 @@ function Install-AndonDedicatedNodeRuntime {
             throw "Versao Node extraida inesperada: $stagedVersion."
         }
 
+        Copy-AndonRuntimeContent `
+            -Source $extractedRuntime `
+            -Destination $stagingRuntime
+
+        if (!(Test-AndonNodeRuntimeAtPath -RuntimePath $stagingRuntime)) {
+            throw "Staging do runtime Node falhou na validacao antes da ativacao."
+        }
+        Write-AndonOk "Staging do runtime Node validado em $stagingRuntime."
+
         if (Test-Path $Global:AndonNodeRuntimePath) {
-            Move-Item -LiteralPath $Global:AndonNodeRuntimePath -Destination $previousRuntime -ErrorAction Stop
+            $previousNodeExisted = Test-Path (Join-Path $Global:AndonNodeRuntimePath "node.exe") -PathType Leaf
+            $previousNpmExisted = Test-Path (Join-Path $Global:AndonNodeRuntimePath "npm.cmd") -PathType Leaf
+            $previousVersion = Get-AndonNodeRuntimeVersion
+            Invoke-AndonMoveItemWithRetry `
+                -Source $Global:AndonNodeRuntimePath `
+                -Destination $previousRuntime
             $movedPreviousRuntime = $true
         }
 
-        Move-Item -LiteralPath $extractedRuntime -Destination $Global:AndonNodeRuntimePath -ErrorAction Stop
-        $installedNewRuntime = $true
-
+        try {
+            Invoke-AndonMoveItemWithRetry `
+                -Source $stagingRuntime `
+                -Destination $Global:AndonNodeRuntimePath
+        } catch {
+            Write-AndonWarn "Ativacao por Move-Item falhou. Aplicando fallback seguro por copia."
+            if (Test-Path $Global:AndonNodeRuntimePath) {
+                Remove-Item `
+                    -LiteralPath $Global:AndonNodeRuntimePath `
+                    -Recurse `
+                    -Force `
+                    -ErrorAction Stop
+            }
+            Copy-AndonRuntimeContent `
+                -Source $extractedRuntime `
+                -Destination $Global:AndonNodeRuntimePath
+        }
         if (!(Test-AndonDedicatedNodeRuntime)) {
             throw "Runtime Node dedicado falhou na validacao apos a instalacao."
         }
 
         if ($movedPreviousRuntime -and (Test-Path $previousRuntime)) {
-            Remove-Item -LiteralPath $previousRuntime -Recurse -Force -ErrorAction Stop
+            try {
+                Remove-Item -LiteralPath $previousRuntime -Recurse -Force -ErrorAction Stop
+            } catch {
+                Write-AndonWarn "Runtime novo validado, mas o backup anterior nao pode ser removido: $previousRuntime"
+            }
         }
 
         Write-AndonOk "Node ANDON instalado: $Global:AndonNodeExePath ($Global:AndonNodeVersionLabel)."
         Write-AndonOk "Node global do Windows nao foi alterado."
     } catch {
-        if (
-            ($installedNewRuntime -or $movedPreviousRuntime) -and
-            (Test-Path $Global:AndonNodeRuntimePath)
-        ) {
-            Remove-Item -LiteralPath $Global:AndonNodeRuntimePath -Recurse -Force -ErrorAction SilentlyContinue
+        $installationError = $_
+        try {
+            if (Test-Path $Global:AndonNodeRuntimePath) {
+                Remove-Item `
+                    -LiteralPath $Global:AndonNodeRuntimePath `
+                    -Recurse `
+                    -Force `
+                    -ErrorAction Stop
+            }
+
+            if ($movedPreviousRuntime) {
+                if (!(Test-Path $previousRuntime -PathType Container)) {
+                    throw "Backup do runtime anterior nao foi encontrado para rollback."
+                }
+
+                Invoke-AndonMoveItemWithRetry `
+                    -Source $previousRuntime `
+                    -Destination $Global:AndonNodeRuntimePath
+
+                if (!(Test-Path $Global:AndonNodeRuntimePath -PathType Container)) {
+                    throw "Rollback nao restaurou o diretorio do runtime anterior."
+                }
+                if ($previousNodeExisted -and !(Test-Path (Join-Path $Global:AndonNodeRuntimePath "node.exe") -PathType Leaf)) {
+                    throw "Rollback nao restaurou node.exe do runtime anterior."
+                }
+                if ($previousNpmExisted -and !(Test-Path (Join-Path $Global:AndonNodeRuntimePath "npm.cmd") -PathType Leaf)) {
+                    throw "Rollback nao restaurou npm.cmd do runtime anterior."
+                }
+                if ($previousVersion) {
+                    $restoredVersion = Get-AndonNodeRuntimeVersion
+                    if ($restoredVersion -ne $previousVersion) {
+                        throw "Rollback restaurou versao inesperada: $restoredVersion."
+                    }
+                }
+                Write-AndonWarn "Runtime Node anterior restaurado e validado apos falha."
+            } elseif (Test-Path $Global:AndonNodeRuntimePath) {
+                throw "Falha ao limpar runtime parcial da primeira instalacao."
+            }
+        } catch {
+            throw (
+                "Falha critica no rollback do runtime Node. Erro original: " +
+                "$($installationError.Exception.Message). Rollback: $($_.Exception.Message)"
+            )
         }
-        if ($movedPreviousRuntime -and (Test-Path $previousRuntime)) {
-            Move-Item -LiteralPath $previousRuntime -Destination $Global:AndonNodeRuntimePath -ErrorAction SilentlyContinue
-        }
-        throw
+
+        throw $installationError
     } finally {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $stagingRuntime -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -423,6 +697,7 @@ function Get-AndonDefaultConfig {
         dockerContainer = $Global:AndonDockerContainer
         dockerVolume = $Global:AndonDockerVolume
         installationProfile = "legacy"
+        installedCommit = ""
     }
 }
 
@@ -441,6 +716,7 @@ function Update-AndonGlobalsFromConfig {
     $Global:AndonToolsPath = "$($Config.toolsPath)"
     if ($Config.dockerContainer) { $Global:AndonDockerContainer = "$($Config.dockerContainer)" }
     if ($Config.dockerVolume) { $Global:AndonDockerVolume = "$($Config.dockerVolume)" }
+    if ($Config.installedCommit) { $Global:AndonInstalledCommit = "$($Config.installedCommit)" }
     $Global:AndonLogsPath = "$Global:AndonProjectPath\logs"
     $Global:AndonBackupsPath = "$Global:AndonProjectPath\backups"
     $Global:AndonChromeProfilePath = "$Global:AndonProjectPath\chrome-profile"
@@ -451,7 +727,7 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit")) {
                 if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") { $config.$key = $fileConfig.$key }
             }
         } catch { Write-AndonWarn "Falha ao ler andon-config.json. Usando defaults. Erro: $($_.Exception.Message)" }
@@ -478,6 +754,7 @@ function Save-AndonConfig {
         dockerContainer = "$($Config.dockerContainer)"
         dockerVolume = "$($Config.dockerVolume)"
         installationProfile = if ($Config.installationProfile) { "$($Config.installationProfile)" } else { "legacy" }
+        installedCommit = if ($Config.installedCommit) { "$($Config.installedCommit)" } else { "" }
     }
     $configToSave | ConvertTo-Json -Depth 6 | Set-Content $Global:AndonConfigPath -Encoding UTF8
     Update-AndonGlobalsFromConfig ([pscustomobject]$configToSave)
@@ -489,6 +766,7 @@ function Save-AndonConfig {
     Write-Host "API:           $($configToSave.apiPort)"
     Write-Host "Frontend:      $($configToSave.frontendPort)"
     Write-Host "Perfil inicial: $($configToSave.installationProfile)"
+    Write-Host "SHA instalado:  $(if ($configToSave.installedCommit) { $configToSave.installedCommit } else { 'nao registrado' })"
 }
 
 function Get-AndonNetworkConfig {
@@ -605,21 +883,105 @@ function Assert-AndonCorePrerequisites {
     if ($hasError) { throw "Pre-requisitos gerais ausentes." }
 }
 
+function Assert-AndonFreshInstallTarget {
+    if (Test-Path $Global:AndonConfigPath -PathType Leaf) {
+        throw (
+            "Instalacao ANDON existente ou parcial detectada em $Global:AndonConfigPath. " +
+            "A instalacao limpa nao sobrescrevera essa configuracao. Use Reparar instalacao " +
+            "ou execute uma reconciliacao aprovada."
+        )
+    }
+}
+
+function Get-AndonRepositoryCommit {
+    param([string]$ProjectPath = $Global:AndonProjectPath)
+
+    if (!(Test-Path "$ProjectPath\.git")) {
+        throw "Repositorio Git nao encontrado: $ProjectPath"
+    }
+
+    $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
+    $commit = Invoke-AndonNativeSafe { & $git -C $ProjectPath rev-parse HEAD 2>$null }
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace("$commit")) {
+        throw "Nao foi possivel determinar o SHA do repositorio ANDON."
+    }
+
+    $commit = "$commit".Trim().ToLowerInvariant()
+    if ($commit -notmatch '^[0-9a-f]{40}$') {
+        throw "SHA Git invalido detectado: $commit"
+    }
+
+    return $commit
+}
+
+function Assert-AndonRepositoryCommit {
+    param([Parameter(Mandatory = $true)][string]$ExpectedCommit)
+
+    $expected = $ExpectedCommit.Trim().ToLowerInvariant()
+    if ($expected -notmatch '^[0-9a-f]{40}$') {
+        throw "SHA esperado invalido: $ExpectedCommit"
+    }
+
+    $actual = Get-AndonRepositoryCommit
+    if ($actual -ne $expected) {
+        throw "Revisao do repositorio mudou durante a execucao. Esperado: $expected. Atual: $actual."
+    }
+
+    Write-AndonOk "Revisao Git fixada para esta execucao: $actual"
+    return $actual
+}
+
+function Assert-AndonRepositoryClean {
+    param([string]$ProjectPath = $Global:AndonProjectPath)
+
+    $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
+    $status = @(Invoke-AndonNativeSafe { & $git -C $ProjectPath status --porcelain 2>$null })
+    if ($LASTEXITCODE -ne 0) {
+        throw "Nao foi possivel verificar alteracoes locais em $ProjectPath."
+    }
+    if ($status.Count -gt 0) {
+        throw (
+            "Repositorio ANDON possui alteracoes locais e nao sera sincronizado automaticamente. " +
+            "Preserve/reconcilie o hotfix antes de atualizar."
+        )
+    }
+}
+
 function Sync-AndonRepositoryAndTools {
     Write-AndonHeader "REPOSITORIO, INSTALADOR E TOOLS"
     Initialize-AndonFolders
     $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
 
+    $selectedCommit = ""
+
     if (Test-Path "$Global:AndonProjectPath\.git") {
         Write-Host "Repositorio encontrado: $Global:AndonProjectPath"
-        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "fetch", "--all", "--prune")
-        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "checkout", $Global:AndonBranch)
-        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "pull", "--ff-only", "origin", $Global:AndonBranch)
+        Assert-AndonRepositoryClean
+        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "fetch", "origin", $Global:AndonBranch, "--prune") | Out-Null
+        $selectedCommit = Invoke-AndonNativeSafe { & $git -C $Global:AndonProjectPath rev-parse "origin/$Global:AndonBranch" 2>$null }
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace("$selectedCommit")) {
+            throw "Nao foi possivel fixar o SHA de origin/$Global:AndonBranch."
+        }
+        $selectedCommit = "$selectedCommit".Trim().ToLowerInvariant()
+        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "checkout", $Global:AndonBranch) | Out-Null
+        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "merge", "--ff-only", $selectedCommit) | Out-Null
     } elseif (Test-Path $Global:AndonProjectPath) {
         throw "A pasta $Global:AndonProjectPath existe, mas nao e repositorio Git. Renomeie ou remova antes de continuar."
     } else {
-        Invoke-AndonProcess $git @("clone", "--branch", $Global:AndonBranch, $Global:AndonRepoUrl, $Global:AndonProjectPath) $Global:AndonBasePath
+        Invoke-AndonProcess $git @("clone", "--no-checkout", $Global:AndonRepoUrl, $Global:AndonProjectPath) $Global:AndonBasePath | Out-Null
+        $selectedCommit = Invoke-AndonNativeSafe { & $git -C $Global:AndonProjectPath rev-parse "origin/$Global:AndonBranch" 2>$null }
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace("$selectedCommit")) {
+            throw "Nao foi possivel fixar o SHA de origin/$Global:AndonBranch apos o clone."
+        }
+        $selectedCommit = "$selectedCommit".Trim().ToLowerInvariant()
+        Invoke-AndonProcess $git @("-C", $Global:AndonProjectPath, "checkout", "-B", $Global:AndonBranch, $selectedCommit) | Out-Null
     }
+
+    if ($selectedCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "SHA selecionado invalido: $selectedCommit"
+    }
+
+    Assert-AndonRepositoryCommit -ExpectedCommit $selectedCommit | Out-Null
 
     $projectInstallerPath =
         "$Global:AndonProjectPath\installer"
@@ -684,7 +1046,8 @@ function Sync-AndonRepositoryAndTools {
         Write-AndonWarn "Pasta install-tools nao encontrada no projeto."
     }
 
-    Write-AndonOk "Repositorio, instalador e tools sincronizados."
+    Write-AndonOk "Repositorio, instalador e tools sincronizados no SHA $selectedCommit."
+    return $selectedCommit
 }
 
 function Apply-AndonFirewallRules {
@@ -802,17 +1165,38 @@ function Invoke-AndonNodePipeline {
 function Test-AndonApiWrite {
     $api = "http://127.0.0.1:$Global:AndonApiPort"
     try { $machines = Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 10 }
-    catch { Write-AndonWarn "Teste de escrita pulado: nao foi possivel listar maquinas pela API."; return $false }
+    catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste de escrita: nao foi possivel listar maquinas pela API. $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
     $machine = $machines | Where-Object { $_.currentCallId -eq $null } | Select-Object -First 1
-    if (!$machine) { Write-AndonWarn "Teste de escrita pulado: nenhuma maquina livre."; return $false }
+    if (!$machine) {
+        $result = New-AndonHealthResult `
+            -Status "SKIP" `
+            -Message "Teste de escrita pulado: nenhuma maquina livre."
+        Write-AndonHealthResult $result
+        return $result
+    }
     $payload = @{ machineId = "$($machine.id)"; category = "maintenance"; subtype = "mechanical"; criticality = "medium"; machineCondition = "running"; description = "Chamado temporario criado pelo health check do instalador"; createdBy = "installer-health"; origin = "installer_health_check"; isSystemTest = $true } | ConvertTo-Json
     try {
         $call = Invoke-RestMethod "$api/api/andon-calls" -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 10
         $cancelPayload = @{ reason = "Teste automatico do instalador"; cancelledBy = "installer-health" } | ConvertTo-Json
         Invoke-RestMethod "$api/api/andon-calls/$($call.id)/cancel" -Method Patch -ContentType "application/json" -Body $cancelPayload -TimeoutSec 10 | Out-Null
-        Write-AndonOk "Teste real de escrita API aprovado."
-        return $true
-    } catch { Write-AndonWarn "Teste real de escrita API falhou: $($_.Exception.Message)"; return $false }
+        $result = New-AndonHealthResult `
+            -Status "PASS" `
+            -Message "Teste real de escrita API aprovado."
+        Write-AndonHealthResult $result
+        return $result
+    } catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste real de escrita API falhou: $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
 }
 
 function Remove-AndonTasks {
@@ -846,6 +1230,7 @@ function Show-AndonStatus {
         Write-Host "API:           $($config.apiPort)"
         Write-Host "Frontend:      $($config.frontendPort)"
         Write-Host "Perfil inicial: $($config.installationProfile)"
+        Write-Host "SHA instalado:  $(if ($config.installedCommit) { $config.installedCommit } else { 'nao registrado' })"
     } else { Write-AndonWarn "andon-config.json ainda nao existe." }
     Write-Host ""
     $ports = @($Global:AndonApiPort, $Global:AndonFrontendPort, [int]$config.postgresPort) | Select-Object -Unique
