@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, History } from "lucide-react";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { useAndon } from "@/context/AndonProvider";
 import {
   calculateAttendanceMinutes,
@@ -168,6 +169,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-widest text-muted-foreground">{formatDateTime(call.openedAt)}</div>
               <h2 className="truncate text-base font-black text-foreground md:text-lg">{call.category === "maintenance" ? "Manutenção" : "Produção"} • {getCallSubtypeLabel(call.subtype)}</h2>
+              <CallIdLabel callId={call.id} className="mt-0.5" />
               {call.isSystemTest && <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">Teste automático</div>}
               <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
                 Localização: {effectiveAssetLocation}

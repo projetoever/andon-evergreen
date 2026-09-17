@@ -18,6 +18,7 @@ import {
   getMachineConditionLabel,
 } from "@/utils/statusUtils";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { Inbox } from "lucide-react";
 
 interface MachineCurrentCallPanelProps {
@@ -107,9 +108,12 @@ export function MachineCurrentCallPanel({
         className,
       )}
     >
-      <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-        Chamado atual
-      </h3>
+      <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-1">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+          Chamado atual
+        </h3>
+        <CallIdLabel callId={call.id} className="text-right" />
+      </div>
       <dl className="grid min-h-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
