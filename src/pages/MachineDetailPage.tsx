@@ -340,12 +340,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onChange={(productionMode) => updateMachineProductionMode(machine.id, productionMode)}
       />
 
-      <MachineActiveCallSelector
-        calls={activeCalls}
-        selectedCallId={currentCall?.id ?? null}
-        onSelect={setSelectedCallId}
-      />
-
       <div className="grid min-h-[200px] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
@@ -436,6 +430,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           )}
         </section>
       )}
+
+      <MachineActiveCallSelector
+        calls={activeCalls}
+        selectedCallId={currentCall?.id ?? null}
+        onSelect={setSelectedCallId}
+      />
 
       <MachineActionPanel
         machine={machine}
