@@ -27,7 +27,6 @@ import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import {
   getConfirmedAssetLocationLabel,
   getEffectiveAssetLocationLabel,
-  getOpeningAssetLocationLabel,
   hasAssetConfirmation,
 } from "@/utils/assetLocationUtils";
 import { cn } from "@/lib/utils";
@@ -67,12 +66,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             : isMaintenance
               ? "Sem manutentor apontado"
               : "Não aplicável";
-        const openingAssetLocation =
-          getOpeningAssetLocationLabel(
-            call,
-            "Não informado",
-          );
-
         const confirmedAssetLocation =
           getConfirmedAssetLocationLabel(
             call,
@@ -197,15 +190,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 </dt>
                 <dd className="font-bold text-primary">
                   {effectiveAssetLocation}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-xs uppercase text-muted-foreground">
-                  Localização na abertura
-                </dt>
-                <dd className="font-bold">
-                  {openingAssetLocation}
                 </dd>
               </div>
 
