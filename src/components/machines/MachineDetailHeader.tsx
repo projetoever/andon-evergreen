@@ -4,6 +4,7 @@ import type { Machine } from "@/types/machine";
 import { MachineStatusBadge } from "./MachineStatusBadge";
 import { AndonStatusBadge } from "./AndonStatusBadge";
 import { ProductionModeBadge } from "./ProductionModeBadge";
+import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { cn } from "@/lib/utils";
 
 interface MachineDetailHeaderProps {
@@ -41,7 +42,8 @@ export function MachineDetailHeader({
           <div className="mt-0.5 text-xs text-muted-foreground md:text-sm">{machine.name}</div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+        <ClockDisplay />
         <button
           type="button"
           onClick={onToggleMachineSound}

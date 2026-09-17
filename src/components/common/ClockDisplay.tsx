@@ -1,28 +1,31 @@
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { formatLocalTime, scheduleClockUpdates } from "@/utils/localClockUtils";
 
-export function ClockDisplay() {
+interface ClockDisplayProps {
+  className?: string;
+}
+
+export function ClockDisplay({ className }: ClockDisplayProps) {
   const [now, setNow] = useState(() => new Date());
+
   useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
+    return scheduleClockUpdates(() => setNow(new Date()));
   }, []);
-  const time = now.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const date = now.toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+
+  const time = formatLocalTime(now);
+
   return (
-    <div className="flex flex-col items-end leading-tight">
-      <span className="font-mono text-3xl font-bold tabular-nums tracking-tight text-foreground">
-        {time}
-      </span>
-      <span className="text-xs uppercase tracking-wider text-muted-foreground">{date}</span>
-    </div>
+    <time
+      dateTime={now.toISOString()}
+      aria-label={`Hora atual: ${time}`}
+      title="Hora atual"
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-md border border-border bg-card px-2.5 py-1 font-mono text-base font-bold tabular-nums leading-none text-muted-foreground md:text-lg",
+        className,
+      )}
+    >
+      {time}
+    </time>
   );
 }

@@ -4,6 +4,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
+import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
 import { Volume2, VolumeX, Settings } from "lucide-react";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
@@ -102,7 +103,10 @@ export function DashboardPage() {
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-1">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
+          <ClockDisplay />
+        </div>
         <div className="flex items-center gap-2">
           {audioUnlocked && (
             <button
