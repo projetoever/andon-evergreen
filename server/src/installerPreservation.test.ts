@@ -300,16 +300,26 @@ test("fresh install fixa SHA, relança scripts sincronizados e bloqueia configur
   assert.doesNotMatch(bootstrap, /git pull --ff-only/);
 });
 
-test("runtime Node usa staging controlado, retry, cópia fallback e rollback validado", async () => {
+test("runtime Node valida move, usa cópia original e distingue rollback incompleto", async () => {
   const common = await readInstaller("AndonInstaller.Common.ps1");
 
   assert.match(common, /node\.staging\.\$operationId/);
   assert.match(common, /function Invoke-AndonMoveItemWithRetry/);
   assert.match(common, /function Copy-AndonRuntimeContent/);
-  assert.match(common, /fallback seguro por copia/);
+  assert.match(common, /function Get-AndonNodeRuntimeState/);
+  assert.match(common, /function Invoke-AndonNodeRuntimeActivation/);
+  assert.match(common, /Move-Item falhou ou produziu destino invalido/);
+  assert.match(common, /fallback seguro por copia a partir do pacote extraido/);
+  assert.match(common, /-Source \$ExtractedRuntime/);
+  assert.match(common, /Move-Item recusado para evitar runtime aninhado/);
   assert.match(common, /Runtime Node anterior restaurado e validado/);
+  assert.match(common, /Estado anterior incompleto[\s\S]*nao classificado como runtime valido/);
+  assert.match(common, /node\.exe=\$nodeStatus/);
+  assert.match(common, /npm\.cmd=\$npmStatus/);
+  assert.match(common, /versao detectada=\$detectedVersion/);
+  assert.match(common, /versao esperada=\$Global:AndonNodeVersionLabel/);
   assert.match(common, /Test-AndonNodeRuntimeAtPath -RuntimePath \$stagingRuntime/);
-  assert.match(common, /Test-AndonDedicatedNodeRuntime/);
+  assert.match(common, /Remove-AndonPartialNodeRuntime -RuntimePath \$Global:AndonNodeRuntimePath/);
   assert.doesNotMatch(common, /C:\\Program Files\\nodejs\\npm\.cmd/);
 });
 

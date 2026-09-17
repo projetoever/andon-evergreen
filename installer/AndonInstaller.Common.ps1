@@ -384,6 +384,59 @@ function Test-AndonNodeRuntimeAtPath {
     )
 }
 
+function Get-AndonNodeRuntimeState {
+    param([Parameter(Mandatory = $true)][string]$RuntimePath)
+
+    $nodePath = Join-Path $RuntimePath "node.exe"
+    $npmPath = Join-Path $RuntimePath "npm.cmd"
+    $folderExists = Test-Path $RuntimePath -PathType Container
+    $nodeExists = Test-Path $nodePath -PathType Leaf
+    $npmExists = Test-Path $npmPath -PathType Leaf
+    $detectedVersion = $null
+
+    if ($nodeExists) {
+        $detectedVersion = Get-AndonNodeRuntimeVersion -NodePath $nodePath
+    }
+
+    return [pscustomobject]@{
+        RuntimePath = $RuntimePath
+        FolderExists = $folderExists
+        NodeExists = $nodeExists
+        NpmExists = $npmExists
+        DetectedVersion = $detectedVersion
+        IsUsable = (
+            $folderExists -and
+            $nodeExists -and
+            $npmExists -and
+            ![string]::IsNullOrWhiteSpace("$detectedVersion")
+        )
+        IsExpected = (
+            $folderExists -and
+            $nodeExists -and
+            $npmExists -and
+            $detectedVersion -eq $Global:AndonNodeVersionLabel
+        )
+    }
+}
+
+function Format-AndonNodeRuntimeDiagnostic {
+    param([Parameter(Mandatory = $true)]$State)
+
+    $folderStatus = if ($State.FolderExists) { "presente" } else { "ausente" }
+    $nodeStatus = if ($State.NodeExists) { "presente" } else { "ausente" }
+    $npmStatus = if ($State.NpmExists) { "presente" } else { "ausente" }
+    $detectedVersion = if ([string]::IsNullOrWhiteSpace("$($State.DetectedVersion)")) {
+        "indisponivel"
+    } else {
+        "$($State.DetectedVersion)"
+    }
+
+    return (
+        "diretorio=$folderStatus; node.exe=$nodeStatus; npm.cmd=$npmStatus; " +
+        "versao detectada=$detectedVersion; versao esperada=$Global:AndonNodeVersionLabel"
+    )
+}
+
 function Invoke-AndonMoveItemWithRetry {
     param(
         [Parameter(Mandatory = $true)][string]$Source,
@@ -395,6 +448,9 @@ function Invoke-AndonMoveItemWithRetry {
     $lastError = $null
     for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
         try {
+            if (Test-Path $Destination) {
+                throw "Destino ja existe; Move-Item recusado para evitar runtime aninhado: $Destination"
+            }
             Move-Item `
                 -LiteralPath $Source `
                 -Destination $Destination `
@@ -402,6 +458,9 @@ function Invoke-AndonMoveItemWithRetry {
             return
         } catch {
             $lastError = $_
+            if ((Test-Path $Destination) -or !(Test-Path $Source)) {
+                break
+            }
             if ($attempt -lt $Attempts) {
                 Write-AndonWarn "Move-Item falhou na tentativa $attempt de $Attempts. Nova tentativa em $DelaySeconds segundo(s)."
                 Start-Sleep -Seconds $DelaySeconds
@@ -432,6 +491,180 @@ function Copy-AndonRuntimeContent {
         -Recurse `
         -Force `
         -ErrorAction Stop
+}
+
+function Remove-AndonPartialNodeRuntime {
+    param([Parameter(Mandatory = $true)][string]$RuntimePath)
+
+    $expectedPath = [IO.Path]::GetFullPath($Global:AndonNodeRuntimePath).TrimEnd("\")
+    $actualPath = [IO.Path]::GetFullPath($RuntimePath).TrimEnd("\")
+    if (![string]::Equals($actualPath, $expectedPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Limpeza recusada fora do destino dedicado do ANDON: $RuntimePath"
+    }
+
+    if (Test-Path $RuntimePath) {
+        Remove-Item `
+            -LiteralPath $RuntimePath `
+            -Recurse `
+            -Force `
+            -ErrorAction Stop
+    }
+}
+
+function Invoke-AndonNodeRuntimeActivation {
+    param(
+        [Parameter(Mandatory = $true)][string]$ExtractedRuntime,
+        [Parameter(Mandatory = $true)][string]$StagingRuntime
+    )
+
+    $moveError = $null
+    try {
+        Invoke-AndonMoveItemWithRetry `
+            -Source $StagingRuntime `
+            -Destination $Global:AndonNodeRuntimePath
+
+        $moveState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+        if (!$moveState.IsExpected) {
+            throw (
+                "Move-Item terminou sem runtime valido no destino. " +
+                (Format-AndonNodeRuntimeDiagnostic -State $moveState)
+            )
+        }
+        return
+    } catch {
+        $moveError = $_
+        Write-AndonWarn (
+            "Ativacao por Move-Item falhou ou produziu destino invalido. " +
+            "Aplicando fallback seguro por copia a partir do pacote extraido."
+        )
+    }
+
+    Remove-AndonPartialNodeRuntime -RuntimePath $Global:AndonNodeRuntimePath
+
+    try {
+        Copy-AndonRuntimeContent `
+            -Source $ExtractedRuntime `
+            -Destination $Global:AndonNodeRuntimePath
+    } catch {
+        $failedCopyState =
+            Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+        throw (
+            "Falha na ativacao do runtime Node. Move-Item: " +
+            "$($moveError.Exception.Message). Copia: $($_.Exception.Message). " +
+            (Format-AndonNodeRuntimeDiagnostic -State $failedCopyState)
+        )
+    }
+
+    $copyState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    if (!$copyState.IsExpected) {
+        throw (
+            "Fallback por copia produziu runtime Node invalido. " +
+            (Format-AndonNodeRuntimeDiagnostic -State $copyState)
+        )
+    }
+}
+
+function Enable-AndonDedicatedNodeRuntime {
+    param(
+        [Parameter(Mandatory = $true)][string]$ExtractedRuntime,
+        [Parameter(Mandatory = $true)][string]$StagingRuntime,
+        [Parameter(Mandatory = $true)][string]$PreviousRuntime
+    )
+
+    $previousState =
+        Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    $movedPreviousRuntime = $false
+
+    if ($previousState.FolderExists) {
+        $previousDiagnostic = Format-AndonNodeRuntimeDiagnostic -State $previousState
+        if ($previousState.IsUsable) {
+            Write-AndonOk "Runtime Node anterior classificado como utilizavel: $previousDiagnostic"
+        } else {
+            Write-AndonWarn "Runtime Node anterior classificado como incompleto: $previousDiagnostic"
+        }
+
+        Invoke-AndonMoveItemWithRetry `
+            -Source $Global:AndonNodeRuntimePath `
+            -Destination $PreviousRuntime
+        $movedPreviousRuntime = $true
+    }
+
+    try {
+        Invoke-AndonNodeRuntimeActivation `
+            -ExtractedRuntime $ExtractedRuntime `
+            -StagingRuntime $StagingRuntime
+
+        $activeState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+        if (!$activeState.IsExpected) {
+            throw (
+                "Runtime Node dedicado falhou na validacao final. " +
+                (Format-AndonNodeRuntimeDiagnostic -State $activeState)
+            )
+        }
+
+        if ($movedPreviousRuntime -and (Test-Path $PreviousRuntime)) {
+            try {
+                Remove-Item -LiteralPath $PreviousRuntime -Recurse -Force -ErrorAction Stop
+            } catch {
+                Write-AndonWarn "Runtime novo validado, mas o backup anterior nao pode ser removido: $PreviousRuntime"
+            }
+        }
+    } catch {
+        $installationError = $_
+
+        try {
+            Remove-AndonPartialNodeRuntime -RuntimePath $Global:AndonNodeRuntimePath
+
+            if ($movedPreviousRuntime) {
+                if (!(Test-Path $PreviousRuntime -PathType Container)) {
+                    throw "Backup do runtime anterior nao foi encontrado para rollback."
+                }
+
+                Invoke-AndonMoveItemWithRetry `
+                    -Source $PreviousRuntime `
+                    -Destination $Global:AndonNodeRuntimePath
+
+                $restoredState =
+                    Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+
+                if ($previousState.IsUsable) {
+                    if (
+                        !$restoredState.IsUsable -or
+                        $restoredState.DetectedVersion -ne $previousState.DetectedVersion
+                    ) {
+                        throw (
+                            "Rollback nao restaurou o runtime anterior utilizavel. " +
+                            (Format-AndonNodeRuntimeDiagnostic -State $restoredState)
+                        )
+                    }
+                    Write-AndonWarn (
+                        "Runtime Node anterior restaurado e validado apos falha: " +
+                        "$($restoredState.DetectedVersion)."
+                    )
+                } else {
+                    if (
+                        !$restoredState.FolderExists -or
+                        $restoredState.NodeExists -ne $previousState.NodeExists -or
+                        $restoredState.NpmExists -ne $previousState.NpmExists -or
+                        "$($restoredState.DetectedVersion)" -ne "$($previousState.DetectedVersion)"
+                    ) {
+                        throw "Rollback nao preservou o estado anterior incompleto do runtime Node."
+                    }
+                    Write-AndonWarn (
+                        "Estado anterior incompleto do runtime Node restaurado, " +
+                        "mas nao classificado como runtime valido."
+                    )
+                }
+            }
+        } catch {
+            throw (
+                "Falha critica no rollback do runtime Node. Erro original: " +
+                "$($installationError.Exception.Message). Rollback: $($_.Exception.Message)"
+            )
+        }
+
+        throw $installationError
+    }
 }
 
 function Assert-AndonNodePlatformSupport {
@@ -477,10 +710,6 @@ function Install-AndonDedicatedNodeRuntime {
     $extractedRuntime = Join-Path $extractPath $archiveFolder
     $stagingRuntime = Join-Path $Global:AndonRuntimeRoot "node.staging.$operationId"
     $previousRuntime = Join-Path $Global:AndonRuntimeRoot "node.previous.$operationId"
-    $movedPreviousRuntime = $false
-    $previousNodeExisted = $false
-    $previousNpmExisted = $false
-    $previousVersion = $null
 
     try {
         New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
@@ -525,94 +754,13 @@ function Install-AndonDedicatedNodeRuntime {
         }
         Write-AndonOk "Staging do runtime Node validado em $stagingRuntime."
 
-        if (Test-Path $Global:AndonNodeRuntimePath) {
-            $previousNodeExisted = Test-Path (Join-Path $Global:AndonNodeRuntimePath "node.exe") -PathType Leaf
-            $previousNpmExisted = Test-Path (Join-Path $Global:AndonNodeRuntimePath "npm.cmd") -PathType Leaf
-            $previousVersion = Get-AndonNodeRuntimeVersion
-            Invoke-AndonMoveItemWithRetry `
-                -Source $Global:AndonNodeRuntimePath `
-                -Destination $previousRuntime
-            $movedPreviousRuntime = $true
-        }
-
-        try {
-            Invoke-AndonMoveItemWithRetry `
-                -Source $stagingRuntime `
-                -Destination $Global:AndonNodeRuntimePath
-        } catch {
-            Write-AndonWarn "Ativacao por Move-Item falhou. Aplicando fallback seguro por copia."
-            if (Test-Path $Global:AndonNodeRuntimePath) {
-                Remove-Item `
-                    -LiteralPath $Global:AndonNodeRuntimePath `
-                    -Recurse `
-                    -Force `
-                    -ErrorAction Stop
-            }
-            Copy-AndonRuntimeContent `
-                -Source $extractedRuntime `
-                -Destination $Global:AndonNodeRuntimePath
-        }
-        if (!(Test-AndonDedicatedNodeRuntime)) {
-            throw "Runtime Node dedicado falhou na validacao apos a instalacao."
-        }
-
-        if ($movedPreviousRuntime -and (Test-Path $previousRuntime)) {
-            try {
-                Remove-Item -LiteralPath $previousRuntime -Recurse -Force -ErrorAction Stop
-            } catch {
-                Write-AndonWarn "Runtime novo validado, mas o backup anterior nao pode ser removido: $previousRuntime"
-            }
-        }
+        Enable-AndonDedicatedNodeRuntime `
+            -ExtractedRuntime $extractedRuntime `
+            -StagingRuntime $stagingRuntime `
+            -PreviousRuntime $previousRuntime
 
         Write-AndonOk "Node ANDON instalado: $Global:AndonNodeExePath ($Global:AndonNodeVersionLabel)."
         Write-AndonOk "Node global do Windows nao foi alterado."
-    } catch {
-        $installationError = $_
-        try {
-            if (Test-Path $Global:AndonNodeRuntimePath) {
-                Remove-Item `
-                    -LiteralPath $Global:AndonNodeRuntimePath `
-                    -Recurse `
-                    -Force `
-                    -ErrorAction Stop
-            }
-
-            if ($movedPreviousRuntime) {
-                if (!(Test-Path $previousRuntime -PathType Container)) {
-                    throw "Backup do runtime anterior nao foi encontrado para rollback."
-                }
-
-                Invoke-AndonMoveItemWithRetry `
-                    -Source $previousRuntime `
-                    -Destination $Global:AndonNodeRuntimePath
-
-                if (!(Test-Path $Global:AndonNodeRuntimePath -PathType Container)) {
-                    throw "Rollback nao restaurou o diretorio do runtime anterior."
-                }
-                if ($previousNodeExisted -and !(Test-Path (Join-Path $Global:AndonNodeRuntimePath "node.exe") -PathType Leaf)) {
-                    throw "Rollback nao restaurou node.exe do runtime anterior."
-                }
-                if ($previousNpmExisted -and !(Test-Path (Join-Path $Global:AndonNodeRuntimePath "npm.cmd") -PathType Leaf)) {
-                    throw "Rollback nao restaurou npm.cmd do runtime anterior."
-                }
-                if ($previousVersion) {
-                    $restoredVersion = Get-AndonNodeRuntimeVersion
-                    if ($restoredVersion -ne $previousVersion) {
-                        throw "Rollback restaurou versao inesperada: $restoredVersion."
-                    }
-                }
-                Write-AndonWarn "Runtime Node anterior restaurado e validado apos falha."
-            } elseif (Test-Path $Global:AndonNodeRuntimePath) {
-                throw "Falha ao limpar runtime parcial da primeira instalacao."
-            }
-        } catch {
-            throw (
-                "Falha critica no rollback do runtime Node. Erro original: " +
-                "$($installationError.Exception.Message). Rollback: $($_.Exception.Message)"
-            )
-        }
-
-        throw $installationError
     } finally {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $stagingRuntime -Recurse -Force -ErrorAction SilentlyContinue

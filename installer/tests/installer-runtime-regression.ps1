@@ -225,6 +225,26 @@ Assert-AndonTest `
     -Condition ($commonScript -match 'Runtime Node anterior restaurado e validado') `
     -Message "Runtime Node deve validar rollback"
 
+Assert-AndonTest `
+    -Condition ($commonScript -match 'function Get-AndonNodeRuntimeState') `
+    -Message "Runtime Node deve classificar estado anterior completo e incompleto"
+
+Assert-AndonTest `
+    -Condition ($commonScript -match 'Move-Item falhou ou produziu destino invalido') `
+    -Message "Validacao do destino deve integrar a tentativa por Move-Item"
+
+Assert-AndonTest `
+    -Condition ($commonScript -match '-Source \$ExtractedRuntime') `
+    -Message "Fallback deve copiar da extracao original validada"
+
+Assert-AndonTest `
+    -Condition ($commonScript -match 'Move-Item recusado para evitar runtime aninhado') `
+    -Message "Retry deve impedir Move-Item para destino ja existente"
+
+Assert-AndonTest `
+    -Condition ($commonScript -match 'Estado anterior incompleto[\s\S]*nao classificado como runtime valido') `
+    -Message "Rollback incompleto nao pode ser reportado como runtime validado"
+
 $networkSelectionStart = $commonScript.IndexOf("function Select-AndonServerIp")
 $networkSelectionEnd = $commonScript.IndexOf("function Ensure-AndonNetworkConfig")
 $networkSelection =
@@ -513,4 +533,264 @@ Assert-AndonThrows `
     -Message "Fallback legado deve rejeitar SHA invalido"
 
 Write-Host "Fluxo de primeira atualizacao legada aprovado."
+
+$originalNodeVersionFunction = ${function:Get-AndonNodeRuntimeVersion}
+$originalMoveFunction = ${function:Invoke-AndonMoveItemWithRetry}
+$originalCopyFunction = ${function:Copy-AndonRuntimeContent}
+$originalWarnFunction = ${function:Write-AndonWarn}
+$originalRuntimeRoot = $Global:AndonRuntimeRoot
+$originalRuntimePath = $Global:AndonNodeRuntimePath
+$originalNodePath = $Global:AndonNodeExePath
+$originalNpmPath = $Global:AndonNpmCmdPath
+$runtimeScenarioRoot =
+    Join-Path ([IO.Path]::GetTempPath()) "andon-runtime-regression-$([guid]::NewGuid().ToString('N'))"
+
+function New-AndonFakeRuntime {
+    param(
+        [Parameter(Mandatory = $true)][string]$RuntimePath,
+        [string]$Version = "v22.23.2",
+        [bool]$IncludeNode = $true,
+        [bool]$IncludeNpm = $true
+    )
+
+    New-Item -ItemType Directory -Path $RuntimePath -Force | Out-Null
+    if ($IncludeNode) {
+        Set-Content -LiteralPath (Join-Path $RuntimePath "node.exe") -Value $Version -NoNewline
+    }
+    if ($IncludeNpm) {
+        Set-Content -LiteralPath (Join-Path $RuntimePath "npm.cmd") -Value "npm" -NoNewline
+    }
+}
+
+function Reset-AndonRuntimeScenario {
+    if (Test-Path $runtimeScenarioRoot) {
+        Remove-Item -LiteralPath $runtimeScenarioRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $runtimeScenarioRoot -Force | Out-Null
+
+    $Global:AndonRuntimeRoot = $runtimeScenarioRoot
+    $Global:AndonNodeRuntimePath = Join-Path $runtimeScenarioRoot "node"
+    $Global:AndonNodeExePath = Join-Path $Global:AndonNodeRuntimePath "node.exe"
+    $Global:AndonNpmCmdPath = Join-Path $Global:AndonNodeRuntimePath "npm.cmd"
+    $script:runtimeMoveMode = "normal"
+    $script:runtimeCopyFails = $false
+    $script:runtimeWarnings = New-Object System.Collections.Generic.List[string]
+}
+
+function Get-AndonNodeRuntimeVersion {
+    param([string]$NodePath = $Global:AndonNodeExePath)
+    if (!(Test-Path $NodePath -PathType Leaf)) { return $null }
+    return (Get-Content -LiteralPath $NodePath -Raw).Trim()
+}
+
+function Invoke-AndonMoveItemWithRetry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [int]$Attempts = 3,
+        [int]$DelaySeconds = 2
+    )
+
+    $isActivation = $Source -like "*node.staging*"
+    if ($isActivation -and $script:runtimeMoveMode -eq "throw") {
+        throw "Move-Item simulado falhou"
+    }
+    if ($isActivation -and $script:runtimeMoveMode -eq "invalid") {
+        New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+        Copy-Item `
+            -LiteralPath (Join-Path $Source "npm.cmd") `
+            -Destination $Destination `
+            -Force
+        Remove-Item -LiteralPath $Source -Recurse -Force
+        return
+    }
+    if ($isActivation -and $script:runtimeMoveMode -eq "nested") {
+        New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+        Move-Item -LiteralPath $Source -Destination $Destination
+        return
+    }
+
+    & $originalMoveFunction `
+        -Source $Source `
+        -Destination $Destination `
+        -Attempts $Attempts `
+        -DelaySeconds 0
+}
+
+function Copy-AndonRuntimeContent {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    if ($script:runtimeCopyFails -and $Destination -eq $Global:AndonNodeRuntimePath) {
+        throw "Copia simulada falhou"
+    }
+    & $originalCopyFunction -Source $Source -Destination $Destination
+}
+
+function Write-AndonWarn {
+    param([string]$Message)
+    $script:runtimeWarnings.Add($Message) | Out-Null
+}
+
+try {
+    # A: runtime anterior incompleto deve ser substituido por staging valido.
+    Reset-AndonRuntimeScenario
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.a"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.a"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    New-AndonFakeRuntime `
+        -RuntimePath $Global:AndonNodeRuntimePath `
+        -IncludeNode $false `
+        -IncludeNpm $false
+    Enable-AndonDedicatedNodeRuntime `
+        -ExtractedRuntime $extractedRuntime `
+        -StagingRuntime $stagingRuntime `
+        -PreviousRuntime $previousRuntime
+    $scenarioState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    Assert-AndonTest `
+        -Condition ($scenarioState.IsExpected -and !(Test-Path $previousRuntime)) `
+        -Message "Cenario A: runtime incompleto deve ser substituido e validado"
+
+    # B: Move-Item sem erro, mas destino invalido, deve cair na copia da extracao.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "invalid"
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.b"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.b"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    Enable-AndonDedicatedNodeRuntime `
+        -ExtractedRuntime $extractedRuntime `
+        -StagingRuntime $stagingRuntime `
+        -PreviousRuntime $previousRuntime
+    Assert-AndonTest `
+        -Condition ((Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath).IsExpected) `
+        -Message "Cenario B: destino invalido sem excecao deve acionar copia"
+
+    # C: excecao do Move-Item deve cair na copia segura.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "throw"
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.c"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.c"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    Enable-AndonDedicatedNodeRuntime `
+        -ExtractedRuntime $extractedRuntime `
+        -StagingRuntime $stagingRuntime `
+        -PreviousRuntime $previousRuntime
+    Assert-AndonTest `
+        -Condition ((Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath).IsExpected) `
+        -Message "Cenario C: falha do Move-Item deve acionar copia"
+
+    # D: falha de move e copia deve terminar de forma controlada.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "throw"
+    $script:runtimeCopyFails = $true
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.d"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.d"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    Assert-AndonThrows `
+        -Action {
+            Enable-AndonDedicatedNodeRuntime `
+                -ExtractedRuntime $extractedRuntime `
+                -StagingRuntime $stagingRuntime `
+                -PreviousRuntime $previousRuntime
+        } `
+        -ExpectedMessage "Falha na ativacao do runtime Node" `
+        -Message "Cenario D: falha total deve ser controlada"
+
+    # E: runtime anterior utilizavel deve voltar com a versao original.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "throw"
+    $script:runtimeCopyFails = $true
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.e"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.e"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    New-AndonFakeRuntime -RuntimePath $Global:AndonNodeRuntimePath -Version "v20.18.0"
+    Assert-AndonThrows `
+        -Action {
+            Enable-AndonDedicatedNodeRuntime `
+                -ExtractedRuntime $extractedRuntime `
+                -StagingRuntime $stagingRuntime `
+                -PreviousRuntime $previousRuntime
+        } `
+        -ExpectedMessage "Falha na ativacao do runtime Node" `
+        -Message "Cenario E: falha total deve preservar erro original"
+    $restoredState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    Assert-AndonTest `
+        -Condition ($restoredState.IsUsable -and $restoredState.DetectedVersion -eq "v20.18.0") `
+        -Message "Cenario E: rollback deve restaurar e validar versao anterior"
+
+    # F: estado anterior incompleto pode ser preservado, nunca validado como utilizavel.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "throw"
+    $script:runtimeCopyFails = $true
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.f"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.f"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    New-AndonFakeRuntime `
+        -RuntimePath $Global:AndonNodeRuntimePath `
+        -Version "v20.18.0" `
+        -IncludeNpm $false
+    Assert-AndonThrows `
+        -Action {
+            Enable-AndonDedicatedNodeRuntime `
+                -ExtractedRuntime $extractedRuntime `
+                -StagingRuntime $stagingRuntime `
+                -PreviousRuntime $previousRuntime
+        } `
+        -ExpectedMessage "Falha na ativacao do runtime Node" `
+        -Message "Cenario F: falha total deve preservar erro original"
+    $restoredState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    Assert-AndonTest `
+        -Condition (
+            !$restoredState.IsUsable -and
+            ($script:runtimeWarnings -join "|") -match "nao classificado como runtime valido" -and
+            ($script:runtimeWarnings -join "|") -notmatch "anterior restaurado e validado"
+        ) `
+        -Message "Cenario F: runtime incompleto restaurado nao pode ser chamado de validado"
+
+    # G: destino aninhado e invalido deve ser rejeitado e substituido no caminho exato.
+    Reset-AndonRuntimeScenario
+    $script:runtimeMoveMode = "nested"
+    $extractedRuntime = Join-Path $runtimeScenarioRoot "extracted"
+    $stagingRuntime = Join-Path $runtimeScenarioRoot "node.staging.g"
+    $previousRuntime = Join-Path $runtimeScenarioRoot "node.previous.g"
+    New-AndonFakeRuntime -RuntimePath $extractedRuntime
+    New-AndonFakeRuntime -RuntimePath $stagingRuntime
+    Enable-AndonDedicatedNodeRuntime `
+        -ExtractedRuntime $extractedRuntime `
+        -StagingRuntime $stagingRuntime `
+        -PreviousRuntime $previousRuntime
+    $scenarioState = Get-AndonNodeRuntimeState -RuntimePath $Global:AndonNodeRuntimePath
+    Assert-AndonTest `
+        -Condition (
+            $scenarioState.IsExpected -and
+            !(Test-Path (Join-Path $Global:AndonNodeRuntimePath "node.staging.g"))
+        ) `
+        -Message "Cenario G: runtime aninhado deve ser rejeitado e nao permanecer"
+} finally {
+    Set-Item Function:\Get-AndonNodeRuntimeVersion -Value $originalNodeVersionFunction
+    Set-Item Function:\Invoke-AndonMoveItemWithRetry -Value $originalMoveFunction
+    Set-Item Function:\Copy-AndonRuntimeContent -Value $originalCopyFunction
+    Set-Item Function:\Write-AndonWarn -Value $originalWarnFunction
+    $Global:AndonRuntimeRoot = $originalRuntimeRoot
+    $Global:AndonNodeRuntimePath = $originalRuntimePath
+    $Global:AndonNodeExePath = $originalNodePath
+    $Global:AndonNpmCmdPath = $originalNpmPath
+    Remove-Item -LiteralPath $runtimeScenarioRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host "Ativacao e rollback do runtime Node aprovados nos cenarios A-G."
 Write-Host "Todos os testes de regressao do instalador foram aprovados."
