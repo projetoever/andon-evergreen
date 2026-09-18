@@ -1,6 +1,8 @@
 {
   "andonApiBaseUrl": "http://IP_DO_SERVIDOR:3001",
   "pollIntervalMs": 1000,
+  "apiTimeoutSec": 3,
+  "logDirectory": "%ProgramData%\\ANDON-IO-Agent\\logs",
   "hardware": {
     "pawnIoLibrary": "C:\\Program Files\\PawnIO\\PawnIOLib.dll",
     "pawnIoModule": "C:\\Program Files\\PawnIO\\modules\\LpcIO.bin",
@@ -8,14 +10,11 @@
     "gpioBase": "0x0A00"
   },
   "alertPolicy": {
-    "mode": "hold_until_attended",
-    "pulseMs": 3000,
-    "cooldownMs": 0,
+    "mode": "latest_open_exclusive",
+    "switchBreakMs": 150,
     "failSafeLow": true,
-    "serializeChannels": true,
-    "replayActiveOnStartup": true,
-    "dryRun": true,
-    "apiFailureMode": "hold_last"
+    "apiFailureMode": "hold_last",
+    "dryRun": true
   },
   "channels": [
     {
@@ -23,6 +22,7 @@
       "label": "Eletrica",
       "subtype": "electrical",
       "gpo": 1,
+      "hardwareMapped": true,
       "enabled": true,
       "port": "0x0A03",
       "mask": "0x02"
@@ -32,7 +32,8 @@
       "label": "Mecanica",
       "subtype": "mechanical",
       "gpo": null,
-      "enabled": false,
+      "hardwareMapped": false,
+      "enabled": true,
       "port": null,
       "mask": null
     },
@@ -41,7 +42,8 @@
       "label": "Hot Melt",
       "subtype": "hot_melt",
       "gpo": null,
-      "enabled": false,
+      "hardwareMapped": false,
+      "enabled": true,
       "port": null,
       "mask": null
     }
