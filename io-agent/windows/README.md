@@ -4,26 +4,82 @@
 
 Criar uma camada local e isolada entre o ANDON Web Industrial e as portas GPIO do mini-PC Inovattio.
 
-O agente não acessa o banco diretamente. O consumo inicial usa a API já existente do ANDON e o hardware local é acessado via PawnIO/PawnIOLib.
+O agente não acessa o banco diretamente. Ele consome a API do ANDON e controla o hardware local via PawnIO/PawnIOLib.
+
+## Regra de prioridade — espelhar o som do ANDON
+
+O frontend atual do ANDON seleciona para áudio somente chamados:
+- não marcados como `isSystemTest`;
+- com `status === "open"`;
+- de máquina ativa;
+- com som habilitado.
+
+Entre os elegíveis, ordena por `openedAt` decrescente e escolhe apenas o mais recente.
+
+Portanto o agente físico deve usar a mesma regra global:
+
+```text
+mais recente OPEN = único canal audível ativo
+```
+
+Exemplo:
+
+```text
+08:00 Elétrica OPEN       -> CH1 HIGH
+08:05 Hot Melt OPEN       -> CH1 LOW, CH3 HIGH
+08:10 Hot Melt ATENDIDO   -> CH3 LOW, CH1 HIGH
+08:15 Elétrica ATENDIDO   -> CH1 LOW
+```
+
+Nunca deve haver dois canais físicos HIGH ao mesmo tempo.
+
+Se dois chamados OPEN forem do mesmo subtipo, o canal permanece HIGH. Quando o mais recente for atendido, continua HIGH enquanto existir outro OPEN do mesmo subtipo.
+
+## Máquina de estados recomendada
+
+A cada ciclo de polling:
+
+1. buscar `GET /api/andon-calls?status=open&limit=100`;
+2. descartar `isSystemTest=true`;
+3. ordenar por `openedAt DESC`;
+4. escolher o primeiro chamado como `priorityCall`;
+5. resolver `priorityCall.subtype -> channel`;
+6. se o canal mudou:
+   - colocar o canal anterior em LOW;
+   - aguardar um pequeno dead-time configurável;
+   - colocar somente o novo canal em HIGH;
+7. se não houver chamado OPEN: colocar todos os canais em LOW;
+8. se o chamado prioritário deixar de estar OPEN, recalcular e restaurar o próximo mais recente automaticamente.
+
+Não usar uma saída independente por subtipo. A saída física é exclusiva e derivada do único `priorityCall`.
 
 ## Arquitetura
 
 ```text
-ANDON API (rede local)
-        |
-        | HTTP
-        v
-ANDON I/O Agent (mini-PC Windows)
-        |
-        | sessão persistente PawnIO
-        v
+ANDON API
+    |
+    v
+Priority Resolver
+latest OPEN by openedAt
+    |
+    v
+ANDON I/O Agent
+    |
+    | sessão PawnIO persistente
+    v
 ITE IT8786F
-        |
-        v
-GPO -> interface isolada -> entrada remota da sirene
+    |
+    v
+somente 1 GPO HIGH
+    |
+    v
+interfaces isoladas
+    |
+    v
+Schneider Harmony CH1..CH8
 ```
 
-## Hardware validado até agora
+## Hardware validado
 
 Equipamento investigado: mini-PC industrial Inovattio com Super I/O ITE IT8786F.
 
@@ -53,47 +109,33 @@ O runtime definitivo deve manter uma única sessão PawnIO aberta durante a exec
 7. sair do modo de configuração;
 8. manter o handle PawnIO aberto;
 9. realizar somente read-modify-write nos bits mapeados;
-10. ao encerrar/falhar, forçar todas as saídas conhecidas para LOW.
+10. ao trocar de canal, garantir LOW no anterior antes do HIGH no próximo;
+11. ao encerrar/falhar de hardware, forçar todas as saídas conhecidas para LOW.
 
-Não reentrar no Super I/O a cada pulso.
+Não reentrar no Super I/O a cada mudança de chamado.
 
-## Integração inicial com ANDON
-
-O MVP poderá usar a rota existente:
-
-```text
-GET /api/andon-calls?status=open&limit=100
-```
-
-O agente deve ignorar chamados `isSystemTest=true` e deduplicar por `call.id`.
-
-Mapeamento inicial desejado para a sirene Schneider Harmony:
+## Mapeamento lógico inicial da sirene
 
 - CH1: Elétrica — subtype `electrical`
 - CH2: Mecânica — subtype `mechanical`
 - CH3: Hot Melt — subtype `hot_melt`
 - demais canais: definir posteriormente
 
-Até o mapeamento físico dos demais GPOs ser validado, somente CH1/GPO1 pode ser habilitado.
+Até o mapeamento físico dos demais GPOs ser validado, somente CH1/GPO1 pode ser energizado em modo real.
 
-## Comportamento inicial recomendado
+Em `dryRun`, o resolvedor de prioridade pode simular CH1/CH2/CH3 mesmo sem hardware para validar preempção e retorno.
 
-Modo operacional do MVP:
+## Chamado prioritário sem GPO mapeado
 
-- enquanto existir pelo menos um chamado real com status `open` para o setor, a saída correspondente permanece HIGH;
-- quando o chamado é atendido, o ANDON muda seu status para `in_progress`; quando não restar nenhum chamado `open` daquele setor, a saída volta para LOW;
-- múltiplos chamados `open` do mesmo setor mantêm a saída HIGH até o último ser atendido;
-- registros `isSystemTest=true` são ignorados;
-- uma falha transitória da API não deve ser interpretada como atendimento: o agente mantém o último estado conhecido;
-- encerramento do agente tenta colocar todas as saídas conhecidas em LOW;
-- teste manual de hardware continua temporizado.
-
-Este comportamento acompanha o tempo de espera do ANDON: sirene ativa durante a espera por atendimento e silenciada no início do atendimento.
+Em modo real, se o chamado mais recente apontar para um canal ainda não mapeado, o agente deve:
+- colocar todas as saídas conhecidas em LOW;
+- registrar aviso claro;
+- não manter tocando um chamado mais antigo de outro setor, porque isso representaria o setor errado.
 
 ## Segurança elétrica
 
 O GPIO não alimenta a sirene.
 
-A sirene deve possuir fonte própria 12/24 Vcc e os GPOs devem comandar interfaces isoladas (relé/optoacoplador/transistor adequado). O contato isolado fecha o canal remoto da sirene contra o COM correspondente.
+A sirene deve possuir fonte própria 12/24 Vcc e os GPOs devem comandar interfaces isoladas. O contato isolado fecha o canal remoto da sirene contra o COM correspondente.
 
 Nenhuma carga deve ser conectada diretamente ao GPO do mini-PC.
