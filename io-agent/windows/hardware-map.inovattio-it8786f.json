@@ -40,7 +40,7 @@
       "biosLowByte": "0x5E",
       "biosHighByte": "0x7E",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false
+      "runtimePawnIoValidated": true
     },
     {
       "gpo": 3,
@@ -51,7 +51,7 @@
       "biosLowByte": "0xBD",
       "biosHighByte": "0xBF",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false
+      "runtimePawnIoValidated": true
     },
     {
       "gpo": 4,
@@ -62,7 +62,7 @@
       "biosLowByte": "0xB8",
       "biosHighByte": "0xF8",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false
+      "runtimePawnIoValidated": true
     },
     {
       "gpo": 5,
@@ -73,7 +73,7 @@
       "biosLowByte": "0xCD",
       "biosHighByte": "0xED",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false,
+      "runtimePawnIoValidated": true,
       "notes": "BIOS toggle also correlated with 0x0A05 bit0, but IT8786F output-enable for group 6 bit0 is disabled; runtime must control GP55 only."
     },
     {
@@ -85,7 +85,7 @@
       "biosLowByte": "0xCD",
       "biosHighByte": "0xDD",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false
+      "runtimePawnIoValidated": true
     },
     {
       "gpo": 7,
@@ -96,7 +96,12 @@
       "biosLowByte": "0xB8",
       "biosHighByte": "0xB9",
       "biosSnapshotValidated": true,
-      "runtimePawnIoValidated": false
+      "runtimePawnIoValidated": true
     }
-  ]
+  ],
+  "validation": {
+    "status": "validated",
+    "method": "BIOS differential mapping + Windows PawnIO read-modify-write + physical multimeter LOW/HIGH/LOW",
+    "result": "7/7 PASS"
+  }
 }
