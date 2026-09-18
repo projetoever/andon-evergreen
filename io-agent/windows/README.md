@@ -78,16 +78,17 @@ Até o mapeamento físico dos demais GPOs ser validado, somente CH1/GPO1 pode se
 
 ## Comportamento inicial recomendado
 
-Modo seguro do MVP:
+Modo operacional do MVP:
 
-- pulso único por novo chamado;
-- uma saída por vez;
-- fila para chamados simultâneos;
-- deduplicação para não repetir indefinidamente o mesmo chamado;
-- falha de API, PawnIO ou watchdog => saídas LOW;
-- teste manual sempre temporizado.
+- enquanto existir pelo menos um chamado real com status `open` para o setor, a saída correspondente permanece HIGH;
+- quando o chamado é atendido, o ANDON muda seu status para `in_progress`; quando não restar nenhum chamado `open` daquele setor, a saída volta para LOW;
+- múltiplos chamados `open` do mesmo setor mantêm a saída HIGH até o último ser atendido;
+- registros `isSystemTest=true` são ignorados;
+- uma falha transitória da API não deve ser interpretada como atendimento: o agente mantém o último estado conhecido;
+- encerramento do agente tenta colocar todas as saídas conhecidas em LOW;
+- teste manual de hardware continua temporizado.
 
-O padrão de toque e repetição até atendimento será definido posteriormente.
+Este comportamento acompanha o tempo de espera do ANDON: sirene ativa durante a espera por atendimento e silenciada no início do atendimento.
 
 ## Segurança elétrica
 
