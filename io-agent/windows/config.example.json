@@ -1,0 +1,46 @@
+{
+  "andonApiBaseUrl": "http://IP_DO_SERVIDOR:3001",
+  "pollIntervalMs": 1000,
+  "hardware": {
+    "pawnIoLibrary": "C:\\Program Files\\PawnIO\\PawnIOLib.dll",
+    "pawnIoModule": "C:\\Program Files\\PawnIO\\modules\\LpcIO.bin",
+    "chipId": "0x8786",
+    "gpioBase": "0x0A00"
+  },
+  "alertPolicy": {
+    "mode": "pulse_once",
+    "pulseMs": 1000,
+    "cooldownMs": 5000,
+    "failSafeLow": true,
+    "serializeChannels": true
+  },
+  "channels": [
+    {
+      "channel": 1,
+      "label": "Elétrica",
+      "subtype": "electrical",
+      "gpo": 1,
+      "enabled": true,
+      "port": "0x0A03",
+      "mask": "0x02"
+    },
+    {
+      "channel": 2,
+      "label": "Mecânica",
+      "subtype": "mechanical",
+      "gpo": null,
+      "enabled": false,
+      "port": null,
+      "mask": null
+    },
+    {
+      "channel": 3,
+      "label": "Hot Melt",
+      "subtype": "hot_melt",
+      "gpo": null,
+      "enabled": false,
+      "port": null,
+      "mask": null
+    }
+  ]
+}
