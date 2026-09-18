@@ -1,0 +1,102 @@
+{
+  "device": "Inovattio industrial mini-PC",
+  "superIo": {
+    "vendor": "ITE",
+    "model": "IT8786F",
+    "chipId": "0x8786",
+    "revision": "0x07",
+    "gpioLdn": "0x07",
+    "gpioBase": "0x0A00"
+  },
+  "mappingMethod": "BIOS single-output HIGH + Windows GPIO snapshot differential",
+  "baselineAllLow": {
+    "0x0A00": "0xBD",
+    "0x0A01": "0xF7",
+    "0x0A02": "0xFF",
+    "0x0A03": "0xB8",
+    "0x0A04": "0xCD",
+    "0x0A05": "0x5E",
+    "0x0A06": "0x04",
+    "0x0A07": "0xEF"
+  },
+  "gpos": [
+    {
+      "gpo": 1,
+      "gpioName": "GP41",
+      "port": "0x0A03",
+      "bit": 1,
+      "mask": "0x02",
+      "biosLowByte": "0xB8",
+      "biosHighByte": "0xBA",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": true
+    },
+    {
+      "gpo": 2,
+      "gpioName": "GP65",
+      "port": "0x0A05",
+      "bit": 5,
+      "mask": "0x20",
+      "biosLowByte": "0x5E",
+      "biosHighByte": "0x7E",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false
+    },
+    {
+      "gpo": 3,
+      "gpioName": "GP11",
+      "port": "0x0A00",
+      "bit": 1,
+      "mask": "0x02",
+      "biosLowByte": "0xBD",
+      "biosHighByte": "0xBF",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false
+    },
+    {
+      "gpo": 4,
+      "gpioName": "GP46",
+      "port": "0x0A03",
+      "bit": 6,
+      "mask": "0x40",
+      "biosLowByte": "0xB8",
+      "biosHighByte": "0xF8",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false
+    },
+    {
+      "gpo": 5,
+      "gpioName": "GP55",
+      "port": "0x0A04",
+      "bit": 5,
+      "mask": "0x20",
+      "biosLowByte": "0xCD",
+      "biosHighByte": "0xED",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false,
+      "notes": "BIOS toggle also correlated with 0x0A05 bit0, but IT8786F output-enable for group 6 bit0 is disabled; runtime must control GP55 only."
+    },
+    {
+      "gpo": 6,
+      "gpioName": "GP54",
+      "port": "0x0A04",
+      "bit": 4,
+      "mask": "0x10",
+      "biosLowByte": "0xCD",
+      "biosHighByte": "0xDD",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false
+    },
+    {
+      "gpo": 7,
+      "gpioName": "GP40",
+      "port": "0x0A03",
+      "bit": 0,
+      "mask": "0x01",
+      "biosLowByte": "0xB8",
+      "biosHighByte": "0xB9",
+      "biosSnapshotValidated": true,
+      "runtimePawnIoValidated": false
+    }
+  ]
+}
