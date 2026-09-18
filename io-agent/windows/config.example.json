@@ -8,16 +8,19 @@
     "gpioBase": "0x0A00"
   },
   "alertPolicy": {
-    "mode": "pulse_once",
-    "pulseMs": 1000,
-    "cooldownMs": 5000,
+    "mode": "hold_until_attended",
+    "pulseMs": 3000,
+    "cooldownMs": 0,
     "failSafeLow": true,
-    "serializeChannels": true
+    "serializeChannels": true,
+    "replayActiveOnStartup": true,
+    "dryRun": true,
+    "apiFailureMode": "hold_last"
   },
   "channels": [
     {
       "channel": 1,
-      "label": "Elétrica",
+      "label": "Eletrica",
       "subtype": "electrical",
       "gpo": 1,
       "enabled": true,
@@ -26,7 +29,7 @@
     },
     {
       "channel": 2,
-      "label": "Mecânica",
+      "label": "Mecanica",
       "subtype": "mechanical",
       "gpo": null,
       "enabled": false,
