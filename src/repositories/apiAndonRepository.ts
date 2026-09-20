@@ -19,6 +19,7 @@ import {
   setServerClockFromTimestamp,
 } from "@/utils/serverClock";
 import { sanitizeFailureDescription } from "@/utils/failureDescriptionUtils";
+import { calculateCallWaitingSnapshotMinutes } from "@/utils/durationUtils";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
 type ApiHealth = {
@@ -145,7 +146,15 @@ function calculateCallDurations(call: ApiAndonCall, nowIso = getServerNowIso()) 
   }, 0);
 
   return {
-    callWaitingMinutes: attendedAt ? diffMinutes(openedAt, attendedAt) : diffMinutes(openedAt, nowIso),
+    callWaitingMinutes: calculateCallWaitingSnapshotMinutes(
+      {
+        openedAt,
+        attendedAt,
+        finishedAt,
+        callWaitingMinutes: call.callWaitingMinutes,
+      },
+      nowIso,
+    ),
     // These fields contain only completed cycles. The live segment is added by durationUtils,
     // keeping repeated maintenance/follow-up cycles cumulative instead of replacing the total.
     attendanceMinutes: call.attendanceMinutes ?? 0,

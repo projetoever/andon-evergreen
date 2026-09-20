@@ -8,6 +8,10 @@ import * as andonService from "@/services/andonService";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
+import {
+  calculateCallWaitingMinutes,
+  calculateTotalCallMinutes,
+} from "@/utils/durationUtils";
 import type { AndonRepository, AndonSnapshot } from "./andonRepository";
 
 type OpenCallMachineSetSnapshotParams = andonService.OpenAndonCallParams & {
@@ -181,15 +185,19 @@ export class LocalAndonRepository implements AndonRepository {
     if (!cancelledSourceCall) return result;
 
     const now = new Date().toISOString();
-    const cancelledCall: AndonCall = {
+    const cancelledCallSnapshot: AndonCall = {
       ...cancelledSourceCall,
       status: "cancelled",
       finishedAt: now,
       currentAttendanceStartedAt: null,
-      totalCallMinutes: andonService.normalizeAndonCall({ ...cancelledSourceCall, finishedAt: now }).totalCallMinutes,
       cancelReason: params.reason?.trim() || null,
       notes: appendAuditNote(cancelledSourceCall.notes, params.reason),
       updatedAt: now,
+    };
+    const cancelledCall: AndonCall = {
+      ...cancelledCallSnapshot,
+      callWaitingMinutes: calculateCallWaitingMinutes(cancelledCallSnapshot, now),
+      totalCallMinutes: calculateTotalCallMinutes(cancelledCallSnapshot, now),
     };
 
     return {

@@ -10,7 +10,27 @@ export function diffMinutes(a: string | null | undefined, b: string | null | und
 }
 
 export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): number {
-  const end = call.attendedAt ?? nowIso ?? getServerNowIso();
+  const end = call.attendedAt ?? call.finishedAt ?? nowIso ?? getServerNowIso();
+  return diffMinutes(call.openedAt, end);
+}
+
+type CallWaitingSnapshot = Pick<AndonCall, "openedAt" | "attendedAt" | "finishedAt"> & {
+  callWaitingMinutes?: number;
+};
+
+export function calculateCallWaitingSnapshotMinutes(
+  call: CallWaitingSnapshot,
+  nowIso: string,
+): number {
+  const hasPersistedWaitingDuration =
+    call.finishedAt !== null &&
+    typeof call.callWaitingMinutes === "number" &&
+    Number.isFinite(call.callWaitingMinutes) &&
+    call.callWaitingMinutes >= 0;
+
+  if (hasPersistedWaitingDuration) return call.callWaitingMinutes;
+
+  const end = call.attendedAt ?? call.finishedAt ?? nowIso;
   return diffMinutes(call.openedAt, end);
 }
 
