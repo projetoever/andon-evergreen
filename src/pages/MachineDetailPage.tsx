@@ -11,7 +11,6 @@ import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { QuickOpenCallModal } from "@/components/calls/QuickOpenCallModal";
 import { TechnicianIdentificationModal } from "@/components/calls/TechnicianIdentificationModal";
 import { MachineActionPanel } from "@/components/machines/MachineActionPanel";
-import { MachineActiveCallSelector } from "@/components/machines/MachineActiveCallSelector";
 import { MachineCurrentCallPanel } from "@/components/machines/MachineCurrentCallPanel";
 import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentStatusPanel";
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
@@ -112,10 +111,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const currentCall = selectedCallId
     ? (activeCalls.find((call) => call.id === selectedCallId) ?? null)
     : null;
-  const activeSubtypes = useMemo(
-    () => new Set(activeCalls.map((call) => call.subtype)),
-    [activeCalls],
-  );
   const openStopOwnerCallId = machine?.stopHistory.find((event) => !event.resumedAt)?.callId;
   const hasActiveStopOwner = Boolean(
     openStopOwnerCallId && activeCalls.some((call) => call.id === openStopOwnerCallId),
@@ -431,19 +426,15 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         </section>
       )}
 
-      <MachineActiveCallSelector
-        calls={activeCalls}
-        selectedCallId={currentCall?.id ?? null}
-        onSelect={setSelectedCallId}
-      />
-
       <MachineActionPanel
         machine={machine}
         currentCall={currentCall}
         categories={categories}
-        activeSubtypes={activeSubtypes}
+        activeCalls={activeCalls}
+        selectedCallId={selectedCallId}
         hasActiveStopOwner={hasActiveStopOwner}
         onOpenSubtype={(subtype) => void handleOpenSubtype(subtype)}
+        onSelectCall={setSelectedCallId}
         onAttend={() => void handleAttend()}
         onCancelCall={() => currentCall && setCancelCallId(currentCall.id)}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}

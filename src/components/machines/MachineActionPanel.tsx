@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
   CheckCheck,
+  CircleDot,
   FileWarning,
   History,
   RotateCcw,
@@ -19,9 +20,11 @@ interface MachineActionPanelProps {
   machine: Machine;
   currentCall: AndonCall | null;
   categories: AndonCategoryConfig[];
-  activeSubtypes: Set<CallSubtype>;
+  activeCalls: AndonCall[];
+  selectedCallId: string | null;
   hasActiveStopOwner: boolean;
   onOpenSubtype: (subtype: CallSubtype) => void;
+  onSelectCall: (callId: string) => void;
   onAttend: () => void;
   onCancelCall: () => void;
   onFinish: () => void;
@@ -39,13 +42,77 @@ function readableTextColor(hex: string) {
   return luminance > 145 ? "#071015" : "#FFFFFF";
 }
 
+interface MachineSectorButtonProps {
+  category: AndonCategoryConfig;
+  activeCall: AndonCall | undefined;
+  selectedCallId: string | null;
+  className: string;
+  onOpenSubtype: (subtype: CallSubtype) => void;
+  onSelectCall: (callId: string) => void;
+}
+
+export function MachineSectorButton({
+  category,
+  activeCall,
+  selectedCallId,
+  className,
+  onOpenSubtype,
+  onSelectCall,
+}: MachineSectorButtonProps) {
+  const selected = activeCall?.id === selectedCallId;
+  const actionLabel = activeCall
+    ? selected
+      ? `Selecionado: chamado ${category.displayName}`
+      : `Selecionar chamado ${category.displayName}`
+    : `Abrir novo chamado ${category.displayName}`;
+
+  return (
+    <button
+      type="button"
+      aria-label={actionLabel}
+      aria-pressed={activeCall ? selected : undefined}
+      title={actionLabel}
+      onClick={() => (activeCall ? onSelectCall(activeCall.id) : onOpenSubtype(category.id))}
+      className={cn(
+        "relative rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        className,
+      )}
+      style={{
+        backgroundColor: category.color,
+        borderColor: category.color,
+        color: readableTextColor(category.color),
+      }}
+    >
+      {selected && (
+        <span
+          aria-hidden="true"
+          data-selection-ring="true"
+          className="pointer-events-none absolute -inset-1 rounded-xl border-2 animate-pulse"
+          style={{ borderColor: category.color }}
+        />
+      )}
+      <span className="relative inline-flex items-center justify-center gap-1.5">
+        {selected && <CircleDot aria-hidden="true" className="h-4 w-4 shrink-0" />}
+        <span>{category.displayName}</span>
+        {activeCall && (
+          <span className="text-[10px] normal-case tracking-normal">
+            · {selected ? "Selecionado" : "Ativo"}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
 export function MachineActionPanel({
   machine,
   currentCall,
   categories,
-  activeSubtypes,
+  activeCalls,
+  selectedCallId,
   hasActiveStopOwner,
   onOpenSubtype,
+  onSelectCall,
   onAttend,
   onCancelCall,
   onFinish,
@@ -53,7 +120,7 @@ export function MachineActionPanel({
   onReturnToMaintenance,
   screenLocked = false,
 }: MachineActionPanelProps) {
-  const hasActiveCall = activeSubtypes.size > 0;
+  const hasActiveCall = activeCalls.length > 0;
   const layoutStage = !hasActiveCall ? "idle" : currentCall?.status === "open" ? "open" : "busy";
   const sectorActionClass =
     layoutStage === "idle"
@@ -82,8 +149,8 @@ export function MachineActionPanel({
         </h3>
         <p className="text-xs text-muted-foreground">
           {machine.machineStatus === "stopped" && hasActiveStopOwner
-            ? "Máquina parada: toque no setor para abrir diretamente. Setores ativos ficam bloqueados."
-            : "Toque no setor para informar a condição e abrir. Setores ativos ficam bloqueados."}
+            ? "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado."
+            : "Setor livre abre chamado; setor ativo seleciona o chamado."}
         </p>
       </div>
 
@@ -92,32 +159,17 @@ export function MachineActionPanel({
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
       >
         {categories.map((category) => {
-          const active = activeSubtypes.has(category.id);
+          const activeCall = activeCalls.find((call) => call.subtype === category.id);
           return (
-            <button
+            <MachineSectorButton
               key={category.id}
-              type="button"
-              disabled={active}
-              onClick={() => onOpenSubtype(category.id)}
-              className={cn(
-                "rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60",
-                sectorActionClass,
-              )}
-              style={
-                active
-                  ? undefined
-                  : {
-                      backgroundColor: category.color,
-                      borderColor: category.color,
-                      color: readableTextColor(category.color),
-                    }
-              }
-            >
-              <span>{category.displayName}</span>
-              {active && (
-                <span className="ml-1 text-[10px] normal-case tracking-normal">· ativo</span>
-              )}
-            </button>
+              category={category}
+              activeCall={activeCall}
+              selectedCallId={selectedCallId}
+              className={sectorActionClass}
+              onOpenSubtype={onOpenSubtype}
+              onSelectCall={onSelectCall}
+            />
           );
         })}
       </div>

@@ -4,76 +4,175 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MachineActiveCallSelector } from "../src/components/machines/MachineActiveCallSelector";
+import { MachineSectorButton } from "../src/components/machines/MachineActionPanel";
 import type { AndonCall } from "../src/types/andon";
+import type { AndonCategoryConfig } from "../src/types/settings";
 
 function createCall(id: string, subtype: AndonCall["subtype"]): AndonCall {
   return { id, subtype, status: "open" } as AndonCall;
 }
 
+function createCategory(
+  id: AndonCategoryConfig["id"],
+  displayName: string,
+  color: string,
+): AndonCategoryConfig {
+  return {
+    id,
+    categoryGroup: "maintenance",
+    displayName,
+    color,
+    active: true,
+    displayOrder: 1,
+  };
+}
+
 const electricalCall = createCall("call-electrical", "electrical");
 const mechanicalCall = createCall("call-mechanical", "mechanical");
+const electrical = createCategory("electrical", "Elétrica", "#F5B700");
+const mechanical = createCategory("mechanical", "Mecânica", "#2563EB");
 
-test("exibe seletor somente quando existem múltiplos chamados", () => {
-  const singleCallMarkup = renderToStaticMarkup(
-    <MachineActiveCallSelector
-      calls={[electricalCall]}
-      selectedCallId={electricalCall.id}
-      onSelect={() => undefined}
+function renderSector(
+  category: AndonCategoryConfig,
+  activeCall: AndonCall | undefined,
+  selectedCallId: string | null,
+) {
+  return renderToStaticMarkup(
+    <MachineSectorButton
+      category={category}
+      activeCall={activeCall}
+      selectedCallId={selectedCallId}
+      className="sector-size"
+      onOpenSubtype={() => undefined}
+      onSelectCall={() => undefined}
     />,
   );
-  const multipleCallsMarkup = renderToStaticMarkup(
-    <MachineActiveCallSelector
-      calls={[electricalCall, mechanicalCall]}
-      selectedCallId={electricalCall.id}
-      onSelect={() => undefined}
-    />,
-  );
+}
 
-  assert.equal(singleCallMarkup, "");
-  assert.equal((multipleCallsMarkup.match(/<button/g) ?? []).length, 2);
+test("cenário A: setor livre mantém a ação de abrir e não aparece selecionado", () => {
+  const opened: string[] = [];
+  const element = MachineSectorButton({
+    category: electrical,
+    activeCall: undefined,
+    selectedCallId: null,
+    className: "sector-size",
+    onOpenSubtype: (subtype) => opened.push(subtype),
+    onSelectCall: () => assert.fail("setor livre não deve selecionar chamado"),
+  });
+  (element.props as { onClick: () => void }).onClick();
+
+  const markup = renderSector(electrical, undefined, null);
+  assert.deepEqual(opened, [electrical.id]);
+  assert.match(markup, /Abrir novo chamado Elétrica/);
+  assert.doesNotMatch(markup, /aria-pressed/);
+  assert.doesNotMatch(markup, /Selecionado|data-selection-ring/);
 });
 
-test("mantém indicadores textual, visual e acessível usando a cor configurada", () => {
-  const markup = renderToStaticMarkup(
-    <MachineActiveCallSelector
-      calls={[electricalCall, mechanicalCall]}
-      selectedCallId={electricalCall.id}
-      onSelect={() => undefined}
-    />,
-  );
+test("cenário B: setor ativo permanece colorido, clicável e seleciona sem abrir duplicata", () => {
+  const selected: string[] = [];
+  const opened: string[] = [];
+  const element = MachineSectorButton({
+    category: electrical,
+    activeCall: electricalCall,
+    selectedCallId: electricalCall.id,
+    className: "sector-size",
+    onOpenSubtype: (subtype) => opened.push(subtype),
+    onSelectCall: (callId) => selected.push(callId),
+  });
+  (element.props as { onClick: () => void }).onClick();
 
-  assert.match(markup, /Elétrica/);
-  assert.match(markup, /Mecânica/);
-  assert.match(markup, /Selecionado/);
-  assert.match(markup, /aria-pressed="true"/);
-  assert.match(markup, /aria-pressed="false"/);
+  const markup = renderSector(electrical, electricalCall, electricalCall.id);
+  assert.deepEqual(selected, [electricalCall.id]);
+  assert.deepEqual(opened, []);
   assert.match(markup, /background-color:#F5B700/);
   assert.match(markup, /border-color:#F5B700/);
+  assert.doesNotMatch(markup, /disabled/);
 });
 
-test("seletor fica imediatamente antes das ações e ambas usam currentCall", async () => {
-  const [page, selector] = await Promise.all([
-    readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src/components/machines/MachineActiveCallSelector.tsx", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  const selectorMatches = [...page.matchAll(/<MachineActiveCallSelector/g)];
-  const selectorPosition = page.indexOf("<MachineActiveCallSelector");
-  const actionPanelPosition = page.indexOf("<MachineActionPanel");
+test("cenário C: dois setores ativos trocam selectedCallId e não usam seletor adicional", async () => {
+  const selected: string[] = [];
+  const element = MachineSectorButton({
+    category: mechanical,
+    activeCall: mechanicalCall,
+    selectedCallId: electricalCall.id,
+    className: "sector-size",
+    onOpenSubtype: () => assert.fail("não deve abrir chamado duplicado"),
+    onSelectCall: (callId) => selected.push(callId),
+  });
+  (element.props as { onClick: () => void }).onClick();
+  assert.deepEqual(selected, [mechanicalCall.id]);
 
-  assert.equal(selectorMatches.length, 1);
-  assert.ok(selectorPosition >= 0 && selectorPosition < actionPanelPosition);
-  assert.match(page.slice(selectorPosition, actionPanelPosition), /onSelect=\{setSelectedCallId\}/);
+  const page = await readFile(
+    new URL("../src/pages/MachineDetailPage.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(page, /MachineActiveCallSelector/);
+  assert.match(page, /activeCalls=\{activeCalls\}/);
+  assert.match(page, /selectedCallId=\{selectedCallId\}/);
+  assert.match(page, /onSelectCall=\{setSelectedCallId\}/);
   assert.match(page, /activeCalls\.find\(\(call\) => call\.id === selectedCallId\)/);
-  assert.match(page, /currentCall=\{currentCall\}/);
   assert.match(page, /await attendCall\(\{ callId: currentCall\.id/);
   assert.match(page, /setCancelCallId\(currentCall\.id\)/);
   assert.match(page, /setFinishCallId\(currentCall\.id\)/);
   assert.match(page, /completeMaintenance\(currentCall\.id\)/);
   assert.match(page, /returnToMaintenance\(currentCall\.id\)/);
-  assert.match(selector, /getCallTypeOption\(call\.subtype\)/);
-  assert.match(selector, /callType\?\.color/);
+});
+
+test("cenário D: somente o setor selecionado exibe CircleDot, texto e ring pulsante", () => {
+  const selectedMarkup = renderSector(electrical, electricalCall, electricalCall.id);
+  const otherActiveMarkup = renderSector(mechanical, mechanicalCall, electricalCall.id);
+
+  assert.match(selectedMarkup, /aria-pressed="true"/);
+  assert.match(selectedMarkup, /Selecionado/);
+  assert.match(selectedMarkup, /data-selection-ring="true"/);
+  assert.match(selectedMarkup, /animate-pulse/);
+  assert.match(selectedMarkup, /lucide-circle-dot/);
+  assert.match(otherActiveMarkup, /aria-pressed="false"/);
+  assert.match(otherActiveMarkup, /Ativo/);
+  assert.doesNotMatch(otherActiveMarkup, /data-selection-ring|animate-pulse|lucide-circle-dot/);
+});
+
+test("cenário E: chamado encerrado devolve seu setor à abertura e mantém outro selecionável", async () => {
+  const opened: string[] = [];
+  const selected: string[] = [];
+  const freeSector = MachineSectorButton({
+    category: electrical,
+    activeCall: undefined,
+    selectedCallId: mechanicalCall.id,
+    className: "sector-size",
+    onOpenSubtype: (subtype) => opened.push(subtype),
+    onSelectCall: () => assert.fail("setor encerrado não deve selecionar chamado"),
+  });
+  const activeSector = MachineSectorButton({
+    category: mechanical,
+    activeCall: mechanicalCall,
+    selectedCallId: mechanicalCall.id,
+    className: "sector-size",
+    onOpenSubtype: () => assert.fail("setor ativo não deve abrir duplicata"),
+    onSelectCall: (callId) => selected.push(callId),
+  });
+  (freeSector.props as { onClick: () => void }).onClick();
+  (activeSector.props as { onClick: () => void }).onClick();
+  assert.deepEqual(opened, [electrical.id]);
+  assert.deepEqual(selected, [mechanicalCall.id]);
+
+  const page = await readFile(
+    new URL("../src/pages/MachineDetailPage.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(page, /if \(!activeCalls\.length\) \{\s*setSelectedCallId\(null\)/);
+  assert.match(
+    page,
+    /setSelectedCallId\(\(current\) => \(current && currentIds\.has\(current\) \? current : preferred\.id\)\)/,
+  );
+});
+
+test("cenário F: categoria dinâmica reutiliza sua cor no botão e no ring", () => {
+  const dynamicCategory = createCategory("custom-sector", "Setor customizado", "#12AB34");
+  const dynamicCall = createCall("call-custom", dynamicCategory.id);
+  const markup = renderSector(dynamicCategory, dynamicCall, dynamicCall.id);
+
+  assert.match(markup, /background-color:#12AB34/);
+  assert.equal((markup.match(/border-color:#12AB34/g) ?? []).length, 2);
+  assert.match(markup, /Selecionado: chamado Setor customizado/);
 });
