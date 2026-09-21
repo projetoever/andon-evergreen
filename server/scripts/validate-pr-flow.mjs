@@ -26,6 +26,7 @@ const ids = {
   inactiveSubset: "pr51-inactive-subset",
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
+  failureClassificationValue: "integration_dynamic_failure",
 };
 
 async function request(path, options = {}, expectedStatus = 200) {
@@ -99,6 +100,9 @@ async function cleanup() {
   await prisma.andonCategory.deleteMany({
     where: { id: { in: [ids.category, ids.unusedCategory] } },
   });
+  await prisma.failureClassification.deleteMany({
+    where: { value: ids.failureClassificationValue },
+  });
   await prisma.systemSettings.deleteMany({ where: { id: "global" } });
 }
 
@@ -143,6 +147,59 @@ async function run() {
     201,
   );
   await request(`/api/andon-categories/${ids.unusedCategory}`, { method: "DELETE" }, 204);
+
+  const centralCatalog = await request("/api/failure-classifications");
+  assert.ok(
+    centralCatalog.some((classification) => classification.value === "real_machine_failure"),
+    "o catálogo central deve conter os valores históricos consolidados pela migration",
+  );
+
+  const createdClassification = await request(
+    "/api/failure-classifications",
+    json("POST", {
+      label: "Falha dinâmica de integração",
+      value: ids.failureClassificationValue,
+      active: true,
+    }),
+    201,
+  );
+  assert.equal(createdClassification.value, ids.failureClassificationValue);
+
+  await request(
+    "/api/failure-classifications",
+    json("POST", {
+      label: "Duplicata de integração",
+      value: ids.failureClassificationValue,
+      active: true,
+    }),
+    409,
+  );
+
+  const renamedClassification = await request(
+    `/api/failure-classifications/${createdClassification.id}`,
+    json("PATCH", { label: "Falha dinâmica renomeada" }),
+  );
+  assert.equal(renamedClassification.label, "Falha dinâmica renomeada");
+
+  const inactiveClassification = await request(
+    `/api/failure-classifications/${createdClassification.id}`,
+    json("PATCH", { active: false }),
+  );
+  assert.equal(inactiveClassification.active, false);
+
+  const activeClassifications = await request("/api/failure-classifications?active=true");
+  assert.ok(
+    activeClassifications.every(
+      (classification) => classification.value !== ids.failureClassificationValue,
+    ),
+    "classificações inativas não devem aparecer nas novas escolhas",
+  );
+  const completeCatalog = await request("/api/failure-classifications");
+  const historicalClassification = completeCatalog.find(
+    (classification) => classification.value === ids.failureClassificationValue,
+  );
+  assert.equal(historicalClassification?.label, "Falha dinâmica renomeada");
+  assert.equal(historicalClassification?.active, false);
 
   await prisma.shift.create({
     data: {
@@ -195,10 +252,9 @@ async function run() {
     },
   });
 
-  const deletedSetType = await request(
-    `/api/machine-set-types/${ids.unusedSetType}`,
-    { method: "DELETE" },
-  );
+  const deletedSetType = await request(`/api/machine-set-types/${ids.unusedSetType}`, {
+    method: "DELETE",
+  });
   assert.equal(deletedSetType.deleted, true);
   assert.equal(
     (await prisma.machineSet.findUniqueOrThrow({ where: { id: ids.inactiveSet } })).typeId,
@@ -206,10 +262,9 @@ async function run() {
     "a exclusão do catálogo deve preservar o conjunto inativo sem o vínculo removido",
   );
 
-  const deletedSubsetType = await request(
-    `/api/machine-subset-types/${ids.unusedSubsetType}`,
-    { method: "DELETE" },
-  );
+  const deletedSubsetType = await request(`/api/machine-subset-types/${ids.unusedSubsetType}`, {
+    method: "DELETE",
+  });
   assert.equal(deletedSubsetType.deleted, true);
   assert.equal(
     (await prisma.machineSubset.findUniqueOrThrow({ where: { id: ids.inactiveSubset } })).typeId,

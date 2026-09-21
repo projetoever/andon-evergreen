@@ -12,7 +12,11 @@ import type { CallSubtype } from "@/types/andon";
 import { DEFAULT_SOUND_MACHINE_ID, type AndonSoundConfig, type SoundMachineId } from "@/types/sound";
 import type { FailureClassificationConfig, SettingsTab, ShiftConfig } from "@/types/settings";
 import { toast } from "sonner";
-import { getFailureClassificationConfigs, saveFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
+import {
+  createFailureClassification,
+  getFailureClassificationConfigs,
+  updateFailureClassification,
+} from "@/services/failureClassificationConfigService";
 import { MachineAdminPanel } from "./MachineAdminPanel";
 import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
 import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
@@ -229,36 +233,102 @@ return <div className="space-y-4"><div className="space-y-1"><h3 className="text
 function ClassificationsTab() {
   const [items, setItems] = useState<FailureClassificationConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<FailureClassificationConfig>({ id: "", label: "", isActive: true });
-  useEffect(() => { setItems(getFailureClassificationConfigs()); }, []);
-  const persist = (next: FailureClassificationConfig[]) => { setItems(next); saveFailureClassificationConfigs(next); };
-  const handleAddClassification = () => { setSelectedId(null); setDraft({ id: "", label: "", isActive: true }); };
-  const handleSelect = (item: FailureClassificationConfig) => { setSelectedId(item.id); setDraft({ ...item }); };
-  const handleSave = () => {
+  const [draft, setDraft] = useState<FailureClassificationConfig>({
+    id: "",
+    value: "",
+    label: "",
+    active: true,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadCatalog = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const catalog = await getFailureClassificationConfigs();
+      setItems(catalog);
+      return catalog;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao carregar classificações.";
+      setLoadError(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCatalog().catch(() => undefined);
+  }, [loadCatalog]);
+
+  const handleAddClassification = () => {
+    setSelectedId(null);
+    setDraft({ id: "", value: "", label: "", active: true });
+  };
+  const handleSelect = (item: FailureClassificationConfig) => {
+    setSelectedId(item.id);
+    setDraft({ ...item });
+  };
+  const handleSave = async () => {
     if (!draft.label.trim()) return toast.error("Informe o nome exibido.");
-    const id = draft.id.trim() || draft.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-    if (!id) return toast.error("Informe um ID interno válido.");
-    if (!/^[a-z0-9_]+$/.test(id)) return toast.error("ID interno inválido. Use minúsculas e underscore.");
-    const duplicate = items.some((item) => item.id === id && item.id !== selectedId);
-    if (duplicate) return toast.error("Já existe classificação com este ID.");
-    const nextItem = { ...draft, id, label: draft.label.trim(), updatedAt: new Date().toISOString(), createdAt: draft.createdAt ?? new Date().toISOString() };
-    persist([...items.filter((item) => item.id !== selectedId), nextItem].sort((a,b)=>a.label.localeCompare(b.label)));
-    setSelectedId(id);
-    setDraft(nextItem);
-    toast.success("Classificação salva.");
+    const value = (draft.value.trim() || draft.label)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+    if (!value || !/^[a-z0-9_]+$/.test(value)) {
+      return toast.error("ID interno inválido. Use minúsculas e underscore.");
+    }
+
+    setIsSaving(true);
+    try {
+      const saved = selectedId
+        ? await updateFailureClassification(selectedId, {
+            label: draft.label.trim(),
+            active: draft.active,
+          })
+        : await createFailureClassification({
+            label: draft.label.trim(),
+            value,
+            active: draft.active,
+          });
+      const catalog = await loadCatalog();
+      const refreshed = catalog.find((item) => item.id === saved.id) ?? saved;
+      setSelectedId(refreshed.id);
+      setDraft({ ...refreshed });
+      toast.success("Classificação salva no catálogo central.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar classificação.");
+    } finally {
+      setIsSaving(false);
+    }
   };
   const handleCancel = () => {
     if (!selectedId) return handleAddClassification();
     const found = items.find((item) => item.id === selectedId);
     if (found) setDraft({ ...found });
   };
-  const handleToggleActive = () => {
+  const handleToggleActive = async () => {
     if (!selectedId) return;
-    const next = items.map((item) => item.id === selectedId ? { ...item, isActive: !item.isActive, updatedAt: new Date().toISOString() } : item);
-    persist(next);
-    const found = next.find((item) => item.id === selectedId);
-    if (found) setDraft({ ...found });
+    setIsSaving(true);
+    try {
+      const updated = await updateFailureClassification(selectedId, {
+        active: !draft.active,
+      });
+      setItems((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      setDraft({ ...updated });
+      toast.success(updated.active ? "Classificação reativada." : "Classificação inativada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar classificação.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Classificações</h3><p className="text-sm text-muted-foreground">Gerencie as opções usadas na classificação da ocorrência.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Classificações cadastradas"><BigButton tone="neutral" size="md" onClick={handleAddClassification}>Adicionar classificação</BigButton><div className="space-y-2">{items.length===0&&<p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.label}</p><p className="text-xs text-muted-foreground">{item.id} · {item.isActive?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar classificação":"Nova classificação"}><label className="text-sm font-semibold">Nome exibido<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.label} onChange={(e)=>setDraft({...draft,label:e.target.value})}/></label><label className="text-sm font-semibold">ID interno<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.id} onChange={(e)=>setDraft({...draft,id:e.target.value})} placeholder="ex: pneumatic_failure"/></label><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.isActive} onChange={(e)=>setDraft({...draft,isActive:e.target.checked})}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar classificação</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={handleToggleActive} disabled={!selectedId}>{draft.isActive?"Inativar":"Reativar"}</BigButton></div></CardSection></div></div>;
+  return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Classificações</h3><p className="text-sm text-muted-foreground">Gerencie o catálogo central usado na classificação da ocorrência.</p></div>{loadError&&<div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><p className="font-bold">Não foi possível carregar o catálogo central.</p><p>{loadError}</p><button type="button" className="mt-2 font-bold underline" onClick={()=>void loadCatalog().catch(()=>undefined)}>Tentar novamente</button></div>}<div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Classificações cadastradas"><BigButton tone="neutral" size="md" onClick={handleAddClassification} disabled={isLoading||isSaving||Boolean(loadError)}>Adicionar classificação</BigButton><div className="space-y-2">{isLoading&&<p className="text-sm text-muted-foreground">Carregando catálogo central...</p>}{!isLoading&&!loadError&&items.length===0&&<p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.label}</p><p className="text-xs text-muted-foreground">{item.value} · {item.active?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar classificação":"Nova classificação"}><label className="text-sm font-semibold">Nome exibido<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.label} onChange={(e)=>setDraft({...draft,label:e.target.value})} disabled={isSaving||Boolean(loadError)}/></label><label className="text-sm font-semibold">ID interno<input className="mt-1 h-10 w-full rounded-md border bg-background px-2 disabled:opacity-60" value={draft.value} onChange={(e)=>setDraft({...draft,value:e.target.value})} placeholder="ex: pneumatic_failure" disabled={Boolean(selectedId)||isSaving||Boolean(loadError)}/></label>{selectedId&&<p className="text-xs text-muted-foreground">O ID interno permanece estável para preservar o histórico.</p>}<label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})} disabled={isSaving||Boolean(loadError)}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={()=>void handleSave()} disabled={isSaving||Boolean(loadError)}>{isSaving?"Salvando...":"Salvar classificação"}</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel} disabled={isSaving}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={()=>void handleToggleActive()} disabled={!selectedId||isSaving||Boolean(loadError)}>{draft.active?"Inativar":"Reativar"}</BigButton></div></CardSection></div></div>;
 }

@@ -2,7 +2,7 @@ import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient"
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
 import type { AndonCall, CallImpactInterval, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
-import type { FailureClassification, Machine, MachineProductionEvent, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
+import type { Machine, MachineProductionEvent, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
   EndTechnicianSessionParams,
@@ -103,7 +103,7 @@ function mapFailureEvent(event: ApiFailureEvent): MachineStopEvent {
           : 0,
     source: (event.source === "manual" ? "manual" : "system") as StopSource,
     failureDescription: sanitizeFailureDescription(event.notes) || undefined,
-    failureClassification: (event.classification ?? "unidentified_stop") as FailureClassification,
+    failureClassification: event.classification ?? "unidentified_stop",
     productionModeAtStart:
       event.productionMode === "not_scheduled" || event.productionMode === "scheduled"
         ? event.productionMode
