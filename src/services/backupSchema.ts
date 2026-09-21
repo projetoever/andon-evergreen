@@ -42,20 +42,7 @@ const stopSourceSchema = z.enum([
   "clp",
   "system",
 ]);
-const failureClassificationSchema = z.enum([
-  "real_machine_failure",
-  "electrical_failure",
-  "mechanical_failure",
-  "automation_sensor_failure",
-  "operational_failure",
-  "process_failure",
-  "operational_process_failure",
-  "quality_failure",
-  "manual_intervention",
-  "simulation_test",
-  "unidentified_stop",
-  "other",
-]);
+export const failureClassificationSchema = z.string().trim().min(1).max(64);
 const productionModeSchema = z.enum([
   "scheduled",
   "not_scheduled",

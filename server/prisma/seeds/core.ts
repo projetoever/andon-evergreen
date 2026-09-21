@@ -7,18 +7,6 @@ const CORE_SHIFTS = [
   { id: "business", name: "Comercial", startTime: "06:00", endTime: "16:00" },
 ];
 
-const CORE_FAILURE_CLASSIFICATIONS = [
-  { label: "Falha real da máquina", value: "real_machine_failure" },
-  { label: "Falha operacional", value: "operational_failure" },
-  { label: "Simulação manual", value: "manual_simulation" },
-  { label: "Ajuste", value: "adjustment" },
-  { label: "Teste", value: "test" },
-];
-
 export async function seedCore(prisma: PrismaClient) {
   await prisma.shift.createMany({ data: CORE_SHIFTS, skipDuplicates: true });
-  await prisma.failureClassification.createMany({
-    data: CORE_FAILURE_CLASSIFICATIONS,
-    skipDuplicates: true,
-  });
 }

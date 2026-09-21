@@ -87,9 +87,9 @@ export interface TechnicianCategory {
 
 export interface FailureClassificationConfig {
   id: string;
+  value: string;
   label: string;
-  isActive: boolean;
-  isDefault?: boolean;
+  active: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
