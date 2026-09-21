@@ -23,8 +23,8 @@ export function MachineDetailHeader({
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
-      <div className="flex items-center gap-2 md:gap-3">
+    <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="flex min-w-0 items-center gap-2 md:gap-3">
         {!screenLocked && (
           <Link
             to="/"
@@ -35,15 +35,15 @@ export function MachineDetailHeader({
           </Link>
         )}
         <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">
-            Máquina
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
+          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">
+            {machine.id}
           </div>
-          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">{machine.id}</div>
           <div className="mt-0.5 text-xs text-muted-foreground md:text-sm">{machine.name}</div>
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-        <ClockDisplay />
+      <ClockDisplay className="col-start-1 row-start-2 justify-self-center lg:col-start-2 lg:row-start-1" />
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 lg:col-start-3 lg:row-start-1 lg:justify-end">
         <button
           type="button"
           onClick={onToggleMachineSound}
@@ -56,7 +56,10 @@ export function MachineDetailHeader({
         </button>
         <MachineStatusBadge status={machine.machineStatus} className="text-xs md:text-sm" />
         <AndonStatusBadge status={machine.andonStatus} className="text-xs md:text-sm" />
-        <ProductionModeBadge productionMode={machine.productionMode} className="text-xs md:text-sm" />
+        <ProductionModeBadge
+          productionMode={machine.productionMode}
+          className="text-xs md:text-sm"
+        />
         <button
           type="button"
           onClick={onToggleScreenLock}
@@ -67,7 +70,9 @@ export function MachineDetailHeader({
               : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
           )}
           title={screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"}
-          aria-label={screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"}
+          aria-label={
+            screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"
+          }
         >
           {screenLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
           {screenLocked ? "Tela fixada" : "Fixar tela"}

@@ -19,6 +19,9 @@ test("renderiza uma hora válida e identificada para acessibilidade", () => {
   assert.match(markup, /aria-label="Hora atual: \d{2}:\d{2}"/);
   assert.match(markup, />\d{2}:\d{2}<\/time>/);
   assert.match(markup, /shrink-0/);
+  assert.match(markup, /pointer-events-none/);
+  assert.match(markup, /border-transparent/);
+  assert.match(markup, /bg-transparent/);
 });
 
 test("agenda atualização automática e limpa o timer", () => {
@@ -60,8 +63,14 @@ test("integra o mesmo relógio no dashboard e no cabeçalho da máquina", async 
     ),
   ]);
 
-  assert.match(dashboard, /<ClockDisplay \/>/);
-  assert.match(dashboard, /flex shrink-0 flex-wrap items-center justify-between/);
-  assert.match(machineHeader, /<ClockDisplay \/>/);
-  assert.match(machineHeader, /flex min-w-0 flex-wrap items-center justify-end/);
+  assert.match(
+    dashboard,
+    /<ClockDisplay className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1" \/>/,
+  );
+  assert.match(dashboard, /sm:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
+  assert.match(
+    machineHeader,
+    /<ClockDisplay className="col-start-1 row-start-2 justify-self-center lg:col-start-2 lg:row-start-1" \/>/,
+  );
+  assert.match(machineHeader, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
 });

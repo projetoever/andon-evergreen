@@ -15,14 +15,7 @@ import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 
 export function DashboardPage() {
-  const {
-    machines,
-    calls,
-    settings,
-    soundConfigs,
-    audioUnlocked,
-    setAudioUnlocked,
-  } = useAndon();
+  const { machines, calls, settings, soundConfigs, audioUnlocked, setAudioUnlocked } = useAndon();
 
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
@@ -37,7 +30,9 @@ export function DashboardPage() {
     audioUnlocked: audioUnlocked && !dashboardSoundMuted,
   });
 
-  const [lockedMachineId, setLockedMachineId] = useState<string | null>(() => getMachineScreenLock()?.machineId ?? null);
+  const [lockedMachineId, setLockedMachineId] = useState<string | null>(
+    () => getMachineScreenLock()?.machineId ?? null,
+  );
 
   useEffect(() => {
     const lockedScreen = getMachineScreenLock();
@@ -102,21 +97,29 @@ export function DashboardPage() {
         <StatusSummaryBar />
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">Máquinas</h2>
-          <ClockDisplay />
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
+          Máquinas
+        </h2>
+        <ClockDisplay className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1" />
+        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:col-start-3">
           {audioUnlocked && (
             <button
               type="button"
-              title={dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"}
-              aria-label={dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"}
+              title={
+                dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
+              }
+              aria-label={
+                dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
+              }
               onClick={handleToggleDashboardSound}
               className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground"
             >
-              {dashboardSoundMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {dashboardSoundMuted ? (
+                <VolumeX className="h-4 w-4" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
               {dashboardSoundMuted ? "Som silenciado" : "Silenciar som"}
             </button>
           )}
@@ -125,7 +128,9 @@ export function DashboardPage() {
             type="button"
             title="Configurar sons do ANDON"
             aria-label="Configurar sons do ANDON"
-            onClick={() => (isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true))}
+            onClick={() =>
+              isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true)
+            }
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <Settings className="h-4 w-4" />
@@ -133,12 +138,18 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <AdminLoginModal open={adminLoginOpen} onOpenChange={setAdminLoginOpen} onSuccess={() => setAdminSettingsOpen(true)} />
+      <AdminLoginModal
+        open={adminLoginOpen}
+        onOpenChange={setAdminLoginOpen}
+        onSuccess={() => setAdminSettingsOpen(true)}
+      />
       <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
 
       <MachineGrid
         className="min-h-0 flex-1"
-        machines={[...machines].filter((machine) => machine.isActive).sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
+        machines={[...machines]
+          .filter((machine) => machine.isActive)
+          .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
       />
     </div>
   );

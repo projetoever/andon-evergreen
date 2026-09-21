@@ -21,7 +21,7 @@ export function ClockDisplay({ className }: ClockDisplayProps) {
       aria-label={`Hora atual: ${time}`}
       title="Hora atual"
       className={cn(
-        "inline-flex shrink-0 items-center rounded-md border border-border bg-card px-2.5 py-1 font-mono text-base font-bold tabular-nums leading-none text-muted-foreground md:text-lg",
+        "pointer-events-none inline-flex shrink-0 select-none items-center rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-mono text-sm font-semibold tabular-nums leading-none text-muted-foreground md:text-base",
         className,
       )}
     >
