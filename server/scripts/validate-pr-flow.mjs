@@ -683,28 +683,121 @@ async function run() {
   assert.equal(openFailureEvents.length, 1);
   assert.equal(openFailureEvents[0].callId, qualityStopped.id);
 
+  const originalFailureSnapshot = {
+    classification: openFailureEvents[0].classification,
+    notes: openFailureEvents[0].notes,
+  };
+
+  const invalidFailureDetails = [
+    {
+      payload: {
+        failureDescription: "Sensor sem resposta",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /classificação da falha é obrigatória/i,
+    },
+    {
+      payload: {
+        failureClassification: "quality_failure",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /descrição da ocorrência é obrigatória/i,
+    },
+    {
+      payload: {
+        failureClassification: "quality_failure",
+        failureDescription: "   \n  ",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /descrição da ocorrência é obrigatória/i,
+    },
+    {
+      payload: {
+        failureClassification: "unidentified_stop",
+        failureDescription: "Sensor sem resposta",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /classificação específica da falha/i,
+    },
+    {
+      payload: {
+        failureClassification: "classification_does_not_exist",
+        failureDescription: "Sensor sem resposta",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /classificação da falha inválida/i,
+    },
+    {
+      payload: {
+        failureClassification: ids.failureClassificationValue,
+        failureDescription: "Sensor sem resposta",
+        machineStatus: "stopped",
+        impactCallIds: [leadershipDuringStop.id],
+      },
+      message: /classificação da falha está inativa/i,
+    },
+  ];
+
+  for (const invalidCase of invalidFailureDetails) {
+    const response = await request(
+      `/api/andon-calls/${qualityStopped.id}/finish`,
+      json("PATCH", invalidCase.payload),
+      400,
+    );
+    assert.match(response.message, invalidCase.message);
+
+    const unchangedEvent = await prisma.failureEvent.findUniqueOrThrow({
+      where: { id: ownedFailureEvent.id },
+    });
+    assert.equal(unchangedEvent.classification, originalFailureSnapshot.classification);
+    assert.equal(unchangedEvent.notes, originalFailureSnapshot.notes);
+  }
+
   await request(`/api/andon-calls/${leadershipDuringStop.id}/attend`, json("PATCH", {}));
   const missingConditionResponse = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
-    json("PATCH", { notes: "Condição normalizada" }),
+    json("PATCH", {
+      notes: "Condição normalizada",
+      failureClassification: "quality_failure",
+      failureDescription: "Sensor de inspeção sem resposta",
+    }),
     400,
   );
   assert.match(missingConditionResponse.message, /máquina continua em falha/i);
+  const eventAfterFailedCondition = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: ownedFailureEvent.id },
+  });
+  assert.equal(eventAfterFailedCondition.classification, originalFailureSnapshot.classification);
+  assert.equal(eventAfterFailedCondition.notes, originalFailureSnapshot.notes);
 
   const missingResponsibleCallResponse = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", {
       notes: "Máquina permanece parada sem atribuição",
+      failureClassification: "quality_failure",
+      failureDescription: "Sensor de inspeção sem resposta",
       machineStatus: "stopped",
     }),
     400,
   );
   assert.match(missingResponsibleCallResponse.message, /selecione ao menos um chamado/i);
+  const eventAfterFailedHandoff = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: ownedFailureEvent.id },
+  });
+  assert.equal(eventAfterFailedHandoff.classification, originalFailureSnapshot.classification);
+  assert.equal(eventAfterFailedHandoff.notes, originalFailureSnapshot.notes);
 
   const continuedStopOwner = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", {
       notes: "Atendimento finalizado, mas a máquina continua parada",
+      failureClassification: "quality_failure",
+      failureDescription: "  Sensor de inspeção sem resposta  ",
       machineStatus: "stopped",
       impactCallIds: [leadershipDuringStop.id],
     }),
@@ -717,6 +810,8 @@ async function run() {
   });
   assert.equal(transferredFailureEvent.endedAt, null);
   assert.equal(transferredFailureEvent.callId, leadershipDuringStop.id);
+  assert.equal(transferredFailureEvent.classification, "quality_failure");
+  assert.match(transferredFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
   assert.equal(
     transferredFailureEvent.startedAt.getTime(),
     stoppedAt.getTime(),
@@ -745,7 +840,11 @@ async function run() {
 
   const finishedStopOwner = await request(
     `/api/andon-calls/${leadershipDuringStop.id}/finish`,
-    json("PATCH", { notes: "Último chamado simultâneo encerrado" }),
+    json("PATCH", {
+      notes: "Último chamado simultâneo encerrado",
+      failureClassification: "quality_failure",
+      failureDescription: "Sensor de inspeção sem resposta após continuidade",
+    }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
   assert.equal(finishedStopOwner.assetConfirmedAt, null);
@@ -757,6 +856,8 @@ async function run() {
   });
   assert.ok(finishedFailureEvent.endedAt);
   assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
+  assert.equal(finishedFailureEvent.classification, "quality_failure");
+  assert.equal(finishedFailureEvent.notes, "Sensor de inspeção sem resposta após continuidade");
 
   const orphanStopToRecover = await request(
     "/api/failure-events",

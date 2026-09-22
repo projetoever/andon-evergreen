@@ -62,6 +62,8 @@ export interface CancelAndonCallParams {
 
 export interface FinishAndonCallParams {
   callId: string;
+  failureClassification?: string | null;
+  failureDescription?: string | null;
   machineStatus?: MachineStatus;
   impactCallIds?: string[];
   technicianName: string | null;

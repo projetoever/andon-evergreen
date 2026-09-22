@@ -71,6 +71,8 @@ type ReturnToMaintenanceBody = {
 
 type FinishAndonCallBody = {
   notes?: unknown;
+  failureClassification?: unknown;
+  failureDescription?: unknown;
   machineStatus?: unknown;
   impactCallIds?: unknown;
   confirmedMachineSetId?: unknown;
@@ -116,6 +118,11 @@ const INSTALLER_HEALTH_ORIGIN = "installer_health_check";
 const INSTALLER_HEALTH_CREATED_BY = "installer-health";
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const OPEN_CALL_STATUSES = ["open", "in_progress", "post_maintenance"];
+const GENERIC_FAILURE_CLASSIFICATIONS = new Set([
+  "unclassified",
+  "unidentified_stop",
+  "real_machine_failure",
+]);
 type TechnicianCredentialBody = {
   method?: unknown;
   value?: unknown;
@@ -1819,6 +1826,58 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
           if (call.status === "finished" || call.status === "cancelled") {
             throw new FinishCallValidationError("Chamado já está encerrado");
+          }
+
+          const openFailureEvent = await tx.failureEvent.findFirst({
+            where: {
+              callId: call.id,
+              endedAt: null,
+            },
+            orderBy: { startedAt: "desc" },
+          });
+
+          const applicableFailureEvent =
+            openFailureEvent ??
+            (await tx.failureEvent.findFirst({
+              where: { callId: call.id },
+              orderBy: { startedAt: "desc" },
+            }));
+
+          if (applicableFailureEvent) {
+            const failureClassification = optionalString(body.failureClassification);
+            const failureDescription = optionalString(body.failureDescription);
+
+            if (!failureClassification) {
+              throw new FinishCallValidationError("Classificação da falha é obrigatória");
+            }
+            if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
+              throw new FinishCallValidationError("Selecione uma classificação específica da falha");
+            }
+            if (!failureDescription) {
+              throw new FinishCallValidationError("Descrição da ocorrência é obrigatória");
+            }
+
+            const catalogClassification = await tx.failureClassification.findUnique({
+              where: { value: failureClassification },
+            });
+
+            if (!catalogClassification) {
+              throw new FinishCallValidationError("Classificação da falha inválida");
+            }
+            if (
+              !catalogClassification.active &&
+              applicableFailureEvent.classification !== catalogClassification.value
+            ) {
+              throw new FinishCallValidationError("Classificação da falha está inativa");
+            }
+
+            await tx.failureEvent.update({
+              where: { id: applicableFailureEvent.id },
+              data: {
+                classification: catalogClassification.value,
+                notes: failureDescription,
+              },
+            });
           }
 
           const requiresAssetConfirmation = call.category === "maintenance";
