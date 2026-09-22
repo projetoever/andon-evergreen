@@ -9,12 +9,7 @@ import {
   getCriticalityLabel,
   getMachineConditionLabel,
 } from "@/utils/statusUtils";
-import {
-  getConfirmedAssetLocationLabel,
-  getEffectiveAssetLocationLabel,
-  getOpeningAssetLocationLabel,
-  hasAssetConfirmation,
-} from "@/utils/assetLocationUtils";
+import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import { EmptyState } from "@/components/common/EmptyState";
 import { History } from "lucide-react";
 
@@ -45,19 +40,11 @@ export function HistoryTable({
             </th>
 
             <th className="px-3 py-3">
-              Localização efetiva
+              Localização
             </th>
 
             <th className="px-3 py-3">
-              Localização na abertura
-            </th>
-
-            <th className="px-3 py-3">
-              Confirmação do ativo
-            </th>
-
-            <th className="px-3 py-3">
-              Origem
+              Motivo da correção
             </th>
 
             <th className="px-3 py-3">
@@ -73,19 +60,11 @@ export function HistoryTable({
             </th>
 
             <th className="px-3 py-3">
-              Aberto
+              Conclusão da manutenção
             </th>
 
             <th className="px-3 py-3">
-              Atendido
-            </th>
-
-            <th className="px-3 py-3">
-              Conclusão manutenção
-            </th>
-
-            <th className="px-3 py-3">
-              Finalizado
+              Finalizado em
             </th>
 
             <th className="px-3 py-3">
@@ -139,26 +118,11 @@ export function HistoryTable({
                 call,
               );
 
-            const openingAssetLocation =
-              getOpeningAssetLocationLabel(
-                call,
-                "Não informado",
-              );
-
-            const confirmedAssetLocation =
-              getConfirmedAssetLocationLabel(
-                call,
-                "Não confirmada",
-              );
-
             const effectiveAssetLocation =
               getEffectiveAssetLocationLabel(
                 call,
                 "Não informado",
               );
-
-            const assetWasConfirmed =
-              hasAssetConfirmation(call);
 
             return (
               <tr key={call.id}>
@@ -170,60 +134,10 @@ export function HistoryTable({
                   {effectiveAssetLocation}
                 </td>
 
-                <td className="min-w-[190px] px-3 py-3">
-                  {openingAssetLocation}
-                </td>
-
-                <td className="min-w-[240px] px-3 py-3">
-                  {assetWasConfirmed ? (
-                    <div className="space-y-1">
-                      <div
-                        className={
-                          call.assetLocationChanged
-                            ? "font-bold text-warning"
-                            : "font-bold text-success"
-                        }
-                      >
-                        {call.assetLocationChanged
-                          ? "Localização corrigida"
-                          : "Localização confirmada"}
-                      </div>
-
-                      <div className="font-semibold">
-                        {confirmedAssetLocation}
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        Por:{" "}
-                        {call.assetConfirmedBy ??
-                          "Não informado"}
-                      </div>
-
-                      <div className="font-mono text-xs text-muted-foreground">
-                        {formatDateTime(
-                          call.assetConfirmedAt,
-                        )}
-                      </div>
-
-                      {call.assetLocationChanged &&
-                        call.assetChangeReason && (
-                          <div className="whitespace-pre-line text-xs text-muted-foreground">
-                            Motivo:{" "}
-                            {call.assetChangeReason}
-                          </div>
-                        )}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      Não confirmada
-                    </span>
-                  )}
-                </td>
-
-                <td className="px-3 py-3 font-semibold">
-                  {call.isSystemTest
-                    ? "Teste automático"
-                    : "Operacional"}
+                <td className="min-w-[190px] whitespace-pre-line px-3 py-3 text-muted-foreground">
+                  {call.assetLocationChanged
+                    ? call.assetChangeReason ?? "—"
+                    : "—"}
                 </td>
 
                 <td className="px-3 py-3">
@@ -243,14 +157,6 @@ export function HistoryTable({
                   {getCriticalityLabel(
                     call.criticality,
                   )}
-                </td>
-
-                <td className="px-3 py-3 font-mono text-xs">
-                  {formatDateTime(call.openedAt)}
-                </td>
-
-                <td className="px-3 py-3 font-mono text-xs">
-                  {formatDateTime(call.attendedAt)}
                 </td>
 
                 <td className="px-3 py-3 font-mono text-xs">
