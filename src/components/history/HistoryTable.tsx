@@ -126,8 +126,15 @@ export function HistoryTable({
 
             return (
               <tr key={call.id}>
-                <td className="px-3 py-3 text-lg font-bold">
-                  {call.machineId}
+                <td className="px-3 py-3">
+                  <div className="text-lg font-bold">
+                    {call.machineId}
+                  </div>
+                  {call.isSystemTest && (
+                    <span className="mt-1 inline-flex rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-warning">
+                      Teste automático
+                    </span>
+                  )}
                 </td>
 
                 <td className="min-w-[190px] px-3 py-3 font-bold text-primary">

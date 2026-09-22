@@ -72,6 +72,8 @@ test("simplifica a tabela global para uma localização e timestamps terminais",
   assert.match(table, /Conclusão da manutenção/);
   assert.match(table, /Finalizado em/);
   assert.match(table, /Motivo da correção/);
+  assert.match(table, /call\.isSystemTest/);
+  assert.match(table, /Teste automático/);
 
   for (const removedLabel of [
     "Localização efetiva",
@@ -95,6 +97,10 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   );
 
   assert.equal(history.match(/Localização: \{effectiveAssetLocation\}/g)?.length, 1);
+  assert.match(
+    history,
+    /new Date\(b\.finishedAt \?\? b\.openedAt\).*new Date\(a\.finishedAt \?\? a\.openedAt\)/,
+  );
   assert.match(history, /formatDateTime\(call\.finishedAt \?\? call\.openedAt\)/);
   assert.match(history, /Conclusão da manutenção/);
   assert.match(history, /"Cancelado em" : "Finalizado em"/);
@@ -102,6 +108,8 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   assert.match(history, /Justificativa do cancelamento/);
   assert.match(history, /\{call\.cancelReason\}/);
   assert.match(history, /<CallIdLabel callId=\{call\.id\}/);
+  assert.match(history, /Apuração: \{formatTimeAllocationSource\(row\.source\)\}/);
+  assert.doesNotMatch(history, />Origem:/);
 
   for (const removedLabel of [
     "Localização efetiva",
@@ -144,13 +152,17 @@ test("gera CSV com localização única e timestamps padronizados", () => {
   }
 });
 
-test("preserva snapshots e metadados internos de compatibilidade", async () => {
-  const [types, schema, route, locationUtils] = await Promise.all([
-    readFile(new URL("../src/types/andon.ts", import.meta.url), "utf8"),
-    readFile(new URL("../server/prisma/schema.prisma", import.meta.url), "utf8"),
-    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/utils/assetLocationUtils.ts", import.meta.url), "utf8"),
-  ]);
+test("preserva snapshots e metadados internos no Backup JSON", async () => {
+  const [types, schema, route, locationUtils, backupPanel, backupSchema, exportService] =
+    await Promise.all([
+      readFile(new URL("../src/types/andon.ts", import.meta.url), "utf8"),
+      readFile(new URL("../server/prisma/schema.prisma", import.meta.url), "utf8"),
+      readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+      readFile(new URL("../src/utils/assetLocationUtils.ts", import.meta.url), "utf8"),
+      readFile(new URL("../src/components/settings/DataBackupPanel.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/services/backupSchema.ts", import.meta.url), "utf8"),
+      readFile(new URL("../src/services/exportService.ts", import.meta.url), "utf8"),
+    ]);
 
   for (const source of [types, schema]) {
     assert.match(source, /machineSetCodeSnapshot/);
@@ -168,6 +180,13 @@ test("preserva snapshots e metadados internos de compatibilidade", async () => {
   assert.match(types, /origin: CallOrigin/);
   assert.match(types, /openedAt: string/);
   assert.match(types, /attendedAt: string \| null/);
+  for (const timestamp of ["openedAt", "attendedAt", "maintenanceCompletedAt", "finishedAt"]) {
+    assert.match(backupSchema, new RegExp(`${timestamp}: isoString`));
+  }
+  assert.match(backupPanel, /exportBackupToJson\(\{/);
+  assert.match(backupPanel, /\bcalls,\s*settings,/);
+  assert.match(backupPanel, /Exportar Backup JSON/);
+  assert.match(exportService, /JSON\.stringify\(data, null, 2\)/);
   assert.match(route, /const openingSetKey = assetSnapshotKey/);
   assert.match(route, /const openingSubsetKey = assetSnapshotKey/);
   assert.match(locationUtils, /export function getOpeningAssetLocation\(/);

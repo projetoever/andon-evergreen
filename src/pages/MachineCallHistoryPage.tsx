@@ -21,7 +21,7 @@ import {
   getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 import { calculateOperationalImpactBreakdown, formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
-import { formatTechnicianDisplayName } from "@/utils/technicianDisplayUtils";
+import { formatTechnicianDisplayName, formatTimeAllocationSource } from "@/utils/technicianDisplayUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
@@ -33,7 +33,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   const { machines, calls } = useAndon();
   const [expandedCallIds, setExpandedCallIds] = useState<string[]>([]);
   const machine = machines.find((m) => m.id === machineId);
-  const machineCalls = calls.filter((call) => call.machineId === machineId).slice().sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
+  const machineCalls = calls.filter((call) => call.machineId === machineId).slice().sort((a, b) => new Date(b.finishedAt ?? b.openedAt).getTime() - new Date(a.finishedAt ?? a.openedAt).getTime());
 
   if (!machine) return <EmptyState icon={<History className="h-10 w-10" />} title="Máquina não encontrada" description={`A máquina "${machineId}" não existe.`} />;
 
@@ -205,6 +205,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     <div>Início: {formatDateTime(row.startedAt)}</div>
                     <div>Fim: {formatDateTime(row.endedAt)}</div>
                     <div>Tempo: {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}</div>
+                    <div className="text-xs text-muted-foreground">Apuração: {formatTimeAllocationSource(row.source)}</div>
                   </div>) : <div className="text-sm text-muted-foreground">Sem manutentor apontado</div>}
                 </div>
               </section>
