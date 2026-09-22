@@ -20,8 +20,11 @@ test("renderiza uma hora válida e identificada para acessibilidade", () => {
   assert.match(markup, />\d{2}:\d{2}<\/time>/);
   assert.match(markup, /shrink-0/);
   assert.match(markup, /pointer-events-none/);
-  assert.match(markup, /border-transparent/);
+  assert.match(markup, /select-none/);
   assert.match(markup, /bg-transparent/);
+  assert.match(markup, /text-2xl/);
+  assert.match(markup, /md:text-3xl/);
+  assert.doesNotMatch(markup, /:\d{2}:\d{2}<\/time>/);
 });
 
 test("agenda atualização automática e limpa o timer", () => {
@@ -54,7 +57,7 @@ test("agenda atualização automática e limpa o timer", () => {
   assert.equal(clearedIntervalId, 42);
 });
 
-test("integra o mesmo relógio no dashboard e no cabeçalho da máquina", async () => {
+test("integra o mesmo relógio de forma compacta nos dois cabeçalhos", async () => {
   const [dashboard, machineHeader] = await Promise.all([
     readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
     readFile(
@@ -63,14 +66,15 @@ test("integra o mesmo relógio no dashboard e no cabeçalho da máquina", async 
     ),
   ]);
 
-  assert.match(
-    dashboard,
-    /<ClockDisplay className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1" \/>/,
-  );
-  assert.match(dashboard, /sm:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
-  assert.match(
-    machineHeader,
-    /<ClockDisplay className="col-start-1 row-start-2 justify-self-center lg:col-start-2 lg:row-start-1" \/>/,
-  );
-  assert.match(machineHeader, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
+  assert.match(dashboard, /Máquinas[\s\S]*<ClockDisplay \/>[\s\S]*audioUnlocked/);
+  assert.match(dashboard, /flex shrink-0 flex-wrap items-center justify-between/);
+  assert.doesNotMatch(dashboard, /grid-cols-\[minmax\(0,1fr\)_auto/);
+
+  assert.match(machineHeader, /<ClockDisplay \/>[\s\S]*Som do ANDON/);
+  assert.match(machineHeader, /md:grid-cols-\[minmax\(0,auto\)_minmax\(0,1fr\)\]/);
+  assert.doesNotMatch(machineHeader, /grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
+  assert.match(machineHeader, /xl:flex-nowrap/);
+
+  assert.equal(dashboard.match(/<ClockDisplay/g)?.length, 1);
+  assert.equal(machineHeader.match(/<ClockDisplay/g)?.length, 1);
 });
