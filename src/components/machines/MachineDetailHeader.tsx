@@ -23,7 +23,7 @@ export function MachineDetailHeader({
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
   return (
-    <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 md:grid-cols-[minmax(0,auto)_minmax(0,1fr)]">
       <div className="flex min-w-0 items-center gap-2 md:gap-3">
         {!screenLocked && (
           <Link
@@ -42,8 +42,8 @@ export function MachineDetailHeader({
           <div className="mt-0.5 text-xs text-muted-foreground md:text-sm">{machine.name}</div>
         </div>
       </div>
-      <ClockDisplay className="col-start-1 row-start-2 justify-self-center lg:col-start-2 lg:row-start-1" />
-      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 lg:col-start-3 lg:row-start-1 lg:justify-end">
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end xl:flex-nowrap">
+        <ClockDisplay />
         <button
           type="button"
           onClick={onToggleMachineSound}

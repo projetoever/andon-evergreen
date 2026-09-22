@@ -97,12 +97,14 @@ export function DashboardPage() {
         <StatusSummaryBar />
       </div>
 
-      <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
-          Máquinas
-        </h2>
-        <ClockDisplay className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1" />
-        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:col-start-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex min-w-0 items-center gap-3">
+          <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
+            Máquinas
+          </h2>
+          <ClockDisplay />
+        </div>
+        <div className="flex items-center justify-end gap-2">
           {audioUnlocked && (
             <button
               type="button"
