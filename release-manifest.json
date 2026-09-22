@@ -46,7 +46,7 @@
   ],
   "database": {
     "engine": "PostgreSQL",
-    "migration": "20260813183000_add_configurable_andon_categories",
+    "migration": "20260921120000_centralize_failure_classification_catalog",
     "migrationType": "additive",
     "migrationApplied": false,
     "backupRequiredBeforeDeploy": true
