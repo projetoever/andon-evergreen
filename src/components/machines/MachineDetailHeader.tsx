@@ -23,7 +23,7 @@ export function MachineDetailHeader({
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
   return (
-    <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 md:grid-cols-[minmax(0,auto)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
       <div className="flex min-w-0 items-center gap-2 md:gap-3">
         {!screenLocked && (
           <Link
@@ -34,15 +34,23 @@ export function MachineDetailHeader({
             <ArrowLeft className="h-5 w-5" />
           </Link>
         )}
-        <div>
+        <div className="min-w-0 overflow-hidden">
           <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
-          <div className="text-3xl font-black leading-none text-foreground md:text-4xl">
+          <div
+            className="truncate text-3xl font-black leading-none text-foreground md:text-4xl"
+            title={machine.id}
+          >
             {machine.id}
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground md:text-sm">{machine.name}</div>
+          <div
+            className="mt-0.5 truncate text-xs text-muted-foreground md:text-sm"
+            title={machine.name}
+          >
+            {machine.name}
+          </div>
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end xl:flex-nowrap">
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end">
         <ClockDisplay />
         <button
           type="button"

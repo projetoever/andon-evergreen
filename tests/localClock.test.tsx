@@ -68,12 +68,21 @@ test("integra o mesmo relógio de forma compacta nos dois cabeçalhos", async ()
 
   assert.match(dashboard, /Máquinas[\s\S]*<ClockDisplay \/>[\s\S]*audioUnlocked/);
   assert.match(dashboard, /flex shrink-0 flex-wrap items-center justify-between/);
+  assert.match(dashboard, /ml-auto flex items-center justify-end gap-2/);
   assert.doesNotMatch(dashboard, /grid-cols-\[minmax\(0,1fr\)_auto/);
 
   assert.match(machineHeader, /<ClockDisplay \/>[\s\S]*Som do ANDON/);
-  assert.match(machineHeader, /md:grid-cols-\[minmax\(0,auto\)_minmax\(0,1fr\)\]/);
+  assert.match(machineHeader, /md:grid-cols-\[minmax\(0,16rem\)_minmax\(0,1fr\)\]/);
+  assert.match(machineHeader, /lg:grid-cols-\[minmax\(0,20rem\)_minmax\(0,1fr\)\]/);
+  assert.match(machineHeader, /className="min-w-0 overflow-hidden"/);
+  assert.match(machineHeader, /className="truncate text-3xl/);
+  assert.match(machineHeader, /className="mt-0\.5 truncate text-xs/);
   assert.doesNotMatch(machineHeader, /grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
-  assert.match(machineHeader, /xl:flex-nowrap/);
+  assert.doesNotMatch(machineHeader, /xl:flex-nowrap/);
+  assert.match(
+    machineHeader,
+    /flex min-w-0 flex-wrap items-center justify-center gap-1\.5 md:justify-end/,
+  );
 
   assert.equal(dashboard.match(/<ClockDisplay/g)?.length, 1);
   assert.equal(machineHeader.match(/<ClockDisplay/g)?.length, 1);

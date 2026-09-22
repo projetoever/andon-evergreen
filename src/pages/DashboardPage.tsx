@@ -104,7 +104,7 @@ export function DashboardPage() {
           </h2>
           <ClockDisplay />
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="ml-auto flex items-center justify-end gap-2">
           {audioUnlocked && (
             <button
               type="button"
