@@ -1,12 +1,7 @@
 import type { AndonCall } from "@/types/andon";
 import type { AppBackup } from "@/types/history";
 import { formatDateTime } from "@/utils/dateTimeUtils";
-import {
-  getConfirmedAssetLocationLabel,
-  getEffectiveAssetLocationLabel,
-  getOpeningAssetLocationLabel,
-  hasAssetConfirmation,
-} from "@/utils/assetLocationUtils";
+import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import {
   getAndonStatusLabel,
   getCallSubtypeLabel,
@@ -48,36 +43,18 @@ function getRecordTypeLabel(call: AndonCall): string {
     : "Chamado operacional";
 }
 
-function getCallOriginLabel(call: AndonCall): string {
-  if (
-    call.isSystemTest ||
-    call.origin === "installer_health_check"
-  ) {
-    return "Teste automático";
-  }
-
-  return "Kiosk";
-}
-
 export function buildHistoryCsv(
   calls: AndonCall[],
 ): string {
   const header = [
     "Máquina",
     "Tipo de registro",
-    "Origem",
     "Status",
     "Categoria",
     "Subtipo",
-    "Localização efetiva",
-    "Localização na abertura",
-    "Localização confirmada",
-    "Situação da confirmação",
-    "Confirmado por",
-    "Confirmado em",
+    "Localização",
     "Motivo da correção",
-    "Aberto em",
-    "Atendido em",
+    "Conclusão da manutenção",
     "Finalizado em",
     "Tempo aguardando (min)",
     "Tempo em atendimento (min)",
@@ -88,20 +65,9 @@ export function buildHistoryCsv(
   ];
 
   const rows = calls.map((call) => {
-    const assetWasConfirmed =
-      hasAssetConfirmation(call);
-
-    const confirmationStatus =
-      assetWasConfirmed
-        ? call.assetLocationChanged
-          ? "Corrigida"
-          : "Confirmada sem alteração"
-        : "Não confirmada";
-
     return [
       call.machineId,
       getRecordTypeLabel(call),
-      getCallOriginLabel(call),
       getAndonStatusLabel(call.status),
       call.category === "maintenance"
         ? "Manutenção"
@@ -111,26 +77,12 @@ export function buildHistoryCsv(
         call,
         "Não informado",
       ),
-      getOpeningAssetLocationLabel(
-        call,
-        "Não informado",
-      ),
-      getConfirmedAssetLocationLabel(
-        call,
-        "Não confirmada",
-      ),
-      confirmationStatus,
-      call.assetConfirmedBy ?? "",
-      assetWasConfirmed
-        ? formatDateTime(
-            call.assetConfirmedAt,
-          )
-        : "",
       call.assetLocationChanged
         ? call.assetChangeReason ?? ""
         : "",
-      formatDateTime(call.openedAt),
-      formatDateTime(call.attendedAt),
+      formatDateTime(
+        call.maintenanceCompletedAt,
+      ),
       formatDateTime(call.finishedAt),
       call.callWaitingMinutes,
       call.attendanceMinutes,
