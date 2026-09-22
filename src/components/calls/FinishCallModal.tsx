@@ -12,6 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
@@ -20,9 +27,11 @@ import {
   listMachineSets,
 } from "@/services/machineAssetService";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import type {
   MachineSet,
 } from "@/types/machineSet";
+import type { FailureClassificationConfig } from "@/types/settings";
 import {
   requiresMaintenanceTechnician,
 } from "@/utils/callTypeUtils";
@@ -34,6 +43,11 @@ import {
   formatCompactDurationMinutes,
 } from "@/utils/durationUtils";
 import { useTicker } from "@/hooks/useTicker";
+import {
+  findApplicableFailureEvent,
+  isSpecificFailureClassification,
+} from "@/utils/failureEventUtils";
+import { extractFailureDescriptionForFinish } from "@/utils/failureDescriptionUtils";
 import {
   Check,
   CheckCircle2,
@@ -113,6 +127,21 @@ export function FinishCallModal({
 
   const [notes, setNotes] =
     useState("");
+
+  const [failureClassification, setFailureClassification] =
+    useState("");
+
+  const [failureDescription, setFailureDescription] =
+    useState("");
+
+  const [failureClassifications, setFailureClassifications] =
+    useState<FailureClassificationConfig[]>([]);
+
+  const [isLoadingFailureClassifications, setIsLoadingFailureClassifications] =
+    useState(false);
+
+  const [failureClassificationsLoadFailed, setFailureClassificationsLoadFailed] =
+    useState(false);
 
   const [
     machineSets,
@@ -194,6 +223,8 @@ export function FinishCallModal({
   const requiresAssetConfirmation =
     call?.category === "maintenance";
 
+  const currentMachineId = call?.machineId;
+
   const activeSessionNames =
     useMemo(
       () =>
@@ -241,6 +272,42 @@ export function FinishCallModal({
   const machine = call
     ? machines.find((item) => item.id === call.machineId) ?? null
     : null;
+
+  const applicableFailureEvent = useMemo(
+    () =>
+      call && machine
+        ? findApplicableFailureEvent(machine.stopHistory, call.id)
+        : null,
+    [call, machine],
+  );
+
+  const activeFailureClassifications = useMemo(
+    () =>
+      failureClassifications.filter(
+        (classification) =>
+          classification.active &&
+          isSpecificFailureClassification(classification.value),
+      ),
+    [failureClassifications],
+  );
+
+  const selectedFailureClassification = failureClassifications.find(
+    (classification) => classification.value === failureClassification,
+  );
+
+  const preservesExistingInactiveClassification = Boolean(
+    applicableFailureEvent &&
+      selectedFailureClassification &&
+      !selectedFailureClassification.active &&
+      isSpecificFailureClassification(selectedFailureClassification.value) &&
+      applicableFailureEvent.failureClassification === selectedFailureClassification.value,
+  );
+
+  const hasValidFailureClassification = Boolean(
+    selectedFailureClassification &&
+      isSpecificFailureClassification(selectedFailureClassification.value) &&
+      (selectedFailureClassification.active || preservesExistingInactiveClassification),
+  );
 
   const remainingActiveCalls = call
     ? calls
@@ -290,6 +357,21 @@ export function FinishCallModal({
 
     setNotes("");
 
+    const existingFailureClassification =
+      applicableFailureEvent?.failureClassification;
+
+    setFailureClassification(
+      isSpecificFailureClassification(existingFailureClassification)
+        ? existingFailureClassification ?? ""
+        : "",
+    );
+
+    setFailureDescription(
+      extractFailureDescriptionForFinish(
+        applicableFailureEvent?.failureDescription,
+      ),
+    );
+
     setConfirmedMachineSetId(
       call.machineSetId ?? null,
     );
@@ -306,11 +388,73 @@ export function FinishCallModal({
     setSelectedImpactCallIds([]);
   }, [
     open,
+    call,
     call?.id,
+    applicableFailureEvent?.id,
+    applicableFailureEvent?.failureClassification,
+    applicableFailureEvent?.failureDescription,
   ]);
 
   useEffect(() => {
-    if (!open || !call || !requiresAssetConfirmation) {
+    if (!open || !applicableFailureEvent) {
+      setFailureClassifications([]);
+      setIsLoadingFailureClassifications(false);
+      setFailureClassificationsLoadFailed(false);
+      return;
+    }
+
+    let current = true;
+
+    setIsLoadingFailureClassifications(true);
+    setFailureClassificationsLoadFailed(false);
+
+    getFailureClassificationConfigs()
+      .then((classifications) => {
+        if (!current) {
+          return;
+        }
+
+        setFailureClassifications(classifications);
+        setFailureClassification((selectedValue) => {
+          const selected = classifications.find(
+            (classification) => classification.value === selectedValue,
+          );
+          const mayPreserveInactive = Boolean(
+            selected &&
+              !selected.active &&
+              isSpecificFailureClassification(selected.value) &&
+              applicableFailureEvent.failureClassification === selected.value,
+          );
+
+          return selected &&
+            isSpecificFailureClassification(selected.value) &&
+            (selected.active || mayPreserveInactive)
+            ? selectedValue
+            : "";
+        });
+      })
+      .catch(() => {
+        if (!current) {
+          return;
+        }
+
+        setFailureClassifications([]);
+        setFailureClassificationsLoadFailed(true);
+        toast.error("Não foi possível carregar o catálogo central de falhas");
+      })
+      .finally(() => {
+        if (current) {
+          setIsLoadingFailureClassifications(false);
+        }
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [open, applicableFailureEvent]);
+
+  useEffect(() => {
+    if (!open || !currentMachineId || !requiresAssetConfirmation) {
       setMachineSets([]);
       setIsLoadingAssets(false);
       setAssetLoadFailed(false);
@@ -323,7 +467,7 @@ export function FinishCallModal({
     setIsLoadingAssets(true);
     setAssetLoadFailed(false);
 
-    listMachineSets(call.machineId, {
+    listMachineSets(currentMachineId, {
       includeInactive: true,
       includeSubsets: "list",
     })
@@ -356,7 +500,7 @@ export function FinishCallModal({
   }, [
     open,
     callId,
-    call?.machineId,
+    currentMachineId,
     requiresAssetConfirmation,
   ]);
 
@@ -601,6 +745,11 @@ export function FinishCallModal({
           !assetLoadFailed)) &&
       !isSubmitting &&
       hasValidAssetSelection &&
+      (!applicableFailureEvent ||
+        (!isLoadingFailureClassifications &&
+          !failureClassificationsLoadFailed &&
+          hasValidFailureClassification &&
+          failureDescription.trim().length > 0)) &&
       (
         !requiresTechnician ||
         technicianNames.length > 0
@@ -730,6 +879,16 @@ export function FinishCallModal({
 
         notes:
           notes.trim() || null,
+
+        failureClassification:
+          applicableFailureEvent
+            ? failureClassification || null
+            : null,
+
+        failureDescription:
+          applicableFailureEvent
+            ? failureDescription.trim() || null
+            : null,
 
         confirmedMachineSetId:
           finalMachineSetId,
@@ -1087,6 +1246,83 @@ export function FinishCallModal({
             )}
 
           </section>
+          )}
+
+          {applicableFailureEvent && (
+            <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
+              <div className="mb-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Detalhes da falha
+                </h4>
+                <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                  Classifique a ocorrência real e descreva o que foi identificado.
+                </p>
+              </div>
+
+              {failureClassificationsLoadFailed ? (
+                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                  Não foi possível carregar o catálogo central. Reabra o modal para tentar novamente.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="failure-classification"
+                      className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                    >
+                      Classificação da falha
+                    </label>
+                    <Select
+                      value={failureClassification}
+                      onValueChange={setFailureClassification}
+                      disabled={isLoadingFailureClassifications}
+                    >
+                      <SelectTrigger id="failure-classification">
+                        <SelectValue
+                          placeholder={
+                            isLoadingFailureClassifications
+                              ? "Carregando catálogo..."
+                              : "Selecione uma classificação"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {preservesExistingInactiveClassification &&
+                          selectedFailureClassification && (
+                            <SelectItem
+                              value={selectedFailureClassification.value}
+                              disabled
+                            >
+                              {selectedFailureClassification.label} — inativa (histórico)
+                            </SelectItem>
+                          )}
+                        {activeFailureClassifications.map((classification) => (
+                          <SelectItem key={classification.id} value={classification.value}>
+                            {classification.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="failure-description"
+                      className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                    >
+                      Descrição da ocorrência
+                    </label>
+                    <Textarea
+                      id="failure-description"
+                      value={failureDescription}
+                      onChange={(event) => setFailureDescription(event.target.value)}
+                      rows={3}
+                      placeholder="Descreva a falha identificada e o que ocorreu."
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
           )}
 
           <section>

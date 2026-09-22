@@ -399,6 +399,8 @@ export class ApiAndonRepository implements AndonRepository {
   async finishCall(_machines: Machine[], _calls: AndonCall[], params: FinishAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/finish`, {
       notes: params.notes,
+      failureClassification: params.failureClassification,
+      failureDescription: params.failureDescription,
       machineStatus: params.machineStatus,
       impactCallIds: params.impactCallIds,
       confirmedMachineSetId:

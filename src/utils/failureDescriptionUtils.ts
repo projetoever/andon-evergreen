@@ -18,3 +18,22 @@ export function sanitizeFailureDescription(description?: string | null) {
     description,
   );
 }
+
+const AUTOMATIC_DESCRIPTION_LINES = [
+  /^Falha registrada na abertura do ANDON$/i,
+  /^Falha encerrada automaticamente\b/i,
+  /^Continuidade da falha:/i,
+  /^Retomada:/i,
+];
+
+export function extractFailureDescriptionForFinish(description?: string | null) {
+  return sanitizeFailureDescription(description)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.length > 0 && !AUTOMATIC_DESCRIPTION_LINES.some((pattern) => pattern.test(line)),
+    )
+    .join("\n")
+    .trim();
+}
