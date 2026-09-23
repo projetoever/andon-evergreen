@@ -57,7 +57,7 @@ test("agenda atualização automática e limpa o timer", () => {
   assert.equal(clearedIntervalId, 42);
 });
 
-test("integra o mesmo relógio de forma compacta nos dois cabeçalhos", async () => {
+test("centraliza o relógio do dashboard e preserva o relógio da máquina", async () => {
   const [dashboard, machineHeader] = await Promise.all([
     readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
     readFile(
@@ -67,9 +67,18 @@ test("integra o mesmo relógio de forma compacta nos dois cabeçalhos", async ()
   ]);
 
   assert.match(dashboard, /Máquinas[\s\S]*<ClockDisplay \/>[\s\S]*audioUnlocked/);
-  assert.match(dashboard, /flex shrink-0 flex-wrap items-center justify-between/);
-  assert.match(dashboard, /ml-auto flex items-center justify-end gap-2/);
-  assert.doesNotMatch(dashboard, /grid-cols-\[minmax\(0,1fr\)_auto/);
+  assert.match(
+    dashboard,
+    /md:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/,
+  );
+  assert.match(
+    dashboard,
+    /col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1[\s\S]*<ClockDisplay \/>/,
+  );
+  assert.match(
+    dashboard,
+    /col-start-2 row-start-1 flex items-center justify-end gap-2 justify-self-end md:col-start-3/,
+  );
 
   assert.match(machineHeader, /<ClockDisplay \/>[\s\S]*Som do ANDON/);
   assert.match(machineHeader, /md:grid-cols-\[minmax\(0,16rem\)_minmax\(0,1fr\)\]/);
