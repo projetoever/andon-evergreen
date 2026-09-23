@@ -890,6 +890,39 @@ async function run() {
   });
   assert.equal(clearedPlaceholderEvent.notes, null);
 
+  const describedAtOpenCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+      description: "Sensor óptico intermitente",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${describedAtOpenCall.id}/attend`, json("PATCH", {}));
+  const describedAtOpenFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: describedAtOpenCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+  assert.equal(describedAtOpenFailureEvent.notes, "Falha registrada na abertura do ANDON");
+
+  const finishedDescribedAtOpenCall = await request(
+    `/api/andon-calls/${describedAtOpenCall.id}/finish`,
+    json("PATCH", { failureClassification: "quality_failure" }),
+  );
+  assert.equal(finishedDescribedAtOpenCall.notes, "Sensor óptico intermitente");
+
+  const finishedDescribedAtOpenFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: describedAtOpenFailureEvent.id },
+  });
+  assert.equal(finishedDescribedAtOpenFailureEvent.notes, "Sensor óptico intermitente");
+  assert.doesNotMatch(
+    finishedDescribedAtOpenFailureEvent.notes,
+    /Falha registrada na abertura do ANDON/,
+  );
+
   const notesOnlyCall = await request(
     "/api/andon-calls",
     json("POST", {

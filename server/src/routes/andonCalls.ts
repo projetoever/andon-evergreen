@@ -1936,6 +1936,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 classification: catalogClassification.value,
                 notes:
                   resolvedFailureDescription ??
+                  extractOperationalFailureDescription(call.notes) ??
                   extractOperationalFailureDescription(applicableFailureEvent.notes),
               },
             });

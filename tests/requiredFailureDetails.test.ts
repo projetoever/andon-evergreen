@@ -179,7 +179,7 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.doesNotMatch(route, /if \(!failureDescription\)/);
   assert.match(
     route,
-    /resolvedFailureDescription \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
+    /resolvedFailureDescription \?\?\s*extractOperationalFailureDescription\(call\.notes\) \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
   );
   assert.match(
     route,
