@@ -184,6 +184,10 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.match(route, /notes: mergeFinalDescription\(call\.notes, finalDescription\)/);
   assert.doesNotMatch(
     route,
+    /Falha encerrada automaticamente na finalização do chamado responsável/,
+  );
+  assert.doesNotMatch(
+    route,
     /appendNote\(call\.notes, optionalString\(body\.notes\), "Finalização"\)/,
   );
 

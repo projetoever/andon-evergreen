@@ -616,9 +616,7 @@ async function resumeMachineWhenFinishingOwnedStop(
       endedAt: params.finishedAt,
       durationSeconds: diffSeconds(ownedOpenEvent.startedAt, params.finishedAt),
       machineStatus: "running",
-      notes:
-        ownedOpenEvent.notes ??
-        "Falha encerrada automaticamente na finalização do chamado responsável",
+      notes: ownedOpenEvent.notes,
     },
   });
 
