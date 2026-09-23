@@ -801,18 +801,6 @@ export function finishAndonCall(
   const normalizedDescription =
     params.notes?.trim() || params.failureDescription?.trim() || "";
 
-  if (applicableFailureEvent) {
-    if (!failureClassification) {
-      throw new Error("Classificação da falha é obrigatória");
-    }
-    if (!isSpecificFailureClassification(failureClassification)) {
-      throw new Error("Selecione uma classificação específica da falha");
-    }
-    if (failureClassification === "other" && !normalizedDescription) {
-      throw new Error('Descrição do chamado é obrigatória quando a classificação é "Outro"');
-    }
-  }
-
   const shouldResumeOwnedStop = Boolean(
     machine?.machineStatus === "stopped" &&
     machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
@@ -840,6 +828,15 @@ export function finishAndonCall(
     }
     if (selectedImpactCallIds.some((callId) => !remainingIds.has(callId))) {
       throw new Error("Um ou mais chamados selecionados não estão ativos nesta máquina");
+    }
+  }
+
+  if (applicableFailureEvent && failureClassification) {
+    if (!isSpecificFailureClassification(failureClassification)) {
+      throw new Error("Selecione uma classificação específica da falha");
+    }
+    if (failureClassification === "other" && !normalizedDescription) {
+      throw new Error('Descrição do chamado é obrigatória quando a classificação é "Outro"');
     }
   }
 
@@ -905,7 +902,7 @@ export function finishAndonCall(
       : updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
-  const machinesWithFailureDetails = applicableFailureEvent
+  const machinesWithFailureDetails = applicableFailureEvent && failureClassification
     ? finalMachines.map((item) =>
         item.id === call.machineId
           ? {
