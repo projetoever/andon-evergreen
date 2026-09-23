@@ -846,10 +846,13 @@ async function run() {
     `/api/andon-calls/${leadershipDuringStop.id}/finish`,
     json("PATCH", {
       failureClassification: "quality_failure",
+      failureDescription: "Sensor legado sem resposta",
     }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
   assert.equal(finishedStopOwner.assetConfirmedAt, null);
+  assert.match(finishedStopOwner.notes ?? "", /Sensor legado sem resposta/);
+  assert.doesNotMatch(finishedStopOwner.notes ?? "", /Finalização: Sensor legado sem resposta/);
 
   const resumedMachine = await request(`/api/machines/${ids.impactMachine}`);
   assert.equal(resumedMachine.machineStatus, "running");
@@ -859,8 +862,33 @@ async function run() {
   assert.ok(finishedFailureEvent.endedAt);
   assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
   assert.equal(finishedFailureEvent.classification, "quality_failure");
-  assert.match(finishedFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
-  assert.match(finishedFailureEvent.notes ?? "", /Continuidade da falha/);
+  assert.equal(finishedFailureEvent.notes, "Sensor legado sem resposta");
+
+  const placeholderOnlyCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${placeholderOnlyCall.id}/attend`, json("PATCH", {}));
+  const placeholderEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: placeholderOnlyCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+  assert.equal(placeholderEvent.notes, "Falha registrada na abertura do ANDON");
+
+  await request(
+    `/api/andon-calls/${placeholderOnlyCall.id}/finish`,
+    json("PATCH", { failureClassification: "quality_failure" }),
+  );
+  const clearedPlaceholderEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: placeholderEvent.id },
+  });
+  assert.equal(clearedPlaceholderEvent.notes, null);
 
   const orphanStopToRecover = await request(
     "/api/failure-events",

@@ -673,6 +673,30 @@ function mergeFinalDescription(
   return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
 }
 
+const AUTOMATIC_FAILURE_DESCRIPTION_LINES = [
+  /^Falha registrada na abertura do ANDON$/i,
+  /^Falha encerrada automaticamente\b/i,
+  /^Continuidade da falha:/i,
+  /^Retomada:/i,
+  /^Conclusão da manutenção:/i,
+  /^Retorno à manutenção:/i,
+];
+
+function extractOperationalFailureDescription(notes: string | null | undefined) {
+  const description = (notes ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        !AUTOMATIC_FAILURE_DESCRIPTION_LINES.some((pattern) => pattern.test(line)),
+    )
+    .join("\n")
+    .trim();
+
+  return description || null;
+}
+
 function attachAssetSnapshots(
   call: unknown,
   machineSet: MachineSetSnapshot | null,
@@ -1812,6 +1836,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       const confirmedMachineSetId = optionalString(body.confirmedMachineSetId);
       const confirmedMachineSubsetId = optionalString(body.confirmedMachineSubsetId);
       const assetChangeReason = optionalString(body.assetChangeReason);
+      const finalDescription =
+        optionalString(body.notes) ?? optionalString(body.failureDescription);
 
       if (requestedMachineStatus && !MACHINE_STATUSES.has(requestedMachineStatus)) {
         return badRequest(reply, "Status operacional inválido");
@@ -1908,7 +1934,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               where: { id: applicableFailureEvent.id },
               data: {
                 classification: catalogClassification.value,
-                notes: failureDescription ?? applicableFailureEvent.notes,
+                notes:
+                  failureDescription ??
+                  extractOperationalFailureDescription(applicableFailureEvent.notes),
               },
             });
           }
@@ -2089,7 +2117,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: mergeFinalDescription(call.notes, optionalString(body.notes)),
+              notes: mergeFinalDescription(call.notes, finalDescription),
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

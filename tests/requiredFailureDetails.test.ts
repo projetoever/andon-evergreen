@@ -173,8 +173,15 @@ test("backend e modo local preservam classificação e descrição única", asyn
     /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
   );
   assert.doesNotMatch(route, /if \(!failureDescription\)/);
-  assert.match(route, /notes: failureDescription \?\? applicableFailureEvent\.notes/);
-  assert.match(route, /notes: mergeFinalDescription\(call\.notes, optionalString\(body\.notes\)\)/);
+  assert.match(
+    route,
+    /failureDescription \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
+  );
+  assert.match(
+    route,
+    /const finalDescription =\s*optionalString\(body\.notes\) \?\? optionalString\(body\.failureDescription\)/,
+  );
+  assert.match(route, /notes: mergeFinalDescription\(call\.notes, finalDescription\)/);
   assert.doesNotMatch(
     route,
     /appendNote\(call\.notes, optionalString\(body\.notes\), "Finalização"\)/,
