@@ -6,8 +6,9 @@ import {
   findApplicableFailureEvent,
   isSpecificFailureClassification,
 } from "../src/utils/failureEventUtils";
+import { finishAndonCall, openAndonCall } from "../src/services/andonService";
 import { extractFailureDescriptionForFinish } from "../src/utils/failureDescriptionUtils";
-import type { MachineStopEvent } from "../src/types/machine";
+import type { Machine, MachineStopEvent } from "../src/types/machine";
 
 function failureEvent(
   id: string,
@@ -23,6 +24,54 @@ function failureEvent(
     resumedAt,
     durationMinutes: 0,
     source: "manual",
+  };
+}
+
+function createMachine(id: string): Machine {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: "Máquina de detalhes obrigatórios",
+    machineStatus: "running",
+    andonStatus: "none",
+    currentCallId: null,
+    lastStatusChangedAt: now,
+    stoppedAt: null,
+    lastStopDurationMinutes: 0,
+    stopHistory: [],
+    productionMode: "scheduled",
+    productionModeChangedAt: now,
+    productionHistory: [],
+    useCommercialShift: false,
+    isActive: true,
+    displayOrder: null,
+  };
+}
+
+function createFinishScenario(machineCondition: "running" | "stopped") {
+  const opened = openAndonCall([createMachine(`machine-${machineCondition}`)], [], {
+    machineId: `machine-${machineCondition}`,
+    category: "production",
+    subtype: `failure-${machineCondition}`,
+    machineCondition,
+  });
+
+  return {
+    machines: opened.machines,
+    calls: opened.calls,
+    params: {
+      callId: opened.call.id,
+      technicianName: null,
+      technicianArea: null,
+      confirmedMachineSetId: null,
+      confirmedMachineSetCodeSnapshot: null,
+      confirmedMachineSetNameSnapshot: null,
+      confirmedMachineSetTypeSnapshot: null,
+      confirmedMachineSubsetId: null,
+      confirmedMachineSubsetCodeSnapshot: null,
+      confirmedMachineSubsetNameSnapshot: null,
+      confirmedMachineSubsetTypeSnapshot: null,
+    } satisfies Parameters<typeof finishAndonCall>[2],
   };
 }
 
@@ -135,4 +184,47 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.match(localService, /failureClassification === "other" && !normalizedDescription/);
   assert.match(localService, /notes: normalizedDescription \|\| call\.notes \|\| null/);
   assert.match(localService, /failureDescription: normalizedDescription/);
+});
+
+test("modo local exige classificação apenas quando existe FailureEvent", () => {
+  const withFailure = createFinishScenario("stopped");
+
+  assert.throws(
+    () => finishAndonCall(withFailure.machines, withFailure.calls, withFailure.params),
+    /Classificação da falha é obrigatória/,
+  );
+  assert.throws(
+    () =>
+      finishAndonCall(withFailure.machines, withFailure.calls, {
+        ...withFailure.params,
+        failureClassification: "unclassified",
+      }),
+    /Selecione uma classificação específica da falha/,
+  );
+  assert.doesNotThrow(() =>
+    finishAndonCall(withFailure.machines, withFailure.calls, {
+      ...withFailure.params,
+      failureClassification: "quality_failure",
+    }),
+  );
+  assert.throws(
+    () =>
+      finishAndonCall(withFailure.machines, withFailure.calls, {
+        ...withFailure.params,
+        failureClassification: "other",
+      }),
+    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
+  );
+  assert.doesNotThrow(() =>
+    finishAndonCall(withFailure.machines, withFailure.calls, {
+      ...withFailure.params,
+      failureClassification: "other",
+      notes: "Falha específica identificada",
+    }),
+  );
+
+  const withoutFailure = createFinishScenario("running");
+  assert.doesNotThrow(() =>
+    finishAndonCall(withoutFailure.machines, withoutFailure.calls, withoutFailure.params),
+  );
 });

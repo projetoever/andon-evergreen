@@ -831,7 +831,10 @@ export function finishAndonCall(
     }
   }
 
-  if (applicableFailureEvent && failureClassification) {
+  if (applicableFailureEvent) {
+    if (!failureClassification) {
+      throw new Error("Classificação da falha é obrigatória");
+    }
     if (!isSpecificFailureClassification(failureClassification)) {
       throw new Error("Selecione uma classificação específica da falha");
     }
