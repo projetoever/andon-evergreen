@@ -1901,6 +1901,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           if (applicableFailureEvent) {
             const failureClassification = optionalString(body.failureClassification);
             const failureDescription = optionalString(body.failureDescription);
+            const resolvedFailureDescription =
+              failureDescription ?? optionalString(body.notes);
 
             if (!failureClassification) {
               throw new FinishCallValidationError("Classificação da falha é obrigatória");
@@ -1908,7 +1910,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
               throw new FinishCallValidationError("Selecione uma classificação específica da falha");
             }
-            if (failureClassification === "other" && !failureDescription) {
+            if (failureClassification === "other" && !resolvedFailureDescription) {
               throw new FinishCallValidationError(
                 'Descrição do chamado é obrigatória quando a classificação é "Outro"',
               );
@@ -1933,7 +1935,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               data: {
                 classification: catalogClassification.value,
                 notes:
-                  failureDescription ??
+                  resolvedFailureDescription ??
                   extractOperationalFailureDescription(applicableFailureEvent.notes),
               },
             });

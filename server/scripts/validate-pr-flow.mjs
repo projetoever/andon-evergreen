@@ -890,6 +890,37 @@ async function run() {
   });
   assert.equal(clearedPlaceholderEvent.notes, null);
 
+  const notesOnlyCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${notesOnlyCall.id}/attend`, json("PATCH", {}));
+  const notesOnlyFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: notesOnlyCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+
+  const finishedNotesOnlyCall = await request(
+    `/api/andon-calls/${notesOnlyCall.id}/finish`,
+    json("PATCH", {
+      notes: "Descrição unificada via notes",
+      failureClassification: "quality_failure",
+    }),
+  );
+  assert.equal(finishedNotesOnlyCall.notes, "Descrição unificada via notes");
+  assert.doesNotMatch(finishedNotesOnlyCall.notes, /Finalização:/);
+
+  const finishedNotesOnlyFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: notesOnlyFailureEvent.id },
+  });
+  assert.equal(finishedNotesOnlyFailureEvent.notes, "Descrição unificada via notes");
+
   const orphanStopToRecover = await request(
     "/api/failure-events",
     json("POST", {

@@ -167,7 +167,11 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.match(route, /GENERIC_FAILURE_CLASSIFICATIONS/);
   assert.match(route, /tx\.failureClassification\.findUnique/);
   assert.match(route, /applicableFailureEvent\.classification !== catalogClassification\.value/);
-  assert.match(route, /failureClassification === "other" && !failureDescription/);
+  assert.match(
+    route,
+    /const resolvedFailureDescription =\s*failureDescription \?\? optionalString\(body\.notes\)/,
+  );
+  assert.match(route, /failureClassification === "other" && !resolvedFailureDescription/);
   assert.match(
     route,
     /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
@@ -175,7 +179,7 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.doesNotMatch(route, /if \(!failureDescription\)/);
   assert.match(
     route,
-    /failureDescription \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
+    /resolvedFailureDescription \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
   );
   assert.match(
     route,
