@@ -560,6 +560,19 @@ async function run() {
     new Set(["Mantenedor Elétrico PR 47", "Apoio Elétrico PR 50"]),
   );
   assert.ok(finishedMaintenance.technicianSessions.every((session) => session.endedAt));
+  assert.match(finishedMaintenance.notes, /Conclusão da manutenção: Integração concluída/);
+  assert.match(finishedMaintenance.notes, /Retorno à manutenção: Falha voltou a ocorrer/);
+  assert.match(
+    finishedMaintenance.notes,
+    /Conclusão da manutenção: Segunda conclusão da manutenção/,
+  );
+  assert.match(finishedMaintenance.notes, /Finalização de integração/);
+  assert.doesNotMatch(finishedMaintenance.notes, /Finalização: Finalização de integração/);
+  assert.equal(
+    finishedMaintenance.notes.match(/Finalização de integração/g)?.length,
+    1,
+    "a descrição final não pode ser duplicada",
+  );
 
   const cancelledMechanicalCall = await request(
     `/api/andon-calls/${mechanicalCall.id}/cancel`,

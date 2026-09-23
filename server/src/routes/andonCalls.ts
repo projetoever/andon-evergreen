@@ -642,6 +642,37 @@ function appendNote(currentNotes: string | null, note: string | undefined, prefi
   return currentNotes ? `${currentNotes}\n${entry}` : entry;
 }
 
+function mergeFinalDescription(
+  currentNotes: string | null,
+  finalDescription: string | null | undefined,
+) {
+  const description = finalDescription?.trim();
+  if (!description) {
+    return currentNotes;
+  }
+  if (!currentNotes) {
+    return description;
+  }
+
+  const normalize = (value: string) =>
+    value
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((line) => line.trim().replace(/\s+/g, " "))
+      .join("\n")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+  const normalizedNotes = normalize(currentNotes);
+  const normalizedDescription = normalize(description);
+  const alreadyPresent =
+    normalizedNotes === normalizedDescription ||
+    normalizedNotes.startsWith(`${normalizedDescription}\n`) ||
+    normalizedNotes.endsWith(`\n${normalizedDescription}`) ||
+    normalizedNotes.includes(`\n${normalizedDescription}\n`);
+
+  return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
+}
+
 function attachAssetSnapshots(
   call: unknown,
   machineSet: MachineSetSnapshot | null,
@@ -2058,7 +2089,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: optionalString(body.notes) ?? call.notes,
+              notes: mergeFinalDescription(call.notes, optionalString(body.notes)),
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

@@ -174,7 +174,7 @@ test("backend e modo local preservam classificação e descrição única", asyn
   );
   assert.doesNotMatch(route, /if \(!failureDescription\)/);
   assert.match(route, /notes: failureDescription \?\? applicableFailureEvent\.notes/);
-  assert.match(route, /notes: optionalString\(body\.notes\) \?\? call\.notes/);
+  assert.match(route, /notes: mergeFinalDescription\(call\.notes, optionalString\(body\.notes\)\)/);
   assert.doesNotMatch(
     route,
     /appendNote\(call\.notes, optionalString\(body\.notes\), "Finalização"\)/,
@@ -182,7 +182,7 @@ test("backend e modo local preservam classificação e descrição única", asyn
 
   assert.match(localService, /findApplicableFailureEvent\(machine\.stopHistory, call\.id\)/);
   assert.match(localService, /failureClassification === "other" && !normalizedDescription/);
-  assert.match(localService, /notes: normalizedDescription \|\| call\.notes \|\| null/);
+  assert.match(localService, /notes: mergeFinalDescription\(call\.notes, normalizedDescription\)/);
   assert.match(localService, /failureDescription: normalizedDescription/);
 });
 
@@ -227,4 +227,35 @@ test("modo local exige classificação apenas quando existe FailureEvent", () =>
   assert.doesNotThrow(() =>
     finishAndonCall(withoutFailure.machines, withoutFailure.calls, withoutFailure.params),
   );
+});
+
+test("finalização preserva auditoria e evita duplicar a descrição no modo local", () => {
+  const scenario = createFinishScenario("running");
+  const auditNotes = [
+    "Descrição inicial",
+    "Conclusão da manutenção: Integração concluída",
+    "Retorno à manutenção: Falha voltou a ocorrer",
+  ].join("\n");
+  const callWithAudit = { ...scenario.calls[0], notes: auditNotes };
+
+  const withNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
+    ...scenario.params,
+    notes: "  Finalização de integração  ",
+  }).calls[0];
+  assert.equal(withNewDescription.notes, `${auditNotes}\nFinalização de integração`);
+  assert.doesNotMatch(withNewDescription.notes ?? "", /Finalização: Finalização de integração/);
+
+  const existingDescription = `${auditNotes}\nFinalização de integração`;
+  const withoutDuplication = finishAndonCall(
+    scenario.machines,
+    [{ ...callWithAudit, notes: existingDescription }],
+    { ...scenario.params, notes: "finalização   de integração" },
+  ).calls[0];
+  assert.equal(withoutDuplication.notes, existingDescription);
+  assert.equal(withoutDuplication.notes?.match(/Finalização de integração/gi)?.length, 1);
+
+  const withoutNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
+    ...scenario.params,
+  }).calls[0];
+  assert.equal(withoutNewDescription.notes, auditNotes);
 });

@@ -110,6 +110,37 @@ export interface EndTechnicianSessionParams {
   endReason: TechnicianSessionEndReason;
 }
 
+function mergeFinalDescription(
+  currentNotes: string | null,
+  finalDescription: string | null | undefined,
+) {
+  const description = finalDescription?.trim();
+  if (!description) {
+    return currentNotes;
+  }
+  if (!currentNotes) {
+    return description;
+  }
+
+  const normalize = (value: string) =>
+    value
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((line) => line.trim().replace(/\s+/g, " "))
+      .join("\n")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+  const normalizedNotes = normalize(currentNotes);
+  const normalizedDescription = normalize(description);
+  const alreadyPresent =
+    normalizedNotes === normalizedDescription ||
+    normalizedNotes.startsWith(`${normalizedDescription}\n`) ||
+    normalizedNotes.endsWith(`\n${normalizedDescription}`) ||
+    normalizedNotes.includes(`\n${normalizedDescription}\n`);
+
+  return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
+}
+
 function uniqueRegisteredTechnicianNames(names: Array<string | null | undefined>) {
   return Array.from(
     new Set(names.map((name) => name?.trim()).filter((name): name is string => Boolean(name))),
@@ -951,7 +982,7 @@ export function finishAndonCall(
     technicianName,
     technicianNames,
     technicianArea: params.technicianArea,
-    notes: normalizedDescription || call.notes || null,
+    notes: mergeFinalDescription(call.notes, normalizedDescription),
     productionModeAtFinish: finalMachine?.productionMode,
     machineStatusAtFinish: finalMachine?.machineStatus,
 
