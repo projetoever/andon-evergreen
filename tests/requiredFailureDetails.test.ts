@@ -64,8 +64,8 @@ test("placeholders não são classificações específicas e notas automáticas 
   );
 });
 
-test("frontend exige detalhes somente com FailureEvent e usa o catálogo central", async () => {
-  const [modal, repository, service] = await Promise.all([
+test("frontend usa uma descrição única e exige texto somente para Outro", async () => {
+  const [modal, repository, configService] = await Promise.all([
     readFile(new URL("../src/components/calls/FinishCallModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
     readFile(
@@ -78,18 +78,36 @@ test("frontend exige detalhes somente com FailureEvent e usa o catálogo central
   assert.match(modal, /getFailureClassificationConfigs\(\)/);
   assert.match(modal, /activeFailureClassifications/);
   assert.match(modal, /preservesExistingInactiveClassification/);
-  assert.match(modal, /failureDescription\.trim\(\)\.length > 0/);
+  assert.match(modal, /const \[callDescription, setCallDescription\]/);
+  assert.doesNotMatch(modal, /const \[notes, setNotes\]/);
+  assert.doesNotMatch(modal, /const \[failureDescription, setFailureDescription\]/);
+  assert.match(
+    modal,
+    /failureClassification !== "other" \|\| callDescription\.trim\(\)\.length > 0/,
+  );
   assert.match(modal, /Detalhes da falha/);
+  assert.match(modal, /Descrição do chamado/);
+  assert.doesNotMatch(modal, /Observações do atendimento/);
+  assert.match(
+    modal,
+    /extractFailureDescriptionForFinish\([\s\S]*applicableFailureEvent\?\.failureDescription[\s\S]*\) \|\| extractFailureDescriptionForFinish\(call\.notes\)/,
+  );
+  assert.match(modal, /const normalizedDescription = callDescription\.trim\(\)/);
+  assert.match(modal, /notes:\s*normalizedDescription \|\| null/);
+  assert.match(
+    modal,
+    /failureDescription:\s*applicableFailureEvent\s*\? normalizedDescription \|\| null\s*: null/,
+  );
   assert.match(repository, /failureClassification: params\.failureClassification/);
   assert.match(repository, /failureDescription: params\.failureDescription/);
-  assert.doesNotMatch(service, /localStorage|andonFailureClassificationConfig/);
+  assert.doesNotMatch(configService, /localStorage|andonFailureClassificationConfig/);
 });
 
-test("backend valida e persiste os detalhes dentro da transação de finalização", async () => {
-  const route = await readFile(
-    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
-    "utf8",
-  );
+test("backend e modo local preservam classificação e descrição única", async () => {
+  const [route, localService] = await Promise.all([
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonService.ts", import.meta.url), "utf8"),
+  ]);
   const transactionStart = route.indexOf("const updatedCall = await prisma.$transaction");
   const eventLookup = route.indexOf("const openFailureEvent", transactionStart);
   const eventUpdate = route.indexOf("await tx.failureEvent.update", eventLookup);
@@ -100,5 +118,21 @@ test("backend valida e persiste os detalhes dentro da transação de finalizaç�
   assert.match(route, /GENERIC_FAILURE_CLASSIFICATIONS/);
   assert.match(route, /tx\.failureClassification\.findUnique/);
   assert.match(route, /applicableFailureEvent\.classification !== catalogClassification\.value/);
-  assert.match(route, /notes: failureDescription/);
+  assert.match(route, /failureClassification === "other" && !failureDescription/);
+  assert.match(
+    route,
+    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
+  );
+  assert.doesNotMatch(route, /if \(!failureDescription\)/);
+  assert.match(route, /notes: failureDescription \?\? applicableFailureEvent\.notes/);
+  assert.match(route, /notes: optionalString\(body\.notes\) \?\? call\.notes/);
+  assert.doesNotMatch(
+    route,
+    /appendNote\(call\.notes, optionalString\(body\.notes\), "Finalização"\)/,
+  );
+
+  assert.match(localService, /findApplicableFailureEvent\(machine\.stopHistory, call\.id\)/);
+  assert.match(localService, /failureClassification === "other" && !normalizedDescription/);
+  assert.match(localService, /notes: normalizedDescription \|\| call\.notes \|\| null/);
+  assert.match(localService, /failureDescription: normalizedDescription/);
 });

@@ -125,13 +125,10 @@ export function FinishCallModal({
       ) ?? null
     : null;
 
-  const [notes, setNotes] =
+  const [callDescription, setCallDescription] =
     useState("");
 
   const [failureClassification, setFailureClassification] =
-    useState("");
-
-  const [failureDescription, setFailureDescription] =
     useState("");
 
   const [failureClassifications, setFailureClassifications] =
@@ -355,8 +352,6 @@ export function FinishCallModal({
     initializedCallIdRef.current =
       call.id;
 
-    setNotes("");
-
     const existingFailureClassification =
       applicableFailureEvent?.failureClassification;
 
@@ -366,10 +361,10 @@ export function FinishCallModal({
         : "",
     );
 
-    setFailureDescription(
+    setCallDescription(
       extractFailureDescriptionForFinish(
         applicableFailureEvent?.failureDescription,
-      ),
+      ) || extractFailureDescriptionForFinish(call.notes),
     );
 
     setConfirmedMachineSetId(
@@ -393,6 +388,7 @@ export function FinishCallModal({
     applicableFailureEvent?.id,
     applicableFailureEvent?.failureClassification,
     applicableFailureEvent?.failureDescription,
+    call?.notes,
   ]);
 
   useEffect(() => {
@@ -749,7 +745,7 @@ export function FinishCallModal({
         (!isLoadingFailureClassifications &&
           !failureClassificationsLoadFailed &&
           hasValidFailureClassification &&
-          failureDescription.trim().length > 0)) &&
+          (failureClassification !== "other" || callDescription.trim().length > 0))) &&
       (
         !requiresTechnician ||
         technicianNames.length > 0
@@ -854,6 +850,7 @@ export function FinishCallModal({
     setIsSubmitting(true);
 
     try {
+      const normalizedDescription = callDescription.trim();
       const selectedTechnicians =
         resolveSelectedTechnicians();
 
@@ -878,7 +875,7 @@ export function FinishCallModal({
         selectedTechnicians,
 
         notes:
-          notes.trim() || null,
+          normalizedDescription || null,
 
         failureClassification:
           applicableFailureEvent
@@ -887,7 +884,7 @@ export function FinishCallModal({
 
         failureDescription:
           applicableFailureEvent
-            ? failureDescription.trim() || null
+            ? normalizedDescription || null
             : null,
 
         confirmedMachineSetId:
@@ -1255,7 +1252,7 @@ export function FinishCallModal({
                   Detalhes da falha
                 </h4>
                 <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                  Classifique a ocorrência real e descreva o que foi identificado.
+                  Classifique a ocorrência real e registre uma descrição quando necessário.
                 </p>
               </div>
 
@@ -1307,17 +1304,29 @@ export function FinishCallModal({
 
                   <div>
                     <label
-                      htmlFor="failure-description"
+                      htmlFor="call-description"
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
-                      Descrição da ocorrência
+                      Descrição do chamado
+                      {failureClassification === "other" ? (
+                        <span className="ml-1 text-danger" aria-hidden="true">
+                          *
+                        </span>
+                      ) : (
+                        " (opcional)"
+                      )}
                     </label>
                     <Textarea
-                      id="failure-description"
-                      value={failureDescription}
-                      onChange={(event) => setFailureDescription(event.target.value)}
+                      id="call-description"
+                      value={callDescription}
+                      onChange={(event) => setCallDescription(event.target.value)}
+                      aria-required={failureClassification === "other"}
                       rows={3}
-                      placeholder="Descreva a falha identificada e o que ocorreu."
+                      placeholder={
+                        failureClassification === "other"
+                          ? "Descreva obrigatoriamente a ocorrência identificada."
+                          : "Descreva o chamado, serviço realizado ou ocorrência identificada."
+                      }
                     />
                   </div>
                 </div>
@@ -1325,22 +1334,24 @@ export function FinishCallModal({
             </section>
           )}
 
-          <section>
-            <h4 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Observações do atendimento (opcional)
-            </h4>
+          {!applicableFailureEvent && (
+            <section>
+              <label
+                htmlFor="call-description"
+                className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
+              >
+                Descrição do chamado (opcional)
+              </label>
 
-            <Textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              rows={2}
-              placeholder={
-                requiresAssetConfirmation
-                  ? "Descreva o atendimento, peças trocadas, ajustes ou orientações."
-                  : "Registre uma observação sobre o atendimento, se necessário."
-              }
-            />
-          </section>
+              <Textarea
+                id="call-description"
+                value={callDescription}
+                onChange={(event) => setCallDescription(event.target.value)}
+                rows={3}
+                placeholder="Descreva o chamado, serviço realizado ou ocorrência identificada."
+              />
+            </section>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border bg-background px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -1353,12 +1364,12 @@ export function FinishCallModal({
               title={
                 requiresAssetConfirmation
                   ? `${technicianSummary} · ${confirmedLocationLabel}`
-                  : "Produção / apoio · observação opcional"
+                  : "Produção / apoio · descrição opcional"
               }
             >
               {requiresAssetConfirmation
                 ? `${technicianSummary} · ${confirmedLocationLabel}`
-                : "Produção / apoio · observação opcional"}
+                : "Produção / apoio · descrição opcional"}
             </p>
           </div>
 

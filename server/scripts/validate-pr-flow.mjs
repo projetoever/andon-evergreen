@@ -699,20 +699,11 @@ async function run() {
     },
     {
       payload: {
-        failureClassification: "quality_failure",
+        failureClassification: "other",
         machineStatus: "stopped",
         impactCallIds: [leadershipDuringStop.id],
       },
-      message: /descrição da ocorrência é obrigatória/i,
-    },
-    {
-      payload: {
-        failureClassification: "quality_failure",
-        failureDescription: "   \n  ",
-        machineStatus: "stopped",
-        impactCallIds: [leadershipDuringStop.id],
-      },
-      message: /descrição da ocorrência é obrigatória/i,
+      message: /descrição do chamado é obrigatória quando a classificação é "Outro"/i,
     },
     {
       payload: {
@@ -795,8 +786,8 @@ async function run() {
   const continuedStopOwner = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", {
-      notes: "Atendimento finalizado, mas a máquina continua parada",
-      failureClassification: "quality_failure",
+      notes: "Sensor de inspeção sem resposta",
+      failureClassification: "other",
       failureDescription: "  Sensor de inspeção sem resposta  ",
       machineStatus: "stopped",
       impactCallIds: [leadershipDuringStop.id],
@@ -810,7 +801,7 @@ async function run() {
   });
   assert.equal(transferredFailureEvent.endedAt, null);
   assert.equal(transferredFailureEvent.callId, leadershipDuringStop.id);
-  assert.equal(transferredFailureEvent.classification, "quality_failure");
+  assert.equal(transferredFailureEvent.classification, "other");
   assert.match(transferredFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
   assert.equal(
     transferredFailureEvent.startedAt.getTime(),
@@ -841,9 +832,7 @@ async function run() {
   const finishedStopOwner = await request(
     `/api/andon-calls/${leadershipDuringStop.id}/finish`,
     json("PATCH", {
-      notes: "Último chamado simultâneo encerrado",
       failureClassification: "quality_failure",
-      failureDescription: "Sensor de inspeção sem resposta após continuidade",
     }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
@@ -857,7 +846,8 @@ async function run() {
   assert.ok(finishedFailureEvent.endedAt);
   assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
   assert.equal(finishedFailureEvent.classification, "quality_failure");
-  assert.equal(finishedFailureEvent.notes, "Sensor de inspeção sem resposta após continuidade");
+  assert.match(finishedFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
+  assert.match(finishedFailureEvent.notes ?? "", /Continuidade da falha/);
 
   const orphanStopToRecover = await request(
     "/api/failure-events",

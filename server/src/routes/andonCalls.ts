@@ -1853,8 +1853,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
               throw new FinishCallValidationError("Selecione uma classificação específica da falha");
             }
-            if (!failureDescription) {
-              throw new FinishCallValidationError("Descrição da ocorrência é obrigatória");
+            if (failureClassification === "other" && !failureDescription) {
+              throw new FinishCallValidationError(
+                'Descrição do chamado é obrigatória quando a classificação é "Outro"',
+              );
             }
 
             const catalogClassification = await tx.failureClassification.findUnique({
@@ -1875,7 +1877,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               where: { id: applicableFailureEvent.id },
               data: {
                 classification: catalogClassification.value,
-                notes: failureDescription,
+                notes: failureDescription ?? applicableFailureEvent.notes,
               },
             });
           }
@@ -2056,7 +2058,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: appendNote(call.notes, optionalString(body.notes), "Finalização"),
+              notes: optionalString(body.notes) ?? call.notes,
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

@@ -25,6 +25,10 @@ import {
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import { calculateMachineConditionBreakdownForPeriod } from "@/utils/timeBreakdownUtils";
+import {
+  findApplicableFailureEvent,
+  isSpecificFailureClassification,
+} from "@/utils/failureEventUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -790,6 +794,24 @@ export function finishAndonCall(
   const now = new Date().toISOString();
 
   const machine = machines.find((item) => item.id === call.machineId);
+  const applicableFailureEvent = machine
+    ? findApplicableFailureEvent(machine.stopHistory, call.id)
+    : null;
+  const failureClassification = params.failureClassification?.trim() ?? "";
+  const normalizedDescription =
+    params.notes?.trim() || params.failureDescription?.trim() || "";
+
+  if (applicableFailureEvent) {
+    if (!failureClassification) {
+      throw new Error("Classificação da falha é obrigatória");
+    }
+    if (!isSpecificFailureClassification(failureClassification)) {
+      throw new Error("Selecione uma classificação específica da falha");
+    }
+    if (failureClassification === "other" && !normalizedDescription) {
+      throw new Error('Descrição do chamado é obrigatória quando a classificação é "Outro"');
+    }
+  }
 
   const shouldResumeOwnedStop = Boolean(
     machine?.machineStatus === "stopped" &&
@@ -883,7 +905,28 @@ export function finishAndonCall(
       : updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
-  const finalMachine = finalMachines.find((item) => item.id === call.machineId);
+  const machinesWithFailureDetails = applicableFailureEvent
+    ? finalMachines.map((item) =>
+        item.id === call.machineId
+          ? {
+              ...item,
+              stopHistory: item.stopHistory.map((event) =>
+                event.id === applicableFailureEvent.id
+                  ? {
+                      ...event,
+                      failureClassification,
+                      ...(normalizedDescription
+                        ? { failureDescription: normalizedDescription }
+                        : {}),
+                    }
+                  : event,
+              ),
+            }
+          : item,
+      )
+    : finalMachines;
+
+  const finalMachine = machinesWithFailureDetails.find((item) => item.id === call.machineId);
 
   const selectedTechnicianIdsByName = new Map(
     (params.selectedTechnicians ?? [])
@@ -908,7 +951,7 @@ export function finishAndonCall(
     technicianName,
     technicianNames,
     technicianArea: params.technicianArea,
-    notes: params.notes ?? null,
+    notes: normalizedDescription || call.notes || null,
     productionModeAtFinish: finalMachine?.productionMode,
     machineStatusAtFinish: finalMachine?.machineStatus,
 
@@ -990,7 +1033,11 @@ export function finishAndonCall(
 
   return {
     calls: finishedCalls,
-    machines: syncLocalMachineOperationalState(finalMachines, finishedCalls, call.machineId),
+    machines: syncLocalMachineOperationalState(
+      machinesWithFailureDetails,
+      finishedCalls,
+      call.machineId,
+    ),
   };
 }
 export function cancelAndonCall(
