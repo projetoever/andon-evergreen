@@ -1,13 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  CheckCheck,
-  CircleDot,
-  History,
-  RotateCcw,
-  Wrench,
-  XCircle,
-} from "lucide-react";
+import { ArrowLeft, CheckCheck, History, RotateCcw, Wrench, XCircle } from "lucide-react";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
@@ -143,28 +135,24 @@ export function MachineSectorButton({
         activeCall
           ? selected
             ? "shadow-lg hover:brightness-125"
-            : "shadow-md hover:brightness-125"
+            : "border-border shadow-md hover:brightness-125"
           : "shadow-sm hover:brightness-110",
         className,
       )}
       style={{
         backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
-        borderColor: accentColor,
+        borderColor: !activeCall || selected ? accentColor : undefined,
         color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
-      {activeCall && (
+      {selected && (
         <span
           aria-hidden="true"
-          data-active-ring="true"
-          data-selection-ring={selected ? "true" : undefined}
-          className={cn(
-            "pointer-events-none absolute -inset-1 rounded-xl animate-pulse motion-reduce:animate-none",
-            selected ? "border-2 opacity-100" : "border opacity-70",
-          )}
+          data-selection-ring="true"
+          className="pointer-events-none absolute -inset-1 rounded-xl border-2 opacity-100 animate-pulse motion-reduce:animate-none"
           style={{
             borderColor: accentColor,
-            boxShadow: selected ? `0 0 14px ${accentColor}99` : `0 0 8px ${accentColor}66`,
+            boxShadow: `0 0 14px ${accentColor}99`,
           }}
         />
       )}
@@ -178,22 +166,15 @@ export function MachineSectorButton({
       )}
       <span className="relative flex min-w-0 flex-col items-center justify-center gap-1">
         <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
-          {activeCall && (
+          {selected && (
             <span
               aria-hidden="true"
-              data-active-indicator="true"
-              className={cn("shrink-0 rounded-full", selected ? "h-2.5 w-2.5" : "h-2 w-2")}
+              data-selected-pulse-dot="true"
+              className="h-2.5 w-2.5 shrink-0 rounded-full animate-pulse motion-reduce:animate-none"
               style={{
                 backgroundColor: accentColor,
                 boxShadow: `0 0 7px ${accentColor}`,
               }}
-            />
-          )}
-          {selected && (
-            <CircleDot
-              aria-hidden="true"
-              className="h-4 w-4 shrink-0"
-              style={{ color: accentColor }}
             />
           )}
           <span className="min-w-0 break-words text-center [overflow-wrap:anywhere]">
@@ -205,9 +186,9 @@ export function MachineSectorButton({
             data-call-status-badge="true"
             className={cn(
               "inline-flex rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
-              selected && "border-2",
+              selected ? "border-2" : "border-border",
             )}
-            style={{ borderColor: accentColor }}
+            style={{ borderColor: selected ? accentColor : undefined }}
           >
             {selected ? "Selecionado" : "Ativo"}
           </span>
