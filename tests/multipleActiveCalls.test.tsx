@@ -70,7 +70,10 @@ test("cenário A: setor livre mantém a ação de abrir e não aparece seleciona
   assert.match(markup, /data-call-state="free"/);
   assert.match(markup, /background-color:#F5B700/);
   assert.doesNotMatch(markup, /aria-pressed/);
-  assert.doesNotMatch(markup, /Ativo|Selecionado|data-active-ring|data-selection-ring/);
+  assert.doesNotMatch(
+    markup,
+    /Ativo|Selecionado|data-selection-ring|data-selected-pulse-dot|animate-pulse/,
+  );
 });
 
 test("cenário B: setor ativo fica em grafite, preserva a cor e seleciona sem abrir duplicata", () => {
@@ -92,11 +95,11 @@ test("cenário B: setor ativo fica em grafite, preserva a cor e seleciona sem ab
   assert.match(markup, /data-call-state="active"/);
   assert.match(markup, /background-color:#27313D/);
   assert.match(markup, /border-color:#F5B700/);
-  assert.match(markup, /data-active-indicator="true"/);
-  assert.match(markup, /data-active-ring="true"/);
-  assert.match(markup, /animate-pulse/);
-  assert.match(markup, /motion-reduce:animate-none/);
   assert.match(markup, />Ativo</);
+  assert.doesNotMatch(
+    markup,
+    /data-selection-ring|data-selected-pulse-dot|animate-pulse|lucide-circle-dot/,
+  );
   assert.doesNotMatch(markup, /disabled/);
 });
 
@@ -139,17 +142,16 @@ test("cenário D: selecionado tem hierarquia mais forte que o outro setor ativo"
   assert.match(selectedMarkup, /Selecionado/);
   assert.match(selectedMarkup, /data-selection-ring="true"/);
   assert.match(selectedMarkup, /data-selected-inset="true"/);
+  assert.match(selectedMarkup, /data-selected-pulse-dot="true"/);
   assert.match(selectedMarkup, /animate-pulse/);
   assert.match(selectedMarkup, /motion-reduce:animate-none/);
-  assert.match(selectedMarkup, /lucide-circle-dot/);
+  assert.doesNotMatch(selectedMarkup, /lucide-circle-dot/);
   assert.match(otherActiveMarkup, /aria-pressed="false"/);
   assert.match(otherActiveMarkup, /data-call-state="active"/);
   assert.match(otherActiveMarkup, /Ativo/);
-  assert.match(otherActiveMarkup, /data-active-ring="true"/);
-  assert.match(otherActiveMarkup, /animate-pulse/);
   assert.doesNotMatch(
     otherActiveMarkup,
-    /data-selection-ring|data-selected-inset|lucide-circle-dot/,
+    /data-selection-ring|data-selected-inset|data-selected-pulse-dot|animate-pulse|lucide-circle-dot/,
   );
 });
 
@@ -192,18 +194,18 @@ test("cor escura recebe accent contrastante e cor clara preserva identidade", ()
   const darkCall = createCall("call-dark", darkCategory.id);
   const darkMarkup = renderSector(darkCategory, darkCall, darkCall.id);
   const darkAccent = darkMarkup.match(
-    /data-active-ring="true"[^>]*style="border-color:([^;"]+)/,
+    /data-selection-ring="true"[^>]*style="border-color:([^;"]+)/,
   )?.[1];
 
   assert.ok(darkAccent);
   assert.notEqual(darkAccent.toUpperCase(), darkCategory.color);
   assert.match(darkMarkup, new RegExp(`border-color:${darkAccent}`, "i"));
   assert.match(darkMarkup, new RegExp(`background-color:${darkAccent}`, "i"));
-  assert.match(darkMarkup, new RegExp(`color:${darkAccent}`, "i"));
+  assert.match(darkMarkup, /data-selected-pulse-dot="true"/);
 
   const lightCategory = createCategory("light-sector", "Setor claro", "#FF7A00");
   const lightCall = createCall("call-light", lightCategory.id);
-  const lightMarkup = renderSector(lightCategory, lightCall, electricalCall.id);
+  const lightMarkup = renderSector(lightCategory, lightCall, lightCall.id);
   assert.match(lightMarkup, /border-color:#FF7A00/);
   assert.match(lightMarkup, /background-color:#FF7A00/);
 });
