@@ -27,7 +27,7 @@ test("frontend usa a API central e não possui fallback silencioso no catálogo 
       new URL("../src/services/failureClassificationConfigService.ts", import.meta.url),
       "utf8",
     ),
-    readFile(new URL("../src/pages/MachineFailureHistoryPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/MachineCallHistoryPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -37,6 +37,7 @@ test("frontend usa a API central e não possui fallback silencioso no catálogo 
   assert.match(service, /\?active=true/);
   assert.match(history, /catalogByValue\.get\(value\)/);
   assert.match(history, /option\.value/);
+  assert.match(history, /updateMachineStopEventDescription/);
   assert.match(history, /Catálogo central de classificações indisponível/);
   assert.match(admin, /createFailureClassification/);
   assert.match(admin, /updateFailureClassification/);
