@@ -41,6 +41,69 @@ function readableTextColor(hex: string) {
   return luminance > 145 ? "#071015" : "#FFFFFF";
 }
 
+function parseHexColor(hex: string) {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+
+  return {
+    red: Number.parseInt(normalized.slice(0, 2), 16),
+    green: Number.parseInt(normalized.slice(2, 4), 16),
+    blue: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function relativeLuminance({ red, green, blue }: NonNullable<ReturnType<typeof parseHexColor>>) {
+  const convert = (channel: number) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+
+  return convert(red) * 0.2126 + convert(green) * 0.7152 + convert(blue) * 0.0722;
+}
+
+function contrastRatio(first: string, second: string) {
+  const firstColor = parseHexColor(first);
+  const secondColor = parseHexColor(second);
+  if (!firstColor || !secondColor) return 1;
+
+  const firstLuminance = relativeLuminance(firstColor);
+  const secondLuminance = relativeLuminance(secondColor);
+  return (
+    (Math.max(firstLuminance, secondLuminance) + 0.05) /
+    (Math.min(firstLuminance, secondLuminance) + 0.05)
+  );
+}
+
+function toHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+}
+
+function getActiveAccentColor(categoryColor: string) {
+  const color = parseHexColor(categoryColor);
+  if (!color) return "#F8FAFC";
+
+  const normalizedColor = toHex(color.red, color.green, color.blue);
+  const activeBackgrounds = ["#27313D", "#111827"];
+  if (activeBackgrounds.every((background) => contrastRatio(normalizedColor, background) >= 3)) {
+    return normalizedColor;
+  }
+
+  for (let whiteMix = 0.15; whiteMix <= 0.85; whiteMix += 0.1) {
+    const accent = toHex(
+      color.red + (255 - color.red) * whiteMix,
+      color.green + (255 - color.green) * whiteMix,
+      color.blue + (255 - color.blue) * whiteMix,
+    );
+    if (activeBackgrounds.every((background) => contrastRatio(accent, background) >= 3)) {
+      return accent;
+    }
+  }
+
+  return "#F8FAFC";
+}
+
 interface MachineSectorButtonProps {
   category: AndonCategoryConfig;
   activeCall: AndonCall | undefined;
@@ -59,6 +122,8 @@ export function MachineSectorButton({
   onSelectCall,
 }: MachineSectorButtonProps) {
   const selected = activeCall?.id === selectedCallId;
+  const callState = !activeCall ? "free" : selected ? "selected" : "active";
+  const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
     ? selected
       ? `Selecionado: chamado ${category.displayName}`
@@ -70,36 +135,102 @@ export function MachineSectorButton({
       type="button"
       aria-label={actionLabel}
       aria-pressed={activeCall ? selected : undefined}
+      data-call-state={callState}
       title={actionLabel}
       onClick={() => (activeCall ? onSelectCall(activeCall.id) : onOpenSubtype(category.id))}
       className={cn(
-        "relative rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "relative isolate overflow-visible rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        activeCall
+          ? selected
+            ? "shadow-lg hover:brightness-125"
+            : "shadow-md hover:brightness-125"
+          : "shadow-sm hover:brightness-110",
         className,
       )}
       style={{
-        backgroundColor: category.color,
-        borderColor: category.color,
-        color: readableTextColor(category.color),
+        backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
+        borderColor: accentColor,
+        color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
+      {activeCall && (
+        <span
+          aria-hidden="true"
+          data-active-ring="true"
+          data-selection-ring={selected ? "true" : undefined}
+          className={cn(
+            "pointer-events-none absolute -inset-1 rounded-xl animate-pulse motion-reduce:animate-none",
+            selected ? "border-2 opacity-100" : "border opacity-70",
+          )}
+          style={{
+            borderColor: accentColor,
+            boxShadow: selected ? `0 0 14px ${accentColor}99` : `0 0 8px ${accentColor}66`,
+          }}
+        />
+      )}
       {selected && (
         <span
           aria-hidden="true"
-          data-selection-ring="true"
-          className="pointer-events-none absolute -inset-1 rounded-xl border-2 animate-pulse"
-          style={{ borderColor: category.color }}
+          data-selected-inset="true"
+          className="pointer-events-none absolute inset-0.5 rounded-md border opacity-70"
+          style={{ borderColor: accentColor }}
         />
       )}
-      <span className="relative inline-flex items-center justify-center gap-1.5">
-        {selected && <CircleDot aria-hidden="true" className="h-4 w-4 shrink-0" />}
-        <span>{category.displayName}</span>
+      <span className="relative flex min-w-0 flex-col items-center justify-center gap-1">
+        <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
+          {activeCall && (
+            <span
+              aria-hidden="true"
+              data-active-indicator="true"
+              className={cn("shrink-0 rounded-full", selected ? "h-2.5 w-2.5" : "h-2 w-2")}
+              style={{
+                backgroundColor: accentColor,
+                boxShadow: `0 0 7px ${accentColor}`,
+              }}
+            />
+          )}
+          {selected && (
+            <CircleDot
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0"
+              style={{ color: accentColor }}
+            />
+          )}
+          <span className="min-w-0 break-words text-center [overflow-wrap:anywhere]">
+            {category.displayName}
+          </span>
+        </span>
         {activeCall && (
-          <span className="text-[10px] normal-case tracking-normal">
-            · {selected ? "Selecionado" : "Ativo"}
+          <span
+            data-call-status-badge="true"
+            className={cn(
+              "inline-flex rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
+              selected && "border-2",
+            )}
+            style={{ borderColor: accentColor }}
+          >
+            {selected ? "Selecionado" : "Ativo"}
           </span>
         )}
       </span>
     </button>
+  );
+}
+
+export function ActiveCallsBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+
+  return (
+    <span
+      aria-label={`${count} ${count === 1 ? "chamado ativo" : "chamados ativos"}`}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase leading-none tracking-wider text-amber-200"
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse motion-reduce:animate-none"
+      />
+      {count} {count === 1 ? "Ativo" : "Ativos"}
+    </span>
   );
 }
 
@@ -143,9 +274,12 @@ export function MachineActionPanel({
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-          Abrir novo chamado
-        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+            Abrir novo chamado
+          </h3>
+          <ActiveCallsBadge count={activeCalls.length} />
+        </div>
         <p className="text-xs text-muted-foreground">
           {machine.machineStatus === "stopped" && hasActiveStopOwner
             ? "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado."
