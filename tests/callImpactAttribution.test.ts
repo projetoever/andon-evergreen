@@ -100,6 +100,7 @@ test("atribui impacto somente ao chamado que informou a parada e transfere sem r
     finishParams(mechanical.call, {
       machineStatus: "stopped",
       impactCallIds: [electrical.call.id, hotMelt.call.id],
+      failureClassification: "quality_failure",
     }),
   );
 

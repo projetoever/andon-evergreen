@@ -24,6 +24,8 @@ const AUTOMATIC_DESCRIPTION_LINES = [
   /^Falha encerrada automaticamente\b/i,
   /^Continuidade da falha:/i,
   /^Retomada:/i,
+  /^Conclusão da manutenção:/i,
+  /^Retorno à manutenção:/i,
 ];
 
 export function extractFailureDescriptionForFinish(description?: string | null) {

@@ -560,6 +560,19 @@ async function run() {
     new Set(["Mantenedor Elétrico PR 47", "Apoio Elétrico PR 50"]),
   );
   assert.ok(finishedMaintenance.technicianSessions.every((session) => session.endedAt));
+  assert.match(finishedMaintenance.notes, /Conclusão da manutenção: Integração concluída/);
+  assert.match(finishedMaintenance.notes, /Retorno à manutenção: Falha voltou a ocorrer/);
+  assert.match(
+    finishedMaintenance.notes,
+    /Conclusão da manutenção: Segunda conclusão da manutenção/,
+  );
+  assert.match(finishedMaintenance.notes, /Finalização de integração/);
+  assert.doesNotMatch(finishedMaintenance.notes, /Finalização: Finalização de integração/);
+  assert.equal(
+    finishedMaintenance.notes.match(/Finalização de integração/g)?.length,
+    1,
+    "a descrição final não pode ser duplicada",
+  );
 
   const cancelledMechanicalCall = await request(
     `/api/andon-calls/${mechanicalCall.id}/cancel`,
@@ -699,20 +712,11 @@ async function run() {
     },
     {
       payload: {
-        failureClassification: "quality_failure",
+        failureClassification: "other",
         machineStatus: "stopped",
         impactCallIds: [leadershipDuringStop.id],
       },
-      message: /descrição da ocorrência é obrigatória/i,
-    },
-    {
-      payload: {
-        failureClassification: "quality_failure",
-        failureDescription: "   \n  ",
-        machineStatus: "stopped",
-        impactCallIds: [leadershipDuringStop.id],
-      },
-      message: /descrição da ocorrência é obrigatória/i,
+      message: /descrição do chamado é obrigatória quando a classificação é "Outro"/i,
     },
     {
       payload: {
@@ -795,8 +799,8 @@ async function run() {
   const continuedStopOwner = await request(
     `/api/andon-calls/${qualityStopped.id}/finish`,
     json("PATCH", {
-      notes: "Atendimento finalizado, mas a máquina continua parada",
-      failureClassification: "quality_failure",
+      notes: "Sensor de inspeção sem resposta",
+      failureClassification: "other",
       failureDescription: "  Sensor de inspeção sem resposta  ",
       machineStatus: "stopped",
       impactCallIds: [leadershipDuringStop.id],
@@ -810,7 +814,7 @@ async function run() {
   });
   assert.equal(transferredFailureEvent.endedAt, null);
   assert.equal(transferredFailureEvent.callId, leadershipDuringStop.id);
-  assert.equal(transferredFailureEvent.classification, "quality_failure");
+  assert.equal(transferredFailureEvent.classification, "other");
   assert.match(transferredFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
   assert.equal(
     transferredFailureEvent.startedAt.getTime(),
@@ -841,13 +845,14 @@ async function run() {
   const finishedStopOwner = await request(
     `/api/andon-calls/${leadershipDuringStop.id}/finish`,
     json("PATCH", {
-      notes: "Último chamado simultâneo encerrado",
       failureClassification: "quality_failure",
-      failureDescription: "Sensor de inspeção sem resposta após continuidade",
+      failureDescription: "Sensor legado sem resposta",
     }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
   assert.equal(finishedStopOwner.assetConfirmedAt, null);
+  assert.match(finishedStopOwner.notes ?? "", /Sensor legado sem resposta/);
+  assert.doesNotMatch(finishedStopOwner.notes ?? "", /Finalização: Sensor legado sem resposta/);
 
   const resumedMachine = await request(`/api/machines/${ids.impactMachine}`);
   assert.equal(resumedMachine.machineStatus, "running");
@@ -857,7 +862,97 @@ async function run() {
   assert.ok(finishedFailureEvent.endedAt);
   assert.ok((finishedFailureEvent.durationSeconds ?? 0) >= 4 * 60);
   assert.equal(finishedFailureEvent.classification, "quality_failure");
-  assert.equal(finishedFailureEvent.notes, "Sensor de inspeção sem resposta após continuidade");
+  assert.equal(finishedFailureEvent.notes, "Sensor legado sem resposta");
+
+  const placeholderOnlyCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${placeholderOnlyCall.id}/attend`, json("PATCH", {}));
+  const placeholderEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: placeholderOnlyCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+  assert.equal(placeholderEvent.notes, "Falha registrada na abertura do ANDON");
+
+  await request(
+    `/api/andon-calls/${placeholderOnlyCall.id}/finish`,
+    json("PATCH", { failureClassification: "quality_failure" }),
+  );
+  const clearedPlaceholderEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: placeholderEvent.id },
+  });
+  assert.equal(clearedPlaceholderEvent.notes, null);
+
+  const describedAtOpenCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+      description: "Sensor óptico intermitente",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${describedAtOpenCall.id}/attend`, json("PATCH", {}));
+  const describedAtOpenFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: describedAtOpenCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+  assert.equal(describedAtOpenFailureEvent.notes, "Falha registrada na abertura do ANDON");
+
+  const finishedDescribedAtOpenCall = await request(
+    `/api/andon-calls/${describedAtOpenCall.id}/finish`,
+    json("PATCH", { failureClassification: "quality_failure" }),
+  );
+  assert.equal(finishedDescribedAtOpenCall.notes, "Sensor óptico intermitente");
+
+  const finishedDescribedAtOpenFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: describedAtOpenFailureEvent.id },
+  });
+  assert.equal(finishedDescribedAtOpenFailureEvent.notes, "Sensor óptico intermitente");
+  assert.doesNotMatch(
+    finishedDescribedAtOpenFailureEvent.notes,
+    /Falha registrada na abertura do ANDON/,
+  );
+
+  const notesOnlyCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.impactMachine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "stopped",
+    }),
+    201,
+  );
+  await request(`/api/andon-calls/${notesOnlyCall.id}/attend`, json("PATCH", {}));
+  const notesOnlyFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: notesOnlyCall.id },
+    orderBy: { startedAt: "desc" },
+  });
+
+  const finishedNotesOnlyCall = await request(
+    `/api/andon-calls/${notesOnlyCall.id}/finish`,
+    json("PATCH", {
+      notes: "Descrição unificada via notes",
+      failureClassification: "quality_failure",
+    }),
+  );
+  assert.equal(finishedNotesOnlyCall.notes, "Descrição unificada via notes");
+  assert.doesNotMatch(finishedNotesOnlyCall.notes, /Finalização:/);
+
+  const finishedNotesOnlyFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: notesOnlyFailureEvent.id },
+  });
+  assert.equal(finishedNotesOnlyFailureEvent.notes, "Descrição unificada via notes");
 
   const orphanStopToRecover = await request(
     "/api/failure-events",

@@ -6,8 +6,9 @@ import {
   findApplicableFailureEvent,
   isSpecificFailureClassification,
 } from "../src/utils/failureEventUtils";
+import { finishAndonCall, openAndonCall } from "../src/services/andonService";
 import { extractFailureDescriptionForFinish } from "../src/utils/failureDescriptionUtils";
-import type { MachineStopEvent } from "../src/types/machine";
+import type { Machine, MachineStopEvent } from "../src/types/machine";
 
 function failureEvent(
   id: string,
@@ -23,6 +24,54 @@ function failureEvent(
     resumedAt,
     durationMinutes: 0,
     source: "manual",
+  };
+}
+
+function createMachine(id: string): Machine {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: "Máquina de detalhes obrigatórios",
+    machineStatus: "running",
+    andonStatus: "none",
+    currentCallId: null,
+    lastStatusChangedAt: now,
+    stoppedAt: null,
+    lastStopDurationMinutes: 0,
+    stopHistory: [],
+    productionMode: "scheduled",
+    productionModeChangedAt: now,
+    productionHistory: [],
+    useCommercialShift: false,
+    isActive: true,
+    displayOrder: null,
+  };
+}
+
+function createFinishScenario(machineCondition: "running" | "stopped") {
+  const opened = openAndonCall([createMachine(`machine-${machineCondition}`)], [], {
+    machineId: `machine-${machineCondition}`,
+    category: "production",
+    subtype: `failure-${machineCondition}`,
+    machineCondition,
+  });
+
+  return {
+    machines: opened.machines,
+    calls: opened.calls,
+    params: {
+      callId: opened.call.id,
+      technicianName: null,
+      technicianArea: null,
+      confirmedMachineSetId: null,
+      confirmedMachineSetCodeSnapshot: null,
+      confirmedMachineSetNameSnapshot: null,
+      confirmedMachineSetTypeSnapshot: null,
+      confirmedMachineSubsetId: null,
+      confirmedMachineSubsetCodeSnapshot: null,
+      confirmedMachineSubsetNameSnapshot: null,
+      confirmedMachineSubsetTypeSnapshot: null,
+    } satisfies Parameters<typeof finishAndonCall>[2],
   };
 }
 
@@ -64,8 +113,8 @@ test("placeholders não são classificações específicas e notas automáticas 
   );
 });
 
-test("frontend exige detalhes somente com FailureEvent e usa o catálogo central", async () => {
-  const [modal, repository, service] = await Promise.all([
+test("frontend usa uma descrição única e exige texto somente para Outro", async () => {
+  const [modal, repository, configService] = await Promise.all([
     readFile(new URL("../src/components/calls/FinishCallModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
     readFile(
@@ -78,18 +127,36 @@ test("frontend exige detalhes somente com FailureEvent e usa o catálogo central
   assert.match(modal, /getFailureClassificationConfigs\(\)/);
   assert.match(modal, /activeFailureClassifications/);
   assert.match(modal, /preservesExistingInactiveClassification/);
-  assert.match(modal, /failureDescription\.trim\(\)\.length > 0/);
+  assert.match(modal, /const \[callDescription, setCallDescription\]/);
+  assert.doesNotMatch(modal, /const \[notes, setNotes\]/);
+  assert.doesNotMatch(modal, /const \[failureDescription, setFailureDescription\]/);
+  assert.match(
+    modal,
+    /failureClassification !== "other" \|\| callDescription\.trim\(\)\.length > 0/,
+  );
   assert.match(modal, /Detalhes da falha/);
+  assert.match(modal, /Descrição do chamado/);
+  assert.doesNotMatch(modal, /Observações do atendimento/);
+  assert.match(
+    modal,
+    /extractFailureDescriptionForFinish\([\s\S]*applicableFailureEvent\?\.failureDescription[\s\S]*\) \|\| extractFailureDescriptionForFinish\(call\.notes\)/,
+  );
+  assert.match(modal, /const normalizedDescription = callDescription\.trim\(\)/);
+  assert.match(modal, /notes:\s*normalizedDescription \|\| null/);
+  assert.match(
+    modal,
+    /failureDescription:\s*applicableFailureEvent\s*\? normalizedDescription \|\| null\s*: null/,
+  );
   assert.match(repository, /failureClassification: params\.failureClassification/);
   assert.match(repository, /failureDescription: params\.failureDescription/);
-  assert.doesNotMatch(service, /localStorage|andonFailureClassificationConfig/);
+  assert.doesNotMatch(configService, /localStorage|andonFailureClassificationConfig/);
 });
 
-test("backend valida e persiste os detalhes dentro da transação de finalização", async () => {
-  const route = await readFile(
-    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
-    "utf8",
-  );
+test("backend e modo local preservam classificação e descrição única", async () => {
+  const [route, localService] = await Promise.all([
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonService.ts", import.meta.url), "utf8"),
+  ]);
   const transactionStart = route.indexOf("const updatedCall = await prisma.$transaction");
   const eventLookup = route.indexOf("const openFailureEvent", transactionStart);
   const eventUpdate = route.indexOf("await tx.failureEvent.update", eventLookup);
@@ -100,5 +167,110 @@ test("backend valida e persiste os detalhes dentro da transação de finalizaç�
   assert.match(route, /GENERIC_FAILURE_CLASSIFICATIONS/);
   assert.match(route, /tx\.failureClassification\.findUnique/);
   assert.match(route, /applicableFailureEvent\.classification !== catalogClassification\.value/);
-  assert.match(route, /notes: failureDescription/);
+  assert.match(
+    route,
+    /const resolvedFailureDescription =\s*failureDescription \?\? optionalString\(body\.notes\)/,
+  );
+  assert.match(route, /failureClassification === "other" && !resolvedFailureDescription/);
+  assert.match(
+    route,
+    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
+  );
+  assert.doesNotMatch(route, /if \(!failureDescription\)/);
+  assert.match(
+    route,
+    /resolvedFailureDescription \?\?\s*extractOperationalFailureDescription\(call\.notes\) \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
+  );
+  assert.match(
+    route,
+    /const finalDescription =\s*optionalString\(body\.notes\) \?\? optionalString\(body\.failureDescription\)/,
+  );
+  assert.match(route, /notes: mergeFinalDescription\(call\.notes, finalDescription\)/);
+  assert.doesNotMatch(
+    route,
+    /Falha encerrada automaticamente na finalização do chamado responsável/,
+  );
+  assert.doesNotMatch(
+    route,
+    /appendNote\(call\.notes, optionalString\(body\.notes\), "Finalização"\)/,
+  );
+
+  assert.match(localService, /findApplicableFailureEvent\(machine\.stopHistory, call\.id\)/);
+  assert.match(localService, /failureClassification === "other" && !normalizedDescription/);
+  assert.match(localService, /notes: mergeFinalDescription\(call\.notes, normalizedDescription\)/);
+  assert.match(localService, /failureDescription: normalizedDescription/);
+});
+
+test("modo local exige classificação apenas quando existe FailureEvent", () => {
+  const withFailure = createFinishScenario("stopped");
+
+  assert.throws(
+    () => finishAndonCall(withFailure.machines, withFailure.calls, withFailure.params),
+    /Classificação da falha é obrigatória/,
+  );
+  assert.throws(
+    () =>
+      finishAndonCall(withFailure.machines, withFailure.calls, {
+        ...withFailure.params,
+        failureClassification: "unclassified",
+      }),
+    /Selecione uma classificação específica da falha/,
+  );
+  assert.doesNotThrow(() =>
+    finishAndonCall(withFailure.machines, withFailure.calls, {
+      ...withFailure.params,
+      failureClassification: "quality_failure",
+    }),
+  );
+  assert.throws(
+    () =>
+      finishAndonCall(withFailure.machines, withFailure.calls, {
+        ...withFailure.params,
+        failureClassification: "other",
+      }),
+    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
+  );
+  assert.doesNotThrow(() =>
+    finishAndonCall(withFailure.machines, withFailure.calls, {
+      ...withFailure.params,
+      failureClassification: "other",
+      notes: "Falha específica identificada",
+    }),
+  );
+
+  const withoutFailure = createFinishScenario("running");
+  assert.doesNotThrow(() =>
+    finishAndonCall(withoutFailure.machines, withoutFailure.calls, withoutFailure.params),
+  );
+});
+
+test("finalização preserva auditoria e evita duplicar a descrição no modo local", () => {
+  const scenario = createFinishScenario("running");
+  const auditNotes = [
+    "Descrição inicial",
+    "Conclusão da manutenção: Integração concluída",
+    "Retorno à manutenção: Falha voltou a ocorrer",
+  ].join("\n");
+  const callWithAudit = { ...scenario.calls[0], notes: auditNotes };
+
+  const withNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
+    ...scenario.params,
+    notes: "  Finalização de integração  ",
+  }).calls[0];
+  assert.equal(withNewDescription.notes, `${auditNotes}\nFinalização de integração`);
+  assert.doesNotMatch(withNewDescription.notes ?? "", /Finalização: Finalização de integração/);
+
+  const existingDescription = `${auditNotes}\nFinalização de integração`;
+  const withoutDuplication = finishAndonCall(
+    scenario.machines,
+    [{ ...callWithAudit, notes: existingDescription }],
+    { ...scenario.params, notes: "finalização   de integração" },
+  ).calls[0];
+  assert.equal(withoutDuplication.notes, existingDescription);
+  assert.equal(withoutDuplication.notes?.match(/Finalização de integração/gi)?.length, 1);
+
+  const withoutNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
+    ...scenario.params,
+  }).calls[0];
+  assert.equal(withoutNewDescription.notes, auditNotes);
 });

@@ -616,9 +616,7 @@ async function resumeMachineWhenFinishingOwnedStop(
       endedAt: params.finishedAt,
       durationSeconds: diffSeconds(ownedOpenEvent.startedAt, params.finishedAt),
       machineStatus: "running",
-      notes:
-        ownedOpenEvent.notes ??
-        "Falha encerrada automaticamente na finalização do chamado responsável",
+      notes: ownedOpenEvent.notes,
     },
   });
 
@@ -640,6 +638,61 @@ function appendNote(currentNotes: string | null, note: string | undefined, prefi
 
   const entry = `${prefix}: ${note}`;
   return currentNotes ? `${currentNotes}\n${entry}` : entry;
+}
+
+function mergeFinalDescription(
+  currentNotes: string | null,
+  finalDescription: string | null | undefined,
+) {
+  const description = finalDescription?.trim();
+  if (!description) {
+    return currentNotes;
+  }
+  if (!currentNotes) {
+    return description;
+  }
+
+  const normalize = (value: string) =>
+    value
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((line) => line.trim().replace(/\s+/g, " "))
+      .join("\n")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+  const normalizedNotes = normalize(currentNotes);
+  const normalizedDescription = normalize(description);
+  const alreadyPresent =
+    normalizedNotes === normalizedDescription ||
+    normalizedNotes.startsWith(`${normalizedDescription}\n`) ||
+    normalizedNotes.endsWith(`\n${normalizedDescription}`) ||
+    normalizedNotes.includes(`\n${normalizedDescription}\n`);
+
+  return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
+}
+
+const AUTOMATIC_FAILURE_DESCRIPTION_LINES = [
+  /^Falha registrada na abertura do ANDON$/i,
+  /^Falha encerrada automaticamente\b/i,
+  /^Continuidade da falha:/i,
+  /^Retomada:/i,
+  /^Conclusão da manutenção:/i,
+  /^Retorno à manutenção:/i,
+];
+
+function extractOperationalFailureDescription(notes: string | null | undefined) {
+  const description = (notes ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        !AUTOMATIC_FAILURE_DESCRIPTION_LINES.some((pattern) => pattern.test(line)),
+    )
+    .join("\n")
+    .trim();
+
+  return description || null;
 }
 
 function attachAssetSnapshots(
@@ -1781,6 +1834,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       const confirmedMachineSetId = optionalString(body.confirmedMachineSetId);
       const confirmedMachineSubsetId = optionalString(body.confirmedMachineSubsetId);
       const assetChangeReason = optionalString(body.assetChangeReason);
+      const finalDescription =
+        optionalString(body.notes) ?? optionalString(body.failureDescription);
 
       if (requestedMachineStatus && !MACHINE_STATUSES.has(requestedMachineStatus)) {
         return badRequest(reply, "Status operacional inválido");
@@ -1846,6 +1901,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           if (applicableFailureEvent) {
             const failureClassification = optionalString(body.failureClassification);
             const failureDescription = optionalString(body.failureDescription);
+            const resolvedFailureDescription =
+              failureDescription ?? optionalString(body.notes);
 
             if (!failureClassification) {
               throw new FinishCallValidationError("Classificação da falha é obrigatória");
@@ -1853,8 +1910,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
               throw new FinishCallValidationError("Selecione uma classificação específica da falha");
             }
-            if (!failureDescription) {
-              throw new FinishCallValidationError("Descrição da ocorrência é obrigatória");
+            if (failureClassification === "other" && !resolvedFailureDescription) {
+              throw new FinishCallValidationError(
+                'Descrição do chamado é obrigatória quando a classificação é "Outro"',
+              );
             }
 
             const catalogClassification = await tx.failureClassification.findUnique({
@@ -1875,7 +1934,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               where: { id: applicableFailureEvent.id },
               data: {
                 classification: catalogClassification.value,
-                notes: failureDescription,
+                notes:
+                  resolvedFailureDescription ??
+                  extractOperationalFailureDescription(call.notes) ??
+                  extractOperationalFailureDescription(applicableFailureEvent.notes),
               },
             });
           }
@@ -2056,7 +2118,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: appendNote(call.notes, optionalString(body.notes), "Finalização"),
+              notes: mergeFinalDescription(call.notes, finalDescription),
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

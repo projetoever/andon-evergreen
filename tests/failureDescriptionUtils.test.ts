@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { sanitizeFailureDescription } from "../src/utils/failureDescriptionUtils";
+import {
+  extractFailureDescriptionForFinish,
+  sanitizeFailureDescription,
+} from "../src/utils/failureDescriptionUtils";
 
 test("oculta IDs internos da transferência de impacto sem perder a descrição operacional", () => {
   const description = [
@@ -30,4 +33,26 @@ test("também normaliza o texto de transferência usado por versões anteriores"
 
   assert.match(sanitized, /Máquina permaneceu parada/);
   assert.doesNotMatch(sanitized, /cmoldtarget|cmoldsource/);
+});
+
+test("exclui transições de manutenção da descrição operacional editável", () => {
+  assert.equal(
+    extractFailureDescriptionForFinish(
+      [
+        "Descrição original",
+        "Conclusão da manutenção: Ajuste concluído",
+        "Retorno à manutenção: Falha voltou",
+      ].join("\n"),
+    ),
+    "Descrição original",
+  );
+  assert.equal(
+    extractFailureDescriptionForFinish(
+      [
+        "Conclusão da manutenção: Ajuste concluído",
+        "Retorno à manutenção: Falha voltou",
+      ].join("\n"),
+    ),
+    "",
+  );
 });
