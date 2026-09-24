@@ -99,7 +99,7 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   assert.equal(history.match(/Localização: \{effectiveAssetLocation\}/g)?.length, 1);
   assert.match(
     history,
-    /new Date\(b\.finishedAt \?\? b\.openedAt\).*new Date\(a\.finishedAt \?\? a\.openedAt\)/,
+    /new Date\(b\.finishedAt \?\? b\.openedAt\).*new Date\(a\.finishedAt \?\? a\.openedAt\)/s,
   );
   assert.match(history, /formatDateTime\(call\.finishedAt \?\? call\.openedAt\)/);
   assert.match(history, /Conclusão da manutenção/);
@@ -108,7 +108,8 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   assert.match(history, /Justificativa do cancelamento/);
   assert.match(history, /\{call\.cancelReason\}/);
   assert.match(history, /<CallIdLabel callId=\{call\.id\}/);
-  assert.match(history, /Apuração: \{formatTimeAllocationSource\(row\.source\)\}/);
+  assert.doesNotMatch(history, /Apuração:/);
+  assert.doesNotMatch(history, /formatTimeAllocationSource/);
   assert.doesNotMatch(history, />Origem:/);
 
   for (const removedLabel of [

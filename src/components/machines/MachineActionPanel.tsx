@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   CheckCheck,
   CircleDot,
-  FileWarning,
   History,
   RotateCcw,
   Wrench,
@@ -226,20 +225,18 @@ export function MachineActionPanel({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          "grid gap-1.5 border-t border-border pt-2",
+          screenLocked ? "grid-cols-1" : "grid-cols-2",
+        )}
+      >
         <Link
           to="/machines/$machineId/call-history"
           params={{ machineId: machine.id }}
           className={secondaryActionClass}
         >
           <History className="h-4 w-4" /> Histórico de chamados
-        </Link>
-        <Link
-          to="/machines/$machineId/failure-history"
-          params={{ machineId: machine.id }}
-          className={secondaryActionClass}
-        >
-          <FileWarning className="h-4 w-4" /> Histórico de falhas
         </Link>
         {!screenLocked && (
           <Link to="/" className={secondaryActionClass}>
