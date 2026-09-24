@@ -4,7 +4,10 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MachineSectorButton } from "../src/components/machines/MachineActionPanel";
+import {
+  ActiveCallsBadge,
+  MachineSectorButton,
+} from "../src/components/machines/MachineActionPanel";
 import type { AndonCall } from "../src/types/andon";
 import type { AndonCategoryConfig } from "../src/types/settings";
 
@@ -64,28 +67,36 @@ test("cenário A: setor livre mantém a ação de abrir e não aparece seleciona
   const markup = renderSector(electrical, undefined, null);
   assert.deepEqual(opened, [electrical.id]);
   assert.match(markup, /Abrir novo chamado Elétrica/);
+  assert.match(markup, /data-call-state="free"/);
+  assert.match(markup, /background-color:#F5B700/);
   assert.doesNotMatch(markup, /aria-pressed/);
-  assert.doesNotMatch(markup, /Selecionado|data-selection-ring/);
+  assert.doesNotMatch(markup, /Ativo|Selecionado|data-active-ring|data-selection-ring/);
 });
 
-test("cenário B: setor ativo permanece colorido, clicável e seleciona sem abrir duplicata", () => {
+test("cenário B: setor ativo fica em grafite, preserva a cor e seleciona sem abrir duplicata", () => {
   const selected: string[] = [];
   const opened: string[] = [];
   const element = MachineSectorButton({
     category: electrical,
     activeCall: electricalCall,
-    selectedCallId: electricalCall.id,
+    selectedCallId: mechanicalCall.id,
     className: "sector-size",
     onOpenSubtype: (subtype) => opened.push(subtype),
     onSelectCall: (callId) => selected.push(callId),
   });
   (element.props as { onClick: () => void }).onClick();
 
-  const markup = renderSector(electrical, electricalCall, electricalCall.id);
+  const markup = renderSector(electrical, electricalCall, mechanicalCall.id);
   assert.deepEqual(selected, [electricalCall.id]);
   assert.deepEqual(opened, []);
-  assert.match(markup, /background-color:#F5B700/);
+  assert.match(markup, /data-call-state="active"/);
+  assert.match(markup, /background-color:#27313D/);
   assert.match(markup, /border-color:#F5B700/);
+  assert.match(markup, /data-active-indicator="true"/);
+  assert.match(markup, /data-active-ring="true"/);
+  assert.match(markup, /animate-pulse/);
+  assert.match(markup, /motion-reduce:animate-none/);
+  assert.match(markup, />Ativo</);
   assert.doesNotMatch(markup, /disabled/);
 });
 
@@ -118,18 +129,41 @@ test("cenário C: dois setores ativos trocam selectedCallId e não usam seletor 
   assert.match(page, /returnToMaintenance\(currentCall\.id\)/);
 });
 
-test("cenário D: somente o setor selecionado exibe CircleDot, texto e ring pulsante", () => {
+test("cenário D: selecionado tem hierarquia mais forte que o outro setor ativo", () => {
   const selectedMarkup = renderSector(electrical, electricalCall, electricalCall.id);
   const otherActiveMarkup = renderSector(mechanical, mechanicalCall, electricalCall.id);
 
   assert.match(selectedMarkup, /aria-pressed="true"/);
+  assert.match(selectedMarkup, /data-call-state="selected"/);
+  assert.match(selectedMarkup, /background-color:#111827/);
   assert.match(selectedMarkup, /Selecionado/);
   assert.match(selectedMarkup, /data-selection-ring="true"/);
+  assert.match(selectedMarkup, /data-selected-inset="true"/);
   assert.match(selectedMarkup, /animate-pulse/);
+  assert.match(selectedMarkup, /motion-reduce:animate-none/);
   assert.match(selectedMarkup, /lucide-circle-dot/);
   assert.match(otherActiveMarkup, /aria-pressed="false"/);
+  assert.match(otherActiveMarkup, /data-call-state="active"/);
   assert.match(otherActiveMarkup, /Ativo/);
-  assert.doesNotMatch(otherActiveMarkup, /data-selection-ring|animate-pulse|lucide-circle-dot/);
+  assert.match(otherActiveMarkup, /data-active-ring="true"/);
+  assert.match(otherActiveMarkup, /animate-pulse/);
+  assert.doesNotMatch(
+    otherActiveMarkup,
+    /data-selection-ring|data-selected-inset|lucide-circle-dot/,
+  );
+});
+
+test("contador de chamados ativos omite zero e distingue singular e plural", () => {
+  const emptyMarkup = renderToStaticMarkup(<ActiveCallsBadge count={0} />);
+  const singleMarkup = renderToStaticMarkup(<ActiveCallsBadge count={1} />);
+  const multipleMarkup = renderToStaticMarkup(<ActiveCallsBadge count={3} />);
+
+  assert.equal(emptyMarkup, "");
+  assert.match(singleMarkup, /1 Ativo/);
+  assert.match(singleMarkup, /aria-label="1 chamado ativo"/);
+  assert.match(multipleMarkup, /3 Ativos/);
+  assert.match(multipleMarkup, /aria-label="3 chamados ativos"/);
+  assert.match(multipleMarkup, /motion-reduce:animate-none/);
 });
 
 test("cenário E: chamado encerrado devolve seu setor à abertura e mantém outro selecionável", async () => {
@@ -173,6 +207,6 @@ test("cenário F: categoria dinâmica reutiliza sua cor no botão e no ring", ()
   const markup = renderSector(dynamicCategory, dynamicCall, dynamicCall.id);
 
   assert.match(markup, /background-color:#12AB34/);
-  assert.equal((markup.match(/border-color:#12AB34/g) ?? []).length, 2);
+  assert.ok((markup.match(/border-color:#12AB34/g) ?? []).length >= 3);
   assert.match(markup, /Selecionado: chamado Setor customizado/);
 });

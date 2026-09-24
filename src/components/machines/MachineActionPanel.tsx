@@ -59,6 +59,7 @@ export function MachineSectorButton({
   onSelectCall,
 }: MachineSectorButtonProps) {
   const selected = activeCall?.id === selectedCallId;
+  const callState = !activeCall ? "free" : selected ? "selected" : "active";
   const actionLabel = activeCall
     ? selected
       ? `Selecionado: chamado ${category.displayName}`
@@ -70,36 +71,100 @@ export function MachineSectorButton({
       type="button"
       aria-label={actionLabel}
       aria-pressed={activeCall ? selected : undefined}
+      data-call-state={callState}
       title={actionLabel}
       onClick={() => (activeCall ? onSelectCall(activeCall.id) : onOpenSubtype(category.id))}
       className={cn(
-        "relative rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "relative isolate overflow-visible rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        activeCall
+          ? selected
+            ? "shadow-lg hover:brightness-125"
+            : "shadow-md hover:brightness-125"
+          : "shadow-sm hover:brightness-110",
         className,
       )}
       style={{
-        backgroundColor: category.color,
+        backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
         borderColor: category.color,
-        color: readableTextColor(category.color),
+        color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
+      {activeCall && (
+        <span
+          aria-hidden="true"
+          data-active-ring="true"
+          data-selection-ring={selected ? "true" : undefined}
+          className={cn(
+            "pointer-events-none absolute -inset-1 rounded-xl animate-pulse motion-reduce:animate-none",
+            selected ? "border-2 opacity-100" : "border opacity-70",
+          )}
+          style={{
+            borderColor: category.color,
+            boxShadow: selected ? `0 0 14px ${category.color}99` : `0 0 8px ${category.color}66`,
+          }}
+        />
+      )}
       {selected && (
         <span
           aria-hidden="true"
-          data-selection-ring="true"
-          className="pointer-events-none absolute -inset-1 rounded-xl border-2 animate-pulse"
+          data-selected-inset="true"
+          className="pointer-events-none absolute inset-0.5 rounded-md border opacity-70"
           style={{ borderColor: category.color }}
         />
       )}
+      {activeCall && (
+        <span
+          aria-hidden="true"
+          data-active-indicator="true"
+          className={cn(
+            "pointer-events-none absolute left-1.5 top-1.5 rounded-full",
+            selected ? "h-2.5 w-2.5" : "h-2 w-2",
+          )}
+          style={{
+            backgroundColor: category.color,
+            boxShadow: `0 0 7px ${category.color}`,
+          }}
+        />
+      )}
       <span className="relative inline-flex items-center justify-center gap-1.5">
-        {selected && <CircleDot aria-hidden="true" className="h-4 w-4 shrink-0" />}
-        <span>{category.displayName}</span>
-        {activeCall && (
-          <span className="text-[10px] normal-case tracking-normal">
-            · {selected ? "Selecionado" : "Ativo"}
-          </span>
+        {selected && (
+          <CircleDot
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0"
+            style={{ color: category.color }}
+          />
         )}
+        <span>{category.displayName}</span>
       </span>
+      {activeCall && (
+        <span
+          className={cn(
+            "absolute bottom-1 right-1.5 rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
+            selected && "border-2",
+          )}
+          style={{ borderColor: category.color }}
+        >
+          {selected ? "Selecionado" : "Ativo"}
+        </span>
+      )}
     </button>
+  );
+}
+
+export function ActiveCallsBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+
+  return (
+    <span
+      aria-label={`${count} ${count === 1 ? "chamado ativo" : "chamados ativos"}`}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase leading-none tracking-wider text-amber-700 dark:text-amber-300"
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse motion-reduce:animate-none"
+      />
+      {count} {count === 1 ? "Ativo" : "Ativos"}
+    </span>
   );
 }
 
@@ -143,9 +208,12 @@ export function MachineActionPanel({
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-          Abrir novo chamado
-        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+            Abrir novo chamado
+          </h3>
+          <ActiveCallsBadge count={activeCalls.length} />
+        </div>
         <p className="text-xs text-muted-foreground">
           {machine.machineStatus === "stopped" && hasActiveStopOwner
             ? "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado."
