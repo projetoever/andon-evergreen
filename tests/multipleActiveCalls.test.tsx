@@ -76,7 +76,7 @@ test("cenário A: setor livre mantém a ação de abrir e não aparece seleciona
   );
 });
 
-test("cenário B: setor ativo fica em grafite, preserva a cor e seleciona sem abrir duplicata", () => {
+test("cenário B: setor ativo fica em grafite neutro e seleciona sem abrir duplicata", () => {
   const selected: string[] = [];
   const opened: string[] = [];
   const element = MachineSectorButton({
@@ -94,7 +94,9 @@ test("cenário B: setor ativo fica em grafite, preserva a cor e seleciona sem ab
   assert.deepEqual(opened, []);
   assert.match(markup, /data-call-state="active"/);
   assert.match(markup, /background-color:#27313D/);
-  assert.match(markup, /border-color:#F5B700/);
+  assert.match(markup, /^<button[^>]*class="[^"]*border-border/);
+  assert.match(markup, /data-call-status-badge="true" class="[^"]*border-border/);
+  assert.doesNotMatch(markup, /border-color:#F5B700/);
   assert.match(markup, />Ativo</);
   assert.doesNotMatch(
     markup,
@@ -139,6 +141,7 @@ test("cenário D: selecionado tem hierarquia mais forte que o outro setor ativo"
   assert.match(selectedMarkup, /aria-pressed="true"/);
   assert.match(selectedMarkup, /data-call-state="selected"/);
   assert.match(selectedMarkup, /background-color:#111827/);
+  assert.match(selectedMarkup, /border-color:#F5B700/);
   assert.match(selectedMarkup, /Selecionado/);
   assert.match(selectedMarkup, /data-selection-ring="true"/);
   assert.match(selectedMarkup, /data-selected-inset="true"/);
@@ -148,6 +151,9 @@ test("cenário D: selecionado tem hierarquia mais forte que o outro setor ativo"
   assert.doesNotMatch(selectedMarkup, /lucide-circle-dot/);
   assert.match(otherActiveMarkup, /aria-pressed="false"/);
   assert.match(otherActiveMarkup, /data-call-state="active"/);
+  assert.match(otherActiveMarkup, /^<button[^>]*class="[^"]*border-border/);
+  assert.match(otherActiveMarkup, /data-call-status-badge="true" class="[^"]*border-border/);
+  assert.doesNotMatch(otherActiveMarkup, /border-color:#2563EB/);
   assert.match(otherActiveMarkup, /Ativo/);
   assert.doesNotMatch(
     otherActiveMarkup,

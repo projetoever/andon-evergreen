@@ -135,13 +135,13 @@ export function MachineSectorButton({
         activeCall
           ? selected
             ? "shadow-lg hover:brightness-125"
-            : "shadow-md hover:brightness-125"
+            : "border-border shadow-md hover:brightness-125"
           : "shadow-sm hover:brightness-110",
         className,
       )}
       style={{
         backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
-        borderColor: accentColor,
+        borderColor: !activeCall || selected ? accentColor : undefined,
         color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
@@ -186,9 +186,9 @@ export function MachineSectorButton({
             data-call-status-badge="true"
             className={cn(
               "inline-flex rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
-              selected && "border-2",
+              selected ? "border-2" : "border-border",
             )}
-            style={{ borderColor: accentColor }}
+            style={{ borderColor: selected ? accentColor : undefined }}
           >
             {selected ? "Selecionado" : "Ativo"}
           </span>
