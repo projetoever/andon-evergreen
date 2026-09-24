@@ -41,6 +41,69 @@ function readableTextColor(hex: string) {
   return luminance > 145 ? "#071015" : "#FFFFFF";
 }
 
+function parseHexColor(hex: string) {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+
+  return {
+    red: Number.parseInt(normalized.slice(0, 2), 16),
+    green: Number.parseInt(normalized.slice(2, 4), 16),
+    blue: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function relativeLuminance({ red, green, blue }: NonNullable<ReturnType<typeof parseHexColor>>) {
+  const convert = (channel: number) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+
+  return convert(red) * 0.2126 + convert(green) * 0.7152 + convert(blue) * 0.0722;
+}
+
+function contrastRatio(first: string, second: string) {
+  const firstColor = parseHexColor(first);
+  const secondColor = parseHexColor(second);
+  if (!firstColor || !secondColor) return 1;
+
+  const firstLuminance = relativeLuminance(firstColor);
+  const secondLuminance = relativeLuminance(secondColor);
+  return (
+    (Math.max(firstLuminance, secondLuminance) + 0.05) /
+    (Math.min(firstLuminance, secondLuminance) + 0.05)
+  );
+}
+
+function toHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+}
+
+function getActiveAccentColor(categoryColor: string) {
+  const color = parseHexColor(categoryColor);
+  if (!color) return "#F8FAFC";
+
+  const normalizedColor = toHex(color.red, color.green, color.blue);
+  const activeBackgrounds = ["#27313D", "#111827"];
+  if (activeBackgrounds.every((background) => contrastRatio(normalizedColor, background) >= 3)) {
+    return normalizedColor;
+  }
+
+  for (let whiteMix = 0.15; whiteMix <= 0.85; whiteMix += 0.1) {
+    const accent = toHex(
+      color.red + (255 - color.red) * whiteMix,
+      color.green + (255 - color.green) * whiteMix,
+      color.blue + (255 - color.blue) * whiteMix,
+    );
+    if (activeBackgrounds.every((background) => contrastRatio(accent, background) >= 3)) {
+      return accent;
+    }
+  }
+
+  return "#F8FAFC";
+}
+
 interface MachineSectorButtonProps {
   category: AndonCategoryConfig;
   activeCall: AndonCall | undefined;
@@ -60,6 +123,7 @@ export function MachineSectorButton({
 }: MachineSectorButtonProps) {
   const selected = activeCall?.id === selectedCallId;
   const callState = !activeCall ? "free" : selected ? "selected" : "active";
+  const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
     ? selected
       ? `Selecionado: chamado ${category.displayName}`
@@ -85,7 +149,7 @@ export function MachineSectorButton({
       )}
       style={{
         backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
-        borderColor: category.color,
+        borderColor: accentColor,
         color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
@@ -99,8 +163,8 @@ export function MachineSectorButton({
             selected ? "border-2 opacity-100" : "border opacity-70",
           )}
           style={{
-            borderColor: category.color,
-            boxShadow: selected ? `0 0 14px ${category.color}99` : `0 0 8px ${category.color}66`,
+            borderColor: accentColor,
+            boxShadow: selected ? `0 0 14px ${accentColor}99` : `0 0 8px ${accentColor}66`,
           }}
         />
       )}
@@ -109,44 +173,46 @@ export function MachineSectorButton({
           aria-hidden="true"
           data-selected-inset="true"
           className="pointer-events-none absolute inset-0.5 rounded-md border opacity-70"
-          style={{ borderColor: category.color }}
+          style={{ borderColor: accentColor }}
         />
       )}
-      {activeCall && (
-        <span
-          aria-hidden="true"
-          data-active-indicator="true"
-          className={cn(
-            "pointer-events-none absolute left-1.5 top-1.5 rounded-full",
-            selected ? "h-2.5 w-2.5" : "h-2 w-2",
+      <span className="relative flex min-w-0 flex-col items-center justify-center gap-1">
+        <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
+          {activeCall && (
+            <span
+              aria-hidden="true"
+              data-active-indicator="true"
+              className={cn("shrink-0 rounded-full", selected ? "h-2.5 w-2.5" : "h-2 w-2")}
+              style={{
+                backgroundColor: accentColor,
+                boxShadow: `0 0 7px ${accentColor}`,
+              }}
+            />
           )}
-          style={{
-            backgroundColor: category.color,
-            boxShadow: `0 0 7px ${category.color}`,
-          }}
-        />
-      )}
-      <span className="relative inline-flex items-center justify-center gap-1.5">
-        {selected && (
-          <CircleDot
-            aria-hidden="true"
-            className="h-4 w-4 shrink-0"
-            style={{ color: category.color }}
-          />
-        )}
-        <span>{category.displayName}</span>
-      </span>
-      {activeCall && (
-        <span
-          className={cn(
-            "absolute bottom-1 right-1.5 rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
-            selected && "border-2",
+          {selected && (
+            <CircleDot
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0"
+              style={{ color: accentColor }}
+            />
           )}
-          style={{ borderColor: category.color }}
-        >
-          {selected ? "Selecionado" : "Ativo"}
+          <span className="min-w-0 break-words text-center [overflow-wrap:anywhere]">
+            {category.displayName}
+          </span>
         </span>
-      )}
+        {activeCall && (
+          <span
+            data-call-status-badge="true"
+            className={cn(
+              "inline-flex rounded-full border bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white",
+              selected && "border-2",
+            )}
+            style={{ borderColor: accentColor }}
+          >
+            {selected ? "Selecionado" : "Ativo"}
+          </span>
+        )}
+      </span>
     </button>
   );
 }
@@ -157,7 +223,7 @@ export function ActiveCallsBadge({ count }: { count: number }) {
   return (
     <span
       aria-label={`${count} ${count === 1 ? "chamado ativo" : "chamados ativos"}`}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase leading-none tracking-wider text-amber-700 dark:text-amber-300"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase leading-none tracking-wider text-amber-200"
     >
       <span
         aria-hidden="true"

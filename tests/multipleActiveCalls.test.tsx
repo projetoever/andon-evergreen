@@ -164,6 +164,48 @@ test("contador de chamados ativos omite zero e distingue singular e plural", () 
   assert.match(multipleMarkup, /3 Ativos/);
   assert.match(multipleMarkup, /aria-label="3 chamados ativos"/);
   assert.match(multipleMarkup, /motion-reduce:animate-none/);
+  assert.match(multipleMarkup, /text-amber-200/);
+  assert.doesNotMatch(multipleMarkup, /dark:text-amber/);
+});
+
+test("badge permanece no fluxo com nomes longos em estados ativo e selecionado", () => {
+  const longCategory = createCategory(
+    "long-sector",
+    "MANUTENÇÃO MECÂNICA LINHA DE ENVASE SECUNDÁRIA",
+    "#FF7A00",
+  );
+  const longCall = createCall("call-long", longCategory.id);
+  const activeMarkup = renderSector(longCategory, longCall, electricalCall.id);
+  const selectedMarkup = renderSector(longCategory, longCall, longCall.id);
+
+  for (const markup of [activeMarkup, selectedMarkup]) {
+    assert.match(markup, /MANUTENÇÃO MECÂNICA LINHA DE ENVASE SECUNDÁRIA/);
+    assert.match(markup, /data-call-status-badge="true"/);
+    assert.doesNotMatch(markup, /data-call-status-badge="true" class="[^"]*absolute/);
+    assert.match(markup, /break-words/);
+    assert.match(markup, /overflow-wrap:anywhere/);
+  }
+});
+
+test("cor escura recebe accent contrastante e cor clara preserva identidade", () => {
+  const darkCategory = createCategory("dark-sector", "Setor escuro", "#111827");
+  const darkCall = createCall("call-dark", darkCategory.id);
+  const darkMarkup = renderSector(darkCategory, darkCall, darkCall.id);
+  const darkAccent = darkMarkup.match(
+    /data-active-ring="true"[^>]*style="border-color:([^;"]+)/,
+  )?.[1];
+
+  assert.ok(darkAccent);
+  assert.notEqual(darkAccent.toUpperCase(), darkCategory.color);
+  assert.match(darkMarkup, new RegExp(`border-color:${darkAccent}`, "i"));
+  assert.match(darkMarkup, new RegExp(`background-color:${darkAccent}`, "i"));
+  assert.match(darkMarkup, new RegExp(`color:${darkAccent}`, "i"));
+
+  const lightCategory = createCategory("light-sector", "Setor claro", "#FF7A00");
+  const lightCall = createCall("call-light", lightCategory.id);
+  const lightMarkup = renderSector(lightCategory, lightCall, electricalCall.id);
+  assert.match(lightMarkup, /border-color:#FF7A00/);
+  assert.match(lightMarkup, /background-color:#FF7A00/);
 });
 
 test("cenário E: chamado encerrado devolve seu setor à abertura e mantém outro selecionável", async () => {
