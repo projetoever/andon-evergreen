@@ -13,6 +13,7 @@ import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
+import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
 
 export function DashboardPage() {
   const { machines, calls, settings, soundConfigs, audioUnlocked, setAudioUnlocked } = useAndon();
@@ -21,18 +22,48 @@ export function DashboardPage() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
+  const [dashboardSoundUpdating, setDashboardSoundUpdating] = useState(false);
 
   useAndonOpenCallSound({
     calls,
     machines,
     settings,
     soundConfigs,
-    audioUnlocked: audioUnlocked && !dashboardSoundMuted,
+    audioUnlocked: audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted,
   });
 
   const [lockedMachineId, setLockedMachineId] = useState<string | null>(
     () => getMachineScreenLock()?.machineId ?? null,
   );
+
+  useEffect(() => {
+    let active = true;
+
+    async function syncDashboardSoundState() {
+      try {
+        const systemSettings = await getSystemSettings();
+        if (!active) return;
+
+        setDashboardSoundMuted(systemSettings.andonSoundMuted);
+        setDashboardSoundStateLoaded(true);
+
+        if (systemSettings.andonSoundMuted) {
+          stopAndonSound();
+        }
+      } catch {
+        if (active) setDashboardSoundStateLoaded(false);
+      }
+    }
+
+    void syncDashboardSoundState();
+    const timer = window.setInterval(() => void syncDashboardSoundState(), 2000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const lockedScreen = getMachineScreenLock();
@@ -52,21 +83,41 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
-    setDashboardSoundMuted(false);
-    toast.success("Painel ativo — sons habilitados");
+    toast.success(
+      dashboardSoundMuted ? "Painel ativo — som permanece silenciado" : "Painel ativo — sons habilitados",
+    );
   }
 
-  function handleToggleDashboardSound() {
-    const nextMuted = !dashboardSoundMuted;
-    setDashboardSoundMuted(nextMuted);
+  async function handleToggleDashboardSound() {
+    if (!dashboardSoundStateLoaded || dashboardSoundUpdating) return;
+
+    const previousMuted = dashboardSoundMuted;
+    const nextMuted = !previousMuted;
+
+    setDashboardSoundUpdating(true);
 
     if (nextMuted) {
+      setDashboardSoundMuted(true);
       stopAndonSound();
-      toast.success("Som do dashboard silenciado");
-      return;
     }
 
-    toast.success("Som do dashboard reativado");
+    try {
+      const systemSettings = await updateSystemSettings({ andonSoundMuted: nextMuted });
+      setDashboardSoundMuted(systemSettings.andonSoundMuted);
+      setDashboardSoundStateLoaded(true);
+
+      if (systemSettings.andonSoundMuted) {
+        stopAndonSound();
+        toast.success("Som do dashboard silenciado");
+      } else {
+        toast.success("Som do dashboard reativado");
+      }
+    } catch {
+      setDashboardSoundMuted(previousMuted);
+      toast.error("Não foi possível alterar o estado do som do ANDON");
+    } finally {
+      setDashboardSoundUpdating(false);
+    }
   }
 
   if (lockedMachineId) {
@@ -116,8 +167,9 @@ export function DashboardPage() {
               aria-label={
                 dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
               }
-              onClick={handleToggleDashboardSound}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground"
+              onClick={() => void handleToggleDashboardSound()}
+              disabled={!dashboardSoundStateLoaded || dashboardSoundUpdating}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {dashboardSoundMuted ? (
                 <VolumeX className="h-4 w-4" />

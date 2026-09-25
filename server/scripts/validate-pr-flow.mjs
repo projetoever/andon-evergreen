@@ -366,6 +366,21 @@ async function run() {
     }),
   );
   assert.equal(updatedSystemSettings.virtualKeyboardEnabled, false);
+
+  const mutedSystemSettings = await request(
+    "/api/system-settings",
+    json("PATCH", { andonSoundMuted: true }),
+  );
+  assert.equal(mutedSystemSettings.andonSoundMuted, true);
+  const persistedMutedSystemSettings = await request("/api/system-settings");
+  assert.equal(persistedMutedSystemSettings.andonSoundMuted, true);
+
+  const unmutedSystemSettings = await request(
+    "/api/system-settings",
+    json("PATCH", { andonSoundMuted: false }),
+  );
+  assert.equal(unmutedSystemSettings.andonSoundMuted, false);
+
   const restoredSystemSettings = await request(
     "/api/system-settings",
     json("PATCH", { virtualKeyboardEnabled: true }),

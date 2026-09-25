@@ -1,0 +1,2 @@
+ALTER TABLE "system_settings"
+ADD COLUMN IF NOT EXISTS "andonSoundMuted" BOOLEAN NOT NULL DEFAULT false;
