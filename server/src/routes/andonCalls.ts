@@ -157,6 +157,14 @@ async function lockMachineCallFlow(tx: Prisma.TransactionClient, machineId: stri
   `);
 }
 
+async function lockTechnicianSessionFlow(tx: Prisma.TransactionClient, technicianId: string) {
+  await tx.$queryRaw(Prisma.sql`
+    SELECT pg_advisory_xact_lock(
+      hashtext(${`andon-technician-session:${technicianId}`})
+    )::text AS "lockResult"
+  `);
+}
+
 async function findDuplicateActiveSectorCall(
   tx: Prisma.TransactionClient,
   machineId: string,
@@ -951,20 +959,56 @@ async function createMissingActiveTechnicianSessions(
     return;
   }
 
-  const names = params.technicians.map((technician) => technician.name);
+  const technicians = Array.from(
+    new Map(params.technicians.map((technician) => [technician.id, technician])).values(),
+  );
+  const technicianIds = technicians.map((technician) => technician.id).sort();
+  const names = technicians.map((technician) => technician.name);
+
+  for (const technicianId of technicianIds) {
+    await lockTechnicianSessionFlow(tx, technicianId);
+  }
 
   const activeSessions = await tx.technicianSession.findMany({
     where: {
-      callId: params.callId,
       endedAt: null,
-      technicianName: { in: names },
+      OR: [
+        { technicianId: { in: technicianIds } },
+        ...names.map((name) => ({
+          technicianId: null,
+          technicianName: { equals: name, mode: "insensitive" as const },
+        })),
+      ],
     },
-    select: { technicianName: true },
+    select: {
+      callId: true,
+      machineId: true,
+      technicianId: true,
+      technicianName: true,
+    },
   });
-  const activeNames = new Set(activeSessions.map((session) => session.technicianName));
-  const missingTechnicians = params.technicians.filter(
-    (technician) => !activeNames.has(technician.name),
-  );
+
+  const missingTechnicians = technicians.filter((technician) => {
+    const technicianSessions = activeSessions.filter(
+      (session) =>
+        session.technicianId === technician.id ||
+        (session.technicianId === null &&
+          session.technicianName.toLocaleLowerCase("pt-BR") ===
+            technician.name.toLocaleLowerCase("pt-BR")),
+    );
+    const activeInAnotherCall = technicianSessions.find(
+      (session) => session.callId !== params.callId,
+    );
+
+    if (activeInAnotherCall) {
+      throw new AndonCallValidationError(
+        `Mantenedor ${technician.name} já possui atendimento ativo em outro chamado ` +
+          `(máquina ${activeInAnotherCall.machineId})`,
+      );
+    }
+
+    return !technicianSessions.some((session) => session.callId === params.callId);
+  });
 
   if (!missingTechnicians.length) {
     return;
