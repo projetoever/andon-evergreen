@@ -16,6 +16,7 @@ const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
   impactMachine: "pr49-impact-machine",
+  workOrderMachine: "pr43-work-order-machine",
   sessionMachineA: "pr42-session-machine-a",
   sessionMachineB: "pr42-session-machine-b",
   sessionMachineC: "pr42-session-machine-c",
@@ -74,6 +75,7 @@ async function cleanup() {
     ids.machine,
     ids.raceMachine,
     ids.impactMachine,
+    ids.workOrderMachine,
     ids.sessionMachineA,
     ids.sessionMachineB,
     ids.sessionMachineC,
@@ -226,6 +228,15 @@ async function run() {
   await request(
     "/api/machines",
     json("POST", { id: ids.machine, name: "Máquina PR 47", productionMode: "scheduled" }),
+    201,
+  );
+  await request(
+    "/api/machines",
+    json("POST", {
+      id: ids.workOrderMachine,
+      name: "Máquina PR 43 OS de papel",
+      productionMode: "scheduled",
+    }),
     201,
   );
 
@@ -456,6 +467,175 @@ async function run() {
     json("PATCH", { virtualKeyboardEnabled: true }),
   );
   assert.equal(restoredSystemSettings.virtualKeyboardEnabled, true);
+
+  const defaultWorkOrderSettings = await request("/api/system-settings");
+  assert.equal(defaultWorkOrderSettings.requireWorkOrderAtOpen, false);
+
+  const legacyWorkOrderCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(legacyWorkOrderCall.workOrderNumber, null);
+  await request(
+    `/api/andon-calls/${legacyWorkOrderCall.id}/cancel`,
+    json("PATCH", { reason: "Compatibilidade de chamado legado sem OS" }),
+  );
+  const legacyWorkOrderRead = await request(
+    `/api/andon-calls?machineId=${ids.workOrderMachine}&status=cancelled`,
+  );
+  assert.equal(
+    legacyWorkOrderRead.find((call) => call.id === legacyWorkOrderCall.id)?.workOrderNumber,
+    null,
+  );
+
+  const persistedWorkOrderCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "mechanical",
+      workOrderNumber: " 000123   A ",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(persistedWorkOrderCall.workOrderNumber, "000123 A");
+  await request(
+    `/api/andon-calls/${persistedWorkOrderCall.id}/cancel`,
+    json("PATCH", { reason: "Validação de normalização da OS" }),
+  );
+
+  await request(
+    "/api/system-settings",
+    json("PATCH", { requireWorkOrderAtOpen: true }),
+  );
+  const missingWorkOrderResponse = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(missingWorkOrderResponse.message, /Informe o número da OS para abrir o chamado/i);
+  const spacesWorkOrderResponse = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      workOrderNumber: "   ",
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(spacesWorkOrderResponse.message, /Informe o número da OS para abrir o chamado/i);
+
+  const leadingZerosWorkOrderCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "production",
+      subtype: "quality",
+      workOrderNumber: "00000042",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(leadingZerosWorkOrderCall.workOrderNumber, "00000042");
+  await request(
+    `/api/andon-calls/${leadingZerosWorkOrderCall.id}/cancel`,
+    json("PATCH", { reason: "Validação de zeros à esquerda" }),
+  );
+
+  const alphanumericWorkOrderCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "production",
+      subtype: "leadership",
+      workOrderNumber: "OS-ABC-9",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(alphanumericWorkOrderCall.workOrderNumber, "OS-ABC-9");
+  await request(
+    `/api/andon-calls/${alphanumericWorkOrderCall.id}/cancel`,
+    json("PATCH", { reason: "Validação alfanumérica da OS" }),
+  );
+
+  const missingBatchWorkOrderResponse = await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      subtypes: ["electrical", "mechanical"],
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(missingBatchWorkOrderResponse.message, /Informe o número da OS para abrir o chamado/i);
+  const batchWorkOrderCalls = await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      subtypes: ["electrical", "mechanical"],
+      workOrderNumber: " 000777 ",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.deepEqual(
+    batchWorkOrderCalls.map((call) => call.workOrderNumber),
+    ["000777", "000777"],
+  );
+  for (const call of batchWorkOrderCalls) {
+    await request(
+      `/api/andon-calls/${call.id}/cancel`,
+      json("PATCH", { reason: "Validação de OS compartilhada no lote" }),
+    );
+  }
+
+  const systemTestWithoutWorkOrder = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "production",
+      subtype: "quality",
+      origin: "installer_health_check",
+      createdBy: "installer-health",
+      isSystemTest: true,
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(systemTestWithoutWorkOrder.workOrderNumber, null);
+  const invalidSystemTestMetadata = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "production",
+      subtype: "leadership",
+      origin: "installer_health_check",
+      createdBy: "invalid",
+      isSystemTest: true,
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(invalidSystemTestMetadata.message, /Metadados de teste automático inválidos/i);
+  await request(
+    "/api/system-settings",
+    json("PATCH", { requireWorkOrderAtOpen: false }),
+  );
 
   const identifiedByPin = await request(
     "/api/technicians/identify",

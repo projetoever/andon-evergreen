@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, CircleStop, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,16 +10,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import type { CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
+import { canOpenWithWorkOrder, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
 
 interface QuickOpenCallModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   machineId: string;
   subtype: CallSubtype | null;
+  forcedMachineCondition?: MachineStatus;
 }
 
 export function QuickOpenCallModal({
@@ -27,13 +32,45 @@ export function QuickOpenCallModal({
   onOpenChange,
   machineId,
   subtype,
+  forcedMachineCondition,
 }: QuickOpenCallModalProps) {
   const { openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
+  const [workOrderNumber, setWorkOrderNumber] = useState("");
   const option = subtype ? getCallTypeOption(subtype) : null;
+  const canSubmit = canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber);
+
+  useEffect(() => {
+    if (!open) {
+      setWorkOrderNumber("");
+      setRequireWorkOrderAtOpen(false);
+      return;
+    }
+
+    let active = true;
+    setIsLoadingSettings(true);
+    void getSystemSettings()
+      .then((settings) => {
+        if (active) setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+      })
+      .catch(() => {
+        if (active) toast.error("Não foi possível carregar a regra da OS.");
+      })
+      .finally(() => {
+        if (active) setIsLoadingSettings(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   async function handleCondition(machineCondition: MachineStatus) {
-    if (!subtype || !option || isSubmitting) return;
+    if (!subtype || !option || isSubmitting || !canSubmit) return;
+
+    const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
     setIsSubmitting(true);
     try {
       await openCalls([
@@ -42,7 +79,8 @@ export function QuickOpenCallModal({
           category: option.category,
           subtype,
           criticality: "medium",
-          machineCondition,
+          machineCondition: forcedMachineCondition ?? machineCondition,
+          workOrderNumber: normalizedWorkOrderNumber || undefined,
         },
       ]);
       toast.success(`Chamado de ${option.label} aberto.`);
@@ -54,6 +92,8 @@ export function QuickOpenCallModal({
     }
   }
 
+  const buttonDisabled = isSubmitting || isLoadingSettings || !option || !canSubmit;
+
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
       <DialogContent className="w-[calc(100%-1rem)] max-w-2xl overflow-x-hidden">
@@ -64,27 +104,42 @@ export function QuickOpenCallModal({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="quick-open-work-order">Número da OS</Label>
+          <Input
+            id="quick-open-work-order"
+            value={workOrderNumber}
+            maxLength={100}
+            onChange={(event) => setWorkOrderNumber(event.target.value)}
+            placeholder="Informe o número da OS"
+          />
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
-          <BigButton
-            tone="danger"
-            size="lg"
-            className="min-h-24 whitespace-normal px-4 text-center"
-            onClick={() => void handleCondition("stopped")}
-            disabled={isSubmitting || !option}
-          >
-            <CircleStop className="h-8 w-8 shrink-0" />
-            <span>Sim — está parada</span>
-          </BigButton>
-          <BigButton
-            tone="success"
-            size="lg"
-            className="min-h-24 whitespace-normal px-4 text-center"
-            onClick={() => void handleCondition("running")}
-            disabled={isSubmitting || !option}
-          >
-            <CheckCircle2 className="h-8 w-8 shrink-0" />
-            <span>Não — está operando</span>
-          </BigButton>
+          {(!forcedMachineCondition || forcedMachineCondition === "stopped") && (
+            <BigButton
+              tone="danger"
+              size="lg"
+              className="min-h-24 whitespace-normal px-4 text-center"
+              onClick={() => void handleCondition("stopped")}
+              disabled={buttonDisabled}
+            >
+              <CircleStop className="h-8 w-8 shrink-0" />
+              <span>Sim — está parada</span>
+            </BigButton>
+          )}
+          {(!forcedMachineCondition || forcedMachineCondition === "running") && (
+            <BigButton
+              tone="success"
+              size="lg"
+              className="min-h-24 whitespace-normal px-4 text-center"
+              onClick={() => void handleCondition("running")}
+              disabled={buttonDisabled}
+            >
+              <CheckCircle2 className="h-8 w-8 shrink-0" />
+              <span>Não — está operando</span>
+            </BigButton>
+          )}
         </div>
 
         <button

@@ -17,8 +17,11 @@ import { getSystemSettings } from "@/services/systemSettingsService";
 import { CallTypeSelector } from "./CallTypeSelector";
 import { MachineAssetSelector } from "./MachineAssetSelector";
 import { BigButton } from "@/components/common/BigButton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { canOpenWithWorkOrder, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
 
 interface OpenCallModalProps {
   open: boolean;
@@ -40,6 +43,8 @@ export function OpenCallModal({
   const [machineSubsetId, setMachineSubsetId] = useState<string | null>(null);
   const [isWholeSetSelected, setIsWholeSetSelected] = useState(false);
   const [allowWholeSetCalls, setAllowWholeSetCalls] = useState(true);
+  const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
+  const [workOrderNumber, setWorkOrderNumber] = useState("");
   const [isLoadingSystemSettings, setIsLoadingSystemSettings] = useState(false);
   const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
   const [isLoadingMachineSets, setIsLoadingMachineSets] = useState(false);
@@ -57,6 +62,7 @@ export function OpenCallModal({
       wasOpenRef.current = false;
       initializedMachineIdRef.current = preselectedMachineId ?? null;
       machineConditionTouchedRef.current = false;
+      setWorkOrderNumber("");
       return;
     }
 
@@ -75,6 +81,7 @@ export function OpenCallModal({
     setMachineSubsetId(null);
     setIsWholeSetSelected(false);
     setMachineSets([]);
+    setWorkOrderNumber("");
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
     setMachineCondition(selectedMachine?.machineStatus ?? "running");
@@ -96,6 +103,7 @@ export function OpenCallModal({
       .then((settings) => {
         if (!isCurrent) return;
         setAllowWholeSetCalls(settings.allowWholeSetCalls);
+        setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
         if (!settings.allowWholeSetCalls) {
           setIsWholeSetSelected(false);
         }
@@ -243,8 +251,9 @@ export function OpenCallModal({
     machineId &&
       subtype &&
       hasValidAssetSelection &&
-      (!shouldRequireMachineSet ||
-        (!isLoadingSystemSettings && !systemSettingsLoadFailed)),
+      (!shouldRequireMachineSet || (!isLoadingSystemSettings && !systemSettingsLoadFailed)) &&
+      !isLoadingSystemSettings &&
+      canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber),
   );
 
   async function handleConfirm() {
@@ -269,6 +278,12 @@ export function OpenCallModal({
       }
     }
 
+    const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
+    if (!canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber)) {
+      toast.error("Informe o número da OS para abrir o chamado");
+      return;
+    }
+
     const opt = getCallTypeOption(subtype);
     if (!opt) return;
 
@@ -290,6 +305,7 @@ export function OpenCallModal({
       subtype,
       criticality: "medium" as const,
       machineCondition,
+      workOrderNumber: normalizedWorkOrderNumber || undefined,
     };
 
     try {
@@ -380,6 +396,17 @@ export function OpenCallModal({
               onSelectWholeSet={handleSelectWholeSet}
             />
           ))}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="open-call-work-order">Número da OS</Label>
+          <Input
+            id="open-call-work-order"
+            value={workOrderNumber}
+            maxLength={100}
+            onChange={(event) => setWorkOrderNumber(event.target.value)}
+            placeholder="Informe o número da OS"
+          />
+        </div>
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

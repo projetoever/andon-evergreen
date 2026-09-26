@@ -11,6 +11,7 @@ model SystemSettings {
   id                     String   @id @default("global")
   allowWholeSetCalls     Boolean  @default(true)
   virtualKeyboardEnabled Boolean  @default(true)
+  requireWorkOrderAtOpen Boolean  @default(false)
   attendanceMode         String   @default("name")
   rfidReaderMode         String   @default("keyboard_hid")
   rfidInputTerminator    String   @default("enter")
@@ -177,6 +178,7 @@ model AndonCall {
   assetChangeReason                  String?
   category                    String
   subtype                     String?
+  workOrderNumber             String?
   status                      String
   criticality                 String
   machineCondition            String?

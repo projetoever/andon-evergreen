@@ -94,6 +94,13 @@ export class LocalAndonRepository implements AndonRepository {
     calls: AndonCall[],
     params: andonService.OpenAndonCallParams[],
   ) {
+    const workOrderNumbers = new Set(
+      params.map((item) => item.workOrderNumber?.trim()).filter(Boolean),
+    );
+    if (workOrderNumbers.size > 1) {
+      throw new Error("Os chamados em lote devem usar a mesma OS");
+    }
+
     const requestedKeys = new Set<string>();
     for (const item of params) {
       const key = `${item.machineId}:${item.subtype}`;

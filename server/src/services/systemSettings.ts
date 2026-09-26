@@ -21,6 +21,15 @@ export async function allowsWholeSetCalls() {
   return settings?.allowWholeSetCalls ?? true;
 }
 
+export async function requiresWorkOrderAtOpen() {
+  const settings = await prisma.systemSettings.findUnique({
+    where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
+    select: { requireWorkOrderAtOpen: true },
+  });
+
+  return settings?.requireWorkOrderAtOpen ?? false;
+}
+
 export async function getAttendanceMode() {
   const settings = await prisma.systemSettings.findUnique({
     where: { id: GLOBAL_SYSTEM_SETTINGS_ID },

@@ -29,6 +29,7 @@ import {
   setMachineSoundEnabled,
 } from "@/services/machineSoundPreferenceService";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig } from "@/types/settings";
@@ -59,6 +60,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const knownActiveCallIdsRef = useRef<Set<string>>(new Set());
   const selectionMachineIdRef = useRef(machineId);
   const [selectedSubtype, setSelectedSubtype] = useState<CallSubtype | null>(null);
+  const [forcedMachineCondition, setForcedMachineCondition] = useState<"stopped" | undefined>();
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
@@ -268,7 +270,22 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     setSelectedSubtype(subtype);
 
     if (machine.machineStatus !== "stopped" || !hasActiveStopOwner) {
+      setForcedMachineCondition(undefined);
       setConditionDialogOpen(true);
+      return;
+    }
+
+    try {
+      const systemSettings = await getSystemSettings();
+      if (systemSettings.requireWorkOrderAtOpen) {
+        setForcedMachineCondition("stopped");
+        setConditionDialogOpen(true);
+        return;
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível carregar a regra da OS",
+      );
       return;
     }
 
@@ -445,9 +462,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
       <QuickOpenCallModal
         open={conditionDialogOpen}
-        onOpenChange={setConditionDialogOpen}
+        onOpenChange={(open) => {
+          setConditionDialogOpen(open);
+          if (!open) setForcedMachineCondition(undefined);
+        }}
         machineId={machine.id}
         subtype={selectedSubtype}
+        forcedMachineCondition={forcedMachineCondition}
       />
       <CancelCallModal
         open={cancelCallId !== null}
