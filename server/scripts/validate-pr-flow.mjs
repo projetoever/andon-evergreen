@@ -1163,7 +1163,7 @@ async function run() {
     `/api/andon-calls/${sessionCallB.id}/attend`,
     json("PATCH", {
       credentials: [
-        { method: "pin", value: "5832" },
+        { method: "pin", value: "6943" },
         { method: "pin", value: "4821" },
       ],
     }),
@@ -1228,7 +1228,7 @@ async function run() {
 
   const attendedSessionCallC = await request(
     `/api/andon-calls/${sessionCallC.id}/attend`,
-    json("PATCH", { credentials: [{ method: "pin", value: "5832" }] }),
+    json("PATCH", { credentials: [{ method: "pin", value: "6943" }] }),
   );
   assert.equal(attendedSessionCallC.technicianSessions.length, 1);
   const addLaterConflict = await request(
@@ -1264,7 +1264,7 @@ async function run() {
   );
   await request(
     `/api/andon-calls/${sessionCallC.id}/technicians/end`,
-    json("PATCH", { credential: { method: "pin", value: "5832" } }),
+    json("PATCH", { credential: { method: "pin", value: "6943" } }),
   );
 
   const concurrentSessionCallD = await request(
