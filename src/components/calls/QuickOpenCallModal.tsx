@@ -17,7 +17,7 @@ import { getCallTypeOption } from "@/data/callTypes";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import type { CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
-import { canOpenWithWorkOrder, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
+import { canSubmitWorkOrderGate, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
 
 interface QuickOpenCallModalProps {
   open: boolean;
@@ -37,26 +37,44 @@ export function QuickOpenCallModal({
   const { openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
+  const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const option = subtype ? getCallTypeOption(subtype) : null;
-  const canSubmit = canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber);
+  const canSubmit = canSubmitWorkOrderGate({
+    required: requireWorkOrderAtOpen,
+    value: workOrderNumber,
+    isLoading: isLoadingSettings || !hasLoadedSettings,
+    loadFailed: systemSettingsLoadFailed,
+  });
 
   useEffect(() => {
     if (!open) {
       setWorkOrderNumber("");
       setRequireWorkOrderAtOpen(false);
+      setHasLoadedSettings(false);
+      setSystemSettingsLoadFailed(false);
       return;
     }
 
     let active = true;
     setIsLoadingSettings(true);
+    setHasLoadedSettings(false);
+    setSystemSettingsLoadFailed(false);
     void getSystemSettings()
       .then((settings) => {
-        if (active) setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+        if (!active) return;
+        setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+        setHasLoadedSettings(true);
       })
       .catch(() => {
-        if (active) toast.error("Não foi possível carregar a regra da OS.");
+        if (!active) return;
+        setHasLoadedSettings(true);
+        setSystemSettingsLoadFailed(true);
+        toast.error(
+          "Não foi possível carregar a regra da OS. Feche e reabra o modal para tentar novamente.",
+        );
       })
       .finally(() => {
         if (active) setIsLoadingSettings(false);
@@ -92,7 +110,7 @@ export function QuickOpenCallModal({
     }
   }
 
-  const buttonDisabled = isSubmitting || isLoadingSettings || !option || !canSubmit;
+  const buttonDisabled = isSubmitting || !option || !canSubmit;
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
@@ -114,6 +132,12 @@ export function QuickOpenCallModal({
             placeholder="Informe o número da OS"
           />
         </div>
+
+        {systemSettingsLoadFailed && (
+          <p className="text-sm text-danger">
+            Não foi possível carregar a regra da OS. Feche e reabra o modal para tentar novamente.
+          </p>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {(!forcedMachineCondition || forcedMachineCondition === "stopped") && (

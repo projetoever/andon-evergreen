@@ -21,7 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { canOpenWithWorkOrder, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
+import {
+  canOpenWithWorkOrder,
+  canSubmitWorkOrderGate,
+  normalizeWorkOrderNumber,
+} from "@/utils/workOrderUtils";
 
 interface OpenCallModalProps {
   open: boolean;
@@ -46,6 +50,7 @@ export function OpenCallModal({
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const [isLoadingSystemSettings, setIsLoadingSystemSettings] = useState(false);
+  const [hasLoadedSystemSettings, setHasLoadedSystemSettings] = useState(false);
   const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
   const [isLoadingMachineSets, setIsLoadingMachineSets] = useState(false);
   const machinesRef = useRef(machines);
@@ -90,6 +95,7 @@ export function OpenCallModal({
   useEffect(() => {
     if (!open) {
       setIsLoadingSystemSettings(false);
+      setHasLoadedSystemSettings(false);
       setSystemSettingsLoadFailed(false);
       return;
     }
@@ -97,6 +103,7 @@ export function OpenCallModal({
     let isCurrent = true;
 
     setIsLoadingSystemSettings(true);
+    setHasLoadedSystemSettings(false);
     setSystemSettingsLoadFailed(false);
 
     getSystemSettings()
@@ -104,14 +111,18 @@ export function OpenCallModal({
         if (!isCurrent) return;
         setAllowWholeSetCalls(settings.allowWholeSetCalls);
         setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+        setHasLoadedSystemSettings(true);
         if (!settings.allowWholeSetCalls) {
           setIsWholeSetSelected(false);
         }
       })
       .catch(() => {
         if (!isCurrent) return;
+        setHasLoadedSystemSettings(true);
         setSystemSettingsLoadFailed(true);
-        toast.error("Não foi possível carregar a política de seleção de ativos");
+        toast.error(
+          "Não foi possível carregar as configurações de abertura. Feche e reabra o modal para tentar novamente.",
+        );
       })
       .finally(() => {
         if (!isCurrent) return;
@@ -247,17 +258,31 @@ export function OpenCallModal({
           (allowWholeSetCalls && isWholeSetSelected))),
   );
 
+  const canOpenCondition = canSubmitWorkOrderGate({
+    required: requireWorkOrderAtOpen,
+    value: workOrderNumber,
+    isLoading: isLoadingSystemSettings || !hasLoadedSystemSettings,
+    loadFailed: systemSettingsLoadFailed,
+  });
+
   const canConfirm = Boolean(
     machineId &&
-      subtype &&
-      hasValidAssetSelection &&
-      (!shouldRequireMachineSet || (!isLoadingSystemSettings && !systemSettingsLoadFailed)) &&
-      !isLoadingSystemSettings &&
-      canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber),
+    subtype &&
+    hasValidAssetSelection &&
+    !isLoadingSystemSettings &&
+    hasLoadedSystemSettings &&
+    !systemSettingsLoadFailed &&
+    canOpenCondition,
   );
 
   async function handleConfirm() {
     if (!machineId || !subtype) return;
+    if (isLoadingSystemSettings || !hasLoadedSystemSettings || systemSettingsLoadFailed) {
+      toast.error(
+        "Não foi possível carregar as configurações de abertura. Feche e reabra o modal para tentar novamente.",
+      );
+      return;
+    }
     if (shouldRequireMachineSet && !selectedMachineSet) {
       toast.error("Selecione o conjunto da máquina para abrir o ANDON");
       return;
@@ -372,17 +397,18 @@ export function OpenCallModal({
         <CallTypeSelector value={subtype} onChange={setSubtype} />
 
         {machineId &&
-          (isLoadingMachineSets || isLoadingSystemSettings ? (
+          (isLoadingMachineSets || isLoadingSystemSettings || !hasLoadedSystemSettings ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               Carregando conjuntos, equipamentos e política de seleção...
+            </div>
+          ) : systemSettingsLoadFailed ? (
+            <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+              Não foi possível carregar as configurações de abertura. Feche e reabra o modal antes
+              de continuar.
             </div>
           ) : machineSets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               Esta máquina ainda não possui conjuntos cadastrados. O chamado será aberto sem conjunto.
-            </div>
-          ) : systemSettingsLoadFailed ? (
-            <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-              Não foi possível carregar a política de seleção de ativos. Feche e reabra o modal antes de continuar.
             </div>
           ) : (
             <MachineAssetSelector
@@ -421,6 +447,7 @@ export function OpenCallModal({
                 key={option.value}
                 type="button"
                 onClick={() => handleSelectMachineCondition(option.value)}
+                disabled={!canOpenCondition}
                 className={cn(
                   "min-h-[72px] rounded-xl border-2 p-4 text-xl font-black uppercase tracking-wider transition-all hover:scale-[1.01]",
                   machineCondition === option.value
