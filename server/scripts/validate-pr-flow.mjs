@@ -1194,17 +1194,35 @@ async function run() {
     "repetir o mesmo mantenedor no mesmo chamado deve ser idempotente",
   );
 
+  const activeModernSupportSessions = await prisma.technicianSession.count({
+    where: { technicianId: electricalSupport.id, endedAt: null },
+  });
+  assert.equal(
+    activeModernSupportSessions,
+    0,
+    "electricalSupport não pode possuir sessão moderna ativa antes do fixture legado",
+  );
+
   await prisma.technicianSession.create({
     data: {
       callId: sessionCallB.id,
       machineId: ids.sessionMachineB,
-      technicianName: electrical.name,
-      technicalArea: electrical.technicalArea,
-      shiftId: electrical.shiftId,
+      technicianName: electricalSupport.name,
+      technicalArea: electricalSupport.technicalArea,
+      shiftId: electricalSupport.shiftId,
       shiftName: "Turno CI",
       startedAt: new Date(),
     },
   });
+  const legacyActiveSession = await prisma.technicianSession.findFirstOrThrow({
+    where: {
+      callId: sessionCallB.id,
+      technicianId: null,
+      technicianName: electricalSupport.name,
+      endedAt: null,
+    },
+  });
+  assert.equal(legacyActiveSession.technicianId, null);
   const sessionCallC = await request(
     "/api/andon-calls",
     json("POST", {
@@ -1217,7 +1235,7 @@ async function run() {
   );
   const legacyConflict = await request(
     `/api/andon-calls/${sessionCallC.id}/attend`,
-    json("PATCH", { credentials: [{ method: "pin", value: "4821" }] }),
+    json("PATCH", { credentials: [{ method: "pin", value: "6943" }] }),
     400,
   );
   assert.match(legacyConflict.message, /atendimento ativo em outro chamado/i);
@@ -1231,6 +1249,13 @@ async function run() {
     json("PATCH", { credentials: [{ method: "pin", value: "6943" }] }),
   );
   assert.equal(attendedSessionCallC.technicianSessions.length, 1);
+  assert.equal(
+    attendedSessionCallC.technicianSessions.filter(
+      (session) => session.technicianId === electricalSupport.id && !session.endedAt,
+    ).length,
+    1,
+    "sessão legada encerrada deve permitir nova sessão moderna do mesmo mantenedor",
+  );
   const addLaterConflict = await request(
     `/api/andon-calls/${sessionCallC.id}/technicians`,
     json("POST", { credentials: [{ method: "pin", value: "4821" }] }),
