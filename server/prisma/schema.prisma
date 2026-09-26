@@ -337,6 +337,7 @@ model MachineProductionEvent {
 
 model Technician {
   id                         String                     @id @default(cuid())
+  employeeId                 String?                    @unique
   name                       String
   technicalArea              String?
   shiftId                    String?

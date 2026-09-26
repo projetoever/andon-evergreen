@@ -6,6 +6,7 @@ const apiClient = createAndonApiClient();
 
 interface ApiTechnician {
   id: string;
+  employeeId: string | null;
   name: string;
   technicalArea: string | null;
   shiftId: string | null;
@@ -16,6 +17,7 @@ interface ApiTechnician {
 }
 
 export interface TechnicianConfigDraft {
+  employeeId: string;
   name: string;
   area: CallSubtype;
   shiftId: string;
@@ -40,6 +42,7 @@ function normalizeArea(value: string | null): CallSubtype {
 function mapTechnician(technician: ApiTechnician): TechnicianConfig {
   return {
     id: technician.id,
+    employeeId: technician.employeeId,
     name: technician.name,
     area: normalizeArea(technician.technicalArea),
     shiftId: technician.shiftId ?? "",
@@ -59,6 +62,7 @@ export async function createTechnicianConfig(
   draft: TechnicianConfigDraft,
 ): Promise<TechnicianConfig> {
   const technician = await apiClient.post<ApiTechnician>("/api/technicians", {
+    employeeId: draft.employeeId,
     name: draft.name,
     technicalArea: draft.area,
     shiftId: draft.shiftId,
@@ -77,6 +81,7 @@ export async function updateTechnicianConfig(
   const technician = await apiClient.patch<ApiTechnician>(
     `/api/technicians/${encodeURIComponent(id)}`,
     {
+      ...(patch.employeeId !== undefined ? { employeeId: patch.employeeId } : {}),
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.area !== undefined ? { technicalArea: patch.area } : {}),
       ...(patch.shiftId !== undefined ? { shiftId: patch.shiftId } : {}),
