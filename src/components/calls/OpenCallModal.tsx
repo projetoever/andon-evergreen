@@ -423,16 +423,18 @@ export function OpenCallModal({
             />
           ))}
 
-        <div className="space-y-1.5">
-          <Label htmlFor="open-call-work-order">Número da OS</Label>
-          <Input
-            id="open-call-work-order"
-            value={workOrderNumber}
-            maxLength={100}
-            onChange={(event) => setWorkOrderNumber(event.target.value)}
-            placeholder="Informe o número da OS"
-          />
-        </div>
+        {requireWorkOrderAtOpen && (
+          <div className="space-y-1.5">
+            <Label htmlFor="open-call-work-order">Número da OS</Label>
+            <Input
+              id="open-call-work-order"
+              value={workOrderNumber}
+              maxLength={100}
+              onChange={(event) => setWorkOrderNumber(event.target.value)}
+              placeholder="Informe o número da OS"
+            />
+          </div>
+        )}
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
