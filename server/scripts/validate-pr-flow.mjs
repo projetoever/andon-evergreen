@@ -361,6 +361,7 @@ async function run() {
     "/api/technicians",
     json("POST", {
       name: "PIN duplicado PR 51",
+      employeeId: "000400",
       technicalArea: "electrical",
       shiftId: ids.shift,
       active: true,
