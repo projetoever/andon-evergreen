@@ -23,6 +23,7 @@ import {
   diffMinutes,
 } from "@/utils/durationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import { calculateMachineConditionBreakdownForPeriod } from "@/utils/timeBreakdownUtils";
 import {
@@ -42,6 +43,7 @@ export interface OpenAndonCallParams {
   machineSubsetTypeSnapshot?: string;
   category: CallCategory;
   subtype: CallSubtype;
+  workOrderNumber?: string;
   criticality?: CallCriticality;
   machineCondition?: MachineStatus;
 }
@@ -286,6 +288,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     cancelReason?: unknown;
     impactTrackingVersion?: unknown;
     impactIntervals?: unknown;
+    workOrderNumber?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -363,6 +366,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     impactIntervals: Array.isArray(source.impactIntervals)
       ? (source.impactIntervals as CallImpactInterval[])
       : [],
+    workOrderNumber:
+      typeof source.workOrderNumber === "string" ? source.workOrderNumber : null,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
       source.machineCondition === "stopped" || source.machineCondition === "running"
@@ -469,6 +474,7 @@ export function openAndonCall(
     machineSubsetTypeSnapshot: params.machineSubsetTypeSnapshot ?? null,
     category: params.category,
     subtype: params.subtype,
+    workOrderNumber: normalizeWorkOrderNumber(params.workOrderNumber ?? "") || null,
     status: "open",
     criticality: params.criticality ?? "medium",
     machineCondition: condition,

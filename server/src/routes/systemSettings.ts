@@ -12,6 +12,7 @@ import { badRequest } from "./routeUtils.js";
 type UpdateSystemSettingsBody = {
   allowWholeSetCalls?: unknown;
   virtualKeyboardEnabled?: unknown;
+  requireWorkOrderAtOpen?: unknown;
   attendanceMode?: unknown;
   rfidReaderMode?: unknown;
   rfidInputTerminator?: unknown;
@@ -28,6 +29,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const body = request.body ?? {};
     const allowWholeSetCalls = body.allowWholeSetCalls;
     const virtualKeyboardEnabled = body.virtualKeyboardEnabled;
+    const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
     const attendanceMode = body.attendanceMode;
     const rfidReaderMode = body.rfidReaderMode;
     const rfidInputTerminator = body.rfidInputTerminator;
@@ -39,6 +41,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     }
     if ("virtualKeyboardEnabled" in body && typeof virtualKeyboardEnabled !== "boolean") {
       return badRequest(reply, "Campo virtualKeyboardEnabled deve ser booleano");
+    }
+    if ("requireWorkOrderAtOpen" in body && typeof requireWorkOrderAtOpen !== "boolean") {
+      return badRequest(reply, "Campo requireWorkOrderAtOpen deve ser booleano");
     }
     if (
       "attendanceMode" in body &&
@@ -72,6 +77,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const patch = {
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
       ...(typeof virtualKeyboardEnabled === "boolean" ? { virtualKeyboardEnabled } : {}),
+      ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
       ...(typeof attendanceMode === "string" ? { attendanceMode } : {}),
       ...(typeof rfidReaderMode === "string" ? { rfidReaderMode } : {}),
       ...(typeof rfidInputTerminator === "string" ? { rfidInputTerminator } : {}),

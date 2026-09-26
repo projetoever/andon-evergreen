@@ -5,6 +5,7 @@ export interface SystemSettings {
   id: string;
   allowWholeSetCalls: boolean;
   virtualKeyboardEnabled: boolean;
+  requireWorkOrderAtOpen: boolean;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;
@@ -16,6 +17,7 @@ export interface SystemSettings {
 export interface SystemSettingsPatch {
   allowWholeSetCalls?: boolean;
   virtualKeyboardEnabled?: boolean;
+  requireWorkOrderAtOpen?: boolean;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";
   rfidInputTerminator?: RfidInputTerminator;

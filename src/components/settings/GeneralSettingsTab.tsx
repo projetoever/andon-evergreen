@@ -12,8 +12,10 @@ import { getSystemSettings, updateSystemSettings } from "@/services/systemSettin
 
 export function GeneralSettingsTab() {
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(true);
+  const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingKeyboard, setIsSavingKeyboard] = useState(false);
+  const [isSavingWorkOrder, setIsSavingWorkOrder] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +25,10 @@ export function GeneralSettingsTab() {
 
     void getSystemSettings()
       .then((settings) => {
-        if (active) setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
+        if (active) {
+          setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
+          setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+        }
       })
       .catch(() => {
         if (active) toast.error("Não foi possível carregar as configurações gerais.");
@@ -55,6 +60,27 @@ export function GeneralSettingsTab() {
       toast.error("Não foi possível salvar a configuração do teclado virtual.");
     } finally {
       setIsSavingKeyboard(false);
+    }
+  }
+
+  async function handleWorkOrderRequirementChange(required: boolean) {
+    const previousValue = requireWorkOrderAtOpen;
+    setRequireWorkOrderAtOpen(required);
+    setIsSavingWorkOrder(true);
+
+    try {
+      const settings = await updateSystemSettings({ requireWorkOrderAtOpen: required });
+      setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen);
+      toast.success(
+        settings.requireWorkOrderAtOpen
+          ? "OS obrigatória na abertura dos chamados."
+          : "OS opcional na abertura dos chamados.",
+      );
+    } catch {
+      setRequireWorkOrderAtOpen(previousValue);
+      toast.error("Não foi possível salvar a regra da OS.");
+    } finally {
+      setIsSavingWorkOrder(false);
     }
   }
 
@@ -111,6 +137,20 @@ export function GeneralSettingsTab() {
                 checked={virtualKeyboardEnabled}
                 disabled={isLoadingSettings || isSavingKeyboard}
                 onCheckedChange={(checked) => void handleKeyboardChange(checked)}
+              />
+            </div>
+            <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
+              <div>
+                <p className="font-bold">Exigir OS na abertura do chamado</p>
+                <p className="text-xs text-muted-foreground">
+                  Quando ativa, o número da OS será obrigatório para abrir novos chamados.
+                </p>
+              </div>
+              <Switch
+                aria-label="Exigir OS na abertura do chamado"
+                checked={requireWorkOrderAtOpen}
+                disabled={isLoadingSettings || isSavingWorkOrder}
+                onCheckedChange={(checked) => void handleWorkOrderRequirementChange(checked)}
               />
             </div>
           </CardContent>

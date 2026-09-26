@@ -2,7 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
-import { allowsWholeSetCalls, getAttendanceMode } from "../services/systemSettings.js";
+import {
+  allowsWholeSetCalls,
+  getAttendanceMode,
+  requiresWorkOrderAtOpen,
+} from "../services/systemSettings.js";
 import {
   identifyTechnician,
   resolveTechniciansByNames,
@@ -31,6 +35,7 @@ type OpenAndonCallBody = {
   origin?: unknown;
   isSystemTest?: unknown;
   machineCondition?: unknown;
+  workOrderNumber?: unknown;
 };
 
 type AttendAndonCallBody = {
@@ -52,6 +57,7 @@ type BatchOpenAndonCallsBody = {
   subtypes?: unknown;
   criticality?: unknown;
   machineCondition?: unknown;
+  workOrderNumber?: unknown;
 };
 
 type EndTechnicianBody = {
@@ -136,6 +142,14 @@ const andonCallInclude = {
 
 function optionalString(value: unknown) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+const MAX_WORK_ORDER_NUMBER_LENGTH = 100;
+
+function normalizeWorkOrderNumber(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized || undefined;
 }
 
 function uniqueNames(names: Array<string | undefined>) {
@@ -1140,6 +1154,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const origin = optionalString(body.origin) ?? "kiosk";
     const isSystemTest = body.isSystemTest === true;
     const machineCondition = optionalString(body.machineCondition);
+    const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!category) return badRequest(reply, "Campo category é obrigatório");
@@ -1160,6 +1175,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     }
     if (machineCondition && !MACHINE_STATUSES.has(machineCondition))
       return badRequest(reply, "Condição da máquina inválida");
+    if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
+      return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
+    }
+    if (!isSystemTest && (await requiresWorkOrderAtOpen()) && !workOrderNumber) {
+      return badRequest(reply, "Informe o número da OS para abrir o chamado");
+    }
 
     const configuredCategory = await prisma.andonCategory.findUnique({ where: { id: subtype } });
     if (!configuredCategory || (!configuredCategory.active && !isSystemTest)) {
@@ -1249,6 +1270,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             machineId,
             category,
             subtype,
+            workOrderNumber: workOrderNumber ?? null,
             status: "open",
             criticality,
             machineCondition: effectiveMachineCondition,
@@ -1354,6 +1376,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       : [];
     const criticality = optionalString(body.criticality) ?? "medium";
     const machineCondition = optionalString(body.machineCondition);
+    const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!subtypes.length || subtypes.length > 20) {
@@ -1362,6 +1385,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (!CALL_CRITICALITIES.has(criticality)) return badRequest(reply, "Criticidade inválida");
     if (machineCondition && !MACHINE_STATUSES.has(machineCondition)) {
       return badRequest(reply, "Condição da máquina inválida");
+    }
+    if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
+      return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
+    }
+    if ((await requiresWorkOrderAtOpen()) && !workOrderNumber) {
+      return badRequest(reply, "Informe o número da OS para abrir o chamado");
     }
 
     try {
@@ -1417,6 +1446,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               machineId,
               category: categoryBySubtype.get(subtype)?.categoryGroup ?? "maintenance",
               subtype,
+              workOrderNumber,
               status: "open",
               criticality,
               machineCondition: effectiveMachineCondition,

@@ -526,6 +526,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                       {getCallSubtypeLabel(call.subtype)}
                     </h2>
                     <CallIdLabel callId={call.id} className="mt-0.5" />
+                    {call.workOrderNumber && (
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        OS:{" "}
+                        <span className="font-bold text-foreground">{call.workOrderNumber}</span>
+                      </div>
+                    )}
                     {call.isSystemTest && (
                       <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">
                         Teste automático

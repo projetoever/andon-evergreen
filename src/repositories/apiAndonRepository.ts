@@ -336,6 +336,7 @@ export class ApiAndonRepository implements AndonRepository {
       subtypes: params.map((item) => item.subtype),
       criticality: first.criticality ?? "medium",
       machineCondition: first.machineCondition,
+      workOrderNumber: first.workOrderNumber,
     });
     return this.loadResult();
   }
