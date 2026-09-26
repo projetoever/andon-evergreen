@@ -209,7 +209,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         return tx.technician.create({
           data: {
             name,
-              employeeId,
+            employeeId,
             technicalArea,
             shiftId,
             active,
@@ -353,7 +353,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
             where: { id: current.id },
             data: {
               ...(name ? { name } : {}),
-                ...(employeeId ? { employeeId } : {}),
+              ...(employeeId ? { employeeId } : {}),
               ...(technicalArea ? { technicalArea } : {}),
               ...(shiftId ? { shiftId } : {}),
               ...(active !== undefined ? { active } : {}),
