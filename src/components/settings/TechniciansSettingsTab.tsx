@@ -15,6 +15,7 @@ const DEFAULT_AREA_OPTIONS = DEFAULT_CATEGORIES.map((category) => ({
 
 const EMPTY_DRAFT: TechnicianConfig = {
   id: "",
+  employeeId: "",
   name: "",
   area: "electrical",
   shiftId: "",
@@ -74,12 +75,14 @@ export function TechniciansSettingsTab() {
 
   function handleSelect(item: TechnicianConfig) {
     setSelectedId(item.id);
-    setDraft({ ...item, pin: "", tag: "" });
+    setDraft({ ...item, employeeId: item.employeeId ?? "", pin: "", tag: "" });
   }
 
   async function handleSave() {
     const trimmedName = draft.name.trim();
+    const employeeId = draft.employeeId?.trim() ?? "";
     if (!trimmedName) return toast.error("Informe o nome do manutentor.");
+    if (!employeeId) return toast.error("Informe o ID do colaborador.");
     if (!draft.shiftId) return toast.error("Selecione o turno do manutentor.");
     const pin = draft.pin?.trim() ?? "";
     if ((!draft.id || !draft.hasPin) && !/^\d{4,8}$/.test(pin)) {
@@ -100,6 +103,7 @@ export function TechniciansSettingsTab() {
 
     try {
       const input = {
+        employeeId,
         name: trimmedName,
         area: draft.area,
         shiftId: draft.shiftId,
@@ -126,10 +130,18 @@ export function TechniciansSettingsTab() {
   async function handleToggleActive() {
     if (!draft.id) return;
 
+    const employeeId = draft.employeeId?.trim() ?? "";
+    if (!employeeId) {
+      return toast.error("Informe o ID do colaborador antes de alterar o cadastro.");
+    }
+
     setIsSaving(true);
 
     try {
-      const saved = await updateTechnician(draft.id, { active: !draft.active });
+      const saved = await updateTechnician(draft.id, {
+        active: !draft.active,
+        employeeId,
+      });
       setDraft(saved);
       toast.success(saved.active ? "Manutentor reativado." : "Manutentor inativado.");
     } catch (saveError) {
@@ -188,6 +200,9 @@ export function TechniciansSettingsTab() {
               >
                 <p className="text-sm font-bold">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
+                  ID: {item.employeeId?.trim() || "pendente"}
+                </p>
+                <p className="text-xs text-muted-foreground">
                   {categories.find((area) => area.id === item.area)?.displayName ?? item.area} ·{" "}
                   {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
                 </p>
@@ -208,6 +223,17 @@ export function TechniciansSettingsTab() {
               className="mt-1 h-10 w-full rounded-md border bg-background px-2"
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            ID do colaborador
+            <input
+              autoComplete="off"
+              maxLength={80}
+              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
+              value={draft.employeeId ?? ""}
+              onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}
+              placeholder="Registro do colaborador"
             />
           </label>
           <label className="text-sm font-semibold">

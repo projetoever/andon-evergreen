@@ -15,6 +15,7 @@ const TECHNICIAN_SYNC_INTERVAL_MS = 10_000;
 function getLocalDevelopmentTechnicians(): TechnicianConfig[] {
   return TECHNICIANS.map((technician) => ({
     id: technician.id,
+    employeeId: null,
     name: technician.name,
     area: technician.area,
     shiftId: "",

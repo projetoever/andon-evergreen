@@ -25,6 +25,7 @@ type TechnicianQuery = {
 
 type CreateTechnicianBody = {
   name?: unknown;
+  employeeId?: unknown;
   technicalArea?: unknown;
   shiftId?: unknown;
   active?: unknown;
@@ -51,10 +52,30 @@ function requiredString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function normalizeEmployeeId(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized || undefined;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
 async function findDuplicateName(name: string, excludedId?: string) {
   return prisma.technician.findFirst({
     where: {
       name: { equals: name, mode: "insensitive" },
+      ...(excludedId ? { id: { not: excludedId } } : {}),
+    },
+    select: { id: true },
+  });
+}
+
+async function findDuplicateEmployeeId(employeeId: string, excludedId?: string) {
+  return prisma.technician.findFirst({
+    where: {
+      employeeId: { equals: employeeId, mode: "insensitive" },
       ...(excludedId ? { id: { not: excludedId } } : {}),
     },
     select: { id: true },
@@ -117,6 +138,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateTechnicianBody }>("/api/technicians", async (request, reply) => {
     const name = requiredString(request.body?.name);
+    const employeeId = normalizeEmployeeId(request.body?.employeeId);
     const technicalArea = requiredString(request.body?.technicalArea);
     const shiftId = requiredString(request.body?.shiftId);
     const parsedActive = parseBoolean(request.body?.active);
@@ -125,6 +147,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     const tag = request.body && "tag" in request.body ? normalizeTag(request.body.tag) : null;
 
     if (!name) return badRequest(reply, "Informe o nome do manutentor");
+    if (!employeeId) return badRequest(reply, "Informe o ID do colaborador");
     if (!technicalArea || !(await technicalAreaExists(technicalArea))) {
       return badRequest(reply, "Área técnica inválida");
     }
@@ -137,12 +160,16 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       return badRequest(reply, "Status do manutentor inválido");
     }
 
-    const [duplicate, hasShift] = await Promise.all([
+    const [duplicate, duplicateEmployeeId, hasShift] = await Promise.all([
       findDuplicateName(name),
+      findDuplicateEmployeeId(employeeId),
       shiftExists(shiftId),
     ]);
 
     if (duplicate) return badRequest(reply, "Já existe manutentor com este nome");
+    if (duplicateEmployeeId) {
+      return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
+    }
     if (!hasShift) return badRequest(reply, "Turno não encontrado");
 
     const [pinHash, tagHash] = await Promise.all([
@@ -182,6 +209,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         return tx.technician.create({
           data: {
             name,
+            employeeId,
             technicalArea,
             shiftId,
             active,
@@ -196,6 +224,9 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     } catch (error) {
       if (error instanceof TechnicianCredentialConflictError) {
         return badRequest(reply, error.message);
+      }
+      if (isUniqueConstraintError(error)) {
+        return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
       }
 
       throw error;
@@ -214,6 +245,10 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
 
       const name =
         request.body && "name" in request.body ? requiredString(request.body.name) : undefined;
+      const employeeIdProvided = Boolean(request.body && "employeeId" in request.body);
+      const employeeId = employeeIdProvided
+        ? normalizeEmployeeId(request.body?.employeeId)
+        : undefined;
       const technicalArea =
         request.body && "technicalArea" in request.body
           ? requiredString(request.body.technicalArea)
@@ -232,6 +267,20 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
 
       if (request.body && "name" in request.body && !name) {
         return badRequest(reply, "Informe o nome do manutentor");
+      }
+      if (employeeIdProvided && !employeeId) {
+        return badRequest(reply, "Informe o ID do colaborador");
+      }
+      const relevantUpdateFields = [
+        "name",
+        "technicalArea",
+        "shiftId",
+        "active",
+        "pin",
+        "tag",
+      ].some((field) => Boolean(request.body && field in request.body));
+      if (!current.employeeId && relevantUpdateFields && !employeeId) {
+        return badRequest(reply, "Informe o ID do colaborador para atualizar este mantenedor");
       }
       if (
         request.body &&
@@ -255,6 +304,9 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
 
       if (name && (await findDuplicateName(name, current.id))) {
         return badRequest(reply, "Já existe manutentor com este nome");
+      }
+      if (employeeId && (await findDuplicateEmployeeId(employeeId, current.id))) {
+        return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
       }
       if (shiftId && !(await shiftExists(shiftId))) {
         return badRequest(reply, "Turno não encontrado");
@@ -301,6 +353,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
             where: { id: current.id },
             data: {
               ...(name ? { name } : {}),
+              ...(employeeId ? { employeeId } : {}),
               ...(technicalArea ? { technicalArea } : {}),
               ...(shiftId ? { shiftId } : {}),
               ...(active !== undefined ? { active } : {}),
@@ -316,6 +369,12 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       } catch (error) {
         if (error instanceof TechnicianCredentialConflictError) {
           return badRequest(reply, error.message);
+        }
+        if (isUniqueConstraintError(error)) {
+          return badRequest(
+            reply,
+            "Este ID do colaborador já está cadastrado para outro mantenedor",
+          );
         }
 
         throw error;

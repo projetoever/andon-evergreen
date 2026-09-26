@@ -43,6 +43,7 @@ export type SettingsTab = "general" | "sounds" | "attendance" | "technicians" | 
 
 export interface TechnicianConfig {
   id: string;
+  employeeId: string | null;
   name: string;
   area: CallSubtype;
   shiftId: string;

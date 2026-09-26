@@ -290,10 +290,24 @@ async function run() {
     201,
   );
 
+  const missingEmployeeIdResponse = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Mantenedor sem ID PR 41",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "7124",
+    }),
+    400,
+  );
+  assert.match(missingEmployeeIdResponse.message, /ID do colaborador/i);
+
   const electrical = await request(
     "/api/technicians",
     json("POST", {
       name: "Mantenedor Elétrico PR 47",
+      employeeId: "000100",
       technicalArea: "electrical",
       shiftId: ids.shift,
       active: true,
@@ -306,6 +320,7 @@ async function run() {
     "/api/technicians",
     json("POST", {
       name: "Mantenedor Mecânico PR 47",
+      employeeId: "000200",
       technicalArea: "mechanical",
       shiftId: ids.shift,
       active: true,
@@ -314,10 +329,25 @@ async function run() {
     }),
     201,
   );
+  const duplicateEmployeeIdResponse = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Mantenedor com ID duplicado PR 41",
+      employeeId: " 000100 ",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "7125",
+    }),
+    400,
+  );
+  assert.match(duplicateEmployeeIdResponse.message, /ID do colaborador já está cadastrado/i);
+
   const electricalSupport = await request(
     "/api/technicians",
     json("POST", {
       name: "Apoio Elétrico PR 50",
+      employeeId: "000300",
       technicalArea: "electrical",
       shiftId: ids.shift,
       active: true,
@@ -331,6 +361,7 @@ async function run() {
     "/api/technicians",
     json("POST", {
       name: "PIN duplicado PR 51",
+      employeeId: "000400",
       technicalArea: "electrical",
       shiftId: ids.shift,
       active: true,
@@ -350,6 +381,40 @@ async function run() {
   ids.electricalTechnician = electrical.id;
   ids.electricalSupportTechnician = electricalSupport.id;
   ids.mechanicalTechnician = mechanical.id;
+  assert.equal(electrical.employeeId, "000100");
+  const internalElectricalId = electrical.id;
+  const listedTechnicians = await request("/api/technicians");
+  assert.equal(
+    listedTechnicians.find((technician) => technician.id === electrical.id)?.employeeId,
+    "000100",
+  );
+
+  await prisma.technician.update({
+    where: { id: electrical.id },
+    data: { employeeId: null },
+  });
+  const legacyList = await request("/api/technicians");
+  assert.equal(
+    legacyList.find((technician) => technician.id === electrical.id)?.employeeId,
+    null,
+    "mantenedor legado sem employeeId deve continuar sendo listado",
+  );
+  const legacyUpdateWithoutEmployeeId = await request(
+    "/api/technicians/" + electrical.id,
+    json("PATCH", { active: false }),
+    400,
+  );
+  assert.match(legacyUpdateWithoutEmployeeId.message, /ID do colaborador/i);
+  const repairedLegacy = await request(
+    "/api/technicians/" + electrical.id,
+    json("PATCH", { employeeId: " 000100 " }),
+  );
+  assert.equal(
+    repairedLegacy.id,
+    internalElectricalId,
+    "Technician.id interno deve permanecer estável",
+  );
+  assert.equal(repairedLegacy.employeeId, "000100");
   assert.equal(electrical.hasPin, true);
   assert.equal(electrical.hasTag, true);
   assert.equal("pinHash" in electrical, false);
@@ -377,6 +442,15 @@ async function run() {
     json("POST", { method: "pin", value: "4821" }),
   );
   assert.equal(identifiedByPin.id, electrical.id, "PIN deve continuar disponível como alternativa");
+  const identifiedByRfid = await request(
+    "/api/technicians/identify",
+    json("POST", { method: "rfid", value: "TAG-ELECTRICAL-47" }),
+  );
+  assert.equal(
+    identifiedByRfid.id,
+    electrical.id,
+    "RFID deve continuar disponível como alternativa",
+  );
   await request("/api/technicians/identify", json("POST", { method: "pin", value: "0000" }), 404);
 
   const openedCalls = await request(

@@ -10,6 +10,7 @@ import {
 
 export const technicianIdentitySelect = {
   id: true,
+  employeeId: true,
   name: true,
   technicalArea: true,
   shiftId: true,
@@ -26,6 +27,7 @@ export type IdentifiedTechnician = Prisma.TechnicianGetPayload<{
 export function toPublicTechnician(technician: IdentifiedTechnician) {
   return {
     id: technician.id,
+    employeeId: technician.employeeId,
     name: technician.name,
     technicalArea: technician.technicalArea,
     shiftId: technician.shiftId,
