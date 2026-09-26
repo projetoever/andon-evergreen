@@ -199,7 +199,9 @@ export function TechniciansSettingsTab() {
                 )}
               >
                 <p className="text-sm font-bold">{item.name}</p>
-                <p className="text-xs text-muted-foreground">ID: {item.employeeId?.trim() || "pendente"}</p>
+                <p className="text-xs text-muted-foreground">
+                  ID: {item.employeeId?.trim() || "pendente"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {categories.find((area) => area.id === item.area)?.displayName ?? item.area} ·{" "}
                   {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}

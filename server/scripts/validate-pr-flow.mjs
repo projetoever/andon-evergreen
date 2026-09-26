@@ -409,7 +409,11 @@ async function run() {
     "/api/technicians/" + electrical.id,
     json("PATCH", { employeeId: " 000100 " }),
   );
-  assert.equal(repairedLegacy.id, internalElectricalId, "Technician.id interno deve permanecer estável");
+  assert.equal(
+    repairedLegacy.id,
+    internalElectricalId,
+    "Technician.id interno deve permanecer estável",
+  );
   assert.equal(repairedLegacy.employeeId, "000100");
   assert.equal(electrical.hasPin, true);
   assert.equal(electrical.hasTag, true);
@@ -442,7 +446,11 @@ async function run() {
     "/api/technicians/identify",
     json("POST", { method: "rfid", value: "TAG-ELECTRICAL-47" }),
   );
-  assert.equal(identifiedByRfid.id, electrical.id, "RFID deve continuar disponível como alternativa");
+  assert.equal(
+    identifiedByRfid.id,
+    electrical.id,
+    "RFID deve continuar disponível como alternativa",
+  );
   await request("/api/technicians/identify", json("POST", { method: "pin", value: "0000" }), 404);
 
   const openedCalls = await request(

@@ -59,12 +59,7 @@ function normalizeEmployeeId(value: unknown) {
 }
 
 function isUniqueConstraintError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
 }
 
 async function findDuplicateName(name: string, excludedId?: string) {
@@ -214,7 +209,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         return tx.technician.create({
           data: {
             name,
-            employeeId,
+              employeeId,
             technicalArea,
             shiftId,
             active,
@@ -276,9 +271,14 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       if (employeeIdProvided && !employeeId) {
         return badRequest(reply, "Informe o ID do colaborador");
       }
-      const relevantUpdateFields = ["name", "technicalArea", "shiftId", "active", "pin", "tag"].some(
-        (field) => Boolean(request.body && field in request.body),
-      );
+      const relevantUpdateFields = [
+        "name",
+        "technicalArea",
+        "shiftId",
+        "active",
+        "pin",
+        "tag",
+      ].some((field) => Boolean(request.body && field in request.body));
       if (!current.employeeId && relevantUpdateFields && !employeeId) {
         return badRequest(reply, "Informe o ID do colaborador para atualizar este mantenedor");
       }
@@ -353,7 +353,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
             where: { id: current.id },
             data: {
               ...(name ? { name } : {}),
-              ...(employeeId ? { employeeId } : {}),
+                ...(employeeId ? { employeeId } : {}),
               ...(technicalArea ? { technicalArea } : {}),
               ...(shiftId ? { shiftId } : {}),
               ...(active !== undefined ? { active } : {}),
@@ -371,7 +371,10 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
           return badRequest(reply, error.message);
         }
         if (isUniqueConstraintError(error)) {
-          return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
+          return badRequest(
+            reply,
+            "Este ID do colaborador já está cadastrado para outro mantenedor",
+          );
         }
 
         throw error;
