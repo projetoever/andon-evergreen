@@ -122,16 +122,18 @@ export function QuickOpenCallModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="quick-open-work-order">Número da OS</Label>
-          <Input
-            id="quick-open-work-order"
-            value={workOrderNumber}
-            maxLength={100}
-            onChange={(event) => setWorkOrderNumber(event.target.value)}
-            placeholder="Informe o número da OS"
-          />
-        </div>
+        {requireWorkOrderAtOpen && (
+          <div className="space-y-1.5">
+            <Label htmlFor="quick-open-work-order">Número da OS</Label>
+            <Input
+              id="quick-open-work-order"
+              value={workOrderNumber}
+              maxLength={100}
+              onChange={(event) => setWorkOrderNumber(event.target.value)}
+              placeholder="Informe o número da OS"
+            />
+          </div>
+        )}
 
         {systemSettingsLoadFailed && (
           <p className="text-sm text-danger">
