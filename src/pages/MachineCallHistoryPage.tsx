@@ -54,6 +54,7 @@ function getFailureClassificationLabel(
 interface FailureEventCardProps {
   event: MachineStopEvent;
   machine: Machine;
+  showFailureImpact: boolean;
   classifications: FailureClassificationConfig[];
   catalogByValue: Map<string, FailureClassificationConfig>;
   catalogLoading: boolean;
@@ -71,6 +72,7 @@ interface FailureEventCardProps {
 function FailureEventCard({
   event,
   machine,
+  showFailureImpact,
   classifications,
   catalogByValue,
   catalogLoading,
@@ -203,25 +205,27 @@ function FailureEventCard({
         </div>
       </dl>
 
-      <section className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
-        <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-          Impacto da falha
-        </h4>
-        <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
-          <div className="flex items-center justify-between gap-2">
-            <dt>Impacto durante produção programada</dt>
-            <dd className="font-bold">
-              {formatBreakdownDuration(productionBreakdown.scheduledSeconds)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <dt>Impacto fora de produção programada</dt>
-            <dd className="font-bold">
-              {formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}
-            </dd>
-          </div>
-        </dl>
-      </section>
+      {showFailureImpact && (
+        <section className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+          <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+            Impacto da falha
+          </h4>
+          <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-2">
+              <dt>Impacto durante produção programada</dt>
+              <dd className="font-bold">
+                {formatBreakdownDuration(productionBreakdown.scheduledSeconds)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <dt>Impacto fora de produção programada</dt>
+              <dd className="font-bold">
+                {formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      )}
     </article>
   );
 }
@@ -321,11 +325,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     setEditingId(null);
   };
 
-  const renderFailureEvent = (event: MachineStopEvent) => (
+  const renderFailureEvent = (event: MachineStopEvent, showFailureImpact: boolean) => (
     <FailureEventCard
       key={event.id}
       event={event}
       machine={machine}
+      showFailureImpact={showFailureImpact}
       classifications={classifications}
       catalogByValue={catalogByValue}
       catalogLoading={catalogLoading}
@@ -679,7 +684,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                       </h3>
                       {linkedFailureEvents.length > 0 ? (
                         <div className="space-y-2">
-                          {linkedFailureEvents.map(renderFailureEvent)}
+                          {linkedFailureEvents.map((event) => renderFailureEvent(event, false))}
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">
@@ -803,7 +808,9 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               </p>
             </div>
           </div>
-          <div className="space-y-2">{orphanFailureEvents.map(renderFailureEvent)}</div>
+          <div className="space-y-2">
+            {orphanFailureEvents.map((event) => renderFailureEvent(event, true))}
+          </div>
         </section>
       )}
     </div>
