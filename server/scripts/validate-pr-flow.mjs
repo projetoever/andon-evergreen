@@ -16,6 +16,10 @@ const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
   impactMachine: "pr49-impact-machine",
+  sessionMachineA: "pr42-session-machine-a",
+  sessionMachineB: "pr42-session-machine-b",
+  sessionMachineC: "pr42-session-machine-c",
+  sessionMachineD: "pr42-session-machine-d",
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
   electricalSupportTechnician: "pr50-tech-electrical-support",
@@ -66,7 +70,15 @@ async function waitForApi() {
 }
 
 async function cleanup() {
-  const machineIds = [ids.machine, ids.raceMachine, ids.impactMachine];
+  const machineIds = [
+    ids.machine,
+    ids.raceMachine,
+    ids.impactMachine,
+    ids.sessionMachineA,
+    ids.sessionMachineB,
+    ids.sessionMachineC,
+    ids.sessionMachineD,
+  ];
   const calls = await prisma.andonCall.findMany({
     where: { machineId: { in: machineIds } },
     select: { id: true },
@@ -289,6 +301,14 @@ async function run() {
     }),
     201,
   );
+  for (const [id, name] of [
+    [ids.sessionMachineA, "Máquina PR 42 sessão A"],
+    [ids.sessionMachineB, "Máquina PR 42 sessão B"],
+    [ids.sessionMachineC, "Máquina PR 42 sessão C"],
+    [ids.sessionMachineD, "Máquina PR 42 sessão D"],
+  ]) {
+    await request("/api/machines", json("POST", { id, name, productionMode: "scheduled" }), 201);
+  }
 
   const missingEmployeeIdResponse = await request(
     "/api/technicians",
@@ -1111,6 +1131,194 @@ async function run() {
     0,
     "cancelar o chamado responsável não pode deixar falha órfã aberta",
   );
+
+  const sessionCallA = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.sessionMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const attendedSessionCallA = await request(
+    `/api/andon-calls/${sessionCallA.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "4821" }] }),
+  );
+  assert.equal(attendedSessionCallA.technicianSessions.length, 1);
+  assert.equal(attendedSessionCallA.technicianSessions[0].technicianId, electrical.id);
+
+  const sessionCallB = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.sessionMachineB,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const atomicConflict = await request(
+    `/api/andon-calls/${sessionCallB.id}/attend`,
+    json("PATCH", {
+      credentials: [
+        { method: "pin", value: "6943" },
+        { method: "pin", value: "4821" },
+      ],
+    }),
+    400,
+  );
+  assert.match(atomicConflict.message, /atendimento ativo em outro chamado/i);
+  const unchangedSessionCallB = await prisma.andonCall.findUniqueOrThrow({
+    where: { id: sessionCallB.id },
+    include: { technicianSessions: true },
+  });
+  assert.equal(unchangedSessionCallB.status, "open");
+  assert.equal(
+    unchangedSessionCallB.technicianSessions.length,
+    0,
+    "a falha de um mantenedor deve reverter todas as sessões do atendimento",
+  );
+
+  const sameCallRetry = await request(
+    `/api/andon-calls/${sessionCallA.id}/technicians`,
+    json("POST", { credentials: [{ method: "rfid", value: "TAG-ELECTRICAL-47" }] }),
+    201,
+  );
+  assert.equal(
+    sameCallRetry.technicianSessions.filter(
+      (session) => session.technicianId === electrical.id && !session.endedAt,
+    ).length,
+    1,
+    "repetir o mesmo mantenedor no mesmo chamado deve ser idempotente",
+  );
+
+  const activeModernSupportSessions = await prisma.technicianSession.count({
+    where: { technicianId: electricalSupport.id, endedAt: null },
+  });
+  assert.equal(
+    activeModernSupportSessions,
+    0,
+    "electricalSupport não pode possuir sessão moderna ativa antes do fixture legado",
+  );
+
+  await prisma.technicianSession.create({
+    data: {
+      callId: sessionCallB.id,
+      machineId: ids.sessionMachineB,
+      technicianName: electricalSupport.name,
+      technicalArea: electricalSupport.technicalArea,
+      shiftId: electricalSupport.shiftId,
+      shiftName: "Turno CI",
+      startedAt: new Date(),
+    },
+  });
+  const legacyActiveSession = await prisma.technicianSession.findFirstOrThrow({
+    where: {
+      callId: sessionCallB.id,
+      technicianId: null,
+      technicianName: electricalSupport.name,
+      endedAt: null,
+    },
+  });
+  assert.equal(legacyActiveSession.technicianId, null);
+  const sessionCallC = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.sessionMachineC,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const legacyConflict = await request(
+    `/api/andon-calls/${sessionCallC.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "6943" }] }),
+    400,
+  );
+  assert.match(legacyConflict.message, /atendimento ativo em outro chamado/i);
+  await prisma.technicianSession.updateMany({
+    where: { callId: sessionCallB.id, technicianId: null, endedAt: null },
+    data: { endedAt: new Date(), endReason: "test_fixture" },
+  });
+
+  const attendedSessionCallC = await request(
+    `/api/andon-calls/${sessionCallC.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "6943" }] }),
+  );
+  assert.equal(attendedSessionCallC.technicianSessions.length, 1);
+  assert.equal(
+    attendedSessionCallC.technicianSessions.filter(
+      (session) => session.technicianId === electricalSupport.id && !session.endedAt,
+    ).length,
+    1,
+    "sessão legada encerrada deve permitir nova sessão moderna do mesmo mantenedor",
+  );
+  const addLaterConflict = await request(
+    `/api/andon-calls/${sessionCallC.id}/technicians`,
+    json("POST", { credentials: [{ method: "pin", value: "4821" }] }),
+    400,
+  );
+  assert.match(addLaterConflict.message, /atendimento ativo em outro chamado/i);
+  const sessionCallCAfterConflict = await prisma.technicianSession.count({
+    where: { callId: sessionCallC.id, endedAt: null },
+  });
+  assert.equal(sessionCallCAfterConflict, 1);
+
+  await request(
+    `/api/andon-calls/${sessionCallA.id}/technicians/end`,
+    json("PATCH", { credential: { method: "pin", value: "4821" } }),
+  );
+  const addedAfterEnd = await request(
+    `/api/andon-calls/${sessionCallC.id}/technicians`,
+    json("POST", { credentials: [{ method: "rfid", value: "TAG-ELECTRICAL-47" }] }),
+    201,
+  );
+  assert.equal(
+    addedAfterEnd.technicianSessions.filter(
+      (session) => session.technicianId === electrical.id && !session.endedAt,
+    ).length,
+    1,
+    "mantenedor liberado ao encerrar deve poder iniciar outro atendimento",
+  );
+  await request(
+    `/api/andon-calls/${sessionCallC.id}/technicians/end`,
+    json("PATCH", { credential: { method: "pin", value: "4821" } }),
+  );
+  await request(
+    `/api/andon-calls/${sessionCallC.id}/technicians/end`,
+    json("PATCH", { credential: { method: "pin", value: "6943" } }),
+  );
+
+  const concurrentSessionCallD = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.sessionMachineD,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const concurrentSessionResponses = await Promise.all(
+    [sessionCallB.id, concurrentSessionCallD.id].map((callId) =>
+      fetch(`${API_URL}/api/andon-calls/${callId}/attend`, {
+        ...json("PATCH", { credentials: [{ method: "pin", value: "4821" }] }),
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  assert.deepEqual(
+    concurrentSessionResponses.map((response) => response.status).sort(),
+    [200, 400],
+    "tentativas concorrentes devem permitir somente um atendimento ativo",
+  );
+  const finalActiveElectricalSessions = await prisma.technicianSession.count({
+    where: { technicianId: electrical.id, endedAt: null },
+  });
+  assert.equal(finalActiveElectricalSessions, 1);
 
   await prisma.$disconnect();
 
