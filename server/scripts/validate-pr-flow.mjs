@@ -819,6 +819,7 @@ async function run() {
     `/api/andon-calls/${electricalCall.id}/finish`,
     json("PATCH", {
       notes: "Finalização de integração",
+      failureClassification: "electrical_failure",
       confirmedMachineSetId: null,
       confirmedMachineSubsetId: null,
     }),
@@ -855,10 +856,23 @@ async function run() {
   assert.equal(cancelledMechanicalCall.cancelReason, "Validação do cancelamento");
   assert.match(cancelledMechanicalCall.notes, /Motivo: Validação do cancelamento/);
   await request(`/api/andon-calls/${qualityCall.id}/attend`, json("PATCH", {}));
-  await request(
+  const finishedQualityRunning = await request(
     `/api/andon-calls/${qualityCall.id}/finish`,
-    json("PATCH", { confirmedMachineSetId: null, confirmedMachineSubsetId: null }),
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Falha de qualidade resolvida",
+      confirmedMachineSetId: null,
+      confirmedMachineSubsetId: null,
+    }),
   );
+  assert.equal(finishedQualityRunning.status, "finished");
+  const qualityRunningEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: qualityCall.id },
+  });
+  assert.equal(qualityRunningEvent.classification, "quality_failure");
+  assert.equal(qualityRunningEvent.notes, "Falha de qualidade resolvida");
+  assert.equal(qualityRunningEvent.durationSeconds, 0);
+  assert.equal(qualityRunningEvent.startedAt.getTime(), qualityRunningEvent.endedAt?.getTime());
 
   const machineAfterFinish = await request(`/api/machines/${ids.machine}`);
   assert.equal(machineAfterFinish.currentCallId, null);
@@ -928,11 +942,34 @@ async function run() {
     }),
   ]);
 
+  for (const invalidCase of [
+    { payload: { notes: "Falha em operação" }, message: /classificação da falha é obrigatória/i },
+    { payload: { failureClassification: "quality_failure" }, message: /descrição da falha é obrigatória/i },
+  ]) {
+    const rejected = await request(
+      `/api/andon-calls/${leadershipRunning.id}/finish`,
+      json("PATCH", invalidCase.payload),
+      400,
+    );
+    assert.match(rejected.message, invalidCase.message);
+    assert.equal(await prisma.failureEvent.count({ where: { callId: leadershipRunning.id } }), 0);
+  }
+
   const finishedLeadership = await request(
     `/api/andon-calls/${leadershipRunning.id}/finish`,
-    json("PATCH", { notes: "Apoio encerrado sem localização técnica" }),
+    json("PATCH", {
+      notes: "Apoio encerrado sem localização técnica",
+      failureClassification: "quality_failure",
+    }),
   );
   assert.equal(finishedLeadership.status, "finished");
+  const leadershipFailureEvent = await prisma.failureEvent.findFirstOrThrow({
+    where: { callId: leadershipRunning.id },
+  });
+  assert.equal(leadershipFailureEvent.classification, "quality_failure");
+  assert.equal(leadershipFailureEvent.notes, "Apoio encerrado sem localização técnica");
+  assert.equal(leadershipFailureEvent.durationSeconds, 0);
+  assert.equal(leadershipFailureEvent.startedAt.getTime(), leadershipFailureEvent.endedAt?.getTime());
   assert.equal(finishedLeadership.assetConfirmedAt, null);
   assert.equal(finishedLeadership.confirmedMachineSetId, null);
   assert.equal(
@@ -990,7 +1027,7 @@ async function run() {
         machineStatus: "stopped",
         impactCallIds: [leadershipDuringStop.id],
       },
-      message: /descrição do chamado é obrigatória quando a classificação é "Outro"/i,
+      message: /descrição da falha é obrigatória/i,
     },
     {
       payload: {
@@ -1155,14 +1192,23 @@ async function run() {
   });
   assert.equal(placeholderEvent.notes, "Falha registrada na abertura do ANDON");
 
-  await request(
+  const missingStoppedDescription = await request(
     `/api/andon-calls/${placeholderOnlyCall.id}/finish`,
     json("PATCH", { failureClassification: "quality_failure" }),
+    400,
+  );
+  assert.match(missingStoppedDescription.message, /descrição da falha é obrigatória/i);
+  await request(
+    `/api/andon-calls/${placeholderOnlyCall.id}/finish`,
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Falha resolvida no equipamento",
+    }),
   );
   const clearedPlaceholderEvent = await prisma.failureEvent.findUniqueOrThrow({
     where: { id: placeholderEvent.id },
   });
-  assert.equal(clearedPlaceholderEvent.notes, null);
+  assert.equal(clearedPlaceholderEvent.notes, "Falha resolvida no equipamento");
 
   const describedAtOpenCall = await request(
     "/api/andon-calls",
@@ -1184,7 +1230,10 @@ async function run() {
 
   const finishedDescribedAtOpenCall = await request(
     `/api/andon-calls/${describedAtOpenCall.id}/finish`,
-    json("PATCH", { failureClassification: "quality_failure" }),
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Sensor óptico intermitente",
+    }),
   );
   assert.equal(finishedDescribedAtOpenCall.notes, "Sensor óptico intermitente");
 

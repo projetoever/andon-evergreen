@@ -868,16 +868,14 @@ export function finishAndonCall(
     }
   }
 
-  if (applicableFailureEvent) {
-    if (!failureClassification) {
-      throw new Error("Classificação da falha é obrigatória");
-    }
-    if (!isSpecificFailureClassification(failureClassification)) {
-      throw new Error("Selecione uma classificação específica da falha");
-    }
-    if (failureClassification === "other" && !normalizedDescription) {
-      throw new Error('Descrição do chamado é obrigatória quando a classificação é "Outro"');
-    }
+  if (!failureClassification) {
+    throw new Error("Classificação da falha é obrigatória");
+  }
+  if (!isSpecificFailureClassification(failureClassification)) {
+    throw new Error("Selecione uma classificação específica da falha");
+  }
+  if (!normalizedDescription) {
+    throw new Error("Descrição da falha é obrigatória");
   }
 
   const closeOpenImpactIntervals = (intervals: CallImpactInterval[] | undefined) =>
@@ -942,26 +940,35 @@ export function finishAndonCall(
       : updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
-  const machinesWithFailureDetails = applicableFailureEvent && failureClassification
-    ? finalMachines.map((item) =>
-        item.id === call.machineId
-          ? {
-              ...item,
-              stopHistory: item.stopHistory.map((event) =>
+  const machinesWithFailureDetails = finalMachines.map((item) =>
+    item.id === call.machineId
+      ? {
+          ...item,
+          stopHistory: applicableFailureEvent
+            ? item.stopHistory.map((event) =>
                 event.id === applicableFailureEvent.id
-                  ? {
-                      ...event,
-                      failureClassification,
-                      ...(normalizedDescription
-                        ? { failureDescription: normalizedDescription }
-                        : {}),
-                    }
+                  ? { ...event, failureClassification, failureDescription: normalizedDescription }
                   : event,
-              ),
-            }
-          : item,
-      )
-    : finalMachines;
+              )
+            : [
+                ...item.stopHistory,
+                {
+                  id: generateId("failure"),
+                  machineId: call.machineId,
+                  callId: call.id,
+                  stoppedAt: now,
+                  resumedAt: now,
+                  durationMinutes: 0,
+                  source: "manual" as const,
+                  failureClassification,
+                  failureDescription: normalizedDescription,
+                  productionModeAtStart: item.productionMode,
+                  productionModeAtEnd: item.productionMode,
+                },
+              ],
+        }
+      : item,
+  );
 
   const finalMachine = machinesWithFailureDetails.find((item) => item.id === call.machineId);
 

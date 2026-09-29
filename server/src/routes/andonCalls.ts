@@ -693,30 +693,6 @@ function mergeFinalDescription(
   return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
 }
 
-const AUTOMATIC_FAILURE_DESCRIPTION_LINES = [
-  /^Falha registrada na abertura do ANDON$/i,
-  /^Falha encerrada automaticamente\b/i,
-  /^Continuidade da falha:/i,
-  /^Retomada:/i,
-  /^Conclusão da manutenção:/i,
-  /^Retorno à manutenção:/i,
-];
-
-function extractOperationalFailureDescription(notes: string | null | undefined) {
-  const description = (notes ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.length > 0 &&
-        !AUTOMATIC_FAILURE_DESCRIPTION_LINES.some((pattern) => pattern.test(line)),
-    )
-    .join("\n")
-    .trim();
-
-  return description || null;
-}
-
 function attachAssetSnapshots(
   call: unknown,
   machineSet: MachineSetSnapshot | null,
@@ -1972,46 +1948,40 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               orderBy: { startedAt: "desc" },
             }));
 
+          const failureClassification = optionalString(body.failureClassification);
+          const resolvedFailureDescription =
+            optionalString(body.failureDescription) ?? optionalString(body.notes);
+
+          if (!failureClassification) {
+            throw new FinishCallValidationError("Classificação da falha é obrigatória");
+          }
+          if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
+            throw new FinishCallValidationError("Selecione uma classificação específica da falha");
+          }
+          if (!resolvedFailureDescription) {
+            throw new FinishCallValidationError("Descrição da falha é obrigatória");
+          }
+
+          const catalogClassification = await tx.failureClassification.findUnique({
+            where: { value: failureClassification },
+          });
+
+          if (!catalogClassification) {
+            throw new FinishCallValidationError("Classificação da falha inválida");
+          }
+          if (
+            !catalogClassification.active &&
+            applicableFailureEvent?.classification !== catalogClassification.value
+          ) {
+            throw new FinishCallValidationError("Classificação da falha está inativa");
+          }
+
           if (applicableFailureEvent) {
-            const failureClassification = optionalString(body.failureClassification);
-            const failureDescription = optionalString(body.failureDescription);
-            const resolvedFailureDescription =
-              failureDescription ?? optionalString(body.notes);
-
-            if (!failureClassification) {
-              throw new FinishCallValidationError("Classificação da falha é obrigatória");
-            }
-            if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
-              throw new FinishCallValidationError("Selecione uma classificação específica da falha");
-            }
-            if (failureClassification === "other" && !resolvedFailureDescription) {
-              throw new FinishCallValidationError(
-                'Descrição do chamado é obrigatória quando a classificação é "Outro"',
-              );
-            }
-
-            const catalogClassification = await tx.failureClassification.findUnique({
-              where: { value: failureClassification },
-            });
-
-            if (!catalogClassification) {
-              throw new FinishCallValidationError("Classificação da falha inválida");
-            }
-            if (
-              !catalogClassification.active &&
-              applicableFailureEvent.classification !== catalogClassification.value
-            ) {
-              throw new FinishCallValidationError("Classificação da falha está inativa");
-            }
-
             await tx.failureEvent.update({
               where: { id: applicableFailureEvent.id },
               data: {
                 classification: catalogClassification.value,
-                notes:
-                  resolvedFailureDescription ??
-                  extractOperationalFailureDescription(call.notes) ??
-                  extractOperationalFailureDescription(applicableFailureEvent.notes),
+                notes: resolvedFailureDescription,
               },
             });
           }
@@ -2183,6 +2153,23 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             : call.impactTrackingVersion === 1
               ? await calculateCallImpactMinutes(tx, call.id, now)
               : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
+
+          if (!applicableFailureEvent) {
+            await tx.failureEvent.create({
+              data: {
+                machineId: call.machineId,
+                callId: call.id,
+                startedAt: now,
+                endedAt: now,
+                durationSeconds: 0,
+                classification: catalogClassification.value,
+                notes: resolvedFailureDescription,
+                source: "manual",
+                productionMode: call.machine.productionMode,
+                machineStatus: finalMachineStatus,
+              },
+            });
+          }
 
           await tx.andonCall.update({
             where: {

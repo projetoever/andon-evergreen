@@ -113,7 +113,7 @@ test("placeholders não são classificações específicas e notas automáticas 
   );
 });
 
-test("frontend usa uma descrição única e exige texto somente para Outro", async () => {
+test("frontend exige classificação e descrição em todas as condições finais", async () => {
   const [modal, repository, configService] = await Promise.all([
     readFile(new URL("../src/components/calls/FinishCallModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
@@ -132,10 +132,11 @@ test("frontend usa uma descrição única e exige texto somente para Outro", asy
   assert.doesNotMatch(modal, /const \[failureDescription, setFailureDescription\]/);
   assert.match(
     modal,
-    /failureClassification !== "other" \|\| callDescription\.trim\(\)\.length > 0/,
+    /hasValidFailureClassification &&\s*callDescription\.trim\(\)\.length > 0/,
   );
   assert.match(modal, /Detalhes da falha/);
-  assert.match(modal, /Descrição do chamado/);
+  assert.match(modal, /Descrição da falha/);
+  assert.doesNotMatch(modal, /\{applicableFailureEvent && \(/);
   assert.doesNotMatch(modal, /Observações do atendimento/);
   assert.match(
     modal,
@@ -145,14 +146,14 @@ test("frontend usa uma descrição única e exige texto somente para Outro", asy
   assert.match(modal, /notes:\s*normalizedDescription \|\| null/);
   assert.match(
     modal,
-    /failureDescription:\s*applicableFailureEvent\s*\? normalizedDescription \|\| null\s*: null/,
+    /failureDescription: normalizedDescription \|\| null/,
   );
   assert.match(repository, /failureClassification: params\.failureClassification/);
   assert.match(repository, /failureDescription: params\.failureDescription/);
   assert.doesNotMatch(configService, /localStorage|andonFailureClassificationConfig/);
 });
 
-test("backend e modo local preservam classificação e descrição única", async () => {
+test("backend e modo local validam detalhes e preservam descrição única", async () => {
   const [route, localService] = await Promise.all([
     readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/services/andonService.ts", import.meta.url), "utf8"),
@@ -166,21 +167,14 @@ test("backend e modo local preservam classificação e descrição única", asyn
   assert.ok(eventUpdate > eventLookup && callUpdate > eventUpdate);
   assert.match(route, /GENERIC_FAILURE_CLASSIFICATIONS/);
   assert.match(route, /tx\.failureClassification\.findUnique/);
-  assert.match(route, /applicableFailureEvent\.classification !== catalogClassification\.value/);
+  assert.match(route, /applicableFailureEvent\?\.classification !== catalogClassification\.value/);
   assert.match(
     route,
-    /const resolvedFailureDescription =\s*failureDescription \?\? optionalString\(body\.notes\)/,
+    /const resolvedFailureDescription =\s*optionalString\(body\.failureDescription\) \?\? optionalString\(body\.notes\)/,
   );
-  assert.match(route, /failureClassification === "other" && !resolvedFailureDescription/);
-  assert.match(
-    route,
-    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
-  );
-  assert.doesNotMatch(route, /if \(!failureDescription\)/);
-  assert.match(
-    route,
-    /resolvedFailureDescription \?\?\s*extractOperationalFailureDescription\(call\.notes\) \?\?\s*extractOperationalFailureDescription\(applicableFailureEvent\.notes\)/,
-  );
+  assert.match(route, /if \(!resolvedFailureDescription\)/);
+  assert.match(route, /if \(!applicableFailureEvent\) \{\s*await tx\.failureEvent\.create/);
+  assert.match(route, /durationSeconds: 0/);
   assert.match(
     route,
     /const finalDescription =\s*optionalString\(body\.notes\) \?\? optionalString\(body\.failureDescription\)/,
@@ -196,52 +190,48 @@ test("backend e modo local preservam classificação e descrição única", asyn
   );
 
   assert.match(localService, /findApplicableFailureEvent\(machine\.stopHistory, call\.id\)/);
-  assert.match(localService, /failureClassification === "other" && !normalizedDescription/);
+  assert.match(localService, /if \(!normalizedDescription\)/);
   assert.match(localService, /notes: mergeFinalDescription\(call\.notes, normalizedDescription\)/);
   assert.match(localService, /failureDescription: normalizedDescription/);
 });
 
-test("modo local exige classificação apenas quando existe FailureEvent", () => {
-  const withFailure = createFinishScenario("stopped");
-
-  assert.throws(
-    () => finishAndonCall(withFailure.machines, withFailure.calls, withFailure.params),
-    /Classificação da falha é obrigatória/,
-  );
-  assert.throws(
-    () =>
-      finishAndonCall(withFailure.machines, withFailure.calls, {
-        ...withFailure.params,
+test("modo local exige os dois detalhes com máquina parada e pronta para rodar", () => {
+  for (const condition of ["stopped", "running"] as const) {
+    const scenario = createFinishScenario(condition);
+    assert.throws(
+      () => finishAndonCall(scenario.machines, scenario.calls, scenario.params),
+      /Classificação da falha é obrigatória/,
+    );
+    assert.throws(
+      () => finishAndonCall(scenario.machines, scenario.calls, {
+        ...scenario.params,
         failureClassification: "unclassified",
+        failureDescription: "Falha identificada",
       }),
-    /Selecione uma classificação específica da falha/,
-  );
-  assert.doesNotThrow(() =>
-    finishAndonCall(withFailure.machines, withFailure.calls, {
-      ...withFailure.params,
+      /Selecione uma classificação específica da falha/,
+    );
+    assert.throws(
+      () => finishAndonCall(scenario.machines, scenario.calls, {
+        ...scenario.params,
+        failureClassification: "quality_failure",
+      }),
+      /Descrição da falha é obrigatória/,
+    );
+    const result = finishAndonCall(scenario.machines, scenario.calls, {
+      ...scenario.params,
       failureClassification: "quality_failure",
-    }),
-  );
-  assert.throws(
-    () =>
-      finishAndonCall(withFailure.machines, withFailure.calls, {
-        ...withFailure.params,
-        failureClassification: "other",
-      }),
-    /Descrição do chamado é obrigatória quando a classificação é "Outro"/,
-  );
-  assert.doesNotThrow(() =>
-    finishAndonCall(withFailure.machines, withFailure.calls, {
-      ...withFailure.params,
-      failureClassification: "other",
-      notes: "Falha específica identificada",
-    }),
-  );
-
-  const withoutFailure = createFinishScenario("running");
-  assert.doesNotThrow(() =>
-    finishAndonCall(withoutFailure.machines, withoutFailure.calls, withoutFailure.params),
-  );
+      failureDescription: "  Falha específica identificada  ",
+    });
+    assert.equal(result.calls[0].status, "finished");
+    const event = findApplicableFailureEvent(result.machines[0].stopHistory, scenario.calls[0].id);
+    assert.equal(event?.failureClassification, "quality_failure");
+    assert.equal(event?.failureDescription, "Falha específica identificada");
+    if (condition === "running") {
+      assert.equal(event?.durationMinutes, 0);
+      assert.equal(event?.stoppedAt, event?.resumedAt);
+      assert.equal(result.machines[0].machineStatus, "running");
+    }
+  }
 });
 
 test("finalização preserva auditoria e evita duplicar a descrição no modo local", () => {
@@ -255,6 +245,7 @@ test("finalização preserva auditoria e evita duplicar a descrição no modo lo
 
   const withNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
     ...scenario.params,
+    failureClassification: "quality_failure",
     notes: "  Finalização de integração  ",
   }).calls[0];
   assert.equal(withNewDescription.notes, `${auditNotes}\nFinalização de integração`);
@@ -264,13 +255,16 @@ test("finalização preserva auditoria e evita duplicar a descrição no modo lo
   const withoutDuplication = finishAndonCall(
     scenario.machines,
     [{ ...callWithAudit, notes: existingDescription }],
-    { ...scenario.params, notes: "finalização   de integração" },
+    { ...scenario.params, failureClassification: "quality_failure", notes: "finalização   de integração" },
   ).calls[0];
   assert.equal(withoutDuplication.notes, existingDescription);
   assert.equal(withoutDuplication.notes?.match(/Finalização de integração/gi)?.length, 1);
 
-  const withoutNewDescription = finishAndonCall(scenario.machines, [callWithAudit], {
-    ...scenario.params,
-  }).calls[0];
-  assert.equal(withoutNewDescription.notes, auditNotes);
+  assert.throws(
+    () => finishAndonCall(scenario.machines, [callWithAudit], {
+      ...scenario.params,
+      failureClassification: "quality_failure",
+    }),
+    /Descrição da falha é obrigatória/,
+  );
 });
