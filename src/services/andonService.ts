@@ -1225,3 +1225,47 @@ export function updateMachineStopEventDescription(
   if (!updatedMachine) throw new Error(`Máquina ${machineId} não encontrada`);
   return { machines: newMachines, machine: updatedMachine };
 }
+
+export function updateCallFailureDetails(
+  machines: Machine[],
+  calls: AndonCall[],
+  params: { callId: string; failureClassification: string; failureDescription: string },
+): { machines: Machine[]; calls: AndonCall[] } {
+  const call = calls.find((item) => item.id === params.callId);
+  if (!call) throw new Error("Chamado não encontrado");
+  if (call.status !== "finished" || call.isSystemTest) {
+    throw new Error("Apenas chamados reais finalizados podem ter o diagnóstico editado");
+  }
+  const classification = params.failureClassification.trim();
+  const description = params.failureDescription.trim();
+  if (!classification || !isSpecificFailureClassification(classification)) {
+    throw new Error("Selecione uma classificação específica da falha");
+  }
+  if (!description) throw new Error("Descrição da falha é obrigatória");
+
+  const machine = machines.find((item) => item.id === call.machineId);
+  const linkedEvent = machine && findApplicableFailureEvent(machine.stopHistory, call.id);
+  return {
+    calls: calls.map((item) =>
+      item.id === call.id
+        ? { ...item, failureClassification: classification, failureDescription: description }
+        : item,
+    ),
+    machines: machines.map((item) =>
+      item.id === machine?.id && linkedEvent
+        ? {
+            ...item,
+            stopHistory: item.stopHistory.map((event) =>
+              event.id === linkedEvent.id
+                ? {
+                    ...event,
+                    failureClassification: classification,
+                    failureDescription: description,
+                  }
+                : event,
+            ),
+          }
+        : item,
+    ),
+  };
+}

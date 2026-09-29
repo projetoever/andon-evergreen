@@ -49,6 +49,11 @@ interface AndonContextValue {
   completeMaintenance: (callId: string) => Promise<AndonCall>;
   returnToMaintenance: (callId: string) => Promise<AndonCall>;
   finishCall: (params: andonService.FinishAndonCallParams) => Promise<void>;
+  updateCallFailureDetails: (params: {
+    callId: string;
+    failureClassification: string;
+    failureDescription: string;
+  }) => Promise<void>;
   cancelCall: (params: andonService.CancelAndonCallParams) => Promise<void>;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
@@ -280,6 +285,19 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines, calls],
   );
 
+  const updateCallFailureDetails = useCallback(
+    async (params: {
+      callId: string;
+      failureClassification: string;
+      failureDescription: string;
+    }) => {
+      const result = await andonRepository.updateCallFailureDetails(machines, calls, params);
+      setMachines(result.machines);
+      setCalls(result.calls);
+    },
+    [machines, calls],
+  );
+
   const cancelCall = useCallback(
     async (params: andonService.CancelAndonCallParams) => {
       const currentCall = calls.find((call) => call.id === params.callId);
@@ -425,6 +443,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       completeMaintenance,
       returnToMaintenance,
       finishCall,
+      updateCallFailureDetails,
       cancelCall,
       changeMachineStatus,
       updateMachineProductionMode,
@@ -452,6 +471,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       completeMaintenance,
       returnToMaintenance,
       finishCall,
+      updateCallFailureDetails,
       cancelCall,
       changeMachineStatus,
       updateMachineProductionMode,
