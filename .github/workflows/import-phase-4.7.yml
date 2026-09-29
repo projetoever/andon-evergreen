@@ -1,0 +1,63 @@
+name: Import audited phase 4.7
+
+on:
+  push:
+    branches:
+      - chore/import-phase-4.7
+
+permissions:
+  contents: write
+
+jobs:
+  import-audited-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recreate and publish exact audited commit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="438b28d30b8333bbfea83b48f873873f456a3a4b"
+          COMMIT="4b5de680175e658b5384878816224787dc81077c"
+          TREE="4c5d8f2c930ad03e3b2bdffa9bc14a41b760ec7d"
+          TARGET="refs/heads/feat/workstation-identity"
+
+          cp .phase-import/phase47.patch.b64 /tmp/phase47.patch.b64
+
+          git cat-file -e "${BASE}^{commit}"
+          git checkout --detach "${BASE}"
+
+          base64 -d /tmp/phase47.patch.b64 | gzip -d > /tmp/phase47.patch
+          git apply --index /tmp/phase47.patch
+
+          tree="$(git write-tree)"
+          test "${tree}" = "${TREE}"
+
+          export GIT_AUTHOR_NAME="Codex"
+          export GIT_AUTHOR_EMAIL="codex@openai.com"
+          export GIT_AUTHOR_DATE="@1790717434 -0300"
+          export GIT_COMMITTER_NAME="Codex"
+          export GIT_COMMITTER_EMAIL="codex@openai.com"
+          export GIT_COMMITTER_DATE="@1790717434 -0300"
+
+          recreated="$(printf '%s\n' 'feat(workstations): add persistent workstation identity' | git commit-tree "${TREE}" -p "${BASE}")"
+          test "${recreated}" = "${COMMIT}"
+
+          existing="$(git ls-remote origin "${TARGET}" | awk '{print $1}')"
+          if [ -n "${existing}" ]; then
+            test "${existing}" = "${COMMIT}"
+            echo "Target branch already exists at audited SHA."
+            exit 0
+          fi
+
+          git push origin "${COMMIT}:${TARGET}"
+
+          remote="$(git ls-remote origin "${TARGET}" | awk '{print $1}')"
+          test "${remote}" = "${COMMIT}"
+
+          echo "Published audited branch at ${remote}."
