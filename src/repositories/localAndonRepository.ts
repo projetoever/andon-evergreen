@@ -8,6 +8,8 @@ import * as andonService from "@/services/andonService";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
+import { getSystemSettings } from "@/services/systemSettingsService";
+import { registerCurrentWorkstation } from "@/services/workstationService";
 import {
   calculateCallWaitingMinutes,
   calculateTotalCallMinutes,
@@ -25,6 +27,19 @@ function appendAuditNote(currentNotes: string | null, note: string | null | unde
   if (!note?.trim()) return currentNotes;
   const entry = `Cancelamento: ${note.trim()}`;
   return currentNotes ? `${currentNotes}\n${entry}` : entry;
+}
+
+async function getWorkstationRestrictionContext() {
+  const [settings, workstation] = await Promise.all([
+    getSystemSettings(),
+    registerCurrentWorkstation(),
+  ]);
+
+  return {
+    restricted: settings.restrictMaintenanceCompletionToAttendanceWorkstation,
+    currentWorkstationId: workstation.id,
+    currentWorkstationActive: workstation.active,
+  };
 }
 
 function applyMachineSetSnapshotToLocalCall(
@@ -146,11 +161,21 @@ export class LocalAndonRepository implements AndonRepository {
     calls: AndonCall[],
     params: string | andonService.StartAttendanceParams,
   ) {
-    return andonService.attendAndonCall(machines, calls, params);
+    return andonService.attendAndonCall(
+      machines,
+      calls,
+      params,
+      await getWorkstationRestrictionContext(),
+    );
   }
 
   async completeMaintenance(machines: Machine[], calls: AndonCall[], callId: string) {
-    return andonService.completeMaintenanceAttendance(machines, calls, callId);
+    return andonService.completeMaintenanceAttendance(
+      machines,
+      calls,
+      callId,
+      await getWorkstationRestrictionContext(),
+    );
   }
 
   async returnToMaintenance(machines: Machine[], calls: AndonCall[], callId: string) {
@@ -162,7 +187,12 @@ export class LocalAndonRepository implements AndonRepository {
     calls: AndonCall[],
     params: andonService.AddTechnicianSessionsParams,
   ) {
-    return andonService.addTechnicianSessions(machines, calls, params);
+    return andonService.addTechnicianSessions(
+      machines,
+      calls,
+      params,
+      await getWorkstationRestrictionContext(),
+    );
   }
 
   async endTechnicianSession(

@@ -13,9 +13,11 @@ import { getSystemSettings, updateSystemSettings } from "@/services/systemSettin
 export function GeneralSettingsTab() {
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(true);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
+  const [restrictMaintenanceCompletion, setRestrictMaintenanceCompletion] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSavingKeyboard, setIsSavingKeyboard] = useState(false);
   const [isSavingWorkOrder, setIsSavingWorkOrder] = useState(false);
+  const [isSavingMaintenanceRestriction, setIsSavingMaintenanceRestriction] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,6 +30,9 @@ export function GeneralSettingsTab() {
         if (active) {
           setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
           setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+          setRestrictMaintenanceCompletion(
+            settings.restrictMaintenanceCompletionToAttendanceWorkstation === true,
+          );
         }
       })
       .catch(() => {
@@ -84,6 +89,31 @@ export function GeneralSettingsTab() {
     }
   }
 
+  async function handleMaintenanceRestrictionChange(restricted: boolean) {
+    const previousValue = restrictMaintenanceCompletion;
+    setRestrictMaintenanceCompletion(restricted);
+    setIsSavingMaintenanceRestriction(true);
+
+    try {
+      const settings = await updateSystemSettings({
+        restrictMaintenanceCompletionToAttendanceWorkstation: restricted,
+      });
+      setRestrictMaintenanceCompletion(
+        settings.restrictMaintenanceCompletionToAttendanceWorkstation,
+      );
+      toast.success(
+        settings.restrictMaintenanceCompletionToAttendanceWorkstation
+          ? "Conclusão restrita às workstations do atendimento."
+          : "Restrição de workstation desabilitada.",
+      );
+    } catch {
+      setRestrictMaintenanceCompletion(previousValue);
+      toast.error("Não foi possível salvar a restrição de workstation.");
+    } finally {
+      setIsSavingMaintenanceRestriction(false);
+    }
+  }
+
   function handleChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -137,6 +167,23 @@ export function GeneralSettingsTab() {
                 checked={virtualKeyboardEnabled}
                 disabled={isLoadingSettings || isSavingKeyboard}
                 onCheckedChange={(checked) => void handleKeyboardChange(checked)}
+              />
+            </div>
+            <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
+              <div>
+                <p className="font-bold">
+                  Restringir conclusão da manutenção à workstation do atendimento
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Quando habilitado, a manutenção só poderá ser concluída em uma workstation
+                  que possua uma sessão ativa nesse atendimento.
+                </p>
+              </div>
+              <Switch
+                aria-label="Restringir conclusão da manutenção à workstation do atendimento"
+                checked={restrictMaintenanceCompletion}
+                disabled={isLoadingSettings || isSavingMaintenanceRestriction}
+                onCheckedChange={(checked) => void handleMaintenanceRestrictionChange(checked)}
               />
             </div>
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">

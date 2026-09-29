@@ -8,27 +8,29 @@ datasource db {
 }
 
 model SystemSettings {
-  id                     String   @id @default("global")
-  allowWholeSetCalls     Boolean  @default(true)
-  virtualKeyboardEnabled Boolean  @default(true)
-  requireWorkOrderAtOpen Boolean  @default(false)
-  attendanceMode         String   @default("name")
-  rfidReaderMode         String   @default("keyboard_hid")
-  rfidInputTerminator    String   @default("enter")
-  rfidCodeLength         Int?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                                                   String   @id @default("global")
+  allowWholeSetCalls                                   Boolean  @default(true)
+  virtualKeyboardEnabled                               Boolean  @default(true)
+  requireWorkOrderAtOpen                               Boolean  @default(false)
+  restrictMaintenanceCompletionToAttendanceWorkstation Boolean  @default(false)
+  attendanceMode                                       String   @default("name")
+  rfidReaderMode                                       String   @default("keyboard_hid")
+  rfidInputTerminator                                  String   @default("enter")
+  rfidCodeLength                                       Int?
+  createdAt                                            DateTime @default(now())
+  updatedAt                                            DateTime @updatedAt
 
   @@map("system_settings")
 }
 
 model Workstation {
-  id         String   @id
-  name       String?
-  active     Boolean  @default(true)
-  lastSeenAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String              @id
+  name               String?
+  active             Boolean             @default(true)
+  lastSeenAt         DateTime            @default(now())
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  technicianSessions TechnicianSession[]
 
   @@index([active])
   @@index([lastSeenAt])
@@ -256,6 +258,8 @@ model TechnicianSession {
   shiftId               String?
   shift                 Shift?     @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   shiftName             String?
+  workstationId         String?
+  workstation           Workstation? @relation(fields: [workstationId], references: [id], onDelete: SetNull)
   startedAt             DateTime
   endedAt               DateTime?
   endReason             String?
@@ -270,6 +274,7 @@ model TechnicianSession {
   @@index([callId])
   @@index([machineId])
   @@index([technicianId])
+  @@index([workstationId])
   @@map("technician_sessions")
 }
 

@@ -45,6 +45,7 @@ export interface TechnicianAttendanceSession {
   technicalArea?: TechnicianArea;
   shiftId?: string;
   shiftName?: string;
+  workstationId?: string | null;
   startedAt: string;
   endedAt?: string;
   notes?: string;

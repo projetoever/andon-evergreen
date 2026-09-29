@@ -12,6 +12,11 @@ import {
   resolveTechniciansByNames,
   type IdentifiedTechnician,
 } from "../services/technicianIdentity.js";
+import {
+  assertMaintenanceCompletionWorkstation,
+  resolveAttendanceWorkstationId,
+  WorkstationAuthorizationError,
+} from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
 
 type AndonCallQuery = {
@@ -948,6 +953,7 @@ async function createMissingActiveTechnicianSessions(
     startedAt: Date;
     productionModeAtStart?: string | null;
     machineStatusAtStart?: string | null;
+    workstationId?: string | null;
   },
 ) {
   if (!params.technicians.length) {
@@ -1018,6 +1024,7 @@ async function createMissingActiveTechnicianSessions(
       technicalArea: technician.technicalArea,
       shiftId: technician.shiftId,
       shiftName: technician.shift?.name ?? undefined,
+      workstationId: params.workstationId ?? undefined,
       startedAt: params.startedAt,
       productionModeAtStart: params.productionModeAtStart ?? undefined,
       machineStatusAtStart: params.machineStatusAtStart ?? undefined,
@@ -1516,42 +1523,66 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       try {
         const now = new Date();
         const updatedCall = await prisma.$transaction(async (tx) => {
-          const technicians = await resolveAttendanceTechnicians(tx, call, body);
+          await lockMachineCallFlow(tx, call.machineId);
+          const currentCall = await tx.andonCall.findUnique({
+            include: { machine: true },
+            where: { id: call.id },
+          });
+          if (!currentCall || currentCall.status !== "open") {
+            throw new AndonCallValidationError("Chamado não está aberto");
+          }
+
+          const workstationId =
+            currentCall.category === "maintenance"
+              ? await resolveAttendanceWorkstationId(tx, {
+                  workstationHeader: request.headers["x-andon-workstation-id"],
+                  isSystemTest: currentCall.isSystemTest,
+                })
+              : null;
+          const technicians = await resolveAttendanceTechnicians(tx, currentCall, body);
           const names = technicians.map((technician) => technician.name);
-          const technicianArea = technicians[0]?.technicalArea ?? call.technicianArea;
+          const technicianArea = technicians[0]?.technicalArea ?? currentCall.technicianArea;
 
           await tx.andonCall.update({
-            where: { id: call.id },
+            where: { id: currentCall.id },
             data: {
               status: "in_progress",
-              attendedAt: call.attendedAt ?? now,
+              attendedAt: currentCall.attendedAt ?? now,
               currentAttendanceStartedAt: now,
-              technicianName: names[0] ?? call.technicianName,
+              technicianName: names[0] ?? currentCall.technicianName,
               technicianNames: names.length
-                ? uniqueNames([...call.technicianNames, ...names])
-                : call.technicianNames,
+                ? uniqueNames([...currentCall.technicianNames, ...names])
+                : currentCall.technicianNames,
               technicianArea,
-              productionModeAtAttend: call.machine.productionMode,
-              machineStatusAtAttend: call.machine.machineStatus,
+              productionModeAtAttend: currentCall.machine.productionMode,
+              machineStatusAtAttend: currentCall.machine.machineStatus,
             },
           });
 
           await createMissingActiveTechnicianSessions(tx, {
-            callId: call.id,
-            machineId: call.machineId,
+            callId: currentCall.id,
+            machineId: currentCall.machineId,
             technicians,
             startedAt: now,
-            productionModeAtStart: call.machine.productionMode,
-            machineStatusAtStart: call.machine.machineStatus,
+            productionModeAtStart: currentCall.machine.productionMode,
+            machineStatusAtStart: currentCall.machine.machineStatus,
+            workstationId,
           });
 
-          if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-          return findCallWithSessions(tx, call.id);
+          if (!currentCall.isSystemTest) {
+            await syncMachineOperationalState(tx, currentCall.machineId);
+          }
+          return findCallWithSessions(tx, currentCall.id);
         });
 
         return updatedCall;
       } catch (error) {
-        if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
+        if (
+          error instanceof AndonCallValidationError ||
+          error instanceof WorkstationAuthorizationError
+        ) {
+          return badRequest(reply, error.message);
+        }
         throw error;
       }
     },
@@ -1666,33 +1697,59 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       try {
         const now = new Date();
         const updatedCall = await prisma.$transaction(async (tx) => {
-          const technicians = await resolveAttendanceTechnicians(tx, call, request.body ?? {});
+          await lockMachineCallFlow(tx, call.machineId);
+          const currentCall = await tx.andonCall.findUnique({
+            include: { machine: true },
+            where: { id: call.id },
+          });
+          if (!currentCall || currentCall.status !== "in_progress") {
+            throw new AndonCallValidationError("Chamado não está em atendimento");
+          }
+
+          const workstationId =
+            currentCall.category === "maintenance"
+              ? await resolveAttendanceWorkstationId(tx, {
+                  workstationHeader: request.headers["x-andon-workstation-id"],
+                  isSystemTest: currentCall.isSystemTest,
+                })
+              : null;
+          const technicians = await resolveAttendanceTechnicians(
+            tx,
+            currentCall,
+            request.body ?? {},
+          );
           const names = technicians.map((technician) => technician.name);
 
           await createMissingActiveTechnicianSessions(tx, {
-            callId: call.id,
-            machineId: call.machineId,
+            callId: currentCall.id,
+            machineId: currentCall.machineId,
             technicians,
             startedAt: now,
-            productionModeAtStart: call.machine.productionMode,
-            machineStatusAtStart: call.machine.machineStatus,
+            productionModeAtStart: currentCall.machine.productionMode,
+            machineStatusAtStart: currentCall.machine.machineStatus,
+            workstationId,
           });
 
           await tx.andonCall.update({
-            where: { id: call.id },
+            where: { id: currentCall.id },
             data: {
-              technicianName: call.technicianName ?? names[0],
-              technicianNames: uniqueNames([...call.technicianNames, ...names]),
-              technicianArea: call.technicianArea ?? technicians[0]?.technicalArea,
+              technicianName: currentCall.technicianName ?? names[0],
+              technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
+              technicianArea: currentCall.technicianArea ?? technicians[0]?.technicalArea,
             },
           });
 
-          return findCallWithSessions(tx, call.id);
+          return findCallWithSessions(tx, currentCall.id);
         });
 
         return reply.status(201).send(updatedCall);
       } catch (error) {
-        if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
+        if (
+          error instanceof AndonCallValidationError ||
+          error instanceof WorkstationAuthorizationError
+        ) {
+          return badRequest(reply, error.message);
+        }
         throw error;
       }
     },
@@ -1809,29 +1866,59 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         return badRequest(reply, "Chamado não está em atendimento");
       }
 
-      const now = new Date();
-      const updatedCall = await prisma.$transaction(async (tx) => {
-        await tx.andonCall.update({
-          where: { id: call.id },
-          data: {
-            status: "post_maintenance",
-            currentAttendanceStartedAt: null,
-            maintenanceCompletedAt: now,
-            attendanceMinutes:
-              (call.attendanceMinutes ?? 0) +
-              diffPreciseMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
-            notes: appendNote(
-              call.notes,
-              optionalString(request.body?.notes),
-              "Conclusão da manutenção",
-            ),
-          },
-        });
-        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-        return findCallWithSessions(tx, call.id);
-      });
+      try {
+        const now = new Date();
+        const updatedCall = await prisma.$transaction(async (tx) => {
+          await lockMachineCallFlow(tx, call.machineId);
+          const currentCall = await tx.andonCall.findUnique({
+            include: { machine: true },
+            where: { id: call.id },
+          });
+          if (!currentCall || currentCall.status !== "in_progress") {
+            throw new AndonCallValidationError("Chamado não está em atendimento");
+          }
 
-      return updatedCall;
+          await assertMaintenanceCompletionWorkstation(tx, {
+            callId: currentCall.id,
+            workstationHeader: request.headers["x-andon-workstation-id"],
+            isSystemTest: currentCall.isSystemTest,
+          });
+
+          await tx.andonCall.update({
+            where: { id: currentCall.id },
+            data: {
+              status: "post_maintenance",
+              currentAttendanceStartedAt: null,
+              maintenanceCompletedAt: now,
+              attendanceMinutes:
+                (currentCall.attendanceMinutes ?? 0) +
+                diffPreciseMinutes(
+                  currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt,
+                  now,
+                ),
+              notes: appendNote(
+                currentCall.notes,
+                optionalString(request.body?.notes),
+                "Conclusão da manutenção",
+              ),
+            },
+          });
+          if (!currentCall.isSystemTest) {
+            await syncMachineOperationalState(tx, currentCall.machineId);
+          }
+          return findCallWithSessions(tx, currentCall.id);
+        });
+
+        return updatedCall;
+      } catch (error) {
+        if (
+          error instanceof AndonCallValidationError ||
+          error instanceof WorkstationAuthorizationError
+        ) {
+          return badRequest(reply, error.message);
+        }
+        throw error;
+      }
     },
   );
 

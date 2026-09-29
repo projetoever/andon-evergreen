@@ -30,6 +30,11 @@ import {
   findApplicableFailureEvent,
   isSpecificFailureClassification,
 } from "@/utils/failureEventUtils";
+import {
+  assertWorkstationCanCompleteMaintenance,
+  assertWorkstationCanStartAttendance,
+  type WorkstationRestrictionContext,
+} from "@/utils/workstationAttendanceUtils";
 
 export interface OpenAndonCallParams {
   machineId: string;
@@ -192,6 +197,7 @@ function createSession(
   technician: SelectedTechnicianInput,
   now: string,
   notes?: string | null,
+  workstationId?: string | null,
 ): TechnicianAttendanceSession {
   return {
     id: generateId("session"),
@@ -202,6 +208,7 @@ function createSession(
     technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
     shiftId: technician.shiftId,
     shiftName: technician.shiftName,
+    workstationId: workstationId ?? null,
     startedAt: now,
     notes: notes ?? undefined,
     productionModeAtStart: machine?.productionMode,
@@ -593,6 +600,11 @@ export function attendAndonCall(
   machines: Machine[],
   calls: AndonCall[],
   params: string | StartAttendanceParams,
+  workstationContext: WorkstationRestrictionContext = {
+    restricted: false,
+    currentWorkstationId: null,
+    currentWorkstationActive: null,
+  },
 ): { machines: Machine[]; calls: AndonCall[] } {
   const callId = typeof params === "string" ? params : params.callId;
   const call = calls.find((c) => c.id === callId);
@@ -606,12 +618,20 @@ export function attendAndonCall(
     throw new Error("Selecione pelo menos um manutentor para iniciar o atendimento.");
   }
   if (shouldRequireTechnician) {
+    assertWorkstationCanStartAttendance(workstationContext);
     assertTechniciansMatchCallArea(call, selectedTechnicians);
   }
   const sessions = call.technicianSessions ?? [];
   const createdSessions = shouldRequireTechnician
     ? selectedTechnicians.map((t) =>
-        createSession(call, machine, t, now, typeof params === "string" ? null : params.notes),
+        createSession(
+          call,
+          machine,
+          t,
+          now,
+          typeof params === "string" ? null : params.notes,
+          workstationContext.currentWorkstationId,
+        ),
       )
     : [];
   const newCalls = calls.map((c) =>
@@ -636,6 +656,11 @@ export function completeMaintenanceAttendance(
   machines: Machine[],
   calls: AndonCall[],
   callId: string,
+  workstationContext: WorkstationRestrictionContext = {
+    restricted: false,
+    currentWorkstationId: null,
+    currentWorkstationActive: null,
+  },
 ): { machines: Machine[]; calls: AndonCall[]; call: AndonCall } {
   const call = calls.find((c) => c.id === callId);
   if (!call) throw new Error("Chamado não encontrado");
@@ -644,6 +669,12 @@ export function completeMaintenanceAttendance(
   }
   if (call.category !== "maintenance") {
     throw new Error("Apenas chamados de manutenção podem entrar em acompanhamento");
+  }
+  if (!call.isSystemTest) {
+    assertWorkstationCanCompleteMaintenance(
+      call.technicianSessions ?? [],
+      workstationContext,
+    );
   }
   const now = new Date().toISOString();
   const updatedCall: AndonCall = {
@@ -694,10 +725,18 @@ export function addTechnicianSessions(
   machines: Machine[],
   calls: AndonCall[],
   params: AddTechnicianSessionsParams,
+  workstationContext: WorkstationRestrictionContext = {
+    restricted: false,
+    currentWorkstationId: null,
+    currentWorkstationActive: null,
+  },
 ): { machines: Machine[]; calls: AndonCall[] } {
   const call = calls.find((c) => c.id === params.callId);
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status !== "in_progress") throw new Error("Chamado não está em atendimento");
+  if (requiresMaintenanceTechnician(call)) {
+    assertWorkstationCanStartAttendance(workstationContext);
+  }
   assertTechniciansMatchCallArea(call, params.technicians);
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
@@ -705,7 +744,16 @@ export function addTechnicianSessions(
   const active = new Set(currentSessions.filter((s) => !s.endedAt).map((s) => s.technicianName));
   const additions = params.technicians
     .filter((t) => !active.has(t.name))
-    .map((t) => createSession(call, machine, t, now));
+    .map((t) =>
+      createSession(
+        call,
+        machine,
+        t,
+        now,
+        undefined,
+        workstationContext.currentWorkstationId,
+      ),
+    );
   const newCalls = calls.map((c) =>
     c.id === params.callId
       ? { ...c, technicianSessions: [...currentSessions, ...additions], updatedAt: now }
