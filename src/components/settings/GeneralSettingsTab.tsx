@@ -175,8 +175,8 @@ export function GeneralSettingsTab() {
                   Restringir conclusão da manutenção à workstation do atendimento
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Quando habilitado, a manutenção só poderá ser concluída em uma workstation
-                  que possua uma sessão ativa nesse atendimento.
+                  Quando habilitado, a manutenção só poderá ser concluída em uma workstation que
+                  possua uma sessão ativa nesse atendimento.
                 </p>
               </div>
               <Switch

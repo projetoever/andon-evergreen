@@ -1878,10 +1878,7 @@ async function run() {
     await request("/api/workstations/register", json("POST", { id }));
     await request(`/api/workstations/${id}`, json("PATCH", { name }));
   }
-  await request(
-    `/api/workstations/${ids.inactiveWorkstation}`,
-    json("PATCH", { active: false }),
-  );
+  await request(`/api/workstations/${ids.inactiveWorkstation}`, json("PATCH", { active: false }));
 
   for (const [id, name] of [
     [ids.workstationMachineA, "Máquina PR 48 workstation A"],
@@ -1950,10 +1947,7 @@ async function run() {
     json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
   );
   assert.equal(unrestrictedAttendance.technicianSessions[0].workstationId, null);
-  await request(
-    `/api/andon-calls/${unrestrictedCall.id}/finish-maintenance`,
-    json("PATCH", {}),
-  );
+  await request(`/api/andon-calls/${unrestrictedCall.id}/finish-maintenance`, json("PATCH", {}));
   await finishWorkstationCall(unrestrictedCall.id);
 
   const tracedUnrestrictedCall = await request(
@@ -1973,14 +1967,11 @@ async function run() {
       headers: workstationHeaders(ids.workstation),
     },
   );
-  assert.equal(
-    tracedUnrestrictedAttendance.technicianSessions[0].workstationId,
-    ids.workstation,
-  );
-  await request(
-    `/api/andon-calls/${tracedUnrestrictedCall.id}/finish-maintenance`,
-    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstationC) },
-  );
+  assert.equal(tracedUnrestrictedAttendance.technicianSessions[0].workstationId, ids.workstation);
+  await request(`/api/andon-calls/${tracedUnrestrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationC),
+  });
   await finishWorkstationCall(tracedUnrestrictedCall.id);
 
   const restrictedSettings = await request(
@@ -2024,13 +2015,10 @@ async function run() {
   );
   assert.match(inactiveWorkstationAttendance.message, /desativada/i);
 
-  const restrictedAttendance = await request(
-    `/api/andon-calls/${restrictedCall.id}/attend`,
-    {
-      ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
-      headers: workstationHeaders(ids.workstation),
-    },
-  );
+  const restrictedAttendance = await request(`/api/andon-calls/${restrictedCall.id}/attend`, {
+    ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+    headers: workstationHeaders(ids.workstation),
+  });
   assert.equal(restrictedAttendance.technicianSessions[0].workstationId, ids.workstation);
 
   const missingWorkstationAddition = await request(
@@ -2068,18 +2056,18 @@ async function run() {
     400,
   );
   assert.match(unauthorizedCompletion.message, /workstation|conclua este atendimento/i);
-  await request(
-    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
-    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
-  );
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstation),
+  });
   await request(
     `/api/andon-calls/${restrictedCall.id}/return-to-maintenance`,
     json("PATCH", { reason: "Validar segunda workstation autorizada" }),
   );
-  await request(
-    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
-    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstationB) },
-  );
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationB),
+  });
   await request(
     `/api/andon-calls/${restrictedCall.id}/return-to-maintenance`,
     json("PATCH", { reason: "Validar workstation desativada" }),
@@ -2104,10 +2092,10 @@ async function run() {
     400,
   );
   assert.match(endedSessionCompletion.message, /workstation|conclua este atendimento/i);
-  await request(
-    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
-    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstationB) },
-  );
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationB),
+  });
   await request(`/api/workstations/${ids.workstationB}`, json("PATCH", { active: false }));
   const finalWithoutWorkstationLock = await finishWorkstationCall(restrictedCall.id);
   assert.equal(finalWithoutWorkstationLock.status, "finished");
@@ -2192,10 +2180,10 @@ async function run() {
     400,
   );
   assert.match(mixedUnauthorizedCompletion.message, /workstation|conclua este atendimento/i);
-  await request(
-    `/api/andon-calls/${mixedRestrictedCall.id}/finish-maintenance`,
-    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
-  );
+  await request(`/api/andon-calls/${mixedRestrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstation),
+  });
   await finishWorkstationCall(mixedRestrictedCall.id);
 
   const systemWorkstationCall = await request(

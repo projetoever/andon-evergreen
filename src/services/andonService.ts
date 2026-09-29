@@ -671,10 +671,7 @@ export function completeMaintenanceAttendance(
     throw new Error("Apenas chamados de manutenção podem entrar em acompanhamento");
   }
   if (!call.isSystemTest) {
-    assertWorkstationCanCompleteMaintenance(
-      call.technicianSessions ?? [],
-      workstationContext,
-    );
+    assertWorkstationCanCompleteMaintenance(call.technicianSessions ?? [], workstationContext);
   }
   const now = new Date().toISOString();
   const updatedCall: AndonCall = {
@@ -745,14 +742,7 @@ export function addTechnicianSessions(
   const additions = params.technicians
     .filter((t) => !active.has(t.name))
     .map((t) =>
-      createSession(
-        call,
-        machine,
-        t,
-        now,
-        undefined,
-        workstationContext.currentWorkstationId,
-      ),
+      createSession(call, machine, t, now, undefined, workstationContext.currentWorkstationId),
     );
   const newCalls = calls.map((c) =>
     c.id === params.callId
