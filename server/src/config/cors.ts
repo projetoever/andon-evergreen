@@ -8,7 +8,7 @@ const DEFAULT_CORS_ORIGINS = [
 ] as const;
 
 export const CORS_METHODS = ["GET", "POST", "PATCH", "OPTIONS"] as const;
-export const CORS_ALLOWED_HEADERS = ["Content-Type"] as const;
+export const CORS_ALLOWED_HEADERS = ["Content-Type", "X-Andon-Workstation-Id"] as const;
 
 function parseCorsOrigins(value: string | undefined) {
   if (!value?.trim()) {

@@ -32,6 +32,7 @@ const ids = {
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
   failureClassificationValue: "integration_dynamic_failure",
+  workstation: "ws_00000000-0000-4000-8000-000000000047",
 };
 
 async function request(path, options = {}, expectedStatus = 200) {
@@ -71,6 +72,7 @@ async function waitForApi() {
 }
 
 async function cleanup() {
+  await prisma.workstation.deleteMany({ where: { id: ids.workstation } });
   const machineIds = [
     ids.machine,
     ids.raceMachine,
@@ -124,6 +126,49 @@ async function run() {
   await waitForApi();
   await request("/health/db");
   await cleanup();
+
+  const registeredWorkstation = await request(
+    "/api/workstations/register",
+    json("POST", { id: ids.workstation }),
+  );
+  assert.equal(registeredWorkstation.id, ids.workstation);
+  assert.equal(registeredWorkstation.name, null);
+  assert.equal(registeredWorkstation.active, true);
+
+  const registeredAgain = await request(
+    "/api/workstations/register",
+    json("POST", { id: ids.workstation }),
+  );
+  assert.equal(
+    await prisma.workstation.count({ where: { id: ids.workstation } }),
+    1,
+    "registro repetido não pode duplicar workstation",
+  );
+  assert.ok(
+    new Date(registeredAgain.lastSeenAt).getTime() >=
+      new Date(registeredWorkstation.lastSeenAt).getTime(),
+  );
+
+  const updatedWorkstation = await request(
+    `/api/workstations/${ids.workstation}`,
+    json("PATCH", { name: "  PC Máquina 37  ", active: false }),
+  );
+  assert.equal(updatedWorkstation.name, "PC Máquina 37");
+  assert.equal(updatedWorkstation.active, false);
+
+  const inactiveRegistration = await request(
+    "/api/workstations/register",
+    json("POST", { id: ids.workstation }),
+  );
+  assert.equal(
+    inactiveRegistration.active,
+    false,
+    "heartbeat não deve reativar workstation administrativamente inativa",
+  );
+  const listedWorkstations = await request("/api/workstations");
+  assert.ok(listedWorkstations.some((workstation) => workstation.id === ids.workstation));
+  const fetchedWorkstation = await request(`/api/workstations/${ids.workstation}`);
+  assert.equal(fetchedWorkstation.name, "PC Máquina 37");
 
   const defaultCategories = await request("/api/andon-categories?active=true");
   assert.ok(defaultCategories.some((category) => category.id === "electrical"));

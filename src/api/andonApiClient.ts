@@ -1,3 +1,5 @@
+import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
+
 export interface AndonApiClientConfig {
   baseUrl: string;
   timeoutMs: number;
@@ -91,6 +93,7 @@ export function createAndonApiClient(
     init: RequestInit = {},
   ): Promise<T> {
     const url = normalizeUrl(path);
+    const workstationId = getCurrentWorkstationId();
 
     let response: Response;
 
@@ -101,6 +104,7 @@ export function createAndonApiClient(
           ...(init.body
             ? { "Content-Type": "application/json" }
             : {}),
+          ...(workstationId ? { "X-Andon-Workstation-Id": workstationId } : {}),
           ...init.headers,
         },
         signal: AbortSignal.timeout(config.timeoutMs),

@@ -23,6 +23,10 @@ import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { setSoundVolume, stopAllSounds, stopAndonSound } from "@/services/soundService";
 import { setServerTimeOffsetMs } from "@/utils/serverClock";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
+import {
+  registerCurrentWorkstation,
+  WORKSTATION_HEARTBEAT_INTERVAL_MS,
+} from "@/services/workstationService";
 
 const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
 const MIN_API_SYNC_INTERVAL_MS = 500;
@@ -119,6 +123,25 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const apiSyncInFlightRef = useRef(false);
 
   const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
+
+  useEffect(() => {
+    const register = () => {
+      void registerCurrentWorkstation().catch((error) => {
+        console.error(
+          error instanceof Error ? error.message : "Falha ao registrar a workstation atual.",
+        );
+      });
+    };
+
+    register();
+    const intervalId = window.setInterval(register, WORKSTATION_HEARTBEAT_INTERVAL_MS);
+    window.addEventListener("online", register);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("online", register);
+    };
+  }, []);
 
   useEffect(() => {
     if (isLocalDataMode) return;
