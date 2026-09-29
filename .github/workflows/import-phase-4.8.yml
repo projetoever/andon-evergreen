@@ -1,0 +1,74 @@
+name: Import audited phase 4.8
+
+on:
+  push:
+    branches:
+      - chore/import-phase-4.8
+
+permissions:
+  contents: write
+
+jobs:
+  import-audited-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recreate and publish exact audited commits
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="b90f3129c2361decc32c7677144194264047ebae"
+          COMMIT1="089b968aa7cdadd76279c2bf7a797540210bb95d"
+          TREE1="e57700dd7df8d59ba752d3a6741f854a794d9db7"
+          COMMIT2="a9b8f2b7c0a32e9ef05468a2d3623b45ca19dadb"
+          TREE2="621c93238e5eb26771eca7c89a481e2187f6e8c0"
+          TARGET="refs/heads/feat/workstation-finish-restriction"
+
+          cp .phase-import/phase48-p1.patch.b64 /tmp/phase48-p1.patch.b64
+          cp .phase-import/phase48-p2.patch.b64 /tmp/phase48-p2.patch.b64
+
+          git cat-file -e "${BASE}^{commit}"
+          git checkout --detach "${BASE}"
+
+          base64 -d /tmp/phase48-p1.patch.b64 | gzip -d > /tmp/phase48-p1.patch
+          git apply --index /tmp/phase48-p1.patch
+          tree1="$(git write-tree)"
+          test "${tree1}" = "${TREE1}"
+
+          export GIT_AUTHOR_NAME="Codex"
+          export GIT_AUTHOR_EMAIL="codex@openai.com"
+          export GIT_AUTHOR_DATE="@1790722360 -0300"
+          export GIT_COMMITTER_NAME="Codex"
+          export GIT_COMMITTER_EMAIL="codex@openai.com"
+          export GIT_COMMITTER_DATE="@1790722360 -0300"
+          recreated1="$(printf '%s\n' 'feat(workstations): restrict maintenance completion to attendance workstation' | git commit-tree "${TREE1}" -p "${BASE}")"
+          test "${recreated1}" = "${COMMIT1}"
+
+          git reset --hard "${COMMIT1}"
+
+          base64 -d /tmp/phase48-p2.patch.b64 | gzip -d > /tmp/phase48-p2.patch
+          git apply --index /tmp/phase48-p2.patch
+          tree2="$(git write-tree)"
+          test "${tree2}" = "${TREE2}"
+
+          export GIT_AUTHOR_DATE="@1790722457 -0300"
+          export GIT_COMMITTER_DATE="@1790722457 -0300"
+          recreated2="$(printf '%s\n' 'style(workstations): align restriction validation formatting' | git commit-tree "${TREE2}" -p "${COMMIT1}")"
+          test "${recreated2}" = "${COMMIT2}"
+
+          existing="$(git ls-remote origin "${TARGET}" | awk '{print $1}')"
+          if [ -n "${existing}" ]; then
+            test "${existing}" = "${COMMIT2}"
+            echo "Target branch already exists at audited SHA."
+            exit 0
+          fi
+
+          git push origin "${COMMIT2}:${TARGET}"
+          remote="$(git ls-remote origin "${TARGET}" | awk '{print $1}')"
+          test "${remote}" = "${COMMIT2}"
+          echo "Published audited branch at ${remote}."
