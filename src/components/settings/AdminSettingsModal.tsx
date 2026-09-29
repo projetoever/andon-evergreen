@@ -23,6 +23,7 @@ import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
+import { WorkstationsSettingsTab } from "./WorkstationsSettingsTab";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "general", label: "Configurações gerais" },
@@ -34,6 +35,7 @@ const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "classifications", label: "Classificações" },
   { id: "assetCatalogs", label: "Catálogos de ativos" },
   { id: "machines", label: "Máquinas" },
+  { id: "workstations", label: "Workstations" },
 ];
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
@@ -78,6 +80,7 @@ export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOp
         {tab === "classifications" && <ClassificationsTab />}
         {tab === "assetCatalogs" && <MachineAssetCatalogPanel />}
         {tab === "machines" && <MachineAdminPanel />}
+        {tab === "workstations" && <WorkstationsSettingsTab />}
 
         <div className="flex items-center justify-between border-t border-border pt-3">
           <BigButton tone="danger" size="md" onClick={() => { logoutAdmin(); onOpenChange(false); }}>Sair do modo admin</BigButton>

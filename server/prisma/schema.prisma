@@ -22,6 +22,19 @@ model SystemSettings {
   @@map("system_settings")
 }
 
+model Workstation {
+  id         String   @id
+  name       String?
+  active     Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([active])
+  @@index([lastSeenAt])
+  @@map("workstations")
+}
+
 model AndonCategory {
   id            String   @id
   displayName   String
