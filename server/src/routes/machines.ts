@@ -10,8 +10,17 @@ const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
 type MachineQuery = { includeInactive?: string };
 type MachineStatusBody = { machineStatus?: unknown };
 type ProductionModeBody = { productionMode?: unknown };
-type CreateMachineBody = { id?: unknown; name?: unknown; productionMode?: unknown };
-type UpdateMachineBody = { name?: unknown; productionMode?: unknown };
+type CreateMachineBody = {
+  id?: unknown;
+  name?: unknown;
+  productionMode?: unknown;
+  requireWorkOrderAtOpen?: unknown;
+};
+type UpdateMachineBody = {
+  name?: unknown;
+  productionMode?: unknown;
+  requireWorkOrderAtOpen?: unknown;
+};
 type ActiveMachineBody = { isActive?: unknown };
 
 function requiredBodyString(value: unknown) {
@@ -37,6 +46,7 @@ const machineSelect = {
   machineStatus: true,
   andonStatus: true,
   productionMode: true,
+  requireWorkOrderAtOpen: true,
   isActive: true,
   displayOrder: true,
   currentCallId: true,
@@ -89,6 +99,14 @@ export async function registerMachineRoutes(app: FastifyInstance) {
 
     const productionMode = normalizeProductionMode(requiredBodyString(request.body?.productionMode) ?? "scheduled");
     if (!productionMode || !PRODUCTION_MODES.has(productionMode)) return badRequest(reply, "Modo de produção inválido");
+    const parsedRequireWorkOrderAtOpen = parseBoolean(request.body?.requireWorkOrderAtOpen);
+    if (
+      "requireWorkOrderAtOpen" in (request.body ?? {}) &&
+      parsedRequireWorkOrderAtOpen === undefined
+    ) {
+      return badRequest(reply, "Campo requireWorkOrderAtOpen deve ser booleano");
+    }
+    const requireWorkOrderAtOpen = parsedRequireWorkOrderAtOpen ?? false;
 
     try {
       const machine = await prisma.machine.create({
@@ -96,6 +114,7 @@ export async function registerMachineRoutes(app: FastifyInstance) {
           id,
           name: optionalBodyString(request.body?.name) || `Máquina ${id}`,
           productionMode,
+          requireWorkOrderAtOpen,
           displayOrder: Number.isFinite(Number(id)) ? Number(id) : undefined,
           machineStatus: "running",
           andonStatus: "normal",
@@ -120,17 +139,36 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     return machine;
   });
 
-  app.patch<{ Params: { id: string }; Body: UpdateMachineBody }>("/api/machines/:id", async (request, reply) => {
-    const machine = await findMachineOr404(request.params.id, reply);
-    if (!("id" in machine)) return machine;
-    const productionMode = normalizeProductionMode(optionalBodyString(request.body?.productionMode));
-    if (productionMode && !PRODUCTION_MODES.has(productionMode)) return badRequest(reply, "Modo de produção inválido");
-    return prisma.machine.update({
-      where: { id: request.params.id },
-      data: { ...(optionalBodyString(request.body?.name) ? { name: optionalBodyString(request.body?.name) } : {}), ...(productionMode ? { productionMode } : {}) },
-      select: machineSelect,
-    });
-  });
+  app.patch<{ Params: { id: string }; Body: UpdateMachineBody }>(
+    "/api/machines/:id",
+    async (request, reply) => {
+      const machine = await findMachineOr404(request.params.id, reply);
+      if (!("id" in machine)) return machine;
+      const productionMode = normalizeProductionMode(
+        optionalBodyString(request.body?.productionMode),
+      );
+      if (productionMode && !PRODUCTION_MODES.has(productionMode))
+        return badRequest(reply, "Modo de produção inválido");
+      const requireWorkOrderAtOpen = parseBoolean(request.body?.requireWorkOrderAtOpen);
+      if (
+        "requireWorkOrderAtOpen" in (request.body ?? {}) &&
+        requireWorkOrderAtOpen === undefined
+      ) {
+        return badRequest(reply, "Campo requireWorkOrderAtOpen deve ser booleano");
+      }
+      return prisma.machine.update({
+        where: { id: request.params.id },
+        data: {
+          ...(optionalBodyString(request.body?.name)
+            ? { name: optionalBodyString(request.body?.name) }
+            : {}),
+          ...(productionMode ? { productionMode } : {}),
+          ...(requireWorkOrderAtOpen !== undefined ? { requireWorkOrderAtOpen } : {}),
+        },
+        select: machineSelect,
+      });
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: ActiveMachineBody }>("/api/machines/:id/active", async (request, reply) => {
     const isActive = parseBoolean(request.body?.isActive);

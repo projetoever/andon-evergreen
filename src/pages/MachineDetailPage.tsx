@@ -36,6 +36,7 @@ import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
+import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 
 const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
@@ -277,7 +278,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
     try {
       const systemSettings = await getSystemSettings();
-      if (systemSettings.requireWorkOrderAtOpen) {
+      if (
+        resolveWorkOrderRequirement(
+          systemSettings.requireWorkOrderAtOpen,
+          machine.requireWorkOrderAtOpen === true,
+        )
+      ) {
         setForcedMachineCondition("stopped");
         setConditionDialogOpen(true);
         return;

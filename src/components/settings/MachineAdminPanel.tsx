@@ -32,14 +32,21 @@ export function MachineAdminPanel() {
   const [newId, setNewId] = useState("");
   const [newName, setNewName] = useState("");
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
+  const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
 
   function handleCreate() {
     const id = newId.trim();
     if (!id) return;
-    createMachine({ id, name: newName.trim() || `Máquina ${id}`, productionMode: newProductionMode });
+    createMachine({
+      id,
+      name: newName.trim() || `Máquina ${id}`,
+      productionMode: newProductionMode,
+      requireWorkOrderAtOpen: newRequireWorkOrder,
+    });
     setNewId("");
     setNewName("");
     setNewProductionMode("scheduled");
+    setNewRequireWorkOrder(false);
   }
 
   return (
@@ -48,7 +55,7 @@ export function MachineAdminPanel() {
         <CardHeader>
           <CardTitle>Cadastro de máquinas</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-[140px_1fr_220px_auto]">
+        <CardContent className="grid gap-3 md:grid-cols-[140px_1fr_220px_220px_auto]">
           <div className="space-y-1">
             <Label htmlFor="machine-id">ID</Label>
             <Input id="machine-id" value={newId} onChange={(event) => setNewId(event.target.value)} placeholder="18" />
@@ -56,6 +63,10 @@ export function MachineAdminPanel() {
           <div className="space-y-1">
             <Label htmlFor="machine-name">Nome</Label>
             <Input id="machine-name" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Máquina 18" />
+          </div>
+          <div className="flex items-center gap-2 self-end pb-2">
+            <Switch checked={newRequireWorkOrder} onCheckedChange={setNewRequireWorkOrder} />
+            <span className="text-sm font-bold">Exigir OS</span>
           </div>
           <div className="space-y-1">
             <Label>Modo padrão</Label>
@@ -75,7 +86,7 @@ export function MachineAdminPanel() {
         {sortMachines(machines).map((machine) => (
           <Card key={machine.id} className={!machine.isActive ? "opacity-70" : undefined}>
             <CardContent className="space-y-4 p-4">
-              <div className="grid gap-3 md:grid-cols-[90px_1fr_210px_170px_120px] md:items-end">
+              <div className="grid gap-3 md:grid-cols-[90px_1fr_210px_190px_170px_120px] md:items-end">
                 <div>
                   <Label>ID</Label>
                   <div className="text-lg font-bold">{machine.id}</div>
@@ -83,6 +94,15 @@ export function MachineAdminPanel() {
                 <div className="space-y-1">
                   <Label>Nome</Label>
                   <Input defaultValue={machine.name} onBlur={(event) => updateMachineCatalog(machine.id, { name: event.target.value })} />
+                </div>
+                <div className="flex items-center gap-2 pb-2">
+                  <Switch
+                    checked={machine.requireWorkOrderAtOpen === true}
+                    onCheckedChange={(checked) =>
+                      updateMachineCatalog(machine.id, { requireWorkOrderAtOpen: checked })
+                    }
+                  />
+                  <span className="text-sm font-bold">Exigir OS</span>
                 </div>
                 <div className="space-y-1">
                   <Label>Modo padrão</Label>

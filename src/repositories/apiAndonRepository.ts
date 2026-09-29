@@ -195,6 +195,7 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = [], n
       (openStop ? diffMinutes(openStop.stoppedAt, nowIso) : (sortedStopHistory[0]?.durationMinutes ?? 0)),
     stopHistory: sortedStopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
+    requireWorkOrderAtOpen: machine.requireWorkOrderAtOpen === true,
     isActive: machine.isActive ?? true,
     displayOrder: machine.displayOrder ?? null,
     productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, nowIso),

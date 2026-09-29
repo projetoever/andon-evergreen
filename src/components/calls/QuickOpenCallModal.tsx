@@ -17,7 +17,11 @@ import { getCallTypeOption } from "@/data/callTypes";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import type { CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
-import { canSubmitWorkOrderGate, normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
+import {
+  canSubmitWorkOrderGate,
+  normalizeWorkOrderNumber,
+  resolveWorkOrderRequirement,
+} from "@/utils/workOrderUtils";
 
 interface QuickOpenCallModalProps {
   open: boolean;
@@ -34,7 +38,7 @@ export function QuickOpenCallModal({
   subtype,
   forcedMachineCondition,
 }: QuickOpenCallModalProps) {
-  const { openCalls } = useAndon();
+  const { machines, openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -42,8 +46,14 @@ export function QuickOpenCallModal({
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const option = subtype ? getCallTypeOption(subtype) : null;
+  const machineRequiresWorkOrder =
+    machines.find((machine) => machine.id === machineId)?.requireWorkOrderAtOpen === true;
+  const workOrderRequired = resolveWorkOrderRequirement(
+    requireWorkOrderAtOpen,
+    machineRequiresWorkOrder,
+  );
   const canSubmit = canSubmitWorkOrderGate({
-    required: requireWorkOrderAtOpen,
+    required: workOrderRequired,
     value: workOrderNumber,
     isLoading: isLoadingSettings || !hasLoadedSettings,
     loadFailed: systemSettingsLoadFailed,
@@ -122,7 +132,7 @@ export function QuickOpenCallModal({
           </DialogDescription>
         </DialogHeader>
 
-        {requireWorkOrderAtOpen && (
+        {workOrderRequired && (
           <div className="space-y-1.5">
             <Label htmlFor="quick-open-work-order">Número da OS</Label>
             <Input

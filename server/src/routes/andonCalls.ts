@@ -1159,10 +1159,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
       return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
     }
-    if (!isSystemTest && (await requiresWorkOrderAtOpen()) && !workOrderNumber) {
-      return badRequest(reply, "Informe o número da OS para abrir o chamado");
-    }
-
     const configuredCategory = await prisma.andonCategory.findUnique({ where: { id: subtype } });
     if (!configuredCategory || (!configuredCategory.active && !isSystemTest)) {
       return badRequest(reply, "Setor inválido ou inativo");
@@ -1220,6 +1216,13 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         await lockMachineCallFlow(tx, machineId);
         const lockedMachine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!lockedMachine) throw new AndonCallValidationError("Máquina não encontrada");
+        if (
+          !isSystemTest &&
+          (await requiresWorkOrderAtOpen(lockedMachine.requireWorkOrderAtOpen)) &&
+          !workOrderNumber
+        ) {
+          throw new AndonCallValidationError("Informe o número da OS para abrir o chamado");
+        }
         if (!isSystemTest && (await findDuplicateActiveSectorCall(tx, machineId, subtype))) {
           throw new AndonCallValidationError(
             "Já existe um chamado ativo deste setor para a máquina",
@@ -1370,15 +1373,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
       return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
     }
-    if ((await requiresWorkOrderAtOpen()) && !workOrderNumber) {
-      return badRequest(reply, "Informe o número da OS para abrir o chamado");
-    }
-
     try {
       const calls = await prisma.$transaction(async (tx) => {
         await lockMachineCallFlow(tx, machineId);
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
+        if ((await requiresWorkOrderAtOpen(machine.requireWorkOrderAtOpen)) && !workOrderNumber) {
+          throw new AndonCallValidationError("Informe o número da OS para abrir o chamado");
+        }
 
         const failureState = await getOpenFailureState(tx, machineId);
         const mustInheritActiveStop = Boolean(

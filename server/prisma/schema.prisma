@@ -43,6 +43,7 @@ model Machine {
   machineStatus       String                   @default("running")
   andonStatus         String                   @default("normal")
   productionMode      String                   @default("scheduled")
+  requireWorkOrderAtOpen Boolean                @default(false)
   isActive            Boolean                  @default(true)
   displayOrder        Int?
   currentCallId       String?                  @unique

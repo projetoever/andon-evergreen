@@ -57,8 +57,20 @@ interface AndonContextValue {
   cancelCall: (params: andonService.CancelAndonCallParams) => Promise<void>;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
   updateMachineProductionMode: (machineId: string, productionMode: ProductionMode) => Machine;
-  createMachine: (params: { id: string; name?: string; productionMode?: ProductionMode }) => void;
-  updateMachineCatalog: (machineId: string, patch: { name?: string; productionMode?: ProductionMode }) => void;
+  createMachine: (params: {
+    id: string;
+    name?: string;
+    productionMode?: ProductionMode;
+    requireWorkOrderAtOpen?: boolean;
+  }) => void;
+  updateMachineCatalog: (
+    machineId: string,
+    patch: {
+      name?: string;
+      productionMode?: ProductionMode;
+      requireWorkOrderAtOpen?: boolean;
+    },
+  ) => void;
   updateMachineActive: (machineId: string, isActive: boolean) => void;
   updateMachineStopEventDescription: (
     machineId: string,
@@ -331,7 +343,12 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
 
   const createMachine = useCallback(
-    (params: { id: string; name?: string; productionMode?: ProductionMode }) => {
+    (params: {
+      id: string;
+      name?: string;
+      productionMode?: ProductionMode;
+      requireWorkOrderAtOpen?: boolean;
+    }) => {
       void andonRepository.createMachine(machines, params).then((result) => {
         setMachines(result.machines.map(andonService.normalizeMachine));
       }).catch(handleRepositoryError);
@@ -340,7 +357,14 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const updateMachineCatalog = useCallback(
-    (machineId: string, patch: { name?: string; productionMode?: ProductionMode }) => {
+    (
+      machineId: string,
+      patch: {
+        name?: string;
+        productionMode?: ProductionMode;
+        requireWorkOrderAtOpen?: boolean;
+      },
+    ) => {
       void andonRepository.updateMachineCatalog(machines, machineId, patch).then((result) => {
         setMachines(result.machines.map(andonService.normalizeMachine));
       }).catch(handleRepositoryError);

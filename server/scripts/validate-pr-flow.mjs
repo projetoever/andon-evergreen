@@ -655,6 +655,109 @@ async function run() {
     json("PATCH", { requireWorkOrderAtOpen: false }),
   );
 
+  const machineWorkOrderRequirement = await request(
+    `/api/machines/${ids.workOrderMachine}`,
+    json("PATCH", { requireWorkOrderAtOpen: true }),
+  );
+  assert.equal(machineWorkOrderRequirement.requireWorkOrderAtOpen, true);
+  const missingMachineWorkOrder = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(missingMachineWorkOrder.message, /Informe o número da OS/i);
+
+  const optionalMachineCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.machine,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(optionalMachineCall.workOrderNumber, null);
+  await request(
+    `/api/andon-calls/${optionalMachineCall.id}/cancel`,
+    json("PATCH", { reason: "Máquina sem exigência individual de OS" }),
+  );
+
+  const configuredMachineCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      workOrderNumber: " 000037-A ",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(configuredMachineCall.workOrderNumber, "000037-A");
+  await request(
+    `/api/andon-calls/${configuredMachineCall.id}/cancel`,
+    json("PATCH", { reason: "Exigência individual de OS" }),
+  );
+
+  await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      subtypes: ["electrical", "mechanical"],
+      machineCondition: "running",
+    }),
+    400,
+  );
+  const configuredMachineBatch = await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      subtypes: ["electrical", "mechanical"],
+      workOrderNumber: "OS-37-0002",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.deepEqual(
+    configuredMachineBatch.map((call) => call.workOrderNumber),
+    ["OS-37-0002", "OS-37-0002"],
+  );
+  for (const call of configuredMachineBatch) {
+    await request(
+      `/api/andon-calls/${call.id}/cancel`,
+      json("PATCH", { reason: "Validação em lote da exigência individual de OS" }),
+    );
+  }
+
+  const machineSystemTestWithoutWorkOrder = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workOrderMachine,
+      category: "production",
+      subtype: "quality",
+      origin: "installer_health_check",
+      createdBy: "installer-health",
+      isSystemTest: true,
+      machineCondition: "running",
+    }),
+    201,
+  );
+  assert.equal(machineSystemTestWithoutWorkOrder.workOrderNumber, null);
+  await request(
+    `/api/andon-calls/${machineSystemTestWithoutWorkOrder.id}/finish`,
+    json("PATCH", {}),
+  );
+  await request(
+    `/api/machines/${ids.workOrderMachine}`,
+    json("PATCH", { requireWorkOrderAtOpen: false }),
+  );
+
   const identifiedByPin = await request(
     "/api/technicians/identify",
     json("POST", { method: "pin", value: "4821" }),

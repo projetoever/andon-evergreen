@@ -21,13 +21,13 @@ export async function allowsWholeSetCalls() {
   return settings?.allowWholeSetCalls ?? true;
 }
 
-export async function requiresWorkOrderAtOpen() {
+export async function requiresWorkOrderAtOpen(machineRequirement = false) {
   const settings = await prisma.systemSettings.findUnique({
     where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
     select: { requireWorkOrderAtOpen: true },
   });
 
-  return settings?.requireWorkOrderAtOpen ?? false;
+  return (settings?.requireWorkOrderAtOpen ?? false) || machineRequirement;
 }
 
 export async function getAttendanceMode() {
