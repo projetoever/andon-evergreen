@@ -6,6 +6,13 @@ export function canOpenWithWorkOrder(required: boolean, value: string) {
   return !required || Boolean(normalizeWorkOrderNumber(value));
 }
 
+export function resolveWorkOrderRequirement(
+  globalRequirement: boolean,
+  machineRequirement: boolean,
+) {
+  return globalRequirement || machineRequirement;
+}
+
 export function canSubmitWorkOrderGate({
   required,
   value,

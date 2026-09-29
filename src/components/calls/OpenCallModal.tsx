@@ -25,6 +25,7 @@ import {
   canOpenWithWorkOrder,
   canSubmitWorkOrderGate,
   normalizeWorkOrderNumber,
+  resolveWorkOrderRequirement,
 } from "@/utils/workOrderUtils";
 
 interface OpenCallModalProps {
@@ -249,6 +250,11 @@ export function OpenCallModal({
   );
 
   const shouldRequireMachineSet = machineSets.length > 0;
+  const selectedMachine = machines.find((machine) => machine.id === machineId);
+  const workOrderRequired = resolveWorkOrderRequirement(
+    requireWorkOrderAtOpen,
+    selectedMachine?.requireWorkOrderAtOpen === true,
+  );
 
   const hasValidAssetSelection = Boolean(
     !shouldRequireMachineSet ||
@@ -259,7 +265,7 @@ export function OpenCallModal({
   );
 
   const canOpenCondition = canSubmitWorkOrderGate({
-    required: requireWorkOrderAtOpen,
+    required: workOrderRequired,
     value: workOrderNumber,
     isLoading: isLoadingSystemSettings || !hasLoadedSystemSettings,
     loadFailed: systemSettingsLoadFailed,
@@ -304,7 +310,7 @@ export function OpenCallModal({
     }
 
     const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
-    if (!canOpenWithWorkOrder(requireWorkOrderAtOpen, workOrderNumber)) {
+    if (!canOpenWithWorkOrder(workOrderRequired, workOrderNumber)) {
       toast.error("Informe o número da OS para abrir o chamado");
       return;
     }
@@ -423,7 +429,7 @@ export function OpenCallModal({
             />
           ))}
 
-        {requireWorkOrderAtOpen && (
+        {workOrderRequired && (
           <div className="space-y-1.5">
             <Label htmlFor="open-call-work-order">Número da OS</Label>
             <Input

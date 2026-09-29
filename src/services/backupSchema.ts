@@ -95,6 +95,7 @@ const machineSchema = z
     lastStopDurationMinutes: z.number().finite().min(0),
     stopHistory: z.array(stopEventSchema).max(MAX_ARRAY_ITEMS),
     productionMode: productionModeSchema.default("scheduled"),
+    requireWorkOrderAtOpen: z.boolean().default(false),
     isActive: z.boolean().default(true),
     displayOrder: z.number().int().nullable().optional(),
     productionModeChangedAt: isoString.optional(),

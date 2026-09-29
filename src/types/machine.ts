@@ -58,6 +58,7 @@ export interface Machine {
   lastStopDurationMinutes: number;
   stopHistory: MachineStopEvent[];
   productionMode: ProductionMode;
+  requireWorkOrderAtOpen: boolean;
   isActive: boolean;
   displayOrder?: number | null;
   productionModeChangedAt: string;

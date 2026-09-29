@@ -245,6 +245,7 @@ export class LocalAndonRepository implements AndonRepository {
       id: params.id, name: params.name?.trim() || `Máquina ${params.id}`, machineStatus: "running", andonStatus: "none",
       currentCallId: null, lastStatusChangedAt: now, stoppedAt: null, lastStopDurationMinutes: 0, stopHistory: [],
       productionMode: params.productionMode ?? "scheduled", productionModeChangedAt: now, useCommercialShift: false, productionHistory: [],
+      requireWorkOrderAtOpen: params.requireWorkOrderAtOpen ?? false,
       isActive: true, displayOrder: Number.isFinite(Number(params.id)) ? Number(params.id) : null,
     });
     const nextMachines = [...machines, machine].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
@@ -255,7 +256,12 @@ export class LocalAndonRepository implements AndonRepository {
     let updated: Machine | undefined;
     const nextMachines = machines.map((machine) => {
       if (machine.id !== machineId) return machine;
-      updated = andonService.normalizeMachine({ ...machine, name: patch.name?.trim() || machine.name, productionMode: patch.productionMode ?? machine.productionMode });
+      updated = andonService.normalizeMachine({
+        ...machine,
+        name: patch.name?.trim() || machine.name,
+        productionMode: patch.productionMode ?? machine.productionMode,
+        requireWorkOrderAtOpen: patch.requireWorkOrderAtOpen ?? machine.requireWorkOrderAtOpen,
+      });
       return updated;
     });
     if (!updated) throw new Error("Máquina não encontrada");

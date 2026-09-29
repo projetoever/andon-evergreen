@@ -5,6 +5,7 @@ import {
   canOpenWithWorkOrder,
   canSubmitWorkOrderGate,
   normalizeWorkOrderNumber,
+  resolveWorkOrderRequirement,
 } from "../src/utils/workOrderUtils";
 
 test("normaliza a OS sem converter o valor em número", () => {
@@ -17,6 +18,13 @@ test("bloqueia a abertura somente quando a regra está ativa e a OS está vazia"
   assert.equal(canOpenWithWorkOrder(true, "   "), false);
   assert.equal(canOpenWithWorkOrder(true, "123"), true);
   assert.equal(canOpenWithWorkOrder(false, ""), true);
+});
+
+test("combina a regra global com a configuração individual da máquina", () => {
+  assert.equal(resolveWorkOrderRequirement(false, false), false);
+  assert.equal(resolveWorkOrderRequirement(false, true), true);
+  assert.equal(resolveWorkOrderRequirement(true, false), true);
+  assert.equal(resolveWorkOrderRequirement(true, true), true);
 });
 
 test("mantém o gate fechado enquanto a política está carregando ou falhou", () => {

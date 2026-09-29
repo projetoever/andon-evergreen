@@ -234,6 +234,10 @@ export function normalizeMachine(machine: Machine): Machine {
   return {
     ...machine,
     productionMode: isProductionMode(source.productionMode) ? source.productionMode : "scheduled",
+    requireWorkOrderAtOpen:
+      typeof (source as { requireWorkOrderAtOpen?: unknown }).requireWorkOrderAtOpen === "boolean"
+        ? (source as { requireWorkOrderAtOpen: boolean }).requireWorkOrderAtOpen
+        : false,
     isActive:
       typeof (source as { isActive?: unknown }).isActive === "boolean"
         ? (source as { isActive: boolean }).isActive
@@ -433,6 +437,9 @@ export function openAndonCall(
 ): { machines: Machine[]; calls: AndonCall[]; call: AndonCall } {
   const machine = machines.find((m) => m.id === params.machineId);
   if (!machine) throw new Error(`Máquina ${params.machineId} não encontrada`);
+  if (machine.requireWorkOrderAtOpen && !normalizeWorkOrderNumber(params.workOrderNumber ?? "")) {
+    throw new Error("Informe o número da OS para abrir o chamado");
+  }
   const duplicateSectorCall = calls.find(
     (call) =>
       call.machineId === params.machineId &&

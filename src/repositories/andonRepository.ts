@@ -37,11 +37,13 @@ export interface MachineCatalogInput {
   id: string;
   name?: string;
   productionMode?: ProductionMode;
+  requireWorkOrderAtOpen?: boolean;
 }
 
 export interface MachineCatalogPatch {
   name?: string;
   productionMode?: ProductionMode;
+  requireWorkOrderAtOpen?: boolean;
 }
 
 /**
