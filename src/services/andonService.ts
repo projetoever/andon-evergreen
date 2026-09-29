@@ -419,6 +419,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
         ? source.machineStatusAtFinish
         : undefined,
     createdBy: typeof source.createdBy === "string" ? source.createdBy : null,
+    failureClassification: source.failureClassification ?? null,
+    failureDescription: source.failureDescription ?? null,
     origin: source.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
     isSystemTest: source.isSystemTest === true,
   };
@@ -508,6 +510,8 @@ export function openAndonCall(
           ]
         : [],
     notes: null,
+    failureClassification: null,
+    failureDescription: null,
     createdBy: "kiosk",
     origin: "kiosk",
     isSystemTest: false,
@@ -836,7 +840,7 @@ export function finishAndonCall(
     : null;
   const failureClassification = params.failureClassification?.trim() ?? "";
   const normalizedDescription =
-    params.notes?.trim() || params.failureDescription?.trim() || "";
+    params.failureDescription?.trim() || params.notes?.trim() || "";
 
   const shouldResumeOwnedStop = Boolean(
     machine?.machineStatus === "stopped" &&
@@ -868,14 +872,16 @@ export function finishAndonCall(
     }
   }
 
-  if (!failureClassification) {
-    throw new Error("Classificação da falha é obrigatória");
-  }
-  if (!isSpecificFailureClassification(failureClassification)) {
-    throw new Error("Selecione uma classificação específica da falha");
-  }
-  if (!normalizedDescription) {
-    throw new Error("Descrição da falha é obrigatória");
+  if (!call.isSystemTest) {
+    if (!failureClassification) {
+      throw new Error("Classificação da falha é obrigatória");
+    }
+    if (!isSpecificFailureClassification(failureClassification)) {
+      throw new Error("Selecione uma classificação específica da falha");
+    }
+    if (!normalizedDescription) {
+      throw new Error("Descrição da falha é obrigatória");
+    }
   }
 
   const closeOpenImpactIntervals = (intervals: CallImpactInterval[] | undefined) =>
@@ -941,31 +947,14 @@ export function finishAndonCall(
     : machines;
 
   const machinesWithFailureDetails = finalMachines.map((item) =>
-    item.id === call.machineId
+    item.id === call.machineId && applicableFailureEvent && !call.isSystemTest
       ? {
           ...item,
-          stopHistory: applicableFailureEvent
-            ? item.stopHistory.map((event) =>
-                event.id === applicableFailureEvent.id
-                  ? { ...event, failureClassification, failureDescription: normalizedDescription }
-                  : event,
-              )
-            : [
-                ...item.stopHistory,
-                {
-                  id: generateId("failure"),
-                  machineId: call.machineId,
-                  callId: call.id,
-                  stoppedAt: now,
-                  resumedAt: now,
-                  durationMinutes: 0,
-                  source: "manual" as const,
-                  failureClassification,
-                  failureDescription: normalizedDescription,
-                  productionModeAtStart: item.productionMode,
-                  productionModeAtEnd: item.productionMode,
-                },
-              ],
+          stopHistory: item.stopHistory.map((event) =>
+            event.id === applicableFailureEvent.id
+              ? { ...event, failureClassification, failureDescription: normalizedDescription }
+              : event,
+          ),
         }
       : item,
   );
@@ -996,6 +985,8 @@ export function finishAndonCall(
     technicianNames,
     technicianArea: params.technicianArea,
     notes: mergeFinalDescription(call.notes, normalizedDescription),
+    failureClassification: call.isSystemTest ? null : failureClassification,
+    failureDescription: call.isSystemTest ? null : normalizedDescription,
     productionModeAtFinish: finalMachine?.productionMode,
     machineStatusAtFinish: finalMachine?.machineStatus,
 

@@ -1952,38 +1952,40 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const resolvedFailureDescription =
             optionalString(body.failureDescription) ?? optionalString(body.notes);
 
-          if (!failureClassification) {
-            throw new FinishCallValidationError("Classificação da falha é obrigatória");
-          }
-          if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
-            throw new FinishCallValidationError("Selecione uma classificação específica da falha");
-          }
-          if (!resolvedFailureDescription) {
-            throw new FinishCallValidationError("Descrição da falha é obrigatória");
-          }
+          if (!call.isSystemTest) {
+            if (!failureClassification) {
+              throw new FinishCallValidationError("Classificação da falha é obrigatória");
+            }
+            if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
+              throw new FinishCallValidationError("Selecione uma classificação específica da falha");
+            }
+            if (!resolvedFailureDescription) {
+              throw new FinishCallValidationError("Descrição da falha é obrigatória");
+            }
 
-          const catalogClassification = await tx.failureClassification.findUnique({
-            where: { value: failureClassification },
-          });
-
-          if (!catalogClassification) {
-            throw new FinishCallValidationError("Classificação da falha inválida");
-          }
-          if (
-            !catalogClassification.active &&
-            applicableFailureEvent?.classification !== catalogClassification.value
-          ) {
-            throw new FinishCallValidationError("Classificação da falha está inativa");
-          }
-
-          if (applicableFailureEvent) {
-            await tx.failureEvent.update({
-              where: { id: applicableFailureEvent.id },
-              data: {
-                classification: catalogClassification.value,
-                notes: resolvedFailureDescription,
-              },
+            const catalogClassification = await tx.failureClassification.findUnique({
+              where: { value: failureClassification },
             });
+
+            if (!catalogClassification) {
+              throw new FinishCallValidationError("Classificação da falha inválida");
+            }
+            if (
+              !catalogClassification.active &&
+              applicableFailureEvent?.classification !== catalogClassification.value
+            ) {
+              throw new FinishCallValidationError("Classificação da falha está inativa");
+            }
+
+            if (applicableFailureEvent) {
+              await tx.failureEvent.update({
+                where: { id: applicableFailureEvent.id },
+                data: {
+                  classification: catalogClassification.value,
+                  notes: resolvedFailureDescription,
+                },
+              });
+            }
           }
 
           const requiresAssetConfirmation = call.category === "maintenance";
@@ -2154,23 +2156,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               ? await calculateCallImpactMinutes(tx, call.id, now)
               : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
 
-          if (!applicableFailureEvent) {
-            await tx.failureEvent.create({
-              data: {
-                machineId: call.machineId,
-                callId: call.id,
-                startedAt: now,
-                endedAt: now,
-                durationSeconds: 0,
-                classification: catalogClassification.value,
-                notes: resolvedFailureDescription,
-                source: "manual",
-                productionMode: call.machine.productionMode,
-                machineStatus: finalMachineStatus,
-              },
-            });
-          }
-
           await tx.andonCall.update({
             where: {
               id: call.id,
@@ -2180,6 +2165,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               currentAttendanceStartedAt: null,
               finishedAt: now,
               notes: mergeFinalDescription(call.notes, finalDescription),
+              failureClassification: call.isSystemTest ? null : failureClassification,
+              failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

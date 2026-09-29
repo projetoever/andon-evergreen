@@ -247,6 +247,8 @@ function mapCall(call: ApiAndonCall, nowIso = getServerNowIso()): AndonCall {
       ? call.impactIntervals.map(mapCallImpactInterval)
       : [],
     notes: call.notes ?? null,
+    failureClassification: call.failureClassification ?? null,
+    failureDescription: call.failureDescription ?? null,
     createdBy: typeof call.createdBy === "string" ? call.createdBy : null,
     origin: call.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
     isSystemTest: call.isSystemTest === true,

@@ -297,7 +297,7 @@ export function FinishCallModal({
       selectedFailureClassification &&
       !selectedFailureClassification.active &&
       isSpecificFailureClassification(selectedFailureClassification.value) &&
-      applicableFailureEvent.failureClassification === selectedFailureClassification.value,
+      (call?.failureClassification ?? applicableFailureEvent.failureClassification) === selectedFailureClassification.value,
   );
 
   const hasValidFailureClassification = Boolean(
@@ -353,7 +353,7 @@ export function FinishCallModal({
       call.id;
 
     const existingFailureClassification =
-      applicableFailureEvent?.failureClassification;
+      call.failureClassification ?? applicableFailureEvent?.failureClassification;
 
     setFailureClassification(
       isSpecificFailureClassification(existingFailureClassification)
@@ -363,7 +363,7 @@ export function FinishCallModal({
 
     setCallDescription(
       extractFailureDescriptionForFinish(
-        applicableFailureEvent?.failureDescription,
+        call.failureDescription ?? applicableFailureEvent?.failureDescription,
       ) || extractFailureDescriptionForFinish(call.notes),
     );
 
@@ -388,11 +388,13 @@ export function FinishCallModal({
     applicableFailureEvent?.id,
     applicableFailureEvent?.failureClassification,
     applicableFailureEvent?.failureDescription,
+    call?.failureClassification,
+    call?.failureDescription,
     call?.notes,
   ]);
 
   useEffect(() => {
-    if (!open || !callId) {
+    if (!open || !callId || call?.isSystemTest) {
       setFailureClassifications([]);
       setIsLoadingFailureClassifications(false);
       setFailureClassificationsLoadFailed(false);
@@ -419,7 +421,7 @@ export function FinishCallModal({
             selected &&
               !selected.active &&
               isSpecificFailureClassification(selected.value) &&
-              applicableFailureEvent?.failureClassification === selected.value,
+              (call?.failureClassification ?? applicableFailureEvent?.failureClassification) === selected.value,
           );
 
           return selected &&
@@ -447,7 +449,7 @@ export function FinishCallModal({
     return () => {
       current = false;
     };
-  }, [open, callId, applicableFailureEvent?.failureClassification]);
+  }, [open, callId, call?.isSystemTest, call?.failureClassification, applicableFailureEvent?.failureClassification]);
 
   useEffect(() => {
     if (!open || !currentMachineId || !requiresAssetConfirmation) {
@@ -741,10 +743,11 @@ export function FinishCallModal({
           !assetLoadFailed)) &&
       !isSubmitting &&
       hasValidAssetSelection &&
-      !isLoadingFailureClassifications &&
-      !failureClassificationsLoadFailed &&
-      hasValidFailureClassification &&
-      callDescription.trim().length > 0 &&
+      (call.isSystemTest ||
+        (!isLoadingFailureClassifications &&
+          !failureClassificationsLoadFailed &&
+          hasValidFailureClassification &&
+          callDescription.trim().length > 0)) &&
       (
         !requiresTechnician ||
         technicianNames.length > 0
@@ -876,9 +879,9 @@ export function FinishCallModal({
         notes:
           normalizedDescription || null,
 
-        failureClassification: failureClassification || null,
+        failureClassification: currentCall.isSystemTest ? null : failureClassification.trim() || null,
 
-        failureDescription: normalizedDescription || null,
+        failureDescription: currentCall.isSystemTest ? null : normalizedDescription || null,
 
         confirmedMachineSetId:
           finalMachineSetId,
@@ -1238,6 +1241,7 @@ export function FinishCallModal({
           </section>
           )}
 
+          {!currentCall.isSystemTest && (
           <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
               <div className="mb-3">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -1315,6 +1319,7 @@ export function FinishCallModal({
                 </div>
               )}
           </section>
+          )}
 
         </div>
 
@@ -1328,12 +1333,16 @@ export function FinishCallModal({
               title={
                 requiresAssetConfirmation
                   ? `${technicianSummary} · ${confirmedLocationLabel}`
-                  : "Produção / apoio · descrição opcional"
+                  : currentCall.isSystemTest
+                    ? "Teste do sistema"
+                    : "Produção / apoio · diagnóstico obrigatório"
               }
             >
               {requiresAssetConfirmation
                 ? `${technicianSummary} · ${confirmedLocationLabel}`
-                : "Produção / apoio · descrição opcional"}
+                : currentCall.isSystemTest
+                  ? "Teste do sistema"
+                  : "Produção / apoio · diagnóstico obrigatório"}
             </p>
           </div>
 

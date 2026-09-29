@@ -125,6 +125,8 @@ export interface AndonCall {
   machineStatusAtFinish?: MachineStatus;
   cancelReason?: string | null;
   notes: string | null;
+  failureClassification?: string | null;
+  failureDescription?: string | null;
   createdBy: string | null;
   origin: CallOrigin;
   isSystemTest: boolean;

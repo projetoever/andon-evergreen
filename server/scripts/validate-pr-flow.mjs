@@ -493,6 +493,8 @@ async function run() {
     legacyWorkOrderRead.find((call) => call.id === legacyWorkOrderCall.id)?.workOrderNumber,
     null,
   );
+  assert.equal(legacyWorkOrderRead.find((call) => call.id === legacyWorkOrderCall.id)?.failureClassification, null);
+  assert.equal(legacyWorkOrderRead.find((call) => call.id === legacyWorkOrderCall.id)?.failureDescription, null);
 
   const persistedWorkOrderCall = await request(
     "/api/andon-calls",
@@ -618,6 +620,14 @@ async function run() {
     201,
   );
   assert.equal(systemTestWithoutWorkOrder.workOrderNumber, null);
+  const finishedSystemTest = await request(
+    `/api/andon-calls/${systemTestWithoutWorkOrder.id}/finish`,
+    json("PATCH", {}),
+  );
+  assert.equal(finishedSystemTest.status, "finished");
+  assert.equal(finishedSystemTest.failureClassification, null);
+  assert.equal(finishedSystemTest.failureDescription, null);
+  assert.equal(await prisma.failureEvent.count({ where: { callId: systemTestWithoutWorkOrder.id } }), 0);
   const invalidSystemTestMetadata = await request(
     "/api/andon-calls",
     json("POST", {
@@ -842,6 +852,8 @@ async function run() {
     /Conclusão da manutenção: Segunda conclusão da manutenção/,
   );
   assert.match(finishedMaintenance.notes, /Finalização de integração/);
+  assert.equal(finishedMaintenance.failureClassification, "electrical_failure");
+  assert.equal(finishedMaintenance.failureDescription, "Finalização de integração");
   assert.doesNotMatch(finishedMaintenance.notes, /Finalização: Finalização de integração/);
   assert.equal(
     finishedMaintenance.notes.match(/Finalização de integração/g)?.length,
@@ -856,6 +868,11 @@ async function run() {
   assert.equal(cancelledMechanicalCall.cancelReason, "Validação do cancelamento");
   assert.match(cancelledMechanicalCall.notes, /Motivo: Validação do cancelamento/);
   await request(`/api/andon-calls/${qualityCall.id}/attend`, json("PATCH", {}));
+  const qualityMachineBeforeFinish = await request(`/api/machines/${ids.machine}`);
+  assert.equal(qualityMachineBeforeFinish.machineStatus, "running");
+  const qualityFailureCountBeforeFinish = await prisma.failureEvent.count({ where: { machineId: ids.machine } });
+  const qualityImpactCountBeforeFinish = await prisma.callImpactInterval.count({ where: { callId: qualityCall.id } });
+  assert.equal(qualityImpactCountBeforeFinish, 0);
   const finishedQualityRunning = await request(
     `/api/andon-calls/${qualityCall.id}/finish`,
     json("PATCH", {
@@ -866,15 +883,16 @@ async function run() {
     }),
   );
   assert.equal(finishedQualityRunning.status, "finished");
-  const qualityRunningEvent = await prisma.failureEvent.findFirstOrThrow({
-    where: { callId: qualityCall.id },
-  });
-  assert.equal(qualityRunningEvent.classification, "quality_failure");
-  assert.equal(qualityRunningEvent.notes, "Falha de qualidade resolvida");
-  assert.equal(qualityRunningEvent.durationSeconds, 0);
-  assert.equal(qualityRunningEvent.startedAt.getTime(), qualityRunningEvent.endedAt?.getTime());
+  assert.equal(finishedQualityRunning.failureClassification, "quality_failure");
+  assert.equal(finishedQualityRunning.failureDescription, "Falha de qualidade resolvida");
+  assert.equal(finishedQualityRunning.machineStoppedMinutes, 0);
+  assert.equal(await prisma.failureEvent.count({ where: { machineId: ids.machine } }), qualityFailureCountBeforeFinish);
+  assert.equal(await prisma.failureEvent.count({ where: { callId: qualityCall.id } }), 0);
+  assert.equal(await prisma.callImpactInterval.count({ where: { callId: qualityCall.id } }), qualityImpactCountBeforeFinish);
 
   const machineAfterFinish = await request(`/api/machines/${ids.machine}`);
+  assert.equal(machineAfterFinish.machineStatus, "running");
+  assert.equal(machineAfterFinish.lastStatusChangedAt, qualityMachineBeforeFinish.lastStatusChangedAt);
   assert.equal(machineAfterFinish.currentCallId, null);
   assert.equal(machineAfterFinish.andonStatus, "normal");
 
@@ -945,6 +963,7 @@ async function run() {
   for (const invalidCase of [
     { payload: { notes: "Falha em operação" }, message: /classificação da falha é obrigatória/i },
     { payload: { failureClassification: "quality_failure" }, message: /descrição da falha é obrigatória/i },
+    { payload: { failureClassification: "quality_failure", failureDescription: "   " }, message: /descrição da falha é obrigatória/i },
   ]) {
     const rejected = await request(
       `/api/andon-calls/${leadershipRunning.id}/finish`,
@@ -963,13 +982,11 @@ async function run() {
     }),
   );
   assert.equal(finishedLeadership.status, "finished");
-  const leadershipFailureEvent = await prisma.failureEvent.findFirstOrThrow({
-    where: { callId: leadershipRunning.id },
-  });
-  assert.equal(leadershipFailureEvent.classification, "quality_failure");
-  assert.equal(leadershipFailureEvent.notes, "Apoio encerrado sem localização técnica");
-  assert.equal(leadershipFailureEvent.durationSeconds, 0);
-  assert.equal(leadershipFailureEvent.startedAt.getTime(), leadershipFailureEvent.endedAt?.getTime());
+  assert.equal(finishedLeadership.failureClassification, "quality_failure");
+  assert.equal(finishedLeadership.failureDescription, "Apoio encerrado sem localização técnica");
+  assert.equal(await prisma.failureEvent.count({ where: { callId: leadershipRunning.id } }), 0);
+  assert.equal(await prisma.callImpactInterval.count({ where: { callId: leadershipRunning.id } }), 0);
+  assert.equal((await prisma.failureEvent.findUniqueOrThrow({ where: { id: ownedFailureEvent.id } })).callId, qualityStopped.id);
   assert.equal(finishedLeadership.assetConfirmedAt, null);
   assert.equal(finishedLeadership.confirmedMachineSetId, null);
   assert.equal(
@@ -1118,6 +1135,8 @@ async function run() {
     }),
   );
   assert.equal(continuedStopOwner.machineStatusAtFinish, "stopped");
+  assert.equal(continuedStopOwner.failureClassification, "other");
+  assert.equal(continuedStopOwner.failureDescription, "Sensor de inspeção sem resposta");
   assert.equal(continuedStopOwner.assetConfirmedAt, null);
 
   const transferredFailureEvent = await prisma.failureEvent.findUniqueOrThrow({
@@ -1161,6 +1180,8 @@ async function run() {
     }),
   );
   assert.equal(finishedStopOwner.machineStatusAtFinish, "running");
+  assert.equal(finishedStopOwner.failureClassification, "quality_failure");
+  assert.equal(finishedStopOwner.failureDescription, "Sensor legado sem resposta");
   assert.equal(finishedStopOwner.assetConfirmedAt, null);
   assert.match(finishedStopOwner.notes ?? "", /Sensor legado sem resposta/);
   assert.doesNotMatch(finishedStopOwner.notes ?? "", /Finalização: Sensor legado sem resposta/);

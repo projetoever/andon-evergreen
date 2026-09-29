@@ -199,6 +199,8 @@ model AndonCall {
   maintenanceReturnCount      Int                         @default(0)
   cancelReason                String?
   notes                       String?
+  failureClassification       String?
+  failureDescription          String?
   createdBy                   String?
   origin                      String                      @default("kiosk")
   isSystemTest                Boolean                     @default(false)
