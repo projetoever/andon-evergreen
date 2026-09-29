@@ -3,6 +3,12 @@ export type DataMode = "local" | "api";
 const LOCAL_DATA_MODE: DataMode = "local";
 const API_DATA_MODE: DataMode = "api";
 
+const viteEnv = (
+  import.meta as ImportMeta & {
+    env?: Record<string, string | boolean | undefined>;
+  }
+).env;
+
 const SUPPORTED_DATA_MODES = [
   LOCAL_DATA_MODE,
   API_DATA_MODE,
@@ -34,13 +40,15 @@ export const DEFAULT_DATA_MODE: DataMode =
   API_DATA_MODE;
 
 function resolveConfiguredDataMode(): DataMode {
-  if (import.meta.env.PROD) {
+  if (viteEnv?.PROD) {
     return API_DATA_MODE;
   }
 
   return (
     normalizeDataMode(
-      import.meta.env.VITE_ANDON_DATA_MODE,
+      typeof viteEnv?.VITE_ANDON_DATA_MODE === "string"
+        ? viteEnv.VITE_ANDON_DATA_MODE
+        : undefined,
     ) ?? DEFAULT_DATA_MODE
   );
 }
