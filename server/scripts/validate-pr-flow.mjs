@@ -1329,13 +1329,16 @@ async function run() {
   assert.equal(editedPhysicalEvent.notes, "Sensor substituído");
   assert.equal(
     editedPhysicalEvent.startedAt.getTime(),
-    describedAtOpenFailureEvent.startedAt.getTime(),
+    finishedDescribedAtOpenFailureEvent.startedAt.getTime(),
   );
   assert.equal(
     editedPhysicalEvent.endedAt?.getTime(),
-    describedAtOpenFailureEvent.endedAt?.getTime(),
+    finishedDescribedAtOpenFailureEvent.endedAt?.getTime(),
   );
-  assert.equal(editedPhysicalEvent.durationSeconds, describedAtOpenFailureEvent.durationSeconds);
+  assert.equal(
+    editedPhysicalEvent.durationSeconds,
+    finishedDescribedAtOpenFailureEvent.durationSeconds,
+  );
   assert.equal(await prisma.failureEvent.count({ where: { callId: describedAtOpenCall.id } }), 1);
   assert.doesNotMatch(
     finishedDescribedAtOpenFailureEvent.notes,
