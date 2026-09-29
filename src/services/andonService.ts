@@ -419,6 +419,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
         ? source.machineStatusAtFinish
         : undefined,
     createdBy: typeof source.createdBy === "string" ? source.createdBy : null,
+    failureClassification: source.failureClassification ?? null,
+    failureDescription: source.failureDescription ?? null,
     origin: source.origin === "installer_health_check" ? "installer_health_check" : "kiosk",
     isSystemTest: source.isSystemTest === true,
   };
@@ -508,6 +510,8 @@ export function openAndonCall(
           ]
         : [],
     notes: null,
+    failureClassification: null,
+    failureDescription: null,
     createdBy: "kiosk",
     origin: "kiosk",
     isSystemTest: false,
@@ -836,7 +840,7 @@ export function finishAndonCall(
     : null;
   const failureClassification = params.failureClassification?.trim() ?? "";
   const normalizedDescription =
-    params.notes?.trim() || params.failureDescription?.trim() || "";
+    params.failureDescription?.trim() || params.notes?.trim() || "";
 
   const shouldResumeOwnedStop = Boolean(
     machine?.machineStatus === "stopped" &&
@@ -868,15 +872,15 @@ export function finishAndonCall(
     }
   }
 
-  if (applicableFailureEvent) {
+  if (!call.isSystemTest) {
     if (!failureClassification) {
       throw new Error("Classificação da falha é obrigatória");
     }
     if (!isSpecificFailureClassification(failureClassification)) {
       throw new Error("Selecione uma classificação específica da falha");
     }
-    if (failureClassification === "other" && !normalizedDescription) {
-      throw new Error('Descrição do chamado é obrigatória quando a classificação é "Outro"');
+    if (!normalizedDescription) {
+      throw new Error("Descrição da falha é obrigatória");
     }
   }
 
@@ -942,26 +946,18 @@ export function finishAndonCall(
       : updateMachineStatus(machines, call.machineId, "running").machines
     : machines;
 
-  const machinesWithFailureDetails = applicableFailureEvent && failureClassification
-    ? finalMachines.map((item) =>
-        item.id === call.machineId
-          ? {
-              ...item,
-              stopHistory: item.stopHistory.map((event) =>
-                event.id === applicableFailureEvent.id
-                  ? {
-                      ...event,
-                      failureClassification,
-                      ...(normalizedDescription
-                        ? { failureDescription: normalizedDescription }
-                        : {}),
-                    }
-                  : event,
-              ),
-            }
-          : item,
-      )
-    : finalMachines;
+  const machinesWithFailureDetails = finalMachines.map((item) =>
+    item.id === call.machineId && applicableFailureEvent && !call.isSystemTest
+      ? {
+          ...item,
+          stopHistory: item.stopHistory.map((event) =>
+            event.id === applicableFailureEvent.id
+              ? { ...event, failureClassification, failureDescription: normalizedDescription }
+              : event,
+          ),
+        }
+      : item,
+  );
 
   const finalMachine = machinesWithFailureDetails.find((item) => item.id === call.machineId);
 
@@ -989,6 +985,8 @@ export function finishAndonCall(
     technicianNames,
     technicianArea: params.technicianArea,
     notes: mergeFinalDescription(call.notes, normalizedDescription),
+    failureClassification: call.isSystemTest ? null : failureClassification,
+    failureDescription: call.isSystemTest ? null : normalizedDescription,
     productionModeAtFinish: finalMachine?.productionMode,
     machineStatusAtFinish: finalMachine?.machineStatus,
 

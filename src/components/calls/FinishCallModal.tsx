@@ -297,7 +297,7 @@ export function FinishCallModal({
       selectedFailureClassification &&
       !selectedFailureClassification.active &&
       isSpecificFailureClassification(selectedFailureClassification.value) &&
-      applicableFailureEvent.failureClassification === selectedFailureClassification.value,
+      (call?.failureClassification ?? applicableFailureEvent.failureClassification) === selectedFailureClassification.value,
   );
 
   const hasValidFailureClassification = Boolean(
@@ -353,7 +353,7 @@ export function FinishCallModal({
       call.id;
 
     const existingFailureClassification =
-      applicableFailureEvent?.failureClassification;
+      call.failureClassification ?? applicableFailureEvent?.failureClassification;
 
     setFailureClassification(
       isSpecificFailureClassification(existingFailureClassification)
@@ -363,7 +363,7 @@ export function FinishCallModal({
 
     setCallDescription(
       extractFailureDescriptionForFinish(
-        applicableFailureEvent?.failureDescription,
+        call.failureDescription ?? applicableFailureEvent?.failureDescription,
       ) || extractFailureDescriptionForFinish(call.notes),
     );
 
@@ -388,11 +388,13 @@ export function FinishCallModal({
     applicableFailureEvent?.id,
     applicableFailureEvent?.failureClassification,
     applicableFailureEvent?.failureDescription,
+    call?.failureClassification,
+    call?.failureDescription,
     call?.notes,
   ]);
 
   useEffect(() => {
-    if (!open || !applicableFailureEvent) {
+    if (!open || !callId || call?.isSystemTest) {
       setFailureClassifications([]);
       setIsLoadingFailureClassifications(false);
       setFailureClassificationsLoadFailed(false);
@@ -419,7 +421,7 @@ export function FinishCallModal({
             selected &&
               !selected.active &&
               isSpecificFailureClassification(selected.value) &&
-              applicableFailureEvent.failureClassification === selected.value,
+              (call?.failureClassification ?? applicableFailureEvent?.failureClassification) === selected.value,
           );
 
           return selected &&
@@ -447,7 +449,7 @@ export function FinishCallModal({
     return () => {
       current = false;
     };
-  }, [open, applicableFailureEvent]);
+  }, [open, callId, call?.isSystemTest, call?.failureClassification, applicableFailureEvent?.failureClassification]);
 
   useEffect(() => {
     if (!open || !currentMachineId || !requiresAssetConfirmation) {
@@ -741,11 +743,11 @@ export function FinishCallModal({
           !assetLoadFailed)) &&
       !isSubmitting &&
       hasValidAssetSelection &&
-      (!applicableFailureEvent ||
+      (call.isSystemTest ||
         (!isLoadingFailureClassifications &&
           !failureClassificationsLoadFailed &&
           hasValidFailureClassification &&
-          (failureClassification !== "other" || callDescription.trim().length > 0))) &&
+          callDescription.trim().length > 0)) &&
       (
         !requiresTechnician ||
         technicianNames.length > 0
@@ -877,15 +879,9 @@ export function FinishCallModal({
         notes:
           normalizedDescription || null,
 
-        failureClassification:
-          applicableFailureEvent
-            ? failureClassification || null
-            : null,
+        failureClassification: currentCall.isSystemTest ? null : failureClassification.trim() || null,
 
-        failureDescription:
-          applicableFailureEvent
-            ? normalizedDescription || null
-            : null,
+        failureDescription: currentCall.isSystemTest ? null : normalizedDescription || null,
 
         confirmedMachineSetId:
           finalMachineSetId,
@@ -1245,14 +1241,14 @@ export function FinishCallModal({
           </section>
           )}
 
-          {applicableFailureEvent && (
-            <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
+          {!currentCall.isSystemTest && (
+          <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
               <div className="mb-3">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Detalhes da falha
                 </h4>
                 <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                  Classifique a ocorrência real e registre uma descrição quando necessário.
+                  Classifique a ocorrência e descreva a falha para finalizar.
                 </p>
               </div>
 
@@ -1268,6 +1264,7 @@ export function FinishCallModal({
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
                       Classificação da falha
+                      <span className="ml-1 text-danger" aria-hidden="true">*</span>
                     </label>
                     <Select
                       value={failureClassification}
@@ -1307,51 +1304,23 @@ export function FinishCallModal({
                       htmlFor="call-description"
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
-                      Descrição do chamado
-                      {failureClassification === "other" ? (
-                        <span className="ml-1 text-danger" aria-hidden="true">
-                          *
-                        </span>
-                      ) : (
-                        " (opcional)"
-                      )}
+                      Descrição da falha
+                      <span className="ml-1 text-danger" aria-hidden="true">*</span>
                     </label>
                     <Textarea
                       id="call-description"
                       value={callDescription}
                       onChange={(event) => setCallDescription(event.target.value)}
-                      aria-required={failureClassification === "other"}
+                      aria-required="true"
                       rows={3}
-                      placeholder={
-                        failureClassification === "other"
-                          ? "Descreva obrigatoriamente a ocorrência identificada."
-                          : "Descreva o chamado, serviço realizado ou ocorrência identificada."
-                      }
+                      placeholder="Descreva a ocorrência identificada."
                     />
                   </div>
                 </div>
               )}
-            </section>
+          </section>
           )}
 
-          {!applicableFailureEvent && (
-            <section>
-              <label
-                htmlFor="call-description"
-                className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
-              >
-                Descrição do chamado (opcional)
-              </label>
-
-              <Textarea
-                id="call-description"
-                value={callDescription}
-                onChange={(event) => setCallDescription(event.target.value)}
-                rows={3}
-                placeholder="Descreva o chamado, serviço realizado ou ocorrência identificada."
-              />
-            </section>
-          )}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border bg-background px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -1364,12 +1333,16 @@ export function FinishCallModal({
               title={
                 requiresAssetConfirmation
                   ? `${technicianSummary} · ${confirmedLocationLabel}`
-                  : "Produção / apoio · descrição opcional"
+                  : currentCall.isSystemTest
+                    ? "Teste do sistema"
+                    : "Produção / apoio · diagnóstico obrigatório"
               }
             >
               {requiresAssetConfirmation
                 ? `${technicianSummary} · ${confirmedLocationLabel}`
-                : "Produção / apoio · descrição opcional"}
+                : currentCall.isSystemTest
+                  ? "Teste do sistema"
+                  : "Produção / apoio · diagnóstico obrigatório"}
             </p>
           </div>
 

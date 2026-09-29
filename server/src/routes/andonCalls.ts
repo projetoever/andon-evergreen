@@ -693,30 +693,6 @@ function mergeFinalDescription(
   return alreadyPresent ? currentNotes : `${currentNotes}\n${description}`;
 }
 
-const AUTOMATIC_FAILURE_DESCRIPTION_LINES = [
-  /^Falha registrada na abertura do ANDON$/i,
-  /^Falha encerrada automaticamente\b/i,
-  /^Continuidade da falha:/i,
-  /^Retomada:/i,
-  /^Conclusão da manutenção:/i,
-  /^Retorno à manutenção:/i,
-];
-
-function extractOperationalFailureDescription(notes: string | null | undefined) {
-  const description = (notes ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.length > 0 &&
-        !AUTOMATIC_FAILURE_DESCRIPTION_LINES.some((pattern) => pattern.test(line)),
-    )
-    .join("\n")
-    .trim();
-
-  return description || null;
-}
-
 function attachAssetSnapshots(
   call: unknown,
   machineSet: MachineSetSnapshot | null,
@@ -1972,22 +1948,19 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               orderBy: { startedAt: "desc" },
             }));
 
-          if (applicableFailureEvent) {
-            const failureClassification = optionalString(body.failureClassification);
-            const failureDescription = optionalString(body.failureDescription);
-            const resolvedFailureDescription =
-              failureDescription ?? optionalString(body.notes);
+          const failureClassification = optionalString(body.failureClassification);
+          const resolvedFailureDescription =
+            optionalString(body.failureDescription) ?? optionalString(body.notes);
 
+          if (!call.isSystemTest) {
             if (!failureClassification) {
               throw new FinishCallValidationError("Classificação da falha é obrigatória");
             }
             if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
               throw new FinishCallValidationError("Selecione uma classificação específica da falha");
             }
-            if (failureClassification === "other" && !resolvedFailureDescription) {
-              throw new FinishCallValidationError(
-                'Descrição do chamado é obrigatória quando a classificação é "Outro"',
-              );
+            if (!resolvedFailureDescription) {
+              throw new FinishCallValidationError("Descrição da falha é obrigatória");
             }
 
             const catalogClassification = await tx.failureClassification.findUnique({
@@ -1999,21 +1972,20 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             }
             if (
               !catalogClassification.active &&
-              applicableFailureEvent.classification !== catalogClassification.value
+              applicableFailureEvent?.classification !== catalogClassification.value
             ) {
               throw new FinishCallValidationError("Classificação da falha está inativa");
             }
 
-            await tx.failureEvent.update({
-              where: { id: applicableFailureEvent.id },
-              data: {
-                classification: catalogClassification.value,
-                notes:
-                  resolvedFailureDescription ??
-                  extractOperationalFailureDescription(call.notes) ??
-                  extractOperationalFailureDescription(applicableFailureEvent.notes),
-              },
-            });
+            if (applicableFailureEvent) {
+              await tx.failureEvent.update({
+                where: { id: applicableFailureEvent.id },
+                data: {
+                  classification: catalogClassification.value,
+                  notes: resolvedFailureDescription,
+                },
+              });
+            }
           }
 
           const requiresAssetConfirmation = call.category === "maintenance";
@@ -2193,6 +2165,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               currentAttendanceStartedAt: null,
               finishedAt: now,
               notes: mergeFinalDescription(call.notes, finalDescription),
+              failureClassification: call.isSystemTest ? null : failureClassification,
+              failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
                 (call.attendanceMinutes ?? 0) +

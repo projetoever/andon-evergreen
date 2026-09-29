@@ -101,6 +101,7 @@ test("atribui impacto somente ao chamado que informou a parada e transfere sem r
       machineStatus: "stopped",
       impactCallIds: [electrical.call.id, hotMelt.call.id],
       failureClassification: "quality_failure",
+      failureDescription: "Falha mecânica identificada",
     }),
   );
 
