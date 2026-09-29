@@ -86,6 +86,11 @@ type FinishAndonCallBody = {
   assetChangeReason?: unknown;
 };
 
+type EditFailureDetailsBody = {
+  failureClassification?: unknown;
+  failureDescription?: unknown;
+};
+
 type CancelAndonCallBody = {
   reason?: unknown;
   cancelledBy?: unknown;
@@ -2243,6 +2248,70 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
         throw error;
       }
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: EditFailureDetailsBody }>(
+    "/api/andon-calls/:id/failure-details",
+    async (request, reply) => {
+      const classification = optionalString(request.body?.failureClassification);
+      const description = optionalString(request.body?.failureDescription);
+      if (!classification) return badRequest(reply, "Classificação da falha é obrigatória");
+      if (GENERIC_FAILURE_CLASSIFICATIONS.has(classification)) {
+        return badRequest(reply, "Selecione uma classificação específica da falha");
+      }
+      if (!description) return badRequest(reply, "Descrição da falha é obrigatória");
+
+      const result = await prisma.$transaction(async (tx) => {
+        const call = await tx.andonCall.findUnique({ where: { id: request.params.id } });
+        if (!call) return { error: "Chamado não encontrado", status: 404 } as const;
+        if (call.status !== "finished" || call.isSystemTest) {
+          return {
+            error: "Apenas chamados reais finalizados podem ter o diagnóstico editado",
+            status: 400,
+          } as const;
+        }
+
+        const linkedEvent =
+          (await tx.failureEvent.findFirst({
+            where: { callId: call.id, endedAt: null },
+            orderBy: { startedAt: "desc" },
+          })) ??
+          (await tx.failureEvent.findFirst({
+            where: { callId: call.id },
+            orderBy: { startedAt: "desc" },
+          }));
+        const catalogClassification = await tx.failureClassification.findUnique({
+          where: { value: classification },
+        });
+        if (
+          !catalogClassification ||
+          (!catalogClassification.active &&
+            linkedEvent?.classification !== classification &&
+            call.failureClassification !== classification)
+        ) {
+          return { error: "Classificação da falha inválida ou inativa", status: 400 } as const;
+        }
+
+        await tx.andonCall.update({
+          where: { id: call.id },
+          data: { failureClassification: classification, failureDescription: description },
+        });
+        if (linkedEvent) {
+          await tx.failureEvent.update({
+            where: { id: linkedEvent.id },
+            data: { classification, notes: description },
+          });
+        }
+        return { call: await findCallWithSessions(tx, call.id) };
+      });
+
+      if ("error" in result && result.error) {
+        return result.status === 404
+          ? notFound(reply, result.error)
+          : badRequest(reply, result.error);
+      }
+      return result.call;
     },
   );
 }

@@ -417,6 +417,21 @@ export class ApiAndonRepository implements AndonRepository {
     return this.loadResult();
   }
 
+  async updateCallFailureDetails(
+    _machines: Machine[],
+    _calls: AndonCall[],
+    params: { callId: string; failureClassification: string; failureDescription: string },
+  ) {
+    await this.apiClient.patch(
+      `/api/andon-calls/${encodeURIComponent(params.callId)}/failure-details`,
+      {
+        failureClassification: params.failureClassification,
+        failureDescription: params.failureDescription,
+      },
+    );
+    return this.loadResult();
+  }
+
   async cancelCall(_machines: Machine[], _calls: AndonCall[], params: CancelAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/cancel`, {
       reason: params.reason,

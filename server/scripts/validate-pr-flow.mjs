@@ -627,6 +627,14 @@ async function run() {
   assert.equal(finishedSystemTest.status, "finished");
   assert.equal(finishedSystemTest.failureClassification, null);
   assert.equal(finishedSystemTest.failureDescription, null);
+  await request(
+    `/api/andon-calls/${systemTestWithoutWorkOrder.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Não aplicável",
+    }),
+    400,
+  );
   assert.equal(await prisma.failureEvent.count({ where: { callId: systemTestWithoutWorkOrder.id } }), 0);
   const invalidSystemTestMetadata = await request(
     "/api/andon-calls",
@@ -895,6 +903,32 @@ async function run() {
   assert.equal(machineAfterFinish.lastStatusChangedAt, qualityMachineBeforeFinish.lastStatusChangedAt);
   assert.equal(machineAfterFinish.currentCallId, null);
   assert.equal(machineAfterFinish.andonStatus, "normal");
+  for (const invalidCase of [
+    { failureDescription: "Descrição válida" },
+    { failureClassification: "quality_failure", failureDescription: "  " },
+    { failureClassification: "unidentified_stop", failureDescription: "Descrição válida" },
+  ]) {
+    await request(
+      `/api/andon-calls/${qualityCall.id}/failure-details`,
+      json("PATCH", invalidCase),
+      400,
+    );
+  }
+  const editedQuality = await request(
+    `/api/andon-calls/${qualityCall.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "electrical_failure",
+      failureDescription: "  Revisão sem parada  ",
+    }),
+  );
+  assert.equal(editedQuality.failureClassification, "electrical_failure");
+  assert.equal(editedQuality.failureDescription, "Revisão sem parada");
+  assert.equal(await prisma.failureEvent.count({ where: { callId: qualityCall.id } }), 0);
+  assert.equal(await prisma.callImpactInterval.count({ where: { callId: qualityCall.id } }), 0);
+  assert.equal(
+    (await prisma.machine.findUniqueOrThrow({ where: { id: ids.machine } })).machineStatus,
+    "running",
+  );
 
   const leadershipRunning = await request(
     "/api/andon-calls",
@@ -993,6 +1027,23 @@ async function run() {
     finishedLeadership.machineStoppedMinutes,
     0,
     "chamado que não causou a parada não pode herdar impacto produtivo de outro chamado",
+  );
+  const editedLeadership = await request(
+    `/api/andon-calls/${leadershipRunning.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "electrical_failure",
+      failureDescription: "Apoio técnico revisado",
+    }),
+  );
+  assert.equal(editedLeadership.failureDescription, "Apoio técnico revisado");
+  assert.equal(await prisma.failureEvent.count({ where: { callId: leadershipRunning.id } }), 0);
+  assert.equal(
+    await prisma.callImpactInterval.count({ where: { callId: leadershipRunning.id } }),
+    0,
+  );
+  assert.equal(
+    (await prisma.failureEvent.findUniqueOrThrow({ where: { id: ownedFailureEvent.id } })).callId,
+    qualityStopped.id,
   );
 
   const machineStillStopped = await request(`/api/machines/${ids.impactMachine}`);
@@ -1262,6 +1313,33 @@ async function run() {
     where: { id: describedAtOpenFailureEvent.id },
   });
   assert.equal(finishedDescribedAtOpenFailureEvent.notes, "Sensor óptico intermitente");
+  const editedPhysical = await request(
+    `/api/andon-calls/${describedAtOpenCall.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "electrical_failure",
+      failureDescription: "Sensor substituído",
+    }),
+  );
+  assert.equal(editedPhysical.failureClassification, "electrical_failure");
+  assert.equal(editedPhysical.failureDescription, "Sensor substituído");
+  const editedPhysicalEvent = await prisma.failureEvent.findUniqueOrThrow({
+    where: { id: describedAtOpenFailureEvent.id },
+  });
+  assert.equal(editedPhysicalEvent.classification, "electrical_failure");
+  assert.equal(editedPhysicalEvent.notes, "Sensor substituído");
+  assert.equal(
+    editedPhysicalEvent.startedAt.getTime(),
+    finishedDescribedAtOpenFailureEvent.startedAt.getTime(),
+  );
+  assert.equal(
+    editedPhysicalEvent.endedAt?.getTime(),
+    finishedDescribedAtOpenFailureEvent.endedAt?.getTime(),
+  );
+  assert.equal(
+    editedPhysicalEvent.durationSeconds,
+    finishedDescribedAtOpenFailureEvent.durationSeconds,
+  );
+  assert.equal(await prisma.failureEvent.count({ where: { callId: describedAtOpenCall.id } }), 1);
   assert.doesNotMatch(
     finishedDescribedAtOpenFailureEvent.notes,
     /Falha registrada na abertura do ANDON/,

@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import type { FailureClassification, Machine, MachineStopEvent } from "@/types/machine";
 import type { FailureClassificationConfig } from "@/types/settings";
+import type { AndonCall } from "@/types/andon";
+import { getCallFailureDetails } from "@/utils/callFailureDetailsUtils";
+import { isSpecificFailureClassification } from "@/utils/failureEventUtils";
 import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
@@ -120,89 +123,93 @@ function FailureEventCard({
           <dt className="text-xs uppercase text-muted-foreground">Duração</dt>
           <dd className="font-bold">{formatDurationMinutes(duration)}</dd>
         </div>
-        <div>
-          <dt className="text-xs uppercase text-muted-foreground">Classificação</dt>
-          <dd className="font-bold">
-            {getFailureClassificationLabel(event.failureClassification, catalogByValue)}
-          </dd>
-        </div>
+        {showFailureImpact && (
+          <div>
+            <dt className="text-xs uppercase text-muted-foreground">Classificação</dt>
+            <dd className="font-bold">
+              {getFailureClassificationLabel(event.failureClassification, catalogByValue)}
+            </dd>
+          </div>
+        )}
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Status</dt>
           <dd className="font-bold">{event.resumedAt ? "Encerrada" : "Em aberto"}</dd>
         </div>
-        <div className="sm:col-span-2 lg:col-span-3">
-          <dt className="text-xs uppercase text-muted-foreground">Descrição da ocorrência</dt>
-          <dd className="text-foreground">
-            {isEditing ? (
-              <div className="mt-1 flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Classificação da ocorrência
-                </label>
-                <select
-                  className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
-                  value={editingClassification}
-                  onChange={(changeEvent) =>
-                    onEditingClassificationChange(changeEvent.target.value)
-                  }
-                  disabled={catalogLoading || Boolean(catalogError)}
-                >
-                  {selectableClassifications.map((option) => (
-                    <option key={option.id} value={option.value}>
-                      {option.label}
-                      {option.active ? "" : " (Inativa)"}
-                    </option>
-                  ))}
-                </select>
-                {editingClassification === PLACEHOLDER_CLASSIFICATION && (
-                  <p className="text-xs font-bold text-amber-500">
-                    Selecione uma classificação específica para a ocorrência.
-                  </p>
-                )}
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Descrição da ocorrência
-                </label>
-                <textarea
-                  className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm"
-                  value={editingText}
-                  onChange={(changeEvent) => onEditingTextChange(changeEvent.target.value)}
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onSave(event)}
-                    className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"
+        {showFailureImpact && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <dt className="text-xs uppercase text-muted-foreground">Descrição da ocorrência</dt>
+            <dd className="text-foreground">
+              {isEditing ? (
+                <div className="mt-1 flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Classificação da ocorrência
+                  </label>
+                  <select
+                    className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
+                    value={editingClassification}
+                    onChange={(changeEvent) =>
+                      onEditingClassificationChange(changeEvent.target.value)
+                    }
                     disabled={catalogLoading || Boolean(catalogError)}
                   >
-                    <Save className="h-4 w-4" />
-                    Salvar
-                  </button>
+                    {selectableClassifications.map((option) => (
+                      <option key={option.id} value={option.value}>
+                        {option.label}
+                        {option.active ? "" : " (Inativa)"}
+                      </option>
+                    ))}
+                  </select>
+                  {editingClassification === PLACEHOLDER_CLASSIFICATION && (
+                    <p className="text-xs font-bold text-amber-500">
+                      Selecione uma classificação específica para a ocorrência.
+                    </p>
+                  )}
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Descrição da ocorrência
+                  </label>
+                  <textarea
+                    className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm"
+                    value={editingText}
+                    onChange={(changeEvent) => onEditingTextChange(changeEvent.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSave(event)}
+                      className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"
+                      disabled={catalogLoading || Boolean(catalogError)}
+                    >
+                      <Save className="h-4 w-4" />
+                      Salvar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onCancelEditing}
+                      className="inline-flex items-center gap-2 self-start rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <span className="whitespace-pre-line">
+                    {event.failureDescription || "Sem descrição"}
+                  </span>
                   <button
                     type="button"
-                    onClick={onCancelEditing}
-                    className="inline-flex items-center gap-2 self-start rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase tracking-wider"
+                    onClick={() => onStartEditing(event)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"
+                    disabled={catalogLoading || Boolean(catalogError)}
                   >
-                    Cancelar
+                    <Pencil className="h-4 w-4" />
+                    Editar
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-start justify-between gap-3">
-                <span className="whitespace-pre-line">
-                  {event.failureDescription || "Sem descrição"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onStartEditing(event)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"
-                  disabled={catalogLoading || Boolean(catalogError)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </button>
-              </div>
-            )}
-          </dd>
-        </div>
+              )}
+            </dd>
+          </div>
+        )}
       </dl>
 
       {showFailureImpact && (
@@ -231,9 +238,12 @@ function FailureEventCard({
 }
 
 export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProps) {
-  const { machines, calls, updateMachineStopEventDescription } = useAndon();
+  const { machines, calls, updateMachineStopEventDescription, updateCallFailureDetails } =
+    useAndon();
   const [expandedCallIds, setExpandedCallIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingCallId, setEditingCallId] = useState<string | null>(null);
+  const [savingCallDetails, setSavingCallDetails] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingClassification, setEditingClassification] = useState<FailureClassification>(
     PLACEHOLDER_CLASSIFICATION,
@@ -306,9 +316,51 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   }
 
   const startEditingFailure = (event: MachineStopEvent) => {
+    setEditingCallId(null);
     setEditingId(event.id);
     setEditingText(event.failureDescription || "");
     setEditingClassification(event.failureClassification ?? PLACEHOLDER_CLASSIFICATION);
+  };
+
+  const startEditingCall = (call: AndonCall, linkedEvents: MachineStopEvent[]) => {
+    const details = getCallFailureDetails(call, linkedEvents);
+    setEditingId(null);
+    setEditingCallId(call.id);
+    setEditingClassification(details.classification ?? PLACEHOLDER_CLASSIFICATION);
+    setEditingText(details.description ?? "");
+  };
+
+  const saveCallDetails = async (call: AndonCall, linkedEvents: MachineStopEvent[]) => {
+    const classification = editingClassification.trim();
+    const description = editingText.trim();
+    const catalogEntry = catalogByValue.get(classification);
+    const currentClassification = getCallFailureDetails(call, linkedEvents).classification;
+    if (
+      !isSpecificFailureClassification(classification) ||
+      !catalogEntry ||
+      (!catalogEntry.active && currentClassification !== classification)
+    ) {
+      toast.error("Selecione uma classificação específica e válida.");
+      return;
+    }
+    if (!description) {
+      toast.error("Descrição da falha é obrigatória.");
+      return;
+    }
+    setSavingCallDetails(true);
+    try {
+      await updateCallFailureDetails({
+        callId: call.id,
+        failureClassification: classification,
+        failureDescription: description,
+      });
+      setEditingCallId(null);
+      toast.success("Diagnóstico do chamado atualizado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar o diagnóstico.");
+    } finally {
+      setSavingCallDetails(false);
+    }
   };
 
   const saveFailure = (event: MachineStopEvent) => {
@@ -396,6 +448,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
           {machineCalls.map((call) => {
             const now = new Date();
             const linkedFailureEvents = failureEventsByCallId.get(call.id) ?? [];
+            const callFailureDetails = getCallFailureDetails(call, linkedFailureEvents);
+            const canEditDiagnosis = call.status === "finished" && !call.isSystemTest;
             const isClosedCall = call.status === "finished" || call.status === "cancelled";
             const waitingMinutes = isClosedCall
               ? call.callWaitingMinutes
@@ -588,9 +642,22 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 {isExpanded && (
                   <div className="mt-3 space-y-3">
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
-                      <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        Chamado
-                      </h3>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                          Chamado
+                        </h3>
+                        {canEditDiagnosis && editingCallId !== call.id && (
+                          <button
+                            type="button"
+                            onClick={() => startEditingCall(call, linkedFailureEvents)}
+                            disabled={catalogLoading || Boolean(catalogError)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"
+                            aria-label="Editar diagnóstico do chamado"
+                          >
+                            <Pencil className="h-4 w-4" /> Editar diagnóstico
+                          </button>
+                        )}
+                      </div>
                       <dl className="grid grid-cols-1 gap-x-3 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
                         <div className="sm:col-span-2 lg:col-span-4">
                           <dt className="text-xs uppercase text-muted-foreground">ID do chamado</dt>
@@ -655,6 +722,31 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
                           <dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd>
                         </div>
+                        {canEditDiagnosis && (
+                          <>
+                            <div className="sm:col-span-2 lg:col-span-4">
+                              <dt className="text-xs uppercase text-muted-foreground">
+                                Classificação da falha
+                              </dt>
+                              <dd className="font-bold">
+                                {callFailureDetails.classification
+                                  ? getFailureClassificationLabel(
+                                      callFailureDetails.classification,
+                                      catalogByValue,
+                                    )
+                                  : "Não registrado"}
+                              </dd>
+                            </div>
+                            <div className="sm:col-span-2 lg:col-span-4">
+                              <dt className="text-xs uppercase text-muted-foreground">
+                                Descrição da falha
+                              </dt>
+                              <dd className="whitespace-pre-line">
+                                {callFailureDetails.description ?? "Não registrado"}
+                              </dd>
+                            </div>
+                          </>
+                        )}
                         {call.assetLocationChanged && call.assetChangeReason && (
                           <div className="sm:col-span-2 lg:col-span-4">
                             <dt className="text-xs uppercase text-muted-foreground">
@@ -676,6 +768,72 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           </div>
                         )}
                       </dl>
+                      {canEditDiagnosis && editingCallId === call.id && (
+                        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                          <label
+                            htmlFor={`classification-${call.id}`}
+                            className="text-xs font-bold uppercase text-muted-foreground"
+                          >
+                            Classificação da falha
+                          </label>
+                          <select
+                            id={`classification-${call.id}`}
+                            className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
+                            value={editingClassification}
+                            onChange={(event) => setEditingClassification(event.target.value)}
+                            disabled={savingCallDetails || catalogLoading || Boolean(catalogError)}
+                          >
+                            {!catalogByValue.has(editingClassification) && (
+                              <option value={editingClassification}>
+                                Selecione uma classificação
+                              </option>
+                            )}
+                            {classifications
+                              .filter(
+                                (entry) => entry.active || entry.value === editingClassification,
+                              )
+                              .map((entry) => (
+                                <option key={entry.id} value={entry.value}>
+                                  {entry.label}
+                                  {entry.active ? "" : " (Inativa)"}
+                                </option>
+                              ))}
+                          </select>
+                          <label
+                            htmlFor={`description-${call.id}`}
+                            className="text-xs font-bold uppercase text-muted-foreground"
+                          >
+                            Descrição da falha
+                          </label>
+                          <textarea
+                            id={`description-${call.id}`}
+                            className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm"
+                            value={editingText}
+                            onChange={(event) => setEditingText(event.target.value)}
+                            disabled={savingCallDetails}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void saveCallDetails(call, linkedFailureEvents)}
+                              disabled={
+                                savingCallDetails || catalogLoading || Boolean(catalogError)
+                              }
+                              className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase text-secondary-foreground"
+                            >
+                              <Save className="h-4 w-4" /> Salvar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingCallId(null)}
+                              disabled={savingCallDetails}
+                              className="rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </section>
 
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
