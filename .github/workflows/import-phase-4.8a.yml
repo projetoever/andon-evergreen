@@ -1,0 +1,57 @@
+name: Import audited phase 4.8A
+
+on:
+  push:
+    branches:
+      - chore/import-phase-4.8a
+
+permissions:
+  contents: write
+
+jobs:
+  import-audited-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Recreate and publish exact audited correction
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARENT="a9b8f2b7c0a32e9ef05468a2d3623b45ca19dadb"
+          COMMIT="9c41b440285d065834f495646c2721a7c425c9bf"
+          TREE="75032882d0238bb23a68d0a0e276f2c10d9d2443"
+          TARGET="refs/heads/feat/workstation-finish-restriction"
+
+          cp .phase-import/phase48a.patch.b64 /tmp/phase48a.patch.b64
+
+          git fetch origin feat/workstation-finish-restriction
+          current="$(git rev-parse FETCH_HEAD)"
+          test "${current}" = "${PARENT}"
+
+          git checkout --detach "${PARENT}"
+          base64 -d /tmp/phase48a.patch.b64 | gzip -d > /tmp/phase48a.patch
+          git apply --index /tmp/phase48a.patch
+
+          tree="$(git write-tree)"
+          test "${tree}" = "${TREE}"
+
+          export GIT_AUTHOR_NAME="Codex"
+          export GIT_AUTHOR_EMAIL="codex@openai.com"
+          export GIT_AUTHOR_DATE="@1790725737 +0900"
+          export GIT_COMMITTER_NAME="Codex"
+          export GIT_COMMITTER_EMAIL="codex@openai.com"
+          export GIT_COMMITTER_DATE="@1790725737 +0900"
+
+          recreated="$(printf '%s\n' 'fix(api): make Vite env lookup safe in Node tests' | git commit-tree "${TREE}" -p "${PARENT}")"
+          test "${recreated}" = "${COMMIT}"
+
+          git push origin "${COMMIT}:${TARGET}"
+
+          remote="$(git ls-remote origin "${TARGET}" | awk '{print $1}')"
+          test "${remote}" = "${COMMIT}"
+          echo "Updated PR branch at audited SHA ${remote}."
