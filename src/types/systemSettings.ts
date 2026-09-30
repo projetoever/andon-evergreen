@@ -5,6 +5,7 @@ export interface SystemSettings {
   id: string;
   allowWholeSetCalls: boolean;
   virtualKeyboardEnabled: boolean;
+  andonSoundMuted: boolean;
   requireWorkOrderAtOpen: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation: boolean;
   attendanceMode: AttendanceMode;
@@ -18,6 +19,7 @@ export interface SystemSettings {
 export interface SystemSettingsPatch {
   allowWholeSetCalls?: boolean;
   virtualKeyboardEnabled?: boolean;
+  andonSoundMuted?: boolean;
   requireWorkOrderAtOpen?: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation?: boolean;
   attendanceMode?: AttendanceMode;
