@@ -75,6 +75,13 @@ export function getSystemSettings() {
 
 export async function updateSystemSettings(patch: SystemSettingsPatch) {
   if (
+    patch.dashboardSoundMuteTimerEnabled !== undefined &&
+    typeof patch.dashboardSoundMuteTimerEnabled !== "boolean"
+  ) {
+    throw new Error("Campo dashboardSoundMuteTimerEnabled deve ser booleano.");
+  }
+
+  if (
     patch.dashboardSoundMuteDurationMinutes !== undefined &&
     !isValidDashboardSoundMuteDuration(patch.dashboardSoundMuteDurationMinutes)
   ) {

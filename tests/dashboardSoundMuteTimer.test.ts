@@ -9,6 +9,8 @@ import {
   hasNewOpenRealCall,
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
+import { updateSystemSettings } from "../src/services/systemSettingsService";
+import type { SystemSettingsPatch } from "../src/types/systemSettings";
 
 const existingOpenCall = { id: "call-a", status: "open" as const, isSystemTest: false };
 
@@ -93,6 +95,15 @@ test("PATCH rejeita tipos e durações inválidas", () => {
       dashboardSoundMuteTimerEnabled: "true",
     }) ?? "",
     /deve ser booleano/,
+  );
+});
+
+test("modo local rejeita flag de temporizador que não seja booleana", async () => {
+  await assert.rejects(
+    updateSystemSettings({
+      dashboardSoundMuteTimerEnabled: "true",
+    } as unknown as SystemSettingsPatch),
+    /dashboardSoundMuteTimerEnabled deve ser booleano/,
   );
 });
 
