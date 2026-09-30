@@ -31,11 +31,17 @@ import {
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
+import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
+import { registerCurrentWorkstation } from "@/services/workstationService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
+import {
+  evaluateMaintenanceCompletionAuthorization,
+  type WorkstationRestrictionContext,
+} from "@/utils/workstationAttendanceUtils";
 import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 
 const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
@@ -72,6 +78,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [startOpen, setStartOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+  const [workstationRestrictionContext, setWorkstationRestrictionContext] =
+    useState<WorkstationRestrictionContext | null>(null);
+  const [workstationAuthorizationLoadFailed, setWorkstationAuthorizationLoadFailed] =
+    useState(false);
   const tick = useTicker(1000);
 
   const activeCalls = useMemo(
@@ -139,6 +149,60 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    Promise.allSettled([getSystemSettings(), registerCurrentWorkstation()]).then(
+      ([settingsResult, workstationResult]) => {
+        if (cancelled) return;
+        if (settingsResult.status === "rejected") {
+          setWorkstationRestrictionContext(null);
+          setWorkstationAuthorizationLoadFailed(true);
+          return;
+        }
+
+        const restricted =
+          settingsResult.value.restrictMaintenanceCompletionToAttendanceWorkstation;
+        if (!restricted) {
+          setWorkstationRestrictionContext({
+            restricted: false,
+            currentWorkstationId: null,
+            currentWorkstationActive: null,
+          });
+          setWorkstationAuthorizationLoadFailed(false);
+          return;
+        }
+
+        if (workstationResult.status === "fulfilled") {
+          setWorkstationRestrictionContext({
+            restricted: true,
+            currentWorkstationId: workstationResult.value.id,
+            currentWorkstationActive: workstationResult.value.active,
+          });
+          setWorkstationAuthorizationLoadFailed(false);
+          return;
+        }
+
+        if (!getCurrentWorkstationId()) {
+          setWorkstationRestrictionContext({
+            restricted: true,
+            currentWorkstationId: null,
+            currentWorkstationActive: null,
+          });
+          setWorkstationAuthorizationLoadFailed(false);
+          return;
+        }
+
+        setWorkstationRestrictionContext(null);
+        setWorkstationAuthorizationLoadFailed(true);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const lockedScreen = getMachineScreenLock();
     setScreenLock(lockedScreen);
     if (lockedScreen?.locked && lockedScreen.machineId !== machineId) {
@@ -169,6 +233,33 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     [currentCall?.technicianSessions],
   );
   const activeSessions = sessions.filter((session) => !session.endedAt);
+  const maintenanceCompletionAuthorization = useMemo(
+    () =>
+      workstationRestrictionContext
+        ? evaluateMaintenanceCompletionAuthorization(sessions, workstationRestrictionContext)
+        : null,
+    [sessions, workstationRestrictionContext],
+  );
+  const maintenanceCompletionHint = useMemo(() => {
+    if (workstationAuthorizationLoadFailed) {
+      return "Não foi possível verificar a autorização desta workstation. A validação será feita ao concluir.";
+    }
+    if (!maintenanceCompletionAuthorization) return null;
+    if (!maintenanceCompletionAuthorization.allowed)
+      return maintenanceCompletionAuthorization.message;
+    if (maintenanceCompletionAuthorization.kind === "authorized") {
+      return "Workstation autorizada para concluir esta manutenção.";
+    }
+    if (maintenanceCompletionAuthorization.kind === "legacy") {
+      return "Atendimento legado: conclusão permitida.";
+    }
+    return null;
+  }, [maintenanceCompletionAuthorization, workstationAuthorizationLoadFailed]);
+  const maintenanceCompletionHintTone = workstationAuthorizationLoadFailed
+    ? "warning"
+    : maintenanceCompletionAuthorization?.allowed
+      ? "success"
+      : "danger";
   const firstSessionStartedAt = sessions[0]?.startedAt ?? null;
   const hasLegacyUnassignedPeriod = Boolean(
     currentCall?.currentAttendanceStartedAt &&
@@ -463,6 +554,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => void handleCompleteMaintenance()}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
+        maintenanceCompletionDisabled={maintenanceCompletionAuthorization?.allowed === false}
+        maintenanceCompletionHint={maintenanceCompletionHint}
+        maintenanceCompletionHintTone={maintenanceCompletionHintTone}
         screenLocked={screenLocked}
       />
 
