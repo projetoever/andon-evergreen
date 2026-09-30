@@ -37,6 +37,7 @@ const ids = {
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
   failureClassificationValue: "integration_dynamic_failure",
+  workstationFailureClassificationValue: "integration_workstation_failure",
   workstation: "ws_00000000-0000-4000-8000-000000000047",
   workstationB: "ws_00000000-0000-4000-8000-000000000048",
   workstationC: "ws_00000000-0000-4000-8000-000000000049",
@@ -140,7 +141,11 @@ async function cleanup() {
     where: { id: { in: [ids.category, ids.unusedCategory] } },
   });
   await prisma.failureClassification.deleteMany({
-    where: { value: ids.failureClassificationValue },
+    where: {
+      value: {
+        in: [ids.failureClassificationValue, ids.workstationFailureClassificationValue],
+      },
+    },
   });
   await prisma.systemSettings.deleteMany({ where: { id: "global" } });
 }
@@ -1915,11 +1920,26 @@ async function run() {
   ids.workstationTechnicianA = workstationTechnicianA.id;
   ids.workstationTechnicianB = workstationTechnicianB.id;
 
+  const workstationFailureClassification = await request(
+    "/api/failure-classifications",
+    json("POST", {
+      label: "Falha de integração da workstation",
+      value: ids.workstationFailureClassificationValue,
+      active: true,
+    }),
+    201,
+  );
+  assert.equal(workstationFailureClassification.active, true);
+  assert.equal(
+    workstationFailureClassification.value,
+    ids.workstationFailureClassificationValue,
+  );
+
   const finishWorkstationCall = (callId) =>
     request(
       `/api/andon-calls/${callId}/finish`,
       json("PATCH", {
-        failureClassification: ids.failureClassificationValue,
+        failureClassification: ids.workstationFailureClassificationValue,
         failureDescription: "Diagnóstico dirigido da restrição por workstation",
         machineStatus: "running",
       }),
