@@ -13,6 +13,8 @@ model SystemSettings {
   virtualKeyboardEnabled                               Boolean  @default(true)
   requireWorkOrderAtOpen                               Boolean  @default(false)
   restrictMaintenanceCompletionToAttendanceWorkstation Boolean  @default(false)
+  dashboardSoundMuteTimerEnabled                       Boolean  @default(false)
+  dashboardSoundMuteDurationMinutes                    Int      @default(3)
   attendanceMode                                       String   @default("name")
   rfidReaderMode                                       String   @default("keyboard_hid")
   rfidInputTerminator                                  String   @default("enter")
