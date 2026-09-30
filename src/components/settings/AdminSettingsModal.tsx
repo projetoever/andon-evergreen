@@ -24,6 +24,7 @@ import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { WorkstationsSettingsTab } from "./WorkstationsSettingsTab";
+import { DashboardSoundMuteSettings } from "./DashboardSoundMuteSettings";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "general", label: "Configurações gerais" },
@@ -189,6 +190,7 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
   return (
     <div className="space-y-4">
       <div className="space-y-1"><h3 className="text-base font-bold">Sons do ANDON</h3><p className="text-sm text-muted-foreground">Gerencie arquivos por máquina e tipo de chamado.</p></div>
+      <DashboardSoundMuteSettings />
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
         <CardSection title="Configurações salvas">
           <BigButton tone="neutral" size="md" onClick={handleAddSoundConfig}>Adicionar configuração de som</BigButton>

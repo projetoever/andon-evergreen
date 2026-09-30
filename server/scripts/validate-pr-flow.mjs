@@ -547,6 +547,35 @@ async function run() {
     defaultWorkOrderSettings.restrictMaintenanceCompletionToAttendanceWorkstation,
     false,
   );
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMuteTimerEnabled, false);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMuteDurationMinutes, 3);
+
+  const dashboardSoundMuteSettings = await request(
+    "/api/system-settings",
+    json("PATCH", {
+      dashboardSoundMuteTimerEnabled: true,
+      dashboardSoundMuteDurationMinutes: 5,
+    }),
+  );
+  assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteTimerEnabled, true);
+  assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteDurationMinutes, 5);
+  await request(
+    "/api/system-settings",
+    json("PATCH", { dashboardSoundMuteDurationMinutes: 0 }),
+    400,
+  );
+  await request(
+    "/api/system-settings",
+    json("PATCH", { dashboardSoundMuteTimerEnabled: "true" }),
+    400,
+  );
+  await request(
+    "/api/system-settings",
+    json("PATCH", {
+      dashboardSoundMuteTimerEnabled: false,
+      dashboardSoundMuteDurationMinutes: 3,
+    }),
+  );
 
   const legacyWorkOrderCall = await request(
     "/api/andon-calls",

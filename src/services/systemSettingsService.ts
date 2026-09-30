@@ -7,6 +7,11 @@ const LOCAL_SYSTEM_SETTINGS_KEY = "andonWebIndustrial.systemSettings.api";
 let localSystemSettings: SystemSettings | null = null;
 
 export const VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT = "andon:virtual-keyboard-setting-changed";
+export const SYSTEM_SETTINGS_CHANGED_EVENT = "andon:system-settings-changed";
+
+export function isValidDashboardSoundMuteDuration(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) >= 1;
+}
 
 function createDefaultLocalSystemSettings(): SystemSettings {
   const now = new Date().toISOString();
@@ -16,6 +21,8 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     virtualKeyboardEnabled: true,
     requireWorkOrderAtOpen: false,
     restrictMaintenanceCompletionToAttendanceWorkstation: false,
+    dashboardSoundMuteTimerEnabled: false,
+    dashboardSoundMuteDurationMinutes: 3,
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
     rfidInputTerminator: "enter",
@@ -39,6 +46,12 @@ function readLocalSystemSettings() {
       ...parsed,
       restrictMaintenanceCompletionToAttendanceWorkstation:
         parsed.restrictMaintenanceCompletionToAttendanceWorkstation === true,
+      dashboardSoundMuteTimerEnabled: parsed.dashboardSoundMuteTimerEnabled === true,
+      dashboardSoundMuteDurationMinutes: isValidDashboardSoundMuteDuration(
+        parsed.dashboardSoundMuteDurationMinutes,
+      )
+        ? parsed.dashboardSoundMuteDurationMinutes
+        : 3,
     };
     return localSystemSettings;
   } catch {
@@ -61,6 +74,20 @@ export function getSystemSettings() {
 }
 
 export async function updateSystemSettings(patch: SystemSettingsPatch) {
+  if (
+    patch.dashboardSoundMuteTimerEnabled !== undefined &&
+    typeof patch.dashboardSoundMuteTimerEnabled !== "boolean"
+  ) {
+    throw new Error("Campo dashboardSoundMuteTimerEnabled deve ser booleano.");
+  }
+
+  if (
+    patch.dashboardSoundMuteDurationMinutes !== undefined &&
+    !isValidDashboardSoundMuteDuration(patch.dashboardSoundMuteDurationMinutes)
+  ) {
+    throw new Error("Tempo de silenciamento deve ser um número inteiro de pelo menos 1 minuto.");
+  }
+
   const settings =
     CONFIGURED_DATA_MODE === "local"
       ? {
@@ -77,6 +104,12 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
       new CustomEvent<boolean>(VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT, {
         detail: settings.virtualKeyboardEnabled,
       }),
+    );
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent<SystemSettings>(SYSTEM_SETTINGS_CHANGED_EVENT, { detail: settings }),
     );
   }
 

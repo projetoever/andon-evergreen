@@ -7,6 +7,7 @@ import {
   GLOBAL_SYSTEM_SETTINGS_ID,
   type AttendanceMode,
 } from "../services/systemSettings.js";
+import { validateDashboardSoundMuteSettingsPatch } from "../services/dashboardSoundMuteSettings.js";
 import { badRequest } from "./routeUtils.js";
 
 type UpdateSystemSettingsBody = {
@@ -14,6 +15,8 @@ type UpdateSystemSettingsBody = {
   virtualKeyboardEnabled?: unknown;
   requireWorkOrderAtOpen?: unknown;
   restrictMaintenanceCompletionToAttendanceWorkstation?: unknown;
+  dashboardSoundMuteTimerEnabled?: unknown;
+  dashboardSoundMuteDurationMinutes?: unknown;
   attendanceMode?: unknown;
   rfidReaderMode?: unknown;
   rfidInputTerminator?: unknown;
@@ -33,6 +36,8 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
     const restrictMaintenanceCompletionToAttendanceWorkstation =
       body.restrictMaintenanceCompletionToAttendanceWorkstation;
+    const dashboardSoundMuteTimerEnabled = body.dashboardSoundMuteTimerEnabled;
+    const dashboardSoundMuteDurationMinutes = body.dashboardSoundMuteDurationMinutes;
     const attendanceMode = body.attendanceMode;
     const rfidReaderMode = body.rfidReaderMode;
     const rfidInputTerminator = body.rfidInputTerminator;
@@ -56,6 +61,10 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
         reply,
         "Campo restrictMaintenanceCompletionToAttendanceWorkstation deve ser booleano",
       );
+    }
+    const dashboardSoundMuteValidationError = validateDashboardSoundMuteSettingsPatch(body);
+    if (dashboardSoundMuteValidationError) {
+      return badRequest(reply, dashboardSoundMuteValidationError);
     }
     if (
       "attendanceMode" in body &&
@@ -92,6 +101,12 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
       ...(typeof restrictMaintenanceCompletionToAttendanceWorkstation === "boolean"
         ? { restrictMaintenanceCompletionToAttendanceWorkstation }
+        : {}),
+      ...(typeof dashboardSoundMuteTimerEnabled === "boolean"
+        ? { dashboardSoundMuteTimerEnabled }
+        : {}),
+      ...(typeof dashboardSoundMuteDurationMinutes === "number"
+        ? { dashboardSoundMuteDurationMinutes }
         : {}),
       ...(typeof attendanceMode === "string" ? { attendanceMode } : {}),
       ...(typeof rfidReaderMode === "string" ? { rfidReaderMode } : {}),

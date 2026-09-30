@@ -7,6 +7,8 @@ export interface SystemSettings {
   virtualKeyboardEnabled: boolean;
   requireWorkOrderAtOpen: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation: boolean;
+  dashboardSoundMuteTimerEnabled: boolean;
+  dashboardSoundMuteDurationMinutes: number;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;
@@ -20,6 +22,8 @@ export interface SystemSettingsPatch {
   virtualKeyboardEnabled?: boolean;
   requireWorkOrderAtOpen?: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation?: boolean;
+  dashboardSoundMuteTimerEnabled?: boolean;
+  dashboardSoundMuteDurationMinutes?: number;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";
   rfidInputTerminator?: RfidInputTerminator;

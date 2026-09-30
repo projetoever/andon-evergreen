@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
@@ -13,6 +13,14 @@ import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
+import type { SystemSettings } from "@/types/systemSettings";
+import {
+  DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
+  getOpenRealCallIds,
+  hasNewOpenRealCall,
+  startDashboardSoundMuteTimer,
+} from "@/utils/dashboardSoundMuteUtils";
 
 export function DashboardPage() {
   const { machines, calls, settings, soundConfigs, audioUnlocked, setAudioUnlocked } = useAndon();
@@ -21,6 +29,12 @@ export function DashboardPage() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardMuteTimerEnabled, setDashboardMuteTimerEnabled] = useState(false);
+  const [dashboardMuteDurationMinutes, setDashboardMuteDurationMinutes] = useState(
+    DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
+  );
+  const muteTimerCancelRef = useRef<(() => void) | null>(null);
+  const mutedOpenCallIdsRef = useRef<Set<string>>(new Set());
 
   useAndonOpenCallSound({
     calls,
@@ -29,6 +43,56 @@ export function DashboardPage() {
     soundConfigs,
     audioUnlocked: audioUnlocked && !dashboardSoundMuted,
   });
+
+  const cancelDashboardMuteTimer = useCallback(() => {
+    muteTimerCancelRef.current?.();
+    muteTimerCancelRef.current = null;
+  }, []);
+
+  const reactivateDashboardSound = useCallback(
+    (message?: string) => {
+      cancelDashboardMuteTimer();
+      mutedOpenCallIdsRef.current = new Set();
+      setDashboardSoundMuted(false);
+      if (message) toast.success(message);
+    },
+    [cancelDashboardMuteTimer],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const applySettings = (systemSettings: SystemSettings) => {
+      setDashboardMuteTimerEnabled(systemSettings.dashboardSoundMuteTimerEnabled);
+      setDashboardMuteDurationMinutes(systemSettings.dashboardSoundMuteDurationMinutes);
+    };
+    const handleSettingsChanged = (event: Event) => {
+      applySettings((event as CustomEvent<SystemSettings>).detail);
+    };
+
+    void getSystemSettings()
+      .then((systemSettings) => {
+        if (!cancelled) applySettings(systemSettings);
+      })
+      .catch(() => {
+        // Defaults preservam o silenciamento manual indefinido se a configuração não carregar.
+      });
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+    };
+  }, []);
+
+  useEffect(() => cancelDashboardMuteTimer, [cancelDashboardMuteTimer]);
+
+  useEffect(() => {
+    if (!dashboardSoundMuted) return;
+    if (!hasNewOpenRealCall(mutedOpenCallIdsRef.current, calls)) return;
+
+    reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
+  }, [calls, dashboardSoundMuted, reactivateDashboardSound]);
 
   const [lockedMachineId, setLockedMachineId] = useState<string | null>(
     () => getMachineScreenLock()?.machineId ?? null,
@@ -52,21 +116,37 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
-    setDashboardSoundMuted(false);
+    reactivateDashboardSound();
     toast.success("Painel ativo — sons habilitados");
   }
 
   function handleToggleDashboardSound() {
-    const nextMuted = !dashboardSoundMuted;
-    setDashboardSoundMuted(nextMuted);
-
-    if (nextMuted) {
-      stopAndonSound();
-      toast.success("Som do dashboard silenciado");
+    if (dashboardSoundMuted) {
+      reactivateDashboardSound("Som do dashboard reativado");
       return;
     }
 
-    toast.success("Som do dashboard reativado");
+    cancelDashboardMuteTimer();
+    mutedOpenCallIdsRef.current = getOpenRealCallIds(calls);
+    setDashboardSoundMuted(true);
+    stopAndonSound();
+
+    muteTimerCancelRef.current = startDashboardSoundMuteTimer(
+      dashboardMuteTimerEnabled,
+      dashboardMuteDurationMinutes,
+      () => {
+        muteTimerCancelRef.current = null;
+        mutedOpenCallIdsRef.current = new Set();
+        setDashboardSoundMuted(false);
+        toast.success("Tempo de silêncio encerrado — som do dashboard reativado");
+      },
+    );
+
+    toast.success(
+      dashboardMuteTimerEnabled
+        ? `Som do dashboard silenciado por ${dashboardMuteDurationMinutes} minuto(s)`
+        : "Som do dashboard silenciado",
+    );
   }
 
   if (lockedMachineId) {
