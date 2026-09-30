@@ -14,6 +14,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     id: "global",
     allowWholeSetCalls: true,
     virtualKeyboardEnabled: true,
+    andonSoundMuted: false,
     requireWorkOrderAtOpen: false,
     restrictMaintenanceCompletionToAttendanceWorkstation: false,
     attendanceMode: "name",
@@ -39,6 +40,7 @@ function readLocalSystemSettings() {
       ...parsed,
       restrictMaintenanceCompletionToAttendanceWorkstation:
         parsed.restrictMaintenanceCompletionToAttendanceWorkstation === true,
+      andonSoundMuted: parsed.andonSoundMuted === true,
     };
     return localSystemSettings;
   } catch {
