@@ -21,10 +21,15 @@ const ids = {
   sessionMachineB: "pr42-session-machine-b",
   sessionMachineC: "pr42-session-machine-c",
   sessionMachineD: "pr42-session-machine-d",
+  workstationMachineA: "pr48-workstation-machine-a",
+  workstationMachineB: "pr48-workstation-machine-b",
+  workstationMachineC: "pr48-workstation-machine-c",
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
   electricalSupportTechnician: "pr50-tech-electrical-support",
   mechanicalTechnician: "pr47-tech-mechanical",
+  workstationTechnicianA: "pr48-tech-workstation-a",
+  workstationTechnicianB: "pr48-tech-workstation-b",
   unusedSetType: "pr51-unused-set-type",
   unusedSubsetType: "pr51-unused-subset-type",
   inactiveSet: "pr51-inactive-set",
@@ -32,7 +37,11 @@ const ids = {
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
   failureClassificationValue: "integration_dynamic_failure",
+  workstationFailureClassificationValue: "integration_workstation_failure",
   workstation: "ws_00000000-0000-4000-8000-000000000047",
+  workstationB: "ws_00000000-0000-4000-8000-000000000048",
+  workstationC: "ws_00000000-0000-4000-8000-000000000049",
+  inactiveWorkstation: "ws_00000000-0000-4000-8000-00000000004a",
 };
 
 async function request(path, options = {}, expectedStatus = 200) {
@@ -72,7 +81,13 @@ async function waitForApi() {
 }
 
 async function cleanup() {
-  await prisma.workstation.deleteMany({ where: { id: ids.workstation } });
+  await prisma.workstation.deleteMany({
+    where: {
+      id: {
+        in: [ids.workstation, ids.workstationB, ids.workstationC, ids.inactiveWorkstation],
+      },
+    },
+  });
   const machineIds = [
     ids.machine,
     ids.raceMachine,
@@ -82,6 +97,9 @@ async function cleanup() {
     ids.sessionMachineB,
     ids.sessionMachineC,
     ids.sessionMachineD,
+    ids.workstationMachineA,
+    ids.workstationMachineB,
+    ids.workstationMachineC,
   ];
   const calls = await prisma.andonCall.findMany({
     where: { machineId: { in: machineIds } },
@@ -108,7 +126,13 @@ async function cleanup() {
   await prisma.technician.deleteMany({
     where: {
       id: {
-        in: [ids.electricalTechnician, ids.electricalSupportTechnician, ids.mechanicalTechnician],
+        in: [
+          ids.electricalTechnician,
+          ids.electricalSupportTechnician,
+          ids.mechanicalTechnician,
+          ids.workstationTechnicianA,
+          ids.workstationTechnicianB,
+        ],
       },
     },
   });
@@ -117,7 +141,11 @@ async function cleanup() {
     where: { id: { in: [ids.category, ids.unusedCategory] } },
   });
   await prisma.failureClassification.deleteMany({
-    where: { value: ids.failureClassificationValue },
+    where: {
+      value: {
+        in: [ids.failureClassificationValue, ids.workstationFailureClassificationValue],
+      },
+    },
   });
   await prisma.systemSettings.deleteMany({ where: { id: "global" } });
 }
@@ -515,6 +543,10 @@ async function run() {
 
   const defaultWorkOrderSettings = await request("/api/system-settings");
   assert.equal(defaultWorkOrderSettings.requireWorkOrderAtOpen, false);
+  assert.equal(
+    defaultWorkOrderSettings.restrictMaintenanceCompletionToAttendanceWorkstation,
+    false,
+  );
 
   const legacyWorkOrderCall = await request(
     "/api/andon-calls",
@@ -1838,6 +1870,393 @@ async function run() {
   const publicTechnicians = await request("/api/technicians");
   assert.ok(publicTechnicians.every((technician) => !("pinHash" in technician)));
   assert.ok(publicTechnicians.every((technician) => !("tagHash" in technician)));
+
+  await request(
+    `/api/workstations/${ids.workstation}`,
+    json("PATCH", { name: "Workstation A", active: true }),
+  );
+  for (const [id, name] of [
+    [ids.workstationB, "Workstation B"],
+    [ids.workstationC, "Workstation C"],
+    [ids.inactiveWorkstation, "Workstation inativa"],
+  ]) {
+    await request("/api/workstations/register", json("POST", { id }));
+    await request(`/api/workstations/${id}`, json("PATCH", { name }));
+  }
+  await request(`/api/workstations/${ids.inactiveWorkstation}`, json("PATCH", { active: false }));
+
+  for (const [id, name] of [
+    [ids.workstationMachineA, "Máquina PR 48 workstation A"],
+    [ids.workstationMachineB, "Máquina PR 48 workstation B"],
+    [ids.workstationMachineC, "Máquina PR 48 workstation C"],
+  ]) {
+    await request("/api/machines", json("POST", { id, name, productionMode: "scheduled" }), 201);
+  }
+
+  const workstationTechnicianA = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Mantenedor Workstation A",
+      employeeId: "000480",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "8642",
+    }),
+    201,
+  );
+  const workstationTechnicianB = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Mantenedor Workstation B",
+      employeeId: "000481",
+      technicalArea: "electrical",
+      shiftId: ids.shift,
+      active: true,
+      pin: "8643",
+    }),
+    201,
+  );
+  ids.workstationTechnicianA = workstationTechnicianA.id;
+  ids.workstationTechnicianB = workstationTechnicianB.id;
+
+  const workstationFailureClassification = await request(
+    "/api/failure-classifications",
+    json("POST", {
+      label: "Falha de integração da workstation",
+      value: ids.workstationFailureClassificationValue,
+      active: true,
+    }),
+    201,
+  );
+  assert.equal(workstationFailureClassification.active, true);
+  assert.equal(
+    workstationFailureClassification.value,
+    ids.workstationFailureClassificationValue,
+  );
+
+  const finishWorkstationCall = (callId) =>
+    request(
+      `/api/andon-calls/${callId}/finish`,
+      json("PATCH", {
+        failureClassification: ids.workstationFailureClassificationValue,
+        failureDescription: "Diagnóstico dirigido da restrição por workstation",
+        machineStatus: "running",
+      }),
+    );
+  const workstationHeaders = (workstationId) => ({
+    "x-andon-workstation-id": workstationId,
+  });
+
+  await request(
+    "/api/system-settings",
+    json("PATCH", { restrictMaintenanceCompletionToAttendanceWorkstation: false }),
+  );
+  const unrestrictedCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const unrestrictedAttendance = await request(
+    `/api/andon-calls/${unrestrictedCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+  );
+  assert.equal(unrestrictedAttendance.technicianSessions[0].workstationId, null);
+  await request(`/api/andon-calls/${unrestrictedCall.id}/finish-maintenance`, json("PATCH", {}));
+  await finishWorkstationCall(unrestrictedCall.id);
+
+  const tracedUnrestrictedCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const tracedUnrestrictedAttendance = await request(
+    `/api/andon-calls/${tracedUnrestrictedCall.id}/attend`,
+    {
+      ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+      headers: workstationHeaders(ids.workstation),
+    },
+  );
+  assert.equal(tracedUnrestrictedAttendance.technicianSessions[0].workstationId, ids.workstation);
+  await request(`/api/andon-calls/${tracedUnrestrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationC),
+  });
+  await finishWorkstationCall(tracedUnrestrictedCall.id);
+
+  const restrictedSettings = await request(
+    "/api/system-settings",
+    json("PATCH", { restrictMaintenanceCompletionToAttendanceWorkstation: true }),
+  );
+  assert.equal(restrictedSettings.restrictMaintenanceCompletionToAttendanceWorkstation, true);
+
+  const restrictedCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const missingWorkstationAttendance = await request(
+    `/api/andon-calls/${restrictedCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+    400,
+  );
+  assert.match(missingWorkstationAttendance.message, /identificar esta workstation/i);
+  const unknownWorkstationAttendance = await request(
+    `/api/andon-calls/${restrictedCall.id}/attend`,
+    {
+      ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+      headers: workstationHeaders("ws_00000000-0000-4000-8000-00000000dead"),
+    },
+    400,
+  );
+  assert.match(unknownWorkstationAttendance.message, /identificar esta workstation/i);
+  const inactiveWorkstationAttendance = await request(
+    `/api/andon-calls/${restrictedCall.id}/attend`,
+    {
+      ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+      headers: workstationHeaders(ids.inactiveWorkstation),
+    },
+    400,
+  );
+  assert.match(inactiveWorkstationAttendance.message, /desativada/i);
+
+  const restrictedAttendance = await request(`/api/andon-calls/${restrictedCall.id}/attend`, {
+    ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+    headers: workstationHeaders(ids.workstation),
+  });
+  assert.equal(restrictedAttendance.technicianSessions[0].workstationId, ids.workstation);
+
+  const missingWorkstationAddition = await request(
+    `/api/andon-calls/${restrictedCall.id}/technicians`,
+    json("POST", { credentials: [{ method: "pin", value: "8643" }] }),
+    400,
+  );
+  assert.match(missingWorkstationAddition.message, /identificar esta workstation/i);
+  const inactiveWorkstationAddition = await request(
+    `/api/andon-calls/${restrictedCall.id}/technicians`,
+    {
+      ...json("POST", { credentials: [{ method: "pin", value: "8643" }] }),
+      headers: workstationHeaders(ids.inactiveWorkstation),
+    },
+    400,
+  );
+  assert.match(inactiveWorkstationAddition.message, /desativada/i);
+  const twoWorkstationAttendance = await request(
+    `/api/andon-calls/${restrictedCall.id}/technicians`,
+    {
+      ...json("POST", { credentials: [{ method: "pin", value: "8643" }] }),
+      headers: workstationHeaders(ids.workstationB),
+    },
+    201,
+  );
+  assert.ok(
+    twoWorkstationAttendance.technicianSessions.some(
+      (session) => session.workstationId === ids.workstationB && !session.endedAt,
+    ),
+  );
+
+  const unauthorizedCompletion = await request(
+    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
+    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstationC) },
+    400,
+  );
+  assert.match(unauthorizedCompletion.message, /workstation|conclua este atendimento/i);
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstation),
+  });
+  await request(
+    `/api/andon-calls/${restrictedCall.id}/return-to-maintenance`,
+    json("PATCH", { reason: "Validar segunda workstation autorizada" }),
+  );
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationB),
+  });
+  await request(
+    `/api/andon-calls/${restrictedCall.id}/return-to-maintenance`,
+    json("PATCH", { reason: "Validar workstation desativada" }),
+  );
+
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: false }));
+  const inactiveCompletion = await request(
+    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
+    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
+    400,
+  );
+  assert.match(inactiveCompletion.message, /desativada/i);
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: true }));
+
+  await request(
+    `/api/andon-calls/${restrictedCall.id}/technicians/end`,
+    json("PATCH", { credential: { method: "pin", value: "8642" }, reason: "handoff_test" }),
+  );
+  const endedSessionCompletion = await request(
+    `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
+    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
+    400,
+  );
+  assert.match(endedSessionCompletion.message, /workstation|conclua este atendimento/i);
+  await request(`/api/andon-calls/${restrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstationB),
+  });
+  await request(`/api/workstations/${ids.workstationB}`, json("PATCH", { active: false }));
+  const finalWithoutWorkstationLock = await finishWorkstationCall(restrictedCall.id);
+  assert.equal(finalWithoutWorkstationLock.status, "finished");
+  await request(`/api/workstations/${ids.workstationB}`, json("PATCH", { active: true }));
+
+  const legacyRestrictedCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineB,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  await prisma.andonCall.update({
+    where: { id: legacyRestrictedCall.id },
+    data: {
+      status: "in_progress",
+      attendedAt: new Date(),
+      currentAttendanceStartedAt: new Date(),
+      technicianName: "Mantenedor legado workstation",
+      technicianNames: ["Mantenedor legado workstation"],
+    },
+  });
+  await prisma.technicianSession.create({
+    data: {
+      callId: legacyRestrictedCall.id,
+      machineId: ids.workstationMachineB,
+      technicianName: "Mantenedor legado workstation",
+      startedAt: new Date(),
+      workstationId: null,
+    },
+  });
+  const legacyCompletion = await request(
+    `/api/andon-calls/${legacyRestrictedCall.id}/finish-maintenance`,
+    json("PATCH", {}),
+  );
+  assert.equal(legacyCompletion.status, "post_maintenance");
+  await finishWorkstationCall(legacyRestrictedCall.id);
+
+  const mixedRestrictedCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineC,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  await prisma.andonCall.update({
+    where: { id: mixedRestrictedCall.id },
+    data: {
+      status: "in_progress",
+      attendedAt: new Date(),
+      currentAttendanceStartedAt: new Date(),
+      technicianName: "Mantenedor misto workstation",
+      technicianNames: ["Mantenedor misto workstation", "Mantenedor moderno workstation"],
+    },
+  });
+  await prisma.technicianSession.createMany({
+    data: [
+      {
+        callId: mixedRestrictedCall.id,
+        machineId: ids.workstationMachineC,
+        technicianName: "Mantenedor misto workstation",
+        startedAt: new Date(),
+      },
+      {
+        callId: mixedRestrictedCall.id,
+        machineId: ids.workstationMachineC,
+        technicianName: "Mantenedor moderno workstation",
+        startedAt: new Date(),
+        workstationId: ids.workstation,
+      },
+    ],
+  });
+  const mixedUnauthorizedCompletion = await request(
+    `/api/andon-calls/${mixedRestrictedCall.id}/finish-maintenance`,
+    { ...json("PATCH", {}), headers: workstationHeaders(ids.workstationC) },
+    400,
+  );
+  assert.match(mixedUnauthorizedCompletion.message, /workstation|conclua este atendimento/i);
+  await request(`/api/andon-calls/${mixedRestrictedCall.id}/finish-maintenance`, {
+    ...json("PATCH", {}),
+    headers: workstationHeaders(ids.workstation),
+  });
+  await finishWorkstationCall(mixedRestrictedCall.id);
+
+  const systemWorkstationCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineB,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+      origin: "installer_health_check",
+      createdBy: "installer-health",
+      isSystemTest: true,
+    }),
+    201,
+  );
+  assert.equal(systemWorkstationCall.isSystemTest, true);
+  const systemTestTechnicianName = "Mantenedor system test workstation";
+  const systemTestStartedAt = new Date();
+  await prisma.andonCall.update({
+    where: { id: systemWorkstationCall.id },
+    data: {
+      status: "in_progress",
+      attendedAt: systemTestStartedAt,
+      currentAttendanceStartedAt: systemTestStartedAt,
+      technicianName: systemTestTechnicianName,
+      technicianNames: [systemTestTechnicianName],
+    },
+  });
+  const systemTestSession = await prisma.technicianSession.create({
+    data: {
+      callId: systemWorkstationCall.id,
+      machineId: ids.workstationMachineB,
+      technicianName: systemTestTechnicianName,
+      startedAt: systemTestStartedAt,
+      workstationId: null,
+    },
+  });
+  assert.equal(systemTestSession.workstationId, null);
+  const systemMaintenanceCompletion = await request(
+    `/api/andon-calls/${systemWorkstationCall.id}/finish-maintenance`,
+    json("PATCH", {}),
+  );
+  assert.equal(systemMaintenanceCompletion.status, "post_maintenance");
+  const finishedSystemWorkstationCall = await request(
+    `/api/andon-calls/${systemWorkstationCall.id}/finish`,
+    json("PATCH", { machineStatus: "running" }),
+  );
+  assert.equal(finishedSystemWorkstationCall.status, "finished");
+
+  await request(
+    "/api/system-settings",
+    json("PATCH", { restrictMaintenanceCompletionToAttendanceWorkstation: false }),
+  );
 
   console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");
 }

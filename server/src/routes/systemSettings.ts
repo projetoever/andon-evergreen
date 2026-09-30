@@ -13,6 +13,7 @@ type UpdateSystemSettingsBody = {
   allowWholeSetCalls?: unknown;
   virtualKeyboardEnabled?: unknown;
   requireWorkOrderAtOpen?: unknown;
+  restrictMaintenanceCompletionToAttendanceWorkstation?: unknown;
   attendanceMode?: unknown;
   rfidReaderMode?: unknown;
   rfidInputTerminator?: unknown;
@@ -30,6 +31,8 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const allowWholeSetCalls = body.allowWholeSetCalls;
     const virtualKeyboardEnabled = body.virtualKeyboardEnabled;
     const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
+    const restrictMaintenanceCompletionToAttendanceWorkstation =
+      body.restrictMaintenanceCompletionToAttendanceWorkstation;
     const attendanceMode = body.attendanceMode;
     const rfidReaderMode = body.rfidReaderMode;
     const rfidInputTerminator = body.rfidInputTerminator;
@@ -44,6 +47,15 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     }
     if ("requireWorkOrderAtOpen" in body && typeof requireWorkOrderAtOpen !== "boolean") {
       return badRequest(reply, "Campo requireWorkOrderAtOpen deve ser booleano");
+    }
+    if (
+      "restrictMaintenanceCompletionToAttendanceWorkstation" in body &&
+      typeof restrictMaintenanceCompletionToAttendanceWorkstation !== "boolean"
+    ) {
+      return badRequest(
+        reply,
+        "Campo restrictMaintenanceCompletionToAttendanceWorkstation deve ser booleano",
+      );
     }
     if (
       "attendanceMode" in body &&
@@ -78,6 +90,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
       ...(typeof virtualKeyboardEnabled === "boolean" ? { virtualKeyboardEnabled } : {}),
       ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
+      ...(typeof restrictMaintenanceCompletionToAttendanceWorkstation === "boolean"
+        ? { restrictMaintenanceCompletionToAttendanceWorkstation }
+        : {}),
       ...(typeof attendanceMode === "string" ? { attendanceMode } : {}),
       ...(typeof rfidReaderMode === "string" ? { rfidReaderMode } : {}),
       ...(typeof rfidInputTerminator === "string" ? { rfidInputTerminator } : {}),

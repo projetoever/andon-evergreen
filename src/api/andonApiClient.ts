@@ -15,16 +15,20 @@ export class AndonApiError extends Error {
   }
 }
 
-const DEFAULT_API_PORT =
-  import.meta.env.VITE_ANDON_API_PORT?.trim() || "3001";
+const viteEnv = (
+  import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  }
+).env;
+
+const DEFAULT_API_PORT = viteEnv?.VITE_ANDON_API_PORT?.trim() || "3001";
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, "");
 }
 
 function resolveDefaultBaseUrl() {
-  const configuredBaseUrl =
-    import.meta.env.VITE_ANDON_API_BASE_URL?.trim();
+  const configuredBaseUrl = viteEnv?.VITE_ANDON_API_BASE_URL?.trim();
 
   if (configuredBaseUrl) {
     return normalizeBaseUrl(configuredBaseUrl);

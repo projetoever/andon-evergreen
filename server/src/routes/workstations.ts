@@ -1,10 +1,8 @@
 import type { FastifyInstance } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
-
-const WORKSTATION_ID_PATTERN =
-  /^ws_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type RegisterWorkstationBody = { id?: unknown };
 type UpdateWorkstationBody = { name?: unknown; active?: unknown };
@@ -17,12 +15,6 @@ const workstationSelect = {
   createdAt: true,
   updatedAt: true,
 };
-
-function parseWorkstationId(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const id = value.trim();
-  return WORKSTATION_ID_PATTERN.test(id) ? id.toLowerCase() : undefined;
-}
 
 export async function registerWorkstationRoutes(app: FastifyInstance) {
   app.post<{ Body: RegisterWorkstationBody }>(
