@@ -12,6 +12,7 @@ import { badRequest } from "./routeUtils.js";
 type UpdateSystemSettingsBody = {
   allowWholeSetCalls?: unknown;
   virtualKeyboardEnabled?: unknown;
+  andonSoundMuted?: unknown;
   requireWorkOrderAtOpen?: unknown;
   restrictMaintenanceCompletionToAttendanceWorkstation?: unknown;
   attendanceMode?: unknown;
@@ -30,6 +31,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const body = request.body ?? {};
     const allowWholeSetCalls = body.allowWholeSetCalls;
     const virtualKeyboardEnabled = body.virtualKeyboardEnabled;
+    const andonSoundMuted = body.andonSoundMuted;
     const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
     const restrictMaintenanceCompletionToAttendanceWorkstation =
       body.restrictMaintenanceCompletionToAttendanceWorkstation;
@@ -44,6 +46,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     }
     if ("virtualKeyboardEnabled" in body && typeof virtualKeyboardEnabled !== "boolean") {
       return badRequest(reply, "Campo virtualKeyboardEnabled deve ser booleano");
+    }
+    if ("andonSoundMuted" in body && typeof andonSoundMuted !== "boolean") {
+      return badRequest(reply, "Campo andonSoundMuted deve ser booleano");
     }
     if ("requireWorkOrderAtOpen" in body && typeof requireWorkOrderAtOpen !== "boolean") {
       return badRequest(reply, "Campo requireWorkOrderAtOpen deve ser booleano");
@@ -89,6 +94,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const patch = {
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
       ...(typeof virtualKeyboardEnabled === "boolean" ? { virtualKeyboardEnabled } : {}),
+      ...(typeof andonSoundMuted === "boolean" ? { andonSoundMuted } : {}),
       ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
       ...(typeof restrictMaintenanceCompletionToAttendanceWorkstation === "boolean"
         ? { restrictMaintenanceCompletionToAttendanceWorkstation }
