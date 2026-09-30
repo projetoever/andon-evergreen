@@ -2219,10 +2219,29 @@ async function run() {
     }),
     201,
   );
+  assert.equal(systemWorkstationCall.isSystemTest, true);
+  const systemTestTechnicianName = "Mantenedor system test workstation";
+  const systemTestStartedAt = new Date();
   await prisma.andonCall.update({
     where: { id: systemWorkstationCall.id },
-    data: { status: "in_progress", attendedAt: new Date(), currentAttendanceStartedAt: new Date() },
+    data: {
+      status: "in_progress",
+      attendedAt: systemTestStartedAt,
+      currentAttendanceStartedAt: systemTestStartedAt,
+      technicianName: systemTestTechnicianName,
+      technicianNames: [systemTestTechnicianName],
+    },
   });
+  const systemTestSession = await prisma.technicianSession.create({
+    data: {
+      callId: systemWorkstationCall.id,
+      machineId: ids.workstationMachineB,
+      technicianName: systemTestTechnicianName,
+      startedAt: systemTestStartedAt,
+      workstationId: null,
+    },
+  });
+  assert.equal(systemTestSession.workstationId, null);
   const systemMaintenanceCompletion = await request(
     `/api/andon-calls/${systemWorkstationCall.id}/finish-maintenance`,
     json("PATCH", {}),
