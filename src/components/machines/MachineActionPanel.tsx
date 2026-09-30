@@ -21,6 +21,9 @@ interface MachineActionPanelProps {
   onFinish: () => void;
   onCompleteMaintenance: () => void;
   onReturnToMaintenance: () => void;
+  maintenanceCompletionDisabled?: boolean;
+  maintenanceCompletionHint?: string | null;
+  maintenanceCompletionHintTone?: "success" | "warning" | "danger";
   screenLocked?: boolean;
 }
 
@@ -229,6 +232,9 @@ export function MachineActionPanel({
   onFinish,
   onCompleteMaintenance,
   onReturnToMaintenance,
+  maintenanceCompletionDisabled = false,
+  maintenanceCompletionHint = null,
+  maintenanceCompletionHintTone = "warning",
   screenLocked = false,
 }: MachineActionPanelProps) {
   const hasActiveCall = activeCalls.length > 0;
@@ -290,6 +296,24 @@ export function MachineActionPanel({
 
       {currentCall && (
         <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2 lg:grid-cols-3">
+          {currentCall.status === "in_progress" &&
+            currentCall.category === "maintenance" &&
+            maintenanceCompletionHint && (
+              <p
+                role={maintenanceCompletionDisabled ? "alert" : "status"}
+                className={cn(
+                  "col-span-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold lg:col-span-3",
+                  maintenanceCompletionHintTone === "success" &&
+                    "border-success/30 bg-success/10 text-success",
+                  maintenanceCompletionHintTone === "warning" &&
+                    "border-warning/30 bg-warning/10 text-warning",
+                  maintenanceCompletionHintTone === "danger" &&
+                    "border-danger/30 bg-danger/10 text-danger",
+                )}
+              >
+                {maintenanceCompletionHint}
+              </p>
+            )}
           {currentCall.status === "open" && (
             <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> Atender selecionado
@@ -312,6 +336,7 @@ export function MachineActionPanel({
               tone="info"
               size="md"
               className={workflowActionClass}
+              disabled={maintenanceCompletionDisabled}
               onClick={onCompleteMaintenance}
             >
               <CheckCheck className="h-4 w-4" /> Concluir manutenção

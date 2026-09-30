@@ -13,6 +13,7 @@ import type { TechnicianAttendanceSession } from "../src/types/andon";
 import {
   assertWorkstationCanCompleteMaintenance,
   assertWorkstationCanStartAttendance,
+  evaluateMaintenanceCompletionAuthorization,
 } from "../src/utils/workstationAttendanceUtils";
 import {
   assertMaintenanceCompletionWorkstation,
@@ -217,6 +218,103 @@ test("mesma workstation ou segunda sessão ativa autorizam conclusão", () => {
   );
 });
 
+test("avaliador visual mantém o botão livre quando a restrição está OFF", () => {
+  assert.deepEqual(
+    evaluateMaintenanceCompletionAuthorization([session("a", WS_A)], context(WS_B, false, false)),
+    { allowed: true, kind: "restriction_off", message: null },
+  );
+});
+
+test("avaliador visual autoriza a workstation de uma sessão ativa", () => {
+  assert.deepEqual(
+    evaluateMaintenanceCompletionAuthorization([session("a", WS_A)], context(WS_A, true)),
+    { allowed: true, kind: "authorized", message: null },
+  );
+});
+
+test("avaliador visual bloqueia workstation diferente com mensagem genérica", () => {
+  const authorization = evaluateMaintenanceCompletionAuthorization(
+    [session("a", WS_A)],
+    context(WS_B, true),
+  );
+
+  assert.equal(authorization.allowed, false);
+  assert.equal(authorization.kind, "different_workstation");
+  assert.match(authorization.message ?? "", /onde o atendimento foi iniciado/i);
+  assert.doesNotMatch(authorization.message ?? "", new RegExp(WS_A, "i"));
+});
+
+test("avaliador visual bloqueia workstation atual inativa", () => {
+  const authorization = evaluateMaintenanceCompletionAuthorization(
+    [session("a", WS_A)],
+    context(WS_A, false),
+  );
+
+  assert.equal(authorization.allowed, false);
+  assert.equal(authorization.kind, "inactive");
+  assert.match(authorization.message ?? "", /desativada/i);
+});
+
+test("avaliador visual bloqueia identidade atual indisponível", () => {
+  const authorization = evaluateMaintenanceCompletionAuthorization(
+    [session("a", WS_A)],
+    context(null, null),
+  );
+
+  assert.equal(authorization.allowed, false);
+  assert.equal(authorization.kind, "unidentified");
+  assert.match(authorization.message ?? "", /identificar/i);
+});
+
+test("avaliador visual preserva sessões ativas legadas sem workstation", () => {
+  assert.deepEqual(
+    evaluateMaintenanceCompletionAuthorization([session("legacy", null)], context(null, null)),
+    { allowed: true, kind: "legacy", message: null },
+  );
+});
+
+test("avaliador visual ignora sessão encerrada para autorização", () => {
+  const sessions = [session("ended", WS_A, "2026-09-29T20:05:00.000Z"), session("active", WS_B)];
+
+  assert.equal(
+    evaluateMaintenanceCompletionAuthorization(sessions, context(WS_A, true)).allowed,
+    false,
+  );
+  assert.equal(
+    evaluateMaintenanceCompletionAuthorization(sessions, context(WS_B, true)).allowed,
+    true,
+  );
+});
+
+test("avaliador visual aceita qualquer workstation com sessão ativa no chamado", () => {
+  const sessions = [session("a", WS_A), session("b", WS_B)];
+
+  assert.equal(
+    evaluateMaintenanceCompletionAuthorization(sessions, context(WS_A, true)).allowed,
+    true,
+  );
+  assert.equal(
+    evaluateMaintenanceCompletionAuthorization(sessions, context(WS_B, true)).allowed,
+    true,
+  );
+});
+
+test("avaliador visual replica a compatibilidade do backend sem sessão ativa", () => {
+  assert.deepEqual(evaluateMaintenanceCompletionAuthorization([], context(null, null)), {
+    allowed: true,
+    kind: "legacy",
+    message: null,
+  });
+
+  const historicalSession = [session("ended", WS_A, "2026-09-29T20:05:00.000Z")];
+  const authorization = evaluateMaintenanceCompletionAuthorization(
+    historicalSession,
+    context(WS_A, true),
+  );
+  assert.equal(authorization.allowed, false);
+  assert.equal(authorization.kind, "different_workstation");
+});
+
 test("workstation inativa não pode concluir manutenção", () => {
   assert.throws(
     () => assertWorkstationCanCompleteMaintenance([session("a", WS_A)], context(WS_A, false)),
@@ -352,4 +450,41 @@ test("Admin persiste a configuração no SystemSettings existente", async () => 
   assert.match(admin, /Restringir conclusão da manutenção à workstation do atendimento/);
   assert.match(admin, /restrictMaintenanceCompletionToAttendanceWorkstation/);
   assert.match(admin, /updateSystemSettings/);
+});
+
+test("painel desabilita somente a conclusão de manutenção e exibe o motivo", async () => {
+  const panel = await readFile(
+    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
+    "utf8",
+  );
+  const disabledOccurrences = panel.match(/disabled=\{maintenanceCompletionDisabled\}/g) ?? [];
+
+  assert.equal(disabledOccurrences.length, 1);
+  assert.match(panel, /Concluir manutenção/);
+  assert.match(panel, /maintenanceCompletionHint/);
+  assert.match(panel, /onClick=\{onCompleteMaintenance\}/);
+  assert.doesNotMatch(panel, /onClick=\{onFinish\}[^]*disabled=\{maintenanceCompletionDisabled\}/);
+  assert.doesNotMatch(
+    panel,
+    /onClick=\{onReturnToMaintenance\}[^]*disabled=\{maintenanceCompletionDisabled\}/,
+  );
+});
+
+test("página não bloqueia por incerteza de carregamento e mantém erro do backend", async () => {
+  const page = await readFile(
+    new URL("../src/pages/MachineDetailPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    page,
+    /Promise\.allSettled\(\[getSystemSettings\(\), registerCurrentWorkstation\(\)\]\)/,
+  );
+  assert.match(
+    page,
+    /maintenanceCompletionDisabled=\{maintenanceCompletionAuthorization\?\.allowed === false\}/,
+  );
+  assert.match(page, /A validação será feita ao concluir/);
+  assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
+  assert.match(page, /Erro ao concluir manutenção/);
 });
