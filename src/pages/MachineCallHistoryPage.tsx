@@ -11,7 +11,7 @@ import { getFailureClassificationConfigs } from "@/services/failureClassificatio
 import type { FailureClassification, Machine, MachineStopEvent } from "@/types/machine";
 import type { FailureClassificationConfig } from "@/types/settings";
 import type { AndonCall } from "@/types/andon";
-import { getCallFailureDetails } from "@/utils/callFailureDetailsUtils";
+import { getCallFailureDetails, getCallSupplementalNotes } from "@/utils/callFailureDetailsUtils";
 import { isSpecificFailureClassification } from "@/utils/failureEventUtils";
 import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
@@ -449,7 +449,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             const now = new Date();
             const linkedFailureEvents = failureEventsByCallId.get(call.id) ?? [];
             const callFailureDetails = getCallFailureDetails(call, linkedFailureEvents);
+            const supplementalNotes = getCallSupplementalNotes(
+              call.notes,
+              callFailureDetails.description,
+            );
             const canEditDiagnosis = call.status === "finished" && !call.isSystemTest;
+            const showFailureDiagnosis =
+              canEditDiagnosis || Boolean(callFailureDetails.description);
             const isClosedCall = call.status === "finished" || call.status === "cancelled";
             const waitingMinutes = isClosedCall
               ? call.callWaitingMinutes
@@ -718,11 +724,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           </dt>
                           <dd className="font-bold">{call.maintenanceReturnCount}</dd>
                         </div>
-                        <div className="sm:col-span-2 lg:col-span-4">
-                          <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
-                          <dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd>
-                        </div>
-                        {canEditDiagnosis && (
+                        {!callFailureDetails.description && (
+                          <div className="sm:col-span-2 lg:col-span-4">
+                            <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
+                            <dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd>
+                          </div>
+                        )}
+                        {showFailureDiagnosis && (
                           <>
                             <div className="sm:col-span-2 lg:col-span-4">
                               <dt className="text-xs uppercase text-muted-foreground">
@@ -746,6 +754,14 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                               </dd>
                             </div>
                           </>
+                        )}
+                        {callFailureDetails.description && supplementalNotes && (
+                          <div className="sm:col-span-2 lg:col-span-4">
+                            <dt className="text-xs uppercase text-muted-foreground">
+                              Observações do chamado
+                            </dt>
+                            <dd className="whitespace-pre-line">{supplementalNotes}</dd>
+                          </div>
                         )}
                         {call.assetLocationChanged && call.assetChangeReason && (
                           <div className="sm:col-span-2 lg:col-span-4">
