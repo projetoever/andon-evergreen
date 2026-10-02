@@ -53,6 +53,7 @@ export function buildServer() {
     status: "ok",
     service: "andon-evergreen-api",
     timestamp: new Date().toISOString(),
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   }));
 
   void registerHealthDbRoute(app);

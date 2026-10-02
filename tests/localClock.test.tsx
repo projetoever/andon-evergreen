@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ClockDisplay } from "../src/components/common/ClockDisplay";
 import { formatLocalTime, scheduleClockUpdates } from "../src/utils/localClockUtils";
+import { resetServerClockForTests, setServerClockFromTimestamp } from "../src/utils/serverClock";
 
 test("formata a hora local em HH:mm", () => {
   const localTime = new Date(2026, 8, 17, 7, 5, 30);
@@ -13,7 +14,16 @@ test("formata a hora local em HH:mm", () => {
   assert.equal(formatLocalTime(localTime), "07:05");
 });
 
+test("modo API não exibe hora da workstation antes da sincronização", () => {
+  resetServerClockForTests();
+  const markup = renderToStaticMarkup(<ClockDisplay />);
+  assert.match(markup, /Hora atual: —:—/);
+  assert.match(markup, />—:—<\/time>/);
+});
+
 test("renderiza uma hora válida e identificada para acessibilidade", () => {
+  const now = Date.now();
+  setServerClockFromTimestamp(new Date(now).toISOString(), now, now, "America/Sao_Paulo");
   const markup = renderToStaticMarkup(<ClockDisplay />);
 
   assert.match(markup, /aria-label="Hora atual: \d{2}:\d{2}"/);
@@ -25,6 +35,7 @@ test("renderiza uma hora válida e identificada para acessibilidade", () => {
   assert.match(markup, /text-2xl/);
   assert.match(markup, /md:text-3xl/);
   assert.doesNotMatch(markup, /:\d{2}:\d{2}<\/time>/);
+  resetServerClockForTests();
 });
 
 test("agenda atualização automática e limpa o timer", () => {

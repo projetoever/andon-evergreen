@@ -1,4 +1,11 @@
+import { IS_API_DATA_MODE } from "@/config/dataMode";
+import { getServerNow, getServerTimeZone } from "@/utils/serverClock";
+
 const DISPLAY_TIME_ZONE = "America/Sao_Paulo";
+
+function getDisplayTimeZone() {
+  return IS_API_DATA_MODE ? (getServerTimeZone() ?? DISPLAY_TIME_ZONE) : DISPLAY_TIME_ZONE;
+}
 
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -11,7 +18,7 @@ export function formatDateTime(iso: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    timeZone: DISPLAY_TIME_ZONE,
+    timeZone: getDisplayTimeZone(),
   });
 }
 
@@ -23,18 +30,18 @@ export function formatTime(iso: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    timeZone: DISPLAY_TIME_ZONE,
+    timeZone: getDisplayTimeZone(),
   });
 }
 
 export function isToday(iso: string | null | undefined): boolean {
   if (!iso) return false;
   const d = new Date(iso);
-  const now = new Date();
+  const now = IS_API_DATA_MODE ? getServerNow() : new Date();
   const formatter = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
     month: "2-digit",
-    timeZone: DISPLAY_TIME_ZONE,
+    timeZone: getDisplayTimeZone(),
     year: "numeric",
   });
   return formatter.format(d) === formatter.format(now);

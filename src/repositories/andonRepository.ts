@@ -17,6 +17,7 @@ export interface AndonSnapshot {
   soundConfigs: SoundConfig[];
   serverTimestampIso?: string;
   serverTimeOffsetMs?: number;
+  serverTimeZone?: string;
 }
 
 export interface AndonRepositoryResult {

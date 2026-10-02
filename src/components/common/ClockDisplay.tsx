@@ -1,23 +1,42 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { IS_API_DATA_MODE } from "@/config/dataMode";
 import { formatLocalTime, scheduleClockUpdates } from "@/utils/localClockUtils";
+import {
+  getServerNow,
+  getServerTimeZone,
+  isServerClockSynchronized,
+  subscribeServerClock,
+} from "@/utils/serverClock";
 
 interface ClockDisplayProps {
   className?: string;
 }
 
 export function ClockDisplay({ className }: ClockDisplayProps) {
-  const [now, setNow] = useState(() => new Date());
+  const getOperationalNow = () =>
+    IS_API_DATA_MODE && !isServerClockSynchronized()
+      ? null
+      : IS_API_DATA_MODE
+        ? getServerNow()
+        : new Date();
+  const [now, setNow] = useState<Date | null>(getOperationalNow);
 
   useEffect(() => {
-    return scheduleClockUpdates(() => setNow(new Date()));
+    const update = () => setNow(getOperationalNow());
+    const stopClock = scheduleClockUpdates(update);
+    const unsubscribe = subscribeServerClock(update);
+    return () => {
+      stopClock();
+      unsubscribe();
+    };
   }, []);
 
-  const time = formatLocalTime(now);
+  const time = now ? formatLocalTime(now, IS_API_DATA_MODE ? getServerTimeZone() : null) : "—:—";
 
   return (
     <time
-      dateTime={now.toISOString()}
+      dateTime={now?.toISOString()}
       aria-label={`Hora atual: ${time}`}
       title="Hora atual"
       className={cn(

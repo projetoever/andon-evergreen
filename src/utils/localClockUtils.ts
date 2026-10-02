@@ -10,10 +10,11 @@ const browserClockScheduler: ClockScheduler = {
   clearInterval: (intervalId) => window.clearInterval(intervalId),
 };
 
-export function formatLocalTime(date: Date): string {
+export function formatLocalTime(date: Date, timeZone?: string | null): string {
   return date.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
   });
 }
 

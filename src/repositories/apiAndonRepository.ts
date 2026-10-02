@@ -26,12 +26,14 @@ type ApiHealth = {
   status: string;
   service: string;
   timestamp: string;
+  timeZone?: string;
 };
 
 type ServerClockSnapshot = {
   nowIso: string;
   timestampIso?: string;
   timeOffsetMs: number;
+  timeZone?: string;
 };
 
 type ApiProductionEvent = {
@@ -264,12 +266,18 @@ export class ApiAndonRepository implements AndonRepository {
     const clientStartedAtMs = Date.now();
     const health = await this.apiClient.get<ApiHealth>("/health");
     const clientEndedAtMs = Date.now();
-    const timeOffsetMs = setServerClockFromTimestamp(health.timestamp, clientStartedAtMs, clientEndedAtMs);
+    const timeOffsetMs = setServerClockFromTimestamp(
+      health.timestamp,
+      clientStartedAtMs,
+      clientEndedAtMs,
+      health.timeZone,
+    );
 
     return {
       nowIso: getServerNowIso(),
       timestampIso: getLastServerTimestampIso() ?? health.timestamp,
       timeOffsetMs,
+      timeZone: health.timeZone,
     };
   }
 
@@ -311,6 +319,7 @@ export class ApiAndonRepository implements AndonRepository {
       soundConfigs: SOUND_CONFIGS,
       serverTimestampIso: serverClock.timestampIso,
       serverTimeOffsetMs: serverClock.timeOffsetMs,
+      serverTimeZone: serverClock.timeZone,
     };
   }
 

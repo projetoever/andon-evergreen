@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getServerNowIso } from "@/utils/serverClock";
 import { useAndon } from "@/context/AndonProvider";
 import { isToday } from "@/utils/dateTimeUtils";
 import { calculateCallWaitingMinutes, calculateMachineStoppedMinutes } from "@/utils/durationUtils";
@@ -24,7 +25,7 @@ export function useDashboardSummary(): DashboardSummary {
     const finishedCallsToday = operationalCalls.filter(
       (c) => c.status === "finished" && isToday(c.finishedAt),
     ).length;
-    const now = new Date().toISOString();
+    const now = getServerNowIso();
     let criticalCalls = 0;
     for (const c of operationalCalls) {
       if (c.status !== "open" && c.status !== "in_progress") continue;
