@@ -21,6 +21,9 @@ const ids = {
   sessionMachineB: "pr42-session-machine-b",
   sessionMachineC: "pr42-session-machine-c",
   sessionMachineD: "pr42-session-machine-d",
+  multiAreaMachineA: "pr481e-multi-area-machine-a",
+  multiAreaMachineB: "pr481e-multi-area-machine-b",
+  multiAreaMachineC: "pr481e-multi-area-machine-c",
   workstationMachineA: "pr48-workstation-machine-a",
   workstationMachineB: "pr48-workstation-machine-b",
   workstationMachineC: "pr48-workstation-machine-c",
@@ -28,6 +31,7 @@ const ids = {
   electricalTechnician: "pr47-tech-electrical",
   electricalSupportTechnician: "pr50-tech-electrical-support",
   mechanicalTechnician: "pr47-tech-mechanical",
+  multiAreaTechnician: "pr481e-tech-multi-area",
   workstationTechnicianA: "pr48-tech-workstation-a",
   workstationTechnicianB: "pr48-tech-workstation-b",
   unusedSetType: "pr51-unused-set-type",
@@ -36,6 +40,7 @@ const ids = {
   inactiveSubset: "pr51-inactive-subset",
   category: "pr48_pneumatic",
   unusedCategory: "pr48_unused",
+  inactiveMaintenanceCategory: "pr481e_inactive_maintenance",
   failureClassificationValue: "integration_dynamic_failure",
   workstationFailureClassificationValue: "integration_workstation_failure",
   workstation: "ws_00000000-0000-4000-8000-000000000047",
@@ -97,6 +102,9 @@ async function cleanup() {
     ids.sessionMachineB,
     ids.sessionMachineC,
     ids.sessionMachineD,
+    ids.multiAreaMachineA,
+    ids.multiAreaMachineB,
+    ids.multiAreaMachineC,
     ids.workstationMachineA,
     ids.workstationMachineB,
     ids.workstationMachineC,
@@ -130,6 +138,7 @@ async function cleanup() {
           ids.electricalTechnician,
           ids.electricalSupportTechnician,
           ids.mechanicalTechnician,
+          ids.multiAreaTechnician,
           ids.workstationTechnicianA,
           ids.workstationTechnicianB,
         ],
@@ -138,7 +147,9 @@ async function cleanup() {
   });
   await prisma.shift.deleteMany({ where: { id: ids.shift } });
   await prisma.andonCategory.deleteMany({
-    where: { id: { in: [ids.category, ids.unusedCategory] } },
+    where: {
+      id: { in: [ids.category, ids.unusedCategory, ids.inactiveMaintenanceCategory] },
+    },
   });
   await prisma.failureClassification.deleteMany({
     where: {
@@ -220,6 +231,19 @@ async function run() {
   );
   assert.equal(editedCategory.displayName, "Pneumática");
   assert.equal(editedCategory.color, "#0D9488");
+
+  await request(
+    "/api/andon-categories",
+    json("POST", {
+      id: ids.inactiveMaintenanceCategory,
+      displayName: "Manutenção inativa CI",
+      categoryGroup: "maintenance",
+      color: "#64748B",
+      active: false,
+      displayOrder: 998,
+    }),
+    201,
+  );
 
   await request(
     "/api/andon-categories",
@@ -390,6 +414,9 @@ async function run() {
     [ids.sessionMachineB, "Máquina PR 42 sessão B"],
     [ids.sessionMachineC, "Máquina PR 42 sessão C"],
     [ids.sessionMachineD, "Máquina PR 42 sessão D"],
+    [ids.multiAreaMachineA, "Máquina PR 481E multiárea A"],
+    [ids.multiAreaMachineB, "Máquina PR 481E multiárea B"],
+    [ids.multiAreaMachineC, "Máquina PR 481E multiárea C"],
   ]) {
     await request("/api/machines", json("POST", { id, name, productionMode: "scheduled" }), 201);
   }
@@ -523,6 +550,187 @@ async function run() {
   assert.equal(electrical.hasTag, true);
   assert.equal("pinHash" in electrical, false);
   assert.equal("tagHash" in electrical, false);
+  assert.deepEqual(electrical.technicalAreas, ["electrical"]);
+  assert.equal(electrical.technicalArea, "electrical");
+
+  for (const [name, employeeId, technicalAreas, expectedMessage] of [
+    ["Sem área PR 481E", "000501", [], /pelo menos uma área técnica/i],
+    [
+      "Área duplicada PR 481E",
+      "000502",
+      ["electrical", "electrical"],
+      /não repita áreas técnicas/i,
+    ],
+    ["Área de produção PR 481E", "000503", ["quality"], /área técnica inválida/i],
+    ["Área inexistente PR 481E", "000504", ["missing_area"], /área técnica inválida/i],
+    ["Área inativa PR 481E", "000505", [ids.inactiveMaintenanceCategory], /área técnica inativa/i],
+  ]) {
+    const invalidAreaResponse = await request(
+      "/api/technicians",
+      json("POST", {
+        name,
+        employeeId,
+        technicalAreas,
+        shiftId: ids.shift,
+        active: true,
+        pin: "7754",
+      }),
+      400,
+    );
+    assert.match(invalidAreaResponse.message, expectedMessage);
+  }
+
+  const multiAreaTechnician = await request(
+    "/api/technicians",
+    json("POST", {
+      name: "Celso Multiárea PR 481E",
+      employeeId: "000506",
+      technicalAreas: ["electrical", "mechanical", ids.category],
+      shiftId: ids.shift,
+      active: true,
+      pin: "7755",
+      tag: "TAG-MULTI-AREA-481E",
+    }),
+    201,
+  );
+  ids.multiAreaTechnician = multiAreaTechnician.id;
+  assert.equal(multiAreaTechnician.technicalArea, "electrical");
+  assert.deepEqual(
+    [...multiAreaTechnician.technicalAreas].sort(),
+    ["electrical", "mechanical", ids.category].sort(),
+  );
+
+  for (const area of ["electrical", "mechanical", ids.category]) {
+    const filteredTechnicians = await request(
+      `/api/technicians?technicalArea=${encodeURIComponent(area)}`,
+    );
+    assert.ok(filteredTechnicians.some((technician) => technician.id === multiAreaTechnician.id));
+  }
+  const unrelatedAreaTechnicians = await request("/api/technicians?technicalArea=hot_melt");
+  assert.ok(
+    unrelatedAreaTechnicians.every((technician) => technician.id !== multiAreaTechnician.id),
+  );
+
+  const identifiedMultiAreaByPin = await request(
+    "/api/technicians/identify",
+    json("POST", { method: "pin", value: "7755" }),
+  );
+  const identifiedMultiAreaByTag = await request(
+    "/api/technicians/identify",
+    json("POST", { method: "rfid", value: "TAG-MULTI-AREA-481E" }),
+  );
+  assert.deepEqual(
+    [...identifiedMultiAreaByPin.technicalAreas].sort(),
+    ["electrical", "mechanical", ids.category].sort(),
+  );
+  assert.deepEqual(
+    [...identifiedMultiAreaByTag.technicalAreas].sort(),
+    ["electrical", "mechanical", ids.category].sort(),
+  );
+
+  const reducedMultiArea = await request(
+    `/api/technicians/${multiAreaTechnician.id}`,
+    json("PATCH", { technicalAreas: ["electrical", "mechanical"] }),
+  );
+  assert.deepEqual(reducedMultiArea.technicalAreas, ["electrical", "mechanical"]);
+  const expandedMultiArea = await request(
+    `/api/technicians/${multiAreaTechnician.id}`,
+    json("PATCH", { technicalAreas: ["mechanical", "electrical", ids.category] }),
+  );
+  assert.equal(
+    expandedMultiArea.technicalArea,
+    "electrical",
+    "campo legado deve continuar apontando para uma área vinculada",
+  );
+  await request(
+    `/api/technicians/${multiAreaTechnician.id}`,
+    json("PATCH", { technicalAreas: [] }),
+    400,
+  );
+  await request(
+    `/api/technicians/${multiAreaTechnician.id}`,
+    json("PATCH", { technicalAreas: ["mechanical", "quality"] }),
+    400,
+  );
+  const multiAreaAfterInvalidUpdate = (await request("/api/technicians")).find(
+    (technician) => technician.id === multiAreaTechnician.id,
+  );
+  assert.deepEqual(
+    [...multiAreaAfterInvalidUpdate.technicalAreas].sort(),
+    ["electrical", "mechanical", ids.category].sort(),
+    "atualização inválida não pode salvar associações parcialmente",
+  );
+
+  await request(
+    `/api/andon-categories/${ids.category}`,
+    json("PATCH", { categoryGroup: "production" }),
+    409,
+  );
+  await request(`/api/andon-categories/${ids.category}`, { method: "DELETE" }, 409);
+
+  const incompatibleMultiAreaCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.multiAreaMachineC,
+      category: "maintenance",
+      subtype: "hot_melt",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const incompatibleMultiAreaAttendance = await request(
+    `/api/andon-calls/${incompatibleMultiAreaCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "7755" }] }),
+    400,
+  );
+  assert.match(incompatibleMultiAreaAttendance.message, /não pertence à área deste chamado/i);
+
+  const electricalMultiAreaCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.multiAreaMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  await request(
+    `/api/andon-calls/${electricalMultiAreaCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "7755" }] }),
+  );
+  const mechanicalMultiAreaCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.multiAreaMachineB,
+      category: "maintenance",
+      subtype: "mechanical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const crossAreaConflict = await request(
+    `/api/andon-calls/${mechanicalMultiAreaCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "7755" }] }),
+    400,
+  );
+  assert.match(crossAreaConflict.message, /atendimento ativo em outro chamado/i);
+  await prisma.technicianSession.updateMany({
+    where: { callId: electricalMultiAreaCall.id, endedAt: null },
+    data: { endedAt: new Date(), endReason: "test_fixture" },
+  });
+  await request(
+    `/api/andon-calls/${mechanicalMultiAreaCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "7755" }] }),
+  );
+  const mechanicalMultiAreaSession = await prisma.technicianSession.findFirstOrThrow({
+    where: { callId: mechanicalMultiAreaCall.id, technicianId: multiAreaTechnician.id },
+  });
+  assert.equal(
+    mechanicalMultiAreaSession.technicalArea,
+    "mechanical",
+    "sessão deve registrar a área do chamado, não a área legada principal",
+  );
 
   const updatedSystemSettings = await request(
     "/api/system-settings",

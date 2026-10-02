@@ -8,6 +8,7 @@ import {
   requiresWorkOrderAtOpen,
 } from "../services/systemSettings.js";
 import {
+  getTechnicianTechnicalAreas,
   identifyTechnician,
   resolveTechniciansByNames,
   type IdentifiedTechnician,
@@ -269,7 +270,8 @@ async function resolveAttendanceTechnicians(
   }
 
   const incompatible = uniqueTechnicians.find(
-    (technician) => !technician.technicalArea || technician.technicalArea !== call.subtype,
+    (technician) =>
+      !call.subtype || !getTechnicianTechnicalAreas(technician).includes(call.subtype),
   );
   if (incompatible) {
     throw new AndonCallValidationError(`${incompatible.name} não pertence à área deste chamado`);
@@ -954,6 +956,7 @@ async function createMissingActiveTechnicianSessions(
     productionModeAtStart?: string | null;
     machineStatusAtStart?: string | null;
     workstationId?: string | null;
+    technicalArea?: string | null;
   },
 ) {
   if (!params.technicians.length) {
@@ -1021,7 +1024,7 @@ async function createMissingActiveTechnicianSessions(
       machineId: params.machineId,
       technicianId: technician.id,
       technicianName: technician.name,
-      technicalArea: technician.technicalArea,
+      technicalArea: params.technicalArea ?? technician.technicalArea,
       shiftId: technician.shiftId,
       shiftName: technician.shift?.name ?? undefined,
       workstationId: params.workstationId ?? undefined,
@@ -1541,7 +1544,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               : null;
           const technicians = await resolveAttendanceTechnicians(tx, currentCall, body);
           const names = technicians.map((technician) => technician.name);
-          const technicianArea = technicians[0]?.technicalArea ?? currentCall.technicianArea;
+          const technicianArea = currentCall.subtype ?? currentCall.technicianArea;
 
           await tx.andonCall.update({
             where: { id: currentCall.id },
@@ -1567,6 +1570,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             productionModeAtStart: currentCall.machine.productionMode,
             machineStatusAtStart: currentCall.machine.machineStatus,
             workstationId,
+            technicalArea: currentCall.subtype,
           });
 
           if (!currentCall.isSystemTest) {
@@ -1728,6 +1732,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             productionModeAtStart: currentCall.machine.productionMode,
             machineStatusAtStart: currentCall.machine.machineStatus,
             workstationId,
+            technicalArea: currentCall.subtype,
           });
 
           await tx.andonCall.update({
@@ -1735,7 +1740,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             data: {
               technicianName: currentCall.technicianName ?? names[0],
               technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
-              technicianArea: currentCall.technicianArea ?? technicians[0]?.technicalArea,
+              technicianArea: currentCall.technicianArea ?? currentCall.subtype,
             },
           });
 

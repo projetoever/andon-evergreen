@@ -56,6 +56,7 @@ export interface TechnicianConfig {
   employeeId: string | null;
   name: string;
   area: CallSubtype;
+  areas: CallSubtype[];
   shiftId: string;
   shiftIds?: string[];
   active: boolean;
@@ -94,7 +95,6 @@ export interface TechnicianCategory {
   id: TechnicianArea | "quality" | "leadership";
   label: string;
 }
-
 
 export interface FailureClassificationConfig {
   id: string;

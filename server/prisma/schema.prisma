@@ -40,14 +40,15 @@ model Workstation {
 }
 
 model AndonCategory {
-  id            String   @id
-  displayName   String
-  categoryGroup String
-  color         String
-  active        Boolean  @default(true)
-  displayOrder  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                        String                    @id
+  displayName               String
+  categoryGroup             String
+  color                     String
+  active                    Boolean                   @default(true)
+  displayOrder              Int                       @default(0)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  technicianTechnicalAreas  TechnicianTechnicalArea[]
 
   @@index([active])
   @@index([displayOrder])
@@ -374,9 +375,21 @@ model Technician {
   updatedAt                  DateTime                   @updatedAt
   technicianSessions         TechnicianSession[]
   technicianTimeAllocations  TechnicianTimeAllocation[]
+  technicalAreas             TechnicianTechnicalArea[]
 
   @@index([shiftId])
   @@map("technicians")
+}
+
+model TechnicianTechnicalArea {
+  technicianId String
+  technicalArea String
+  technician   Technician    @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  category     AndonCategory @relation(fields: [technicalArea], references: [id], onDelete: Restrict)
+
+  @@id([technicianId, technicalArea])
+  @@index([technicalArea])
+  @@map("technician_technical_areas")
 }
 
 model Shift {

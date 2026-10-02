@@ -29,6 +29,15 @@ function parseDisplayOrder(value: unknown) {
   return Number.isInteger(parsed) && parsed >= 0 && parsed <= 9999 ? parsed : undefined;
 }
 
+async function countAssignedTechnicians(technicalArea: string) {
+  const [legacyAssignments, relationalAssignments] = await Promise.all([
+    prisma.technician.count({ where: { technicalArea } }),
+    prisma.technicianTechnicalArea.count({ where: { technicalArea } }),
+  ]);
+
+  return legacyAssignments + relationalAssignments;
+}
+
 export async function registerAndonCategoryRoutes(app: FastifyInstance) {
   app.get<{ Querystring: CategoryQuery }>("/api/andon-categories", async (request) => {
     const active = parseBoolean(request.query.active);
@@ -112,9 +121,7 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
         return badRequest(reply, "Ordem de exibição inválida");
       }
       if (categoryGroup === "production" && current.categoryGroup === "maintenance") {
-        const assignedTechnicians = await prisma.technician.count({
-          where: { technicalArea: current.id },
-        });
+        const assignedTechnicians = await countAssignedTechnicians(current.id);
         if (assignedTechnicians > 0) {
           return conflict(
             reply,
@@ -142,7 +149,7 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
 
     const [historicalCalls, assignedTechnicians] = await Promise.all([
       prisma.andonCall.count({ where: { subtype: current.id } }),
-      prisma.technician.count({ where: { technicalArea: current.id } }),
+      countAssignedTechnicians(current.id),
     ]);
     if (historicalCalls > 0) {
       return conflict(

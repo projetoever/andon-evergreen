@@ -27,6 +27,7 @@ type CreateTechnicianBody = {
   name?: unknown;
   employeeId?: unknown;
   technicalArea?: unknown;
+  technicalAreas?: unknown;
   shiftId?: unknown;
   active?: unknown;
   pin?: unknown;
@@ -41,6 +42,7 @@ type IdentifyTechnicianBody = {
 };
 
 class TechnicianCredentialConflictError extends Error {}
+class TechnicianAreaValidationError extends Error {}
 
 function duplicateCredentialMessage(method: "pin" | "rfid") {
   return method === "pin"
@@ -91,13 +93,56 @@ async function shiftExists(shiftId: string) {
   );
 }
 
-async function technicalAreaExists(technicalArea: string) {
-  return Boolean(
-    await prisma.andonCategory.findFirst({
-      where: { id: technicalArea, categoryGroup: "maintenance", active: true },
-      select: { id: true },
-    }),
-  );
+function parseTechnicalAreas(value: unknown) {
+  if (!Array.isArray(value)) {
+    throw new TechnicianAreaValidationError("Informe uma lista válida de áreas técnicas");
+  }
+
+  const technicalAreas = value.map(requiredString);
+  if (!technicalAreas.length || technicalAreas.some((area) => !area)) {
+    throw new TechnicianAreaValidationError("Informe pelo menos uma área técnica");
+  }
+
+  const normalizedAreas = technicalAreas as string[];
+  if (new Set(normalizedAreas).size !== normalizedAreas.length) {
+    throw new TechnicianAreaValidationError("Não repita áreas técnicas no cadastro");
+  }
+
+  return normalizedAreas;
+}
+
+async function validateTechnicalAreas(
+  client: Pick<Prisma.TransactionClient, "andonCategory">,
+  technicalAreas: string[],
+  existingAreas = new Set<string>(),
+) {
+  const categories = await client.andonCategory.findMany({
+    where: { id: { in: technicalAreas } },
+    select: { id: true, categoryGroup: true, active: true },
+  });
+  const categoriesById = new Map(categories.map((category) => [category.id, category]));
+
+  for (const technicalArea of technicalAreas) {
+    const category = categoriesById.get(technicalArea);
+    if (!category || category.categoryGroup !== "maintenance") {
+      throw new TechnicianAreaValidationError("Área técnica inválida");
+    }
+    if (!category.active && !existingAreas.has(technicalArea)) {
+      throw new TechnicianAreaValidationError("Não é possível adicionar uma área técnica inativa");
+    }
+  }
+}
+
+function effectiveCurrentAreas(current: {
+  technicalArea: string | null;
+  technicalAreas: Array<{ technicalArea: string }>;
+}) {
+  const configured = current.technicalAreas.map((item) => item.technicalArea);
+  return configured.length ? configured : current.technicalArea ? [current.technicalArea] : [];
+}
+
+function resolveLegacyTechnicalArea(currentArea: string | null, technicalAreas: string[]) {
+  return currentArea && technicalAreas.includes(currentArea) ? currentArea : technicalAreas[0];
 }
 
 export async function registerTechnicianRoutes(app: FastifyInstance) {
@@ -106,7 +151,11 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     const { technicalArea, shiftId } = request.query;
     const where: Prisma.TechnicianWhereInput = {
       ...(active !== undefined ? { active } : {}),
-      ...(technicalArea ? { technicalArea } : {}),
+      ...(technicalArea
+        ? {
+            OR: [{ technicalArea }, { technicalAreas: { some: { technicalArea } } }],
+          }
+        : {}),
       ...(shiftId ? { shiftId } : {}),
     };
 
@@ -119,27 +168,44 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     return technicians.map(toPublicTechnician);
   });
 
-  app.post<{ Body: IdentifyTechnicianBody }>("/api/technicians/identify", async (request, reply) => {
-    const credential = normalizeCredential(request.body?.method, request.body?.value);
-    if (!credential) {
-      return badRequest(
-        reply,
-        request.body?.method === "pin"
-          ? "PIN inválido. Use de 4 a 8 números"
-          : "Código da tag inválido",
-      );
-    }
+  app.post<{ Body: IdentifyTechnicianBody }>(
+    "/api/technicians/identify",
+    async (request, reply) => {
+      const credential = normalizeCredential(request.body?.method, request.body?.value);
+      if (!credential) {
+        return badRequest(
+          reply,
+          request.body?.method === "pin"
+            ? "PIN inválido. Use de 4 a 8 números"
+            : "Código da tag inválido",
+        );
+      }
 
-    const technician = await identifyTechnician(credential);
-    if (!technician) return notFound(reply, "Credencial não reconhecida ou mantenedor inativo");
+      const technician = await identifyTechnician(credential);
+      if (!technician) return notFound(reply, "Credencial não reconhecida ou mantenedor inativo");
 
-    return toPublicTechnician(technician);
-  });
+      return toPublicTechnician(technician);
+    },
+  );
 
   app.post<{ Body: CreateTechnicianBody }>("/api/technicians", async (request, reply) => {
     const name = requiredString(request.body?.name);
     const employeeId = normalizeEmployeeId(request.body?.employeeId);
     const technicalArea = requiredString(request.body?.technicalArea);
+    let technicalAreas: string[];
+    try {
+      technicalAreas =
+        request.body && "technicalAreas" in request.body
+          ? parseTechnicalAreas(request.body.technicalAreas)
+          : technicalArea
+            ? [technicalArea]
+            : [];
+    } catch (error) {
+      if (error instanceof TechnicianAreaValidationError) {
+        return badRequest(reply, error.message);
+      }
+      throw error;
+    }
     const shiftId = requiredString(request.body?.shiftId);
     const parsedActive = parseBoolean(request.body?.active);
     const active = parsedActive ?? true;
@@ -148,9 +214,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
 
     if (!name) return badRequest(reply, "Informe o nome do manutentor");
     if (!employeeId) return badRequest(reply, "Informe o ID do colaborador");
-    if (!technicalArea || !(await technicalAreaExists(technicalArea))) {
-      return badRequest(reply, "Área técnica inválida");
-    }
+    if (!technicalAreas.length) return badRequest(reply, "Informe pelo menos uma área técnica");
     if (!shiftId) return badRequest(reply, "Informe o turno do manutentor");
     if (!pin) return badRequest(reply, "Informe um PIN de 4 a 8 números");
     if (request.body && "tag" in request.body && request.body.tag && !tag) {
@@ -178,51 +242,57 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     ]);
 
     try {
-      const technician = await prisma.$transaction(async (tx) => {
-        await lockTechnicianCredential(tx, { method: "pin", value: pin });
+      const technician = await prisma.$transaction(
+        async (tx) => {
+          await validateTechnicalAreas(tx, technicalAreas);
+          await lockTechnicianCredential(tx, { method: "pin", value: pin });
 
-        if (tag) {
-          await lockTechnicianCredential(tx, { method: "rfid", value: tag });
-        }
+          if (tag) {
+            await lockTechnicianCredential(tx, { method: "rfid", value: tag });
+          }
 
-        if (
-          await credentialBelongsToAnotherTechnician(
-            { method: "pin", value: pin },
-            undefined,
-            tx,
-          )
-        ) {
-          throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
-        }
+          if (
+            await credentialBelongsToAnotherTechnician({ method: "pin", value: pin }, undefined, tx)
+          ) {
+            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
+          }
 
-        if (
-          tag &&
-          await credentialBelongsToAnotherTechnician(
-            { method: "rfid", value: tag },
-            undefined,
-            tx,
-          )
-        ) {
-          throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
-        }
+          if (
+            tag &&
+            (await credentialBelongsToAnotherTechnician(
+              { method: "rfid", value: tag },
+              undefined,
+              tx,
+            ))
+          ) {
+            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
+          }
 
-        return tx.technician.create({
-          data: {
-            name,
-            employeeId,
-            technicalArea,
-            shiftId,
-            active,
-            pinHash,
-            tagHash,
-          },
-          select: technicianIdentitySelect,
-        });
-      }, { timeout: 30_000 });
+          return tx.technician.create({
+            data: {
+              name,
+              employeeId,
+              technicalArea: technicalAreas[0],
+              technicalAreas: {
+                create: technicalAreas.map((area) => ({ technicalArea: area })),
+              },
+              shiftId,
+              active,
+              pinHash,
+              tagHash,
+            },
+            select: technicianIdentitySelect,
+          });
+        },
+        { timeout: 30_000 },
+      );
 
       return reply.status(201).send(toPublicTechnician(technician));
     } catch (error) {
       if (error instanceof TechnicianCredentialConflictError) {
+        return badRequest(reply, error.message);
+      }
+      if (error instanceof TechnicianAreaValidationError) {
         return badRequest(reply, error.message);
       }
       if (isUniqueConstraintError(error)) {
@@ -253,6 +323,23 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         request.body && "technicalArea" in request.body
           ? requiredString(request.body.technicalArea)
           : undefined;
+      const technicalAreasProvided = Boolean(request.body && "technicalAreas" in request.body);
+      const technicalAreaProvided = Boolean(request.body && "technicalArea" in request.body);
+      let requestedTechnicalAreas: string[] | undefined;
+      try {
+        requestedTechnicalAreas = technicalAreasProvided
+          ? parseTechnicalAreas(request.body?.technicalAreas)
+          : technicalAreaProvided
+            ? technicalArea
+              ? [technicalArea]
+              : []
+            : undefined;
+      } catch (error) {
+        if (error instanceof TechnicianAreaValidationError) {
+          return badRequest(reply, error.message);
+        }
+        throw error;
+      }
       const shiftId =
         request.body && "shiftId" in request.body
           ? requiredString(request.body.shiftId)
@@ -274,6 +361,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       const relevantUpdateFields = [
         "name",
         "technicalArea",
+        "technicalAreas",
         "shiftId",
         "active",
         "pin",
@@ -282,12 +370,8 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       if (!current.employeeId && relevantUpdateFields && !employeeId) {
         return badRequest(reply, "Informe o ID do colaborador para atualizar este mantenedor");
       }
-      if (
-        request.body &&
-        "technicalArea" in request.body &&
-        (!technicalArea || !(await technicalAreaExists(technicalArea)))
-      ) {
-        return badRequest(reply, "Área técnica inválida");
+      if (requestedTechnicalAreas && !requestedTechnicalAreas.length) {
+        return badRequest(reply, "Informe pelo menos uma área técnica");
       }
       if (request.body && "shiftId" in request.body && !shiftId) {
         return badRequest(reply, "Informe o turno do manutentor");
@@ -318,56 +402,81 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       ]);
 
       try {
-        const technician = await prisma.$transaction(async (tx) => {
-          if (pin) {
-            await lockTechnicianCredential(tx, { method: "pin", value: pin });
-          }
+        const technician = await prisma.$transaction(
+          async (tx) => {
+            if (requestedTechnicalAreas) {
+              await validateTechnicalAreas(
+                tx,
+                requestedTechnicalAreas,
+                new Set(effectiveCurrentAreas(current)),
+              );
+            }
 
-          if (tag) {
-            await lockTechnicianCredential(tx, { method: "rfid", value: tag });
-          }
+            if (pin) {
+              await lockTechnicianCredential(tx, { method: "pin", value: pin });
+            }
 
-          if (
-            pin &&
-            await credentialBelongsToAnotherTechnician(
-              { method: "pin", value: pin },
-              current.id,
-              tx,
-            )
-          ) {
-            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
-          }
+            if (tag) {
+              await lockTechnicianCredential(tx, { method: "rfid", value: tag });
+            }
 
-          if (
-            tag &&
-            await credentialBelongsToAnotherTechnician(
-              { method: "rfid", value: tag },
-              current.id,
-              tx,
-            )
-          ) {
-            throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
-          }
+            if (
+              pin &&
+              (await credentialBelongsToAnotherTechnician(
+                { method: "pin", value: pin },
+                current.id,
+                tx,
+              ))
+            ) {
+              throw new TechnicianCredentialConflictError(duplicateCredentialMessage("pin"));
+            }
 
-          return tx.technician.update({
-            where: { id: current.id },
-            data: {
-              ...(name ? { name } : {}),
-              ...(employeeId ? { employeeId } : {}),
-              ...(technicalArea ? { technicalArea } : {}),
-              ...(shiftId ? { shiftId } : {}),
-              ...(active !== undefined ? { active } : {}),
-              ...(pinHash ? { pinHash } : {}),
-              ...(tagHash ? { tagHash } : {}),
-              ...(shouldClearTag ? { tagHash: null } : {}),
-            },
-            select: technicianIdentitySelect,
-          });
-        }, { timeout: 30_000 });
+            if (
+              tag &&
+              (await credentialBelongsToAnotherTechnician(
+                { method: "rfid", value: tag },
+                current.id,
+                tx,
+              ))
+            ) {
+              throw new TechnicianCredentialConflictError(duplicateCredentialMessage("rfid"));
+            }
+
+            return tx.technician.update({
+              where: { id: current.id },
+              data: {
+                ...(name ? { name } : {}),
+                ...(employeeId ? { employeeId } : {}),
+                ...(requestedTechnicalAreas
+                  ? {
+                      technicalArea: resolveLegacyTechnicalArea(
+                        current.technicalArea,
+                        requestedTechnicalAreas,
+                      ),
+                      technicalAreas: {
+                        deleteMany: {},
+                        create: requestedTechnicalAreas.map((area) => ({ technicalArea: area })),
+                      },
+                    }
+                  : {}),
+                ...(shiftId ? { shiftId } : {}),
+                ...(active !== undefined ? { active } : {}),
+                ...(pinHash ? { pinHash } : {}),
+                ...(tagHash ? { tagHash } : {}),
+                ...(shouldClearTag ? { tagHash: null } : {}),
+              },
+              select: technicianIdentitySelect,
+            });
+          },
+          { timeout: 30_000 },
+        );
 
         return toPublicTechnician(technician);
       } catch (error) {
         if (error instanceof TechnicianCredentialConflictError) {
+          return badRequest(reply, error.message);
+        }
+        if (error instanceof TechnicianAreaValidationError) {
           return badRequest(reply, error.message);
         }
         if (isUniqueConstraintError(error)) {

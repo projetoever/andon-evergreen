@@ -59,6 +59,7 @@ export interface SelectedTechnicianInput {
   shiftId?: string;
   shiftName?: string;
   technicalArea?: TechnicianArea;
+  technicalAreas?: TechnicianArea[];
   credential?: {
     method: "pin" | "rfid";
     value: string;
@@ -205,7 +206,7 @@ function createSession(
     machineId: call.machineId,
     technicianId: technician.id,
     technicianName: technician.name,
-    technicalArea: technician.technicalArea ?? call.technicianArea ?? undefined,
+    technicalArea: call.subtype ?? technician.technicalArea ?? call.technicianArea ?? undefined,
     shiftId: technician.shiftId,
     shiftName: technician.shiftName,
     workstationId: workstationId ?? null,
@@ -588,9 +589,14 @@ function assertTechniciansMatchCallArea(
   call: Pick<AndonCall, "subtype">,
   technicians: SelectedTechnicianInput[],
 ) {
-  const incompatible = technicians.find(
-    (technician) => !technician.technicalArea || technician.technicalArea !== call.subtype,
-  );
+  const incompatible = technicians.find((technician) => {
+    const areas = technician.technicalAreas?.length
+      ? technician.technicalAreas
+      : technician.technicalArea
+        ? [technician.technicalArea]
+        : [];
+    return !call.subtype || !areas.includes(call.subtype);
+  });
   if (incompatible) {
     throw new Error(`${incompatible.name} não pertence à área deste chamado`);
   }
