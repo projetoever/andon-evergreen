@@ -13,6 +13,10 @@ export const technicianIdentitySelect = {
   employeeId: true,
   name: true,
   technicalArea: true,
+  technicalAreas: {
+    select: { technicalArea: true },
+    orderBy: { technicalArea: "asc" },
+  },
   shiftId: true,
   active: true,
   pinHash: true,
@@ -24,12 +28,24 @@ export type IdentifiedTechnician = Prisma.TechnicianGetPayload<{
   select: typeof technicianIdentitySelect;
 }>;
 
+export function getTechnicianTechnicalAreas(technician: IdentifiedTechnician) {
+  const configuredAreas = technician.technicalAreas.map((item) => item.technicalArea);
+  return configuredAreas.length
+    ? configuredAreas
+    : technician.technicalArea
+      ? [technician.technicalArea]
+      : [];
+}
+
 export function toPublicTechnician(technician: IdentifiedTechnician) {
+  const technicalAreas = getTechnicianTechnicalAreas(technician);
+
   return {
     id: technician.id,
     employeeId: technician.employeeId,
     name: technician.name,
-    technicalArea: technician.technicalArea,
+    technicalArea: technician.technicalArea ?? technicalAreas[0] ?? null,
+    technicalAreas,
     shiftId: technician.shiftId,
     shiftName: technician.shift?.name ?? null,
     active: technician.active,
@@ -105,13 +121,17 @@ export async function resolveTechniciansByNames(
     },
     select: technicianIdentitySelect,
   });
-  const byName = new Map(technicians.map((technician) => [technician.name.toLocaleLowerCase("pt-BR"), technician]));
+  const byName = new Map(
+    technicians.map((technician) => [technician.name.toLocaleLowerCase("pt-BR"), technician]),
+  );
 
   return uniqueNames
     .map((name) => byName.get(name.toLocaleLowerCase("pt-BR")))
     .filter((technician): technician is IdentifiedTechnician => Boolean(technician));
 }
 
-export function credentialHashField(method: TechnicianCredential["method"]): keyof Pick<Technician, "pinHash" | "tagHash"> {
+export function credentialHashField(
+  method: TechnicianCredential["method"],
+): keyof Pick<Technician, "pinHash" | "tagHash"> {
   return method === "pin" ? "pinHash" : "tagHash";
 }

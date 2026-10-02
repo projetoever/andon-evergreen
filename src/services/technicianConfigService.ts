@@ -9,6 +9,7 @@ interface ApiTechnician {
   employeeId: string | null;
   name: string;
   technicalArea: string | null;
+  technicalAreas?: string[];
   shiftId: string | null;
   active: boolean;
   hasPin: boolean;
@@ -20,6 +21,7 @@ export interface TechnicianConfigDraft {
   employeeId: string;
   name: string;
   area: CallSubtype;
+  areas?: CallSubtype[];
   shiftId: string;
   active: boolean;
   pin?: string;
@@ -40,11 +42,24 @@ function normalizeArea(value: string | null): CallSubtype {
 }
 
 function mapTechnician(technician: ApiTechnician): TechnicianConfig {
+  const technicalAreas = Array.from(
+    new Set(
+      (technician.technicalAreas?.length
+        ? technician.technicalAreas
+        : technician.technicalArea
+          ? [technician.technicalArea]
+          : ["electrical"]
+      ).map(normalizeArea),
+    ),
+  );
+  const area = normalizeArea(technician.technicalArea ?? technicalAreas[0] ?? null);
+
   return {
     id: technician.id,
     employeeId: technician.employeeId,
     name: technician.name,
-    area: normalizeArea(technician.technicalArea),
+    area: technicalAreas.includes(area) ? area : technicalAreas[0],
+    areas: technicalAreas,
     shiftId: technician.shiftId ?? "",
     shiftIds: technician.shiftId ? [technician.shiftId] : [],
     active: technician.active,
@@ -65,6 +80,7 @@ export async function createTechnicianConfig(
     employeeId: draft.employeeId,
     name: draft.name,
     technicalArea: draft.area,
+    technicalAreas: draft.areas ?? [draft.area],
     shiftId: draft.shiftId,
     active: draft.active,
     pin: draft.pin,
@@ -83,7 +99,11 @@ export async function updateTechnicianConfig(
     {
       ...(patch.employeeId !== undefined ? { employeeId: patch.employeeId } : {}),
       ...(patch.name !== undefined ? { name: patch.name } : {}),
-      ...(patch.area !== undefined ? { technicalArea: patch.area } : {}),
+      ...(patch.areas !== undefined
+        ? { technicalAreas: patch.areas }
+        : patch.area !== undefined
+          ? { technicalArea: patch.area }
+          : {}),
       ...(patch.shiftId !== undefined ? { shiftId: patch.shiftId } : {}),
       ...(patch.active !== undefined ? { active: patch.active } : {}),
       ...(patch.pin !== undefined ? { pin: patch.pin } : {}),

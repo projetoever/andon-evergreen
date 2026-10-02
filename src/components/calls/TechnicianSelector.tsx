@@ -50,6 +50,10 @@ function uniqueByName(technicians: TechnicianConfig[]): TechnicianConfig[] {
   return Array.from(map.values());
 }
 
+function technicianAreas(technician: TechnicianConfig) {
+  return technician.areas?.length ? technician.areas : [technician.area];
+}
+
 export function TechnicianSelector({
   area,
   value,
@@ -102,7 +106,9 @@ export function TechnicianSelector({
 
     const allActive = uniqueByName(
       visibleAreas.flatMap((currentArea) =>
-        technicians.filter((technician) => technician.active && technician.area === currentArea),
+        technicians.filter(
+          (technician) => technician.active && technicianAreas(technician).includes(currentArea),
+        ),
       ),
     ).filter((technician) => !excluded.has(technician.name));
 
@@ -273,7 +279,9 @@ export function TechnicianSelector({
 
                   <div className="truncate pr-6 text-base font-black">{technician.name}</div>
                   <div className="mt-1 text-xs font-semibold text-muted-foreground">
-                    {AREA_ROLE_LABELS[technician.area] ?? technician.area}
+                    {technicianAreas(technician)
+                      .map((technicianArea) => AREA_ROLE_LABELS[technicianArea] ?? technicianArea)
+                      .join(", ")}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
                     {getShiftName(technician.shiftId)}
@@ -360,7 +368,9 @@ export function TechnicianSelector({
               >
                 <div>{technician.name}</div>
                 <div className="text-xs opacity-80">
-                  {AREA_LABELS[technician.area] ?? technician.area}
+                  {technicianAreas(technician)
+                    .map((technicianArea) => AREA_LABELS[technicianArea] ?? technicianArea)
+                    .join(", ")}
                 </div>
                 <div className="text-xs opacity-80">{getShiftName(technician.shiftId)}</div>
               </button>

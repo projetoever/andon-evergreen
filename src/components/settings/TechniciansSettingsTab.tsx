@@ -18,6 +18,7 @@ const EMPTY_DRAFT: TechnicianConfig = {
   employeeId: "",
   name: "",
   area: "electrical",
+  areas: ["electrical"],
   shiftId: "",
   shiftIds: [],
   active: true,
@@ -44,6 +45,7 @@ export function TechniciansSettingsTab() {
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
   const [categories, setCategories] = useState<AndonCategoryConfig[]>(DEFAULT_CATEGORIES);
   const [isSaving, setIsSaving] = useState(false);
+  const [areaToAdd, setAreaToAdd] = useState("");
 
   useEffect(() => {
     setShifts(getShiftConfigs());
@@ -68,14 +70,49 @@ export function TechniciansSettingsTab() {
     [shifts],
   );
 
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+
+  const selectedAreas = draft.areas?.length ? draft.areas : [draft.area];
+  const availableAreaOptions = areaOptions.filter((area) => !selectedAreas.includes(area.id));
+
   function handleAddTechnician() {
     setSelectedId(null);
-    setDraft(EMPTY_DRAFT);
+    const firstArea = areaOptions[0]?.id ?? EMPTY_DRAFT.area;
+    setDraft({ ...EMPTY_DRAFT, area: firstArea, areas: [firstArea] });
+    setAreaToAdd("");
   }
 
   function handleSelect(item: TechnicianConfig) {
     setSelectedId(item.id);
-    setDraft({ ...item, employeeId: item.employeeId ?? "", pin: "", tag: "" });
+    const areas = item.areas?.length ? item.areas : [item.area];
+    setDraft({
+      ...item,
+      area: areas.includes(item.area) ? item.area : areas[0],
+      areas,
+      employeeId: item.employeeId ?? "",
+      pin: "",
+      tag: "",
+    });
+    setAreaToAdd("");
+  }
+
+  function handleAddArea() {
+    if (!areaToAdd || selectedAreas.includes(areaToAdd as CallSubtype)) return;
+    const areas = [...selectedAreas, areaToAdd as CallSubtype];
+    setDraft({ ...draft, areas });
+    setAreaToAdd("");
+  }
+
+  function handleRemoveArea(area: CallSubtype) {
+    if (selectedAreas.length <= 1) {
+      toast.error("O mantenedor deve possuir pelo menos uma área técnica.");
+      return;
+    }
+    const areas = selectedAreas.filter((currentArea) => currentArea !== area);
+    setDraft({ ...draft, area: areas.includes(draft.area) ? draft.area : areas[0], areas });
   }
 
   async function handleSave() {
@@ -83,6 +120,10 @@ export function TechniciansSettingsTab() {
     const employeeId = draft.employeeId?.trim() ?? "";
     if (!trimmedName) return toast.error("Informe o nome do manutentor.");
     if (!employeeId) return toast.error("Informe o ID do colaborador.");
+    if (!selectedAreas.length) return toast.error("Selecione pelo menos uma área técnica.");
+    if (new Set(selectedAreas).size !== selectedAreas.length) {
+      return toast.error("Não repita áreas técnicas no cadastro.");
+    }
     if (!draft.shiftId) return toast.error("Selecione o turno do manutentor.");
     const pin = draft.pin?.trim() ?? "";
     if ((!draft.id || !draft.hasPin) && !/^\d{4,8}$/.test(pin)) {
@@ -105,7 +146,8 @@ export function TechniciansSettingsTab() {
       const input = {
         employeeId,
         name: trimmedName,
-        area: draft.area,
+        area: selectedAreas.includes(draft.area) ? draft.area : selectedAreas[0],
+        areas: selectedAreas,
         shiftId: draft.shiftId,
         active: draft.active,
         ...(pin ? { pin } : {}),
@@ -203,8 +245,10 @@ export function TechniciansSettingsTab() {
                   ID: {item.employeeId?.trim() || "pendente"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {categories.find((area) => area.id === item.area)?.displayName ?? item.area} ·{" "}
-                  {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
+                  {(item.areas?.length ? item.areas : [item.area])
+                    .map((area) => categoryById.get(area)?.displayName ?? area)
+                    .join(", ")}{" "}
+                  · {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
                 </p>
                 <p className="text-xs text-muted-foreground">{item.active ? "Ativo" : "Inativo"}</p>
                 <p className="text-xs text-muted-foreground">
@@ -271,20 +315,57 @@ export function TechniciansSettingsTab() {
           <p className="text-xs text-muted-foreground">
             PIN e tag são protegidos no banco e nunca são exibidos novamente.
           </p>
-          <label className="text-sm font-semibold">
-            Área técnica
-            <select
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2"
-              value={draft.area}
-              onChange={(event) => setDraft({ ...draft, area: event.target.value as CallSubtype })}
-            >
-              {areaOptions.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Áreas técnicas</p>
+            <div className="space-y-2">
+              {selectedAreas.map((area) => {
+                const category = categoryById.get(area);
+                return (
+                  <div
+                    key={area}
+                    className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2"
+                  >
+                    <span className="text-sm">
+                      {category?.displayName ?? area}
+                      {category && !category.active ? " (inativa)" : ""}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs font-bold text-danger underline"
+                      onClick={() => handleRemoveArea(area)}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {availableAreaOptions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <select
+                  aria-label="Nova área técnica"
+                  className="h-10 min-w-48 flex-1 rounded-md border bg-background px-2"
+                  value={areaToAdd}
+                  onChange={(event) => setAreaToAdd(event.target.value)}
+                >
+                  <option value="">Selecione uma área</option>
+                  {availableAreaOptions.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="h-10 rounded-md border border-primary px-3 text-sm font-bold text-primary disabled:opacity-50"
+                  disabled={!areaToAdd}
+                  onClick={handleAddArea}
+                >
+                  + Adicionar área técnica
+                </button>
+              </div>
+            )}
+          </div>
           <label className="text-sm font-semibold">
             Turno do manutentor
             <select

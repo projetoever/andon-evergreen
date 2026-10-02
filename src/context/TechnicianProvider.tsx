@@ -18,6 +18,7 @@ function getLocalDevelopmentTechnicians(): TechnicianConfig[] {
     employeeId: null,
     name: technician.name,
     area: technician.area,
+    areas: [technician.area],
     shiftId: "",
     shiftIds: [],
     active: technician.active,
@@ -74,8 +75,11 @@ export function TechnicianProvider({ children }: { children: ReactNode }) {
   const createTechnician = useCallback(
     async (draft: TechnicianConfigDraft) => {
       if (!isApiMode) {
+        const areas = draft.areas?.length ? draft.areas : [draft.area];
         const created: TechnicianConfig = {
           ...draft,
+          area: areas.includes(draft.area) ? draft.area : areas[0],
+          areas,
           id: `dev-tech-${Date.now()}`,
           shiftIds: draft.shiftId ? [draft.shiftId] : [],
         };
@@ -97,9 +101,14 @@ export function TechnicianProvider({ children }: { children: ReactNode }) {
         const current = technicians.find((technician) => technician.id === id);
         if (!current) throw new Error("Manutentor não encontrado.");
 
+        const areas = patch.areas?.length ? patch.areas : patch.area ? [patch.area] : current.areas;
         const updated: TechnicianConfig = {
           ...current,
           ...patch,
+          area: areas.includes(patch.area ?? current.area)
+            ? (patch.area ?? current.area)
+            : areas[0],
+          areas,
           shiftIds:
             patch.shiftId !== undefined ? (patch.shiftId ? [patch.shiftId] : []) : current.shiftIds,
         };

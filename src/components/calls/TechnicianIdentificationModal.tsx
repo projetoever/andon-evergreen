@@ -157,7 +157,8 @@ export function TechnicianIdentificationModal({
             name: technician.name,
             shiftId: technician.shiftId,
             shiftName: technician.shiftId,
-            technicalArea: technician.area as TechnicianArea,
+            technicalArea: area ?? technician.area,
+            technicalAreas: technician.areas,
             credential: technician.credential,
           },
         ],
@@ -176,7 +177,8 @@ export function TechnicianIdentificationModal({
     if (excluded.has(technician.name.toLocaleLowerCase("pt-BR"))) {
       throw new Error(`${technician.name} já está neste atendimento`);
     }
-    if (area && technician.area !== area) {
+    const technicianAreas = technician.areas?.length ? technician.areas : [technician.area];
+    if (area && !technicianAreas.includes(area)) {
       throw new Error(`${technician.name} não pertence à área deste chamado`);
     }
   }
@@ -189,7 +191,8 @@ export function TechnicianIdentificationModal({
         name,
         shiftId: technician?.shiftId,
         shiftName: technician?.shiftId,
-        technicalArea: technician?.area as TechnicianArea | undefined,
+        technicalArea: area ?? (technician?.area as TechnicianArea | undefined),
+        technicalAreas: technician?.areas,
       };
     });
     void registerTechnicians(technicians);
