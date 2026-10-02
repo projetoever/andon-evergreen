@@ -9,6 +9,7 @@ import type { TechnicianArea } from "@/types/andon";
 import type { TechnicianConfig } from "@/types/settings";
 import { getShiftConfigs } from "@/services/shiftConfigService";
 import { cn } from "@/lib/utils";
+import { getServerClockRevision, subscribeServerClock } from "@/utils/serverClock";
 
 interface TechnicianSelectorProps {
   area: TechnicianArea;
@@ -62,6 +63,9 @@ export function TechnicianSelector({
   const [visibleOptionalAreas, setVisibleOptionalAreas] = useState<TechnicianArea[]>([]);
   const [areaFilter, setAreaFilter] = useState<TechnicianArea | "all">(area);
   const [searchTerm, setSearchTerm] = useState("");
+  const [serverClockRevision, setServerClockRevision] = useState(getServerClockRevision);
+
+  useEffect(() => subscribeServerClock(() => setServerClockRevision(getServerClockRevision())), []);
 
   const normalizedOptionalAreas = useMemo(
     () => optionalAreas.filter((optionalArea) => optionalArea !== area),
@@ -93,6 +97,7 @@ export function TechnicianSelector({
   }, [area]);
 
   const { list, hasShiftFallback } = useMemo(() => {
+    void serverClockRevision;
     const excluded = new Set(excludeNames);
 
     const allActive = uniqueByName(
@@ -113,7 +118,7 @@ export function TechnicianSelector({
     if (inShift.length > 0) return { list: inShift, hasShiftFallback: false };
 
     return { list: allActive, hasShiftFallback: true };
-  }, [visibleAreas, showAll, excludeNames, technicians]);
+  }, [visibleAreas, showAll, excludeNames, technicians, serverClockRevision]);
 
   const filteredList = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");

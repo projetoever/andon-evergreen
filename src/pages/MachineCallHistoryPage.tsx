@@ -33,6 +33,7 @@ import {
   getTechnicianAreaLabel,
 } from "@/utils/statusUtils";
 import { formatTechnicianDisplayName } from "@/utils/technicianDisplayUtils";
+import { getServerNow } from "@/utils/serverClock";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import {
   calculateOperationalImpactBreakdown,
@@ -89,7 +90,7 @@ function FailureEventCard({
   onCancelEditing,
   onSave,
 }: FailureEventCardProps) {
-  const now = new Date();
+  const now = getServerNow();
   const periodEnd = event.resumedAt ?? now.toISOString();
   const duration = event.resumedAt
     ? event.durationMinutes
@@ -446,7 +447,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       ) : (
         <div className="space-y-2">
           {machineCalls.map((call) => {
-            const now = new Date();
+            const now = getServerNow();
             const linkedFailureEvents = failureEventsByCallId.get(call.id) ?? [];
             const callFailureDetails = getCallFailureDetails(call, linkedFailureEvents);
             const supplementalNotes = getCallSupplementalNotes(

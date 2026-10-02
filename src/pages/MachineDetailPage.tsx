@@ -37,6 +37,7 @@ import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
+import { getServerNowIso } from "@/utils/serverClock";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
 import {
   evaluateMaintenanceCompletionAuthorization,
@@ -220,7 +221,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   const nowIso = useMemo(() => {
     void tick;
-    return new Date().toISOString();
+    return getServerNowIso();
   }, [tick]);
   const sessions = useMemo(
     () =>
