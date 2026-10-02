@@ -27,6 +27,8 @@ const ids = {
   workstationMachineA: "pr48-workstation-machine-a",
   workstationMachineB: "pr48-workstation-machine-b",
   workstationMachineC: "pr48-workstation-machine-c",
+  followUpMachineA: "pr481f-follow-up-machine-a",
+  followUpMachineB: "pr481f-follow-up-machine-b",
   shift: "pr47-shift",
   electricalTechnician: "pr47-tech-electrical",
   electricalSupportTechnician: "pr50-tech-electrical-support",
@@ -108,6 +110,8 @@ async function cleanup() {
     ids.workstationMachineA,
     ids.workstationMachineB,
     ids.workstationMachineC,
+    ids.followUpMachineA,
+    ids.followUpMachineB,
   ];
   const calls = await prisma.andonCall.findMany({
     where: { machineId: { in: machineIds } },
@@ -417,6 +421,8 @@ async function run() {
     [ids.multiAreaMachineA, "Máquina PR 481E multiárea A"],
     [ids.multiAreaMachineB, "Máquina PR 481E multiárea B"],
     [ids.multiAreaMachineC, "Máquina PR 481E multiárea C"],
+    [ids.followUpMachineA, "Máquina PR 481F acompanhamento A"],
+    [ids.followUpMachineB, "Máquina PR 481F acompanhamento B"],
   ]) {
     await request("/api/machines", json("POST", { id, name, productionMode: "scheduled" }), 201);
   }
@@ -2492,7 +2498,188 @@ async function run() {
 
   await request(
     "/api/system-settings",
-    json("PATCH", { restrictMaintenanceCompletionToAttendanceWorkstation: false }),
+    json("PATCH", {
+      restrictMaintenanceCompletionToAttendanceWorkstation: false,
+      attendanceMode: "name",
+    }),
+  );
+
+  const individualFollowUpCallA = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.followUpMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const individualAttendanceA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/attend`,
+    json("PATCH", {
+      technicianNames: [electrical.name, electricalSupport.name, multiAreaTechnician.name],
+    }),
+  );
+  const maintenanceSessionsA = individualAttendanceA.technicianSessions.filter(
+    (session) => session.phase === "maintenance" && session.cycleIndex === 1,
+  );
+  assert.equal(maintenanceSessionsA.length, 3);
+  const electricalMaintenanceA = maintenanceSessionsA.find(
+    (session) => session.technicianId === electrical.id,
+  );
+  assert.ok(electricalMaintenanceA);
+
+  const invalidFollowUpSelection = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: ["session-inexistente"] }),
+    400,
+  );
+  assert.match(invalidFollowUpSelection.message, /seleção de mantenedores/i);
+
+  const selectiveFollowUpA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [electricalMaintenanceA.id] }),
+  );
+  const endedMaintenanceA = selectiveFollowUpA.technicianSessions.filter(
+    (session) => session.phase === "maintenance" && session.cycleIndex === 1,
+  );
+  assert.equal(new Set(endedMaintenanceA.map((session) => session.endedAt)).size, 1);
+  const activeFollowUpA = selectiveFollowUpA.technicianSessions.filter(
+    (session) => session.phase === "follow_up" && !session.endedAt,
+  );
+  assert.equal(activeFollowUpA.length, 1);
+  assert.equal(activeFollowUpA[0].technicianId, electrical.id);
+  assert.equal(activeFollowUpA[0].startedAt, endedMaintenanceA[0].endedAt);
+
+  const individualFollowUpCallB = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.followUpMachineB,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const occupiedInOtherCall = await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/attend`,
+    json("PATCH", { technicianNames: [electrical.name] }),
+    400,
+  );
+  assert.match(occupiedInOtherCall.message, /ativo em outro chamado/i);
+
+  const individualAttendanceB = await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/attend`,
+    json("PATCH", { technicianNames: [electricalSupport.name] }),
+  );
+  const supportMaintenanceB = individualAttendanceB.technicianSessions.find(
+    (session) => session.technicianId === electricalSupport.id && !session.endedAt,
+  );
+  assert.ok(supportMaintenanceB);
+  await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [supportMaintenanceB.id] }),
+  );
+  const occupiedAsFollower = await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/technicians`,
+    json("POST", { technicianNames: [electrical.name] }),
+    400,
+  );
+  assert.match(occupiedAsFollower.message, /ativo em outro chamado/i);
+
+  const endedElectricalFollowUpA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/technicians/${encodeURIComponent(electrical.name)}/end`,
+    json("PATCH", { reason: "follow_up_finished" }),
+  );
+  const electricalFollowUpEndedAt = endedElectricalFollowUpA.technicianSessions.find(
+    (session) => session.id === activeFollowUpA[0].id,
+  )?.endedAt;
+  assert.ok(electricalFollowUpEndedAt);
+
+  const electricalAddedToFollowUpB = await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/technicians`,
+    json("POST", { technicianNames: [electrical.name] }),
+    201,
+  );
+  assert.ok(
+    electricalAddedToFollowUpB.technicianSessions.some(
+      (session) =>
+        session.technicianId === electrical.id &&
+        session.phase === "follow_up" &&
+        session.cycleIndex === 1 &&
+        !session.endedAt,
+    ),
+  );
+
+  const multiAreaFollowUpA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/technicians`,
+    json("POST", { technicianNames: [multiAreaTechnician.name] }),
+    201,
+  );
+  const activeMultiAreaFollowUpA = multiAreaFollowUpA.technicianSessions.find(
+    (session) =>
+      session.technicianId === multiAreaTechnician.id &&
+      session.phase === "follow_up" &&
+      !session.endedAt,
+  );
+  assert.ok(activeMultiAreaFollowUpA);
+  assert.equal(activeMultiAreaFollowUpA.technicalArea, "electrical");
+
+  const returnedIndividualA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/return-to-maintenance`,
+    json("PATCH", { reason: "Novo ciclo individual" }),
+  );
+  const cycleTwoMaintenanceA = returnedIndividualA.technicianSessions.filter(
+    (session) => session.phase === "maintenance" && session.cycleIndex === 2 && !session.endedAt,
+  );
+  assert.deepEqual(
+    cycleTwoMaintenanceA.map((session) => session.technicianId),
+    [multiAreaTechnician.id],
+  );
+  const closedMultiAreaFollowUpA = returnedIndividualA.technicianSessions.find(
+    (session) => session.id === activeMultiAreaFollowUpA.id,
+  );
+  assert.equal(closedMultiAreaFollowUpA.endReason, "returned_to_maintenance");
+  assert.equal(cycleTwoMaintenanceA[0].startedAt, closedMultiAreaFollowUpA.endedAt);
+
+  const concludedCycleTwoA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [] }),
+  );
+  assert.equal(
+    concludedCycleTwoA.technicianSessions.filter((session) => !session.endedAt).length,
+    0,
+  );
+  const finalizedIndividualA = await request(
+    `/api/andon-calls/${individualFollowUpCallA.id}/finish`,
+    json("PATCH", {
+      failureClassification: "electrical_failure",
+      failureDescription: "Validação de acompanhamento individual A",
+      machineStatus: "running",
+      confirmedMachineSetId: null,
+      confirmedMachineSubsetId: null,
+    }),
+  );
+  assert.equal(
+    finalizedIndividualA.technicianSessions.find((session) => session.id === activeFollowUpA[0].id)
+      ?.endedAt,
+    electricalFollowUpEndedAt,
+  );
+
+  const finalizedIndividualB = await request(
+    `/api/andon-calls/${individualFollowUpCallB.id}/finish`,
+    json("PATCH", {
+      failureClassification: "electrical_failure",
+      failureDescription: "Validação de acompanhamento individual B",
+      machineStatus: "running",
+      confirmedMachineSetId: null,
+      confirmedMachineSubsetId: null,
+    }),
+  );
+  assert.ok(
+    finalizedIndividualB.technicianSessions
+      .filter((session) => session.phase === "follow_up")
+      .every((session) => session.endedAt && session.endReason === "final_call"),
   );
 
   console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");

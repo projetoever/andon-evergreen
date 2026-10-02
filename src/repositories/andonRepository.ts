@@ -1,5 +1,6 @@
 import type {
   AddTechnicianSessionsParams,
+  CompleteMaintenanceParams,
   EndTechnicianSessionParams,
   FinishAndonCallParams,
   CancelAndonCallParams,
@@ -76,7 +77,7 @@ export interface AndonRepository {
   completeMaintenance(
     machines: Machine[],
     calls: AndonCall[],
-    callId: string,
+    params: string | CompleteMaintenanceParams,
   ): Promise<AndonRepositoryCallResult>;
   returnToMaintenance(
     machines: Machine[],

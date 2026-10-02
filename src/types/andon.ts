@@ -18,8 +18,19 @@ export type CallCriticality = "low" | "medium" | "high";
 
 export type SoundKey = CallSubtype;
 
-export type TechnicianSessionEndReason = "handover" | "support_finished" | "final_call" | "transferred" | "break" | "manual" | "other";
+export type TechnicianSessionPhase = "maintenance" | "follow_up";
 
+export type TechnicianSessionEndReason =
+  | "handover"
+  | "support_finished"
+  | "maintenance_completed"
+  | "follow_up_finished"
+  | "returned_to_maintenance"
+  | "final_call"
+  | "transferred"
+  | "break"
+  | "manual"
+  | "other";
 
 export type TechnicianTimeAllocationSource =
   | "registered_session"
@@ -46,6 +57,8 @@ export interface TechnicianAttendanceSession {
   shiftId?: string;
   shiftName?: string;
   workstationId?: string | null;
+  phase?: TechnicianSessionPhase | null;
+  cycleIndex?: number | null;
   startedAt: string;
   endedAt?: string;
   notes?: string;

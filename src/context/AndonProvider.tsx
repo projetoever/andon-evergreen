@@ -50,7 +50,9 @@ interface AndonContextValue {
   attendCall: (params: string | andonService.StartAttendanceParams) => Promise<void>;
   addTechnicianSessions: (params: andonService.AddTechnicianSessionsParams) => Promise<void>;
   endTechnicianSession: (params: andonService.EndTechnicianSessionParams) => Promise<void>;
-  completeMaintenance: (callId: string) => Promise<AndonCall>;
+  completeMaintenance: (
+    params: string | andonService.CompleteMaintenanceParams,
+  ) => Promise<AndonCall>;
   returnToMaintenance: (callId: string) => Promise<AndonCall>;
   finishCall: (params: andonService.FinishAndonCallParams) => Promise<void>;
   updateCallFailureDetails: (params: {
@@ -284,8 +286,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const completeMaintenance = useCallback(
-    async (callId: string) => {
-      const result = await andonRepository.completeMaintenance(machines, calls, callId);
+    async (params: string | andonService.CompleteMaintenanceParams) => {
+      const result = await andonRepository.completeMaintenance(machines, calls, params);
       setMachines(result.machines);
       setCalls(result.calls);
       return result.call;

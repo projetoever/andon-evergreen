@@ -5,6 +5,7 @@ import type {
   CallSubtype,
   TechnicianArea,
   TechnicianAttendanceSession,
+  TechnicianSessionPhase,
   TechnicianSessionEndReason,
   TechnicianTimeAllocation,
   CallImpactInterval,
@@ -106,6 +107,11 @@ export interface AddTechnicianSessionsParams {
   technicians: SelectedTechnicianInput[];
 }
 
+export interface CompleteMaintenanceParams {
+  callId: string;
+  followUpSessionIds?: string[];
+}
+
 export interface EndTechnicianSessionParams {
   callId: string;
   sessionId?: string;
@@ -199,6 +205,8 @@ function createSession(
   now: string,
   notes?: string | null,
   workstationId?: string | null,
+  phase: TechnicianSessionPhase = "maintenance",
+  cycleIndex = (call.maintenanceReturnCount ?? 0) + 1,
 ): TechnicianAttendanceSession {
   return {
     id: generateId("session"),
@@ -210,11 +218,44 @@ function createSession(
     shiftId: technician.shiftId,
     shiftName: technician.shiftName,
     workstationId: workstationId ?? null,
+    phase,
+    cycleIndex,
     startedAt: now,
     notes: notes ?? undefined,
     productionModeAtStart: machine?.productionMode,
     machineStatusAtStart: machine?.machineStatus,
   };
+}
+
+function assertTechniciansAvailableForCall(
+  calls: AndonCall[],
+  callId: string,
+  technicians: SelectedTechnicianInput[],
+) {
+  for (const technician of technicians) {
+    const normalizedName = technician.name.toLocaleLowerCase("pt-BR");
+    const conflictingCall = calls.find(
+      (call) =>
+        call.id !== callId &&
+        (call.technicianSessions ?? []).some(
+          (session) =>
+            !session.endedAt &&
+            ((technician.id &&
+              (session.technicianId === technician.id ||
+                (!session.technicianId &&
+                  session.technicianName.toLocaleLowerCase("pt-BR") === normalizedName))) ||
+              (!technician.id &&
+                session.technicianName.toLocaleLowerCase("pt-BR") === normalizedName)),
+        ),
+    );
+
+    if (conflictingCall) {
+      throw new Error(
+        `Mantenedor ${technician.name} já possui atendimento ativo em outro chamado ` +
+          `(máquina ${conflictingCall.machineId})`,
+      );
+    }
+  }
 }
 
 /**
@@ -626,6 +667,7 @@ export function attendAndonCall(
   if (shouldRequireTechnician) {
     assertWorkstationCanStartAttendance(workstationContext);
     assertTechniciansMatchCallArea(call, selectedTechnicians);
+    assertTechniciansAvailableForCall(calls, call.id, selectedTechnicians);
   }
   const sessions = call.technicianSessions ?? [];
   const createdSessions = shouldRequireTechnician
@@ -661,13 +703,14 @@ export function attendAndonCall(
 export function completeMaintenanceAttendance(
   machines: Machine[],
   calls: AndonCall[],
-  callId: string,
+  params: string | CompleteMaintenanceParams,
   workstationContext: WorkstationRestrictionContext = {
     restricted: false,
     currentWorkstationId: null,
     currentWorkstationActive: null,
   },
 ): { machines: Machine[]; calls: AndonCall[]; call: AndonCall } {
+  const callId = typeof params === "string" ? params : params.callId;
   const call = calls.find((c) => c.id === callId);
   if (!call) throw new Error("Chamado não encontrado");
   if (call.status !== "in_progress") {
@@ -680,6 +723,49 @@ export function completeMaintenanceAttendance(
     assertWorkstationCanCompleteMaintenance(call.technicianSessions ?? [], workstationContext);
   }
   const now = new Date().toISOString();
+  const activeMaintenanceSessions = (call.technicianSessions ?? []).filter(
+    (session) => !session.endedAt && (session.phase === "maintenance" || !session.phase),
+  );
+  const requestedFollowUpSessionIds =
+    typeof params === "string" ? undefined : params.followUpSessionIds;
+  const activeSessionIds = new Set(activeMaintenanceSessions.map((session) => session.id));
+  if (requestedFollowUpSessionIds?.some((sessionId) => !activeSessionIds.has(sessionId))) {
+    throw new Error("Seleção de mantenedores para acompanhamento é inválida");
+  }
+  const followUpSessionIds = new Set(
+    requestedFollowUpSessionIds ?? activeMaintenanceSessions.map((session) => session.id),
+  );
+  const cycleIndex = (call.maintenanceReturnCount ?? 0) + 1;
+  const endedMaintenanceSessions = (call.technicianSessions ?? []).map((session) =>
+    activeSessionIds.has(session.id)
+      ? {
+          ...session,
+          endedAt: now,
+          endReason: "maintenance_completed" as const,
+          productionModeAtEnd: machines.find((machine) => machine.id === call.machineId)
+            ?.productionMode,
+          machineStatusAtEnd: machines.find((machine) => machine.id === call.machineId)
+            ?.machineStatus,
+        }
+      : session,
+  );
+  const followUpSessions = activeMaintenanceSessions
+    .filter((session) => followUpSessionIds.has(session.id))
+    .map<TechnicianAttendanceSession>((session) => ({
+      ...session,
+      id: generateId("session"),
+      phase: "follow_up",
+      cycleIndex: session.cycleIndex ?? cycleIndex,
+      startedAt: now,
+      endedAt: undefined,
+      endReason: undefined,
+      productionModeAtStart: machines.find((machine) => machine.id === call.machineId)
+        ?.productionMode,
+      machineStatusAtStart: machines.find((machine) => machine.id === call.machineId)
+        ?.machineStatus,
+      productionModeAtEnd: undefined,
+      machineStatusAtEnd: undefined,
+    }));
   const updatedCall: AndonCall = {
     ...call,
     status: "post_maintenance",
@@ -688,6 +774,7 @@ export function completeMaintenanceAttendance(
     attendanceMinutes:
       (call.attendanceMinutes ?? 0) +
       diffMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now),
+    technicianSessions: [...endedMaintenanceSessions, ...followUpSessions],
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -709,6 +796,38 @@ export function returnToMaintenance(
     throw new Error("Apenas chamados de manutenção podem voltar ao atendimento");
   }
   const now = new Date().toISOString();
+  const activeFollowUpSessions = (call.technicianSessions ?? []).filter(
+    (session) => !session.endedAt && (session.phase === "follow_up" || !session.phase),
+  );
+  const activeFollowUpIds = new Set(activeFollowUpSessions.map((session) => session.id));
+  const nextCycleIndex = (call.maintenanceReturnCount ?? 0) + 2;
+  const machine = machines.find((item) => item.id === call.machineId);
+  const endedFollowUpSessions = (call.technicianSessions ?? []).map((session) =>
+    activeFollowUpIds.has(session.id)
+      ? {
+          ...session,
+          endedAt: now,
+          endReason: "returned_to_maintenance" as const,
+          productionModeAtEnd: machine?.productionMode,
+          machineStatusAtEnd: machine?.machineStatus,
+        }
+      : session,
+  );
+  const maintenanceSessions = activeFollowUpSessions.map<TechnicianAttendanceSession>(
+    (session) => ({
+      ...session,
+      id: generateId("session"),
+      phase: "maintenance",
+      cycleIndex: nextCycleIndex,
+      startedAt: now,
+      endedAt: undefined,
+      endReason: undefined,
+      productionModeAtStart: machine?.productionMode,
+      machineStatusAtStart: machine?.machineStatus,
+      productionModeAtEnd: undefined,
+      machineStatusAtEnd: undefined,
+    }),
+  );
   const updatedCall: AndonCall = {
     ...call,
     status: "in_progress",
@@ -717,6 +836,7 @@ export function returnToMaintenance(
     postMaintenanceMinutes:
       (call.postMaintenanceMinutes ?? 0) + diffMinutes(call.maintenanceCompletedAt, now),
     maintenanceReturnCount: (call.maintenanceReturnCount ?? 0) + 1,
+    technicianSessions: [...endedFollowUpSessions, ...maintenanceSessions],
     updatedAt: now,
   };
   const newCalls = calls.map((c) => (c.id === callId ? updatedCall : c));
@@ -736,11 +856,14 @@ export function addTechnicianSessions(
 ): { machines: Machine[]; calls: AndonCall[] } {
   const call = calls.find((c) => c.id === params.callId);
   if (!call) throw new Error("Chamado não encontrado");
-  if (call.status !== "in_progress") throw new Error("Chamado não está em atendimento");
-  if (requiresMaintenanceTechnician(call)) {
+  if (call.status !== "in_progress" && call.status !== "post_maintenance") {
+    throw new Error("Chamado não está em atendimento ou acompanhamento");
+  }
+  if (requiresMaintenanceTechnician(call) && call.status === "in_progress") {
     assertWorkstationCanStartAttendance(workstationContext);
   }
   assertTechniciansMatchCallArea(call, params.technicians);
+  assertTechniciansAvailableForCall(calls, call.id, params.technicians);
   const now = new Date().toISOString();
   const machine = machines.find((m) => m.id === call.machineId);
   const currentSessions = call.technicianSessions ?? [];
@@ -748,7 +871,16 @@ export function addTechnicianSessions(
   const additions = params.technicians
     .filter((t) => !active.has(t.name))
     .map((t) =>
-      createSession(call, machine, t, now, undefined, workstationContext.currentWorkstationId),
+      createSession(
+        call,
+        machine,
+        t,
+        now,
+        undefined,
+        workstationContext.currentWorkstationId,
+        call.status === "post_maintenance" ? "follow_up" : "maintenance",
+        (call.maintenanceReturnCount ?? 0) + 1,
+      ),
     );
   const newCalls = calls.map((c) =>
     c.id === params.callId
@@ -1069,7 +1201,11 @@ export function finishAndonCall(
     assetChangeReason: locationChanged ? assetChangeReason : null,
 
     technicianSessions: (call.technicianSessions ?? []).map((session) =>
-      session.endedAt
+      session.endedAt ||
+      (call.status === "post_maintenance" &&
+        session.phase !== "follow_up" &&
+        session.phase !== null &&
+        session.phase !== undefined)
         ? session
         : {
             ...session,

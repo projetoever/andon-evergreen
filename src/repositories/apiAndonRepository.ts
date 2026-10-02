@@ -5,6 +5,7 @@ import type { AndonCall, CallImpactInterval, TechnicianAttendanceSession, Techni
 import type { Machine, MachineProductionEvent, MachineStatus, MachineStopEvent, ProductionMode, StopSource } from "@/types/machine";
 import type {
   AddTechnicianSessionsParams,
+  CompleteMaintenanceParams,
   EndTechnicianSessionParams,
   FinishAndonCallParams,
   CancelAndonCallParams,
@@ -367,8 +368,17 @@ export class ApiAndonRepository implements AndonRepository {
     return this.loadResult();
   }
 
-  async completeMaintenance(_machines: Machine[], _calls: AndonCall[], callId: string) {
-    const call = mapCall(await this.apiClient.patch<ApiAndonCall>(`/api/andon-calls/${callId}/finish-maintenance`, {}));
+  async completeMaintenance(
+    _machines: Machine[],
+    _calls: AndonCall[],
+    params: string | CompleteMaintenanceParams,
+  ) {
+    const callId = typeof params === "string" ? params : params.callId;
+    const call = mapCall(
+      await this.apiClient.patch<ApiAndonCall>(`/api/andon-calls/${callId}/finish-maintenance`, {
+        followUpSessionIds: typeof params === "string" ? undefined : params.followUpSessionIds,
+      }),
+    );
     const result = await this.loadResult();
     return { ...result, call };
   }

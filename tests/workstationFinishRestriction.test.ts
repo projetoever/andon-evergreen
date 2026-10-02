@@ -487,6 +487,6 @@ test("página não bloqueia por incerteza de carregamento e mantém erro do back
   assert.doesNotMatch(page, /Workstation autorizada para concluir esta manutenção/);
   assert.match(page, /A validação será feita ao concluir/);
   assert.match(page, /return maintenanceCompletionAuthorization\.message/);
-  assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
-  assert.match(page, /Erro ao concluir manutenção/);
+  assert.match(page, /setCompleteMaintenanceOpen\(true\)/);
+  assert.match(page, /MaintenanceFollowUpSelectionModal/);
 });

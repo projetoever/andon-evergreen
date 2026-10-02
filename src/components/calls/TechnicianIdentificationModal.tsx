@@ -118,7 +118,11 @@ export function TechnicianIdentificationModal({
         toast.success("Chamado em atendimento");
       } else {
         await addTechnicianSessions({ callId: call.id, technicians });
-        toast.success("Mantenedor adicionado ao atendimento");
+        toast.success(
+          call.status === "post_maintenance"
+            ? "Mantenedor adicionado ao acompanhamento"
+            : "Mantenedor adicionado ao atendimento",
+        );
       }
       onOpenChange(false);
       onSuccess?.();
@@ -223,7 +227,12 @@ export function TechnicianIdentificationModal({
 
   const allowedMethods: AttendanceMode[] =
     settings?.attendanceMode === "name" ? ["name", "pin", "rfid"] : ["pin", "rfid"];
-  const actionLabel = purpose === "start" ? "Iniciar atendimento" : "Adicionar mantenedor";
+  const actionLabel =
+    purpose === "start"
+      ? "Iniciar atendimento"
+      : call.status === "post_maintenance"
+        ? "Adicionar ao acompanhamento"
+        : "Adicionar mantenedor";
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
