@@ -5,6 +5,7 @@ import test from "node:test";
 import { buildHistoryCsv } from "../src/services/exportService";
 import type { AndonCall } from "../src/types/andon";
 import { getEffectiveAssetLocationLabel } from "../src/utils/assetLocationUtils";
+import { formatDateTime } from "../src/utils/dateTimeUtils";
 
 const closedCall: AndonCall = {
   id: "call-history-1",
@@ -102,6 +103,10 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
     /new Date\(b\.finishedAt \?\? b\.openedAt\).*new Date\(a\.finishedAt \?\? a\.openedAt\)/s,
   );
   assert.match(history, /formatDateTime\(call\.finishedAt \?\? call\.openedAt\)/);
+  assert.match(history, /Início do chamado/);
+  assert.match(history, /formatDateTime\(call\.openedAt\)/);
+  assert.match(history, /Início da manutenção/);
+  assert.match(history, /formatDateTime\(call\.attendedAt\)/);
   assert.match(history, /Conclusão da manutenção/);
   assert.match(history, /"Cancelado em" : "Finalizado em"/);
   assert.match(history, /Justificativa da correção/);
@@ -124,6 +129,11 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   ]) {
     assert.doesNotMatch(history, new RegExp(removedLabel));
   }
+});
+
+test("chamado legado sem atendimento não recebe início de manutenção fictício", () => {
+  assert.equal(formatDateTime(null), "—");
+  assert.equal(formatDateTime(undefined), "—");
 });
 
 test("gera CSV com localização única e timestamps padronizados", () => {

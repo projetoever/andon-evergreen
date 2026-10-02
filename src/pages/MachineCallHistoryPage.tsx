@@ -706,6 +706,18 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
+                            Início do chamado
+                          </dt>
+                          <dd className="font-mono">{formatDateTime(call.openedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            Início da manutenção
+                          </dt>
+                          <dd className="font-mono">{formatDateTime(call.attendedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs uppercase text-muted-foreground">
                             Conclusão da manutenção
                           </dt>
                           <dd className="font-mono">

@@ -247,9 +247,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     if (!maintenanceCompletionAuthorization) return null;
     if (!maintenanceCompletionAuthorization.allowed)
       return maintenanceCompletionAuthorization.message;
-    if (maintenanceCompletionAuthorization.kind === "authorized") {
-      return "Workstation autorizada para concluir esta manutenção.";
-    }
     if (maintenanceCompletionAuthorization.kind === "legacy") {
       return "Atendimento legado: conclusão permitida.";
     }
