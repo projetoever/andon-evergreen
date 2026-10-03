@@ -5,8 +5,8 @@ import test from "node:test";
 import { validateDashboardSoundMuteSettingsPatch } from "../server/src/services/dashboardSoundMuteSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
-  getOpenRealCallIds,
-  hasNewOpenRealCall,
+  getKnownRealCallIds,
+  hasNewRealCall,
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
@@ -162,10 +162,10 @@ test("reativação manual cancela o timer e invalida callback antigo", () => {
   assert.equal(expired, false);
 });
 
-test("novo chamado real aberto durante silêncio interrompe o mute", () => {
-  const baseline = getOpenRealCallIds([existingOpenCall]);
+test("novo chamado real criado durante silêncio interrompe o mute", () => {
+  const baseline = getKnownRealCallIds([existingOpenCall]);
   assert.equal(
-    hasNewOpenRealCall(baseline, [
+    hasNewRealCall(baseline, [
       existingOpenCall,
       { id: "call-b", status: "open", isSystemTest: false },
     ]),
@@ -173,21 +173,32 @@ test("novo chamado real aberto durante silêncio interrompe o mute", () => {
   );
 });
 
+test("novo chamado real ainda quebra o mute se já mudou de status entre pollings", () => {
+  const baseline = getKnownRealCallIds([existingOpenCall]);
+  assert.equal(
+    hasNewRealCall(baseline, [
+      existingOpenCall,
+      { id: "call-b", status: "in_progress", isSystemTest: false },
+    ]),
+    true,
+  );
+});
+
 test("atualização do chamado existente não é tratada como novo chamado", () => {
-  const baseline = getOpenRealCallIds([existingOpenCall]);
-  assert.equal(hasNewOpenRealCall(baseline, [{ ...existingOpenCall, status: "open" }]), false);
+  const baseline = getKnownRealCallIds([existingOpenCall]);
+  assert.equal(hasNewRealCall(baseline, [{ ...existingOpenCall, status: "open" }]), false);
 });
 
 test("polling ou reordenação dos mesmos IDs não interrompe o mute", () => {
   const callB = { id: "call-b", status: "open" as const, isSystemTest: false };
-  const baseline = getOpenRealCallIds([existingOpenCall, callB]);
-  assert.equal(hasNewOpenRealCall(baseline, [callB, existingOpenCall]), false);
+  const baseline = getKnownRealCallIds([existingOpenCall, callB]);
+  assert.equal(hasNewRealCall(baseline, [callB, existingOpenCall]), false);
 });
 
 test("system test não interrompe o mute", () => {
-  const baseline = getOpenRealCallIds([existingOpenCall]);
+  const baseline = getKnownRealCallIds([existingOpenCall]);
   assert.equal(
-    hasNewOpenRealCall(baseline, [
+    hasNewRealCall(baseline, [
       existingOpenCall,
       { id: "system-call", status: "open", isSystemTest: true },
     ]),
@@ -203,8 +214,9 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
 
   assert.match(dashboard, /useAndonOpenCallSound\(/);
   assert.match(dashboard, /audioUnlocked: audioUnlocked && !dashboardSoundMuted/);
+  assert.match(dashboard, /soundScope: "dashboard"/);
   assert.match(dashboard, /setDashboardSoundMuted\(false\)/);
-  assert.match(dashboard, /hasNewOpenRealCall\(mutedOpenCallIdsRef\.current, calls\)/);
+  assert.match(dashboard, /hasNewRealCall\(mutedKnownCallIdsRef\.current, calls\)/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
 });
 
