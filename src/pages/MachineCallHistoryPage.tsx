@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, FileWarning, History, Pencil, Save } from "lucide-react";
+import { ArrowLeft, FileWarning, History, Pencil, Save, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useAndon } from "@/context/AndonProvider";
+import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import type { FailureClassification, Machine, MachineStopEvent } from "@/types/machine";
 import type { FailureClassificationConfig } from "@/types/settings";
 import type { AndonCall } from "@/types/andon";
 import { getCallFailureDetails, getCallSupplementalNotes } from "@/utils/callFailureDetailsUtils";
+import {
+  DEFAULT_CALL_HISTORY_FILTERS,
+  filterCallHistory,
+  hasActiveCallHistoryFilters,
+  listCallHistoryTechnicians,
+  type CallHistoryFilters,
+} from "@/utils/callHistoryFilters";
 import { isSpecificFailureClassification } from "@/utils/failureEventUtils";
 import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
@@ -252,6 +260,9 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   const [classifications, setClassifications] = useState<FailureClassificationConfig[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [historyFilters, setHistoryFilters] = useState<CallHistoryFilters>({
+    ...DEFAULT_CALL_HISTORY_FILTERS,
+  });
   const machine = machines.find((item) => item.id === machineId);
   const machineCalls = calls
     .filter((call) => call.machineId === machineId)
@@ -314,6 +325,60 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     const linkedEvents = failureEventsByCallId.get(event.callId) ?? [];
     linkedEvents.push(event);
     failureEventsByCallId.set(event.callId, linkedEvents);
+  }
+
+  const failureDetailsByCallId = new Map(
+    machineCalls.map((call) => {
+      const details = getCallFailureDetails(call, failureEventsByCallId.get(call.id) ?? []);
+      return [
+        call.id,
+        {
+          classification: details.classification,
+          description: details.description,
+        },
+      ] as const;
+    }),
+  );
+  const filteredMachineCalls = filterCallHistory(
+    machineCalls,
+    historyFilters,
+    failureDetailsByCallId,
+    getServerNow(),
+  );
+  const technicianFilterOptions = listCallHistoryTechnicians(machineCalls);
+  const subtypeFilterOptions = Array.from(
+    new Map(
+      [
+        ...CALL_TYPE_OPTIONS.map((option) => [
+          option.id,
+          {
+            id: option.id,
+            label: option.label,
+            displayOrder: option.displayOrder,
+          },
+        ] as const),
+        ...machineCalls.map((call) => [
+          call.subtype,
+          {
+            id: call.subtype,
+            label: getCallSubtypeLabel(call.subtype),
+            displayOrder: 10_000,
+          },
+        ] as const),
+      ],
+    ).values(),
+  ).sort(
+    (current, next) =>
+      current.displayOrder - next.displayOrder ||
+      current.label.localeCompare(next.label, "pt-BR", { sensitivity: "base" }),
+  );
+  const historyFiltersActive = hasActiveCallHistoryFilters(historyFilters);
+
+  function setHistoryFilter<K extends keyof CallHistoryFilters>(
+    key: K,
+    value: CallHistoryFilters[K],
+  ) {
+    setHistoryFilters((current) => ({ ...current, [key]: value }));
   }
 
   const startEditingFailure = (event: MachineStopEvent) => {
@@ -438,15 +503,204 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
         </div>
       )}
 
+      {machineCalls.length > 0 && (
+        <section className="rounded-xl border border-border bg-card p-3 md:p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider text-foreground">
+                  Filtro e pesquisa
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {filteredMachineCalls.length} de {machineCalls.length} chamado(s)
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHistoryFilters({ ...DEFAULT_CALL_HISTORY_FILTERS })}
+              disabled={!historyFiltersActive}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <X className="h-4 w-4" />
+              Limpar filtros
+            </button>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="sm:col-span-2">
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Pesquisa rápida
+              </span>
+              <span className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={historyFilters.query}
+                  onChange={(event) => setHistoryFilter("query", event.target.value)}
+                  placeholder="OS, ID, mantenedor, descrição..."
+                  className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
+                />
+              </span>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Área / setor
+              </span>
+              <select
+                value={historyFilters.subtype}
+                onChange={(event) => setHistoryFilter("subtype", event.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="all">Todas</option>
+                {subtypeFilterOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Período
+              </span>
+              <select
+                value={historyFilters.period}
+                onChange={(event) => {
+                  const period = event.target.value as CallHistoryFilters["period"];
+                  setHistoryFilters((current) => ({
+                    ...current,
+                    period,
+                    customDate: period === "custom" ? current.customDate : "",
+                  }));
+                }}
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="all">Todo o histórico</option>
+                <option value="today">Hoje</option>
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="custom">Dia específico</option>
+              </select>
+            </label>
+
+            {historyFilters.period === "custom" && (
+              <label>
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Dia da abertura
+                </span>
+                <input
+                  type="date"
+                  value={historyFilters.customDate}
+                  onChange={(event) => setHistoryFilter("customDate", event.target.value)}
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                />
+              </label>
+            )}
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Status
+              </span>
+              <select
+                value={historyFilters.status}
+                onChange={(event) =>
+                  setHistoryFilter("status", event.target.value as CallHistoryFilters["status"])
+                }
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="all">Todos</option>
+                <option value="open">Aberto</option>
+                <option value="in_progress">Em atendimento</option>
+                <option value="post_maintenance">Acompanhamento</option>
+                <option value="finished">Finalizado</option>
+                <option value="cancelled">Cancelado</option>
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Mantenedor
+              </span>
+              <select
+                value={historyFilters.technician}
+                onChange={(event) => setHistoryFilter("technician", event.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="all">Todos</option>
+                {technicianFilterOptions.map((technician) => (
+                  <option key={technician} value={technician}>
+                    {technician}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Classificação
+              </span>
+              <select
+                value={historyFilters.failureClassification}
+                onChange={(event) =>
+                  setHistoryFilter("failureClassification", event.target.value)
+                }
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                disabled={catalogLoading || Boolean(catalogError)}
+              >
+                <option value="all">Todas</option>
+                {classifications
+                  .slice()
+                  .sort((current, next) =>
+                    current.label.localeCompare(next.label, "pt-BR", { sensitivity: "base" }),
+                  )
+                  .map((classification) => (
+                    <option key={classification.id} value={classification.value}>
+                      {classification.label}
+                      {classification.active ? "" : " (inativa)"}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Origem
+              </span>
+              <select
+                value={historyFilters.origin}
+                onChange={(event) =>
+                  setHistoryFilter("origin", event.target.value as CallHistoryFilters["origin"])
+                }
+                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="all">Todos</option>
+                <option value="real">Chamados reais</option>
+                <option value="system">Testes automáticos</option>
+              </select>
+            </label>
+          </div>
+        </section>
+      )}
+
       {machineCalls.length === 0 ? (
         <EmptyState
           icon={<History className="h-12 w-12" />}
           title="Sem chamados registrados"
           description="Quando houver chamados para esta máquina, eles aparecerão aqui."
         />
+      ) : filteredMachineCalls.length === 0 ? (
+        <EmptyState
+          icon={<Search className="h-12 w-12" />}
+          title="Nenhum chamado encontrado"
+          description="Ajuste a pesquisa ou limpe os filtros para visualizar outros chamados."
+        />
       ) : (
         <div className="space-y-2">
-          {machineCalls.map((call) => {
+          {filteredMachineCalls.map((call) => {
             const now = getServerNow();
             const linkedFailureEvents = failureEventsByCallId.get(call.id) ?? [];
             const callFailureDetails = getCallFailureDetails(call, linkedFailureEvents);
