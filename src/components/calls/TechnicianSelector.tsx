@@ -10,6 +10,7 @@ import type { TechnicianConfig } from "@/types/settings";
 import { getShiftConfigs } from "@/services/shiftConfigService";
 import { cn } from "@/lib/utils";
 import { getServerClockRevision, subscribeServerClock } from "@/utils/serverClock";
+import type { TechnicianActiveAssignment } from "@/utils/technicianAvailabilityUtils";
 
 interface TechnicianSelectorProps {
   area: TechnicianArea;
@@ -18,6 +19,7 @@ interface TechnicianSelectorProps {
   excludeNames?: string[];
   optionalAreas?: TechnicianArea[];
   variant?: "default" | "compact";
+  activeAssignments?: ReadonlyMap<string, TechnicianActiveAssignment>;
 }
 
 const AREA_LABELS: Partial<Record<TechnicianArea, string>> = {
@@ -54,6 +56,21 @@ function technicianAreas(technician: TechnicianConfig) {
   return technician.areas?.length ? technician.areas : [technician.area];
 }
 
+function normalizeTechnicianName(name: string) {
+  return name.trim().toLocaleLowerCase("pt-BR");
+}
+
+function activeAssignmentFor(
+  technician: TechnicianConfig,
+  assignments: ReadonlyMap<string, TechnicianActiveAssignment>,
+) {
+  return (
+    assignments.get(`id:${technician.id}`) ??
+    assignments.get(`name:${normalizeTechnicianName(technician.name)}`) ??
+    null
+  );
+}
+
 export function TechnicianSelector({
   area,
   value,
@@ -61,6 +78,7 @@ export function TechnicianSelector({
   excludeNames = [],
   optionalAreas = [],
   variant = "default",
+  activeAssignments = new Map(),
 }: TechnicianSelectorProps) {
   const { technicians, isLoading, error, refreshTechnicians } = useTechnicians();
   const [showAll, setShowAll] = useState(false);
@@ -257,21 +275,27 @@ export function TechnicianSelector({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {filteredList.map((technician) => {
               const selected = value.includes(technician.name);
+              const activeAssignment = activeAssignmentFor(technician, activeAssignments);
+              const unavailable = Boolean(activeAssignment);
 
               return (
                 <button
                   key={technician.id || technician.name}
                   type="button"
                   aria-pressed={selected}
+                  aria-disabled={unavailable}
+                  disabled={unavailable}
                   onClick={() => toggleTechnician(technician.name)}
                   className={cn(
                     "relative min-h-[72px] rounded-xl border-2 p-3 text-left transition-all",
-                    selected
-                      ? "border-success bg-success/10 text-foreground shadow-sm"
-                      : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent",
+                    unavailable
+                      ? "cursor-not-allowed border-border/60 bg-muted/30 text-muted-foreground opacity-60"
+                      : selected
+                        ? "border-success bg-success/10 text-foreground shadow-sm"
+                        : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent",
                   )}
                 >
-                  {selected && (
+                  {selected && !unavailable && (
                     <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-success text-success-foreground">
                       <Check className="h-3.5 w-3.5" />
                     </span>
@@ -283,9 +307,15 @@ export function TechnicianSelector({
                       .map((technicianArea) => AREA_ROLE_LABELS[technicianArea] ?? technicianArea)
                       .join(", ")}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {getShiftName(technician.shiftId)}
-                  </div>
+                  {activeAssignment ? (
+                    <div className="mt-1 truncate text-[11px] font-bold text-warning">
+                      Ativo · {activeAssignment.machineLabel}
+                    </div>
+                  ) : (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {getShiftName(technician.shiftId)}
+                    </div>
+                  )}
                 </button>
               );
             })}

@@ -25,6 +25,10 @@ import {
 import type { SelectedTechnicianInput } from "@/services/andonService";
 import type { TechnicianArea } from "@/types/andon";
 import type { AttendanceMode, SystemSettings } from "@/types/systemSettings";
+import {
+  buildTechnicianActiveAssignmentMap,
+  getTechnicianActiveAssignment,
+} from "@/utils/technicianAvailabilityUtils";
 import { TechnicianSelector } from "./TechnicianSelector";
 
 interface TechnicianIdentificationModalProps {
@@ -50,7 +54,7 @@ export function TechnicianIdentificationModal({
   excludeNames = [],
   onSuccess,
 }: TechnicianIdentificationModalProps) {
-  const { calls, attendCall, addTechnicianSessions } = useAndon();
+  const { calls, machines, attendCall, addTechnicianSessions } = useAndon();
   const { findTechnicianByName } = useTechnicians();
   const call = callId ? (calls.find((item) => item.id === callId) ?? null) : null;
   const option = call ? getCallTypeOption(call.subtype) : null;
@@ -64,6 +68,7 @@ export function TechnicianIdentificationModal({
   const [credentialValue, setCredentialValue] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
   const initializedCallRef = useRef<string | null>(null);
   const submittingRef = useRef(false);
 
@@ -80,6 +85,7 @@ export function TechnicianIdentificationModal({
     setCredentialValue("");
     setNotes("");
     setShowAlternatives(false);
+    setAvailabilityNotice(null);
     setIsSubmitting(false);
     submittingRef.current = false;
 
@@ -101,6 +107,10 @@ export function TechnicianIdentificationModal({
   const excluded = useMemo(
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
     [excludeNames],
+  );
+  const activeAssignments = useMemo(
+    () => buildTechnicianActiveAssignmentMap(calls, machines, call?.id),
+    [call?.id, calls, machines],
   );
   async function registerTechnicians(
     technicians: SelectedTechnicianInput[],
@@ -127,9 +137,13 @@ export function TechnicianIdentificationModal({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível registrar o atendimento",
-      );
+      const message =
+        error instanceof Error ? error.message : "Não foi possível registrar o atendimento";
+      if (/atendimento ativo em outro chamado/i.test(message)) {
+        setAvailabilityNotice(message);
+      } else {
+        toast.error(message);
+      }
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -154,6 +168,14 @@ export function TechnicianIdentificationModal({
         value,
       );
       validateTechnician(technician);
+      const activeAssignment = getTechnicianActiveAssignment(technician, activeAssignments);
+      if (activeAssignment) {
+        setAvailabilityNotice(
+          `${technician.name} já está ativo em ${activeAssignment.machineLabel}.`,
+        );
+        return;
+      }
+      setAvailabilityNotice(null);
       await registerTechnicians(
         [
           {
@@ -169,7 +191,13 @@ export function TechnicianIdentificationModal({
         true,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Credencial não reconhecida");
+      const message = error instanceof Error ? error.message : "Credencial não reconhecida";
+      if (/atendimento ativo em outro chamado/i.test(message)) {
+        setAvailabilityNotice(message);
+      } else {
+        setAvailabilityNotice(null);
+        toast.error(message);
+      }
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -269,6 +297,7 @@ export function TechnicianIdentificationModal({
                   setMethod(candidate);
                   setNames([]);
                   setCredentialValue("");
+                  setAvailabilityNotice(null);
                   setShowAlternatives(false);
                 }}
                 className={cn(
@@ -305,6 +334,7 @@ export function TechnicianIdentificationModal({
             value={names}
             onChange={setNames}
             excludeNames={excludeNames}
+            activeAssignments={activeAssignments}
             variant="compact"
           />
         )}
@@ -327,11 +357,12 @@ export function TechnicianIdentificationModal({
                 autoComplete="off"
                 className="h-12 min-w-0 flex-1 rounded-xl border bg-background px-3 font-mono text-lg"
                 value={credentialValue}
-                onChange={(event) =>
+                onChange={(event) => {
+                  setAvailabilityNotice(null);
                   setCredentialValue(
                     method === "pin" ? event.target.value.replace(/\D/g, "") : event.target.value,
-                  )
-                }
+                  );
+                }}
                 onKeyDown={(event) => {
                   const shouldSubmit =
                     event.key === "Enter" ||
@@ -346,6 +377,16 @@ export function TechnicianIdentificationModal({
               />
             </div>
           </label>
+        )}
+
+        {availabilityNotice && (
+          <div
+            role="status"
+            className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+          >
+            <span className="font-bold">Mantenedor indisponível.</span>{" "}
+            <span className="text-foreground/80">{availabilityNotice}</span>
+          </div>
         )}
 
         {purpose === "start" && (

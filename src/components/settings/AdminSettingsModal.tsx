@@ -133,7 +133,9 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
   }, [machineId, subtype]);
 
   useEffect(() => {
-    void refresh();
+    void refresh().catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar os sons.");
+    });
   }, [refresh]);
   useEffect(() => { if (!isOpen || !isActive) stopPreview(); }, [isOpen, isActive]);
   useEffect(() => stopPreview, []);
@@ -149,19 +151,30 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
 
   async function handleSaveSound() {
     if (!selectedFile) return toast.error("Selecione um arquivo de áudio para salvar.");
-    if (!/\.(mp3|wav|ogg)$/i.test(selectedFile.name)) return toast.error("Formato inválido. Use .mp3, .wav ou .ogg.");
-    await saveSoundConfig(machineId, subtype, selectedFile);
-    toast.success("Som salvo com sucesso.");
-    setSelectedFile(null);
-    await refresh();
+    if (!/\.(mp3|wav|ogg)$/i.test(selectedFile.name)) {
+      return toast.error("Formato inválido. Use .mp3, .wav ou .ogg.");
+    }
+
+    try {
+      await saveSoundConfig(machineId, subtype, selectedFile);
+      setSelectedFile(null);
+      await refresh();
+      toast.success("Som salvo com sucesso.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o som.");
+    }
   }
 
   async function handleRemoveSound() {
     stopPreview();
-    await removeSoundConfig(machineId, subtype);
-    toast.success("Som removido.");
-    handleAddSoundConfig();
-    await refresh();
+    try {
+      await removeSoundConfig(machineId, subtype);
+      handleAddSoundConfig();
+      await refresh();
+      toast.success("Som removido.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o som.");
+    }
   }
 
   async function handlePreviewToggle() {
@@ -171,20 +184,28 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
     }
 
     stopPreview();
-    const specificBlob = await getSoundBlob(machineId, subtype);
-    const fallbackBlob = machineId === DEFAULT_SOUND_MACHINE_ID ? null : await getSoundBlob(DEFAULT_SOUND_MACHINE_ID, subtype);
-    const blob = specificBlob ?? fallbackBlob;
-    if (!blob) return toast.error("Nenhum som configurado para esta seleção.");
+    try {
+      const specificBlob = await getSoundBlob(machineId, subtype);
+      const fallbackBlob =
+        machineId === DEFAULT_SOUND_MACHINE_ID
+          ? null
+          : await getSoundBlob(DEFAULT_SOUND_MACHINE_ID, subtype);
+      const blob = specificBlob ?? fallbackBlob;
+      if (!blob) return toast.error("Nenhum som configurado para esta seleção.");
 
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    previewUrlRef.current = url;
-    previewAudioRef.current = audio;
-    setPreviewSoundId(currentPreviewId);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      previewUrlRef.current = url;
+      previewAudioRef.current = audio;
+      setPreviewSoundId(currentPreviewId);
 
-    audio.onended = () => stopPreview();
-    await audio.play();
-    setIsPreviewPlaying(true);
+      audio.onended = () => stopPreview();
+      await audio.play();
+      setIsPreviewPlaying(true);
+    } catch (error) {
+      stopPreview();
+      toast.error(error instanceof Error ? error.message : "Não foi possível reproduzir o som.");
+    }
   }
 
   return (
@@ -232,7 +253,7 @@ function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean })
   );
 }
 
-function ShiftsTab() { const [items,setItems]=useState<ShiftConfig[]>([]); const [selectedId,setSelectedId]=useState<string>("morning"); const [draft,setDraft]=useState<ShiftConfig|null>(null); const [filterByCurrentShift,setFilterByCurrentShift]=useState(true); useEffect(()=>{const list=getShiftConfigs(); setItems(list); const first=list.find((x)=>x.id==="morning")??list[0]; setSelectedId(first.id); setDraft({...first}); setFilterByCurrentShift(getTechnicianShiftFilterConfig().filterByCurrentShift);},[]); const persist=(next:ShiftConfig[])=>{setItems(next);saveShiftConfigs(next)}; const handleSelect=(item:ShiftConfig)=>{setSelectedId(item.id);setDraft({...item})}; const handleAddShift=()=>{setSelectedId(""); setDraft({...DEFAULT_SHIFTS[0],id:"",name:"Novo turno"});}; const handleSave=()=>{if(!draft)return; if(!draft.startTime||!draft.endTime)return toast.error("Informe horário inicial e final."); const normalized={...draft,crossesMidnight:draft.startTime>draft.endTime}; if(!draft.id){ toast.error("Nesta versão, edite apenas turnos existentes."); return;} persist(items.map((x)=>x.id===draft.id?normalized:x)); setDraft(normalized); toast.success("Turno salvo.");}; const handleCancel=()=>{const original=items.find((x)=>x.id===selectedId); if(original)setDraft({...original});}; const handleSaveFilter=(enabled:boolean)=>{ setFilterByCurrentShift(enabled); saveTechnicianShiftFilterConfig({filterByCurrentShift:enabled,updatedAt:new Date().toISOString()}); }; if(!draft)return null;
+function ShiftsTab() { const [items,setItems]=useState<ShiftConfig[]>([]); const [selectedId,setSelectedId]=useState<string>("morning"); const [draft,setDraft]=useState<ShiftConfig|null>(null); const [filterByCurrentShift,setFilterByCurrentShift]=useState(true); useEffect(()=>{const list=getShiftConfigs(); setItems(list); const first=list.find((x)=>x.id==="morning")??list[0]; setSelectedId(first.id); setDraft({...first}); setFilterByCurrentShift(getTechnicianShiftFilterConfig().filterByCurrentShift);},[]); const persist=(next:ShiftConfig[])=>{setItems(next);saveShiftConfigs(next)}; const handleSelect=(item:ShiftConfig)=>{setSelectedId(item.id);setDraft({...item})}; const handleAddShift=()=>{setSelectedId(""); setDraft({...DEFAULT_SHIFTS[0],id:"",name:"Novo turno"});}; const handleSave=()=>{if(!draft)return; if(!draft.startTime||!draft.endTime)return toast.error("Informe horário inicial e final."); const normalized={...draft,crossesMidnight:draft.startTime>draft.endTime}; if(!draft.id){ toast.error("Nesta versão, edite apenas turnos existentes."); return;} persist(items.map((x)=>x.id===draft.id?normalized:x)); setDraft(normalized); toast.success("Turno salvo.");}; const handleCancel=()=>{const original=items.find((x)=>x.id===selectedId); if(original)setDraft({...original});}; const handleSaveFilter=(enabled:boolean)=>{ setFilterByCurrentShift(enabled); saveTechnicianShiftFilterConfig({filterByCurrentShift:enabled,updatedAt:new Date().toISOString()}); toast.success(enabled?"Filtro por turno atual habilitado.":"Filtro por turno atual desabilitado."); }; if(!draft)return null;
 return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Turnos</h3><p className="text-sm text-muted-foreground">Ajuste horários e status dos turnos, incluindo cruzamento de meia-noite.</p></div><div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Turnos"><BigButton tone="neutral" size="md" onClick={handleAddShift}>Adicionar turno</BigButton><div className="space-y-2">{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{item.startTime} às {item.endTime} · {item.active?"Ativo":"Inativo"}</p><p className="text-xs text-muted-foreground">Cruza meia-noite: {item.crossesMidnight?"Sim":"Não"}</p></button>)}</div></CardSection><div className="space-y-4"><CardSection title={selectedId?"Editar turno":"Novo turno"}><label className="text-sm font-semibold">Nome do turno<input value={draft.name} onChange={(e)=>setDraft({...draft,name:e.target.value})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-semibold">Horário início<input type="time" value={draft.startTime} onChange={(e)=>setDraft({...draft,startTime:e.target.value,crossesMidnight:e.target.value>draft.endTime})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label><label className="text-sm font-semibold">Horário fim<input type="time" value={draft.endTime} onChange={(e)=>setDraft({...draft,endTime:e.target.value,crossesMidnight:draft.startTime>e.target.value})} className="mt-1 h-10 w-full rounded-md border bg-background px-2" /></label></div><label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})}/>Ativo</label><p className="text-sm text-muted-foreground">Cruza meia-noite: <span className="font-bold">{draft.crossesMidnight?"Sim":"Não"}</span></p><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={handleSave}>Salvar turno</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={()=>setDraft((prev)=>prev?{...prev,active:!prev.active}:prev)}>{draft.active?"Inativar":"Ativar"}</BigButton></div></CardSection><CardSection title="Filtro de exibição de manutentores"><label className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm font-semibold"><span>Filtrar manutentores pelo turno atual</span><input type="checkbox" checked={filterByCurrentShift} onChange={(e)=>handleSaveFilter(e.target.checked)} /></label><p className="text-sm text-muted-foreground">Quando ativo, a finalização exibe primeiro os manutentores do turno atual. Quando inativo, exibe todos os manutentores ativos.</p><p className="text-xs text-muted-foreground">Estado atual: {filterByCurrentShift?"Ativo":"Inativo"}</p></CardSection></div></div></div>; }
 
 function ClassificationsTab() {
