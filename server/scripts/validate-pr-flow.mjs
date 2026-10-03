@@ -2127,6 +2127,24 @@ async function run() {
   });
   assert.equal(finalActiveElectricalSessions, 1);
 
+  await prisma.technicianSession.updateMany({
+    where: {
+      technicianId: electrical.id,
+      endedAt: null,
+      callId: { in: [sessionCallB.id, concurrentSessionCallD.id] },
+    },
+    data: { endedAt: new Date(), endReason: "test_fixture" },
+  });
+  const activeElectricalSessionsAfterConcurrencyFixture =
+    await prisma.technicianSession.count({
+      where: { technicianId: electrical.id, endedAt: null },
+    });
+  assert.equal(
+    activeElectricalSessionsAfterConcurrencyFixture,
+    0,
+    "fixture concorrente deve liberar o mantenedor antes dos cenários seguintes",
+  );
+
   await prisma.$disconnect();
 
   const concurrentResponses = await Promise.all([
