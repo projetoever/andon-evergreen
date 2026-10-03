@@ -257,7 +257,6 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   const attendCall = useCallback(
     async (params: string | andonService.StartAttendanceParams) => {
-      const callId = typeof params === "string" ? params : params.callId;
       const result = await andonRepository.attendCall(machines, calls, params);
       setMachines(result.machines);
       setCalls(result.calls);
