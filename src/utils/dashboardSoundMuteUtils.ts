@@ -2,7 +2,7 @@ import type { AndonCall } from "@/types/andon";
 
 export const DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES = 3;
 
-type DashboardSoundCall = Pick<AndonCall, "id" | "isSystemTest">;
+type DashboardSoundCall = Pick<AndonCall, "id" | "status" | "isSystemTest">;
 
 export function getKnownRealCallIds(calls: DashboardSoundCall[]) {
   return new Set(calls.filter((call) => !call.isSystemTest).map((call) => call.id));
