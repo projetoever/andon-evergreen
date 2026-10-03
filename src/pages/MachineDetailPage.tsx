@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { EndTechnicianSessionModal } from "@/components/calls/EndTechnicianSessionModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
+import { MaintenanceFollowUpSelectionModal } from "@/components/calls/MaintenanceFollowUpSelectionModal";
 import { QuickOpenCallModal } from "@/components/calls/QuickOpenCallModal";
 import { TechnicianIdentificationModal } from "@/components/calls/TechnicianIdentificationModal";
 import { MachineActionPanel } from "@/components/machines/MachineActionPanel";
@@ -36,9 +37,14 @@ import { registerCurrentWorkstation } from "@/services/workstationService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { formatTime } from "@/utils/dateTimeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { getServerNowIso } from "@/utils/serverClock";
 import { formatShiftName } from "@/utils/technicianDisplayUtils";
+import {
+  buildTechnicianParticipationSummaries,
+  resolveSessionPhase,
+} from "@/utils/technicianSessionUtils";
 import {
   evaluateMaintenanceCompletionAuthorization,
   type WorkstationRestrictionContext,
@@ -54,7 +60,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     openCalls,
     attendCall,
     cancelCall,
-    completeMaintenance,
     returnToMaintenance,
     updateMachineProductionMode,
     soundConfigs,
@@ -79,6 +84,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [startOpen, setStartOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+  const [completeMaintenanceOpen, setCompleteMaintenanceOpen] = useState(false);
   const [workstationRestrictionContext, setWorkstationRestrictionContext] =
     useState<WorkstationRestrictionContext | null>(null);
   const [workstationAuthorizationLoadFailed, setWorkstationAuthorizationLoadFailed] =
@@ -233,7 +239,20 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         ),
     [currentCall?.technicianSessions],
   );
-  const activeSessions = sessions.filter((session) => !session.endedAt);
+  const activeSessions = sessions.filter(
+    (session) =>
+      !session.endedAt &&
+      (!currentCall ||
+        resolveSessionPhase(session, currentCall.status) ===
+          (currentCall.status === "post_maintenance" ? "follow_up" : "maintenance")),
+  );
+  const participationSummaries = useMemo(
+    () =>
+      buildTechnicianParticipationSummaries(sessions, nowIso, currentCall?.status).sort((a, b) =>
+        a.technicianName.localeCompare(b.technicianName, "pt-BR"),
+      ),
+    [currentCall?.status, nowIso, sessions],
+  );
   const maintenanceCompletionAuthorization = useMemo(
     () =>
       workstationRestrictionContext
@@ -331,16 +350,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       toast.success("Chamado em atendimento");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao atender chamado");
-    }
-  }
-
-  async function handleCompleteMaintenance() {
-    if (!currentCall) return;
-    try {
-      await completeMaintenance(currentCall.id);
-      toast.success("Manutenção concluída. Chamado em acompanhamento.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao concluir manutenção");
     }
   }
 
@@ -459,84 +468,133 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         />
       </div>
 
-      {currentCall?.status === "in_progress" && requiresTechnician && (
-        <section className="rounded-xl border border-border bg-card p-2.5 shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-              Atendimento por mantenedor
-            </h3>
-            <div className="grid min-w-[310px] flex-1 grid-cols-2 gap-1.5 md:max-w-2xl">
-              <BigButton
-                tone="info"
-                size="md"
-                className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
-                onClick={() => setAddOpen(true)}
-              >
-                Adicionar mantenedor
-              </BigButton>
-              <BigButton
-                tone="warning"
-                size="md"
-                className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
-                disabled={activeSessions.length === 0}
-                onClick={() => setEndOpen(true)}
-              >
-                Encerrar atendimento individual
-              </BigButton>
-            </div>
-          </div>
-
-          {activeSessions.length === 0 ? (
-            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
-              <span>
-                Nenhum mantenedor ativo. Adicione um responsável para registrar o tempo individual.
-              </span>
-              <strong className="whitespace-nowrap text-foreground">
-                Sem mantenedor: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
-              </strong>
-            </div>
-          ) : (
-            <div
-              className="mt-1.5 grid gap-1.5"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
-            >
-              {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/10 px-2.5 py-1.5 text-xs">
-                  <span className="truncate text-sm font-bold text-foreground">
-                    Sem mantenedor apontado
-                  </span>
-                  <strong className="whitespace-nowrap text-info">
-                    {formatDurationMinutes(
-                      diffMinutes(
-                        currentCall.currentAttendanceStartedAt,
-                        sessions[0]?.startedAt ?? nowIso,
-                      ),
-                    )}
-                  </strong>
-                </div>
-              )}
-              {activeSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs"
+      {(currentCall?.status === "in_progress" || currentCall?.status === "post_maintenance") &&
+        requiresTechnician && (
+          <section className="rounded-xl border border-border bg-card p-2.5 shadow-md">
+            <div className="flex flex-wrap items-center justify-between gap-1.5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
+                {currentCall.status === "post_maintenance"
+                  ? "Acompanhamento por mantenedor"
+                  : "Atendimento por mantenedor"}
+              </h3>
+              <div className="grid min-w-[310px] flex-1 grid-cols-2 gap-1.5 md:max-w-2xl">
+                <BigButton
+                  tone="info"
+                  size="md"
+                  className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
+                  onClick={() => setAddOpen(true)}
                 >
-                  <span className="min-w-0 truncate text-sm font-bold text-foreground">
-                    {session.technicianName}
-                    {session.shiftName && (
-                      <small className="ml-1 font-normal text-muted-foreground">
-                        · {formatShiftName(session.shiftName)}
-                      </small>
-                    )}
-                  </span>
-                  <strong className="whitespace-nowrap text-info">
-                    {formatDurationMinutes(diffMinutes(session.startedAt, nowIso))}
-                  </strong>
-                </div>
-              ))}
+                  {currentCall.status === "post_maintenance"
+                    ? "Adicionar ao acompanhamento"
+                    : "Adicionar mantenedor"}
+                </BigButton>
+                <BigButton
+                  tone="warning"
+                  size="md"
+                  className="min-h-9 whitespace-nowrap px-2 text-[11px] shadow md:text-xs"
+                  disabled={activeSessions.length === 0}
+                  onClick={() => setEndOpen(true)}
+                >
+                  {currentCall.status === "post_maintenance"
+                    ? "Encerrar acompanhamento individual"
+                    : "Encerrar atendimento individual"}
+                </BigButton>
+              </div>
             </div>
-          )}
-        </section>
-      )}
+
+            {participationSummaries.length === 0 ? (
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+                <span>
+                  Nenhum mantenedor registrado. Adicione um responsável para registrar o tempo
+                  individual.
+                </span>
+                <strong className="whitespace-nowrap text-foreground">
+                  Sem mantenedor: {formatDurationMinutes(timeWithoutTechnicianMinutes)}
+                </strong>
+              </div>
+            ) : (
+              <div
+                className="mt-1.5 grid gap-1.5"
+                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
+              >
+                {hasLegacyUnassignedPeriod && currentCall.currentAttendanceStartedAt && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/10 px-2.5 py-1.5 text-xs">
+                    <span className="truncate text-sm font-bold text-foreground">
+                      Sem mantenedor apontado
+                    </span>
+                    <strong className="whitespace-nowrap text-info">
+                      {formatDurationMinutes(
+                        diffMinutes(
+                          currentCall.currentAttendanceStartedAt,
+                          sessions[0]?.startedAt ?? nowIso,
+                        ),
+                      )}
+                    </strong>
+                  </div>
+                )}
+                {participationSummaries.map((summary) => (
+                  <div
+                    key={summary.key}
+                    className="min-w-0 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs"
+                  >
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-bold text-foreground">
+                        {summary.technicianName}
+                        {summary.activeSession?.shiftName && (
+                          <small className="ml-1 font-normal text-muted-foreground">
+                            · {formatShiftName(summary.activeSession.shiftName)}
+                          </small>
+                        )}
+                      </span>
+                      <strong
+                        className={
+                          summary.activePhase === "follow_up"
+                            ? "whitespace-nowrap text-info"
+                            : summary.activePhase === "maintenance"
+                              ? "whitespace-nowrap text-warning"
+                              : "whitespace-nowrap text-muted-foreground"
+                        }
+                      >
+                        {summary.activePhase === "follow_up"
+                          ? "Em acompanhamento"
+                          : summary.activePhase === "maintenance"
+                            ? "Em manutenção"
+                            : "Encerrado"}
+                      </strong>
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-muted-foreground">
+                      {summary.maintenanceIntervals.map((interval) => (
+                        <div key={interval.sessionId}>
+                          Manutenção{interval.cycleIndex ? ` C${interval.cycleIndex}` : ""}:{" "}
+                          <span className="font-mono">
+                            {formatTime(interval.startedAt)} →
+                            {interval.endedAt
+                              ? ` ${formatTime(interval.endedAt)}`
+                              : " em andamento"}
+                          </span>{" "}
+                          · {formatDurationMinutes(interval.minutes)}
+                        </div>
+                      ))}
+                      {summary.followUpIntervals.map((interval) => (
+                        <div key={interval.sessionId}>
+                          Acompanhamento{interval.cycleIndex ? ` C${interval.cycleIndex}` : ""}:{" "}
+                          <span className="font-mono">
+                            {formatTime(interval.startedAt)} →
+                            {interval.endedAt
+                              ? ` ${formatTime(interval.endedAt)}`
+                              : " em andamento"}
+                          </span>{" "}
+                          · {formatDurationMinutes(interval.minutes)}
+                        </div>
+                      ))}
+                      {summary.technicalArea && <div>Área: {summary.technicalArea}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
       <MachineActionPanel
         machine={machine}
@@ -550,7 +608,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onAttend={() => void handleAttend()}
         onCancelCall={() => currentCall && setCancelCallId(currentCall.id)}
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
-        onCompleteMaintenance={() => void handleCompleteMaintenance()}
+        onCompleteMaintenance={() => setCompleteMaintenanceOpen(true)}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
         maintenanceCompletionDisabled={maintenanceCompletionAuthorization?.allowed === false}
         maintenanceCompletionHint={maintenanceCompletionHint}
@@ -604,6 +662,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onOpenChange={setEndOpen}
         callId={currentCall?.id ?? null}
         sessions={activeSessions}
+        phase={currentCall?.status === "post_maintenance" ? "follow_up" : "maintenance"}
+      />
+      <MaintenanceFollowUpSelectionModal
+        open={completeMaintenanceOpen}
+        onOpenChange={setCompleteMaintenanceOpen}
+        call={currentCall}
       />
     </div>
   );

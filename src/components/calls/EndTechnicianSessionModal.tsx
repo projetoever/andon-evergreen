@@ -19,7 +19,11 @@ import {
   identifyTechnicianConfig,
   type TechnicianCredentialMethod,
 } from "@/services/technicianConfigService";
-import type { TechnicianAttendanceSession, TechnicianSessionEndReason } from "@/types/andon";
+import type {
+  TechnicianAttendanceSession,
+  TechnicianSessionEndReason,
+  TechnicianSessionPhase,
+} from "@/types/andon";
 import type { AttendanceMode, SystemSettings } from "@/types/systemSettings";
 
 interface EndTechnicianSessionModalProps {
@@ -27,6 +31,7 @@ interface EndTechnicianSessionModalProps {
   onOpenChange: (open: boolean) => void;
   callId: string | null;
   sessions: TechnicianAttendanceSession[];
+  phase?: TechnicianSessionPhase;
 }
 
 function methodLabel(method: AttendanceMode) {
@@ -40,9 +45,12 @@ export function EndTechnicianSessionModal({
   onOpenChange,
   callId,
   sessions,
+  phase,
 }: EndTechnicianSessionModalProps) {
   const { endTechnicianSession } = useAndon();
   const activeSessions = sessions.filter((session) => !session.endedAt);
+  const isFollowUp =
+    phase === "follow_up" || activeSessions.some((session) => session.phase === "follow_up");
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
@@ -67,7 +75,7 @@ export function EndTechnicianSessionModal({
     setLoadFailed(false);
     setSessionId(activeSessions[0]?.id ?? "");
     setCredentialValue("");
-    setReason("support_finished");
+    setReason(isFollowUp ? "follow_up_finished" : "support_finished");
     setNotes("");
     setShowNotes(false);
     setShowAlternatives(false);
@@ -87,7 +95,7 @@ export function EndTechnicianSessionModal({
             : "Não foi possível carregar o modo de atendimento",
         );
       });
-  }, [activeSessions, callId, open]);
+  }, [activeSessions, callId, isFollowUp, open]);
 
   async function finishSession(
     target: TechnicianAttendanceSession,
@@ -109,7 +117,11 @@ export function EndTechnicianSessionModal({
         endReason: reason,
         notes: notes.trim() || null,
       });
-      toast.success(`Atendimento de ${target.technicianName} encerrado`);
+      toast.success(
+        isFollowUp
+          ? `Acompanhamento de ${target.technicianName} encerrado`
+          : `Atendimento de ${target.technicianName} encerrado`,
+      );
       onOpenChange(false);
     } catch (error) {
       toast.error(
@@ -188,11 +200,13 @@ export function EndTechnicianSessionModal({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div>
               <DialogTitle className="text-2xl sm:text-3xl">
-                Encerrar atendimento individual
+                {isFollowUp
+                  ? "Encerrar acompanhamento individual"
+                  : "Encerrar atendimento individual"}
               </DialogTitle>
               <DialogDescription className="mt-1 text-base">
                 {method === "name"
-                  ? "Selecione o mantenedor e encerre."
+                  ? `Selecione o mantenedor e encerre ${isFollowUp ? "o acompanhamento" : "o atendimento"}.`
                   : `Digite o ${methodLabel(method)} e pressione Enter ou Encerrar.`}
               </DialogDescription>
             </div>
@@ -254,7 +268,7 @@ export function EndTechnicianSessionModal({
 
         {settings && activeSessions.length > 0 && method === "name" && (
           <label className="block text-sm font-bold">
-            Mantenedor em atendimento
+            {isFollowUp ? "Mantenedor em acompanhamento" : "Mantenedor em atendimento"}
             <select
               autoFocus
               className="mt-1 h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
@@ -318,7 +332,8 @@ export function EndTechnicianSessionModal({
                 value={reason}
                 onChange={(event) => setReason(event.target.value as TechnicianSessionEndReason)}
               >
-                <option value="support_finished">Apoio encerrado</option>
+                {isFollowUp && <option value="follow_up_finished">Acompanhamento encerrado</option>}
+                {!isFollowUp && <option value="support_finished">Apoio encerrado</option>}
                 <option value="handover">Troca de turno</option>
                 <option value="transferred">Serviço transferido</option>
                 <option value="break">Intervalo</option>
@@ -369,7 +384,11 @@ export function EndTechnicianSessionModal({
               (method === "name" ? !sessionId : !credentialValue.trim())
             }
           >
-            {isSubmitting ? "Encerrando..." : "Encerrar atendimento"}
+            {isSubmitting
+              ? "Encerrando..."
+              : isFollowUp
+                ? "Encerrar acompanhamento"
+                : "Encerrar atendimento"}
           </BigButton>
         </DialogFooter>
       </DialogContent>

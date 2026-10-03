@@ -169,11 +169,15 @@ export class LocalAndonRepository implements AndonRepository {
     );
   }
 
-  async completeMaintenance(machines: Machine[], calls: AndonCall[], callId: string) {
+  async completeMaintenance(
+    machines: Machine[],
+    calls: AndonCall[],
+    params: string | andonService.CompleteMaintenanceParams,
+  ) {
     return andonService.completeMaintenanceAttendance(
       machines,
       calls,
-      callId,
+      params,
       await getWorkstationRestrictionContext(),
     );
   }

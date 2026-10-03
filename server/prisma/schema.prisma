@@ -263,6 +263,8 @@ model TechnicianSession {
   shiftName             String?
   workstationId         String?
   workstation           Workstation? @relation(fields: [workstationId], references: [id], onDelete: SetNull)
+  phase                 String?
+  cycleIndex            Int?
   startedAt             DateTime
   endedAt               DateTime?
   endReason             String?
@@ -278,6 +280,7 @@ model TechnicianSession {
   @@index([machineId])
   @@index([technicianId])
   @@index([workstationId])
+  @@index([callId, phase, endedAt])
   @@map("technician_sessions")
 }
 
