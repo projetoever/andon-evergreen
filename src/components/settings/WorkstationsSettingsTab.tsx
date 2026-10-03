@@ -73,6 +73,7 @@ export function WorkstationsSettingsTab() {
     try {
       const updated = await updateWorkstation(workstation.id, { active });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
+      toast.success(active ? "Workstation ativada." : "Workstation inativada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
     } finally {
