@@ -793,6 +793,22 @@ async function run() {
     "mechanical",
     "sessão deve registrar a área do chamado, não a área legada principal",
   );
+  await prisma.technicianSession.updateMany({
+    where: {
+      callId: mechanicalMultiAreaCall.id,
+      technicianId: multiAreaTechnician.id,
+      endedAt: null,
+    },
+    data: { endedAt: new Date(), endReason: "test_fixture" },
+  });
+  const activeMultiAreaSessionsAfterFixture = await prisma.technicianSession.count({
+    where: { technicianId: multiAreaTechnician.id, endedAt: null },
+  });
+  assert.equal(
+    activeMultiAreaSessionsAfterFixture,
+    0,
+    "fixture multiárea deve liberar o mantenedor antes dos cenários seguintes",
+  );
 
   const updatedSystemSettings = await request(
     "/api/system-settings",
