@@ -17,8 +17,8 @@ import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/sys
 import type { SystemSettings } from "@/types/systemSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
-  getOpenRealCallIds,
-  hasNewOpenRealCall,
+  getKnownRealCallIds,
+  hasNewRealCall,
   startDashboardSoundMuteTimer,
 } from "@/utils/dashboardSoundMuteUtils";
 
@@ -34,7 +34,7 @@ export function DashboardPage() {
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
   );
   const muteTimerCancelRef = useRef<(() => void) | null>(null);
-  const mutedOpenCallIdsRef = useRef<Set<string>>(new Set());
+  const mutedKnownCallIdsRef = useRef<Set<string>>(new Set());
 
   useAndonOpenCallSound({
     calls,
@@ -42,6 +42,7 @@ export function DashboardPage() {
     settings,
     soundConfigs,
     audioUnlocked: audioUnlocked && !dashboardSoundMuted,
+    soundScope: "dashboard",
   });
 
   const cancelDashboardMuteTimer = useCallback(() => {
@@ -52,7 +53,7 @@ export function DashboardPage() {
   const reactivateDashboardSound = useCallback(
     (message?: string) => {
       cancelDashboardMuteTimer();
-      mutedOpenCallIdsRef.current = new Set();
+      mutedKnownCallIdsRef.current = new Set();
       setDashboardSoundMuted(false);
       if (message) toast.success(message);
     },
@@ -89,7 +90,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!dashboardSoundMuted) return;
-    if (!hasNewOpenRealCall(mutedOpenCallIdsRef.current, calls)) return;
+    if (!hasNewRealCall(mutedKnownCallIdsRef.current, calls)) return;
 
     reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
   }, [calls, dashboardSoundMuted, reactivateDashboardSound]);
@@ -127,16 +128,16 @@ export function DashboardPage() {
     }
 
     cancelDashboardMuteTimer();
-    mutedOpenCallIdsRef.current = getOpenRealCallIds(calls);
+    mutedKnownCallIdsRef.current = getKnownRealCallIds(calls);
     setDashboardSoundMuted(true);
-    stopAndonSound();
+    stopAndonSound(undefined, "dashboard");
 
     muteTimerCancelRef.current = startDashboardSoundMuteTimer(
       dashboardMuteTimerEnabled,
       dashboardMuteDurationMinutes,
       () => {
         muteTimerCancelRef.current = null;
-        mutedOpenCallIdsRef.current = new Set();
+        mutedKnownCallIdsRef.current = new Set();
         setDashboardSoundMuted(false);
         toast.success("Tempo de silêncio encerrado — som do dashboard reativado");
       },

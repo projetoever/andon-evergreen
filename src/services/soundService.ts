@@ -4,6 +4,21 @@ import { DEFAULT_SOUND_MACHINE_ID, type SoundMachineId } from "@/types/sound";
 import { getSoundBlob } from "@/services/soundStorageService";
 import { isMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 
+export type AndonSoundScope = "dashboard" | "machine";
+
+interface AndonPlaybackState {
+  audioElements: Partial<Record<SoundKey, HTMLAudioElement>>;
+  repeatTimers: Partial<Record<SoundKey, number>>;
+  audioInstances: Set<HTMLAudioElement>;
+  currentAudio: HTMLAudioElement | null;
+  currentMachineId: string | null;
+  playbackToken: number;
+  currentEndedListener: {
+    audio: HTMLAudioElement;
+    listener: () => void;
+  } | null;
+}
+
 const soundUrls: Record<SoundKey, string | null> = {
   electrical: null,
   mechanical: null,
@@ -30,44 +45,55 @@ try {
   console.warn("[sound] could not load sound assets", err);
 }
 
-const audioElements: Partial<Record<SoundKey, HTMLAudioElement>> = {};
-const repeatTimers: Partial<Record<SoundKey, number>> = {};
-const andonAudioInstances = new Set<HTMLAudioElement>();
+function createPlaybackState(): AndonPlaybackState {
+  return {
+    audioElements: {},
+    repeatTimers: {},
+    audioInstances: new Set<HTMLAudioElement>(),
+    currentAudio: null,
+    currentMachineId: null,
+    playbackToken: 0,
+    currentEndedListener: null,
+  };
+}
+
+const playbackStates: Record<AndonSoundScope, AndonPlaybackState> = {
+  dashboard: createPlaybackState(),
+  machine: createPlaybackState(),
+};
+
 const customAudioUrls = new WeakMap<HTMLAudioElement, string>();
 
 let unlocked = false;
 let currentVolume = 0.8;
-let currentAndonAudio: HTMLAudioElement | null = null;
-let currentAndonMachineId: string | null = null;
-let currentPlaybackToken = 0;
-let currentEndedListener: {
-  audio: HTMLAudioElement;
-  listener: () => void;
-} | null = null;
 
-function ensureAudio(key: SoundKey): HTMLAudioElement | null {
+function ensureAudio(scope: AndonSoundScope, key: SoundKey): HTMLAudioElement | null {
   const url = soundUrls[key];
   if (!url) return null;
-  if (!audioElements[key]) {
+
+  const state = playbackStates[scope];
+  if (!state.audioElements[key]) {
     const audio = new Audio(url);
     audio.preload = "auto";
     audio.volume = currentVolume;
-    audioElements[key] = audio;
+    state.audioElements[key] = audio;
   }
-  return audioElements[key] ?? null;
+
+  return state.audioElements[key] ?? null;
 }
 
-function stopTimer(key: SoundKey): void {
-  const id = repeatTimers[key];
+function stopTimer(scope: AndonSoundScope, key: SoundKey): void {
+  const state = playbackStates[scope];
+  const id = state.repeatTimers[key];
   if (id) {
     window.clearTimeout(id);
-    delete repeatTimers[key];
+    delete state.repeatTimers[key];
   }
 }
 
-function stopAllAndonRepeatTimers(): void {
+function stopAllAndonRepeatTimers(scope: AndonSoundScope): void {
   for (const key of Object.keys(soundUrls) as SoundKey[]) {
-    stopTimer(key);
+    stopTimer(scope, key);
   }
 }
 
@@ -80,19 +106,23 @@ function stopAudioElement(audio: HTMLAudioElement): void {
   }
 }
 
-function releaseCustomAudio(audio: HTMLAudioElement): void {
+function releaseCustomAudio(audio: HTMLAudioElement, state?: AndonPlaybackState): void {
   const url = customAudioUrls.get(audio);
   if (url) {
     URL.revokeObjectURL(url);
     customAudioUrls.delete(audio);
   }
-  andonAudioInstances.delete(audio);
+  state?.audioInstances.delete(audio);
 }
 
-function detachCurrentEndedListener(): void {
-  if (!currentEndedListener) return;
-  currentEndedListener.audio.removeEventListener("ended", currentEndedListener.listener);
-  currentEndedListener = null;
+function detachCurrentEndedListener(scope: AndonSoundScope): void {
+  const state = playbackStates[scope];
+  if (!state.currentEndedListener) return;
+  state.currentEndedListener.audio.removeEventListener(
+    "ended",
+    state.currentEndedListener.listener,
+  );
+  state.currentEndedListener = null;
 }
 
 async function playAudio(audio: HTMLAudioElement): Promise<void> {
@@ -101,22 +131,24 @@ async function playAudio(audio: HTMLAudioElement): Promise<void> {
   await audio.play();
 }
 
-function stopCurrentAndonAudio(): void {
-  detachCurrentEndedListener();
+function stopCurrentAndonAudio(scope: AndonSoundScope): void {
+  const state = playbackStates[scope];
 
-  if (currentAndonAudio) {
-    stopAudioElement(currentAndonAudio);
+  detachCurrentEndedListener(scope);
+
+  if (state.currentAudio) {
+    stopAudioElement(state.currentAudio);
   }
 
-  for (const audio of andonAudioInstances) {
+  for (const audio of state.audioInstances) {
     stopAudioElement(audio);
-    releaseCustomAudio(audio);
+    releaseCustomAudio(audio, state);
   }
 
-  andonAudioInstances.clear();
-  currentAndonAudio = null;
-  currentAndonMachineId = null;
-  currentPlaybackToken += 1;
+  state.audioInstances.clear();
+  state.currentAudio = null;
+  state.currentMachineId = null;
+  state.playbackToken += 1;
 }
 
 async function createCustomAudio(
@@ -141,53 +173,68 @@ async function createCustomAudio(
 
 export function unlockAudio(): void {
   unlocked = true;
-  for (const key of Object.keys(soundUrls) as SoundKey[]) {
-    const audio = ensureAudio(key);
-    if (!audio) continue;
-    audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      })
-      .catch(() => {});
+
+  for (const scope of Object.keys(playbackStates) as AndonSoundScope[]) {
+    for (const key of Object.keys(soundUrls) as SoundKey[]) {
+      const audio = ensureAudio(scope, key);
+      if (!audio) continue;
+      audio
+        .play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        })
+        .catch(() => {});
+    }
   }
 }
 
 export function setSoundVolume(volume: number): void {
   currentVolume = Math.max(0, Math.min(1, volume));
-  for (const audio of Object.values(audioElements)) {
-    if (audio) audio.volume = currentVolume;
-  }
-  for (const audio of andonAudioInstances) {
-    audio.volume = currentVolume;
+
+  for (const state of Object.values(playbackStates)) {
+    for (const audio of Object.values(state.audioElements)) {
+      if (audio) audio.volume = currentVolume;
+    }
+    for (const audio of state.audioInstances) {
+      audio.volume = currentVolume;
+    }
   }
 }
 
-export function stopCallSound(key: SoundKey): void {
-  stopTimer(key);
-  const audio = audioElements[key];
-  if (audio) {
-    if (currentAndonAudio === audio) {
-      stopCurrentAndonAudio();
-      return;
+export function stopCallSound(key: SoundKey, scope?: AndonSoundScope): void {
+  const scopes = scope ? [scope] : (Object.keys(playbackStates) as AndonSoundScope[]);
+
+  for (const currentScope of scopes) {
+    const state = playbackStates[currentScope];
+    stopTimer(currentScope, key);
+    const audio = state.audioElements[key];
+    if (!audio) continue;
+
+    if (state.currentAudio === audio) {
+      stopCurrentAndonAudio(currentScope);
+      continue;
     }
+
     stopAudioElement(audio);
   }
 }
 
 export function stopAllSounds(): void {
-  for (const key of Object.keys(soundUrls) as SoundKey[]) {
-    stopCallSound(key);
+  for (const scope of Object.keys(playbackStates) as AndonSoundScope[]) {
+    stopAllAndonRepeatTimers(scope);
+    stopCurrentAndonAudio(scope);
   }
-  stopAllAndonRepeatTimers();
-  stopCurrentAndonAudio();
 }
 
-export function stopAndonSound(machineId?: string): void {
-  if (!machineId || currentAndonMachineId === machineId) {
-    stopAllAndonRepeatTimers();
-    stopCurrentAndonAudio();
+export function stopAndonSound(
+  machineId?: string,
+  scope: AndonSoundScope = "dashboard",
+): void {
+  const state = playbackStates[scope];
+  if (!machineId || state.currentMachineId === machineId) {
+    stopAllAndonRepeatTimers(scope);
+    stopCurrentAndonAudio(scope);
   }
 }
 
@@ -195,69 +242,72 @@ export async function playAndonSound(
   machineId: string,
   subtype: CallSubtype,
   repeatIntervalSeconds = 10,
+  scope: AndonSoundScope = "dashboard",
+  respectMachinePreference = scope === "machine",
 ): Promise<void> {
   if (!unlocked) return;
-  if (!isMachineSoundEnabled(machineId)) return;
+  if (respectMachinePreference && !isMachineSoundEnabled(machineId)) return;
 
   const callType = getCallTypeOption(subtype);
   if (!callType) return;
 
-  stopAllAndonRepeatTimers();
-  stopCurrentAndonAudio();
+  const state = playbackStates[scope];
+  stopAllAndonRepeatTimers(scope);
+  stopCurrentAndonAudio(scope);
 
-  const playbackToken = currentPlaybackToken + 1;
-  currentPlaybackToken = playbackToken;
+  const playbackToken = state.playbackToken + 1;
+  state.playbackToken = playbackToken;
 
   const key = callType.soundKey;
   let audio = await createCustomAudio(machineId, subtype);
 
-  if (playbackToken !== currentPlaybackToken) {
+  if (playbackToken !== state.playbackToken) {
     if (audio) {
       stopAudioElement(audio);
-      releaseCustomAudio(audio);
+      releaseCustomAudio(audio, state);
     }
     return;
   }
 
   if (!audio) {
-    audio = ensureAudio(key);
+    audio = ensureAudio(scope, key);
   }
 
   if (!audio) return;
 
   try {
-    currentAndonAudio = audio;
-    currentAndonMachineId = machineId;
-    andonAudioInstances.add(audio);
+    state.currentAudio = audio;
+    state.currentMachineId = machineId;
+    state.audioInstances.add(audio);
     await playAudio(audio);
   } catch (err) {
-    releaseCustomAudio(audio);
-    if (playbackToken === currentPlaybackToken) {
+    releaseCustomAudio(audio, state);
+    if (playbackToken === state.playbackToken) {
       console.warn("[sound] play failed", err);
     }
     return;
   }
 
-  if (playbackToken !== currentPlaybackToken) {
+  if (playbackToken !== state.playbackToken) {
     stopAudioElement(audio);
-    releaseCustomAudio(audio);
+    releaseCustomAudio(audio, state);
     return;
   }
 
   const endedListener = () => {
-    if (playbackToken !== currentPlaybackToken) return;
+    if (playbackToken !== state.playbackToken) return;
 
     if (repeatIntervalSeconds <= 0) {
-      releaseCustomAudio(audio);
+      releaseCustomAudio(audio, state);
       return;
     }
 
-    stopTimer(key);
-    repeatTimers[key] = window.setTimeout(() => {
-      delete repeatTimers[key];
-      if (playbackToken !== currentPlaybackToken) return;
+    stopTimer(scope, key);
+    state.repeatTimers[key] = window.setTimeout(() => {
+      delete state.repeatTimers[key];
+      if (playbackToken !== state.playbackToken) return;
       void playAudio(audio).catch((error) => {
-        if (playbackToken === currentPlaybackToken) {
+        if (playbackToken === state.playbackToken) {
           console.warn("[sound] repeat failed", error);
         }
       });
@@ -265,7 +315,7 @@ export async function playAndonSound(
   };
 
   audio.addEventListener("ended", endedListener);
-  currentEndedListener = { audio, listener: endedListener };
+  state.currentEndedListener = { audio, listener: endedListener };
 }
 
 export async function testAndonSound(
@@ -273,6 +323,7 @@ export async function testAndonSound(
   subtype: CallSubtype,
 ): Promise<boolean> {
   if (!unlocked) return false;
+
   const customAudio = await createCustomAudio(machineId, subtype);
   if (customAudio) {
     customAudio.addEventListener("ended", () => releaseCustomAudio(customAudio), { once: true });
@@ -287,7 +338,7 @@ export async function testAndonSound(
 
   const callType = getCallTypeOption(subtype);
   if (!callType) return false;
-  const fallbackAudio = ensureAudio(callType.soundKey);
+  const fallbackAudio = ensureAudio("dashboard", callType.soundKey);
   if (!fallbackAudio) return false;
   await playAudio(fallbackAudio);
   return true;

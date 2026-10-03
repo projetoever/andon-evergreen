@@ -31,7 +31,7 @@ import {
 } from "@/services/machineSoundPreferenceService";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
-import { playAndonSound, stopAndonSound } from "@/services/soundService";
+import { playAndonSound, stopAndonSound, unlockAudio } from "@/services/soundService";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import type { CallSubtype } from "@/types/andon";
@@ -65,6 +65,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     soundConfigs,
     settings,
     audioUnlocked,
+    setAudioUnlocked,
   } = useAndon();
 
   const navigate = useNavigate();
@@ -302,7 +303,14 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     audioUnlocked,
     machineId,
     respectMachinePreference: true,
+    soundScope: "machine",
   });
+
+  function handleMachineAudioUnlock() {
+    unlockAudio();
+    setAudioUnlocked(true);
+    toast.success("Som da máquina ativado nesta workstation");
+  }
 
   function handleToggleScreenLock() {
     if (!machine) return;
@@ -427,6 +435,17 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   return (
     <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2 xl:overflow-y-hidden">
+      {!audioUnlocked && (
+        <div className="flex shrink-0 flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-1.5 text-warning sm:flex-row">
+          <span className="text-sm font-bold">
+            Ative o áudio desta workstation para receber os alertas sonoros desta máquina.
+          </span>
+          <BigButton tone="primary" size="md" onClick={handleMachineAudioUnlock}>
+            ATIVAR SOM DA MÁQUINA
+          </BigButton>
+        </div>
+      )}
+
       <MachineDetailHeader
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
@@ -437,17 +456,23 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           setMachineSoundEnabled(machine.id, next);
           setMachineSoundEnabledState(next);
           if (!next) {
-            stopAndonSound(machine.id);
-            toast.success("Som do ANDON silenciado para esta máquina");
+            stopAndonSound(machine.id, "machine");
+            toast.success("Som do ANDON silenciado somente nesta máquina");
             return;
           }
 
           if (latestOpenCall && settings.soundsEnabled && audioUnlocked) {
             const config = soundConfigs.find((item) => item.key === latestOpenCall.subtype);
             const repeatInterval = config?.repeatUntilAttended ? config.repeatIntervalSeconds : 0;
-            void playAndonSound(machine.id, latestOpenCall.subtype, repeatInterval);
+            void playAndonSound(
+              machine.id,
+              latestOpenCall.subtype,
+              repeatInterval,
+              "machine",
+              true,
+            );
           }
-          toast.success("Som do ANDON ativado para esta máquina");
+          toast.success("Som do ANDON ativado somente para esta máquina");
         }}
       />
 

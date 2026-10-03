@@ -14,6 +14,7 @@ interface UseAndonOpenCallSoundParams {
   audioUnlocked: boolean;
   machineId?: string;
   respectMachinePreference?: boolean;
+  soundScope?: "dashboard" | "machine";
 }
 
 export function useAndonOpenCallSound({
@@ -24,6 +25,7 @@ export function useAndonOpenCallSound({
   audioUnlocked,
   machineId,
   respectMachinePreference = false,
+  soundScope = "dashboard",
 }: UseAndonOpenCallSoundParams) {
   const activeMachines = useMemo(
     () => new Set(machines.filter((machine) => machine.isActive).map((machine) => machine.id)),
@@ -55,14 +57,28 @@ export function useAndonOpenCallSound({
 
   useEffect(() => {
     if (!playbackEnabled || !callId || !callMachineId || !callSubtype) {
-      stopAndonSound();
+      stopAndonSound(undefined, soundScope);
       return;
     }
 
-    void playAndonSound(callMachineId, callSubtype, repeatInterval).catch(() => undefined);
+    void playAndonSound(
+      callMachineId,
+      callSubtype,
+      repeatInterval,
+      soundScope,
+      respectMachinePreference,
+    ).catch(() => undefined);
 
     return () => {
-      stopAndonSound(callMachineId);
+      stopAndonSound(callMachineId, soundScope);
     };
-  }, [callId, callMachineId, callSubtype, playbackEnabled, repeatInterval]);
+  }, [
+    callId,
+    callMachineId,
+    callSubtype,
+    playbackEnabled,
+    repeatInterval,
+    respectMachinePreference,
+    soundScope,
+  ]);
 }
