@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
 import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
+import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 
@@ -77,6 +78,7 @@ function RootComponent() {
       <TechnicianProvider>
         <Outlet />
         <VirtualKeyboard />
+        <Toaster />
       </TechnicianProvider>
     </AndonProvider>
   );
