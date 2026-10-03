@@ -20,7 +20,7 @@ import * as andonService from "@/services/andonService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { andonRepository } from "@/repositories/selectedAndonRepository";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
-import { setSoundVolume, stopAllSounds, stopAndonSound } from "@/services/soundService";
+import { setSoundVolume, stopAllSounds } from "@/services/soundService";
 import { setServerTimeOffsetMs } from "@/utils/serverClock";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import {
@@ -258,11 +258,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const attendCall = useCallback(
     async (params: string | andonService.StartAttendanceParams) => {
       const callId = typeof params === "string" ? params : params.callId;
-      const currentCall = calls.find((call) => call.id === callId);
       const result = await andonRepository.attendCall(machines, calls, params);
       setMachines(result.machines);
       setCalls(result.calls);
-      stopAndonSound(currentCall?.machineId);
     },
     [machines, calls, handleRepositoryError],
   );
@@ -337,11 +335,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   const cancelCall = useCallback(
     async (params: andonService.CancelAndonCallParams) => {
-      const currentCall = calls.find((call) => call.id === params.callId);
       const result = await andonRepository.cancelCall(machines, calls, params);
       setMachines(result.machines);
       setCalls(result.calls);
-      stopAndonSound(currentCall?.machineId);
     },
     [machines, calls, handleRepositoryError],
   );
