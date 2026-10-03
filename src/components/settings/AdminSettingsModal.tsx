@@ -1,4 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Boxes,
+  Clock3,
+  Factory,
+  Headphones,
+  ListChecks,
+  LogOut,
+  MonitorCog,
+  Settings2,
+  ShieldCheck,
+  Tags,
+  UserRoundCheck,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { BigButton } from "@/components/common/BigButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAndon } from "@/context/AndonProvider";
@@ -26,17 +42,94 @@ import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { WorkstationsSettingsTab } from "./WorkstationsSettingsTab";
 import { DashboardSoundMuteSettings } from "./DashboardSoundMuteSettings";
 
-const tabs: Array<{ id: SettingsTab; label: string }> = [
-  { id: "general", label: "Configurações gerais" },
-  { id: "sounds", label: "Sons do ANDON" },
-  { id: "attendance", label: "Modo de atendimento" },
-  { id: "technicians", label: "Manutentores" },
-  { id: "categories", label: "Categorias" },
-  { id: "shifts", label: "Turnos" },
-  { id: "classifications", label: "Classificações" },
-  { id: "assetCatalogs", label: "Catálogos de ativos" },
-  { id: "machines", label: "Máquinas" },
-  { id: "workstations", label: "Workstations" },
+type AdminNavigationGroup = "Sistema" | "Operação" | "Cadastros" | "Infraestrutura";
+
+interface AdminNavigationItem {
+  id: SettingsTab;
+  label: string;
+  description: string;
+  group: AdminNavigationGroup;
+  icon: LucideIcon;
+}
+
+const tabs: AdminNavigationItem[] = [
+  {
+    id: "general",
+    label: "Configurações gerais",
+    description: "Preferências globais, regras operacionais e segurança administrativa.",
+    group: "Sistema",
+    icon: Settings2,
+  },
+  {
+    id: "sounds",
+    label: "Sons do ANDON",
+    description: "Áudios, comportamento sonoro e temporizador de silêncio do dashboard.",
+    group: "Sistema",
+    icon: Headphones,
+  },
+  {
+    id: "attendance",
+    label: "Modo de atendimento",
+    description: "Identificação por nome, PIN ou RFID e parâmetros de credencial.",
+    group: "Operação",
+    icon: UserRoundCheck,
+  },
+  {
+    id: "technicians",
+    label: "Mantenedores",
+    description: "Cadastro, áreas técnicas, turnos e credenciais dos mantenedores.",
+    group: "Operação",
+    icon: Users,
+  },
+  {
+    id: "shifts",
+    label: "Turnos",
+    description: "Horários dos turnos e regras de exibição por jornada.",
+    group: "Operação",
+    icon: Clock3,
+  },
+  {
+    id: "categories",
+    label: "Setores / categorias",
+    description: "Áreas exibidas na abertura dos chamados e sua organização visual.",
+    group: "Cadastros",
+    icon: Tags,
+  },
+  {
+    id: "classifications",
+    label: "Classificações",
+    description: "Catálogo central de classificações utilizadas no diagnóstico.",
+    group: "Cadastros",
+    icon: ListChecks,
+  },
+  {
+    id: "assetCatalogs",
+    label: "Catálogos de ativos",
+    description: "Tipos de conjuntos e subconjuntos utilizados na localização de falhas.",
+    group: "Cadastros",
+    icon: Boxes,
+  },
+  {
+    id: "machines",
+    label: "Máquinas",
+    description: "Cadastro e parâmetros individuais das máquinas do ANDON.",
+    group: "Infraestrutura",
+    icon: Factory,
+  },
+  {
+    id: "workstations",
+    label: "Workstations",
+    description: "Identidades, nomes e estado das estações conectadas ao sistema.",
+    group: "Infraestrutura",
+    icon: MonitorCog,
+  },
+];
+
+const navigationGroups: AdminNavigationGroup[] = [
+  "Sistema",
+  "Operação",
+  "Cadastros",
+  "Infraestrutura",
 ];
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
@@ -48,44 +141,222 @@ function CardSection({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-export function AdminSettingsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function AdminSettingsModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [tab, setTab] = useState<SettingsTab>("general");
+  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
+  const ActiveIcon = activeTab.icon;
+
+  const renderTab = () => {
+    if (tab === "general") return <GeneralSettingsTab />;
+    if (tab === "sounds") return <SoundsTab isOpen={open} isActive={tab === "sounds"} />;
+    if (tab === "attendance") return <AttendanceModeSettingsTab />;
+    if (tab === "technicians") return <TechniciansSettingsTab />;
+    if (tab === "categories") return <CategoriesSettingsTab />;
+    if (tab === "shifts") return <ShiftsTab />;
+    if (tab === "classifications") return <ClassificationsTab />;
+    if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
+    if (tab === "machines") return <MachineAdminPanel />;
+    if (tab === "workstations") return <WorkstationsSettingsTab />;
+    return null;
+  };
+
+  const handleAdminLogout = () => {
+    logoutAdmin();
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Configurações do Sistema</DialogTitle>
-          <DialogDescription>Painel administrativo para cadastro e manutenção dos parâmetros do ANDON.</DialogDescription>
+      <DialogContent
+        hideDefaultClose
+        onPointerDownOutside={(event) => event.preventDefault()}
+        className="h-[96dvh] max-h-[96dvh] w-[calc(100vw-1rem)] max-w-[1600px] gap-0 overflow-hidden rounded-2xl border-border/80 bg-background p-0 shadow-2xl sm:w-[96vw]"
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Painel administrativo do ANDON</DialogTitle>
+          <DialogDescription>
+            Configurações, cadastros e infraestrutura do ANDON Web Industrial.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((item) => (
+        <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+          <aside className="hidden min-h-0 border-r border-border bg-card/50 lg:flex lg:flex-col">
+            <div className="border-b border-border px-5 py-5">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                  <ShieldCheck className="h-6 w-6" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
+                    ANDON
+                  </p>
+                  <p className="truncate text-base font-black text-foreground">
+                    Painel administrativo
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                Configuração controlada do ANDON Web Industrial.
+              </p>
+            </div>
+
+            <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
+              {navigationGroups.map((group) => (
+                <div key={group} className="space-y-1">
+                  <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    {group}
+                  </p>
+                  {tabs
+                    .filter((item) => item.group === group)
+                    .map((item) => {
+                      const Icon = item.icon;
+                      const active = item.id === tab;
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          onClick={() => setTab(item.id)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                            active
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}
+                        >
+                          <Icon className="h-4.5 w-4.5 shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-bold">{item.label}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+              ))}
+            </nav>
+
+            <div className="border-t border-border p-3">
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair do modo admin
+              </button>
+            </div>
+          </aside>
+
+          <header className="flex items-center justify-between gap-3 border-b border-border bg-card/70 px-4 py-3 lg:hidden">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">
+                  ANDON
+                </p>
+                <p className="truncate text-sm font-black">Painel administrativo</p>
+              </div>
+            </div>
             <button
-              key={item.id}
               type="button"
-              className={cn("min-h-10 rounded-md border px-4 text-sm font-bold", tab === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}
-              onClick={() => setTab(item.id)}
+              aria-label="Fechar painel administrativo"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
             >
-              {item.label}
+              <X className="h-5 w-5" />
             </button>
-          ))}
-        </div>
+          </header>
 
-        {tab === "general" && <GeneralSettingsTab />}
-        {tab === "sounds" && <SoundsTab isOpen={open} isActive={tab === "sounds"} />}
-        {tab === "attendance" && <AttendanceModeSettingsTab />}
-        {tab === "technicians" && <TechniciansSettingsTab />}
-        {tab === "categories" && <CategoriesSettingsTab />}
-        {tab === "shifts" && <ShiftsTab />}
-        {tab === "classifications" && <ClassificationsTab />}
-        {tab === "assetCatalogs" && <MachineAssetCatalogPanel />}
-        {tab === "machines" && <MachineAdminPanel />}
-        {tab === "workstations" && <WorkstationsSettingsTab />}
+          <nav className="flex gap-2 overflow-x-auto border-b border-border bg-background px-3 py-2 lg:hidden">
+            {tabs.map((item) => {
+              const Icon = item.icon;
+              const active = item.id === tab;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTab(item.id)}
+                  className={cn(
+                    "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
 
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <BigButton tone="danger" size="md" onClick={() => { logoutAdmin(); onOpenChange(false); }}>Sair do modo admin</BigButton>
-          <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>Fechar</BigButton>
+          <main className="flex min-h-0 min-w-0 flex-col lg:col-start-2 lg:row-start-1">
+            <div className="hidden shrink-0 items-start justify-between gap-6 border-b border-border bg-background/95 px-7 py-5 lg:flex">
+              <div className="flex min-w-0 items-start gap-4">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                  <ActiveIcon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    {activeTab.group}
+                  </p>
+                  <h2 className="mt-0.5 text-2xl font-black tracking-tight text-foreground">
+                    {activeTab.label}
+                  </h2>
+                  <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {activeTab.description}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Fechar painel administrativo"
+                onClick={() => onOpenChange(false)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 lg:hidden">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <ActiveIcon className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    {activeTab.group}
+                  </p>
+                  <h2 className="font-black text-foreground">{activeTab.label}</h2>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {activeTab.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
+              <div className="mx-auto w-full max-w-[1240px]">{renderTab()}</div>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
+              <BigButton tone="danger" size="md" onClick={handleAdminLogout}>
+                Sair do modo admin
+              </BigButton>
+              <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>
+                Fechar
+              </BigButton>
+            </div>
+          </main>
         </div>
       </DialogContent>
     </Dialog>
