@@ -42,21 +42,34 @@ export function SoundSettingsModal({ open, onOpenChange }: SoundSettingsModalPro
     if (!acceptedTypes.includes(selectedFile.type) && !/\.(mp3|wav|ogg)$/i.test(selectedFile.name)) {
       return toast.error("Formato inválido. Use .mp3, .wav ou .ogg.");
     }
-    await saveSoundConfig(machineId, subtype, selectedFile);
-    setSelectedFile(null);
-    await refresh();
-    toast.success("Som salvo com sucesso.");
+
+    try {
+      await saveSoundConfig(machineId, subtype, selectedFile);
+      setSelectedFile(null);
+      await refresh();
+      toast.success("Som salvo com sucesso.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o som.");
+    }
   }
 
   async function handleRemove() {
-    await removeSoundConfig(machineId, subtype);
-    await refresh();
-    toast.success("Som removido.");
+    try {
+      await removeSoundConfig(machineId, subtype);
+      await refresh();
+      toast.success("Som removido.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o som.");
+    }
   }
 
   async function handleTest() {
-    const ok = await testAndonSound(machineId, subtype);
-    if (!ok) toast.message("Nenhum som configurado para esta seleção.");
+    try {
+      const ok = await testAndonSound(machineId, subtype);
+      if (!ok) toast.message("Nenhum som configurado para esta seleção.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reproduzir o som.");
+    }
   }
 
   return (
