@@ -957,21 +957,26 @@ async function endActiveTechnicianSession(
     technicianName?: string;
     reason?: string;
     notes?: string;
-    endedAt: Date;
   },
 ) {
+  const callReference = await tx.andonCall.findUnique({
+    where: { id: params.callId },
+    select: { machineId: true },
+  });
+  if (!callReference) throw new FinishCallNotFoundError("Chamado não encontrado");
+
+  await lockMachineCallFlow(tx, callReference.machineId);
   const call = await tx.andonCall.findUnique({
     where: { id: params.callId },
     include: { machine: true },
   });
   if (!call) throw new FinishCallNotFoundError("Chamado não encontrado");
 
-  await lockMachineCallFlow(tx, call.machineId);
   if (params.technicianId) {
     await lockTechnicianSessionFlow(tx, params.technicianId);
   }
 
-  const activeSession = await tx.technicianSession.findFirst({
+  let activeSession = await tx.technicianSession.findFirst({
     where: {
       callId: call.id,
       endedAt: null,
@@ -988,12 +993,27 @@ async function endActiveTechnicianSession(
   }
   if (!params.technicianId && activeSession.technicianId) {
     await lockTechnicianSessionFlow(tx, activeSession.technicianId);
+    activeSession = await tx.technicianSession.findFirst({
+      where: {
+        id: activeSession.id,
+        callId: call.id,
+        technicianId: activeSession.technicianId,
+        endedAt: null,
+      },
+    });
+    if (!activeSession) {
+      throw new ActiveTechnicianSessionNotFoundError(
+        "Este mantenedor não possui atendimento ativo neste chamado",
+      );
+    }
   }
+
+  const transitionAt = new Date();
 
   const updated = await tx.technicianSession.updateMany({
     where: { id: activeSession.id, endedAt: null },
     data: {
-      endedAt: params.endedAt,
+      endedAt: transitionAt,
       endReason:
         params.reason ?? (activeSession.phase === "follow_up" ? "follow_up_finished" : "manual"),
       notes: params.notes ?? activeSession.notes,
@@ -1010,23 +1030,15 @@ async function endActiveTechnicianSession(
   return findCallWithSessions(tx, call.id);
 }
 
-async function createMissingActiveTechnicianSessions(
+async function lockAndFindMissingActiveTechnicians(
   tx: Prisma.TransactionClient,
   params: {
     callId: string;
-    machineId: string;
     technicians: IdentifiedTechnician[];
-    startedAt: Date;
-    productionModeAtStart?: string | null;
-    machineStatusAtStart?: string | null;
-    workstationId?: string | null;
-    technicalArea?: string | null;
-    phase: "maintenance" | "follow_up";
-    cycleIndex: number;
   },
 ) {
   if (!params.technicians.length) {
-    return;
+    return [];
   }
 
   const technicians = Array.from(
@@ -1081,11 +1093,31 @@ async function createMissingActiveTechnicianSessions(
   });
 
   if (!missingTechnicians.length) {
-    return;
+    return [];
   }
 
+  return missingTechnicians;
+}
+
+async function createTechnicianSessions(
+  tx: Prisma.TransactionClient,
+  params: {
+    callId: string;
+    machineId: string;
+    technicians: IdentifiedTechnician[];
+    startedAt: Date;
+    productionModeAtStart?: string | null;
+    machineStatusAtStart?: string | null;
+    workstationId?: string | null;
+    technicalArea?: string | null;
+    phase: "maintenance" | "follow_up";
+    cycleIndex: number;
+  },
+) {
+  if (!params.technicians.length) return;
+
   await tx.technicianSession.createMany({
-    data: missingTechnicians.map((technician) => ({
+    data: params.technicians.map((technician) => ({
       callId: params.callId,
       machineId: params.machineId,
       technicianId: technician.id,
@@ -1592,10 +1624,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       if (call.status !== "open") return badRequest(reply, "Chamado não está aberto");
 
       try {
-        const now = new Date();
         const updatedCall = await prisma.$transaction(async (tx) => {
           await lockMachineCallFlow(tx, call.machineId);
-          const currentCall = await tx.andonCall.findUnique({
+          let currentCall = await tx.andonCall.findUnique({
             include: { machine: true },
             where: { id: call.id },
           });
@@ -1611,6 +1642,20 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 })
               : null;
           const technicians = await resolveAttendanceTechnicians(tx, currentCall, body);
+          const missingTechnicians = await lockAndFindMissingActiveTechnicians(tx, {
+            callId: currentCall.id,
+            technicians,
+          });
+
+          currentCall = await tx.andonCall.findUnique({
+            include: { machine: true },
+            where: { id: call.id },
+          });
+          if (!currentCall || currentCall.status !== "open") {
+            throw new AndonCallValidationError("Chamado não está aberto");
+          }
+
+          const transitionAt = new Date();
           const names = technicians.map((technician) => technician.name);
           const technicianArea = currentCall.subtype ?? currentCall.technicianArea;
 
@@ -1618,8 +1663,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             where: { id: currentCall.id },
             data: {
               status: "in_progress",
-              attendedAt: currentCall.attendedAt ?? now,
-              currentAttendanceStartedAt: now,
+              attendedAt: currentCall.attendedAt ?? transitionAt,
+              currentAttendanceStartedAt: transitionAt,
               technicianName: names[0] ?? currentCall.technicianName,
               technicianNames: names.length
                 ? uniqueNames([...currentCall.technicianNames, ...names])
@@ -1630,11 +1675,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             },
           });
 
-          await createMissingActiveTechnicianSessions(tx, {
+          await createTechnicianSessions(tx, {
             callId: currentCall.id,
             machineId: currentCall.machineId,
-            technicians,
-            startedAt: now,
+            technicians: missingTechnicians,
+            startedAt: transitionAt,
             productionModeAtStart: currentCall.machine.productionMode,
             machineStatusAtStart: currentCall.machine.machineStatus,
             workstationId,
@@ -1770,10 +1815,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       try {
-        const now = new Date();
         const updatedCall = await prisma.$transaction(async (tx) => {
           await lockMachineCallFlow(tx, call.machineId);
-          const currentCall = await tx.andonCall.findUnique({
+          let currentCall = await tx.andonCall.findUnique({
             include: { machine: true },
             where: { id: call.id },
           });
@@ -1797,13 +1841,30 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             currentCall,
             request.body ?? {},
           );
+          const missingTechnicians = await lockAndFindMissingActiveTechnicians(tx, {
+            callId: currentCall.id,
+            technicians,
+          });
+
+          currentCall = await tx.andonCall.findUnique({
+            include: { machine: true },
+            where: { id: call.id },
+          });
+          if (
+            !currentCall ||
+            (currentCall.status !== "in_progress" && currentCall.status !== "post_maintenance")
+          ) {
+            throw new AndonCallValidationError("Chamado não está em atendimento ou acompanhamento");
+          }
+
+          const transitionAt = new Date();
           const names = technicians.map((technician) => technician.name);
 
-          await createMissingActiveTechnicianSessions(tx, {
+          await createTechnicianSessions(tx, {
             callId: currentCall.id,
             machineId: currentCall.machineId,
-            technicians,
-            startedAt: now,
+            technicians: missingTechnicians,
+            startedAt: transitionAt,
             productionModeAtStart: currentCall.machine.productionMode,
             machineStatusAtStart: currentCall.machine.machineStatus,
             workstationId,
@@ -1853,7 +1914,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             callId: call.id,
             technicianName,
             reason: optionalString(request.body?.reason),
-            endedAt: new Date(),
           }),
         );
       } catch (error) {
@@ -1897,7 +1957,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             technicianName: requestedName,
             reason: optionalString(request.body?.reason),
             notes: optionalString(request.body?.notes),
-            endedAt: new Date(),
           }),
         );
       } catch (error) {
@@ -1928,10 +1987,32 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       try {
-        const now = new Date();
         const updatedCall = await prisma.$transaction(async (tx) => {
           await lockMachineCallFlow(tx, call.machineId);
-          const currentCall = await tx.andonCall.findUnique({
+          let currentCall = await tx.andonCall.findUnique({
+            include: { machine: true, technicianSessions: true },
+            where: { id: call.id },
+          });
+          if (!currentCall || currentCall.status !== "in_progress") {
+            throw new AndonCallValidationError("Chamado não está em atendimento");
+          }
+
+          const sessionsToLock = currentCall.technicianSessions.filter(
+            (session) =>
+              !session.endedAt && (session.phase === "maintenance" || session.phase === null),
+          );
+          const technicianIds = Array.from(
+            new Set(
+              sessionsToLock
+                .map((session) => session.technicianId)
+                .filter((technicianId): technicianId is string => Boolean(technicianId)),
+            ),
+          ).sort();
+          for (const technicianId of technicianIds) {
+            await lockTechnicianSessionFlow(tx, technicianId);
+          }
+
+          currentCall = await tx.andonCall.findUnique({
             include: { machine: true, technicianSessions: true },
             where: { id: call.id },
           });
@@ -1979,13 +2060,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const followUpSessionIds = new Set(
             requestedFollowUpSessionIds ?? activeMaintenanceSessions.map((session) => session.id),
           );
-          const technicianIds = activeMaintenanceSessions
-            .map((session) => session.technicianId)
-            .filter((technicianId): technicianId is string => Boolean(technicianId))
-            .sort();
-          for (const technicianId of technicianIds) {
-            await lockTechnicianSessionFlow(tx, technicianId);
-          }
+          const transitionAt = new Date();
 
           if (activeMaintenanceSessions.length) {
             await tx.technicianSession.updateMany({
@@ -1994,7 +2069,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                 endedAt: null,
               },
               data: {
-                endedAt: now,
+                endedAt: transitionAt,
                 endReason: "maintenance_completed",
                 productionModeAtEnd: currentCall.machine.productionMode,
                 machineStatusAtEnd: currentCall.machine.machineStatus,
@@ -2017,7 +2092,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
                   workstationId: session.workstationId,
                   phase: "follow_up",
                   cycleIndex: session.cycleIndex ?? currentCall.maintenanceReturnCount + 1,
-                  startedAt: now,
+                  startedAt: transitionAt,
                   productionModeAtStart: currentCall.machine.productionMode,
                   machineStatusAtStart: currentCall.machine.machineStatus,
                 })),
@@ -2030,12 +2105,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             data: {
               status: "post_maintenance",
               currentAttendanceStartedAt: null,
-              maintenanceCompletedAt: now,
+              maintenanceCompletedAt: transitionAt,
               attendanceMinutes:
                 (currentCall.attendanceMinutes ?? 0) +
                 diffPreciseMinutes(
                   currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt,
-                  now,
+                  transitionAt,
                 ),
               notes: appendNote(
                 currentCall.notes,
@@ -2075,10 +2150,31 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         return badRequest(reply, "Chamado não está em acompanhamento");
       }
 
-      const now = new Date();
       const updatedCall = await prisma.$transaction(async (tx) => {
         await lockMachineCallFlow(tx, call.machineId);
-        const currentCall = await tx.andonCall.findUnique({
+        let currentCall = await tx.andonCall.findUnique({
+          where: { id: call.id },
+          include: { machine: true, technicianSessions: true },
+        });
+        if (!currentCall || currentCall.status !== "post_maintenance") {
+          return null;
+        }
+        const sessionsToLock = currentCall.technicianSessions.filter(
+          (session) =>
+            !session.endedAt && (session.phase === "follow_up" || session.phase === null),
+        );
+        const technicianIds = Array.from(
+          new Set(
+            sessionsToLock
+              .map((session) => session.technicianId)
+              .filter((technicianId): technicianId is string => Boolean(technicianId)),
+          ),
+        ).sort();
+        for (const technicianId of technicianIds) {
+          await lockTechnicianSessionFlow(tx, technicianId);
+        }
+
+        currentCall = await tx.andonCall.findUnique({
           where: { id: call.id },
           include: { machine: true, technicianSessions: true },
         });
@@ -2089,13 +2185,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           (session) =>
             !session.endedAt && (session.phase === "follow_up" || session.phase === null),
         );
-        const technicianIds = activeFollowUpSessions
-          .map((session) => session.technicianId)
-          .filter((technicianId): technicianId is string => Boolean(technicianId))
-          .sort();
-        for (const technicianId of technicianIds) {
-          await lockTechnicianSessionFlow(tx, technicianId);
-        }
+        const transitionAt = new Date();
+
         if (activeFollowUpSessions.length) {
           await tx.technicianSession.updateMany({
             where: {
@@ -2103,7 +2194,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               endedAt: null,
             },
             data: {
-              endedAt: now,
+              endedAt: transitionAt,
               endReason: "returned_to_maintenance",
               productionModeAtEnd: currentCall.machine.productionMode,
               machineStatusAtEnd: currentCall.machine.machineStatus,
@@ -2121,7 +2212,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               workstationId: session.workstationId,
               phase: "maintenance",
               cycleIndex: currentCall.maintenanceReturnCount + 2,
-              startedAt: now,
+              startedAt: transitionAt,
               productionModeAtStart: currentCall.machine.productionMode,
               machineStatusAtStart: currentCall.machine.machineStatus,
             })),
@@ -2131,11 +2222,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           where: { id: currentCall.id },
           data: {
             status: "in_progress",
-            currentAttendanceStartedAt: now,
+            currentAttendanceStartedAt: transitionAt,
             maintenanceCompletedAt: null,
             postMaintenanceMinutes:
               (currentCall.postMaintenanceMinutes ?? 0) +
-              diffPreciseMinutes(currentCall.maintenanceCompletedAt, now),
+              diffPreciseMinutes(currentCall.maintenanceCompletedAt, transitionAt),
             maintenanceReturnCount: { increment: 1 },
             notes: appendNote(
               currentCall.notes,

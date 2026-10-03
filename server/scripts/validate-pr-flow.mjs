@@ -87,6 +87,62 @@ async function waitForApi() {
   throw new Error(`API não ficou disponível: ${String(lastError)}`);
 }
 
+async function waitForAdvisoryWaiter(holderPid) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const [row] = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS "waiterCount"
+      FROM pg_locks AS waiting
+      INNER JOIN pg_locks AS held
+        ON held."locktype" = waiting."locktype"
+        AND held."database" IS NOT DISTINCT FROM waiting."database"
+        AND held."classid" IS NOT DISTINCT FROM waiting."classid"
+        AND held."objid" IS NOT DISTINCT FROM waiting."objid"
+        AND held."objsubid" IS NOT DISTINCT FROM waiting."objsubid"
+      WHERE waiting."locktype" = 'advisory'
+        AND waiting."granted" = false
+        AND held."granted" = true
+        AND held."pid" = ${holderPid}
+    `;
+    if (Number(row?.waiterCount ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("A requisição concorrente não aguardou o advisory lock esperado");
+}
+
+async function runAfterAdvisoryLockWait(lockKey, startRequest, whileBlocked) {
+  let pendingRequest;
+  let whileBlockedResult;
+  const barrierAt = await prisma.$transaction(
+    async (tx) => {
+      const [connection] = await tx.$queryRaw`
+        SELECT pg_backend_pid()::int AS "pid"
+      `;
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${lockKey}))::text AS "lockResult"
+      `;
+
+      pendingRequest = Promise.resolve().then(startRequest);
+      await waitForAdvisoryWaiter(connection.pid);
+      if (whileBlocked) {
+        whileBlockedResult = await whileBlocked();
+      }
+
+      const [clock] = await tx.$queryRaw`
+        SELECT clock_timestamp() AS "barrierAt"
+      `;
+      return clock.barrierAt;
+    },
+    { timeout: 15_000 },
+  );
+
+  if (!pendingRequest) throw new Error("Requisição concorrente não foi iniciada");
+  return {
+    result: await pendingRequest,
+    barrierAt,
+    whileBlockedResult,
+  };
+}
+
 async function cleanup() {
   await prisma.workstation.deleteMany({
     where: {
@@ -2680,6 +2736,187 @@ async function run() {
     finalizedIndividualB.technicianSessions
       .filter((session) => session.phase === "follow_up")
       .every((session) => session.endedAt && session.endReason === "final_call"),
+  );
+
+  const concurrentCallA = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.followUpMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const concurrentAttendanceA = await request(
+    `/api/andon-calls/${concurrentCallA.id}/attend`,
+    json("PATCH", { technicianNames: [electrical.name] }),
+  );
+  const concurrentMaintenanceA = concurrentAttendanceA.technicianSessions.find(
+    (session) => session.technicianId === electrical.id && !session.endedAt,
+  );
+  assert.ok(concurrentMaintenanceA);
+  const concurrentFollowUpA = await request(
+    `/api/andon-calls/${concurrentCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [concurrentMaintenanceA.id] }),
+  );
+  assert.ok(
+    concurrentFollowUpA.technicianSessions.some(
+      (session) =>
+        session.technicianId === electrical.id && session.phase === "follow_up" && !session.endedAt,
+    ),
+  );
+
+  const concurrentCallB = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.followUpMachineB,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const attendedAfterMachineLock = await runAfterAdvisoryLockWait(
+    ids.followUpMachineB,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/attend`,
+        json("PATCH", { technicianNames: [electrical.name] }),
+      ),
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallA.id}/technicians/${encodeURIComponent(electrical.name)}/end`,
+        json("PATCH", { reason: "follow_up_finished" }),
+      ),
+  );
+  const endedConcurrentFollowUpA =
+    attendedAfterMachineLock.whileBlockedResult.technicianSessions.find(
+      (session) =>
+        session.technicianId === electrical.id && session.phase === "follow_up" && session.endedAt,
+    );
+  const concurrentMaintenanceB = attendedAfterMachineLock.result.technicianSessions.find(
+    (session) =>
+      session.technicianId === electrical.id && session.phase === "maintenance" && !session.endedAt,
+  );
+  assert.ok(endedConcurrentFollowUpA?.endedAt);
+  assert.ok(concurrentMaintenanceB);
+  assert.equal(attendedAfterMachineLock.result.attendedAt, concurrentMaintenanceB.startedAt);
+  assert.equal(
+    attendedAfterMachineLock.result.currentAttendanceStartedAt,
+    concurrentMaintenanceB.startedAt,
+  );
+  assert.ok(
+    new Date(concurrentMaintenanceB.startedAt).getTime() >=
+      new Date(attendedAfterMachineLock.barrierAt).getTime(),
+    "atendimento deve gerar startedAt somente depois de obter o lock da máquina",
+  );
+  assert.ok(
+    new Date(concurrentMaintenanceB.startedAt).getTime() >=
+      new Date(endedConcurrentFollowUpA.endedAt).getTime(),
+    "sessões do mesmo técnico em chamados distintos não podem se sobrepor",
+  );
+
+  const completedAfterTechnicianLock = await runAfterAdvisoryLockWait(
+    `andon-technician-session:${electrical.id}`,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/finish-maintenance`,
+        json("PATCH", { followUpSessionIds: [concurrentMaintenanceB.id] }),
+      ),
+  );
+  const closedConcurrentMaintenanceB = completedAfterTechnicianLock.result.technicianSessions.find(
+    (session) => session.id === concurrentMaintenanceB.id,
+  );
+  const activeConcurrentFollowUpB = completedAfterTechnicianLock.result.technicianSessions.find(
+    (session) =>
+      session.technicianId === electrical.id && session.phase === "follow_up" && !session.endedAt,
+  );
+  assert.ok(closedConcurrentMaintenanceB?.endedAt);
+  assert.ok(activeConcurrentFollowUpB);
+  assert.equal(closedConcurrentMaintenanceB.endedAt, activeConcurrentFollowUpB.startedAt);
+  assert.ok(
+    new Date(activeConcurrentFollowUpB.startedAt).getTime() >=
+      new Date(completedAfterTechnicianLock.barrierAt).getTime(),
+    "maintenance -> follow_up deve usar timestamp posterior ao lock do técnico",
+  );
+
+  const returnedAfterTechnicianLock = await runAfterAdvisoryLockWait(
+    `andon-technician-session:${electrical.id}`,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/return-to-maintenance`,
+        json("PATCH", { reason: "Validação concorrente" }),
+      ),
+  );
+  const closedConcurrentFollowUpB = returnedAfterTechnicianLock.result.technicianSessions.find(
+    (session) => session.id === activeConcurrentFollowUpB.id,
+  );
+  const returnedConcurrentMaintenanceB = returnedAfterTechnicianLock.result.technicianSessions.find(
+    (session) =>
+      session.technicianId === electrical.id &&
+      session.phase === "maintenance" &&
+      session.cycleIndex === 2 &&
+      !session.endedAt,
+  );
+  assert.ok(closedConcurrentFollowUpB?.endedAt);
+  assert.ok(returnedConcurrentMaintenanceB);
+  assert.equal(closedConcurrentFollowUpB.endedAt, returnedConcurrentMaintenanceB.startedAt);
+  assert.ok(
+    new Date(returnedConcurrentMaintenanceB.startedAt).getTime() >=
+      new Date(returnedAfterTechnicianLock.barrierAt).getTime(),
+    "follow_up -> maintenance deve usar timestamp posterior ao lock do técnico",
+  );
+
+  const endedAfterTechnicianLock = await runAfterAdvisoryLockWait(
+    `andon-technician-session:${electrical.id}`,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/technicians/${encodeURIComponent(electrical.name)}/end`,
+        json("PATCH", { reason: "support_finished" }),
+      ),
+  );
+  const endedConcurrentMaintenanceB = endedAfterTechnicianLock.result.technicianSessions.find(
+    (session) => session.id === returnedConcurrentMaintenanceB.id,
+  );
+  assert.ok(endedConcurrentMaintenanceB?.endedAt);
+  assert.ok(
+    new Date(endedConcurrentMaintenanceB.endedAt).getTime() >=
+      new Date(endedAfterTechnicianLock.barrierAt).getTime(),
+    "encerramento individual deve gerar endedAt somente depois do lock do técnico",
+  );
+
+  const addedAfterTechnicianLock = await runAfterAdvisoryLockWait(
+    `andon-technician-session:${electricalSupport.id}`,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/technicians`,
+        json("POST", { technicianNames: [electricalSupport.name] }),
+        201,
+      ),
+  );
+  const concurrentSupportMaintenanceB = addedAfterTechnicianLock.result.technicianSessions.find(
+    (session) =>
+      session.technicianId === electricalSupport.id &&
+      session.phase === "maintenance" &&
+      !session.endedAt,
+  );
+  assert.ok(concurrentSupportMaintenanceB);
+  assert.ok(
+    new Date(concurrentSupportMaintenanceB.startedAt).getTime() >=
+      new Date(addedAfterTechnicianLock.barrierAt).getTime(),
+    "adição de mantenedor deve gerar startedAt somente depois do lock do técnico",
+  );
+
+  const concurrentSessions = await prisma.technicianSession.findMany({
+    where: { callId: { in: [concurrentCallA.id, concurrentCallB.id] } },
+    orderBy: { startedAt: "asc" },
+  });
+  assert.ok(
+    concurrentSessions.every(
+      (session) => !session.endedAt || session.startedAt.getTime() <= session.endedAt.getTime(),
+    ),
+    "nenhuma TechnicianSession encerrada pode possuir duração negativa",
   );
 
   console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");
