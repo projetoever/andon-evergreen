@@ -135,3 +135,20 @@ test("mantenedores possuem filtros profissionais de status, setor e turno", asyn
   assert.match(source, /setStatusFilter\("all"\)/);
   assert.match(source, /setShiftFilter\("all"\)/);
 });
+
+
+test("workstations possuem busca, filtro, contador e destaque da estação atual", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Pesquisar workstations por nome ou ID/);
+  assert.match(source, /Filtrar workstations por status/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /Ativas/);
+  assert.match(source, /Inativas/);
+  assert.match(source, /Nenhuma workstation encontrada/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /Tentar novamente/);
+});
