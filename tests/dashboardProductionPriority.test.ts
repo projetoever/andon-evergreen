@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import {
+  buildCurrentPrioritySnapshot,
+  buildPrioritySnapshot,
+  diffPrioritySnapshots,
+} from "../server/src/domain/machinePriorityHistory";
+
 test("migration de prioridade é aditiva e isolada da operação", async () => {
   const migration = await readFile(
     new URL(
@@ -14,7 +20,7 @@ test("migration de prioridade é aditiva e isolada da operação", async () => {
   assert.match(migration, /dashboardMachineOrderMode/);
   assert.match(migration, /priorityOrder/);
   assert.match(migration, /dashboard_priority_config/);
-  assert.doesNotMatch(migration, /\b(?:DROP|DELETE|TRUNCATE)\b/i);
+  assert.doesNotMatch(migration, /\bDROP\s+TABLE\b|\bDELETE\s+FROM\b|\bTRUNCATE\b/i);
   assert.doesNotMatch(migration, /andon_calls|failure_events|technician_sessions/i);
 });
 
@@ -127,4 +133,126 @@ test("badge P1-P5 mantém destaque leve sem virar alerta operacional", async () 
   assert.match(card, /bg-orange-500\/12/);
   assert.match(card, /border-orange-500\/55/);
   assert.match(card, /text-orange-400/);
+});
+
+
+test("histórico de prioridade cria baseline aditivo para o futuro BI", async () => {
+  const migration = await readFile(
+    new URL(
+      "../server/prisma/migrations/20261004190500_add_machine_priority_history/migration.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(migration, /machine_priority_history/);
+  assert.match(migration, /previousPriorityRank/);
+  assert.match(migration, /newPriorityRank/);
+  assert.match(migration, /history_baseline/);
+  assert.match(migration, /ROW_NUMBER\(\) OVER/);
+  assert.match(migration, /WHERE m\."isActive" = TRUE/);
+  assert.doesNotMatch(
+    migration,
+    /\bDROP\s+TABLE\b|\bDELETE\s+FROM\b|\bTRUNCATE\b/i,
+  );
+});
+
+test("salvamento de prioridade registra somente mudanças reais na mesma transação", async () => {
+  const [routeSource, helperSource] = await Promise.all([
+    readFile(new URL("../server/src/routes/dashboardPriority.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../server/src/domain/machinePriorityHistory.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(routeSource, /buildCurrentPrioritySnapshot/);
+  assert.match(routeSource, /buildPrioritySnapshot/);
+  assert.match(routeSource, /diffPrioritySnapshots/);
+  assert.match(routeSource, /prisma\.machinePriorityHistory\.create/);
+  assert.match(routeSource, /changedBy: auth\.session\.username/);
+  assert.match(routeSource, /source: "priority_manager"/);
+  assert.match(routeSource, /\.\.\.historyEntries/);
+  assert.match(routeSource, /prisma\.\$transaction/);
+  assert.match(helperSource, /previousPriorityRank === newPriorityRank/);
+});
+
+test("snapshot de prioridade considera somente máquinas ativas no P1-P5", () => {
+  const machines = Array.from({ length: 6 }, (_, index) => ({
+    id: String(index + 1),
+    isActive: true,
+    priorityOrder: index + 1,
+    displayOrder: index + 1,
+  }));
+
+  const previous = buildCurrentPrioritySnapshot(machines);
+  const nextMachines = machines.map((machine) =>
+    machine.id === "1" ? { ...machine, isActive: false } : machine,
+  );
+  const next = buildPrioritySnapshot(
+    previous.orderedIds,
+    new Map(nextMachines.map((machine) => [machine.id, machine])),
+  );
+  const changes = diffPrioritySnapshots(previous.orderedIds, previous, next);
+
+  assert.deepEqual(
+    changes.map((change) => [
+      change.machineId,
+      change.previousPriorityRank,
+      change.newPriorityRank,
+    ]),
+    [
+      ["1", 1, null],
+      ["2", 2, 1],
+      ["3", 3, 2],
+      ["4", 4, 3],
+      ["5", 5, 4],
+      ["6", null, 5],
+    ],
+  );
+});
+
+test("snapshot idêntico não cria alteração histórica duplicada", () => {
+  const machines = [
+    { id: "1", isActive: true, priorityOrder: 1, displayOrder: 1 },
+    { id: "2", isActive: true, priorityOrder: 2, displayOrder: 2 },
+  ];
+  const snapshot = buildCurrentPrioritySnapshot(machines);
+
+  assert.deepEqual(
+    diffPrioritySnapshots(snapshot.orderedIds, snapshot, snapshot),
+    [],
+  );
+});
+
+test("ativação e criação de máquina alimentam o histórico de prioridade", async () => {
+  const source = await readFile(
+    new URL("../server/src/routes/machines.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /priorityHistory:/);
+  assert.match(source, /source: "machine_created"/);
+  assert.match(source, /source: "machine_activation"/);
+  assert.match(source, /diffPrioritySnapshots/);
+  assert.match(source, /tx\.machinePriorityHistory\.create/);
+  assert.match(source, /prisma\.\$transaction/);
+});
+
+test("schema de histórico de prioridade é preparado para análise temporal do BI", async () => {
+  const schema = await readFile(
+    new URL("../server/prisma/schema.prisma", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(schema, /model MachinePriorityHistory/);
+  assert.match(schema, /previousOrder\s+Int\?/);
+  assert.match(schema, /newOrder\s+Int\?/);
+  assert.match(schema, /previousPriorityRank\s+Int\?/);
+  assert.match(schema, /newPriorityRank\s+Int\?/);
+  assert.match(schema, /changedAt\s+DateTime/);
+  assert.match(schema, /changedBy\s+String\?/);
+  assert.match(schema, /source\s+String/);
+  assert.match(schema, /reason\s+String\?/);
+  assert.match(schema, /@@index\(\[machineId, changedAt\]\)/);
 });

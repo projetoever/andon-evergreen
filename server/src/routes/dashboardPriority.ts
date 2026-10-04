@@ -2,6 +2,11 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import {
+  buildCurrentPrioritySnapshot,
+  buildPrioritySnapshot,
+  diffPrioritySnapshots,
+} from "../domain/machinePriorityHistory.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
 
@@ -250,7 +255,12 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
 
     const normalizedIds = machineIds.map((id) => id.trim());
     const currentMachines = await prisma.machine.findMany({
-      select: { id: true },
+      select: {
+        id: true,
+        isActive: true,
+        priorityOrder: true,
+        displayOrder: true,
+      },
     });
     const currentIds = new Set(currentMachines.map((machine) => machine.id));
 
@@ -265,7 +275,31 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       });
     }
 
+    const currentById = new Map(currentMachines.map((machine) => [machine.id, machine]));
+    const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+    const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
+    const priorityChanges = diffPrioritySnapshots(
+      normalizedIds,
+      previousSnapshot,
+      nextSnapshot,
+    );
+
     const updatedAt = new Date();
+    const historyEntries = priorityChanges.map((change) =>
+      prisma.machinePriorityHistory.create({
+        data: {
+          machineId: change.machineId,
+          previousOrder: change.previousOrder,
+          newOrder: change.newOrder,
+          previousPriorityRank: change.previousPriorityRank,
+          newPriorityRank: change.newPriorityRank,
+          changedAt: updatedAt,
+          changedBy: auth.session.username,
+          source: "priority_manager",
+        },
+      }),
+    );
+
     await prisma.$transaction([
       ...normalizedIds.map((id, index) =>
         prisma.machine.update({
@@ -273,6 +307,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           data: { priorityOrder: index + 1 },
         }),
       ),
+      ...historyEntries,
       prisma.dashboardPriorityConfig.upsert({
         where: { id: GLOBAL_PRIORITY_CONFIG_ID },
         update: {
