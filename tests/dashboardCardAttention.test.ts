@@ -150,8 +150,12 @@ test("cards mostram recência da última ocorrência em vez da duração da últ
     ),
   ]);
 
-  assert.match(card, /Última ocorrência:/);
-  assert.match(card, /formatElapsedSince\(lastOccurrence\?\.occurredAt\)/);
+  assert.doesNotMatch(card, /Última ocorrência:\s*\{/);
+  assert.match(
+    card,
+    /formatElapsedSince\(lastOccurrence\?\.occurredAt, undefined, "Sem ocorrência"\)/,
+  );
+  assert.match(card, /text-center font-black text-foreground/);
   assert.doesNotMatch(card, /Última falha:/);
 
   assert.match(statusPanel, /Última ocorrência/);
