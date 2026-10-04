@@ -92,3 +92,8 @@ jobs:
 
       - name: Validar frontend e SSR
         run: npm run build
+
+      - name: Garantir build sem alterar route tree versionado
+        run: |
+          git diff --exit-code -- src/routeTree.gen.ts
+          test -z "$(git status --porcelain -- src/routeTree.gen.ts)"

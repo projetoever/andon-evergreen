@@ -1083,16 +1083,90 @@ function Assert-AndonRepositoryClean {
     param([string]$ProjectPath = $Global:AndonProjectPath)
 
     $git = Get-AndonCommandPath "git.exe" "Instale Git for Windows."
-    $status = @(Invoke-AndonNativeSafe { & $git -C $ProjectPath status --porcelain 2>$null })
+
+    $status = @(Invoke-AndonNativeSafe {
+        & $git -C $ProjectPath status --porcelain --untracked-files=all 2>$null
+    })
     if ($LASTEXITCODE -ne 0) {
         throw "Nao foi possivel verificar alteracoes locais em $ProjectPath."
     }
-    if ($status.Count -gt 0) {
+
+    if ($status.Count -eq 0) {
+        return
+    }
+
+    Invoke-AndonNativeSafe {
+        & $git -C $ProjectPath diff --quiet --no-ext-diff --ignore-submodules -- 2>$null
+    } | Out-Null
+    $workingTreeHasRealChanges = ($LASTEXITCODE -eq 1)
+    if ($LASTEXITCODE -gt 1) {
+        throw "Nao foi possivel validar diferencas locais no working tree."
+    }
+
+    Invoke-AndonNativeSafe {
+        & $git -C $ProjectPath diff --cached --quiet --no-ext-diff --ignore-submodules -- 2>$null
+    } | Out-Null
+    $indexHasRealChanges = ($LASTEXITCODE -eq 1)
+    if ($LASTEXITCODE -gt 1) {
+        throw "Nao foi possivel validar diferencas locais staged."
+    }
+
+    $untracked = @(
+        Invoke-AndonNativeSafe {
+            & $git -C $ProjectPath ls-files --others --exclude-standard 2>$null
+        }
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw "Nao foi possivel verificar arquivos nao rastreados no repositorio ANDON."
+    }
+    $hasUntracked = @($untracked | Where-Object { ![string]::IsNullOrWhiteSpace("$_") }).Count -gt 0
+
+    if ($workingTreeHasRealChanges -or $indexHasRealChanges -or $hasUntracked) {
+        $details = @($status | ForEach-Object { "$_".TrimEnd() }) -join "; "
         throw (
-            "Repositorio ANDON possui alteracoes locais e nao sera sincronizado automaticamente. " +
-            "Preserve/reconcilie o hotfix antes de atualizar."
+            "Repositorio ANDON possui alteracoes locais reais e nao sera sincronizado automaticamente. " +
+            "Preserve/reconcilie o hotfix antes de atualizar. Alteracoes: $details"
         )
     }
+
+    Write-AndonWarn (
+        "Git reportou alteracao local sem diferenca real de conteudo. " +
+        "Reconciliando metadados/normalizacao com seguranca antes da atualizacao."
+    )
+
+    Invoke-AndonNativeSafe {
+        & $git -C $ProjectPath add --all -- 2>$null
+    } | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Nao foi possivel reconciliar o indice Git apos falso positivo de alteracao local."
+    }
+
+    Invoke-AndonNativeSafe {
+        & $git -C $ProjectPath diff --cached --quiet --no-ext-diff --ignore-submodules -- 2>$null
+    } | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw (
+            "Reconciliacao Git detectou diferenca real inesperada. " +
+            "Atualizacao interrompida para preservar o repositorio."
+        )
+    }
+
+    $statusAfter = @(
+        Invoke-AndonNativeSafe {
+            & $git -C $ProjectPath status --porcelain --untracked-files=all 2>$null
+        }
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw "Nao foi possivel validar o repositorio apos reconciliacao Git."
+    }
+    if ($statusAfter.Count -gt 0) {
+        throw (
+            "Repositorio ANDON continua marcado como alterado apos reconciliacao segura. " +
+            "Atualizacao interrompida."
+        )
+    }
+
+    Write-AndonOk "Working tree validado: nenhuma alteracao local real."
 }
 
 function Sync-AndonRepositoryAndTools {

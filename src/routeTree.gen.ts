@@ -10,10 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MachinePrioritiesRouteImport } from './routes/machine-priorities'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MachinePrioritiesRouteImport } from './routes/machine-priorities'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as MachinesMachineIdFailureHistoryRouteImport } from './routes/machines.$machineId_.failure-history'
 import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
@@ -21,6 +21,11 @@ import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machi
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MachinePrioritiesRoute = MachinePrioritiesRouteImport.update({
+  id: '/machine-priorities',
+  path: '/machine-priorities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -36,11 +41,6 @@ const ActiveCallsRoute = ActiveCallsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MachinePrioritiesRoute = MachinePrioritiesRouteImport.update({
-  id: '/machine-priorities',
-  path: '/machine-priorities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
@@ -63,9 +63,9 @@ const MachinesMachineIdCallHistoryRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/machine-priorities': typeof MachinePrioritiesRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
+  '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
@@ -73,9 +73,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/machine-priorities': typeof MachinePrioritiesRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
+  '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
@@ -84,9 +84,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/machine-priorities': typeof MachinePrioritiesRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
+  '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/machines/$machineId_/call-history': typeof MachinesMachineIdCallHistoryRoute
@@ -96,9 +96,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/machine-priorities'
     | '/active-calls'
     | '/history'
+    | '/machine-priorities'
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId/call-history'
@@ -106,9 +106,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/machine-priorities'
     | '/active-calls'
     | '/history'
+    | '/machine-priorities'
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId/call-history'
@@ -116,9 +116,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/machine-priorities'
     | '/active-calls'
     | '/history'
+    | '/machine-priorities'
     | '/settings'
     | '/machines/$machineId'
     | '/machines/$machineId_/call-history'
@@ -127,9 +127,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  MachinePrioritiesRoute: typeof MachinePrioritiesRoute
   ActiveCallsRoute: typeof ActiveCallsRoute
   HistoryRoute: typeof HistoryRoute
+  MachinePrioritiesRoute: typeof MachinePrioritiesRoute
   SettingsRoute: typeof SettingsRoute
   MachinesMachineIdRoute: typeof MachinesMachineIdRoute
   MachinesMachineIdCallHistoryRoute: typeof MachinesMachineIdCallHistoryRoute
@@ -138,18 +138,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/machine-priorities': {
-      id: '/machine-priorities'
-      path: '/machine-priorities'
-      fullPath: '/machine-priorities'
-      preLoaderRoute: typeof MachinePrioritiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/machine-priorities': {
+      id: '/machine-priorities'
+      path: '/machine-priorities'
+      fullPath: '/machine-priorities'
+      preLoaderRoute: typeof MachinePrioritiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -199,9 +199,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  MachinePrioritiesRoute: MachinePrioritiesRoute,
   ActiveCallsRoute: ActiveCallsRoute,
   HistoryRoute: HistoryRoute,
+  MachinePrioritiesRoute: MachinePrioritiesRoute,
   SettingsRoute: SettingsRoute,
   MachinesMachineIdRoute: MachinesMachineIdRoute,
   MachinesMachineIdCallHistoryRoute: MachinesMachineIdCallHistoryRoute,
