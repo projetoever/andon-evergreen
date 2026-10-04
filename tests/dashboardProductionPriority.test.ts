@@ -1,0 +1,86 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+test("migration de prioridade é aditiva e isolada da operação", async () => {
+  const migration = await readFile(
+    new URL(
+      "../server/prisma/migrations/20261004123000_add_dashboard_production_priority/migration.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(migration, /dashboardMachineOrderMode/);
+  assert.match(migration, /priorityOrder/);
+  assert.match(migration, /dashboard_priority_config/);
+  assert.doesNotMatch(migration, /\b(?:DROP|DELETE|TRUNCATE)\b/i);
+  assert.doesNotMatch(migration, /andon_calls|failure_events|technician_sessions/i);
+});
+
+test("API de prioridades usa hash, sessão e salvamento transacional", async () => {
+  const source = await readFile(
+    new URL("../server/src/routes/dashboardPriority.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /hashCredential/);
+  assert.match(source, /verifyCredential/);
+  assert.match(source, /randomBytes\(32\)/);
+  assert.match(source, /SESSION_TTL_MS/);
+  assert.match(source, /prisma\.\$transaction/);
+  assert.match(source, /priorityOrder: index \+ 1/);
+  assert.doesNotMatch(source, /AndonCall|machineStatus|andonStatus|productionMode/);
+});
+
+test("Admin deixa explícito que prioridade é somente visual", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Organização visual do Dashboard/);
+  assert.match(source, /Padrão atual/);
+  assert.match(source, /Prioridade de produção/);
+  assert.match(source, /Não altera chamados, tempos,/);
+  assert.match(source, /Acesso à gestão de prioridades/);
+});
+
+test("Dashboard possui acesso dedicado e envia modo visual ao grid", async () => {
+  const source = await readFile(
+    new URL("../src/pages/DashboardPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Organizar prioridade de produção/);
+  assert.match(source, /DashboardPriorityLoginModal/);
+  assert.match(source, /to: "\/machine-priorities"/);
+  assert.match(source, /orderMode=\{dashboardMachineOrderMode\}/);
+});
+
+test("tela exclusiva permite arrastar, mover e salvar sem controles operacionais", async () => {
+  const source = await readFile(
+    new URL("../src/pages/DashboardPriorityPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /draggable/);
+  assert.match(source, /Mover .* para cima/);
+  assert.match(source, /Mover .* para baixo/);
+  assert.match(source, /Salvar sequência/);
+  assert.match(source, /Descartar/);
+  assert.match(source, /Alterações não salvas/);
+  assert.doesNotMatch(source, /attendCall|finishCall|machineStatus|changeMachineStatus/);
+});
+
+test("somente P1-P5 recebem contorno de prioridade no card", async () => {
+  const [grid, card] = await Promise.all([
+    readFile(new URL("../src/components/machines/MachineGrid.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/machines/MachineCard.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(grid, /orderedMachines\.slice\(0, 5\)/);
+  assert.match(grid, /productionPriorityRank/);
+  assert.match(card, /outline-primary\/70/);
+  assert.match(card, /P\{productionPriorityRank\}/);
+});
