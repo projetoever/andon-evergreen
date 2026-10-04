@@ -128,3 +128,58 @@ test("badge P1-P5 mantém destaque leve sem virar alerta operacional", async () 
   assert.match(card, /border-orange-500\/55/);
   assert.match(card, /text-orange-400/);
 });
+
+
+test("histórico de prioridade cria baseline aditivo para o futuro BI", async () => {
+  const migration = await readFile(
+    new URL(
+      "../server/prisma/migrations/20261004190500_add_machine_priority_history/migration.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(migration, /machine_priority_history/);
+  assert.match(migration, /previousPriorityRank/);
+  assert.match(migration, /newPriorityRank/);
+  assert.match(migration, /history_baseline/);
+  assert.match(migration, /ROW_NUMBER\(\) OVER/);
+  assert.match(migration, /WHERE m\."isActive" = TRUE/);
+  assert.doesNotMatch(migration, /\b(?:DROP|DELETE|TRUNCATE)\b/i);
+});
+
+test("salvamento de prioridade registra somente mudanças reais na mesma transação", async () => {
+  const source = await readFile(
+    new URL("../server/src/routes/dashboardPriority.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /previousOrderById/);
+  assert.match(source, /newOrderById/);
+  assert.match(source, /previousPriorityRanks/);
+  assert.match(source, /newPriorityRanks/);
+  assert.match(source, /previousPriorityRank === newPriorityRank/);
+  assert.match(source, /prisma\.machinePriorityHistory\.create/);
+  assert.match(source, /changedBy: auth\.session\.username/);
+  assert.match(source, /source: "priority_manager"/);
+  assert.match(source, /\.\.\.historyEntries/);
+  assert.match(source, /prisma\.\$transaction/);
+});
+
+test("schema de histórico de prioridade é preparado para análise temporal do BI", async () => {
+  const schema = await readFile(
+    new URL("../server/prisma/schema.prisma", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(schema, /model MachinePriorityHistory/);
+  assert.match(schema, /previousOrder\s+Int\?/);
+  assert.match(schema, /newOrder\s+Int\?/);
+  assert.match(schema, /previousPriorityRank\s+Int\?/);
+  assert.match(schema, /newPriorityRank\s+Int\?/);
+  assert.match(schema, /changedAt\s+DateTime/);
+  assert.match(schema, /changedBy\s+String\?/);
+  assert.match(schema, /source\s+String/);
+  assert.match(schema, /reason\s+String\?/);
+  assert.match(schema, /@@index\(\[machineId, changedAt\]\)/);
+});
