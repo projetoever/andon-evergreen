@@ -9,14 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
-
-function normalizeSearchValue(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .trim();
-}
+import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -44,16 +37,10 @@ export function MachineAdminPanel() {
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredMachines = useMemo(() => {
-    const query = normalizeSearchValue(searchQuery);
-    return sortMachines(machines).filter((machine) => {
-      if (!query) return true;
-      return (
-        normalizeSearchValue(machine.id).includes(query) ||
-        normalizeSearchValue(machine.name).includes(query)
-      );
-    });
-  }, [machines, searchQuery]);
+  const filteredMachines = useMemo(
+    () => filterMachinesForAdmin(sortMachines(machines), searchQuery),
+    [machines, searchQuery],
+  );
 
   function handleCreate() {
     const id = newId.trim();
