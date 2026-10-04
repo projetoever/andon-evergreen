@@ -51,6 +51,7 @@ type ApiMachine = Partial<Machine> & {
   name: string;
   isActive?: boolean;
   displayOrder?: number | null;
+  priorityOrder?: number | null;
   createdAt?: string;
   updatedAt?: string;
   productionEvents?: ApiProductionEvent[];
@@ -201,6 +202,7 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = [], n
     requireWorkOrderAtOpen: machine.requireWorkOrderAtOpen === true,
     isActive: machine.isActive ?? true,
     displayOrder: machine.displayOrder ?? null,
+    priorityOrder: machine.priorityOrder ?? null,
     productionModeChangedAt: toIso(machine.productionModeChangedAt ?? machine.updatedAt, nowIso),
     useCommercialShift: machine.useCommercialShift ?? false,
     productionHistory: sortedProductionHistory,

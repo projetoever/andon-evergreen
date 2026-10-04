@@ -295,6 +295,10 @@ export function normalizeMachine(machine: Machine): Machine {
       typeof (source as { displayOrder?: unknown }).displayOrder === "number"
         ? (source as { displayOrder: number }).displayOrder
         : null,
+    priorityOrder:
+      typeof (source as { priorityOrder?: unknown }).priorityOrder === "number"
+        ? (source as { priorityOrder: number }).priorityOrder
+        : null,
     productionModeChangedAt:
       typeof source.productionModeChangedAt === "string" && source.productionModeChangedAt
         ? source.productionModeChangedAt

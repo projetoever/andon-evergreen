@@ -15,6 +15,7 @@ model SystemSettings {
   restrictMaintenanceCompletionToAttendanceWorkstation Boolean  @default(false)
   dashboardSoundMuteTimerEnabled                       Boolean  @default(false)
   dashboardSoundMuteDurationMinutes                    Int      @default(3)
+  dashboardMachineOrderMode                            String   @default("default")
   attendanceMode                                       String   @default("name")
   rfidReaderMode                                       String   @default("keyboard_hid")
   rfidInputTerminator                                  String   @default("enter")
@@ -23,6 +24,19 @@ model SystemSettings {
   updatedAt                                            DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+
+model DashboardPriorityConfig {
+  id                 String    @id @default("global")
+  managerUsername    String?
+  managerPasswordHash String?
+  lastOrderUpdatedAt DateTime?
+  lastOrderUpdatedBy String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("dashboard_priority_config")
 }
 
 model Workstation {
@@ -64,6 +78,7 @@ model Machine {
   requireWorkOrderAtOpen Boolean                @default(false)
   isActive            Boolean                  @default(true)
   displayOrder        Int?
+  priorityOrder       Int?
   currentCallId       String?                  @unique
   currentCall         AndonCall?               @relation("MachineCurrentCall", fields: [currentCallId], references: [id], onDelete: SetNull)
   lastStatusChangedAt DateTime                 @default(now())

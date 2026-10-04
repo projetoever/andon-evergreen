@@ -280,7 +280,10 @@ export class LocalAndonRepository implements AndonRepository {
       currentCallId: null, lastStatusChangedAt: now, stoppedAt: null, lastStopDurationMinutes: 0, stopHistory: [],
       productionMode: params.productionMode ?? "scheduled", productionModeChangedAt: now, useCommercialShift: false, productionHistory: [],
       requireWorkOrderAtOpen: params.requireWorkOrderAtOpen ?? false,
-      isActive: true, displayOrder: Number.isFinite(Number(params.id)) ? Number(params.id) : null,
+      isActive: true,
+      displayOrder: Number.isFinite(Number(params.id)) ? Number(params.id) : null,
+      priorityOrder:
+        machines.reduce((max, current) => Math.max(max, current.priorityOrder ?? 0), 0) + 1,
     });
     const nextMachines = [...machines, machine].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
     return { machines: nextMachines, machine };

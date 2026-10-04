@@ -98,6 +98,7 @@ const machineSchema = z
     requireWorkOrderAtOpen: z.boolean().default(false),
     isActive: z.boolean().default(true),
     displayOrder: z.number().int().nullable().optional(),
+    priorityOrder: z.number().int().nullable().optional(),
     productionModeChangedAt: isoString.optional(),
     useCommercialShift: z.boolean().default(false),
     productionHistory: z

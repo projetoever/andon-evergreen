@@ -26,9 +26,13 @@ import {
 
 interface MachineCardProps {
   machine: Machine;
+  productionPriorityRank?: number | null;
 }
 
-export function MachineCard({ machine }: MachineCardProps) {
+export function MachineCard({
+  machine,
+  productionPriorityRank = null,
+}: MachineCardProps) {
   const { calls, settings } = useAndon();
   const currentCall = machine.currentCallId
     ? calls.find((c) => c.id === machine.currentCallId)
@@ -99,8 +103,20 @@ export function MachineCard({ machine }: MachineCardProps) {
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
+        productionPriorityRank !== null &&
+          "outline outline-2 outline-offset-1 outline-primary/70",
       )}
+      data-production-priority={productionPriorityRank ?? undefined}
     >
+      {productionPriorityRank !== null && (
+        <span
+          className="absolute right-1.5 top-1.5 z-10 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-black leading-none text-primary"
+          title={`Prioridade de produção P${productionPriorityRank}`}
+        >
+          P{productionPriorityRank}
+        </span>
+      )}
+
       <div className="flex shrink-0 items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">Máquina</div>

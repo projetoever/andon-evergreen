@@ -61,6 +61,7 @@ export interface Machine {
   requireWorkOrderAtOpen: boolean;
   isActive: boolean;
   displayOrder?: number | null;
+  priorityOrder?: number | null;
   productionModeChangedAt: string;
   useCommercialShift: boolean;
   productionHistory: MachineProductionEvent[];

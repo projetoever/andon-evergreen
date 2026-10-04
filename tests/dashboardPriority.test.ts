@@ -3,9 +3,12 @@ import test from "node:test";
 import type { AndonCall } from "../src/types/andon";
 import type { Machine } from "../src/types/machine";
 import {
+  compareByProductionPriority,
   getDashboardPriority,
   getDashboardPrioritySignature,
+  getTopProductionPriorityIds,
   splitMachinesByDashboardPriority,
+  splitMachinesByProductionPriority,
 } from "../src/utils/dashboardPriorityUtils";
 
 function createMachine(id: string, patch: Partial<Machine> = {}): Machine {
@@ -149,4 +152,69 @@ test("assinatura muda apenas quando a prioridade operacional muda", () => {
     getDashboardPrioritySignature([machine], [call]),
     getDashboardPrioritySignature([machine], [{ ...call, status: "in_progress" }]),
   );
+});
+
+
+test("prioridade de produção respeita a sequência manual", () => {
+  const machines = [
+    createMachine("1", { priorityOrder: 3 }),
+    createMachine("2", { priorityOrder: 1 }),
+    createMachine("3", { priorityOrder: 2 }),
+  ];
+
+  assert.deepEqual(
+    machines.slice().sort(compareByProductionPriority).map((machine) => machine.id),
+    ["2", "3", "1"],
+  );
+});
+
+test("as cinco primeiras prioridades de produção permanecem fixas", () => {
+  const machines = Array.from({ length: 16 }, (_, index) =>
+    createMachine(String(index + 1), { priorityOrder: index + 1 }),
+  );
+  machines[15] = createMachine("16", {
+    priorityOrder: 16,
+    machineStatus: "stopped",
+    andonStatus: "open",
+    currentCallId: "call-16",
+  });
+  const calls = [createCall("call-16", "16", "open")];
+
+  const [firstPage] = splitMachinesByProductionPriority(machines, calls);
+
+  assert.deepEqual(
+    firstPage.slice(0, 5).map((machine) => machine.id),
+    ["1", "2", "3", "4", "5"],
+  );
+  assert.ok(firstPage.some((machine) => machine.id === "16"));
+});
+
+test("destaque P1-P5 considera as primeiras máquinas ativas recebidas pelo grid", () => {
+  const machines = [
+    createMachine("9", { priorityOrder: 1 }),
+    createMachine("3", { priorityOrder: 2 }),
+    createMachine("12", { priorityOrder: 3 }),
+    createMachine("7", { priorityOrder: 4 }),
+    createMachine("5", { priorityOrder: 5 }),
+    createMachine("1", { priorityOrder: 6 }),
+  ];
+
+  const ids = getTopProductionPriorityIds(machines);
+
+  assert.deepEqual([...ids], ["9", "3", "12", "7", "5"]);
+  assert.equal(ids.has("1"), false);
+});
+
+test("prioridade visual não altera estado operacional da máquina", () => {
+  const machine = createMachine("9", {
+    priorityOrder: 1,
+    machineStatus: "stopped",
+    andonStatus: "open",
+    currentCallId: "call-9",
+  });
+  const before = structuredClone(machine);
+
+  splitMachinesByProductionPriority([machine], [createCall("call-9", "9", "open")]);
+
+  assert.deepEqual(machine, before);
 });

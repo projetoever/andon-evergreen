@@ -6,15 +6,17 @@ import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
-import { Volume2, VolumeX, Settings } from "lucide-react";
+import { ListOrdered, Volume2, VolumeX, Settings } from "lucide-react";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
+import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
+import { isDashboardPriorityAuthenticated } from "@/services/dashboardPriorityService";
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
-import type { SystemSettings } from "@/types/systemSettings";
+import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
   getKnownRealCallIds,
@@ -28,7 +30,10 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
+    useState<DashboardMachineOrderMode>("default");
   const [dashboardMuteTimerEnabled, setDashboardMuteTimerEnabled] = useState(false);
   const [dashboardMuteDurationMinutes, setDashboardMuteDurationMinutes] = useState(
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
@@ -66,6 +71,9 @@ export function DashboardPage() {
     const applySettings = (systemSettings: SystemSettings) => {
       setDashboardMuteTimerEnabled(systemSettings.dashboardSoundMuteTimerEnabled);
       setDashboardMuteDurationMinutes(systemSettings.dashboardSoundMuteDurationMinutes);
+      setDashboardMachineOrderMode(
+        systemSettings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
+      );
     };
     const handleSettingsChanged = (event: Event) => {
       applySettings((event as CustomEvent<SystemSettings>).detail);
@@ -211,6 +219,22 @@ export function DashboardPage() {
 
           <button
             type="button"
+            title="Organizar prioridade de produção"
+            aria-label="Organizar prioridade de produção"
+            onClick={() => {
+              if (isDashboardPriorityAuthenticated()) {
+                void navigate({ to: "/machine-priorities" });
+              } else {
+                setPriorityLoginOpen(true);
+              }
+            }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
+          >
+            <ListOrdered className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
             title="Configurar sons do ANDON"
             aria-label="Configurar sons do ANDON"
             onClick={() =>
@@ -229,9 +253,15 @@ export function DashboardPage() {
         onSuccess={() => setAdminSettingsOpen(true)}
       />
       <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
+      <DashboardPriorityLoginModal
+        open={priorityLoginOpen}
+        onOpenChange={setPriorityLoginOpen}
+        onSuccess={() => void navigate({ to: "/machine-priorities" })}
+      />
 
       <MachineGrid
         className="min-h-0 flex-1"
+        orderMode={dashboardMachineOrderMode}
         machines={[...machines]
           .filter((machine) => machine.isActive)
           .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}

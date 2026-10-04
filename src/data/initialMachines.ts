@@ -17,6 +17,7 @@ export function createInitialMachines(): Machine[] {
     requireWorkOrderAtOpen: false,
     isActive: true,
     displayOrder: Number(id),
+    priorityOrder: Number(id),
     productionModeChangedAt: now,
     useCommercialShift: false,
     productionHistory: [],

@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Factory } from "lucide-react";
 import type { Machine } from "@/types/machine";
+import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 import { cn } from "@/lib/utils";
 import { useAndon } from "@/context/AndonProvider";
 import { EmptyState } from "@/components/common/EmptyState";
 import {
   MAX_DASHBOARD_CARDS,
   compareByMachineNumber,
+  compareByProductionPriority,
   getDashboardPrioritySignature,
+  getProductionPrioritySignature,
   splitMachinesByDashboardPriority,
+  splitMachinesByProductionPriority,
 } from "@/utils/dashboardPriorityUtils";
 import { MachineCard } from "./MachineCard";
 
@@ -19,35 +23,72 @@ const GRID_CLASS =
 interface MachineGridProps {
   machines: Machine[];
   className?: string;
+  orderMode?: DashboardMachineOrderMode;
 }
 
-function MachinePageGrid({ machines }: { machines: Machine[] }) {
+function MachinePageGrid({
+  machines,
+  priorityRanks,
+}: {
+  machines: Machine[];
+  priorityRanks: Map<string, number>;
+}) {
   return (
     <div className={GRID_CLASS}>
       {machines.map((machine) => (
-        <MachineCard key={machine.id} machine={machine} />
+        <MachineCard
+          key={machine.id}
+          machine={machine}
+          productionPriorityRank={priorityRanks.get(machine.id) ?? null}
+        />
       ))}
     </div>
   );
 }
 
-export function MachineGrid({ machines, className }: MachineGridProps) {
+export function MachineGrid({
+  machines,
+  className,
+  orderMode = "default",
+}: MachineGridProps) {
   const { calls } = useAndon();
   const [pageIndex, setPageIndex] = useState(0);
 
-  const numericMachines = useMemo(() => machines.slice().sort(compareByMachineNumber), [machines]);
-  const hasOverflow = numericMachines.length > MAX_DASHBOARD_CARDS;
+  const orderedMachines = useMemo(
+    () =>
+      machines
+        .slice()
+        .sort(orderMode === "priority" ? compareByProductionPriority : compareByMachineNumber),
+    [machines, orderMode],
+  );
+  const hasOverflow = orderedMachines.length > MAX_DASHBOARD_CARDS;
+
+  const priorityRanks = useMemo(() => {
+    const ranks = new Map<string, number>();
+    if (orderMode !== "priority") return ranks;
+
+    orderedMachines.slice(0, 5).forEach((machine, index) => {
+      ranks.set(machine.id, index + 1);
+    });
+    return ranks;
+  }, [orderMode, orderedMachines]);
 
   const pages = useMemo(() => {
-    if (!hasOverflow) return [numericMachines];
-    return splitMachinesByDashboardPriority(numericMachines, calls);
-  }, [calls, hasOverflow, numericMachines]);
+    if (!hasOverflow) return [orderedMachines];
+    return orderMode === "priority"
+      ? splitMachinesByProductionPriority(orderedMachines, calls)
+      : splitMachinesByDashboardPriority(orderedMachines, calls);
+  }, [calls, hasOverflow, orderMode, orderedMachines]);
+
   const prioritySignature = useMemo(
-    () => getDashboardPrioritySignature(numericMachines, calls),
-    [calls, numericMachines],
+    () =>
+      orderMode === "priority"
+        ? getProductionPrioritySignature(orderedMachines, calls)
+        : getDashboardPrioritySignature(orderedMachines, calls),
+    [calls, orderMode, orderedMachines],
   );
 
-  const overflowCount = Math.max(0, numericMachines.length - MAX_DASHBOARD_CARDS);
+  const overflowCount = Math.max(0, orderedMachines.length - MAX_DASHBOARD_CARDS);
 
   useEffect(() => {
     if (pageIndex <= pages.length - 1) return;
@@ -65,7 +106,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
     return () => window.clearTimeout(timer);
   }, [pageIndex]);
 
-  if (numericMachines.length === 0) {
+  if (orderedMachines.length === 0) {
     return (
       <div className={cn("flex h-full min-h-0 items-center justify-center", className)}>
         <EmptyState
@@ -80,7 +121,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
   if (!hasOverflow) {
     return (
       <div className={cn("h-full min-h-0", className)}>
-        <MachinePageGrid machines={numericMachines} />
+        <MachinePageGrid machines={orderedMachines} priorityRanks={priorityRanks} />
       </div>
     );
   }
@@ -120,7 +161,7 @@ export function MachineGrid({ machines, className }: MachineGridProps) {
         >
           {pages.map((page, index) => (
             <div key={index} className="h-full min-h-0 w-full min-w-full shrink-0">
-              <MachinePageGrid machines={page} />
+              <MachinePageGrid machines={page} priorityRanks={priorityRanks} />
             </div>
           ))}
         </div>
