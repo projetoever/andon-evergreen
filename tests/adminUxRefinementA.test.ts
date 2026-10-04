@@ -67,3 +67,34 @@ test("mantenedores indicam alterações pendentes e permitem cancelar edição",
   assert.match(source, /Cadastro sincronizado/);
   assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges\}/);
 });
+
+
+test("classificações possuem pesquisa, filtro de status e contador", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Pesquisar nome ou ID/);
+  assert.match(source, /Pesquisar classificações por nome ou ID/);
+  assert.match(source, /statusFilter/);
+  assert.match(source, /Todos/);
+  assert.match(source, /Ativos/);
+  assert.match(source, /Inativos/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /Nenhuma classificação encontrada/);
+  assert.match(source, /max-h-\[52vh\]/);
+});
+
+test("classificações mantêm edição e ID histórico estável", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Editar classificação/);
+  assert.match(source, /Salvar classificação/);
+  assert.match(source, /O ID interno permanece estável para preservar o histórico/);
+  assert.match(source, /updateFailureClassification/);
+  assert.match(source, /createFailureClassification/);
+});
