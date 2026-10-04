@@ -2196,9 +2196,18 @@ async function run() {
     select: { pinHash: true, tagHash: true },
   });
   assert.equal(storedTechnicians.length, 2);
-  assert.ok(storedTechnicians.every((technician) => technician.pinHash?.startsWith("scrypt$")));
-  assert.ok(storedTechnicians.every((technician) => technician.tagHash?.startsWith("scrypt$")));
-  assert.ok(storedTechnicians.every((technician) => !technician.pinHash?.includes("4821")));
+  const credentialHashPattern = /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/;
+  assert.ok(
+    storedTechnicians.every((technician) =>
+      credentialHashPattern.test(technician.pinHash ?? ""),
+    ),
+  );
+  assert.ok(
+    storedTechnicians.every((technician) =>
+      credentialHashPattern.test(technician.tagHash ?? ""),
+    ),
+  );
+  assert.ok(storedTechnicians.every((technician) => technician.pinHash !== "4821"));
 
   const publicTechnicians = await request("/api/technicians");
   assert.ok(publicTechnicians.every((technician) => !("pinHash" in technician)));
