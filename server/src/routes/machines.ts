@@ -2,6 +2,13 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import {
+  buildCurrentPrioritySnapshot,
+  buildPrioritySnapshot,
+  diffPrioritySnapshots,
+  sortPriorityMachineIds,
+  type PriorityMachineState,
+} from "../domain/machinePriorityHistory.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
@@ -110,17 +117,23 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     const requireWorkOrderAtOpen = parsedRequireWorkOrderAtOpen ?? false;
 
     try {
-      const highestOrder = await prisma.machine.aggregate({
-        _max: {
-          priorityOrder: true,
-          displayOrder: true,
-        },
-      });
+      const [highestOrder, activeMachineCount, machineCount] = await Promise.all([
+        prisma.machine.aggregate({
+          _max: {
+            priorityOrder: true,
+            displayOrder: true,
+          },
+        }),
+        prisma.machine.count({ where: { isActive: true } }),
+        prisma.machine.count(),
+      ]);
       const nextPriorityOrder =
         Math.max(
           highestOrder._max.priorityOrder ?? 0,
           highestOrder._max.displayOrder ?? 0,
         ) + 1;
+      const createdAt = new Date();
+      const initialPriorityRank = activeMachineCount < 5 ? activeMachineCount + 1 : null;
 
       const machine = await prisma.machine.create({
         data: {
@@ -134,7 +147,17 @@ export async function registerMachineRoutes(app: FastifyInstance) {
           andonStatus: "normal",
           currentCallId: null,
           isActive: true,
-          productionEvents: { create: { productionMode, startedAt: new Date() } },
+          productionEvents: { create: { productionMode, startedAt: createdAt } },
+          priorityHistory: {
+            create: {
+              previousOrder: null,
+              newOrder: machineCount + 1,
+              previousPriorityRank: null,
+              newPriorityRank: initialPriorityRank,
+              changedAt: createdAt,
+              source: "machine_created",
+            },
+          },
         },
         select: machineSelect,
       });
@@ -190,7 +213,63 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     const machine = await findMachineOr404(request.params.id, reply);
     if (!("id" in machine)) return machine;
     if (!isActive && machine.currentCallId) return badRequest(reply, "Não é possível desativar máquina com chamado ativo");
-    return prisma.machine.update({ where: { id: request.params.id }, data: { isActive }, select: machineSelect });
+
+    const currentMachines = await prisma.machine.findMany({
+      select: {
+        id: true,
+        isActive: true,
+        priorityOrder: true,
+        displayOrder: true,
+      },
+    });
+    const currentTarget = currentMachines.find((item) => item.id === request.params.id);
+    if (!currentTarget) return notFound(reply, "Máquina não encontrada");
+
+    if (currentTarget.isActive === isActive) {
+      return prisma.machine.findUniqueOrThrow({
+        where: { id: request.params.id },
+        select: machineSelect,
+      });
+    }
+
+    const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+    const nextMachines: PriorityMachineState[] = currentMachines.map((item) =>
+      item.id === request.params.id ? { ...item, isActive } : item,
+    );
+    const nextById = new Map(nextMachines.map((item) => [item.id, item]));
+    const orderedIds = sortPriorityMachineIds(nextMachines);
+    const nextSnapshot = buildPrioritySnapshot(orderedIds, nextById);
+    const priorityChanges = diffPrioritySnapshots(
+      orderedIds,
+      previousSnapshot,
+      nextSnapshot,
+    );
+    const changedAt = new Date();
+
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.machine.update({
+        where: { id: request.params.id },
+        data: { isActive },
+        select: machineSelect,
+      });
+
+      for (const change of priorityChanges) {
+        await tx.machinePriorityHistory.create({
+          data: {
+            machineId: change.machineId,
+            previousOrder: change.previousOrder,
+            newOrder: change.newOrder,
+            previousPriorityRank: change.previousPriorityRank,
+            newPriorityRank: change.newPriorityRank,
+            changedAt,
+            source: "machine_activation",
+            reason: isActive ? "activated" : "inactivated",
+          },
+        });
+      }
+
+      return updated;
+    });
   });
 
   app.patch<{ Params: { id: string }; Body: MachineStatusBody }>("/api/machines/:id/status", async (request, reply) => {
