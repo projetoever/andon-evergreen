@@ -137,8 +137,12 @@ test("notificações internas estão montadas globalmente e com apresentação d
 });
 
 test("fluxos sensíveis do Admin informam sucesso e falha", async () => {
-  const [admin, workstation, soundModal] = await Promise.all([
+  const [admin, shifts, workstation, soundModal] = await Promise.all([
     readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(
       new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url),
       "utf8",
@@ -148,7 +152,7 @@ test("fluxos sensíveis do Admin informam sucesso e falha", async () => {
 
   assert.match(admin, /Não foi possível salvar o som/);
   assert.match(admin, /Não foi possível remover o som/);
-  assert.match(admin, /Filtro por turno atual habilitado/);
+  assert.match(shifts, /Filtro por turno atual habilitado/);
   assert.match(workstation, /Workstation ativada/);
   assert.match(workstation, /Workstation inativada/);
   assert.match(soundModal, /Não foi possível reproduzir o som/);
