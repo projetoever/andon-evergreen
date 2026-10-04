@@ -108,7 +108,7 @@ export function MachineCard({
     >
       {productionPriorityRank !== null && (
         <span
-          className="absolute right-1.5 top-1.5 z-10 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-black leading-none text-primary"
+          className="absolute right-1.5 top-1.5 z-10 rounded-full border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] font-black leading-none tracking-wide text-primary sm:text-[11px] 2xl:text-xs"
           title={`Prioridade de produção P${productionPriorityRank}`}
         >
           P{productionPriorityRank}
