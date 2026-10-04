@@ -449,3 +449,29 @@ test("desinstalação limpa remove só o runtime dedicado e preservação manté
   assert.doesNotMatch(preserveUninstall, /Remove-AndonLocalDatabaseClean/);
   assert.doesNotMatch(preserveUninstall, /Remove-Item \$Global:AndonNodeRuntimePath/);
 });
+
+
+test("updater distingue falso positivo de Git de alteração local real", async () => {
+  const common = await readInstaller("AndonInstaller.Common.ps1");
+
+  assert.match(common, /status --porcelain --untracked-files=all/);
+  assert.match(common, /diff --quiet --no-ext-diff --ignore-submodules/);
+  assert.match(common, /diff --cached --quiet --no-ext-diff --ignore-submodules/);
+  assert.match(common, /ls-files --others --exclude-standard/);
+  assert.match(common, /Git reportou alteracao local sem diferenca real de conteudo/);
+  assert.match(common, /add --all --/);
+  assert.match(common, /Working tree validado: nenhuma alteracao local real/);
+  assert.match(common, /alteracoes locais reais e nao sera sincronizado automaticamente/);
+});
+
+test("route tree gerado possui EOL fixo e CI detecta build que suje o arquivo", async () => {
+  const [attributes, workflow] = await Promise.all([
+    readRepositoryFile(".gitattributes"),
+    readRepositoryFile(".github/workflows/pr-validate.yml"),
+  ]);
+
+  assert.match(attributes, /src\/routeTree\.gen\.ts text eol=lf/);
+  assert.match(workflow, /Garantir build sem alterar route tree versionado/);
+  assert.match(workflow, /git diff --exit-code -- src\/routeTree\.gen\.ts/);
+  assert.match(workflow, /git status --porcelain -- src\/routeTree\.gen\.ts/);
+});
