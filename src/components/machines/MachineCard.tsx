@@ -12,8 +12,9 @@ import {
   calculateCallWaitingMinutes,
   calculateMachineStoppedMinutes,
   calculatePostMaintenanceMinutes,
-  formatCompactDurationMinutes,
   formatDurationMinutes,
+  formatElapsedSince,
+  getLastMachineOccurrence,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
@@ -70,18 +71,24 @@ export function MachineCard({
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
-  const lastCompletedStop = machine.stopHistory.find((event) => event.resumedAt);
-  const lastFailureDetails =
-    machine.lastStopDurationMinutes > 0
-      ? [
-          `Duração exata: ${formatDurationMinutes(machine.lastStopDurationMinutes)}`,
-          lastCompletedStop?.resumedAt
-            ? `Encerrada em ${formatDateTime(lastCompletedStop.resumedAt)}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" • ")
-      : "Nenhuma falha encerrada registrada";
+  const lastOccurrence = getLastMachineOccurrence(machine, calls);
+  const lastOccurrenceDetails = lastOccurrence
+    ? [
+        lastOccurrence.kind === "call"
+          ? `Chamado aberto em ${formatDateTime(lastOccurrence.occurredAt)}`
+          : `Falha iniciada em ${formatDateTime(lastOccurrence.occurredAt)}`,
+        lastOccurrence.kind === "failure" &&
+        typeof lastOccurrence.durationMinutes === "number" &&
+        lastOccurrence.durationMinutes > 0
+          ? `Duração: ${formatDurationMinutes(lastOccurrence.durationMinutes)}`
+          : null,
+        lastOccurrence.kind === "failure" && lastOccurrence.endedAt
+          ? `Encerrada em ${formatDateTime(lastOccurrence.endedAt)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" • ")
+    : "Nenhum chamado ou falha registrado";
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
@@ -152,10 +159,10 @@ export function MachineCard({
           </div>
         )}
         {machine.machineStatus === "running" && (
-          <div className="truncate rounded-md bg-muted/35 px-2 py-1" title={lastFailureDetails}>
-            Última falha:{" "}
+          <div className="truncate rounded-md bg-muted/35 px-2 py-1" title={lastOccurrenceDetails}>
+            Última ocorrência:{" "}
             <strong className="text-foreground">
-              {formatCompactDurationMinutes(machine.lastStopDurationMinutes)}
+              {formatElapsedSince(lastOccurrence?.occurredAt)}
             </strong>
           </div>
         )}

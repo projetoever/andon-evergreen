@@ -1,12 +1,14 @@
 import { HelpCircle } from "lucide-react";
+import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import { useTicker } from "@/hooks/useTicker";
 import { cn } from "@/lib/utils";
 import {
   calculateMachineStoppedMinutes,
   getActiveMachineStoppedAt,
-  formatCompactDurationMinutes,
   formatDurationMinutes,
+  formatElapsedSince,
+  getLastMachineOccurrence,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import { getMachineStatusLabel, getProductionModeLabel } from "@/utils/statusUtils";
@@ -16,6 +18,7 @@ interface MachineCurrentStatusPanelProps {
   machine: Machine;
   className?: string;
   compactNormal?: boolean;
+  calls: readonly AndonCall[];
 }
 
 interface InfoHintProps {
@@ -47,7 +50,12 @@ function InfoHint({ summary, detail }: InfoHintProps) {
   );
 }
 
-export function MachineCurrentStatusPanel({ machine, className, compactNormal = false }: MachineCurrentStatusPanelProps) {
+export function MachineCurrentStatusPanel({
+  machine,
+  className,
+  compactNormal = false,
+  calls,
+}: MachineCurrentStatusPanelProps) {
   const isStopped = machine.machineStatus === "stopped";
   const isNotScheduled = machine.productionMode === "not_scheduled";
 
@@ -55,18 +63,24 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
 
   const stoppedMin = calculateMachineStoppedMinutes(machine);
   const activeStoppedAt = getActiveMachineStoppedAt(machine);
-  const lastCompletedStop = machine.stopHistory.find((event) => event.resumedAt);
-  const lastFailureDetail =
-    machine.lastStopDurationMinutes > 0
-      ? [
-          `Duração exata: ${formatDurationMinutes(machine.lastStopDurationMinutes)}.`,
-          lastCompletedStop?.resumedAt
-            ? `Falha encerrada em ${formatDateTime(lastCompletedStop.resumedAt)}.`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" ")
-      : "Nenhuma falha encerrada foi registrada para esta máquina.";
+  const lastOccurrence = getLastMachineOccurrence(machine, calls);
+  const lastOccurrenceDetail = lastOccurrence
+    ? [
+        lastOccurrence.kind === "call"
+          ? `Chamado aberto em ${formatDateTime(lastOccurrence.occurredAt)}.`
+          : `Falha iniciada em ${formatDateTime(lastOccurrence.occurredAt)}.`,
+        lastOccurrence.kind === "failure" &&
+        typeof lastOccurrence.durationMinutes === "number" &&
+        lastOccurrence.durationMinutes > 0
+          ? `Duração da falha: ${formatDurationMinutes(lastOccurrence.durationMinutes)}.`
+          : null,
+        lastOccurrence.kind === "failure" && lastOccurrence.endedAt
+          ? `Falha encerrada em ${formatDateTime(lastOccurrence.endedAt)}.`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "Nenhum chamado ou falha foi registrado para esta máquina.";
 
   return (
     <div
@@ -147,12 +161,15 @@ export function MachineCurrentStatusPanel({ machine, className, compactNormal = 
 
         {!isStopped && (
           <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1")}>
-            <dt className="text-xs uppercase text-muted-foreground">Última falha</dt>
+            <dt className="text-xs uppercase text-muted-foreground">Última ocorrência</dt>
             <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
-              {formatCompactDurationMinutes(machine.lastStopDurationMinutes, "Sem registro")}
+              {formatElapsedSince(lastOccurrence?.occurredAt)}
             </dd>
             {!compactNormal && (
-              <InfoHint summary="Duração da última falha encerrada." detail={lastFailureDetail} />
+              <InfoHint
+                summary="Tempo desde o último chamado ou falha."
+                detail={lastOccurrenceDetail}
+              />
             )}
           </div>
         )}

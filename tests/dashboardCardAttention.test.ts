@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import {
+  formatElapsedSince,
+  getLastMachineOccurrence,
+} from "../src/utils/durationUtils";
 import { getDashboardCardAttentionTone } from "../src/utils/statusUtils";
 
 test("falha em produção usa halo vermelho", () => {
@@ -75,4 +79,82 @@ test("card do Dashboard não exibe localização do chamado", async () => {
   assert.doesNotMatch(card, /getEffectiveAssetLocationLabel/);
   assert.doesNotMatch(card, /Localização:/);
   assert.match(card, /callElapsedLabel/);
+});
+
+
+test("última ocorrência usa o evento real mais recente e exibe recência", () => {
+  const machine = {
+    id: "9",
+    stopHistory: [
+      {
+        id: "stop-1",
+        machineId: "9",
+        callId: null,
+        stoppedAt: "2026-10-04T14:00:00.000Z",
+        resumedAt: "2026-10-04T14:11:00.000Z",
+        durationMinutes: 11,
+        source: "clp" as const,
+      },
+    ],
+  };
+  const calls = [
+    {
+      id: "call-1",
+      machineId: "9",
+      openedAt: "2026-10-04T15:00:00.000Z",
+      isSystemTest: false,
+    },
+  ];
+
+  const occurrence = getLastMachineOccurrence(machine, calls);
+
+  assert.equal(occurrence?.kind, "call");
+  assert.equal(occurrence?.occurredAt, "2026-10-04T15:00:00.000Z");
+  assert.equal(
+    formatElapsedSince(occurrence?.occurredAt, "2026-10-04T16:40:00.000Z"),
+    "há 1 h 40 min",
+  );
+});
+
+test("falha sem chamado também alimenta a última ocorrência", () => {
+  const machine = {
+    id: "9",
+    stopHistory: [
+      {
+        id: "stop-2",
+        machineId: "9",
+        callId: null,
+        stoppedAt: "2026-10-04T16:29:00.000Z",
+        resumedAt: "2026-10-04T16:35:00.000Z",
+        durationMinutes: 6,
+        source: "clp" as const,
+      },
+    ],
+  };
+
+  const occurrence = getLastMachineOccurrence(machine, []);
+
+  assert.equal(occurrence?.kind, "failure");
+  assert.equal(
+    formatElapsedSince(occurrence?.occurredAt, "2026-10-04T16:40:00.000Z"),
+    "há 11 min",
+  );
+});
+
+test("cards mostram recência da última ocorrência em vez da duração da última falha", async () => {
+  const [card, statusPanel] = await Promise.all([
+    readFile(new URL("../src/components/machines/MachineCard.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(card, /Última ocorrência:/);
+  assert.match(card, /formatElapsedSince\(lastOccurrence\?\.occurredAt\)/);
+  assert.doesNotMatch(card, /Última falha:/);
+
+  assert.match(statusPanel, /Última ocorrência/);
+  assert.match(statusPanel, /Tempo desde o último chamado ou falha\./);
+  assert.match(statusPanel, /formatElapsedSince\(lastOccurrence\?\.occurredAt\)/);
 });

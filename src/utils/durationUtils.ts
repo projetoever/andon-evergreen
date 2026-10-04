@@ -9,6 +9,97 @@ export function diffMinutes(a: string | null | undefined, b: string | null | und
   return ms / 60000;
 }
 
+
+export type MachineOccurrenceKind = "call" | "failure";
+
+export interface MachineOccurrence {
+  kind: MachineOccurrenceKind;
+  occurredAt: string;
+  callId?: string;
+  stopEventId?: string;
+  endedAt?: string | null;
+  durationMinutes?: number;
+}
+
+type MachineOccurrenceMachine = Pick<Machine, "id" | "stopHistory">;
+type MachineOccurrenceCall = Pick<
+  AndonCall,
+  "id" | "machineId" | "openedAt" | "isSystemTest"
+>;
+
+function occurrenceTimestamp(value: string | null | undefined): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+export function getLastMachineOccurrence(
+  machine: MachineOccurrenceMachine,
+  calls: readonly MachineOccurrenceCall[],
+): MachineOccurrence | null {
+  const systemTestCallIds = new Set(
+    calls.filter((call) => call.isSystemTest).map((call) => call.id),
+  );
+
+  let latestCall: MachineOccurrenceCall | null = null;
+  let latestCallTime = Number.NEGATIVE_INFINITY;
+  for (const call of calls) {
+    if (call.machineId !== machine.id || call.isSystemTest) continue;
+    const timestamp = occurrenceTimestamp(call.openedAt);
+    if (timestamp > latestCallTime) {
+      latestCall = call;
+      latestCallTime = timestamp;
+    }
+  }
+
+  let latestStop: Machine["stopHistory"][number] | null = null;
+  let latestStopTime = Number.NEGATIVE_INFINITY;
+  for (const stop of machine.stopHistory) {
+    if (stop.callId && systemTestCallIds.has(stop.callId)) continue;
+    const timestamp = occurrenceTimestamp(stop.stoppedAt);
+    if (timestamp > latestStopTime) {
+      latestStop = stop;
+      latestStopTime = timestamp;
+    }
+  }
+
+  if (!latestCall && !latestStop) return null;
+
+  if (latestCall && latestCallTime >= latestStopTime) {
+    return {
+      kind: "call",
+      occurredAt: latestCall.openedAt,
+      callId: latestCall.id,
+    };
+  }
+
+  if (!latestStop) return null;
+  return {
+    kind: "failure",
+    occurredAt: latestStop.stoppedAt,
+    stopEventId: latestStop.id,
+    callId: latestStop.callId ?? undefined,
+    endedAt: latestStop.resumedAt,
+    durationMinutes: latestStop.durationMinutes,
+  };
+}
+
+export function formatElapsedSince(
+  occurredAt: string | null | undefined,
+  nowIso = getServerNowIso(),
+  emptyLabel = "Sem registro",
+): string {
+  if (!occurredAt) return emptyLabel;
+  const start = new Date(occurredAt).getTime();
+  const end = new Date(nowIso).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return emptyLabel;
+
+  const elapsedMinutes = Math.max(0, (end - start) / 60000);
+  if (elapsedMinutes < 1) return "há menos de 1 min";
+
+  return `há ${formatCompactDurationMinutes(elapsedMinutes, "menos de 1 min")}`;
+}
+
 export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): number {
   const end = call.attendedAt ?? call.finishedAt ?? nowIso ?? getServerNowIso();
   return diffMinutes(call.openedAt, end);
