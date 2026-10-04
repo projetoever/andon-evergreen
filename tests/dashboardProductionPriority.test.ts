@@ -73,16 +73,19 @@ test("tela exclusiva permite arrastar, mover e salvar sem controles operacionais
   assert.doesNotMatch(source, /attendCall|finishCall|machineStatus|changeMachineStatus/);
 });
 
-test("somente P1-P5 recebem contorno de prioridade no card", async () => {
+test("P1-P5 formam um grupo visual externo sem contorno individual nos cards", async () => {
   const [grid, card] = await Promise.all([
     readFile(new URL("../src/components/machines/MachineGrid.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/machines/MachineCard.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(grid, /orderedMachines\.slice\(0, 5\)/);
-  assert.match(grid, /productionPriorityRank/);
-  assert.match(card, /outline-primary\/70/);
+  assert.match(grid, /data-production-priority-group="true"/);
+  assert.match(grid, /border-orange-500\/70/);
+  assert.match(grid, /absolute -inset-1/);
+  assert.match(grid, /contents lg:relative lg:grid/);
   assert.match(card, /P\{productionPriorityRank\}/);
+  assert.doesNotMatch(card, /outline-primary\/70/);
 });
 
 
