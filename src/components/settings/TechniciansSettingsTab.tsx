@@ -70,6 +70,8 @@ export function TechniciansSettingsTab() {
   const [areaToAdd, setAreaToAdd] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [areaFilter, setAreaFilter] = useState<"all" | CallSubtype>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [shiftFilter, setShiftFilter] = useState("all");
 
   useEffect(() => {
     setShifts(getShiftConfigs());
@@ -119,11 +121,22 @@ export function TechniciansSettingsTab() {
   }, [categories, categoryById, technicians]);
 
   const filteredTechnicians = useMemo(
-    () => filterTechniciansForAdmin(technicians, searchQuery, areaFilter),
-    [areaFilter, searchQuery, technicians],
+    () =>
+      filterTechniciansForAdmin(
+        technicians,
+        searchQuery,
+        areaFilter,
+        statusFilter,
+        shiftFilter,
+      ),
+    [areaFilter, searchQuery, shiftFilter, statusFilter, technicians],
   );
 
-  const hasActiveFilters = Boolean(searchQuery.trim()) || areaFilter !== "all";
+  const hasActiveFilters =
+    Boolean(searchQuery.trim()) ||
+    areaFilter !== "all" ||
+    statusFilter !== "all" ||
+    shiftFilter !== "all";
 
   const selectedAreas = draft.areas?.length ? draft.areas : [draft.area];
   const availableAreaOptions = areaOptions.filter((area) => !selectedAreas.includes(area.id));
@@ -333,21 +346,76 @@ export function TechniciansSettingsTab() {
               )}
             </div>
 
-            <select
-              aria-label="Filtrar mantenedores por setor"
-              value={areaFilter}
-              onChange={(event) =>
-                setAreaFilter(event.target.value === "all" ? "all" : (event.target.value as CallSubtype))
-              }
-              className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold"
+            <div
+              className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+              aria-label="Filtrar mantenedores por status"
             >
-              <option value="all">Todos os setores</option>
-              {filterAreaOptions.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.label}
-                </option>
+              {(
+                [
+                  ["all", "Todos"],
+                  ["active", "Ativos"],
+                  ["inactive", "Inativos"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={statusFilter === value}
+                  onClick={() => setStatusFilter(value)}
+                  className={cn(
+                    "min-h-9 rounded-md px-2 text-xs font-bold transition-colors",
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
               ))}
-            </select>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                Área técnica
+                <select
+                  aria-label="Filtrar mantenedores por setor"
+                  value={areaFilter}
+                  onChange={(event) =>
+                    setAreaFilter(
+                      event.target.value === "all"
+                        ? "all"
+                        : (event.target.value as CallSubtype),
+                    )
+                  }
+                  className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
+                >
+                  <option value="all">Todos os setores</option>
+                  {filterAreaOptions.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                Turno
+                <select
+                  aria-label="Filtrar mantenedores por turno"
+                  value={shiftFilter}
+                  onChange={(event) => setShiftFilter(event.target.value)}
+                  className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
+                >
+                  <option value="all">Todos os turnos</option>
+                  {shifts.map((shift) => (
+                    <option key={shift.id} value={shift.id}>
+                      {shift.name}
+                    </option>
+                  ))}
+                  <option value="__none__">Sem turno</option>
+                </select>
+              </label>
+            </div>
 
             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
@@ -359,6 +427,8 @@ export function TechniciansSettingsTab() {
                   onClick={() => {
                     setSearchQuery("");
                     setAreaFilter("all");
+                    setStatusFilter("all");
+                    setShiftFilter("all");
                   }}
                   className="font-bold text-primary hover:underline"
                 >
@@ -368,7 +438,12 @@ export function TechniciansSettingsTab() {
             </div>
           </div>
 
-          <BigButton tone="neutral" size="md" onClick={handleAddTechnician}>
+          <BigButton
+            tone="neutral"
+            size="md"
+            onClick={handleAddTechnician}
+            disabled={isLoading || Boolean(error)}
+          >
             Adicionar manutentor
           </BigButton>
 
@@ -383,7 +458,7 @@ export function TechniciansSettingsTab() {
               <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center">
                 <p className="text-sm font-bold text-foreground">Nenhum mantenedor encontrado</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Ajuste a pesquisa ou o filtro de setor.
+                  Ajuste a pesquisa ou os filtros de status, setor e turno.
                 </p>
               </div>
             )}
@@ -394,7 +469,10 @@ export function TechniciansSettingsTab() {
                 onClick={() => handleSelect(item)}
                 className={cn(
                   "w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/60",
-                  selectedId === item.id ? "border-primary bg-primary/10" : "border-border",
+                  selectedId === item.id
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                    : "border-border",
+                  !item.active && "opacity-70",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
