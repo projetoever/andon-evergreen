@@ -14,6 +14,8 @@ export function filterTechniciansForAdmin(
   technicians: TechnicianConfig[],
   searchQuery: string,
   areaFilter: "all" | CallSubtype,
+  statusFilter: "all" | "active" | "inactive" = "all",
+  shiftFilter = "all",
 ) {
   const query = normalizeAdminSearchValue(searchQuery);
 
@@ -26,8 +28,14 @@ export function filterTechniciansForAdmin(
       ? technician.areas
       : [technician.area];
     const matchesArea = areaFilter === "all" || technicianAreas.includes(areaFilter);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? technician.active : !technician.active);
+    const matchesShift =
+      shiftFilter === "all" ||
+      (shiftFilter === "__none__" ? !technician.shiftId : technician.shiftId === shiftFilter);
 
-    return matchesSearch && matchesArea;
+    return matchesSearch && matchesArea && matchesStatus && matchesShift;
   });
 }
 

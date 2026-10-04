@@ -116,3 +116,22 @@ test("setores possuem pesquisa, filtro de status, contador e seleção destacada
   assert.match(source, /ring-primary\/30/);
   assert.match(source, /max-h-\[52vh\]/);
 });
+
+
+test("mantenedores possuem filtros profissionais de status, setor e turno", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Filtrar mantenedores por status/);
+  assert.match(source, /Filtrar mantenedores por setor/);
+  assert.match(source, /Filtrar mantenedores por turno/);
+  assert.match(source, /statusFilter/);
+  assert.match(source, /shiftFilter/);
+  assert.match(source, /Todos os turnos/);
+  assert.match(source, /Sem turno/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /setStatusFilter\("all"\)/);
+  assert.match(source, /setShiftFilter\("all"\)/);
+});
