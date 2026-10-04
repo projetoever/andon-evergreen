@@ -92,3 +92,8 @@ export function buildTechnicianParticipationSummaries(
 
   return Array.from(summaries.values());
 }
+
+
+export function getTechnicianAccumulatedMinutes(summary: TechnicianParticipationSummary): number {
+  return summary.maintenanceMinutes + summary.followUpMinutes;
+}
