@@ -24,7 +24,7 @@ test("pesquisa de máquinas mantém seleção coerente com lista filtrada", asyn
 
   assert.match(source, /filteredMachines\.some/);
   assert.match(source, /setSelectedMachineId\(filteredMachines\[0\]\?\.id \?\? null\)/);
-  assert.match(source, /setSearchQuery\("")/);
+  assert.match(source, /setSearchQuery\(""\)/);
 });
 
 test("detalhe de máquina separa identificação, regras, estado e estrutura", async () => {
