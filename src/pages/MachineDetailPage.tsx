@@ -495,6 +495,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <div className="grid min-h-[200px] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
+          calls={calls}
           compactNormal={!currentCall && machine.machineStatus === "running"}
         />
         <MachineCurrentCallPanel
