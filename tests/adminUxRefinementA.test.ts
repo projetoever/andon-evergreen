@@ -266,3 +266,21 @@ test("configurações gerais bloqueiam operação quando o estado global não é
   assert.match(source, /Tentar novamente/);
   assert.match(source, /Boolean\(settingsLoadError\)/);
 });
+
+
+test("modo de atendimento possui retry, alterações pendentes e cancelamento", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /loadError/);
+  assert.match(source, /Modo de atendimento indisponível/);
+  assert.match(source, /Tentar novamente/);
+  assert.match(source, /hasUnsavedChanges/);
+  assert.match(source, /Alterações não salvas/);
+  assert.match(source, /Configuração sincronizada/);
+  assert.match(source, /savedSettings && setSettings\(savedSettings\)/);
+  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges\}/);
+  assert.match(source, /Informe entre 4 e 64 caracteres para a leitura RFID/);
+});
