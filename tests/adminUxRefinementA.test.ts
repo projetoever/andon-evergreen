@@ -177,3 +177,20 @@ test("máquinas deixam clara a regra global, local e efetiva de OS", async () =>
   assert.match(general, /Regra global: exigir OS na abertura/);
   assert.match(general, /uma máquina pode\s+exigir OS individualmente/);
 });
+
+
+test("catálogos de ativos possuem busca, status, contador e estados profissionais", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/MachineAssetCatalogPanel.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Pesquisar tipos de ativos/);
+  assert.match(source, /Filtrar tipos de ativos por status/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /Nenhum tipo encontrado/);
+  assert.match(source, /Tentar novamente/);
+  assert.match(source, /max-h-\[52vh\]/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /Limpar filtros/);
+});
