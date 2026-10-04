@@ -64,3 +64,15 @@ test("halo externo pulsa sem alterar a opacidade do card", async () => {
   assert.match(styles, /1\.7s ease-in-out infinite/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
 });
+
+
+test("card do Dashboard não exibe localização do chamado", async () => {
+  const card = await readFile(
+    new URL("../src/components/machines/MachineCard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(card, /getEffectiveAssetLocationLabel/);
+  assert.doesNotMatch(card, /Localização:/);
+  assert.match(card, /callElapsedLabel/);
+});
