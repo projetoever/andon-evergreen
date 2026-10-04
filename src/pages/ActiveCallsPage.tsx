@@ -3,17 +3,16 @@ import { useAndon } from "@/context/AndonProvider";
 import { ActiveCallList } from "@/components/calls/ActiveCallList";
 import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
-import { MaintenanceFollowUpSelectionModal } from "@/components/calls/MaintenanceFollowUpSelectionModal";
 import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { toast } from "sonner";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function ActiveCallsPage() {
-  const { calls, attendCall, returnToMaintenance, cancelCall } = useAndon();
+  const { calls, attendCall, completeMaintenance, returnToMaintenance, cancelCall } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
   const [cancelCallId, setCancelCallId] = useState<string | null>(null);
-  const [completeMaintenanceCallId, setCompleteMaintenanceCallId] = useState<string | null>(null);
+  const [completingMaintenanceCallId, setCompletingMaintenanceCallId] = useState<string | null>(null);
 
   const activeCalls = useMemo(
     () =>
@@ -53,6 +52,20 @@ export function ActiveCallsPage() {
     }
   }
 
+
+  async function handleCompleteMaintenance(callId: string) {
+    if (completingMaintenanceCallId) return;
+    setCompletingMaintenanceCallId(callId);
+    try {
+      await completeMaintenance(callId);
+      toast.success("Manutenção concluída. Acompanhamento iniciado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao concluir manutenção");
+    } finally {
+      setCompletingMaintenanceCallId(null);
+    }
+  }
+
   async function handleCancel(reason: string) {
     if (!cancelCallId) return;
 
@@ -75,7 +88,7 @@ export function ActiveCallsPage() {
         onAttend={(callId) => void handleAttend(callId)}
         onFinish={setFinishCallId}
         onCancel={setCancelCallId}
-        onCompleteMaintenance={setCompleteMaintenanceCallId}
+        onCompleteMaintenance={(callId) => void handleCompleteMaintenance(callId)}
         onReturnToMaintenance={(callId) => void handleReturnToMaintenance(callId)}
       />
       <FinishCallModal
@@ -92,15 +105,6 @@ export function ActiveCallsPage() {
         open={cancelCallId !== null}
         onOpenChange={(open) => !open && setCancelCallId(null)}
         onConfirm={handleCancel}
-      />
-      <MaintenanceFollowUpSelectionModal
-        open={completeMaintenanceCallId !== null}
-        onOpenChange={(open) => !open && setCompleteMaintenanceCallId(null)}
-        call={
-          completeMaintenanceCallId
-            ? (calls.find((call) => call.id === completeMaintenanceCallId) ?? null)
-            : null
-        }
       />
     </div>
   );
