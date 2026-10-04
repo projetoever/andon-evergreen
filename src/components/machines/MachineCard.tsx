@@ -19,6 +19,7 @@ import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
   getAlertLevel,
   getCallSubtypeLabel,
+  getDashboardCardAttentionTone,
 } from "@/utils/statusUtils";
 import {
   getEffectiveAssetLocationLabel,
@@ -93,6 +94,11 @@ export function MachineCard({
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
+  const cardAttentionTone = getDashboardCardAttentionTone(
+    machine.machineStatus,
+    machine.productionMode,
+    currentCall?.status ?? machine.andonStatus,
+  );
   const compactBadgeClass = "min-w-fit shrink-0 whitespace-nowrap gap-1 px-1.5 py-0.5 text-[9px] leading-none tracking-normal sm:text-[10px] 2xl:text-[11px]";
 
   return (
@@ -101,11 +107,23 @@ export function MachineCard({
         "relative flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
         machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
-        isCritical && "ring-2 ring-danger animate-andon-pulse",
+        isCritical && "ring-2 ring-danger",
         isWarning && !isCritical && "ring-2 ring-warning",
       )}
       data-production-priority={productionPriorityRank ?? undefined}
     >
+      {cardAttentionTone && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute -inset-1.5 rounded-[1rem] border-2",
+            cardAttentionTone === "danger"
+              ? "border-danger/80 text-danger animate-andon-card-halo-danger"
+              : "border-warning/80 text-warning animate-andon-card-halo-warning",
+          )}
+        />
+      )}
+
       {productionPriorityRank !== null && (
         <span
           className="absolute right-1.5 top-1.5 z-10 rounded-full border border-orange-500/50 bg-orange-500/10 px-2 py-0.5 text-[10px] font-black leading-none tracking-wide text-orange-400 sm:text-[11px] 2xl:text-xs"

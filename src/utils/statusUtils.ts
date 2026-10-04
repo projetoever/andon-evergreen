@@ -3,6 +3,7 @@ import type { MachineStatus, ProductionMode } from "@/types/machine";
 import { getCallTypeOption } from "@/data/callTypes";
 
 export type AlertLevel = "normal" | "warning" | "critical";
+export type DashboardCardAttentionTone = "danger" | "warning" | null;
 
 export function getMachineStatusLabel(status: MachineStatus): string {
   return status === "running" ? "Pronta para rodar" : "Em falha";
@@ -110,4 +111,19 @@ export function getTechnicianAreaLabel(area: string | null | undefined): string 
     default:
       return "Não informado";
   }
+}
+
+
+export function getDashboardCardAttentionTone(
+  machineStatus: MachineStatus,
+  productionMode: ProductionMode,
+  andonStatus: AndonStatus,
+): DashboardCardAttentionTone {
+  if (machineStatus === "stopped" && productionMode !== "not_scheduled") {
+    return "danger";
+  }
+  if (andonStatus === "open") {
+    return "warning";
+  }
+  return null;
 }
