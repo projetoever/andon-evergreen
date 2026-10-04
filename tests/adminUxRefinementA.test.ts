@@ -194,3 +194,32 @@ test("catálogos de ativos possuem busca, status, contador e estados profissiona
   assert.match(source, /ring-primary\/30/);
   assert.match(source, /Limpar filtros/);
 });
+
+
+test("turnos usam aba dedicada com catálogo profissional e sem falsa criação", async () => {
+  const [source, admin] = await Promise.all([
+    readFile(
+      new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(source, /Pesquisar turnos por nome ou ID/);
+  assert.match(source, /Filtrar turnos por status/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /Alterações não salvas/);
+  assert.match(source, /Existem alterações não salvas/);
+  assert.match(source, /Priorizar turno atual/);
+  assert.match(
+    source,
+    /A inclusão de novos turnos não está disponível nesta versão/,
+  );
+  assert.doesNotMatch(source, /Adicionar turno/);
+  assert.match(admin, /ShiftsSettingsTab/);
+  assert.doesNotMatch(admin, /function ShiftsTab\(\)/);
+});
