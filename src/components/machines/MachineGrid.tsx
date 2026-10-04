@@ -58,10 +58,10 @@ function MachinePageGrid({
       {hasPriorityGroup ? (
         <>
           <div
-            className="contents lg:relative lg:grid lg:min-h-0 lg:grid-cols-[repeat(var(--priority-count),minmax(0,1fr))] lg:gap-1.5 2xl:gap-2"
+            className="contents lg:relative lg:grid lg:min-h-0 lg:gap-1.5 2xl:gap-2"
             style={{
               gridColumn: `span ${groupedPriorityMachines.length} / span ${groupedPriorityMachines.length}`,
-              ["--priority-count" as string]: groupedPriorityMachines.length,
+              gridTemplateColumns: `repeat(${groupedPriorityMachines.length}, minmax(0, 1fr))`,
             }}
             data-production-priority-group="true"
           >
