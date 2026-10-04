@@ -39,13 +39,31 @@ export function filterTechniciansForAdmin(
   });
 }
 
-export function filterMachinesForAdmin(machines: Machine[], searchQuery: string) {
+export function filterMachinesForAdmin(
+  machines: Machine[],
+  searchQuery: string,
+  statusFilter: "all" | "active" | "inactive" = "all",
+  workOrderFilter: "all" | "required" | "optional" = "all",
+  globalWorkOrderRequirement = false,
+) {
   const query = normalizeAdminSearchValue(searchQuery);
-  if (!query) return machines;
 
-  return machines.filter(
-    (machine) =>
+  return machines.filter((machine) => {
+    const matchesSearch =
+      !query ||
       normalizeAdminSearchValue(machine.id).includes(query) ||
-      normalizeAdminSearchValue(machine.name).includes(query),
-  );
+      normalizeAdminSearchValue(machine.name).includes(query);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? machine.isActive : !machine.isActive);
+    const effectiveWorkOrderRequired =
+      globalWorkOrderRequirement || machine.requireWorkOrderAtOpen === true;
+    const matchesWorkOrder =
+      workOrderFilter === "all" ||
+      (workOrderFilter === "required"
+        ? effectiveWorkOrderRequired
+        : !effectiveWorkOrderRequired);
+
+    return matchesSearch && matchesStatus && matchesWorkOrder;
+  });
 }

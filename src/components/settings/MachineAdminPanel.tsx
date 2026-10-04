@@ -17,7 +17,12 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
+import {
+  getSystemSettings,
+  SYSTEM_SETTINGS_CHANGED_EVENT,
+} from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
+import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -36,6 +41,16 @@ function machineStatusLabel(machine: Machine) {
   if (!machine.isActive) return "Inativa";
   if (machine.machineStatus === "stopped") return "Parada";
   return "Rodando";
+}
+
+function workOrderRuleLabel(machine: Machine, globalRequirement: boolean | null) {
+  if (globalRequirement === true && machine.requireWorkOrderAtOpen) {
+    return "OS obrigatória · global + máquina";
+  }
+  if (globalRequirement === true) return "OS obrigatória · global";
+  if (machine.requireWorkOrderAtOpen) return "OS obrigatória · máquina";
+  if (globalRequirement === null) return "OS · regra global indisponível";
+  return "OS opcional";
 }
 
 function Section({
@@ -61,6 +76,9 @@ function Section({
 export function MachineAdminPanel() {
   const { machines, createMachine, updateMachineCatalog, updateMachineActive } = useAndon();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [workOrderFilter, setWorkOrderFilter] = useState<"all" | "required" | "optional">("all");
+  const [globalWorkOrderRequirement, setGlobalWorkOrderRequirement] = useState<boolean | null>(null);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newId, setNewId] = useState("");
@@ -68,16 +86,67 @@ export function MachineAdminPanel() {
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
 
+  const globalRequiresWorkOrder = globalWorkOrderRequirement === true;
   const sortedMachines = useMemo(() => sortMachines(machines), [machines]);
   const filteredMachines = useMemo(
-    () => filterMachinesForAdmin(sortedMachines, searchQuery),
-    [searchQuery, sortedMachines],
+    () =>
+      filterMachinesForAdmin(
+        sortedMachines,
+        searchQuery,
+        statusFilter,
+        workOrderFilter,
+        globalRequiresWorkOrder,
+      ),
+    [
+      globalRequiresWorkOrder,
+      searchQuery,
+      sortedMachines,
+      statusFilter,
+      workOrderFilter,
+    ],
   );
 
   const selectedMachine =
     selectedMachineId === null
       ? null
       : machines.find((machine) => machine.id === selectedMachineId) ?? null;
+  const selectedMachineRequiresWorkOrder = selectedMachine?.requireWorkOrderAtOpen === true;
+  const selectedEffectiveWorkOrderRequirement =
+    selectedMachine && globalWorkOrderRequirement !== null
+      ? resolveWorkOrderRequirement(
+          globalWorkOrderRequirement,
+          selectedMachineRequiresWorkOrder,
+        )
+      : selectedMachineRequiresWorkOrder
+        ? true
+        : null;
+
+  useEffect(() => {
+    let active = true;
+
+    const applySettings = (settings: { requireWorkOrderAtOpen?: boolean }) => {
+      if (active) {
+        setGlobalWorkOrderRequirement(settings.requireWorkOrderAtOpen === true);
+      }
+    };
+
+    void getSystemSettings()
+      .then(applySettings)
+      .catch(() => {
+        if (active) setGlobalWorkOrderRequirement(null);
+      });
+
+    const handleSettingsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ requireWorkOrderAtOpen?: boolean }>).detail;
+      if (detail) applySettings(detail);
+    };
+
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+    return () => {
+      active = false;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (creating) return;
@@ -159,8 +228,69 @@ export function MachineAdminPanel() {
             )}
           </div>
 
-          <div className="text-xs font-semibold text-muted-foreground">
-            {filteredMachines.length} de {machines.length} máquina(s)
+          <div
+            className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+            aria-label="Filtrar máquinas por status"
+          >
+            {(
+              [
+                ["all", "Todas"],
+                ["active", "Ativas"],
+                ["inactive", "Inativas"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+                className={cn(
+                  "min-h-8 rounded-md px-2 text-[11px] font-bold transition-colors",
+                  statusFilter === value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <Select
+            value={workOrderFilter}
+            disabled={globalWorkOrderRequirement === null}
+            onValueChange={(value) =>
+              setWorkOrderFilter(value as "all" | "required" | "optional")
+            }
+          >
+            <SelectTrigger
+              aria-label="Filtrar máquinas por exigência de OS"
+              className="h-9"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as regras de OS</SelectItem>
+              <SelectItem value="required">OS obrigatória</SelectItem>
+              <SelectItem value="optional">OS opcional</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
+            <span>{filteredMachines.length} de {machines.length} máquina(s)</span>
+            {(searchQuery || statusFilter !== "all" || workOrderFilter !== "all") && (
+              <button
+                type="button"
+                className="font-bold text-primary hover:underline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setWorkOrderFilter("all");
+                }}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
         </div>
 
@@ -169,7 +299,7 @@ export function MachineAdminPanel() {
             <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
               <p className="text-sm font-bold">Nenhuma máquina encontrada</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Pesquise pelo ID ou por parte do nome.
+                Ajuste a pesquisa ou os filtros de status e OS.
               </p>
             </div>
           )}
@@ -187,7 +317,7 @@ export function MachineAdminPanel() {
                 className={cn(
                   "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
                   selected
-                    ? "border-primary bg-primary/10"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                     : "border-transparent hover:border-border hover:bg-accent/60",
                   !machine.isActive && "opacity-65",
                 )}
@@ -213,7 +343,7 @@ export function MachineAdminPanel() {
                 <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] font-semibold text-muted-foreground">
                   <span>{productionModeLabel(machine.productionMode)}</span>
                   <span>•</span>
-                  <span>{machine.requireWorkOrderAtOpen ? "OS obrigatória" : "OS opcional"}</span>
+                  <span>{workOrderRuleLabel(machine, globalWorkOrderRequirement)}</span>
                 </div>
               </button>
             );
@@ -276,9 +406,11 @@ export function MachineAdminPanel() {
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Exigir OS na abertura</span>
+                    <span className="block text-sm font-bold">Exigir OS nesta máquina</span>
                     <span className="block text-xs text-muted-foreground">
-                      Obriga número de OS para novos chamados.
+                      {globalRequiresWorkOrder
+                        ? "A regra global já exige OS; esta opção registra também a exigência local."
+                        : "Quando ativa, exige OS nesta máquina mesmo com a regra global desativada."}
                     </span>
                   </span>
                   <Switch
@@ -368,12 +500,71 @@ export function MachineAdminPanel() {
               title="Regras operacionais"
               description="Configurações que afetam a abertura e operação dos chamados."
             >
+              <div className="grid gap-2 rounded-lg border border-border bg-muted/15 p-3 sm:grid-cols-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Regra global de OS
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">
+                    {globalWorkOrderRequirement === null
+                      ? "Não carregada"
+                      : globalWorkOrderRequirement
+                        ? "Obrigatória"
+                        : "Opcional"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Configurada em Configurações gerais.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Regra desta máquina
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">
+                    {selectedMachineRequiresWorkOrder ? "Exigência ativa" : "Sem exigência adicional"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    A máquina pode tornar a OS obrigatória mesmo com o global desligado.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Resultado efetivo
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-sm font-black",
+                      selectedEffectiveWorkOrderRequirement === true
+                        ? "text-warning"
+                        : selectedEffectiveWorkOrderRequirement === false
+                          ? "text-success"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    {selectedEffectiveWorkOrderRequirement === null
+                      ? "Aguardando regra global"
+                      : selectedEffectiveWorkOrderRequirement
+                        ? "OS OBRIGATÓRIA"
+                        : "OS OPCIONAL"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Regra efetiva = global OU exigência desta máquina.
+                  </p>
+                </div>
+              </div>
+
               <div className="grid gap-4 lg:grid-cols-3">
                 <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Exigir OS</span>
+                    <span className="block text-sm font-bold">Exigir OS nesta máquina</span>
                     <span className="block text-xs text-muted-foreground">
-                      Exigência específica desta máquina.
+                      {globalRequiresWorkOrder
+                        ? selectedMachineRequiresWorkOrder
+                          ? "Exigência local ativa; a regra global também exige OS."
+                          : "Mesmo desligada aqui, a regra global mantém a OS obrigatória."
+                        : selectedMachineRequiresWorkOrder
+                          ? "Ativa: esta máquina exige OS mesmo com o global desativado."
+                          : "Desativada: segue o global e a OS permanece opcional."}
                     </span>
                   </span>
                   <Switch

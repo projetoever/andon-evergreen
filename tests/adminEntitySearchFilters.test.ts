@@ -112,3 +112,42 @@ test("filtros de status e turno de mantenedores combinam com busca e setor", () 
     [],
   );
 });
+
+
+test("filtros de máquinas combinam status e regra efetiva de OS", () => {
+  const catalog = [
+    {
+      id: "9",
+      name: "Máquina 9",
+      isActive: true,
+      requireWorkOrderAtOpen: true,
+    },
+    {
+      id: "10",
+      name: "Máquina 10",
+      isActive: false,
+      requireWorkOrderAtOpen: false,
+    },
+  ] as Machine[];
+
+  assert.deepEqual(
+    filterMachinesForAdmin(catalog, "", "active", "all", false).map((item) => item.id),
+    ["9"],
+  );
+  assert.deepEqual(
+    filterMachinesForAdmin(catalog, "", "all", "required", false).map((item) => item.id),
+    ["9"],
+  );
+  assert.deepEqual(
+    filterMachinesForAdmin(catalog, "", "all", "optional", false).map((item) => item.id),
+    ["10"],
+  );
+  assert.deepEqual(
+    filterMachinesForAdmin(catalog, "", "all", "required", true).map((item) => item.id),
+    ["9", "10"],
+  );
+  assert.deepEqual(
+    filterMachinesForAdmin(catalog, "", "all", "optional", true).map((item) => item.id),
+    [],
+  );
+});
