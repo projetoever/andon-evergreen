@@ -43,12 +43,13 @@ function machineStatusLabel(machine: Machine) {
   return "Rodando";
 }
 
-function workOrderRuleLabel(machine: Machine, globalRequirement: boolean) {
-  if (globalRequirement && machine.requireWorkOrderAtOpen) {
+function workOrderRuleLabel(machine: Machine, globalRequirement: boolean | null) {
+  if (globalRequirement === true && machine.requireWorkOrderAtOpen) {
     return "OS obrigatória · global + máquina";
   }
-  if (globalRequirement) return "OS obrigatória · global";
+  if (globalRequirement === true) return "OS obrigatória · global";
   if (machine.requireWorkOrderAtOpen) return "OS obrigatória · máquina";
+  if (globalRequirement === null) return "OS · regra global indisponível";
   return "OS opcional";
 }
 
@@ -257,6 +258,7 @@ export function MachineAdminPanel() {
 
           <Select
             value={workOrderFilter}
+            disabled={globalWorkOrderRequirement === null}
             onValueChange={(value) =>
               setWorkOrderFilter(value as "all" | "required" | "optional")
             }
@@ -341,7 +343,7 @@ export function MachineAdminPanel() {
                 <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] font-semibold text-muted-foreground">
                   <span>{productionModeLabel(machine.productionMode)}</span>
                   <span>•</span>
-                  <span>{workOrderRuleLabel(machine, globalRequiresWorkOrder)}</span>
+                  <span>{workOrderRuleLabel(machine, globalWorkOrderRequirement)}</span>
                 </div>
               </button>
             );
