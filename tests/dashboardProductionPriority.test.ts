@@ -121,10 +121,10 @@ test("badge P1-P5 mantém destaque leve sem virar alerta operacional", async () 
     "utf8",
   );
 
-  assert.match(card, /text-\[11px\]/);
-  assert.match(card, /sm:text-xs/);
-  assert.match(card, /2xl:text-\[13px\]/);
-  assert.match(card, /bg-orange-500\/10/);
-  assert.match(card, /border-orange-500\/50/);
+  assert.match(card, /text-\[13px\]/);
+  assert.match(card, /sm:text-sm/);
+  assert.match(card, /2xl:text-\[15px\]/);
+  assert.match(card, /bg-orange-500\/12/);
+  assert.match(card, /border-orange-500\/55/);
   assert.match(card, /text-orange-400/);
 });
