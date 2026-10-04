@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Boxes,
   Clock3,
@@ -18,13 +18,8 @@ import {
 } from "lucide-react";
 import { BigButton } from "@/components/common/BigButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useAndon } from "@/context/AndonProvider";
-import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { logoutAdmin } from "@/services/adminAuthService";
-import { getSoundBlob, getSoundConfig, listSoundConfigs, removeSoundConfig, saveSoundConfig } from "@/services/soundStorageService";
-import type { CallSubtype } from "@/types/andon";
-import { DEFAULT_SOUND_MACHINE_ID, type AndonSoundConfig, type SoundMachineId } from "@/types/sound";
 import type { FailureClassificationConfig, SettingsTab } from "@/types/settings";
 import { toast } from "sonner";
 import {
@@ -39,8 +34,8 @@ import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { WorkstationsSettingsTab } from "./WorkstationsSettingsTab";
-import { DashboardSoundMuteSettings } from "./DashboardSoundMuteSettings";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
+import { SoundsSettingsTab } from "./SoundsSettingsTab";
 
 type AdminNavigationGroup = "Sistema" | "Operação" | "Cadastros" | "Infraestrutura";
 
@@ -154,7 +149,7 @@ export function AdminSettingsModal({
 
   const renderTab = () => {
     if (tab === "general") return <GeneralSettingsTab />;
-    if (tab === "sounds") return <SoundsTab isOpen={open} isActive={tab === "sounds"} />;
+    if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
     if (tab === "categories") return <CategoriesSettingsTab />;
@@ -360,167 +355,6 @@ export function AdminSettingsModal({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SoundsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean }) {
-  const { machines } = useAndon();
-  const [items, setItems] = useState<AndonSoundConfig[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [machineId, setMachineId] = useState<SoundMachineId>(DEFAULT_SOUND_MACHINE_ID);
-  const [subtype, setSubtype] = useState(CALL_TYPE_OPTIONS[0].id);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [currentConfig, setCurrentConfig] = useState<AndonSoundConfig | null>(null);
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
-  const [previewSoundId, setPreviewSoundId] = useState<string | null>(null);
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-  const previewUrlRef = useRef<string | null>(null);
-
-  const currentPreviewId = `${machineId}:${subtype}`;
-
-  function stopPreview() {
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current.currentTime = 0;
-      previewAudioRef.current.onended = null;
-      previewAudioRef.current = null;
-    }
-    if (previewUrlRef.current) {
-      URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = null;
-    }
-    setIsPreviewPlaying(false);
-    setPreviewSoundId(null);
-  }
-
-  const refresh = useCallback(async () => {
-    const [list, config] = await Promise.all([
-      listSoundConfigs(),
-      getSoundConfig(machineId, subtype),
-    ]);
-
-    setItems(list);
-    setCurrentConfig(config);
-  }, [machineId, subtype]);
-
-  useEffect(() => {
-    void refresh().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Não foi possível carregar os sons.");
-    });
-  }, [refresh]);
-  useEffect(() => { if (!isOpen || !isActive) stopPreview(); }, [isOpen, isActive]);
-  useEffect(() => stopPreview, []);
-
-  function handleAddSoundConfig() {
-    stopPreview();
-    setSelectedId(null);
-    setMachineId(DEFAULT_SOUND_MACHINE_ID);
-    setSubtype(CALL_TYPE_OPTIONS[0].id);
-    setSelectedFile(null);
-    setCurrentConfig(null);
-  }
-
-  async function handleSaveSound() {
-    if (!selectedFile) return toast.error("Selecione um arquivo de áudio para salvar.");
-    if (!/\.(mp3|wav|ogg)$/i.test(selectedFile.name)) {
-      return toast.error("Formato inválido. Use .mp3, .wav ou .ogg.");
-    }
-
-    try {
-      await saveSoundConfig(machineId, subtype, selectedFile);
-      setSelectedFile(null);
-      await refresh();
-      toast.success("Som salvo com sucesso.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o som.");
-    }
-  }
-
-  async function handleRemoveSound() {
-    stopPreview();
-    try {
-      await removeSoundConfig(machineId, subtype);
-      handleAddSoundConfig();
-      await refresh();
-      toast.success("Som removido.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível remover o som.");
-    }
-  }
-
-  async function handlePreviewToggle() {
-    if (isPreviewPlaying && previewSoundId === currentPreviewId) {
-      stopPreview();
-      return;
-    }
-
-    stopPreview();
-    try {
-      const specificBlob = await getSoundBlob(machineId, subtype);
-      const fallbackBlob =
-        machineId === DEFAULT_SOUND_MACHINE_ID
-          ? null
-          : await getSoundBlob(DEFAULT_SOUND_MACHINE_ID, subtype);
-      const blob = specificBlob ?? fallbackBlob;
-      if (!blob) return toast.error("Nenhum som configurado para esta seleção.");
-
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      previewUrlRef.current = url;
-      previewAudioRef.current = audio;
-      setPreviewSoundId(currentPreviewId);
-
-      audio.onended = () => stopPreview();
-      await audio.play();
-      setIsPreviewPlaying(true);
-    } catch (error) {
-      stopPreview();
-      toast.error(error instanceof Error ? error.message : "Não foi possível reproduzir o som.");
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1"><h3 className="text-base font-bold">Sons do ANDON</h3><p className="text-sm text-muted-foreground">Gerencie arquivos por máquina e tipo de chamado.</p></div>
-      <DashboardSoundMuteSettings />
-      <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
-        <CardSection title="Configurações salvas">
-          <BigButton tone="neutral" size="md" onClick={handleAddSoundConfig}>Adicionar configuração de som</BigButton>
-          <div className="space-y-2">
-            {items.length === 0 && <p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}
-            {items.map((cfg) => (
-              <button key={cfg.id} type="button" onClick={async () => { stopPreview(); setSelectedId(cfg.id); setMachineId(cfg.machineId); setSubtype(cfg.subtype); setSelectedFile(null); setCurrentConfig(await getSoundConfig(cfg.machineId, cfg.subtype)); }} className={cn("w-full rounded-lg border p-3 text-left", selectedId === cfg.id ? "border-primary bg-primary/10" : "border-border")}>
-                <p className="text-sm font-bold">{cfg.machineId === "default" ? "Padrão para todas" : `Máquina ${cfg.machineId}`}</p>
-                <p className="text-xs text-muted-foreground">{CALL_TYPE_OPTIONS.find((o) => o.id === cfg.subtype)?.label ?? cfg.subtype} · {cfg.fileName}</p>
-                <p className="text-xs text-muted-foreground">Atualizado: {new Date(cfg.updatedAt).toLocaleString("pt-BR")}</p>
-              </button>
-            ))}
-          </div>
-        </CardSection>
-
-        <CardSection title={selectedId ? "Editar configuração de som" : "Nova configuração de som"}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-sm font-semibold">Máquina<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={machineId} onChange={(e) => setMachineId(e.target.value)}><option value="default">Padrão para todas</option>{machines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-            <label className="text-sm font-semibold">Tipo de chamado<select className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={subtype} onChange={(e) => setSubtype(e.target.value as CallSubtype)}>{CALL_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Arquivo de áudio</p>
-            <input id="andon-audio-file-input" type="file" accept=".mp3,.wav,.ogg" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
-            <label htmlFor="andon-audio-file-input" className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-md border border-border bg-muted px-4 text-lg font-black hover:bg-accent">
-              + Escolher áudio
-            </label>
-            <p className="text-sm text-muted-foreground">{selectedFile ? selectedFile.name : "Nenhum arquivo selecionado"}</p>
-          </div>
-          <p className="text-sm text-muted-foreground">Arquivo atual: {currentConfig?.fileName ?? "Nenhum som configurado"}</p>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <BigButton tone="primary" size="md" onClick={() => void handleSaveSound()}>Salvar som</BigButton>
-            <BigButton tone="info" size="md" onClick={() => void handlePreviewToggle()}>{isPreviewPlaying && previewSoundId === currentPreviewId ? "Parar teste" : "Testar som"}</BigButton>
-            <BigButton tone="neutral" size="md" onClick={handleAddSoundConfig}>Cancelar</BigButton>
-            <BigButton tone="danger" size="md" onClick={() => void handleRemoveSound()}>Remover som</BigButton>
-          </div>
-        </CardSection>
-      </div>
-    </div>
   );
 }
 

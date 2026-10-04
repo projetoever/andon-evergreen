@@ -223,3 +223,28 @@ test("turnos usam aba dedicada com catálogo profissional e sem falsa criação"
   assert.match(admin, /ShiftsSettingsTab/);
   assert.doesNotMatch(admin, /function ShiftsTab\(\)/);
 });
+
+
+test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", async () => {
+  const [source, admin] = await Promise.all([
+    readFile(
+      new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(source, /Pesquisar configurações de som/);
+  assert.match(source, /Filtrar configurações de som por escopo/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /Nenhum som encontrado/);
+  assert.match(source, /Tentar novamente/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /Armazenamento local deste terminal/);
+  assert.match(source, /não são distribuídas automaticamente para outras workstations/);
+  assert.match(admin, /SoundsSettingsTab/);
+  assert.doesNotMatch(admin, /function SoundsTab\(/);
+});
