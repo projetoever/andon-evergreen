@@ -19,6 +19,7 @@ import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
   getAlertLevel,
   getCallSubtypeLabel,
+  getDashboardCardAttentionTone,
 } from "@/utils/statusUtils";
 import {
   getEffectiveAssetLocationLabel,
@@ -93,9 +94,11 @@ export function MachineCard({
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
-  const hasMachineFailure = machine.machineStatus === "stopped" && !isNotScheduled;
-  const hasOpenCall = currentCall?.status === "open";
-  const cardAttentionTone = hasMachineFailure ? "danger" : hasOpenCall ? "warning" : null;
+  const cardAttentionTone = getDashboardCardAttentionTone(
+    machine.machineStatus,
+    machine.productionMode,
+    currentCall?.status ?? machine.andonStatus,
+  );
   const compactBadgeClass = "min-w-fit shrink-0 whitespace-nowrap gap-1 px-1.5 py-0.5 text-[9px] leading-none tracking-normal sm:text-[10px] 2xl:text-[11px]";
 
   return (
