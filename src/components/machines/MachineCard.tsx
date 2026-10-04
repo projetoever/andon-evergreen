@@ -159,11 +159,11 @@ export function MachineCard({
           </div>
         )}
         {machine.machineStatus === "running" && (
-          <div className="truncate rounded-md bg-muted/35 px-2 py-1" title={lastOccurrenceDetails}>
-            Última ocorrência:{" "}
-            <strong className="text-foreground">
-              {formatElapsedSince(lastOccurrence?.occurredAt)}
-            </strong>
+          <div
+            className="truncate rounded-md bg-muted/35 px-2 py-1 text-center font-black text-foreground"
+            title={`Última ocorrência • ${lastOccurrenceDetails}`}
+          >
+            {formatElapsedSince(lastOccurrence?.occurredAt, undefined, "Sem ocorrência")}
           </div>
         )}
 
