@@ -7,6 +7,7 @@ import {
   ListChecks,
   LogOut,
   MonitorCog,
+  Search,
   Settings2,
   ShieldCheck,
   Tags,
@@ -536,9 +537,32 @@ function ClassificationsTab() {
     label: "",
     active: true,
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = searchQuery
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return items.filter((item) => {
+      if (statusFilter === "active" && !item.active) return false;
+      if (statusFilter === "inactive" && item.active) return false;
+      if (!normalizedQuery) return true;
+
+      const haystack = `${item.label} ${item.value}`
+        .toLocaleLowerCase("pt-BR")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [items, searchQuery, statusFilter]);
 
   const loadCatalog = useCallback(async () => {
     setIsLoading(true);
@@ -548,7 +572,8 @@ function ClassificationsTab() {
       setItems(catalog);
       return catalog;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao carregar classificações.";
+      const message =
+        error instanceof Error ? error.message : "Falha ao carregar classificações.";
       setLoadError(message);
       throw error;
     } finally {
@@ -564,18 +589,22 @@ function ClassificationsTab() {
     setSelectedId(null);
     setDraft({ id: "", value: "", label: "", active: true });
   };
+
   const handleSelect = (item: FailureClassificationConfig) => {
     setSelectedId(item.id);
     setDraft({ ...item });
   };
+
   const handleSave = async () => {
     if (!draft.label.trim()) return toast.error("Informe o nome exibido.");
+
     const value = (draft.value.trim() || draft.label)
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_|_$/g, "");
+
     if (!value || !/^[a-z0-9_]+$/.test(value)) {
       return toast.error("ID interno inválido. Use minúsculas e underscore.");
     }
@@ -592,24 +621,30 @@ function ClassificationsTab() {
             value,
             active: draft.active,
           });
+
       const catalog = await loadCatalog();
       const refreshed = catalog.find((item) => item.id === saved.id) ?? saved;
       setSelectedId(refreshed.id);
       setDraft({ ...refreshed });
       toast.success("Classificação salva no catálogo central.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao salvar classificação.");
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao salvar classificação.",
+      );
     } finally {
       setIsSaving(false);
     }
   };
+
   const handleCancel = () => {
     if (!selectedId) return handleAddClassification();
     const found = items.find((item) => item.id === selectedId);
     if (found) setDraft({ ...found });
   };
+
   const handleToggleActive = async () => {
     if (!selectedId) return;
+
     setIsSaving(true);
     try {
       const updated = await updateFailureClassification(selectedId, {
@@ -619,13 +654,241 @@ function ClassificationsTab() {
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
       setDraft({ ...updated });
-      toast.success(updated.active ? "Classificação reativada." : "Classificação inativada.");
+      toast.success(
+        updated.active ? "Classificação reativada." : "Classificação inativada.",
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao atualizar classificação.");
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao atualizar classificação.",
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  return <div className="space-y-4"><div className="space-y-1"><h3 className="text-base font-bold">Classificações</h3><p className="text-sm text-muted-foreground">Gerencie o catálogo central usado na classificação da ocorrência.</p></div>{loadError&&<div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><p className="font-bold">Não foi possível carregar o catálogo central.</p><p>{loadError}</p><button type="button" className="mt-2 font-bold underline" onClick={()=>void loadCatalog().catch(()=>undefined)}>Tentar novamente</button></div>}<div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]"><CardSection title="Classificações cadastradas"><BigButton tone="neutral" size="md" onClick={handleAddClassification} disabled={isLoading||isSaving||Boolean(loadError)}>Adicionar classificação</BigButton><div className="space-y-2">{isLoading&&<p className="text-sm text-muted-foreground">Carregando catálogo central...</p>}{!isLoading&&!loadError&&items.length===0&&<p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>}{items.map((item)=><button key={item.id} type="button" onClick={()=>handleSelect(item)} className={cn("w-full rounded-lg border p-3 text-left",selectedId===item.id?"border-primary bg-primary/10":"border-border")}><p className="text-sm font-bold">{item.label}</p><p className="text-xs text-muted-foreground">{item.value} · {item.active?"Ativo":"Inativo"}</p></button>)}</div></CardSection><CardSection title={selectedId?"Editar classificação":"Nova classificação"}><label className="text-sm font-semibold">Nome exibido<input className="mt-1 h-10 w-full rounded-md border bg-background px-2" value={draft.label} onChange={(e)=>setDraft({...draft,label:e.target.value})} disabled={isSaving||Boolean(loadError)}/></label><label className="text-sm font-semibold">ID interno<input className="mt-1 h-10 w-full rounded-md border bg-background px-2 disabled:opacity-60" value={draft.value} onChange={(e)=>setDraft({...draft,value:e.target.value})} placeholder="ex: pneumatic_failure" disabled={Boolean(selectedId)||isSaving||Boolean(loadError)}/></label>{selectedId&&<p className="text-xs text-muted-foreground">O ID interno permanece estável para preservar o histórico.</p>}<label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold"><input type="checkbox" checked={draft.active} onChange={(e)=>setDraft({...draft,active:e.target.checked})} disabled={isSaving||Boolean(loadError)}/>Ativo</label><div className="flex flex-wrap gap-2 pt-2"><BigButton tone="primary" size="md" onClick={()=>void handleSave()} disabled={isSaving||Boolean(loadError)}>{isSaving?"Salvando...":"Salvar classificação"}</BigButton><BigButton tone="neutral" size="md" onClick={handleCancel} disabled={isSaving}>Cancelar</BigButton><BigButton tone="danger" size="md" onClick={()=>void handleToggleActive()} disabled={!selectedId||isSaving||Boolean(loadError)}>{draft.active?"Inativar":"Reativar"}</BigButton></div></CardSection></div></div>;
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-bold">Classificações</h3>
+        <p className="text-sm text-muted-foreground">
+          Gerencie o catálogo central usado na classificação da ocorrência.
+        </p>
+      </div>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          <p className="font-bold">Não foi possível carregar o catálogo central.</p>
+          <p>{loadError}</p>
+          <button
+            type="button"
+            className="mt-2 font-bold underline"
+            onClick={() => void loadCatalog().catch(() => undefined)}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-[minmax(300px,380px)_1fr]">
+        <CardSection title="Classificações cadastradas">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {filteredItems.length} de {items.length} classificação(ões)
+            </p>
+            <BigButton
+              tone="neutral"
+              size="md"
+              onClick={handleAddClassification}
+              disabled={isLoading || isSaving || Boolean(loadError)}
+            >
+              Adicionar classificação
+            </BigButton>
+          </div>
+
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Pesquisar nome ou ID..."
+              aria-label="Pesquisar classificações por nome ou ID"
+              className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label="Limpar pesquisa de classificações"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div
+            className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+            aria-label="Filtrar classificações por status"
+          >
+            {(
+              [
+                ["all", "Todos"],
+                ["active", "Ativos"],
+                ["inactive", "Inativos"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+                className={cn(
+                  "min-h-9 rounded-md px-2 text-xs font-bold transition-colors",
+                  statusFilter === value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+            {isLoading && (
+              <p className="py-4 text-sm text-muted-foreground">
+                Carregando catálogo central...
+              </p>
+            )}
+
+            {!isLoading && !loadError && items.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                <p className="text-sm font-bold">Nenhuma classificação cadastrada</p>
+              </div>
+            )}
+
+            {!isLoading &&
+              !loadError &&
+              items.length > 0 &&
+              filteredItems.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                  <p className="text-sm font-bold">Nenhuma classificação encontrada</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ajuste a pesquisa ou o filtro de status.
+                  </p>
+                </div>
+              )}
+
+            {filteredItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelect(item)}
+                className={cn(
+                  "w-full rounded-lg border p-3 text-left transition-colors",
+                  selectedId === item.id
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:bg-accent/50",
+                  !item.active && "opacity-65",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold">{item.label}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">
+                      {item.value}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
+                      item.active
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {item.active ? "Ativa" : "Inativa"}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </CardSection>
+
+        <CardSection title={selectedId ? "Editar classificação" : "Nova classificação"}>
+          <label className="text-sm font-semibold">
+            Nome exibido
+            <input
+              className="mt-1 h-10 w-full rounded-md border bg-background px-2"
+              value={draft.label}
+              onChange={(event) => setDraft({ ...draft, label: event.target.value })}
+              disabled={isSaving || Boolean(loadError)}
+            />
+          </label>
+
+          <label className="text-sm font-semibold">
+            ID interno
+            <input
+              className="mt-1 h-10 w-full rounded-md border bg-background px-2 disabled:opacity-60"
+              value={draft.value}
+              onChange={(event) => setDraft({ ...draft, value: event.target.value })}
+              placeholder="ex: pneumatic_failure"
+              disabled={Boolean(selectedId) || isSaving || Boolean(loadError)}
+            />
+          </label>
+
+          {selectedId && (
+            <p className="text-xs text-muted-foreground">
+              O ID interno permanece estável para preservar o histórico.
+            </p>
+          )}
+
+          <label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={draft.active}
+              onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
+              disabled={isSaving || Boolean(loadError)}
+            />
+            Ativo
+          </label>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <BigButton
+              tone="primary"
+              size="md"
+              onClick={() => void handleSave()}
+              disabled={isSaving || Boolean(loadError)}
+            >
+              {isSaving ? "Salvando..." : "Salvar classificação"}
+            </BigButton>
+            <BigButton
+              tone="neutral"
+              size="md"
+              onClick={handleCancel}
+              disabled={isSaving}
+            >
+              Cancelar
+            </BigButton>
+            <BigButton
+              tone="danger"
+              size="md"
+              onClick={() => void handleToggleActive()}
+              disabled={!selectedId || isSaving || Boolean(loadError)}
+            >
+              {draft.active ? "Inativar" : "Reativar"}
+            </BigButton>
+          </div>
+        </CardSection>
+      </div>
+    </div>
+  );
 }
+
