@@ -17,6 +17,7 @@ type UpdateSystemSettingsBody = {
   restrictMaintenanceCompletionToAttendanceWorkstation?: unknown;
   dashboardSoundMuteTimerEnabled?: unknown;
   dashboardSoundMuteDurationMinutes?: unknown;
+  dashboardMachineOrderMode?: unknown;
   attendanceMode?: unknown;
   rfidReaderMode?: unknown;
   rfidInputTerminator?: unknown;
@@ -38,6 +39,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       body.restrictMaintenanceCompletionToAttendanceWorkstation;
     const dashboardSoundMuteTimerEnabled = body.dashboardSoundMuteTimerEnabled;
     const dashboardSoundMuteDurationMinutes = body.dashboardSoundMuteDurationMinutes;
+    const dashboardMachineOrderMode = body.dashboardMachineOrderMode;
     const attendanceMode = body.attendanceMode;
     const rfidReaderMode = body.rfidReaderMode;
     const rfidInputTerminator = body.rfidInputTerminator;
@@ -65,6 +67,13 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const dashboardSoundMuteValidationError = validateDashboardSoundMuteSettingsPatch(body);
     if (dashboardSoundMuteValidationError) {
       return badRequest(reply, dashboardSoundMuteValidationError);
+    }
+    if (
+      "dashboardMachineOrderMode" in body &&
+      dashboardMachineOrderMode !== "default" &&
+      dashboardMachineOrderMode !== "priority"
+    ) {
+      return badRequest(reply, "Modo de organização do Dashboard inválido");
     }
     if (
       "attendanceMode" in body &&
@@ -107,6 +116,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
         : {}),
       ...(typeof dashboardSoundMuteDurationMinutes === "number"
         ? { dashboardSoundMuteDurationMinutes }
+        : {}),
+      ...(dashboardMachineOrderMode === "default" || dashboardMachineOrderMode === "priority"
+        ? { dashboardMachineOrderMode }
         : {}),
       ...(typeof attendanceMode === "string" ? { attendanceMode } : {}),
       ...(typeof rfidReaderMode === "string" ? { rfidReaderMode } : {}),
