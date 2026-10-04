@@ -97,3 +97,16 @@ test("CORS autoriza método PUT e header Authorization usados pela gestão de pr
   assert.match(source, /CORS_METHODS\.join\(","\)/);
   assert.match(source, /CORS_ALLOWED_HEADERS\.join\(","\)/);
 });
+
+
+test("route tree versionado inclui a tela de prioridades", async () => {
+  const [routeFile, routeTree] = await Promise.all([
+    readFile(new URL("../src/routes/machine-priorities.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/routeTree.gen.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(routeFile, /createFileRoute\("\/machine-priorities"\)/);
+  assert.match(routeTree, /MachinePrioritiesRouteImport/);
+  assert.match(routeTree, /'\/machine-priorities'/);
+  assert.match(routeTree, /MachinePrioritiesRoute: typeof MachinePrioritiesRoute/);
+});
