@@ -84,3 +84,16 @@ test("somente P1-P5 recebem contorno de prioridade no card", async () => {
   assert.match(card, /outline-primary\/70/);
   assert.match(card, /P\{productionPriorityRank\}/);
 });
+
+
+test("CORS autoriza método PUT e header Authorization usados pela gestão de prioridades", async () => {
+  const source = await readFile(
+    new URL("../server/src/config/cors.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /"PUT"/);
+  assert.match(source, /"Authorization"/);
+  assert.match(source, /CORS_METHODS\.join\(","\)/);
+  assert.match(source, /CORS_ALLOWED_HEADERS\.join\(","\)/);
+});
