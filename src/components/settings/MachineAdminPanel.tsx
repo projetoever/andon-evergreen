@@ -426,39 +426,6 @@ export function MachineAdminPanel() {
               </div>
             </Section>
 
-            <Section title="Estado atual" description="Leitura operacional; não é editada neste painel.">
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-                    Máquina
-                  </p>
-                  <p className="mt-1 text-sm font-bold">{selectedMachine.machineStatus}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-                    ANDON
-                  </p>
-                  <p className="mt-1 text-sm font-bold">{selectedMachine.andonStatus}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-                    Produção
-                  </p>
-                  <p className="mt-1 text-sm font-bold">
-                    {productionModeLabel(selectedMachine.productionMode)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-                    Chamado ativo
-                  </p>
-                  <p className="mt-1 truncate font-mono text-sm font-bold">
-                    {selectedMachine.currentCallId ?? "Nenhum"}
-                  </p>
-                </div>
-              </div>
-            </Section>
-
             <Section
               title="Estrutura da máquina"
               description="Conjuntos, subconjuntos e ativos vinculados a esta máquina."
