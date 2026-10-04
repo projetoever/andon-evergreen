@@ -39,6 +39,26 @@ function CardSection({ title, children }: { title: string; children: ReactNode }
   );
 }
 
+function DetailSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div>
+        <h4 className="text-sm font-black text-foreground">{title}</h4>
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function TechniciansSettingsTab() {
   const { technicians, isLoading, error, createTechnician, updateTechnician, refreshTechnicians } =
     useTechnicians();
@@ -107,6 +127,43 @@ export function TechniciansSettingsTab() {
 
   const selectedAreas = draft.areas?.length ? draft.areas : [draft.area];
   const availableAreaOptions = areaOptions.filter((area) => !selectedAreas.includes(area.id));
+  const persistedTechnician = selectedId
+    ? technicians.find((technician) => technician.id === selectedId) ?? null
+    : null;
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!persistedTechnician) {
+      return Boolean(
+        draft.name.trim() ||
+          (draft.employeeId ?? "").trim() ||
+          draft.shiftId ||
+          (draft.pin ?? "").trim() ||
+          (draft.tag ?? "").trim(),
+      );
+    }
+
+    const persistedAreas = persistedTechnician.areas?.length
+      ? persistedTechnician.areas
+      : [persistedTechnician.area];
+
+    return (
+      draft.name !== persistedTechnician.name ||
+      (draft.employeeId ?? "") !== (persistedTechnician.employeeId ?? "") ||
+      draft.shiftId !== persistedTechnician.shiftId ||
+      draft.active !== persistedTechnician.active ||
+      [...selectedAreas].sort().join("|") !== [...persistedAreas].sort().join("|") ||
+      Boolean((draft.pin ?? "").trim()) ||
+      Boolean((draft.tag ?? "").trim())
+    );
+  }, [draft, persistedTechnician, selectedAreas]);
+
+  function handleCancelEdit() {
+    if (persistedTechnician) {
+      handleSelect(persistedTechnician);
+      return;
+    }
+    handleAddTechnician();
+  }
 
   function handleAddTechnician() {
     setSelectedId(null);
@@ -371,78 +428,86 @@ export function TechniciansSettingsTab() {
           </div>
         </CardSection>
 
-        <CardSection title={selectedId ? "Editar manutentor" : "Novo manutentor"}>
-          <label className="text-sm font-semibold">
-            Nome do manutentor
-            <input
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2"
-              value={draft.name}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            />
-          </label>
-          <label className="text-sm font-semibold">
-            ID do colaborador
-            <input
-              autoComplete="off"
-              maxLength={80}
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
-              value={draft.employeeId ?? ""}
-              onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}
-              placeholder="Registro do colaborador"
-            />
-          </label>
-          <label className="text-sm font-semibold">
-            PIN obrigatório
-            <input
-              type="password"
-              inputMode="numeric"
-              autoComplete="new-password"
-              maxLength={8}
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
-              value={draft.pin ?? ""}
-              onChange={(event) =>
-                setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })
-              }
-              placeholder={
-                draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"
-              }
-            />
-          </label>
-          <label className="text-sm font-semibold">
-            Código da tag RF (opcional)
-            <input
-              autoComplete="off"
-              maxLength={64}
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono uppercase"
-              value={draft.tag ?? ""}
-              onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
-              placeholder={
-                draft.hasTag
-                  ? "Deixe em branco para manter a tag atual"
-                  : "Aproxime a tag ou digite o código"
-              }
-            />
-          </label>
-          <p className="text-xs text-muted-foreground">
-            PIN e tag são protegidos no banco e nunca são exibidos novamente.
-          </p>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Áreas técnicas</p>
-            <div className="space-y-2">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                {selectedId ? "Cadastro de mantenedor" : "Novo cadastro"}
+              </p>
+              <h3 className="text-xl font-black">
+                {selectedId ? draft.name || "Mantenedor" : "Novo mantenedor"}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Organize identificação, áreas, turno e credenciais em um único cadastro.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedId && (
+                <span
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-black uppercase",
+                    draft.active
+                      ? "bg-success/10 text-success"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {draft.active ? "Ativo" : "Inativo"}
+                </span>
+              )}
+              {hasUnsavedChanges && (
+                <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-bold text-warning">
+                  Alterações não salvas
+                </span>
+              )}
+            </div>
+          </div>
+
+          <DetailSection
+            title="Identificação"
+            description="Dados básicos usados para localizar e identificar o colaborador."
+          >
+            <div className="grid gap-3 lg:grid-cols-2">
+              <label className="text-sm font-semibold">
+                Nome do mantenedor
+                <input
+                  className="mt-1 h-10 w-full rounded-md border bg-background px-2"
+                  value={draft.name}
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                />
+              </label>
+              <label className="text-sm font-semibold">
+                ID do colaborador
+                <input
+                  autoComplete="off"
+                  maxLength={80}
+                  className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
+                  value={draft.employeeId ?? ""}
+                  onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}
+                  placeholder="Registro do colaborador"
+                />
+              </label>
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            title="Áreas técnicas"
+            description="Defina todos os setores em que este mantenedor pode atuar."
+          >
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {selectedAreas.map((area) => {
                 const category = categoryById.get(area);
                 return (
                   <div
                     key={area}
-                    className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2"
+                    className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
                   >
-                    <span className="text-sm">
+                    <span className="min-w-0 truncate text-sm font-semibold">
                       {category?.displayName ?? area}
                       {category && !category.active ? " (inativa)" : ""}
                     </span>
                     <button
                       type="button"
-                      className="text-xs font-bold text-danger underline"
+                      className="shrink-0 text-xs font-bold text-danger hover:underline"
                       onClick={() => handleRemoveArea(area)}
                     >
                       Remover
@@ -451,6 +516,7 @@ export function TechniciansSettingsTab() {
                 );
               })}
             </div>
+
             {availableAreaOptions.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 <select
@@ -476,52 +542,136 @@ export function TechniciansSettingsTab() {
                 </button>
               </div>
             )}
+          </DetailSection>
+
+          <DetailSection
+            title="Turno e status"
+            description="Vincule o colaborador ao turno e controle sua disponibilidade no sistema."
+          >
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <label className="text-sm font-semibold">
+                Turno do mantenedor
+                <select
+                  className="mt-1 h-10 w-full rounded-md border bg-background px-2"
+                  value={draft.shiftId}
+                  onChange={(event) => setDraft({ ...draft, shiftId: event.target.value })}
+                >
+                  <option value="">Selecione um turno</option>
+                  {shifts.map((shift) => (
+                    <option key={shift.id} value={shift.id}>
+                      {shift.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                <span>
+                  <span className="block text-sm font-bold">Cadastro ativo</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Disponível para identificação e atendimento.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={draft.active}
+                  onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
+                  className="h-4 w-4"
+                />
+              </label>
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            title="Credenciais"
+            description="PIN é obrigatório. RFID permanece opcional e pode ser cadastrado depois."
+          >
+            <div className="grid gap-3 lg:grid-cols-2">
+              <label className="text-sm font-semibold">
+                PIN obrigatório
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  maxLength={8}
+                  className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
+                  value={draft.pin ?? ""}
+                  onChange={(event) =>
+                    setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })
+                  }
+                  placeholder={
+                    draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"
+                  }
+                />
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                  {draft.hasPin ? "PIN atual configurado." : "PIN ainda não configurado."}
+                </span>
+              </label>
+
+              <label className="text-sm font-semibold">
+                Tag RFID (opcional)
+                <input
+                  autoComplete="off"
+                  maxLength={64}
+                  className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono uppercase"
+                  value={draft.tag ?? ""}
+                  onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
+                  placeholder={
+                    draft.hasTag
+                      ? "Deixe em branco para manter a tag atual"
+                      : "Aproxime a tag ou digite o código"
+                  }
+                />
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                  {draft.hasTag ? "Tag atual configurada." : "Nenhuma tag cadastrada."}
+                </span>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              As credenciais são protegidas no banco e nunca são exibidas novamente.
+            </p>
+          </DetailSection>
+
+          <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
+            <div className="text-xs text-muted-foreground">
+              {isSaving
+                ? "Salvando alterações..."
+                : hasUnsavedChanges
+                  ? "Existem alterações pendentes."
+                  : selectedId
+                    ? "Cadastro sincronizado."
+                    : "Preencha os dados para criar o mantenedor."}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedId && (
+                <BigButton
+                  tone="danger"
+                  size="md"
+                  onClick={() => void handleToggleActive()}
+                  disabled={isSaving || Boolean(error)}
+                >
+                  {draft.active ? "Inativar" : "Reativar"}
+                </BigButton>
+              )}
+              <BigButton
+                tone="neutral"
+                size="md"
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+              >
+                Cancelar
+              </BigButton>
+              <BigButton
+                tone="primary"
+                size="md"
+                onClick={() => void handleSave()}
+                disabled={isSaving || Boolean(error) || !hasUnsavedChanges}
+              >
+                {isSaving ? "Salvando..." : selectedId ? "Salvar alterações" : "Criar mantenedor"}
+              </BigButton>
+            </div>
           </div>
-          <label className="text-sm font-semibold">
-            Turno do manutentor
-            <select
-              className="mt-1 h-10 w-full rounded-md border bg-background px-2"
-              value={draft.shiftId}
-              onChange={(event) => setDraft({ ...draft, shiftId: event.target.value })}
-            >
-              <option value="">Selecione um turno</option>
-              {shifts.map((shift) => (
-                <option key={shift.id} value={shift.id}>
-                  {shift.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={draft.active}
-              onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-            />
-            Ativo
-          </label>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <BigButton
-              tone="primary"
-              size="md"
-              onClick={() => void handleSave()}
-              disabled={isSaving || Boolean(error)}
-            >
-              {isSaving ? "Salvando..." : "Salvar manutentor"}
-            </BigButton>
-            <BigButton tone="neutral" size="md" onClick={handleAddTechnician}>
-              Cancelar
-            </BigButton>
-            <BigButton
-              tone="danger"
-              size="md"
-              onClick={() => void handleToggleActive()}
-              disabled={!draft.id || isSaving || Boolean(error)}
-            >
-              {draft.active ? "Inativar" : "Reativar"}
-            </BigButton>
-          </div>
-        </CardSection>
+        </div>
       </div>
     </div>
   );
