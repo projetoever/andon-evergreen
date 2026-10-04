@@ -130,8 +130,8 @@ test("cenário C: dois setores ativos trocam selectedCallId e não usam seletor 
   assert.match(page, /await attendCall\(\{ callId: currentCall\.id/);
   assert.match(page, /setCancelCallId\(currentCall\.id\)/);
   assert.match(page, /setFinishCallId\(currentCall\.id\)/);
-  assert.match(page, /setCompleteMaintenanceOpen\(true\)/);
-  assert.match(page, /MaintenanceFollowUpSelectionModal/);
+  assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
+  assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
   assert.match(page, /returnToMaintenance\(currentCall\.id\)/);
 });
 

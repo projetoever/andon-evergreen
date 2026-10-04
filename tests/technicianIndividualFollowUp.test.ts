@@ -426,8 +426,8 @@ test("legado support_finished mantém semântica e sessão explícita respeita e
   assert.equal(explicit[0].minutes, 15);
 });
 
-test("migration é aditiva, UI exige seleção individual e suíte está no CI", async () => {
-  const [migration, schema, packageJson, route, page, selectionModal] = await Promise.all([
+test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de seleção", async () => {
+  const [migration, schema, packageJson, route, page] = await Promise.all([
     readFile(
       new URL(
         "../server/prisma/migrations/20261002200000_add_technician_session_phase/migration.sql",
@@ -439,10 +439,6 @@ test("migration é aditiva, UI exige seleção individual e suíte está no CI",
     readFile(new URL("../server/package.json", import.meta.url), "utf8"),
     readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src/components/calls/MaintenanceFollowUpSelectionModal.tsx", import.meta.url),
-      "utf8",
-    ),
   ]);
 
   assert.match(migration, /ADD COLUMN "phase" TEXT/);
@@ -454,10 +450,11 @@ test("migration é aditiva, UI exige seleção individual e suíte está no CI",
   assert.match(route, /pg_advisory_xact_lock/);
   assert.match(route, /followUpSessionIds/);
   assert.match(page, /getServerNowIso\(\)/);
-  assert.match(page, /MaintenanceFollowUpSelectionModal/);
-  assert.match(page, /maintenanceIntervals/);
-  assert.match(page, /followUpIntervals/);
-  assert.match(selectionModal, /type="checkbox"/);
-  assert.match(selectionModal, /followUpSessionIds/);
-  assert.match(selectionModal, /Continuará acompanhando/);
+  assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
+  assert.match(page, /Adicionar acompanhamento/);
+  assert.match(page, /handleEndActiveSession/);
+  assert.match(page, /formatDurationMinutes\(diffMinutes\(session\.startedAt, nowIso\)\)/);
+  assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
+  assert.doesNotMatch(page, /maintenanceIntervals\.map/);
+  assert.doesNotMatch(page, /followUpIntervals\.map/);
 });
