@@ -1,13 +1,21 @@
-import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Factory, Plus, Search, X } from "lucide-react";
+
 import { useAndon } from "@/context/AndonProvider";
 import type { Machine, ProductionMode } from "@/types/machine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 
@@ -20,37 +28,89 @@ function sortMachines(machines: Machine[]) {
   });
 }
 
-
 function productionModeLabel(mode: ProductionMode) {
   return mode === "scheduled" ? "Programada" : "Não programada";
 }
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Erro ao processar operação.";
+function machineStatusLabel(machine: Machine) {
+  if (!machine.isActive) return "Inativa";
+  if (machine.machineStatus === "stopped") return "Parada";
+  return "Rodando";
+}
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div>
+        <h4 className="text-sm font-black text-foreground">{title}</h4>
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function MachineAdminPanel() {
   const { machines, createMachine, updateMachineCatalog, updateMachineActive } = useAndon();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [newId, setNewId] = useState("");
   const [newName, setNewName] = useState("");
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
+  const sortedMachines = useMemo(() => sortMachines(machines), [machines]);
   const filteredMachines = useMemo(
-    () => filterMachinesForAdmin(sortMachines(machines), searchQuery),
-    [machines, searchQuery],
+    () => filterMachinesForAdmin(sortedMachines, searchQuery),
+    [searchQuery, sortedMachines],
   );
+
+  const selectedMachine =
+    selectedMachineId === null
+      ? null
+      : machines.find((machine) => machine.id === selectedMachineId) ?? null;
+
+  useEffect(() => {
+    if (creating) return;
+    if (selectedMachine) return;
+    if (filteredMachines.length > 0) {
+      setSelectedMachineId(filteredMachines[0].id);
+    } else {
+      setSelectedMachineId(null);
+    }
+  }, [creating, filteredMachines, selectedMachine]);
+
+  function handleStartCreate() {
+    setCreating(true);
+    setSelectedMachineId(null);
+    setNewId("");
+    setNewName("");
+    setNewProductionMode("scheduled");
+    setNewRequireWorkOrder(false);
+  }
 
   function handleCreate() {
     const id = newId.trim();
     if (!id) return;
+
     createMachine({
       id,
       name: newName.trim() || `Máquina ${id}`,
       productionMode: newProductionMode,
       requireWorkOrderAtOpen: newRequireWorkOrder,
     });
+
+    setCreating(false);
+    setSelectedMachineId(id);
     setNewId("");
     setNewName("");
     setNewProductionMode("scheduled");
@@ -58,129 +118,365 @@ export function MachineAdminPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Cadastro de máquinas</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-[140px_1fr_220px_220px_auto]">
-          <div className="space-y-1">
-            <Label htmlFor="machine-id">ID</Label>
-            <Input id="machine-id" value={newId} onChange={(event) => setNewId(event.target.value)} placeholder="18" />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="machine-name">Nome</Label>
-            <Input id="machine-name" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Máquina 18" />
-          </div>
-          <div className="flex items-center gap-2 self-end pb-2">
-            <Switch checked={newRequireWorkOrder} onCheckedChange={setNewRequireWorkOrder} />
-            <span className="text-sm font-bold">Exigir OS</span>
-          </div>
-          <div className="space-y-1">
-            <Label>Modo padrão</Label>
-            <Select value={newProductionMode} onValueChange={(value) => setNewProductionMode(value as ProductionMode)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">Programada</SelectItem>
-                <SelectItem value="not_scheduled">Não programada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="button" className="self-end" onClick={handleCreate}>Criar máquina</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-xl">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Pesquisar por ID ou nome da máquina..."
-                aria-label="Pesquisar máquinas por ID ou nome"
-                className="pl-9 pr-9"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  aria-label="Limpar pesquisa de máquinas"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <span className="shrink-0 text-xs font-semibold text-muted-foreground">
-              {filteredMachines.length} de {machines.length} máquina(s)
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3">
-        {machines.length > 0 && filteredMachines.length === 0 && (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-sm font-bold text-foreground">Nenhuma máquina encontrada</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Pesquise pelo ID ou por parte do nome da máquina.
+    <div className="grid min-h-[620px] gap-4 xl:grid-cols-[330px_minmax(0,1fr)]">
+      <aside className="flex min-h-0 flex-col rounded-xl border border-border bg-card">
+        <div className="space-y-3 border-b border-border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-black">Máquinas</h3>
+              <p className="text-xs text-muted-foreground">
+                Localize e selecione uma máquina para editar.
               </p>
-            </CardContent>
-          </Card>
-        )}
-        {filteredMachines.map((machine) => (
-          <Card key={machine.id} className={!machine.isActive ? "opacity-70" : undefined}>
-            <CardContent className="space-y-4 p-4">
-              <div className="grid gap-3 md:grid-cols-[90px_1fr_210px_190px_170px_120px] md:items-end">
-                <div>
-                  <Label>ID</Label>
-                  <div className="text-lg font-bold">{machine.id}</div>
+            </div>
+            <Button type="button" size="sm" onClick={handleStartCreate}>
+              <Plus className="mr-1 h-4 w-4" />
+              Nova
+            </Button>
+          </div>
+
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="ID ou nome..."
+              aria-label="Pesquisar máquinas por ID ou nome"
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label="Limpar pesquisa de máquinas"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="text-xs font-semibold text-muted-foreground">
+            {filteredMachines.length} de {machines.length} máquina(s)
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
+          {machines.length > 0 && filteredMachines.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+              <p className="text-sm font-bold">Nenhuma máquina encontrada</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pesquise pelo ID ou por parte do nome.
+              </p>
+            </div>
+          )}
+
+          {filteredMachines.map((machine) => {
+            const selected = !creating && selectedMachineId === machine.id;
+            return (
+              <button
+                key={machine.id}
+                type="button"
+                onClick={() => {
+                  setCreating(false);
+                  setSelectedMachineId(machine.id);
+                }}
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
+                  selected
+                    ? "border-primary bg-primary/10"
+                    : "border-transparent hover:border-border hover:bg-accent/60",
+                  !machine.isActive && "opacity-65",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black">{machine.name}</p>
+                    <p className="text-xs font-mono text-muted-foreground">ID {machine.id}</p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
+                      machine.isActive
+                        ? machine.machineStatus === "stopped"
+                          ? "bg-warning/10 text-warning"
+                          : "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {machineStatusLabel(machine)}
+                  </span>
                 </div>
+                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] font-semibold text-muted-foreground">
+                  <span>{productionModeLabel(machine.productionMode)}</span>
+                  <span>•</span>
+                  <span>{machine.requireWorkOrderAtOpen ? "OS obrigatória" : "OS opcional"}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      <div className="min-w-0">
+        {creating ? (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                  Cadastro
+                </p>
+                <h3 className="text-xl font-black">Nova máquina</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Crie a máquina com os parâmetros essenciais. A hierarquia poderá ser configurada depois.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreating(false);
+                  setSelectedMachineId(filteredMachines[0]?.id ?? null);
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+
+            <Section title="Identificação">
+              <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
                 <div className="space-y-1">
-                  <Label>Nome</Label>
-                  <Input defaultValue={machine.name} onBlur={(event) => updateMachineCatalog(machine.id, { name: event.target.value })} />
-                </div>
-                <div className="flex items-center gap-2 pb-2">
-                  <Switch
-                    checked={machine.requireWorkOrderAtOpen === true}
-                    onCheckedChange={(checked) =>
-                      updateMachineCatalog(machine.id, { requireWorkOrderAtOpen: checked })
-                    }
+                  <Label htmlFor="machine-id">ID</Label>
+                  <Input
+                    id="machine-id"
+                    value={newId}
+                    onChange={(event) => setNewId(event.target.value)}
+                    placeholder="18"
                   />
-                  <span className="text-sm font-bold">Exigir OS</span>
                 </div>
                 <div className="space-y-1">
-                  <Label>Modo padrão</Label>
-                  <Select value={machine.productionMode} onValueChange={(value) => updateMachineCatalog(machine.id, { productionMode: value as ProductionMode })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Label htmlFor="machine-name">Nome</Label>
+                  <Input
+                    id="machine-name"
+                    value={newName}
+                    onChange={(event) => setNewName(event.target.value)}
+                    placeholder="Máquina 18"
+                  />
+                </div>
+              </div>
+            </Section>
+
+            <Section
+              title="Regras operacionais"
+              description="Defina o comportamento inicial da máquina no ANDON."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                  <span>
+                    <span className="block text-sm font-bold">Exigir OS na abertura</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Obriga número de OS para novos chamados.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={newRequireWorkOrder}
+                    onCheckedChange={setNewRequireWorkOrder}
+                  />
+                </label>
+
+                <div className="space-y-1">
+                  <Label>Modo padrão de produção</Label>
+                  <Select
+                    value={newProductionMode}
+                    onValueChange={(value) => setNewProductionMode(value as ProductionMode)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="scheduled">Programada</SelectItem>
                       <SelectItem value="not_scheduled">Não programada</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="text-sm font-semibold uppercase text-muted-foreground">
-                  <div>Máquina: {machine.machineStatus}</div>
-                  <div>ANDON: {machine.andonStatus}</div>
-                  <div>{productionModeLabel(machine.productionMode)}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={machine.isActive} disabled={Boolean(machine.currentCallId)} onCheckedChange={(checked) => updateMachineActive(machine.id, checked)} />
-                  <span className="text-sm font-bold">{machine.isActive ? "Ativa" : "Inativa"}</span>
+              </div>
+            </Section>
+
+            <div className="flex justify-end">
+              <Button type="button" onClick={handleCreate} disabled={!newId.trim()}>
+                Criar máquina
+              </Button>
+            </div>
+          </div>
+        ) : selectedMachine ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                  <Factory className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                    Máquina {selectedMachine.id}
+                  </p>
+                  <h3 className="truncate text-xl font-black">{selectedMachine.name}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Alterações de configuração são aplicadas ao sair do campo ou alterar o controle.
+                  </p>
                 </div>
               </div>
+              <span
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-black uppercase",
+                  selectedMachine.isActive
+                    ? "bg-success/10 text-success"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {selectedMachine.isActive ? "Ativa" : "Inativa"}
+              </span>
+            </div>
 
-              <MachineHierarchyAdminSection machine={machine} />
-            </CardContent>
-          </Card>
-        ))}
+            <Section title="Identificação">
+              <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)]">
+                <div>
+                  <Label>ID</Label>
+                  <div className="mt-1 flex h-10 items-center rounded-md border border-border bg-muted/30 px-3 font-mono font-bold">
+                    {selectedMachine.id}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Nome</Label>
+                  <Input
+                    key={selectedMachine.id}
+                    defaultValue={selectedMachine.name}
+                    onBlur={(event) => {
+                      const name = event.target.value.trim();
+                      if (name && name !== selectedMachine.name) {
+                        updateMachineCatalog(selectedMachine.id, { name });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </Section>
+
+            <Section
+              title="Regras operacionais"
+              description="Configurações que afetam a abertura e operação dos chamados."
+            >
+              <div className="grid gap-4 lg:grid-cols-3">
+                <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                  <span>
+                    <span className="block text-sm font-bold">Exigir OS</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Exigência específica desta máquina.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={selectedMachine.requireWorkOrderAtOpen === true}
+                    onCheckedChange={(checked) =>
+                      updateMachineCatalog(selectedMachine.id, {
+                        requireWorkOrderAtOpen: checked,
+                      })
+                    }
+                  />
+                </label>
+
+                <div className="space-y-1">
+                  <Label>Modo padrão de produção</Label>
+                  <Select
+                    value={selectedMachine.productionMode}
+                    onValueChange={(value) =>
+                      updateMachineCatalog(selectedMachine.id, {
+                        productionMode: value as ProductionMode,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scheduled">Programada</SelectItem>
+                      <SelectItem value="not_scheduled">Não programada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                  <span>
+                    <span className="block text-sm font-bold">Cadastro ativo</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {selectedMachine.currentCallId
+                        ? "Há chamado ativo; inativação bloqueada."
+                        : "Disponível para uso no ANDON."}
+                    </span>
+                  </span>
+                  <Switch
+                    checked={selectedMachine.isActive}
+                    disabled={Boolean(selectedMachine.currentCallId)}
+                    onCheckedChange={(checked) =>
+                      updateMachineActive(selectedMachine.id, checked)
+                    }
+                  />
+                </label>
+              </div>
+            </Section>
+
+            <Section title="Estado atual" description="Leitura operacional; não é editada neste painel.">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                    Máquina
+                  </p>
+                  <p className="mt-1 text-sm font-bold">{selectedMachine.machineStatus}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                    ANDON
+                  </p>
+                  <p className="mt-1 text-sm font-bold">{selectedMachine.andonStatus}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                    Produção
+                  </p>
+                  <p className="mt-1 text-sm font-bold">
+                    {productionModeLabel(selectedMachine.productionMode)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                    Chamado ativo
+                  </p>
+                  <p className="mt-1 truncate font-mono text-sm font-bold">
+                    {selectedMachine.currentCallId ?? "Nenhum"}
+                  </p>
+                </div>
+              </div>
+            </Section>
+
+            <Section
+              title="Estrutura da máquina"
+              description="Conjuntos, subconjuntos e ativos vinculados a esta máquina."
+            >
+              <MachineHierarchyAdminSection machine={selectedMachine} />
+            </Section>
+          </div>
+        ) : (
+          <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-border">
+            <div className="max-w-sm text-center">
+              <Factory className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm font-black">Nenhuma máquina selecionada</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Selecione uma máquina na lista ou crie um novo cadastro.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
