@@ -145,3 +145,92 @@ export function getDashboardPrioritySignature(
     })
     .join("|");
 }
+
+
+export function compareByProductionPriority(
+  current: Pick<Machine, "id" | "displayOrder" | "priorityOrder">,
+  next: Pick<Machine, "id" | "displayOrder" | "priorityOrder">,
+): number {
+  const currentOrder =
+    current.priorityOrder ??
+    current.displayOrder ??
+    getMachineNumber(current);
+  const nextOrder =
+    next.priorityOrder ??
+    next.displayOrder ??
+    getMachineNumber(next);
+
+  return (
+    currentOrder - nextOrder ||
+    compareByMachineNumber(current, next)
+  );
+}
+
+export function getTopProductionPriorityIds<T extends Pick<Machine, "id" | "displayOrder" | "priorityOrder">>(
+  machines: readonly T[],
+  count = 5,
+): Set<string> {
+  return new Set(
+    machines
+      .slice()
+      .sort(compareByProductionPriority)
+      .slice(0, Math.max(0, count))
+      .map((machine) => machine.id),
+  );
+}
+
+export function splitMachinesByProductionPriority<
+  T extends DashboardMachine & Pick<Machine, "displayOrder" | "priorityOrder">,
+>(
+  machines: readonly T[],
+  calls: readonly DashboardCall[],
+  pageSize = MAX_DASHBOARD_CARDS,
+  fixedPriorityCount = 5,
+): T[][] {
+  const orderedMachines = machines.slice().sort(compareByProductionPriority);
+
+  if (orderedMachines.length <= pageSize) {
+    return [orderedMachines];
+  }
+
+  const fixed = orderedMachines.slice(0, Math.min(fixedPriorityCount, pageSize));
+  const remaining = orderedMachines.slice(fixed.length);
+  const availableSlots = Math.max(0, pageSize - fixed.length);
+
+  const selectedIds = new Set(
+    remaining
+      .slice()
+      .sort((current, next) => {
+        const operationalDifference =
+          getDashboardPriority(current, calls) - getDashboardPriority(next, calls);
+        return operationalDifference || compareByProductionPriority(current, next);
+      })
+      .slice(0, availableSlots)
+      .map((machine) => machine.id),
+  );
+
+  const firstPageRemainder = remaining.filter((machine) => selectedIds.has(machine.id));
+  const overflow = remaining.filter((machine) => !selectedIds.has(machine.id));
+  const pages = [[...fixed, ...firstPageRemainder]];
+
+  for (let index = 0; index < overflow.length; index += pageSize) {
+    pages.push(overflow.slice(index, index + pageSize));
+  }
+
+  return pages;
+}
+
+export function getProductionPrioritySignature<
+  T extends DashboardMachine & Pick<Machine, "displayOrder" | "priorityOrder">,
+>(
+  machines: readonly T[],
+  calls: readonly DashboardCall[],
+): string {
+  const manualOrder = machines
+    .slice()
+    .sort(compareByProductionPriority)
+    .map((machine) => `${machine.id}:${machine.priorityOrder ?? "none"}`)
+    .join("|");
+
+  return `${manualOrder}::${getDashboardPrioritySignature(machines, calls)}`;
+}
