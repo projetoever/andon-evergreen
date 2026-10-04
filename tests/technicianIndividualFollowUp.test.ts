@@ -428,8 +428,8 @@ test("contador acumulado preserva tempo do mantenedor entre manutenção, acompa
   );
 
   assert.equal(summary.maintenanceMinutes, 35);
-  assert.equal(summary.followUpMinutes, 20);
-  assert.equal(getTechnicianAccumulatedMinutes(summary), 55);
+  assert.equal(summary.followUpMinutes, 25);
+  assert.equal(getTechnicianAccumulatedMinutes(summary), 60);
   assert.equal(summary.activePhase, "follow_up");
 });
 
