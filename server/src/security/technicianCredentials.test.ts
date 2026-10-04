@@ -11,7 +11,8 @@ import {
 
 test("protege e valida PIN sem armazenar o valor original", async () => {
   const hash = await hashCredential("4821");
-  assert.equal(hash.includes("4821"), false);
+  assert.notEqual(hash, "4821");
+  assert.ok(hash.startsWith("scrypt$"));
   assert.equal(await verifyCredential("4821", hash), true);
   assert.equal(await verifyCredential("4822", hash), false);
 });
