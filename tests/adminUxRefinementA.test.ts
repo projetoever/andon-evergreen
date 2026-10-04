@@ -248,3 +248,21 @@ test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", 
   assert.match(admin, /SoundsSettingsTab/);
   assert.doesNotMatch(admin, /function SoundsTab\(/);
 });
+
+
+test("configurações gerais bloqueiam operação quando o estado global não é confiável", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Operação global/);
+  assert.match(source, /settingsLoadError/);
+  assert.match(source, /Configurações globais indisponíveis/);
+  assert.match(source, /loadGeneralSettings/);
+  assert.match(source, /priorityAccessLoadError/);
+  assert.match(source, /Indisponível/);
+  assert.match(source, /loadPriorityAccess/);
+  assert.match(source, /Tentar novamente/);
+  assert.match(source, /Boolean\(settingsLoadError\)/);
+});
