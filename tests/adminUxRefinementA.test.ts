@@ -98,3 +98,21 @@ test("classificações mantêm edição e ID histórico estável", async () => {
   assert.match(source, /updateFailureClassification/);
   assert.match(source, /createFailureClassification/);
 });
+
+
+test("setores possuem pesquisa, filtro de status, contador e seleção destacada", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/CategoriesSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /Pesquisar setores por nome ou ID/);
+  assert.match(source, /statusFilter/);
+  assert.match(source, /Todos/);
+  assert.match(source, /Ativos/);
+  assert.match(source, /Inativos/);
+  assert.match(source, /filteredItems\.length/);
+  assert.match(source, /Nenhum setor encontrado/);
+  assert.match(source, /ring-primary\/30/);
+  assert.match(source, /max-h-\[52vh\]/);
+});
