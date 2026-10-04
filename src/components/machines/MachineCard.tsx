@@ -103,8 +103,6 @@ export function MachineCard({
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger animate-andon-pulse",
         isWarning && !isCritical && "ring-2 ring-warning",
-        productionPriorityRank !== null &&
-          "outline outline-2 outline-offset-1 outline-primary/70",
       )}
       data-production-priority={productionPriorityRank ?? undefined}
     >
