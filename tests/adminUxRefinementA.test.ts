@@ -152,3 +152,28 @@ test("workstations possuem busca, filtro, contador e destaque da estação atual
   assert.match(source, /ring-primary\/30/);
   assert.match(source, /Tentar novamente/);
 });
+
+
+test("máquinas deixam clara a regra global, local e efetiva de OS", async () => {
+  const [machineAdmin, general] = await Promise.all([
+    readFile(
+      new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(machineAdmin, /Regra global de OS/);
+  assert.match(machineAdmin, /Regra desta máquina/);
+  assert.match(machineAdmin, /Resultado efetivo/);
+  assert.match(machineAdmin, /Regra efetiva = global OU exigência desta máquina/);
+  assert.match(machineAdmin, /Exigir OS nesta máquina/);
+  assert.match(machineAdmin, /Filtrar máquinas por status/);
+  assert.match(machineAdmin, /Filtrar máquinas por exigência de OS/);
+  assert.match(machineAdmin, /ring-primary\/30/);
+  assert.match(general, /Regra global: exigir OS na abertura/);
+  assert.match(general, /uma máquina pode\s+exigir OS individualmente/);
+});
