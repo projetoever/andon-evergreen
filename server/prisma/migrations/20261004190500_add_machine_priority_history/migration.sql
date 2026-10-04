@@ -36,65 +36,10 @@ WITH ordered_active AS (
     ROW_NUMBER() OVER (
       ORDER BY
         COALESCE(
-          m."priorityOrder",
-          m."displayOrder",
+          m."priorityOrder"::BIGINT,
+          m."displayOrder"::BIGINT,
           CASE
-            WHEN m."id" ~ '^[0-9]+
-          END
-        ),
-        m."id"
-    ) AS active_rank
-  FROM "machines" m
-  WHERE m."isActive" = TRUE
-),
-ordered_all AS (
-  SELECT
-    m."id",
-    ROW_NUMBER() OVER (
-      ORDER BY
-        COALESCE(
-          m."priorityOrder",
-          m."displayOrder",
-          CASE
-            WHEN m."id" ~ '^[0-9]+
-          END
-        ),
-        m."id"
-    ) AS visual_order
-  FROM "machines" m
-)
-INSERT INTO "machine_priority_history" (
-  "id",
-  "machineId",
-  "previousOrder",
-  "newOrder",
-  "previousPriorityRank",
-  "newPriorityRank",
-  "changedAt",
-  "changedBy",
-  "source",
-  "reason",
-  "createdAt"
-)
-SELECT
-  'priority-baseline-' || m."id",
-  m."id",
-  NULL,
-  oa2.visual_order::INTEGER,
-  NULL,
-  CASE
-    WHEN oa.active_rank BETWEEN 1 AND 5 THEN oa.active_rank::INTEGER
-    ELSE NULL
-  END,
-  CURRENT_TIMESTAMP,
-  NULL,
-  'history_baseline',
-  'Initial priority history baseline',
-  CURRENT_TIMESTAMP
-FROM "machines" m
-JOIN ordered_all oa2 ON oa2."id" = m."id"
-LEFT JOIN ordered_active oa ON oa."id" = m."id";
- THEN m."id"::BIGINT
+            WHEN m."id" ~ '^[0-9]+$' THEN m."id"::BIGINT
             ELSE 9223372036854775807
           END
         ),
@@ -109,107 +54,11 @@ ordered_all AS (
     ROW_NUMBER() OVER (
       ORDER BY
         COALESCE(
-          m."priorityOrder",
-          m."displayOrder",
+          m."priorityOrder"::BIGINT,
+          m."displayOrder"::BIGINT,
           CASE
-            WHEN m."id" ~ '^[0-9]+$' THEN m."id"::INTEGER
-            ELSE 2147483647
-          END
-        ),
-        m."id"
-    ) AS visual_order
-  FROM "machines" m
-)
-INSERT INTO "machine_priority_history" (
-  "id",
-  "machineId",
-  "previousOrder",
-  "newOrder",
-  "previousPriorityRank",
-  "newPriorityRank",
-  "changedAt",
-  "changedBy",
-  "source",
-  "reason",
-  "createdAt"
-)
-SELECT
-  'priority-baseline-' || m."id",
-  m."id",
-  NULL,
-  oa2.visual_order::INTEGER,
-  NULL,
-  CASE
-    WHEN oa.active_rank BETWEEN 1 AND 5 THEN oa.active_rank::INTEGER
-    ELSE NULL
-  END,
-  CURRENT_TIMESTAMP,
-  NULL,
-  'history_baseline',
-  'Initial priority history baseline',
-  CURRENT_TIMESTAMP
-FROM "machines" m
-JOIN ordered_all oa2 ON oa2."id" = m."id"
-LEFT JOIN ordered_active oa ON oa."id" = m."id";
- THEN m."id"::BIGINT
+            WHEN m."id" ~ '^[0-9]+$' THEN m."id"::BIGINT
             ELSE 9223372036854775807
-          END
-        ),
-        m."id"
-    ) AS visual_order
-  FROM "machines" m
-)
-INSERT INTO "machine_priority_history" (
-  "id",
-  "machineId",
-  "previousOrder",
-  "newOrder",
-  "previousPriorityRank",
-  "newPriorityRank",
-  "changedAt",
-  "changedBy",
-  "source",
-  "reason",
-  "createdAt"
-)
-SELECT
-  'priority-baseline-' || m."id",
-  m."id",
-  NULL,
-  oa2.visual_order::INTEGER,
-  NULL,
-  CASE
-    WHEN oa.active_rank BETWEEN 1 AND 5 THEN oa.active_rank::INTEGER
-    ELSE NULL
-  END,
-  CURRENT_TIMESTAMP,
-  NULL,
-  'history_baseline',
-  'Initial priority history baseline',
-  CURRENT_TIMESTAMP
-FROM "machines" m
-JOIN ordered_all oa2 ON oa2."id" = m."id"
-LEFT JOIN ordered_active oa ON oa."id" = m."id";
- THEN m."id"::BIGINT
-            ELSE 9223372036854775807
-          END
-        ),
-        m."id"
-    ) AS active_rank
-  FROM "machines" m
-  WHERE m."isActive" = TRUE
-),
-ordered_all AS (
-  SELECT
-    m."id",
-    ROW_NUMBER() OVER (
-      ORDER BY
-        COALESCE(
-          m."priorityOrder",
-          m."displayOrder",
-          CASE
-            WHEN m."id" ~ '^[0-9]+$' THEN m."id"::INTEGER
-            ELSE 2147483647
           END
         ),
         m."id"
