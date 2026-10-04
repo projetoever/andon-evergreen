@@ -49,6 +49,7 @@ const machineSelect = {
   requireWorkOrderAtOpen: true,
   isActive: true,
   displayOrder: true,
+  priorityOrder: true,
   currentCallId: true,
   lastStatusChangedAt: true,
   createdAt: true,
@@ -109,6 +110,11 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     const requireWorkOrderAtOpen = parsedRequireWorkOrderAtOpen ?? false;
 
     try {
+      const highestPriority = await prisma.machine.aggregate({
+        _max: { priorityOrder: true },
+      });
+      const nextPriorityOrder = (highestPriority._max.priorityOrder ?? 0) + 1;
+
       const machine = await prisma.machine.create({
         data: {
           id,
@@ -116,6 +122,7 @@ export async function registerMachineRoutes(app: FastifyInstance) {
           productionMode,
           requireWorkOrderAtOpen,
           displayOrder: Number.isFinite(Number(id)) ? Number(id) : undefined,
+          priorityOrder: nextPriorityOrder,
           machineStatus: "running",
           andonStatus: "normal",
           currentCallId: null,
