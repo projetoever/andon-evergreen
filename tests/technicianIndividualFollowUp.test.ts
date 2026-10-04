@@ -14,7 +14,10 @@ import {
 } from "../src/services/andonService";
 import type { AndonCall, TechnicianAttendanceSession } from "../src/types/andon";
 import type { Machine } from "../src/types/machine";
-import { buildTechnicianParticipationSummaries } from "../src/utils/technicianSessionUtils";
+import {
+  buildTechnicianParticipationSummaries,
+  getTechnicianAccumulatedMinutes,
+} from "../src/utils/technicianSessionUtils";
 import { buildTechnicianTimeAllocations } from "../src/utils/technicianTimeAllocationUtils";
 
 function machine(id: string): Machine {
@@ -371,6 +374,65 @@ test("contadores separam manutenção e acompanhamento usando o agora informado"
   ]);
 });
 
+test("contador acumulado preserva tempo do mantenedor entre manutenção, acompanhamento e retorno", () => {
+  const sessions: TechnicianAttendanceSession[] = [
+    {
+      id: "m1",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "maintenance",
+      cycleIndex: 1,
+      startedAt: "2026-10-02T10:00:00.000Z",
+      endedAt: "2026-10-02T10:20:00.000Z",
+    },
+    {
+      id: "f1",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "follow_up",
+      cycleIndex: 1,
+      startedAt: "2026-10-02T10:20:00.000Z",
+      endedAt: "2026-10-02T10:30:00.000Z",
+    },
+    {
+      id: "m2",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "maintenance",
+      cycleIndex: 2,
+      startedAt: "2026-10-02T10:30:00.000Z",
+      endedAt: "2026-10-02T10:45:00.000Z",
+    },
+    {
+      id: "f2",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "follow_up",
+      cycleIndex: 2,
+      startedAt: "2026-10-02T10:45:00.000Z",
+    },
+  ];
+
+  const [summary] = buildTechnicianParticipationSummaries(
+    sessions,
+    "2026-10-02T11:00:00.000Z",
+    "post_maintenance",
+  );
+
+  assert.equal(summary.maintenanceMinutes, 35);
+  assert.equal(summary.followUpMinutes, 20);
+  assert.equal(getTechnicianAccumulatedMinutes(summary), 55);
+  assert.equal(summary.activePhase, "follow_up");
+});
+
 test("legado support_finished mantém semântica e sessão explícita respeita endedAt", () => {
   const baseCall = {
     id: "legacy",
@@ -452,8 +514,11 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.match(page, /getServerNowIso\(\)/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
   assert.match(page, /Adicionar acompanhamento/);
-  assert.match(page, /handleEndActiveSession/);
-  assert.match(page, /formatDurationMinutes\(diffMinutes\(session\.startedAt, nowIso\)\)/);
+  assert.match(page, /Encerrar acompanhamento/);
+  assert.match(page, /setEndOpen\(true\)/);
+  assert.match(page, /EndTechnicianSessionModal/);
+  assert.match(page, /getTechnicianAccumulatedMinutes\(summary\)/);
+  assert.doesNotMatch(page, /handleEndActiveSession/);
   assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
   assert.doesNotMatch(page, /maintenanceIntervals\.map/);
   assert.doesNotMatch(page, /followUpIntervals\.map/);
