@@ -10,6 +10,7 @@ import {
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerAndonCategoryRoutes } from "./routes/andonCategories.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
+import { registerDashboardPriorityRoutes } from "./routes/dashboardPriority.js";
 import { registerFailureEventRoutes } from "./routes/failureEvents.js";
 import { registerHealthDbRoute } from "./routes/healthDb.js";
 import { registerMachineRoutes } from "./routes/machines.js";
@@ -66,6 +67,7 @@ export function buildServer() {
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
   void registerSystemSettingsRoutes(app);
+  void registerDashboardPriorityRoutes(app);
   void registerTechnicianRoutes(app);
   void registerShiftRoutes(app);
   void registerFailureClassificationRoutes(app);
