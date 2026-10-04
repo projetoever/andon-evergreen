@@ -182,4 +182,34 @@
   .animate-andon-pulse {
     animation: andon-pulse 1.5s ease-in-out infinite;
   }
+
+  @keyframes andon-card-halo {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.78;
+      box-shadow: 0 0 0 0 currentColor;
+    }
+    50% {
+      transform: scale(1.018);
+      opacity: 0.22;
+      box-shadow: 0 0 0 9px currentColor;
+    }
+  }
+
+  .animate-andon-card-halo-danger {
+    animation: andon-card-halo 1.35s ease-in-out infinite;
+  }
+
+  .animate-andon-card-halo-warning {
+    animation: andon-card-halo 1.7s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-andon-card-halo-danger,
+    .animate-andon-card-halo-warning {
+      animation: none;
+      opacity: 0.72;
+      box-shadow: 0 0 0 3px currentColor;
+    }
+  }
 }
