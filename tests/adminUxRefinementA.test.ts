@@ -27,7 +27,7 @@ test("pesquisa de máquinas mantém seleção coerente com lista filtrada", asyn
   assert.match(source, /setSearchQuery\(""\)/);
 });
 
-test("detalhe de máquina separa identificação, regras, estado e estrutura", async () => {
+test("detalhe de máquina mantém apenas configuração e estrutura", async () => {
   const source = await readFile(
     new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url),
     "utf8",
@@ -35,7 +35,8 @@ test("detalhe de máquina separa identificação, regras, estado e estrutura", a
 
   assert.match(source, /title="Identificação"/);
   assert.match(source, /title="Regras operacionais"/);
-  assert.match(source, /title="Estado atual"/);
+  assert.doesNotMatch(source, /title="Estado atual"/);
+  assert.doesNotMatch(source, /Leitura operacional; não é editada neste painel/);
   assert.match(source, /title="Estrutura da máquina"/);
   assert.match(source, /Há chamado ativo; inativação bloqueada/);
 });
