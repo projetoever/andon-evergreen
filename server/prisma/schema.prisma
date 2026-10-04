@@ -90,9 +90,31 @@ model Machine {
   failureEvents       FailureEvent[]
   callImpactIntervals CallImpactInterval[]
   productionEvents    MachineProductionEvent[]
+  priorityHistory     MachinePriorityHistory[]
   kioskDevices        KioskDevice[]
 
   @@map("machines")
+}
+
+model MachinePriorityHistory {
+  id                   String   @id @default(cuid())
+  machineId            String
+  machine              Machine  @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  previousOrder        Int?
+  newOrder             Int?
+  previousPriorityRank Int?
+  newPriorityRank      Int?
+  changedAt            DateTime @default(now())
+  changedBy            String?
+  source               String   @default("priority_manager")
+  reason               String?
+  createdAt            DateTime @default(now())
+
+  @@index([machineId])
+  @@index([changedAt])
+  @@index([machineId, changedAt])
+  @@index([newPriorityRank])
+  @@map("machine_priority_history")
 }
 
 model MachineSetType {
