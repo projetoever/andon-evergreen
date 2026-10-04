@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +30,40 @@ export function WorkstationsSettingsTab() {
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = searchQuery
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return items
+      .filter((workstation) => {
+        if (statusFilter === "active" && !workstation.active) return false;
+        if (statusFilter === "inactive" && workstation.active) return false;
+        if (!normalizedQuery) return true;
+
+        const haystack = `${workstationLabel(workstation)} ${workstation.id}`
+          .toLocaleLowerCase("pt-BR")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+
+        return haystack.includes(normalizedQuery);
+      })
+      .sort((a, b) => {
+        if (a.id === currentWorkstationId) return -1;
+        if (b.id === currentWorkstationId) return 1;
+        return workstationLabel(a).localeCompare(workstationLabel(b), "pt-BR");
+      });
+  }, [currentWorkstationId, items, searchQuery, statusFilter]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       await registerCurrentWorkstation();
       const workstations = await listWorkstations();
@@ -42,7 +74,10 @@ export function WorkstationsSettingsTab() {
         ),
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar workstations.");
+      const message =
+        error instanceof Error ? error.message : "Falha ao carregar workstations.";
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -90,18 +125,122 @@ export function WorkstationsSettingsTab() {
         </p>
       </div>
 
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {filteredItems.length} de {items.length} workstation(s)
+          </p>
+          {(searchQuery || statusFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+              }}
+              className="text-xs font-bold text-primary hover:underline"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Pesquisar nome ou ID..."
+            aria-label="Pesquisar workstations por nome ou ID"
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              aria-label="Limpar pesquisa de workstations"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div
+          className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+          aria-label="Filtrar workstations por status"
+        >
+          {(
+            [
+              ["all", "Todas"],
+              ["active", "Ativas"],
+              ["inactive", "Inativas"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={statusFilter === value}
+              onClick={() => setStatusFilter(value)}
+              className={
+                statusFilter === value
+                  ? "min-h-9 rounded-md bg-primary px-2 text-xs font-bold text-primary-foreground shadow-sm"
+                  : "min-h-9 rounded-md px-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading && <p className="text-sm text-muted-foreground">Carregando workstations...</p>}
-      {!isLoading && items.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nenhuma workstation registrada.</p>
+
+      {!isLoading && loadError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
+        >
+          <span>{loadError}</span>
+          <button type="button" className="font-bold underline" onClick={() => void load()}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !loadError && items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+          <p className="text-sm font-bold">Nenhuma workstation registrada</p>
+        </div>
+      )}
+
+      {!isLoading && !loadError && items.length > 0 && filteredItems.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+          <p className="text-sm font-bold">Nenhuma workstation encontrada</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ajuste a pesquisa ou o filtro de status.
+          </p>
+        </div>
       )}
 
       <div className="grid gap-3 lg:grid-cols-2">
-        {items.map((workstation) => {
+        {filteredItems.map((workstation) => {
           const isCurrent = workstation.id === currentWorkstationId;
           const isSaving = workstation.id === savingId;
 
           return (
-            <Card key={workstation.id} className={!workstation.active ? "opacity-70" : undefined}>
+            <Card
+              key={workstation.id}
+              className={[
+                isCurrent ? "border-primary ring-1 ring-primary/30" : "",
+                !workstation.active ? "opacity-70" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <CardHeader className="space-y-2 pb-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">{workstationLabel(workstation)}</CardTitle>
