@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Factory, Plus, Search, X } from "lucide-react";
 
 import { useAndon } from "@/context/AndonProvider";
@@ -45,7 +45,7 @@ function Section({
 }: {
   title: string;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
@@ -81,13 +81,12 @@ export function MachineAdminPanel() {
 
   useEffect(() => {
     if (creating) return;
-    if (selectedMachine) return;
-    if (filteredMachines.length > 0) {
-      setSelectedMachineId(filteredMachines[0].id);
-    } else {
-      setSelectedMachineId(null);
-    }
-  }, [creating, filteredMachines, selectedMachine]);
+    const selectedVisible = filteredMachines.some(
+      (machine) => machine.id === selectedMachineId,
+    );
+    if (selectedVisible) return;
+    setSelectedMachineId(filteredMachines[0]?.id ?? null);
+  }, [creating, filteredMachines, selectedMachineId]);
 
   function handleStartCreate() {
     setCreating(true);
@@ -110,6 +109,7 @@ export function MachineAdminPanel() {
     });
 
     setCreating(false);
+    setSearchQuery("");
     setSelectedMachineId(id);
     setNewId("");
     setNewName("");
