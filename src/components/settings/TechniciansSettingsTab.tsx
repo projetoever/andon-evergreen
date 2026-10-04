@@ -8,6 +8,7 @@ import { getShiftConfigs } from "@/services/shiftConfigService";
 import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig, ShiftConfig, TechnicianConfig } from "@/types/settings";
+import { filterTechniciansForAdmin } from "@/utils/adminEntityFilterUtils";
 
 const DEFAULT_AREA_OPTIONS = DEFAULT_CATEGORIES.map((category) => ({
   id: category.id,
@@ -28,14 +29,6 @@ const EMPTY_DRAFT: TechnicianConfig = {
   pin: "",
   tag: "",
 };
-
-function normalizeSearchValue(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .trim();
-}
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -105,22 +98,10 @@ export function TechniciansSettingsTab() {
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [categories, categoryById, technicians]);
 
-  const filteredTechnicians = useMemo(() => {
-    const query = normalizeSearchValue(searchQuery);
-
-    return technicians.filter((technician) => {
-      const matchesSearch =
-        !query ||
-        normalizeSearchValue(technician.name).includes(query) ||
-        normalizeSearchValue(technician.employeeId ?? "").includes(query);
-      const technicianAreas = technician.areas?.length
-        ? technician.areas
-        : [technician.area];
-      const matchesArea = areaFilter === "all" || technicianAreas.includes(areaFilter);
-
-      return matchesSearch && matchesArea;
-    });
-  }, [areaFilter, searchQuery, technicians]);
+  const filteredTechnicians = useMemo(
+    () => filterTechniciansForAdmin(technicians, searchQuery, areaFilter),
+    [areaFilter, searchQuery, technicians],
+  );
 
   const hasActiveFilters = Boolean(searchQuery.trim()) || areaFilter !== "all";
 
