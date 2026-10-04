@@ -23,6 +23,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     restrictMaintenanceCompletionToAttendanceWorkstation: false,
     dashboardSoundMuteTimerEnabled: false,
     dashboardSoundMuteDurationMinutes: 3,
+    dashboardMachineOrderMode: "default",
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
     rfidInputTerminator: "enter",
@@ -52,6 +53,8 @@ function readLocalSystemSettings() {
       )
         ? parsed.dashboardSoundMuteDurationMinutes
         : 3,
+      dashboardMachineOrderMode:
+        parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
     };
     return localSystemSettings;
   } catch {
@@ -86,6 +89,14 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
     !isValidDashboardSoundMuteDuration(patch.dashboardSoundMuteDurationMinutes)
   ) {
     throw new Error("Tempo de silenciamento deve ser um número inteiro de pelo menos 1 minuto.");
+  }
+
+  if (
+    patch.dashboardMachineOrderMode !== undefined &&
+    patch.dashboardMachineOrderMode !== "default" &&
+    patch.dashboardMachineOrderMode !== "priority"
+  ) {
+    throw new Error("Modo de organização do Dashboard inválido.");
   }
 
   const settings =
