@@ -78,6 +78,13 @@ function readLocalConfig() {
   }
 }
 
+function fallbackOrder(machine: Pick<Machine, "id" | "displayOrder" | "priorityOrder">) {
+  if (machine.priorityOrder != null) return machine.priorityOrder;
+  if (machine.displayOrder != null) return machine.displayOrder;
+  const numericId = Number(machine.id);
+  return Number.isFinite(numericId) ? numericId : Number.MAX_SAFE_INTEGER;
+}
+
 function sortPriorityMachines(machines: Machine[], orderIds: string[] = []) {
   const explicitOrder = new Map(orderIds.map((id, index) => [id, index + 1]));
   return machines
@@ -90,9 +97,12 @@ function sortPriorityMachines(machines: Machine[], orderIds: string[] = []) {
     }))
     .sort((current, next) => {
       const currentOrder =
-        current.priorityOrder ?? current.displayOrder ?? Number(current.id) ?? Number.MAX_SAFE_INTEGER;
+        explicitOrder.get(current.id) ??
+        fallbackOrder(current);
       const nextOrder =
-        next.priorityOrder ?? next.displayOrder ?? Number(next.id) ?? Number.MAX_SAFE_INTEGER;
+        explicitOrder.get(next.id) ??
+        fallbackOrder(next);
+
       return (
         currentOrder - nextOrder ||
         current.id.localeCompare(next.id, "pt-BR", { numeric: true })
@@ -194,13 +204,20 @@ export async function getDashboardPriorityOrder(
   if (!session) throw new Error("Sessão de prioridades necessária.");
 
   if (CONFIGURED_DATA_MODE === "local") {
-    const orderIds =
-      typeof window === "undefined"
-        ? []
-        : JSON.parse(window.localStorage.getItem(LOCAL_ORDER_KEY) ?? "[]");
+    let orderIds: string[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(LOCAL_ORDER_KEY) ?? "[]");
+        orderIds = Array.isArray(parsed)
+          ? parsed.filter((id): id is string => typeof id === "string")
+          : [];
+      } catch {
+        orderIds = [];
+      }
+    }
     const config = readLocalConfig();
     return {
-      machines: sortPriorityMachines(currentMachines, Array.isArray(orderIds) ? orderIds : []),
+      machines: sortPriorityMachines(currentMachines, orderIds),
       lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
       lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
     };
