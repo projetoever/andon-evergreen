@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { BigButton } from "@/components/common/BigButton";
@@ -45,14 +46,50 @@ export function CategoriesSettingsTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AndonCategoryConfig>(() => emptyCategory(10));
   const [isBusy, setIsBusy] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = searchQuery
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return items.filter((item) => {
+      if (statusFilter === "active" && !item.active) return false;
+      if (statusFilter === "inactive" && item.active) return false;
+      if (!normalizedQuery) return true;
+
+      const haystack = `${item.displayName} ${item.id}`
+        .toLocaleLowerCase("pt-BR")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [items, searchQuery, statusFilter]);
 
   const refresh = useCallback(async (preferredId?: string | null) => {
-    const list = await getCategoryConfigs();
-    setItems(list);
-    const selected = list.find((item) => item.id === preferredId) ?? list[0] ?? null;
-    setSelectedId(selected?.id ?? null);
-    setDraft(selected ? { ...selected } : emptyCategory(10));
-    return list;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const list = await getCategoryConfigs();
+      setItems(list);
+      const selected = list.find((item) => item.id === preferredId) ?? list[0] ?? null;
+      setSelectedId(selected?.id ?? null);
+      setDraft(selected ? { ...selected } : emptyCategory(10));
+      return list;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Não foi possível carregar os setores";
+      setLoadError(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -145,40 +182,155 @@ export function CategoriesSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Categorias</h3>
+        <h3 className="text-base font-bold">Setores / categorias</h3>
         <p className="text-sm text-muted-foreground">
           Adicione, edite, ordene ou remova os setores exibidos como botões na tela da máquina.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
         <CardSection title="Setores cadastrados">
-          <BigButton tone="neutral" size="md" onClick={handleAdd} disabled={isBusy}>
-            Adicionar setor
-          </BigButton>
-          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
-            {items.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum setor cadastrado.</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {filteredItems.length} de {items.length} setor(es)
+            </p>
+            <BigButton
+              tone="neutral"
+              size="md"
+              onClick={handleAdd}
+              disabled={isBusy || isLoading || Boolean(loadError)}
+            >
+              Adicionar setor
+            </BigButton>
+          </div>
+
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Pesquisar nome ou ID..."
+              aria-label="Pesquisar setores por nome ou ID"
+              className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label="Limpar pesquisa de setores"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
-            {items.map((item) => (
+          </div>
+
+          <div
+            className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+            aria-label="Filtrar setores por status"
+          >
+            {(
+              [
+                ["all", "Todos"],
+                ["active", "Ativos"],
+                ["inactive", "Inativos"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+                className={cn(
+                  "min-h-9 rounded-md px-2 text-xs font-bold transition-colors",
+                  statusFilter === value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+            {isLoading && (
+              <p className="py-4 text-sm text-muted-foreground">Carregando setores...</p>
+            )}
+
+            {!isLoading && loadError && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <p className="font-bold">Não foi possível carregar os setores.</p>
+                <p>{loadError}</p>
+                <button
+                  type="button"
+                  className="mt-2 font-bold underline"
+                  onClick={() => void refresh(selectedId).catch(() => undefined)}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
+
+            {!isLoading && !loadError && items.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                <p className="text-sm font-bold">Nenhum setor cadastrado</p>
+              </div>
+            )}
+
+            {!isLoading &&
+              !loadError &&
+              items.length > 0 &&
+              filteredItems.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                  <p className="text-sm font-bold">Nenhum setor encontrado</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ajuste a pesquisa ou o filtro de status.
+                  </p>
+                </div>
+              )}
+
+            {filteredItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleSelect(item)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-lg border p-3 text-left",
-                  selectedId === item.id ? "border-primary bg-primary/10" : "border-border",
+                  "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                  selectedId === item.id
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                    : "border-border hover:bg-accent/50",
+                  !item.active && "opacity-70",
                 )}
               >
                 <span
                   className="h-8 w-8 shrink-0 rounded-lg border border-white/20 shadow"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold">{item.displayName}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {item.id} · {item.categoryGroup === "maintenance" ? "Manutenção" : "Produção"} ·{" "}
-                    {item.active ? "Ativo" : "Inativo"}
+                  <span className="block truncate font-mono text-xs text-muted-foreground">
+                    {item.id}
                   </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {item.categoryGroup === "maintenance" ? "Manutenção" : "Produção / apoio"}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
+                    item.active
+                      ? "bg-success/10 text-success"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {item.active ? "Ativo" : "Inativo"}
                 </span>
               </button>
             ))}
