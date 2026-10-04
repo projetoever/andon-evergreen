@@ -3,6 +3,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AndonApiError } from "@/api/andonApiClient";
@@ -134,6 +135,11 @@ function getErrorMessage(error: unknown) {
 export function MachineAssetCatalogPanel() {
   const [catalogKind, setCatalogKind] =
     useState<CatalogKind>("set");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<"all" | "active" | "inactive">("all");
+  const [loadError, setLoadError] =
+    useState<string | null>(null);
 
   const [setTypes, setSetTypes] = useState<
     MachineSetType[]
@@ -180,6 +186,27 @@ export function MachineAssetCatalogPanel() {
     [catalogKind, setTypes, subsetTypes],
   );
 
+  const filteredItems = useMemo(() => {
+    const query = searchQuery
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    return items.filter((item) => {
+      if (statusFilter === "active" && !item.isActive) return false;
+      if (statusFilter === "inactive" && item.isActive) return false;
+      if (!query) return true;
+
+      const haystack = `${item.name} ${item.code} ${item.description ?? ""}`
+        .toLocaleLowerCase("pt-BR")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      return haystack.includes(query);
+    });
+  }, [items, searchQuery, statusFilter]);
+
   const catalogTitle =
     catalogKind === "set"
       ? "Tipos de conjunto"
@@ -192,6 +219,7 @@ export function MachineAssetCatalogPanel() {
 
   async function loadCatalogs() {
     setIsLoading(true);
+    setLoadError(null);
 
     try {
       const [
@@ -205,9 +233,9 @@ export function MachineAssetCatalogPanel() {
       setSetTypes(loadedSetTypes);
       setSubsetTypes(loadedSubsetTypes);
     } catch (error) {
-      toast.error(
-        `Não foi possível carregar os catálogos: ${getErrorMessage(error)}`,
-      );
+      const message = `Não foi possível carregar os catálogos: ${getErrorMessage(error)}`;
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -234,6 +262,8 @@ export function MachineAssetCatalogPanel() {
     setNewForm(createEmptyForm());
     setEditingId(null);
     setEditForm(createEmptyForm());
+    setSearchQuery("");
+    setStatusFilter("all");
   }, [catalogKind]);
 
   function updateNewForm(
@@ -525,13 +555,85 @@ export function MachineAssetCatalogPanel() {
             <Button
               type="button"
               variant="secondary"
-              onClick={loadCatalogs}
+              onClick={() => void loadCatalogs()}
               disabled={
                 isLoading || isSaving
               }
             >
               Atualizar
             </Button>
+          </div>
+
+          <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Pesquisar nome, código ou descrição..."
+                aria-label="Pesquisar tipos de ativos"
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Limpar pesquisa de tipos de ativos"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div
+              className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+              aria-label="Filtrar tipos de ativos por status"
+            >
+              {(
+                [
+                  ["all", "Todos"],
+                  ["active", "Ativos"],
+                  ["inactive", "Inativos"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={statusFilter === value}
+                  onClick={() => setStatusFilter(value)}
+                  className={
+                    statusFilter === value
+                      ? "min-h-9 rounded-md bg-primary px-2 text-xs font-bold text-primary-foreground shadow-sm"
+                      : "min-h-9 rounded-md px-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
+            <span>
+              {filteredItems.length} de {items.length} tipo(s)
+            </span>
+            {(searchQuery || statusFilter !== "all") && (
+              <button
+                type="button"
+                className="font-bold text-primary hover:underline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                }}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -639,17 +741,38 @@ export function MachineAssetCatalogPanel() {
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
+      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
         {isLoading ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
             Carregando catálogo...
+          </div>
+        ) : loadError ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/40 bg-danger/10 p-4 text-sm text-danger"
+          >
+            <span>{loadError}</span>
+            <button
+              type="button"
+              className="font-bold underline"
+              onClick={() => void loadCatalogs()}
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
             Nenhum tipo cadastrado.
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-4 text-center">
+            <p className="text-sm font-bold">Nenhum tipo encontrado</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajuste a pesquisa ou o filtro de status.
+            </p>
+          </div>
         ) : (
-          items.map((item) => {
+          filteredItems.map((item) => {
             const isEditing =
               editingId === item.id;
 
@@ -659,11 +782,12 @@ export function MachineAssetCatalogPanel() {
             return (
               <Card
                 key={item.id}
-                className={
-                  item.isActive
-                    ? undefined
-                    : "opacity-65"
-                }
+                className={[
+                  isEditing ? "border-primary ring-1 ring-primary/30" : "",
+                  item.isActive ? "" : "opacity-65",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
                 <CardContent className="p-4">
                   {isEditing ? (
