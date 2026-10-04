@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { createInitialMachines } from "../src/data/initialMachines";
 import { openAndonCall } from "../src/services/andonService";
+import { resolveWorkOrderRequirement } from "../src/utils/workOrderUtils";
 
 test("modo local exige OS somente na máquina configurada", () => {
   const machines = createInitialMachines().slice(0, 2);
@@ -75,4 +76,28 @@ test("migration é aditiva e preserva o comportamento padrão", async () => {
   assert.match(migration, /ALTER TABLE "machines"/);
   assert.match(migration, /ADD COLUMN "requireWorkOrderAtOpen" BOOLEAN NOT NULL DEFAULT false/);
   assert.doesNotMatch(migration, /DROP|DELETE|UPDATE|TRUNCATE/i);
+});
+
+
+test("regra efetiva de OS é global OU máquina", () => {
+  assert.equal(resolveWorkOrderRequirement(false, false), false);
+  assert.equal(resolveWorkOrderRequirement(false, true), true);
+  assert.equal(resolveWorkOrderRequirement(true, false), true);
+  assert.equal(resolveWorkOrderRequirement(true, true), true);
+});
+
+test("servidor aplica a exigência por máquina junto da regra global", async () => {
+  const source = await readFile(
+    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /requiresWorkOrderAtOpen\(lockedMachine\.requireWorkOrderAtOpen\)/,
+  );
+  assert.match(
+    source,
+    /requiresWorkOrderAtOpen\(machine\.requireWorkOrderAtOpen\)/,
+  );
 });
