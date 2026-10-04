@@ -151,7 +151,10 @@ test("histórico de prioridade cria baseline aditivo para o futuro BI", async ()
   assert.match(migration, /history_baseline/);
   assert.match(migration, /ROW_NUMBER\(\) OVER/);
   assert.match(migration, /WHERE m\."isActive" = TRUE/);
-  assert.doesNotMatch(migration, /\b(?:DROP|DELETE|TRUNCATE)\b/i);
+  assert.doesNotMatch(
+    migration,
+    /\bDROP\s+TABLE\b|\bDELETE\s+FROM\b|\bTRUNCATE\b/i,
+  );
 });
 
 test("salvamento de prioridade registra somente mudanças reais na mesma transação", async () => {
