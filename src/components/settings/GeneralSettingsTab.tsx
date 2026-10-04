@@ -285,9 +285,10 @@ export function GeneralSettingsTab() {
             </div>
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
-                <p className="font-bold">Exigir OS na abertura do chamado</p>
+                <p className="font-bold">Regra global: exigir OS na abertura</p>
                 <p className="text-xs text-muted-foreground">
-                  Quando ativa, o número da OS será obrigatório para abrir novos chamados.
+                  Quando ativa, todas as máquinas exigem OS. Mesmo desativada, uma máquina pode
+                  exigir OS individualmente em Máquinas.
                 </p>
               </div>
               <Switch
