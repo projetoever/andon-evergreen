@@ -21,9 +21,6 @@ import {
   getCallSubtypeLabel,
   getDashboardCardAttentionTone,
 } from "@/utils/statusUtils";
-import {
-  getEffectiveAssetLocationLabel,
-} from "@/utils/assetLocationUtils";
 
 interface MachineCardProps {
   machine: Machine;
@@ -73,12 +70,6 @@ export function MachineCard({
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
-  const assetLocation = currentCall
-    ? getEffectiveAssetLocationLabel(
-        currentCall,
-        "Sem conjunto informado",
-      )
-    : null;
   const lastCompletedStop = machine.stopHistory.find((event) => event.resumedAt);
   const lastFailureDetails =
     machine.lastStopDurationMinutes > 0
@@ -179,20 +170,6 @@ export function MachineCard({
               )}
               <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
             </div>
-            {assetLocation && (
-              <div
-                className="flex w-fit max-w-full min-w-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary 2xl:text-xs"
-                title={`Localização: ${assetLocation}`}
-              >
-                <span className="shrink-0 text-muted-foreground">
-                  Localização:
-                </span>
-
-                <span className="min-w-0 truncate">
-                  {assetLocation}
-                </span>
-              </div>
-            )}
             {callElapsedLabel && callElapsedMinutes !== null && (
               <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
                 {callElapsedLabel}: <strong className="text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
