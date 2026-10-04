@@ -113,3 +113,17 @@ test("route tree versionado inclui a tela de prioridades", async () => {
   assert.match(routeTree, /'\/machine-priorities'/);
   assert.match(routeTree, /MachinePrioritiesRoute: typeof MachinePrioritiesRoute/);
 });
+
+
+test("badge P1-P5 mantém destaque leve sem virar alerta operacional", async () => {
+  const card = await readFile(
+    new URL("../src/components/machines/MachineCard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(card, /text-\[10px\]/);
+  assert.match(card, /sm:text-\[11px\]/);
+  assert.match(card, /2xl:text-xs/);
+  assert.match(card, /bg-primary\/15/);
+  assert.match(card, /border-primary\/40/);
+});
