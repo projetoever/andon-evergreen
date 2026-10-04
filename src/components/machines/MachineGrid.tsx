@@ -33,15 +33,49 @@ function MachinePageGrid({
   machines: Machine[];
   priorityRanks: Map<string, number>;
 }) {
+  const groupedPriorityMachines = machines.filter((machine) =>
+    priorityRanks.has(machine.id),
+  );
+  const remainingMachines = machines.filter((machine) => !priorityRanks.has(machine.id));
+  const hasPriorityGroup =
+    groupedPriorityMachines.length > 0 &&
+    groupedPriorityMachines.every(
+      (machine, index) => machines[index]?.id === machine.id,
+    );
+
+  function renderMachineCard(machine: Machine) {
+    return (
+      <MachineCard
+        key={machine.id}
+        machine={machine}
+        productionPriorityRank={priorityRanks.get(machine.id) ?? null}
+      />
+    );
+  }
+
   return (
     <div className={GRID_CLASS}>
-      {machines.map((machine) => (
-        <MachineCard
-          key={machine.id}
-          machine={machine}
-          productionPriorityRank={priorityRanks.get(machine.id) ?? null}
-        />
-      ))}
+      {hasPriorityGroup ? (
+        <>
+          <div
+            className="contents lg:relative lg:grid lg:min-h-0 lg:grid-cols-[repeat(var(--priority-count),minmax(0,1fr))] lg:gap-1.5 2xl:gap-2"
+            style={{
+              gridColumn: `span ${groupedPriorityMachines.length} / span ${groupedPriorityMachines.length}`,
+              ["--priority-count" as string]: groupedPriorityMachines.length,
+            }}
+            data-production-priority-group="true"
+          >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -inset-1 hidden rounded-[1rem] border-2 border-orange-500/70 shadow-[0_0_0_1px_rgba(249,115,22,0.10)] lg:block"
+            />
+            {groupedPriorityMachines.map(renderMachineCard)}
+          </div>
+          {remainingMachines.map(renderMachineCard)}
+        </>
+      ) : (
+        machines.map(renderMachineCard)
+      )}
     </div>
   );
 }
