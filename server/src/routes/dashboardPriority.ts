@@ -2,6 +2,11 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import {
+  buildCurrentPrioritySnapshot,
+  buildPrioritySnapshot,
+  diffPrioritySnapshots,
+} from "../domain/machinePriorityHistory.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
 
@@ -81,32 +86,6 @@ function machineOrderValue(machine: {
   if (machine.displayOrder != null) return machine.displayOrder;
   const numericId = Number(machine.id);
   return Number.isFinite(numericId) ? numericId : Number.MAX_SAFE_INTEGER;
-}
-
-type PriorityMachineState = {
-  id: string;
-  isActive: boolean;
-  priorityOrder: number | null;
-  displayOrder: number | null;
-};
-
-function sortPriorityState(machines: PriorityMachineState[]) {
-  return machines
-    .slice()
-    .sort(
-      (current, next) =>
-        machineOrderValue(current) - machineOrderValue(next) ||
-        current.id.localeCompare(next.id, "pt-BR", { numeric: true }),
-    );
-}
-
-function getActivePriorityRanks(machineIds: string[], byId: Map<string, PriorityMachineState>) {
-  const ranks = new Map<string, number>();
-  machineIds
-    .filter((id) => byId.get(id)?.isActive)
-    .slice(0, 5)
-    .forEach((id, index) => ranks.set(id, index + 1));
-  return ranks;
 }
 
 export function registerDashboardPriorityRoutes(app: FastifyInstance) {
@@ -297,41 +276,29 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     }
 
     const currentById = new Map(currentMachines.map((machine) => [machine.id, machine]));
-    const previousIds = sortPriorityState(currentMachines).map((machine) => machine.id);
-    const previousOrderById = new Map(previousIds.map((id, index) => [id, index + 1]));
-    const newOrderById = new Map(normalizedIds.map((id, index) => [id, index + 1]));
-    const previousPriorityRanks = getActivePriorityRanks(previousIds, currentById);
-    const newPriorityRanks = getActivePriorityRanks(normalizedIds, currentById);
+    const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+    const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
+    const priorityChanges = diffPrioritySnapshots(
+      normalizedIds,
+      previousSnapshot,
+      nextSnapshot,
+    );
 
     const updatedAt = new Date();
-    const historyEntries = normalizedIds.flatMap((id) => {
-      const previousOrder = previousOrderById.get(id) ?? null;
-      const newOrder = newOrderById.get(id) ?? null;
-      const previousPriorityRank = previousPriorityRanks.get(id) ?? null;
-      const newPriorityRank = newPriorityRanks.get(id) ?? null;
-
-      if (
-        previousOrder === newOrder &&
-        previousPriorityRank === newPriorityRank
-      ) {
-        return [];
-      }
-
-      return [
-        prisma.machinePriorityHistory.create({
-          data: {
-            machineId: id,
-            previousOrder,
-            newOrder,
-            previousPriorityRank,
-            newPriorityRank,
-            changedAt: updatedAt,
-            changedBy: auth.session.username,
-            source: "priority_manager",
-          },
-        }),
-      ];
-    });
+    const historyEntries = priorityChanges.map((change) =>
+      prisma.machinePriorityHistory.create({
+        data: {
+          machineId: change.machineId,
+          previousOrder: change.previousOrder,
+          newOrder: change.newOrder,
+          previousPriorityRank: change.previousPriorityRank,
+          newPriorityRank: change.newPriorityRank,
+          changedAt: updatedAt,
+          changedBy: auth.session.username,
+          source: "priority_manager",
+        },
+      }),
+    );
 
     await prisma.$transaction([
       ...normalizedIds.map((id, index) =>
