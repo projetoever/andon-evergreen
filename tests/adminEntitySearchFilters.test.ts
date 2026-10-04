@@ -28,7 +28,7 @@ const technicians: TechnicianConfig[] = [
     area: "mechanical",
     areas: ["mechanical"],
     shiftId: "afternoon",
-    active: true,
+    active: false,
     hasPin: true,
     hasTag: true,
   },
@@ -88,5 +88,27 @@ test("busca de máquinas encontra por ID ou nome e ignora acentos", () => {
   assert.deepEqual(
     filterMachinesForAdmin(machines, "envasadora").map((item) => item.id),
     ["9"],
+  );
+});
+
+
+test("filtros de status e turno de mantenedores combinam com busca e setor", () => {
+  assert.deepEqual(
+    filterTechniciansForAdmin(technicians, "", "all", "active", "all").map(
+      (item) => item.id,
+    ),
+    ["tech-1"],
+  );
+  assert.deepEqual(
+    filterTechniciansForAdmin(technicians, "", "all", "inactive", "afternoon").map(
+      (item) => item.id,
+    ),
+    ["tech-2"],
+  );
+  assert.deepEqual(
+    filterTechniciansForAdmin(technicians, "marcia", "mechanical", "active", "all").map(
+      (item) => item.id,
+    ),
+    [],
   );
 });
