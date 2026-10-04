@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreditCard, Hash, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,24 +39,58 @@ const MODE_OPTIONS: Array<{
 
 export function AttendanceModeSettingsTab() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    getSystemSettings()
-      .then((value) => active && setSettings(value))
-      .catch((error) =>
-        toast.error(error instanceof Error ? error.message : "Não foi possível carregar o modo de atendimento"),
-      )
-      .finally(() => active && setIsLoading(false));
-    return () => {
-      active = false;
-    };
+  const loadSettings = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const value = await getSystemSettings();
+      setSettings(value);
+      setSavedSettings(value);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar o modo de atendimento";
+      setLoadError(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!settings || !savedSettings) return false;
+
+    return (
+      settings.attendanceMode !== savedSettings.attendanceMode ||
+      settings.rfidInputTerminator !== savedSettings.rfidInputTerminator ||
+      settings.rfidCodeLength !== savedSettings.rfidCodeLength
+    );
+  }, [savedSettings, settings]);
+
   async function handleSave() {
-    if (!settings) return;
+    if (!settings || !hasUnsavedChanges) return;
+
+    if (
+      settings.rfidInputTerminator === "fixed_length" &&
+      (!Number.isInteger(settings.rfidCodeLength) ||
+        Number(settings.rfidCodeLength) < 4 ||
+        Number(settings.rfidCodeLength) > 64)
+    ) {
+      toast.error("Informe entre 4 e 64 caracteres para a leitura RFID.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const saved = await updateSystemSettings({
@@ -67,6 +101,7 @@ export function AttendanceModeSettingsTab() {
           settings.rfidInputTerminator === "fixed_length" ? settings.rfidCodeLength : null,
       });
       setSettings(saved);
+      setSavedSettings(saved);
       toast.success("Modo de atendimento salvo.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível salvar o modo de atendimento");
@@ -75,8 +110,30 @@ export function AttendanceModeSettingsTab() {
     }
   }
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando configurações...</p>;
-  if (!settings) return <p className="text-sm text-danger">Configurações indisponíveis.</p>;
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Carregando configurações...</p>;
+  }
+
+  if (loadError || !settings) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger"
+      >
+        <div>
+          <p className="font-black">Modo de atendimento indisponível</p>
+          <p>{loadError ?? "Não foi possível carregar as configurações."}</p>
+        </div>
+        <button
+          type="button"
+          className="font-bold underline"
+          onClick={() => void loadSettings()}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -158,9 +215,36 @@ export function AttendanceModeSettingsTab() {
         </section>
       )}
 
-      <BigButton tone="primary" size="md" onClick={() => void handleSave()} disabled={isSaving}>
-        {isSaving ? "Salvando..." : "Salvar modo de atendimento"}
-      </BigButton>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+        <p
+          className={
+            hasUnsavedChanges
+              ? "text-xs font-bold text-warning"
+              : "text-xs font-bold text-muted-foreground"
+          }
+        >
+          {hasUnsavedChanges ? "Alterações não salvas" : "Configuração sincronizada"}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <BigButton
+            tone="primary"
+            size="md"
+            onClick={() => void handleSave()}
+            disabled={isSaving || !hasUnsavedChanges}
+          >
+            {isSaving ? "Salvando..." : "Salvar modo de atendimento"}
+          </BigButton>
+          <BigButton
+            tone="neutral"
+            size="md"
+            onClick={() => savedSettings && setSettings(savedSettings)}
+            disabled={isSaving || !hasUnsavedChanges}
+          >
+            Cancelar
+          </BigButton>
+        </div>
+      </div>
     </div>
   );
 }
