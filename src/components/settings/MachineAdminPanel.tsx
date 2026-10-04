@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import { useAndon } from "@/context/AndonProvider";
 import type { Machine, ProductionMode } from "@/types/machine";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
+import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -33,6 +35,12 @@ export function MachineAdminPanel() {
   const [newName, setNewName] = useState("");
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredMachines = useMemo(
+    () => filterMachinesForAdmin(sortMachines(machines), searchQuery),
+    [machines, searchQuery],
+  );
 
   function handleCreate() {
     const id = newId.trim();
@@ -82,8 +90,52 @@ export function MachineAdminPanel() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-xl">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Pesquisar por ID ou nome da máquina..."
+                aria-label="Pesquisar máquinas por ID ou nome"
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Limpar pesquisa de máquinas"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+              {filteredMachines.length} de {machines.length} máquina(s)
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="space-y-3">
-        {sortMachines(machines).map((machine) => (
+        {machines.length > 0 && filteredMachines.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm font-bold text-foreground">Nenhuma máquina encontrada</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pesquise pelo ID ou por parte do nome da máquina.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {filteredMachines.map((machine) => (
           <Card key={machine.id} className={!machine.isActive ? "opacity-70" : undefined}>
             <CardContent className="space-y-4 p-4">
               <div className="grid gap-3 md:grid-cols-[90px_1fr_210px_190px_170px_120px] md:items-end">

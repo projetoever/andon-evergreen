@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { BigButton } from "@/components/common/BigButton";
 import { useTechnicians } from "@/hooks/useTechnicians";
@@ -7,6 +8,7 @@ import { getShiftConfigs } from "@/services/shiftConfigService";
 import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig, ShiftConfig, TechnicianConfig } from "@/types/settings";
+import { filterTechniciansForAdmin } from "@/utils/adminEntityFilterUtils";
 
 const DEFAULT_AREA_OPTIONS = DEFAULT_CATEGORIES.map((category) => ({
   id: category.id,
@@ -46,6 +48,8 @@ export function TechniciansSettingsTab() {
   const [categories, setCategories] = useState<AndonCategoryConfig[]>(DEFAULT_CATEGORIES);
   const [isSaving, setIsSaving] = useState(false);
   const [areaToAdd, setAreaToAdd] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [areaFilter, setAreaFilter] = useState<"all" | CallSubtype>("all");
 
   useEffect(() => {
     setShifts(getShiftConfigs());
@@ -74,6 +78,32 @@ export function TechniciansSettingsTab() {
     () => new Map(categories.map((category) => [category.id, category])),
     [categories],
   );
+
+  const filterAreaOptions = useMemo(() => {
+    const areas = new Set<CallSubtype>();
+    categories
+      .filter((category) => category.categoryGroup === "maintenance")
+      .forEach((category) => areas.add(category.id));
+    technicians.forEach((technician) =>
+      (technician.areas?.length ? technician.areas : [technician.area]).forEach((area) =>
+        areas.add(area),
+      ),
+    );
+
+    return Array.from(areas)
+      .map((id) => ({
+        id,
+        label: categoryById.get(id)?.displayName ?? id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [categories, categoryById, technicians]);
+
+  const filteredTechnicians = useMemo(
+    () => filterTechniciansForAdmin(technicians, searchQuery, areaFilter),
+    [areaFilter, searchQuery, technicians],
+  );
+
+  const hasActiveFilters = Boolean(searchQuery.trim()) || areaFilter !== "all";
 
   const selectedAreas = draft.areas?.length ? draft.areas : [draft.area];
   const availableAreaOptions = areaOptions.filter((area) => !selectedAreas.includes(area.id));
@@ -220,27 +250,109 @@ export function TechniciansSettingsTab() {
 
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
         <CardSection title="Manutentores cadastrados">
+          <div className="space-y-2">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Pesquisar por nome ou ID..."
+                aria-label="Pesquisar mantenedores por nome ou ID"
+                className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Limpar pesquisa de mantenedores"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <select
+              aria-label="Filtrar mantenedores por setor"
+              value={areaFilter}
+              onChange={(event) =>
+                setAreaFilter(event.target.value === "all" ? "all" : (event.target.value as CallSubtype))
+              }
+              className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold"
+            >
+              <option value="all">Todos os setores</option>
+              {filterAreaOptions.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                {filteredTechnicians.length} de {technicians.length} mantenedor(es)
+              </span>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setAreaFilter("all");
+                  }}
+                  className="font-bold text-primary hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          </div>
+
           <BigButton tone="neutral" size="md" onClick={handleAddTechnician}>
             Adicionar manutentor
           </BigButton>
-          <div className="space-y-2">
+
+          <div className="max-h-[56vh] space-y-2 overflow-y-auto pr-1">
             {isLoading && (
               <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
             )}
             {!isLoading && !error && technicians.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>
             )}
-            {technicians.map((item) => (
+            {!isLoading && !error && technicians.length > 0 && filteredTechnicians.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center">
+                <p className="text-sm font-bold text-foreground">Nenhum mantenedor encontrado</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ajuste a pesquisa ou o filtro de setor.
+                </p>
+              </div>
+            )}
+            {filteredTechnicians.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleSelect(item)}
                 className={cn(
-                  "w-full rounded-lg border p-3 text-left",
+                  "w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/60",
                   selectedId === item.id ? "border-primary bg-primary/10" : "border-border",
                 )}
               >
-                <p className="text-sm font-bold">{item.name}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-bold">{item.name}</p>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                      item.active
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {item.active ? "Ativo" : "Inativo"}
+                  </span>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   ID: {item.employeeId?.trim() || "pendente"}
                 </p>
@@ -250,7 +362,6 @@ export function TechniciansSettingsTab() {
                     .join(", ")}{" "}
                   · {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
                 </p>
-                <p className="text-xs text-muted-foreground">{item.active ? "Ativo" : "Inativo"}</p>
                 <p className="text-xs text-muted-foreground">
                   PIN: {item.hasPin ? "configurado" : "pendente"} · Tag:{" "}
                   {item.hasTag ? "configurada" : "não cadastrada"}
