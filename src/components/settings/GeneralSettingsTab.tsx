@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { KeyRound, Keyboard, ListOrdered, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { KeyRound, ListOrdered, Settings2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export function GeneralSettingsTab() {
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [restrictMaintenanceCompletion, setRestrictMaintenanceCompletion] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null);
   const [isSavingKeyboard, setIsSavingKeyboard] = useState(false);
   const [isSavingWorkOrder, setIsSavingWorkOrder] = useState(false);
   const [isSavingMaintenanceRestriction, setIsSavingMaintenanceRestriction] = useState(false);
@@ -30,59 +31,70 @@ export function GeneralSettingsTab() {
     useState<DashboardMachineOrderMode>("default");
   const [isSavingDashboardOrderMode, setIsSavingDashboardOrderMode] = useState(false);
   const [priorityConfigured, setPriorityConfigured] = useState(false);
+  const [isLoadingPriorityAccess, setIsLoadingPriorityAccess] = useState(true);
+  const [priorityAccessLoadError, setPriorityAccessLoadError] = useState<string | null>(null);
   const [priorityUsername, setPriorityUsername] = useState("");
   const [priorityPassword, setPriorityPassword] = useState("");
   const [priorityPasswordConfirm, setPriorityPasswordConfirm] = useState("");
   const [isSavingPriorityCredentials, setIsSavingPriorityCredentials] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const loadGeneralSettings = useCallback(async () => {
+    setIsLoadingSettings(true);
+    setSettingsLoadError(null);
 
-    void getSystemSettings()
-      .then((settings) => {
-        if (active) {
-          setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
-          setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
-          setRestrictMaintenanceCompletion(
-            settings.restrictMaintenanceCompletionToAttendanceWorkstation === true,
-          );
-          setDashboardMachineOrderMode(
-            settings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
-          );
-        }
-      })
-      .catch(() => {
-        if (active) toast.error("Não foi possível carregar as configurações gerais.");
-      })
-      .finally(() => {
-        if (active) setIsLoadingSettings(false);
-      });
+    try {
+      const settings = await getSystemSettings();
+      setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
+      setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+      setRestrictMaintenanceCompletion(
+        settings.restrictMaintenanceCompletionToAttendanceWorkstation === true,
+      );
+      setDashboardMachineOrderMode(
+        settings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
+      );
+    } catch {
+      const message = "Não foi possível carregar as configurações gerais.";
+      setSettingsLoadError(message);
+      toast.error(message);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  }, []);
 
-    return () => {
-      active = false;
-    };
+  const loadPriorityAccess = useCallback(async () => {
+    setIsLoadingPriorityAccess(true);
+    setPriorityAccessLoadError(null);
+
+    try {
+      const status = await getDashboardPriorityAccessStatus();
+      setPriorityConfigured(status.configured);
+      setPriorityUsername(status.username ?? "");
+    } catch {
+      const message = "Não foi possível carregar o acesso de prioridades.";
+      setPriorityAccessLoadError(message);
+      toast.error(message);
+    } finally {
+      setIsLoadingPriorityAccess(false);
+    }
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    void getDashboardPriorityAccessStatus()
-      .then((status) => {
-        if (!active) return;
-        setPriorityConfigured(status.configured);
-        setPriorityUsername(status.username ?? "");
-      })
-      .catch(() => {
-        if (active) toast.error("Não foi possível carregar o acesso de prioridades.");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    void loadGeneralSettings();
+    void loadPriorityAccess();
+  }, [loadGeneralSettings, loadPriorityAccess]);
 
   async function handleDashboardOrderModeChange(mode: DashboardMachineOrderMode) {
-    if (mode === dashboardMachineOrderMode || isSavingDashboardOrderMode) return;
+    if (
+      mode === dashboardMachineOrderMode ||
+      isSavingDashboardOrderMode ||
+      settingsLoadError
+    ) {
+      return;
+    }
+    if (mode === "priority" && priorityAccessLoadError) {
+      toast.error("Não foi possível confirmar o acesso da gestão de prioridades.");
+      return;
+    }
     if (mode === "priority" && !priorityConfigured) {
       toast.error("Configure primeiro o usuário e a senha da gestão de prioridades.");
       return;
@@ -240,17 +252,37 @@ export function GeneralSettingsTab() {
         </p>
       </div>
 
+      {settingsLoadError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger"
+        >
+          <div>
+            <p className="font-black">Configurações globais indisponíveis</p>
+            <p>{settingsLoadError}</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void loadGeneralSettings()}
+            disabled={isLoadingSettings}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Keyboard className="h-5 w-5 text-primary" />
-              Teclado virtual
+              <Settings2 className="h-5 w-5 text-primary" />
+              Operação global
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Exibe um ícone dentro dos campos de texto para operar o ANDON sem teclado físico.
+              Regras e preferências globais aplicadas à operação do ANDON.
             </p>
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
@@ -262,7 +294,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label="Habilitar teclado virtual"
                 checked={virtualKeyboardEnabled}
-                disabled={isLoadingSettings || isSavingKeyboard}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingKeyboard}
                 onCheckedChange={(checked) => void handleKeyboardChange(checked)}
               />
             </div>
@@ -279,7 +311,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label="Restringir conclusão da manutenção à workstation do atendimento"
                 checked={restrictMaintenanceCompletion}
-                disabled={isLoadingSettings || isSavingMaintenanceRestriction}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction}
                 onCheckedChange={(checked) => void handleMaintenanceRestrictionChange(checked)}
               />
             </div>
@@ -294,7 +326,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label="Exigir OS na abertura do chamado"
                 checked={requireWorkOrderAtOpen}
-                disabled={isLoadingSettings || isSavingWorkOrder}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingWorkOrder}
                 onCheckedChange={(checked) => void handleWorkOrderRequirementChange(checked)}
               />
             </div>
@@ -373,7 +405,7 @@ export function GeneralSettingsTab() {
             <div className="grid gap-3 md:grid-cols-2">
               <button
                 type="button"
-                disabled={isLoadingSettings || isSavingDashboardOrderMode}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode}
                 onClick={() => void handleDashboardOrderModeChange("default")}
                 className={`rounded-xl border p-4 text-left transition ${
                   dashboardMachineOrderMode === "default"
@@ -389,7 +421,7 @@ export function GeneralSettingsTab() {
 
               <button
                 type="button"
-                disabled={isLoadingSettings || isSavingDashboardOrderMode}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode}
                 onClick={() => void handleDashboardOrderModeChange("priority")}
                 className={`rounded-xl border p-4 text-left transition ${
                   dashboardMachineOrderMode === "priority"
@@ -417,14 +449,39 @@ export function GeneralSettingsTab() {
                 </div>
                 <span
                   className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${
-                    priorityConfigured
-                      ? "bg-success/10 text-success"
-                      : "bg-warning/10 text-warning"
+                    priorityAccessLoadError
+                      ? "bg-danger/10 text-danger"
+                      : priorityConfigured
+                        ? "bg-success/10 text-success"
+                        : "bg-warning/10 text-warning"
                   }`}
                 >
-                  {priorityConfigured ? "Configurado" : "Pendente"}
+                  {isLoadingPriorityAccess
+                    ? "Carregando"
+                    : priorityAccessLoadError
+                      ? "Indisponível"
+                      : priorityConfigured
+                        ? "Configurado"
+                        : "Pendente"}
                 </span>
               </div>
+
+              {priorityAccessLoadError && (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
+                >
+                  <span>{priorityAccessLoadError}</span>
+                  <button
+                    type="button"
+                    className="font-bold underline"
+                    onClick={() => void loadPriorityAccess()}
+                    disabled={isLoadingPriorityAccess}
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
 
               <form className="space-y-3" onSubmit={handleSavePriorityCredentials}>
                 <div className="grid gap-3 lg:grid-cols-3">
@@ -463,7 +520,10 @@ export function GeneralSettingsTab() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSavingPriorityCredentials}>
+                  <Button
+                    type="submit"
+                    disabled={isSavingPriorityCredentials || isLoadingPriorityAccess}
+                  >
                     {isSavingPriorityCredentials
                       ? "Salvando..."
                       : priorityConfigured
