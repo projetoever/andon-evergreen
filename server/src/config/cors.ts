@@ -7,8 +7,12 @@ const DEFAULT_CORS_ORIGINS = [
   "http://127.0.0.1:5173",
 ] as const;
 
-export const CORS_METHODS = ["GET", "POST", "PATCH", "OPTIONS"] as const;
-export const CORS_ALLOWED_HEADERS = ["Content-Type", "X-Andon-Workstation-Id"] as const;
+export const CORS_METHODS = ["GET", "POST", "PATCH", "PUT", "OPTIONS"] as const;
+export const CORS_ALLOWED_HEADERS = [
+  "Content-Type",
+  "X-Andon-Workstation-Id",
+  "Authorization",
+] as const;
 
 function parseCorsOrigins(value: string | undefined) {
   if (!value?.trim()) {
