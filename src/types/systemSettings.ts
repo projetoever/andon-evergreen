@@ -1,5 +1,6 @@
 export type AttendanceMode = "name" | "pin" | "rfid";
 export type RfidInputTerminator = "enter" | "tab" | "fixed_length";
+export type DashboardMachineOrderMode = "default" | "priority";
 
 export interface SystemSettings {
   id: string;
@@ -9,6 +10,7 @@ export interface SystemSettings {
   restrictMaintenanceCompletionToAttendanceWorkstation: boolean;
   dashboardSoundMuteTimerEnabled: boolean;
   dashboardSoundMuteDurationMinutes: number;
+  dashboardMachineOrderMode: DashboardMachineOrderMode;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;
@@ -24,6 +26,7 @@ export interface SystemSettingsPatch {
   restrictMaintenanceCompletionToAttendanceWorkstation?: boolean;
   dashboardSoundMuteTimerEnabled?: boolean;
   dashboardSoundMuteDurationMinutes?: number;
+  dashboardMachineOrderMode?: DashboardMachineOrderMode;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";
   rfidInputTerminator?: RfidInputTerminator;
