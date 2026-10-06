@@ -178,16 +178,20 @@ test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala
   );
 
   const historyIndex = source.indexOf('aria-label="Histórico da máquina"');
+  const historyStart = source.lastIndexOf("<Link", historyIndex);
   const lockIndex = source.indexOf("onClick={onToggleScreenLock}");
+  const lockStart = source.lastIndexOf("<button", lockIndex);
 
-  assert.ok(historyIndex >= 0);
-  assert.ok(lockIndex > historyIndex);
+  assert.ok(historyStart >= 0);
+  assert.ok(historyIndex > historyStart);
+  assert.ok(lockStart > historyIndex);
+  assert.ok(lockIndex > lockStart);
   assert.match(
-    source.slice(historyIndex, lockIndex),
-    /text-\[11px\].*md:h-10/s,
+    source.slice(historyStart, lockStart),
+    /h-9.*text-\[11px\].*md:h-10/s,
   );
   assert.match(
-    source.slice(lockIndex),
-    /text-\[11px\].*md:h-10/s,
+    source.slice(lockStart),
+    /h-9.*text-\[11px\].*md:h-10/s,
   );
 });
