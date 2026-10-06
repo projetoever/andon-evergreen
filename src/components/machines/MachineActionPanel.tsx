@@ -238,14 +238,14 @@ export function MachineActionPanel({
   const layoutStage = !hasActiveCall ? "idle" : currentCall?.status === "open" ? "open" : "busy";
   const sectorActionClass =
     layoutStage === "idle"
-      ? "min-h-[clamp(4rem,7.5vh,5.75rem)] text-base lg:text-lg"
+      ? "min-h-[clamp(6rem,10.5vh,8rem)] text-lg xl:text-xl"
       : layoutStage === "open"
-        ? "min-h-[clamp(3.5rem,6vh,4.5rem)] text-base"
+        ? "min-h-[clamp(4rem,7vh,5rem)] text-base lg:text-lg"
         : "min-h-12 text-sm";
   const workflowActionClass =
     layoutStage === "open"
-      ? "min-h-[clamp(3rem,5vh,3.75rem)] px-2 text-xs md:text-sm"
-      : "min-h-11 px-2 text-xs";
+      ? "min-h-[clamp(3rem,5vh,3.75rem)] w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] md:text-sm"
+      : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem]";
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -283,14 +283,14 @@ export function MachineActionPanel({
       </div>
 
       {currentCall && (
-        <div className="grid grid-cols-2 gap-1.5 border-t border-border pt-2 lg:grid-cols-3">
+        <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-2">
           {currentCall.status === "in_progress" &&
             currentCall.category === "maintenance" &&
             maintenanceCompletionHint && (
               <p
                 role={maintenanceCompletionDisabled ? "alert" : "status"}
                 className={cn(
-                  "col-span-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold lg:col-span-3",
+                  "w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold",
                   maintenanceCompletionHintTone === "success" &&
                     "border-success/30 bg-success/10 text-success",
                   maintenanceCompletionHintTone === "warning" &&
