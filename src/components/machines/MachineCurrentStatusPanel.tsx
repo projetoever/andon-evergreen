@@ -7,6 +7,7 @@ import {
   calculateMachineStoppedMinutes,
   getActiveMachineStoppedAt,
   formatDurationMinutes,
+  formatMachinePanelDurationMinutes,
   formatElapsedSince,
   getLastMachineOccurrence,
 } from "@/utils/durationUtils";
@@ -153,7 +154,7 @@ export function MachineCurrentStatusPanel({
             <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5 sm:col-span-2 xl:col-span-3">
               <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
               <dd className="mt-2 text-[clamp(2rem,3vw,3.25rem)] font-black leading-none text-danger">
-                {formatDurationMinutes(stoppedMin)}
+                {formatMachinePanelDurationMinutes(stoppedMin)}
               </dd>
             </div>
           </>
