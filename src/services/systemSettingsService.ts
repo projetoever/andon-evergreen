@@ -23,6 +23,8 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     restrictMaintenanceCompletionToAttendanceWorkstation: false,
     dashboardSoundMuteTimerEnabled: false,
     dashboardSoundMuteDurationMinutes: 3,
+    dashboardSoundAutoMuteTimerEnabled: false,
+    dashboardSoundActiveDurationMinutes: 3,
     dashboardMachineOrderMode: "default",
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
@@ -52,6 +54,13 @@ function readLocalSystemSettings() {
         parsed.dashboardSoundMuteDurationMinutes,
       )
         ? parsed.dashboardSoundMuteDurationMinutes
+        : 3,
+      dashboardSoundAutoMuteTimerEnabled:
+        parsed.dashboardSoundAutoMuteTimerEnabled === true,
+      dashboardSoundActiveDurationMinutes: isValidDashboardSoundMuteDuration(
+        parsed.dashboardSoundActiveDurationMinutes,
+      )
+        ? parsed.dashboardSoundActiveDurationMinutes
         : 3,
       dashboardMachineOrderMode:
         parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
@@ -89,6 +98,20 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
     !isValidDashboardSoundMuteDuration(patch.dashboardSoundMuteDurationMinutes)
   ) {
     throw new Error("Tempo de silenciamento deve ser um número inteiro de pelo menos 1 minuto.");
+  }
+
+  if (
+    patch.dashboardSoundAutoMuteTimerEnabled !== undefined &&
+    typeof patch.dashboardSoundAutoMuteTimerEnabled !== "boolean"
+  ) {
+    throw new Error("Campo dashboardSoundAutoMuteTimerEnabled deve ser booleano.");
+  }
+
+  if (
+    patch.dashboardSoundActiveDurationMinutes !== undefined &&
+    !isValidDashboardSoundMuteDuration(patch.dashboardSoundActiveDurationMinutes)
+  ) {
+    throw new Error("Tempo de som ativo deve ser um número inteiro de pelo menos 1 minuto.");
   }
 
   if (
