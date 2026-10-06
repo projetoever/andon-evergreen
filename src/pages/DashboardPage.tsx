@@ -16,9 +16,10 @@ import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import {
+  getDashboardSoundState,
   getSystemSettings,
   SYSTEM_SETTINGS_CHANGED_EVENT,
-  updateSystemSettings,
+  updateDashboardSoundState,
 } from "@/services/systemSettingsService";
 import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSettings";
 import {
@@ -89,7 +90,7 @@ export function DashboardPage() {
   const persistDashboardSoundMuted = useCallback(async (muted: boolean) => {
     setDashboardSoundSyncing(true);
     try {
-      await updateSystemSettings({ dashboardSoundMuted: muted });
+      await updateDashboardSoundState(muted);
       return true;
     } catch {
       toast.error(
@@ -170,10 +171,6 @@ export function DashboardPage() {
       setDashboardMuteDurationMinutes(systemSettings.dashboardSoundMuteDurationMinutes);
       setDashboardAutoMuteTimerEnabled(systemSettings.dashboardSoundAutoMuteTimerEnabled);
       setDashboardActiveDurationMinutes(systemSettings.dashboardSoundActiveDurationMinutes);
-      setDashboardSoundMuted(systemSettings.dashboardSoundMuted);
-      if (systemSettings.dashboardSoundMuted) {
-        stopAndonSound(undefined, "dashboard");
-      }
       setDashboardMachineOrderMode(
         systemSettings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
       );
@@ -187,8 +184,21 @@ export function DashboardPage() {
         if (!cancelled) applySettings(systemSettings);
       })
       .catch(() => {
-        // Defaults preservam o silenciamento manual indefinido se a configuração não carregar.
+        // Defaults preservam as configuracoes locais se a leitura falhar.
       });
+
+    void getDashboardSoundState()
+      .then((soundState) => {
+        if (cancelled) return;
+        setDashboardSoundMuted(soundState.muted);
+        if (soundState.muted) {
+          stopAndonSound(undefined, "dashboard");
+        }
+      })
+      .catch(() => {
+        // O botao continua operacional e exibira erro se a escrita do estado falhar.
+      });
+
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
 
     return () => {
