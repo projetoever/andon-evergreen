@@ -39,6 +39,7 @@ export function DashboardPage() {
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
   const [dashboardSoundSyncing, setDashboardSoundSyncing] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
@@ -67,7 +68,8 @@ export function DashboardPage() {
     machines,
     settings,
     soundConfigs,
-    audioUnlocked: audioUnlocked && !dashboardSoundMuted,
+    audioUnlocked:
+      audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted,
     soundScope: "dashboard",
   });
 
@@ -204,9 +206,12 @@ export function DashboardPage() {
             },
           );
         }
+
+        setDashboardSoundStateLoaded(true);
       })
       .catch(() => {
-        // O botao continua operacional e exibira erro se a escrita do estado falhar.
+        // Falha aberta: preserva o alarme em vez de manter o Dashboard silencioso indefinidamente.
+        if (!cancelled) setDashboardSoundStateLoaded(true);
       });
 
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
