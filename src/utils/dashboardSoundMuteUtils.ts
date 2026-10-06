@@ -1,6 +1,10 @@
+import { getCallTypeOption } from "@/data/callTypes";
 import type { AndonCall } from "@/types/andon";
+import type { Machine } from "@/types/machine";
+import type { SoundConfig } from "@/types/settings";
 
 export const DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES = 3;
+export const DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES = 3;
 
 type DashboardSoundCall = Pick<AndonCall, "id" | "status" | "isSystemTest">;
 
@@ -15,9 +19,36 @@ export function hasNewRealCall(
   return calls.some((call) => !call.isSystemTest && !mutedKnownCallIds.has(call.id));
 }
 
-export function startDashboardSoundMuteTimer(
+
+type DashboardAlertCall = Pick<
+  AndonCall,
+  "machineId" | "status" | "subtype" | "isSystemTest"
+>;
+type DashboardAlertMachine = Pick<Machine, "id" | "isActive">;
+
+export function hasDashboardAlertingCall(
+  calls: readonly DashboardAlertCall[],
+  machines: readonly DashboardAlertMachine[],
+  soundConfigs: readonly SoundConfig[],
+) {
+  const activeMachineIds = new Set(
+    machines.filter((machine) => machine.isActive).map((machine) => machine.id),
+  );
+
+  return calls.some((call) => {
+    if (call.isSystemTest || call.status !== "open") return false;
+    if (!activeMachineIds.has(call.machineId)) return false;
+    if (!getCallTypeOption(call.subtype)) return false;
+
+    const config = soundConfigs.find((item) => item.key === call.subtype);
+    return config?.enabled === true;
+  });
+}
+
+function startDashboardSoundPhaseTimer(
   enabled: boolean,
   durationMinutes: number,
+  defaultDurationMinutes: number,
   onExpire: () => void,
   schedule: typeof setTimeout = setTimeout,
   cancel: typeof clearTimeout = clearTimeout,
@@ -32,7 +63,7 @@ export function startDashboardSoundMuteTimer(
   const safeDurationMinutes =
     Number.isInteger(durationMinutes) && durationMinutes >= 1
       ? durationMinutes
-      : DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES;
+      : defaultDurationMinutes;
   const timeout = schedule(() => {
     if (!active) return;
     active = false;
@@ -44,4 +75,38 @@ export function startDashboardSoundMuteTimer(
     active = false;
     cancel(timeout);
   };
+}
+
+export function startDashboardSoundMuteTimer(
+  enabled: boolean,
+  durationMinutes: number,
+  onExpire: () => void,
+  schedule: typeof setTimeout = setTimeout,
+  cancel: typeof clearTimeout = clearTimeout,
+) {
+  return startDashboardSoundPhaseTimer(
+    enabled,
+    durationMinutes,
+    DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
+    onExpire,
+    schedule,
+    cancel,
+  );
+}
+
+export function startDashboardSoundActiveTimer(
+  enabled: boolean,
+  durationMinutes: number,
+  onExpire: () => void,
+  schedule: typeof setTimeout = setTimeout,
+  cancel: typeof clearTimeout = clearTimeout,
+) {
+  return startDashboardSoundPhaseTimer(
+    enabled,
+    durationMinutes,
+    DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
+    onExpire,
+    schedule,
+    cancel,
+  );
 }
