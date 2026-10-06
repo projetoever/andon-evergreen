@@ -54,11 +54,6 @@ export function DashboardPage() {
   const activeTimerCancelRef = useRef<(() => void) | null>(null);
   const dashboardMutedAtRef = useRef<string | null>(null);
   const dashboardMuteReasonRef = useRef<"manual" | "auto" | null>(null);
-  const callsRef = useRef(calls);
-
-  useEffect(() => {
-    callsRef.current = calls;
-  }, [calls]);
 
   const hasDashboardAlertCall = useMemo(
     () =>
