@@ -4,9 +4,12 @@ import test from "node:test";
 
 import { validateDashboardSoundMuteSettingsPatch } from "../server/src/services/dashboardSoundMuteSettings";
 import {
+  DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
   getKnownRealCallIds,
+  hasDashboardAlertingCall,
   hasNewRealCall,
+  startDashboardSoundActiveTimer,
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
@@ -36,8 +39,8 @@ function fakeTimer() {
   };
 }
 
-test("defaults mantêm temporizador desligado e duração de três minutos", async () => {
-  const [schema, migration, service] = await Promise.all([
+test("defaults mantêm as duas fases automáticas desligadas e em três minutos", async () => {
+  const [schema, muteMigration, activeMigration, service] = await Promise.all([
     readFile(new URL("../server/prisma/schema.prisma", import.meta.url), "utf8"),
     readFile(
       new URL(
@@ -46,17 +49,30 @@ test("defaults mantêm temporizador desligado e duração de três minutos", asy
       ),
       "utf8",
     ),
+    readFile(
+      new URL(
+        "../server/prisma/migrations/20261006123000_add_dashboard_sound_active_timer/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
     readFile(new URL("../src/services/systemSettingsService.ts", import.meta.url), "utf8"),
   ]);
 
   assert.equal(DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES, 3);
+  assert.equal(DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES, 3);
   assert.match(schema, /dashboardSoundMuteTimerEnabled\s+Boolean\s+@default\(false\)/);
   assert.match(schema, /dashboardSoundMuteDurationMinutes\s+Int\s+@default\(3\)/);
-  assert.match(migration, /BOOLEAN NOT NULL DEFAULT false/);
-  assert.match(migration, /INTEGER NOT NULL DEFAULT 3/);
-  assert.doesNotMatch(migration, /^(?:\s*)(?:DROP|DELETE|UPDATE|TRUNCATE)\b/im);
+  assert.match(schema, /dashboardSoundAutoMuteTimerEnabled\s+Boolean\s+@default\(false\)/);
+  assert.match(schema, /dashboardSoundActiveDurationMinutes\s+Int\s+@default\(3\)/);
+  assert.match(muteMigration, /BOOLEAN NOT NULL DEFAULT false/);
+  assert.match(activeMigration, /dashboardSoundAutoMuteTimerEnabled/);
+  assert.match(activeMigration, /dashboardSoundActiveDurationMinutes/);
+  assert.doesNotMatch(activeMigration, /^(?:\s*)(?:DROP|DELETE|UPDATE|TRUNCATE)\b/im);
   assert.match(service, /dashboardSoundMuteTimerEnabled: false/);
   assert.match(service, /dashboardSoundMuteDurationMinutes: 3/);
+  assert.match(service, /dashboardSoundAutoMuteTimerEnabled: false/);
+  assert.match(service, /dashboardSoundActiveDurationMinutes: 3/);
 });
 
 test("PATCH aceita habilitar e desabilitar o temporizador", () => {
@@ -81,6 +97,22 @@ test("PATCH aceita duração inteira a partir de um minuto", () => {
   );
 });
 
+
+test("PATCH aceita configuração da fase automática com som ativo", () => {
+  assert.equal(
+    validateDashboardSoundMuteSettingsPatch({ dashboardSoundAutoMuteTimerEnabled: true }),
+    null,
+  );
+  assert.equal(
+    validateDashboardSoundMuteSettingsPatch({ dashboardSoundAutoMuteTimerEnabled: false }),
+    null,
+  );
+  assert.equal(
+    validateDashboardSoundMuteSettingsPatch({ dashboardSoundActiveDurationMinutes: 3 }),
+    null,
+  );
+});
+
 test("PATCH rejeita tipos e durações inválidas", () => {
   for (const value of [0, -1, 1.5, "3", null]) {
     assert.match(
@@ -95,6 +127,18 @@ test("PATCH rejeita tipos e durações inválidas", () => {
       dashboardSoundMuteTimerEnabled: "true",
     }) ?? "",
     /deve ser booleano/,
+  );
+  assert.match(
+    validateDashboardSoundMuteSettingsPatch({
+      dashboardSoundAutoMuteTimerEnabled: "true",
+    }) ?? "",
+    /deve ser booleano/,
+  );
+  assert.match(
+    validateDashboardSoundMuteSettingsPatch({
+      dashboardSoundActiveDurationMinutes: 0,
+    }) ?? "",
+    /inteiro de pelo menos 1 minuto/,
   );
 });
 
@@ -141,6 +185,70 @@ test("temporizador habilitado reativa após a duração configurada", () => {
   assert.equal(timer.getDelay(), 180_000);
   timer.run();
   assert.equal(expired, true);
+});
+
+
+
+test("temporizador da fase ativa silencia após a duração configurada", () => {
+  const timer = fakeTimer();
+  let expired = false;
+  startDashboardSoundActiveTimer(
+    true,
+    3,
+    () => {
+      expired = true;
+    },
+    timer.schedule,
+    timer.cancel,
+  );
+
+  assert.equal(timer.getDelay(), 180_000);
+  timer.run();
+  assert.equal(expired, true);
+});
+
+test("detecção do ciclo considera somente chamado aberto elegível para alarme", () => {
+  const machines = [{ id: "37", isActive: true }];
+  const soundConfigs = [
+    {
+      key: "electrical",
+      enabled: true,
+      repeatUntilAttended: true,
+      repeatIntervalSeconds: 30,
+    },
+  ];
+
+  assert.equal(
+    hasDashboardAlertingCall(
+      [
+        {
+          machineId: "37",
+          status: "open",
+          subtype: "electrical",
+          isSystemTest: false,
+        },
+      ],
+      machines,
+      soundConfigs,
+    ),
+    true,
+  );
+
+  assert.equal(
+    hasDashboardAlertingCall(
+      [
+        {
+          machineId: "37",
+          status: "in_progress",
+          subtype: "electrical",
+          isSystemTest: false,
+        },
+      ],
+      machines,
+      soundConfigs,
+    ),
+    false,
+  );
 });
 
 test("reativação manual cancela o timer e invalida callback antigo", () => {
@@ -217,10 +325,13 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /soundScope: "dashboard"/);
   assert.match(dashboard, /setDashboardSoundMuted\(false\)/);
   assert.match(dashboard, /hasNewRealCall\(mutedKnownCallIdsRef\.current, calls\)/);
+  assert.match(dashboard, /startDashboardSoundActiveTimer/);
+  assert.match(dashboard, /dashboardMuteReasonRef/);
+  assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
 });
 
-test("Admin e API persistem os dois campos sem alterar arquivos de áudio", async () => {
+test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudio", async () => {
   const [admin, route, types] = await Promise.all([
     readFile(
       new URL("../src/components/settings/DashboardSoundMuteSettings.tsx", import.meta.url),
@@ -233,6 +344,8 @@ test("Admin e API persistem os dois campos sem alterar arquivos de áudio", asyn
   for (const source of [admin, route, types]) {
     assert.match(source, /dashboardSoundMuteTimerEnabled/);
     assert.match(source, /dashboardSoundMuteDurationMinutes/);
+    assert.match(source, /dashboardSoundAutoMuteTimerEnabled/);
+    assert.match(source, /dashboardSoundActiveDurationMinutes/);
   }
   assert.match(admin, /updateSystemSettings\(/);
   assert.doesNotMatch(admin, /saveSoundConfig|removeSoundConfig/);
