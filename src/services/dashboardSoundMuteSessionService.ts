@@ -92,6 +92,41 @@ export function getDashboardSoundMuteRemainingMs(
   return Math.max(0, state.mutedUntilMs - nowMs);
 }
 
+export function startDashboardSoundMuteSessionTimer(
+  state: DashboardSoundMuteSessionState,
+  onExpire: () => void,
+  schedule: typeof setTimeout = setTimeout,
+  cancel: typeof clearTimeout = clearTimeout,
+  nowMs = Date.now(),
+) {
+  const remainingMs = getDashboardSoundMuteRemainingMs(state, nowMs);
+  let active = true;
+
+  if (remainingMs === null) {
+    return () => {
+      active = false;
+    };
+  }
+
+  if (remainingMs <= 0) {
+    onExpire();
+    active = false;
+    return () => {};
+  }
+
+  const timeout = schedule(() => {
+    if (!active) return;
+    active = false;
+    onExpire();
+  }, remainingMs);
+
+  return () => {
+    if (!active) return;
+    active = false;
+    cancel(timeout);
+  };
+}
+
 export function loadDashboardSoundMuteSession(
   storage: StorageLike | null = getDefaultStorage(),
   nowMs = Date.now(),
