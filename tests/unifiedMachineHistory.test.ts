@@ -153,3 +153,45 @@ test("painéis da máquina usam o formato compacto nos temporizadores destacados
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(postMaintenance\)/);
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(total\)/);
 });
+
+
+test("ações da máquina usam altura responsiva e fluxo centralizado", async () => {
+  const source = await readFile(
+    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /layoutStage === "idle"/);
+  assert.match(source, /min-h-\[clamp\(6rem,10\.5vh,8rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(4rem,7vh,5rem\)\]/);
+  assert.match(source, /: "min-h-12 text-sm"/);
+  assert.match(source, /flex flex-wrap items-stretch justify-center/);
+  assert.match(source, /sm:max-w-\[38rem\]/);
+  assert.match(source, /> Atender selecionado/);
+  assert.match(source, /> Cancelar selecionado/);
+});
+
+test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala", async () => {
+  const source = await readFile(
+    new URL("../src/components/machines/MachineDetailHeader.tsx", import.meta.url),
+    "utf8",
+  );
+
+  const historyIndex = source.indexOf('aria-label="Histórico da máquina"');
+  const historyStart = source.lastIndexOf("<Link", historyIndex);
+  const lockIndex = source.indexOf("onClick={onToggleScreenLock}");
+  const lockStart = source.lastIndexOf("<button", lockIndex);
+
+  assert.ok(historyStart >= 0);
+  assert.ok(historyIndex > historyStart);
+  assert.ok(lockStart > historyIndex);
+  assert.ok(lockIndex > lockStart);
+  assert.match(
+    source.slice(historyStart, lockStart),
+    /h-9.*text-\[11px\].*md:h-10/s,
+  );
+  assert.match(
+    source.slice(lockStart),
+    /h-9.*text-\[11px\].*md:h-10/s,
+  );
+});
