@@ -838,6 +838,9 @@ async function run() {
   assert.equal(defaultWorkOrderSettings.dashboardSoundAutoMuteTimerEnabled, false);
   assert.equal(defaultWorkOrderSettings.dashboardSoundActiveDurationMinutes, 3);
   assert.equal(defaultWorkOrderSettings.dashboardSoundMuted, false);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMutedAt, null);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMutedUntil, null);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMuteReason, null);
 
   const dashboardSoundMuteSettings = await request(
     "/api/system-settings",
