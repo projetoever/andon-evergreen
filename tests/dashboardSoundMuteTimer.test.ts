@@ -471,6 +471,14 @@ test("dashboard restaura mute sem reiniciar prazo e iniciar painel não desmuta"
     dashboard,
     /Painel ativo — som do dashboard permanece silenciado/,
   );
+  assert.match(
+    dashboard,
+    /audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted/,
+  );
+  assert.match(
+    dashboard,
+    /disabled=\{dashboardSoundSyncing \|\| !dashboardSoundStateLoaded\}/,
+  );
   assert.doesNotMatch(
     dashboard,
     /function handleUnlock\(\)[\s\S]{0,180}reactivateDashboardSound/,
