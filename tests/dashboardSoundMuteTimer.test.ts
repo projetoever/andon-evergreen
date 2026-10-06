@@ -335,7 +335,10 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   );
 
   assert.match(dashboard, /useAndonOpenCallSound\(/);
-  assert.match(dashboard, /audioUnlocked: audioUnlocked && !dashboardSoundMuted/);
+  assert.match(
+    dashboard,
+    /audioUnlocked:[\s\S]*audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted/,
+  );
   assert.match(dashboard, /soundScope: "dashboard"/);
   assert.match(dashboard, /setDashboardSoundMuted\(false\)/);
   assert.match(
