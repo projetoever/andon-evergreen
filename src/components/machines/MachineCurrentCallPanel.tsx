@@ -8,6 +8,7 @@ import {
   calculatePostMaintenanceMinutes,
   calculateTotalCallMinutes,
   formatDurationMinutes,
+  formatMachinePanelDurationMinutes,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import {
@@ -178,18 +179,18 @@ export function MachineCurrentCallPanel({
           </div>
         )}
         <div className="col-span-2 mt-1 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 lg:col-span-3 xl:grid-cols-4">
-          <TimerMetric label="Aguardando" value={formatDurationMinutes(waiting)} tone="warning" />
+          <TimerMetric label="Aguardando" value={formatMachinePanelDurationMinutes(waiting)} tone="warning" />
           <TimerMetric
             label="Em atendimento"
-            value={formatDurationMinutes(attending)}
+            value={formatMachinePanelDurationMinutes(attending)}
             tone="info"
           />
           <TimerMetric
             label="Acompanhamento"
-            value={formatDurationMinutes(postMaintenance)}
+            value={formatMachinePanelDurationMinutes(postMaintenance)}
             tone="info"
           />
-          <TimerMetric label="Total" value={formatDurationMinutes(total)} />
+          <TimerMetric label="Total" value={formatMachinePanelDurationMinutes(total)} />
         </div>
         {call.notes && (
           <div className="sm:col-span-2 lg:col-span-3">
