@@ -33,6 +33,35 @@ const RFID_TERMINATORS = new Set(["enter", "tab", "fixed_length"]);
 export function registerSystemSettingsRoutes(app: FastifyInstance) {
   app.get("/api/system-settings", async () => getSystemSettings());
 
+  app.get("/api/dashboard-sound-state", async () => {
+    const settings = await getSystemSettings();
+    return {
+      muted: settings.dashboardSoundMuted,
+      updatedAt: settings.updatedAt,
+    };
+  });
+
+  app.patch<{ Body: { muted?: unknown } }>("/api/dashboard-sound-state", async (request, reply) => {
+    const muted = request.body?.muted;
+    if (typeof muted !== "boolean") {
+      return badRequest(reply, "Campo muted deve ser booleano");
+    }
+
+    const settings = await prisma.systemSettings.upsert({
+      where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
+      update: { dashboardSoundMuted: muted },
+      create: {
+        id: GLOBAL_SYSTEM_SETTINGS_ID,
+        dashboardSoundMuted: muted,
+      },
+    });
+
+    return {
+      muted: settings.dashboardSoundMuted,
+      updatedAt: settings.updatedAt,
+    };
+  });
+
   app.patch<{ Body: UpdateSystemSettingsBody }>("/api/system-settings", async (request, reply) => {
     const body = request.body ?? {};
     const allowWholeSetCalls = body.allowWholeSetCalls;
