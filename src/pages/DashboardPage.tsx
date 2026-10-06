@@ -15,7 +15,11 @@ import { isDashboardPriorityAuthenticated } from "@/services/dashboardPrioritySe
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
-import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
+import {
+  getSystemSettings,
+  SYSTEM_SETTINGS_CHANGED_EVENT,
+  updateSystemSettings,
+} from "@/services/systemSettingsService";
 import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
@@ -35,6 +39,7 @@ export function DashboardPage() {
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardSoundSyncing, setDashboardSoundSyncing] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
   const [dashboardMuteTimerEnabled, setDashboardMuteTimerEnabled] = useState(false);
@@ -81,20 +86,41 @@ export function DashboardPage() {
     activeTimerCancelRef.current = null;
   }, []);
 
+  const persistDashboardSoundMuted = useCallback(async (muted: boolean) => {
+    setDashboardSoundSyncing(true);
+    try {
+      await updateSystemSettings({ dashboardSoundMuted: muted });
+      return true;
+    } catch {
+      toast.error(
+        muted
+          ? "Não foi possível silenciar a sirene externa"
+          : "Não foi possível reativar a sirene externa",
+      );
+      return false;
+    } finally {
+      setDashboardSoundSyncing(false);
+    }
+  }, []);
+
   const reactivateDashboardSound = useCallback(
-    (message?: string) => {
+    async (message?: string) => {
+      const synced = await persistDashboardSoundMuted(false);
+      if (!synced) return false;
+
       cancelDashboardMuteTimer();
       cancelDashboardActiveTimer();
       mutedKnownCallIdsRef.current = new Set();
       dashboardMuteReasonRef.current = null;
       setDashboardSoundMuted(false);
       if (message) toast.success(message);
+      return true;
     },
-    [cancelDashboardActiveTimer, cancelDashboardMuteTimer],
+    [cancelDashboardActiveTimer, cancelDashboardMuteTimer, persistDashboardSoundMuted],
   );
 
   const muteDashboardSound = useCallback(
-    (reason: "manual" | "auto", message?: string) => {
+    async (reason: "manual" | "auto", message?: string) => {
       cancelDashboardActiveTimer();
       cancelDashboardMuteTimer();
       mutedKnownCallIdsRef.current = getKnownRealCallIds(callsRef.current);
@@ -102,12 +128,20 @@ export function DashboardPage() {
       setDashboardSoundMuted(true);
       stopAndonSound(undefined, "dashboard");
 
+      const synced = await persistDashboardSoundMuted(true);
+      if (!synced) {
+        dashboardMuteReasonRef.current = null;
+        mutedKnownCallIdsRef.current = new Set();
+        setDashboardSoundMuted(false);
+        return false;
+      }
+
       muteTimerCancelRef.current = startDashboardSoundMuteTimer(
         dashboardMuteTimerEnabled,
         dashboardMuteDurationMinutes,
         () => {
           muteTimerCancelRef.current = null;
-          reactivateDashboardSound(
+          void reactivateDashboardSound(
             reason === "auto"
               ? "Tempo de silêncio encerrado — ciclo do alarme reativado"
               : "Tempo de silêncio encerrado — som do dashboard reativado",
@@ -116,12 +150,14 @@ export function DashboardPage() {
       );
 
       if (message) toast.success(message);
+      return true;
     },
     [
       cancelDashboardActiveTimer,
       cancelDashboardMuteTimer,
       dashboardMuteDurationMinutes,
       dashboardMuteTimerEnabled,
+      persistDashboardSoundMuted,
       reactivateDashboardSound,
     ],
   );
@@ -134,6 +170,10 @@ export function DashboardPage() {
       setDashboardMuteDurationMinutes(systemSettings.dashboardSoundMuteDurationMinutes);
       setDashboardAutoMuteTimerEnabled(systemSettings.dashboardSoundAutoMuteTimerEnabled);
       setDashboardActiveDurationMinutes(systemSettings.dashboardSoundActiveDurationMinutes);
+      setDashboardSoundMuted(systemSettings.dashboardSoundMuted);
+      if (systemSettings.dashboardSoundMuted) {
+        stopAndonSound(undefined, "dashboard");
+      }
       setDashboardMachineOrderMode(
         systemSettings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
       );
@@ -169,7 +209,7 @@ export function DashboardPage() {
     if (!dashboardSoundMuted) return;
     if (!hasNewRealCall(mutedKnownCallIdsRef.current, calls)) return;
 
-    reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
+    void reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
   }, [calls, dashboardSoundMuted, reactivateDashboardSound]);
 
 
@@ -190,7 +230,7 @@ export function DashboardPage() {
       dashboardActiveDurationMinutes,
       () => {
         activeTimerCancelRef.current = null;
-        muteDashboardSound(
+        void muteDashboardSound(
           "auto",
           dashboardMuteTimerEnabled
             ? `Tempo com som encerrado — dashboard silenciado por ${dashboardMuteDurationMinutes} minuto(s)`
@@ -218,7 +258,7 @@ export function DashboardPage() {
       dashboardMuteReasonRef.current === "auto" &&
       !hasDashboardAlertCall
     ) {
-      reactivateDashboardSound();
+      void reactivateDashboardSound();
     }
   }, [dashboardSoundMuted, hasDashboardAlertCall, reactivateDashboardSound]);
 
@@ -244,17 +284,18 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
-    reactivateDashboardSound();
-    toast.success("Painel ativo — sons habilitados");
+    void reactivateDashboardSound("Painel ativo — sons habilitados");
   }
 
   function handleToggleDashboardSound() {
+    if (dashboardSoundSyncing) return;
+
     if (dashboardSoundMuted) {
-      reactivateDashboardSound("Som do dashboard reativado");
+      void reactivateDashboardSound("Som do dashboard reativado");
       return;
     }
 
-    muteDashboardSound(
+    void muteDashboardSound(
       "manual",
       dashboardMuteTimerEnabled
         ? `Som do dashboard silenciado por ${dashboardMuteDurationMinutes} minuto(s)`
@@ -310,7 +351,8 @@ export function DashboardPage() {
                 dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
               }
               onClick={handleToggleDashboardSound}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground"
+              disabled={dashboardSoundSyncing}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {dashboardSoundMuted ? (
                 <VolumeX className="h-4 w-4" />
