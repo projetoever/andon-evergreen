@@ -4,6 +4,14 @@ import test from "node:test";
 
 import { validateDashboardSoundMuteSettingsPatch } from "../server/src/services/dashboardSoundMuteSettings";
 import {
+  clearDashboardSoundMuteSession,
+  createDashboardSoundMuteSessionState,
+  getDashboardSoundMuteRemainingMs,
+  loadDashboardSoundMuteSession,
+  saveDashboardSoundMuteSession,
+  startDashboardSoundMuteSessionTimer,
+} from "../src/services/dashboardSoundMuteSessionService";
+import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
   getKnownRealCallIds,
@@ -16,6 +24,20 @@ import { updateSystemSettings } from "../src/services/systemSettingsService";
 import type { SystemSettingsPatch } from "../src/types/systemSettings";
 
 const existingOpenCall = { id: "call-a", status: "open" as const, isSystemTest: false };
+
+
+function memoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+  };
+}
 
 function fakeTimer() {
   let callback: (() => void) | null = null;
@@ -331,6 +353,122 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /dashboardMuteReasonRef/);
   assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+});
+
+
+
+test("mute do dashboard sobrevive à navegação dentro da mesma sessão", () => {
+  const storage = memoryStorage();
+  const state = createDashboardSoundMuteSessionState({
+    reason: "manual",
+    knownCallIds: ["call-a"],
+    timerEnabled: true,
+    durationMinutes: 3,
+    nowMs: 1_000,
+  });
+
+  saveDashboardSoundMuteSession(state, storage);
+  const restored = loadDashboardSoundMuteSession(storage, 61_000);
+
+  assert.deepEqual(restored, state);
+  assert.equal(getDashboardSoundMuteRemainingMs(restored!, 61_000), 120_000);
+});
+
+test("mute expirado enquanto usuário está fora do dashboard não é restaurado", () => {
+  const storage = memoryStorage();
+  const state = createDashboardSoundMuteSessionState({
+    reason: "manual",
+    knownCallIds: ["call-a"],
+    timerEnabled: true,
+    durationMinutes: 3,
+    nowMs: 1_000,
+  });
+
+  saveDashboardSoundMuteSession(state, storage);
+  assert.equal(loadDashboardSoundMuteSession(storage, 181_001), null);
+});
+
+test("mute manual sem timer permanece até desmute ou novo chamado", () => {
+  const storage = memoryStorage();
+  const state = createDashboardSoundMuteSessionState({
+    reason: "manual",
+    knownCallIds: ["call-a"],
+    timerEnabled: false,
+    durationMinutes: 3,
+    nowMs: 1_000,
+  });
+
+  saveDashboardSoundMuteSession(state, storage);
+  assert.deepEqual(loadDashboardSoundMuteSession(storage, 10_000_000), state);
+  clearDashboardSoundMuteSession(storage);
+  assert.equal(loadDashboardSoundMuteSession(storage, 10_000_001), null);
+});
+
+test("timer restaurado usa apenas o tempo de silêncio restante", () => {
+  const timer = fakeTimer();
+  const state = createDashboardSoundMuteSessionState({
+    reason: "auto",
+    knownCallIds: ["call-a"],
+    timerEnabled: true,
+    durationMinutes: 3,
+    nowMs: 1_000,
+  });
+  let expired = false;
+
+  startDashboardSoundMuteSessionTimer(
+    state,
+    () => {
+      expired = true;
+    },
+    timer.schedule,
+    timer.cancel,
+    61_000,
+  );
+
+  assert.equal(timer.getDelay(), 120_000);
+  timer.run();
+  assert.equal(expired, true);
+});
+
+test("novo chamado da mesma máquina também quebra o mute pelo novo ID", () => {
+  const baseline = getKnownRealCallIds([existingOpenCall]);
+
+  assert.equal(
+    hasNewRealCall(baseline, [
+      existingOpenCall,
+      { id: "call-a-2", status: "open", isSystemTest: false },
+    ]),
+    true,
+  );
+});
+
+test("dashboard persiste mute e não o desfaz só por voltar de outra rota", async () => {
+  const dashboard = await readFile(
+    new URL("../src/pages/DashboardPage.tsx", import.meta.url),
+    "utf8",
+  );
+  const sessionService = await readFile(
+    new URL(
+      "../src/services/dashboardSoundMuteSessionService.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(dashboard, /loadDashboardSoundMuteSession/);
+  assert.match(dashboard, /saveDashboardSoundMuteSession/);
+  assert.match(dashboard, /clearDashboardSoundMuteSession/);
+  assert.match(dashboard, /startDashboardSoundMuteSessionTimer/);
+  assert.match(dashboard, /restoredMuteSession/);
+  assert.match(
+    dashboard,
+    /Novo chamado recebido — som do dashboard reativado/,
+  );
+  assert.match(
+    dashboard,
+    /Painel ativo — som do dashboard permanece silenciado/,
+  );
+  assert.match(sessionService, /window\.sessionStorage/);
 });
 
 test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudio", async () => {
