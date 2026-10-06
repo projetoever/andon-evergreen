@@ -25,11 +25,10 @@ import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSe
 import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
-  getKnownRealCallIds,
   hasDashboardAlertingCall,
-  hasNewRealCall,
+  hasRealCallOpenedAfter,
   startDashboardSoundActiveTimer,
-  startDashboardSoundMuteTimer,
+  startDashboardSoundMuteDeadlineTimer,
 } from "@/utils/dashboardSoundMuteUtils";
 
 export function DashboardPage() {
@@ -40,6 +39,7 @@ export function DashboardPage() {
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
   const [dashboardSoundSyncing, setDashboardSoundSyncing] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
@@ -53,13 +53,8 @@ export function DashboardPage() {
   );
   const muteTimerCancelRef = useRef<(() => void) | null>(null);
   const activeTimerCancelRef = useRef<(() => void) | null>(null);
-  const mutedKnownCallIdsRef = useRef<Set<string>>(new Set());
+  const dashboardMutedAtRef = useRef<string | null>(null);
   const dashboardMuteReasonRef = useRef<"manual" | "auto" | null>(null);
-  const callsRef = useRef(calls);
-
-  useEffect(() => {
-    callsRef.current = calls;
-  }, [calls]);
 
   const hasDashboardAlertCall = useMemo(
     () =>
@@ -73,7 +68,8 @@ export function DashboardPage() {
     machines,
     settings,
     soundConfigs,
-    audioUnlocked: audioUnlocked && !dashboardSoundMuted,
+    audioUnlocked:
+      audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted,
     soundScope: "dashboard",
   });
 
@@ -87,22 +83,24 @@ export function DashboardPage() {
     activeTimerCancelRef.current = null;
   }, []);
 
-  const persistDashboardSoundMuted = useCallback(async (muted: boolean) => {
-    setDashboardSoundSyncing(true);
-    try {
-      await updateDashboardSoundState(muted);
-      return true;
-    } catch {
-      toast.error(
-        muted
-          ? "Não foi possível silenciar a sirene externa"
-          : "Não foi possível reativar a sirene externa",
-      );
-      return false;
-    } finally {
-      setDashboardSoundSyncing(false);
-    }
-  }, []);
+  const persistDashboardSoundMuted = useCallback(
+    async (muted: boolean, reason: "manual" | "auto" = "manual") => {
+      setDashboardSoundSyncing(true);
+      try {
+        return await updateDashboardSoundState(muted, reason);
+      } catch {
+        toast.error(
+          muted
+            ? "Não foi possível silenciar a sirene externa"
+            : "Não foi possível reativar a sirene externa",
+        );
+        return null;
+      } finally {
+        setDashboardSoundSyncing(false);
+      }
+    },
+    [],
+  );
 
   const reactivateDashboardSound = useCallback(
     async (message?: string) => {
@@ -111,7 +109,7 @@ export function DashboardPage() {
 
       cancelDashboardMuteTimer();
       cancelDashboardActiveTimer();
-      mutedKnownCallIdsRef.current = new Set();
+      dashboardMutedAtRef.current = null;
       dashboardMuteReasonRef.current = null;
       setDashboardSoundMuted(false);
       if (message) toast.success(message);
@@ -124,22 +122,22 @@ export function DashboardPage() {
     async (reason: "manual" | "auto", message?: string) => {
       cancelDashboardActiveTimer();
       cancelDashboardMuteTimer();
-      mutedKnownCallIdsRef.current = getKnownRealCallIds(callsRef.current);
       dashboardMuteReasonRef.current = reason;
       setDashboardSoundMuted(true);
       stopAndonSound(undefined, "dashboard");
 
-      const synced = await persistDashboardSoundMuted(true);
+      const synced = await persistDashboardSoundMuted(true, reason);
       if (!synced) {
+        dashboardMutedAtRef.current = null;
         dashboardMuteReasonRef.current = null;
-        mutedKnownCallIdsRef.current = new Set();
         setDashboardSoundMuted(false);
         return false;
       }
 
-      muteTimerCancelRef.current = startDashboardSoundMuteTimer(
-        dashboardMuteTimerEnabled,
-        dashboardMuteDurationMinutes,
+      dashboardMutedAtRef.current = synced.mutedAt;
+      dashboardMuteReasonRef.current = synced.reason ?? reason;
+      muteTimerCancelRef.current = startDashboardSoundMuteDeadlineTimer(
+        synced.mutedUntil,
         () => {
           muteTimerCancelRef.current = null;
           void reactivateDashboardSound(
@@ -156,8 +154,6 @@ export function DashboardPage() {
     [
       cancelDashboardActiveTimer,
       cancelDashboardMuteTimer,
-      dashboardMuteDurationMinutes,
-      dashboardMuteTimerEnabled,
       persistDashboardSoundMuted,
       reactivateDashboardSound,
     ],
@@ -190,13 +186,32 @@ export function DashboardPage() {
     void getDashboardSoundState()
       .then((soundState) => {
         if (cancelled) return;
+
+        cancelDashboardMuteTimer();
+        dashboardMutedAtRef.current = soundState.mutedAt;
+        dashboardMuteReasonRef.current = soundState.reason;
         setDashboardSoundMuted(soundState.muted);
+
         if (soundState.muted) {
           stopAndonSound(undefined, "dashboard");
+          muteTimerCancelRef.current = startDashboardSoundMuteDeadlineTimer(
+            soundState.mutedUntil,
+            () => {
+              muteTimerCancelRef.current = null;
+              void reactivateDashboardSound(
+                soundState.reason === "auto"
+                  ? "Tempo de silêncio encerrado — ciclo do alarme reativado"
+                  : "Tempo de silêncio encerrado — som do dashboard reativado",
+              );
+            },
+          );
         }
+
+        setDashboardSoundStateLoaded(true);
       })
       .catch(() => {
-        // O botao continua operacional e exibira erro se a escrita do estado falhar.
+        // Falha aberta: preserva o alarme em vez de manter o Dashboard silencioso indefinidamente.
+        if (!cancelled) setDashboardSoundStateLoaded(true);
       });
 
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
@@ -217,7 +232,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!dashboardSoundMuted) return;
-    if (!hasNewRealCall(mutedKnownCallIdsRef.current, calls)) return;
+    if (!hasRealCallOpenedAfter(calls, dashboardMutedAtRef.current)) return;
 
     void reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
   }, [calls, dashboardSoundMuted, reactivateDashboardSound]);
@@ -228,6 +243,7 @@ export function DashboardPage() {
 
     if (
       !audioUnlocked ||
+      !dashboardSoundStateLoaded ||
       dashboardSoundMuted ||
       !dashboardAutoMuteTimerEnabled ||
       !hasDashboardAlertCall
@@ -258,6 +274,7 @@ export function DashboardPage() {
     dashboardMuteDurationMinutes,
     dashboardMuteTimerEnabled,
     dashboardSoundMuted,
+    dashboardSoundStateLoaded,
     hasDashboardAlertCall,
     muteDashboardSound,
   ]);
@@ -294,7 +311,11 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
-    void reactivateDashboardSound("Painel ativo — sons habilitados");
+    toast.success(
+      dashboardSoundMuted
+        ? "Painel ativo — som do dashboard permanece silenciado"
+        : "Painel ativo — sons habilitados",
+    );
   }
 
   function handleToggleDashboardSound() {
@@ -361,7 +382,7 @@ export function DashboardPage() {
                 dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
               }
               onClick={handleToggleDashboardSound}
-              disabled={dashboardSoundSyncing}
+              disabled={dashboardSoundSyncing || !dashboardSoundStateLoaded}
               className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {dashboardSoundMuted ? (

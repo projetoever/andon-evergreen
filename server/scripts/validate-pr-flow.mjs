@@ -838,6 +838,9 @@ async function run() {
   assert.equal(defaultWorkOrderSettings.dashboardSoundAutoMuteTimerEnabled, false);
   assert.equal(defaultWorkOrderSettings.dashboardSoundActiveDurationMinutes, 3);
   assert.equal(defaultWorkOrderSettings.dashboardSoundMuted, false);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMutedAt, null);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMutedUntil, null);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMuteReason, null);
 
   const dashboardSoundMuteSettings = await request(
     "/api/system-settings",
@@ -846,14 +849,43 @@ async function run() {
       dashboardSoundMuteDurationMinutes: 5,
       dashboardSoundAutoMuteTimerEnabled: true,
       dashboardSoundActiveDurationMinutes: 4,
-      dashboardSoundMuted: true,
+      dashboardSoundMuted: false,
     }),
   );
   assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteTimerEnabled, true);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteDurationMinutes, 5);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundAutoMuteTimerEnabled, true);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundActiveDurationMinutes, 4);
-  assert.equal(dashboardSoundMuteSettings.dashboardSoundMuted, true);
+  assert.equal(dashboardSoundMuteSettings.dashboardSoundMuted, false);
+
+  const manualMutedState = await request(
+    "/api/dashboard-sound-state",
+    json("PATCH", { muted: true, reason: "manual" }),
+  );
+  assert.equal(manualMutedState.muted, true);
+  assert.equal(manualMutedState.reason, "manual");
+  assert.ok(manualMutedState.mutedAt);
+  assert.ok(manualMutedState.mutedUntil);
+
+  await prisma.systemSettings.update({
+    where: { id: "global" },
+    data: { dashboardSoundMutedUntil: new Date(Date.now() - 1_000) },
+  });
+  const expiredMutedState = await request("/api/dashboard-sound-state");
+  assert.equal(expiredMutedState.muted, false);
+  assert.equal(expiredMutedState.reactivatedBy, "timeout");
+
+  const automaticMutedState = await request(
+    "/api/dashboard-sound-state",
+    json("PATCH", { muted: true, reason: "auto" }),
+  );
+  assert.equal(automaticMutedState.muted, true);
+  assert.equal(automaticMutedState.reason, "auto");
+  await request(
+    "/api/dashboard-sound-state",
+    json("PATCH", { muted: true, reason: "invalid" }),
+    400,
+  );
   await request(
     "/api/system-settings",
     json("PATCH", { dashboardSoundMuteDurationMinutes: 0 }),
@@ -879,17 +911,6 @@ async function run() {
     json("PATCH", { dashboardSoundMuted: "true" }),
     400,
   );
-  await request(
-    "/api/system-settings",
-    json("PATCH", {
-      dashboardSoundMuteTimerEnabled: false,
-      dashboardSoundMuteDurationMinutes: 3,
-      dashboardSoundAutoMuteTimerEnabled: false,
-      dashboardSoundActiveDurationMinutes: 3,
-      dashboardSoundMuted: false,
-    }),
-  );
-
   const legacyWorkOrderCall = await request(
     "/api/andon-calls",
     json("POST", {
@@ -901,6 +922,22 @@ async function run() {
     201,
   );
   assert.equal(legacyWorkOrderCall.workOrderNumber, null);
+
+  const newCallReactivatedSound = await request("/api/dashboard-sound-state");
+  assert.equal(newCallReactivatedSound.muted, false);
+  assert.equal(newCallReactivatedSound.reactivatedBy, "new_call");
+
+  await request(
+    "/api/system-settings",
+    json("PATCH", {
+      dashboardSoundMuteTimerEnabled: false,
+      dashboardSoundMuteDurationMinutes: 3,
+      dashboardSoundAutoMuteTimerEnabled: false,
+      dashboardSoundActiveDurationMinutes: 3,
+      dashboardSoundMuted: false,
+    }),
+  );
+
   await request(
     `/api/andon-calls/${legacyWorkOrderCall.id}/cancel`,
     json("PATCH", { reason: "Compatibilidade de chamado legado sem OS" }),

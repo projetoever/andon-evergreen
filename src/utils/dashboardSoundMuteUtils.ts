@@ -20,6 +20,65 @@ export function hasNewRealCall(
 }
 
 
+type DashboardTimedCall = Pick<AndonCall, "openedAt" | "isSystemTest">;
+
+export function hasRealCallOpenedAfter(
+  calls: readonly DashboardTimedCall[],
+  mutedAt: string | null | undefined,
+) {
+  if (!mutedAt) return false;
+  const mutedAtMs = new Date(mutedAt).getTime();
+  if (Number.isNaN(mutedAtMs)) return false;
+
+  return calls.some((call) => {
+    if (call.isSystemTest) return false;
+    const openedAtMs = new Date(call.openedAt).getTime();
+    return !Number.isNaN(openedAtMs) && openedAtMs > mutedAtMs;
+  });
+}
+
+export function startDashboardSoundMuteDeadlineTimer(
+  mutedUntil: string | null | undefined,
+  onExpire: () => void,
+  schedule: typeof setTimeout = setTimeout,
+  cancel: typeof clearTimeout = clearTimeout,
+  nowMs = Date.now(),
+) {
+  let active = true;
+  if (!mutedUntil) {
+    return () => {
+      active = false;
+    };
+  }
+
+  const mutedUntilMs = new Date(mutedUntil).getTime();
+  if (Number.isNaN(mutedUntilMs)) {
+    return () => {
+      active = false;
+    };
+  }
+
+  const remainingMs = mutedUntilMs - nowMs;
+  if (remainingMs <= 0) {
+    onExpire();
+    active = false;
+    return () => {};
+  }
+
+  const timeout = schedule(() => {
+    if (!active) return;
+    active = false;
+    onExpire();
+  }, remainingMs);
+
+  return () => {
+    if (!active) return;
+    active = false;
+    cancel(timeout);
+  };
+}
+
+
 type DashboardAlertCall = Pick<
   AndonCall,
   "machineId" | "status" | "subtype" | "isSystemTest"
