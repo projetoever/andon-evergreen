@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Lock, Unlock, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, History, Lock, Unlock, Volume2, VolumeX } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import { MachineStatusBadge } from "./MachineStatusBadge";
 import { AndonStatusBadge } from "./AndonStatusBadge";
@@ -52,6 +52,16 @@ export function MachineDetailHeader({
       </div>
       <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end">
         <ClockDisplay />
+        <Link
+          to="/machines/$machineId/call-history"
+          params={{ machineId: machine.id }}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
+          title="Histórico da máquina"
+          aria-label="Histórico da máquina"
+        >
+          <History className="h-4 w-4" />
+          Histórico
+        </Link>
         <button
           type="button"
           onClick={onToggleMachineSound}

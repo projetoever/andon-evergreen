@@ -57,8 +57,12 @@ test("remove Apuração somente da interface e preserva os tempos técnicos", as
   assert.match(types, /source: TechnicianTimeAllocationSource/);
 });
 
-test("mantém somente um acesso normal e reutiliza a página na rota legada", async () => {
-  const [actions, legacyRoute, stopPanel] = await Promise.all([
+test("mantém um acesso compacto ao histórico no cabeçalho e reutiliza a rota legada", async () => {
+  const [header, actions, legacyRoute, stopPanel] = await Promise.all([
+    readFile(
+      new URL("../src/components/machines/MachineDetailHeader.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url), "utf8"),
     readFile(
       new URL("../src/routes/machines.$machineId_.failure-history.tsx", import.meta.url),
@@ -70,12 +74,41 @@ test("mantém somente um acesso normal e reutiliza a página na rota legada", as
     ),
   ]);
 
-  assert.equal(actions.match(/Histórico de chamados/g)?.length, 1);
-  assert.equal(actions.match(/\/machines\/\$machineId\/call-history/g)?.length, 1);
+  assert.match(header, /to="\/machines\/\$machineId\/call-history"/);
+  assert.match(header, />\s*Histórico\s*</);
+  assert.match(header, /aria-label="Voltar ao painel"/);
+  assert.doesNotMatch(actions, /Histórico de chamados/);
+  assert.doesNotMatch(actions, /Voltar ao painel/);
+  assert.doesNotMatch(actions, /\/machines\/\$machineId\/call-history/);
   assert.doesNotMatch(actions, /Histórico de falhas/);
   assert.doesNotMatch(actions, /\/machines\/\$machineId\/failure-history/);
   assert.match(legacyRoute, /import \{ MachineCallHistoryPage \}/);
   assert.match(legacyRoute, /<MachineCallHistoryPage/);
   assert.doesNotMatch(legacyRoute, /MachineFailureHistoryPage/);
   assert.match(stopPanel, /<StopHistoryList stopHistory=\{machine\.stopHistory\}/);
+});
+
+test("tela da máquina destaca os temporizadores sem recriar navegação inferior", async () => {
+  const [statusPanel, callPanel, actions] = await Promise.all([
+    readFile(
+      new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(statusPanel, /text-\[clamp\(2rem,3vw,3\.25rem\)\]/);
+  assert.match(callPanel, /text-\[clamp\(1\.5rem,2\.25vw,2\.5rem\)\]/);
+  assert.match(callPanel, /Aguardando/);
+  assert.match(callPanel, /Em atendimento/);
+  assert.match(callPanel, /Acompanhamento/);
+  assert.match(callPanel, /Total/);
+  assert.doesNotMatch(actions, /secondaryActionClass/);
 });

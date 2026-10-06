@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CheckCheck, History, RotateCcw, Wrench, XCircle } from "lucide-react";
+import { CheckCheck, RotateCcw, Wrench, XCircle } from "lucide-react";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ interface MachineActionPanelProps {
   maintenanceCompletionDisabled?: boolean;
   maintenanceCompletionHint?: string | null;
   maintenanceCompletionHintTone?: "success" | "warning" | "danger";
-  screenLocked?: boolean;
 }
 
 function readableTextColor(hex: string) {
@@ -235,7 +233,6 @@ export function MachineActionPanel({
   maintenanceCompletionDisabled = false,
   maintenanceCompletionHint = null,
   maintenanceCompletionHintTone = "warning",
-  screenLocked = false,
 }: MachineActionPanelProps) {
   const hasActiveCall = activeCalls.length > 0;
   const layoutStage = !hasActiveCall ? "idle" : currentCall?.status === "open" ? "open" : "busy";
@@ -249,15 +246,6 @@ export function MachineActionPanel({
     layoutStage === "open"
       ? "min-h-[clamp(3rem,5vh,3.75rem)] px-2 text-xs md:text-sm"
       : "min-h-11 px-2 text-xs";
-  const secondaryActionClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 font-bold uppercase tracking-wide text-foreground shadow-sm transition hover:bg-accent",
-    layoutStage === "idle"
-      ? "min-h-[clamp(4rem,7vh,5.25rem)] text-sm"
-      : layoutStage === "open"
-        ? "min-h-[clamp(3.25rem,5.5vh,4rem)] text-xs md:text-sm"
-        : "min-h-12 text-xs md:text-sm",
-  );
-
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -365,25 +353,6 @@ export function MachineActionPanel({
         </div>
       )}
 
-      <div
-        className={cn(
-          "grid gap-1.5 border-t border-border pt-2",
-          screenLocked ? "grid-cols-1" : "grid-cols-2",
-        )}
-      >
-        <Link
-          to="/machines/$machineId/call-history"
-          params={{ machineId: machine.id }}
-          className={secondaryActionClass}
-        >
-          <History className="h-4 w-4" /> Histórico de chamados
-        </Link>
-        {!screenLocked && (
-          <Link to="/" className={secondaryActionClass}>
-            <ArrowLeft className="h-4 w-4" /> Voltar ao painel
-          </Link>
-        )}
-      </div>
     </section>
   );
 }
