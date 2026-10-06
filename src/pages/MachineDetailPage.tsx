@@ -588,7 +588,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         }
         maintenanceCompletionHint={maintenanceCompletionHint}
         maintenanceCompletionHintTone={maintenanceCompletionHintTone}
-        screenLocked={screenLocked}
       />
 
       <QuickOpenCallModal
