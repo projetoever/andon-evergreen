@@ -189,6 +189,26 @@ export function formatDurationMinutes(minutes: number): string {
   return `${secs} s`;
 }
 
+export function formatMachinePanelDurationMinutes(minutes: number): string {
+  const totalSeconds = Math.max(0, Math.floor(minutes * 60));
+
+  if (totalSeconds < 3600) {
+    return formatDurationMinutes(minutes);
+  }
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days} d ${hours.toString().padStart(2, "0")} h ${mins
+      .toString()
+      .padStart(2, "0")} min`;
+  }
+
+  return `${hours} h ${mins.toString().padStart(2, "0")} min`;
+}
+
 export function formatCompactDurationMinutes(minutes: number, emptyLabel = "sem registro"): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return emptyLabel;
 

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { formatMachinePanelDurationMinutes } from "../src/utils/durationUtils";
+
 test("unifica chamados, falhas vinculadas e ocorrências órfãs por máquina", async () => {
   const history = await readFile(
     new URL("../src/pages/MachineCallHistoryPage.tsx", import.meta.url),
@@ -111,4 +113,31 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
   assert.match(callPanel, /Acompanhamento/);
   assert.match(callPanel, /Total/);
   assert.doesNotMatch(actions, /secondaryActionClass/);
+});
+
+
+test("temporizadores grandes ocultam segundos a partir de uma hora", () => {
+  assert.equal(formatMachinePanelDurationMinutes(59 + 59 / 60), "59 min 59 s");
+  assert.equal(formatMachinePanelDurationMinutes(60), "1 h 00 min");
+  assert.equal(formatMachinePanelDurationMinutes(73.5), "1 h 13 min");
+  assert.equal(formatMachinePanelDurationMinutes(120 + 5 / 60), "2 h 00 min");
+});
+
+test("painéis da máquina usam o formato compacto nos temporizadores destacados", async () => {
+  const [statusPanel, callPanel] = await Promise.all([
+    readFile(
+      new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(statusPanel, /formatMachinePanelDurationMinutes\(stoppedMin\)/);
+  assert.match(callPanel, /formatMachinePanelDurationMinutes\(waiting\)/);
+  assert.match(callPanel, /formatMachinePanelDurationMinutes\(attending\)/);
+  assert.match(callPanel, /formatMachinePanelDurationMinutes\(postMaintenance\)/);
+  assert.match(callPanel, /formatMachinePanelDurationMinutes\(total\)/);
 });
