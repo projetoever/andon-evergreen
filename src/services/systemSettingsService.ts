@@ -11,7 +11,11 @@ export const SYSTEM_SETTINGS_CHANGED_EVENT = "andon:system-settings-changed";
 
 export interface DashboardSoundState {
   muted: boolean;
+  mutedAt: string | null;
+  mutedUntil: string | null;
+  reason: "manual" | "auto" | null;
   updatedAt: string;
+  reactivatedBy: "timeout" | "new_call" | null;
 }
 
 
@@ -32,6 +36,9 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     dashboardSoundAutoMuteTimerEnabled: false,
     dashboardSoundActiveDurationMinutes: 3,
     dashboardSoundMuted: false,
+    dashboardSoundMutedAt: null,
+    dashboardSoundMutedUntil: null,
+    dashboardSoundMuteReason: null,
     dashboardMachineOrderMode: "default",
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
@@ -70,6 +77,19 @@ function readLocalSystemSettings() {
         ? parsed.dashboardSoundActiveDurationMinutes
         : 3,
       dashboardSoundMuted: parsed.dashboardSoundMuted === true,
+      dashboardSoundMutedAt:
+        typeof parsed.dashboardSoundMutedAt === "string"
+          ? parsed.dashboardSoundMutedAt
+          : null,
+      dashboardSoundMutedUntil:
+        typeof parsed.dashboardSoundMutedUntil === "string"
+          ? parsed.dashboardSoundMutedUntil
+          : null,
+      dashboardSoundMuteReason:
+        parsed.dashboardSoundMuteReason === "manual" ||
+        parsed.dashboardSoundMuteReason === "auto"
+          ? parsed.dashboardSoundMuteReason
+          : null,
       dashboardMachineOrderMode:
         parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
     };
@@ -95,36 +115,96 @@ export function getSystemSettings() {
 
 export function getDashboardSoundState() {
   if (CONFIGURED_DATA_MODE === "local") {
-    const settings = readLocalSystemSettings();
+    let settings = readLocalSystemSettings();
+    const now = Date.now();
+    const mutedUntilMs = settings.dashboardSoundMutedUntil
+      ? new Date(settings.dashboardSoundMutedUntil).getTime()
+      : null;
+
+    if (
+      settings.dashboardSoundMuted &&
+      mutedUntilMs !== null &&
+      Number.isFinite(mutedUntilMs) &&
+      mutedUntilMs <= now
+    ) {
+      settings = {
+        ...settings,
+        dashboardSoundMuted: false,
+        dashboardSoundMutedAt: null,
+        dashboardSoundMutedUntil: null,
+        dashboardSoundMuteReason: null,
+        updatedAt: new Date(now).toISOString(),
+      };
+      saveLocalSystemSettings(settings);
+
+      return Promise.resolve<DashboardSoundState>({
+        muted: false,
+        mutedAt: null,
+        mutedUntil: null,
+        reason: null,
+        updatedAt: settings.updatedAt,
+        reactivatedBy: "timeout",
+      });
+    }
+
     return Promise.resolve<DashboardSoundState>({
       muted: settings.dashboardSoundMuted,
+      mutedAt: settings.dashboardSoundMutedAt,
+      mutedUntil: settings.dashboardSoundMutedUntil,
+      reason: settings.dashboardSoundMuteReason,
       updatedAt: settings.updatedAt,
+      reactivatedBy: null,
     });
   }
 
   return apiClient.get<DashboardSoundState>("/api/dashboard-sound-state");
 }
 
-export async function updateDashboardSoundState(muted: boolean) {
+export async function updateDashboardSoundState(
+  muted: boolean,
+  reason: "manual" | "auto" = "manual",
+) {
   if (typeof muted !== "boolean") {
     throw new Error("Campo muted deve ser booleano.");
   }
+  if (reason !== "manual" && reason !== "auto") {
+    throw new Error("Motivo do mute deve ser manual ou auto.");
+  }
 
   if (CONFIGURED_DATA_MODE === "local") {
+    const current = readLocalSystemSettings();
+    const now = new Date();
+    const mutedUntil =
+      muted && current.dashboardSoundMuteTimerEnabled
+        ? new Date(
+            now.getTime() +
+              current.dashboardSoundMuteDurationMinutes * 60_000,
+          ).toISOString()
+        : null;
     const settings = {
-      ...readLocalSystemSettings(),
+      ...current,
       dashboardSoundMuted: muted,
-      updatedAt: new Date().toISOString(),
+      dashboardSoundMutedAt: muted ? now.toISOString() : null,
+      dashboardSoundMutedUntil: mutedUntil,
+      dashboardSoundMuteReason: muted ? reason : null,
+      updatedAt: now.toISOString(),
     };
     saveLocalSystemSettings(settings);
 
     return {
       muted: settings.dashboardSoundMuted,
+      mutedAt: settings.dashboardSoundMutedAt,
+      mutedUntil: settings.dashboardSoundMutedUntil,
+      reason: settings.dashboardSoundMuteReason,
       updatedAt: settings.updatedAt,
+      reactivatedBy: null,
     } satisfies DashboardSoundState;
   }
 
-  return apiClient.patch<DashboardSoundState>("/api/dashboard-sound-state", { muted });
+  return apiClient.patch<DashboardSoundState>("/api/dashboard-sound-state", {
+    muted,
+    reason,
+  });
 }
 
 export async function updateSystemSettings(patch: SystemSettingsPatch) {
@@ -170,11 +250,41 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
 
   const settings =
     CONFIGURED_DATA_MODE === "local"
-      ? {
-          ...readLocalSystemSettings(),
-          ...patch,
-          updatedAt: new Date().toISOString(),
-        }
+      ? (() => {
+          const current = readLocalSystemSettings();
+          const now = new Date();
+          const effectiveMuteTimerEnabled =
+            patch.dashboardSoundMuteTimerEnabled ??
+            current.dashboardSoundMuteTimerEnabled;
+          const effectiveMuteDurationMinutes =
+            patch.dashboardSoundMuteDurationMinutes ??
+            current.dashboardSoundMuteDurationMinutes;
+          const muted = patch.dashboardSoundMuted;
+
+          return {
+            ...current,
+            ...patch,
+            ...(muted === true
+              ? {
+                  dashboardSoundMutedAt: now.toISOString(),
+                  dashboardSoundMutedUntil: effectiveMuteTimerEnabled
+                    ? new Date(
+                        now.getTime() +
+                          effectiveMuteDurationMinutes * 60_000,
+                      ).toISOString()
+                    : null,
+                  dashboardSoundMuteReason: "manual" as const,
+                }
+              : muted === false
+                ? {
+                    dashboardSoundMutedAt: null,
+                    dashboardSoundMutedUntil: null,
+                    dashboardSoundMuteReason: null,
+                  }
+                : {}),
+            updatedAt: now.toISOString(),
+          };
+        })()
       : await apiClient.patch<SystemSettings>("/api/system-settings", patch);
 
   if (CONFIGURED_DATA_MODE === "local") saveLocalSystemSettings(settings);
