@@ -25,6 +25,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     dashboardSoundMuteDurationMinutes: 3,
     dashboardSoundAutoMuteTimerEnabled: false,
     dashboardSoundActiveDurationMinutes: 3,
+    dashboardSoundMuted: false,
     dashboardMachineOrderMode: "default",
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
@@ -62,6 +63,7 @@ function readLocalSystemSettings() {
       )
         ? parsed.dashboardSoundActiveDurationMinutes
         : 3,
+      dashboardSoundMuted: parsed.dashboardSoundMuted === true,
       dashboardMachineOrderMode:
         parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
     };
@@ -112,6 +114,10 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
     !isValidDashboardSoundMuteDuration(patch.dashboardSoundActiveDurationMinutes)
   ) {
     throw new Error("Tempo de som ativo deve ser um número inteiro de pelo menos 1 minuto.");
+  }
+
+  if (patch.dashboardSoundMuted !== undefined && typeof patch.dashboardSoundMuted !== "boolean") {
+    throw new Error("Campo dashboardSoundMuted deve ser booleano.");
   }
 
   if (
