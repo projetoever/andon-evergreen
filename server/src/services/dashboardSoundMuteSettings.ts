@@ -3,6 +3,7 @@ export interface DashboardSoundMuteSettingsPatch {
   dashboardSoundMuteDurationMinutes?: unknown;
   dashboardSoundAutoMuteTimerEnabled?: unknown;
   dashboardSoundActiveDurationMinutes?: unknown;
+  dashboardSoundMuted?: unknown;
 }
 
 export function validateDashboardSoundMuteSettingsPatch(body: DashboardSoundMuteSettingsPatch) {
@@ -34,6 +35,10 @@ export function validateDashboardSoundMuteSettingsPatch(body: DashboardSoundMute
       Number(body.dashboardSoundActiveDurationMinutes) < 1)
   ) {
     return "Tempo de som ativo deve ser um número inteiro de pelo menos 1 minuto";
+  }
+
+  if ("dashboardSoundMuted" in body && typeof body.dashboardSoundMuted !== "boolean") {
+    return "Campo dashboardSoundMuted deve ser booleano";
   }
 
   return null;

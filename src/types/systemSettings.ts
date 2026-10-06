@@ -12,6 +12,7 @@ export interface SystemSettings {
   dashboardSoundMuteDurationMinutes: number;
   dashboardSoundAutoMuteTimerEnabled: boolean;
   dashboardSoundActiveDurationMinutes: number;
+  dashboardSoundMuted: boolean;
   dashboardMachineOrderMode: DashboardMachineOrderMode;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
@@ -30,6 +31,7 @@ export interface SystemSettingsPatch {
   dashboardSoundMuteDurationMinutes?: number;
   dashboardSoundAutoMuteTimerEnabled?: boolean;
   dashboardSoundActiveDurationMinutes?: number;
+  dashboardSoundMuted?: boolean;
   dashboardMachineOrderMode?: DashboardMachineOrderMode;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";

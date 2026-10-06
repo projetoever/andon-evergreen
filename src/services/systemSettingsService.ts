@@ -9,6 +9,12 @@ let localSystemSettings: SystemSettings | null = null;
 export const VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT = "andon:virtual-keyboard-setting-changed";
 export const SYSTEM_SETTINGS_CHANGED_EVENT = "andon:system-settings-changed";
 
+export interface DashboardSoundState {
+  muted: boolean;
+  updatedAt: string;
+}
+
+
 export function isValidDashboardSoundMuteDuration(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1;
 }
@@ -25,6 +31,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     dashboardSoundMuteDurationMinutes: 3,
     dashboardSoundAutoMuteTimerEnabled: false,
     dashboardSoundActiveDurationMinutes: 3,
+    dashboardSoundMuted: false,
     dashboardMachineOrderMode: "default",
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
@@ -62,6 +69,7 @@ function readLocalSystemSettings() {
       )
         ? parsed.dashboardSoundActiveDurationMinutes
         : 3,
+      dashboardSoundMuted: parsed.dashboardSoundMuted === true,
       dashboardMachineOrderMode:
         parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
     };
@@ -83,6 +91,40 @@ function saveLocalSystemSettings(settings: SystemSettings) {
 export function getSystemSettings() {
   if (CONFIGURED_DATA_MODE === "local") return Promise.resolve(readLocalSystemSettings());
   return apiClient.get<SystemSettings>("/api/system-settings");
+}
+
+export function getDashboardSoundState() {
+  if (CONFIGURED_DATA_MODE === "local") {
+    const settings = readLocalSystemSettings();
+    return Promise.resolve<DashboardSoundState>({
+      muted: settings.dashboardSoundMuted,
+      updatedAt: settings.updatedAt,
+    });
+  }
+
+  return apiClient.get<DashboardSoundState>("/api/dashboard-sound-state");
+}
+
+export async function updateDashboardSoundState(muted: boolean) {
+  if (typeof muted !== "boolean") {
+    throw new Error("Campo muted deve ser booleano.");
+  }
+
+  if (CONFIGURED_DATA_MODE === "local") {
+    const settings = {
+      ...readLocalSystemSettings(),
+      dashboardSoundMuted: muted,
+      updatedAt: new Date().toISOString(),
+    };
+    saveLocalSystemSettings(settings);
+
+    return {
+      muted: settings.dashboardSoundMuted,
+      updatedAt: settings.updatedAt,
+    } satisfies DashboardSoundState;
+  }
+
+  return apiClient.patch<DashboardSoundState>("/api/dashboard-sound-state", { muted });
 }
 
 export async function updateSystemSettings(patch: SystemSettingsPatch) {
@@ -112,6 +154,10 @@ export async function updateSystemSettings(patch: SystemSettingsPatch) {
     !isValidDashboardSoundMuteDuration(patch.dashboardSoundActiveDurationMinutes)
   ) {
     throw new Error("Tempo de som ativo deve ser um número inteiro de pelo menos 1 minuto.");
+  }
+
+  if (patch.dashboardSoundMuted !== undefined && typeof patch.dashboardSoundMuted !== "boolean") {
+    throw new Error("Campo dashboardSoundMuted deve ser booleano.");
   }
 
   if (
