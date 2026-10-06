@@ -19,6 +19,7 @@ type UpdateSystemSettingsBody = {
   dashboardSoundMuteDurationMinutes?: unknown;
   dashboardSoundAutoMuteTimerEnabled?: unknown;
   dashboardSoundActiveDurationMinutes?: unknown;
+  dashboardSoundMuted?: unknown;
   dashboardMachineOrderMode?: unknown;
   attendanceMode?: unknown;
   rfidReaderMode?: unknown;
@@ -43,6 +44,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const dashboardSoundMuteDurationMinutes = body.dashboardSoundMuteDurationMinutes;
     const dashboardSoundAutoMuteTimerEnabled = body.dashboardSoundAutoMuteTimerEnabled;
     const dashboardSoundActiveDurationMinutes = body.dashboardSoundActiveDurationMinutes;
+    const dashboardSoundMuted = body.dashboardSoundMuted;
     const dashboardMachineOrderMode = body.dashboardMachineOrderMode;
     const attendanceMode = body.attendanceMode;
     const rfidReaderMode = body.rfidReaderMode;
@@ -127,6 +129,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof dashboardSoundActiveDurationMinutes === "number"
         ? { dashboardSoundActiveDurationMinutes }
         : {}),
+      ...(typeof dashboardSoundMuted === "boolean" ? { dashboardSoundMuted } : {}),
       ...(dashboardMachineOrderMode === "default" || dashboardMachineOrderMode === "priority"
         ? { dashboardMachineOrderMode }
         : {}),
