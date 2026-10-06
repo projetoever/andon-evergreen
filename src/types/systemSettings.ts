@@ -13,6 +13,9 @@ export interface SystemSettings {
   dashboardSoundAutoMuteTimerEnabled: boolean;
   dashboardSoundActiveDurationMinutes: number;
   dashboardSoundMuted: boolean;
+  dashboardSoundMutedAt: string | null;
+  dashboardSoundMutedUntil: string | null;
+  dashboardSoundMuteReason: "manual" | "auto" | null;
   dashboardMachineOrderMode: DashboardMachineOrderMode;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
