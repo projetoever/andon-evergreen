@@ -73,6 +73,7 @@ test("defaults mantêm as duas fases automáticas desligadas e em três minutos"
   assert.match(service, /dashboardSoundMuteDurationMinutes: 3/);
   assert.match(service, /dashboardSoundAutoMuteTimerEnabled: false/);
   assert.match(service, /dashboardSoundActiveDurationMinutes: 3/);
+  assert.match(service, /dashboardSoundMuted: false/);
 });
 
 test("PATCH aceita habilitar e desabilitar o temporizador", () => {
@@ -83,6 +84,15 @@ test("PATCH aceita habilitar e desabilitar o temporizador", () => {
   assert.equal(
     validateDashboardSoundMuteSettingsPatch({ dashboardSoundMuteTimerEnabled: false }),
     null,
+  );
+});
+
+test("PATCH aceita estado operacional de mute da sirene", () => {
+  assert.equal(validateDashboardSoundMuteSettingsPatch({ dashboardSoundMuted: true }), null);
+  assert.equal(validateDashboardSoundMuteSettingsPatch({ dashboardSoundMuted: false }), null);
+  assert.match(
+    validateDashboardSoundMuteSettingsPatch({ dashboardSoundMuted: "true" }) ?? "",
+    /deve ser booleano/,
   );
 });
 
@@ -331,6 +341,9 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /dashboardMuteReasonRef/);
   assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(dashboard, /updateSystemSettings\\(\\{ dashboardSoundMuted: muted \\}\\)/);
+  assert.match(dashboard, /persistDashboardSoundMuted\\(true\\)/);
+  assert.match(dashboard, /persistDashboardSoundMuted\\(false\\)/);
 });
 
 test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudio", async () => {
