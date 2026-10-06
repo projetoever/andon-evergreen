@@ -8,6 +8,11 @@ import {
   type AttendanceMode,
 } from "../services/systemSettings.js";
 import { validateDashboardSoundMuteSettingsPatch } from "../services/dashboardSoundMuteSettings.js";
+import {
+  resolveDashboardSoundState,
+  setDashboardSoundState,
+  type DashboardSoundMuteReason,
+} from "../services/dashboardSoundState.js";
 import { badRequest } from "./routeUtils.js";
 
 type UpdateSystemSettingsBody = {
@@ -33,34 +38,31 @@ const RFID_TERMINATORS = new Set(["enter", "tab", "fixed_length"]);
 export function registerSystemSettingsRoutes(app: FastifyInstance) {
   app.get("/api/system-settings", async () => getSystemSettings());
 
-  app.get("/api/dashboard-sound-state", async () => {
-    const settings = await getSystemSettings();
-    return {
-      muted: settings.dashboardSoundMuted,
-      updatedAt: settings.updatedAt,
-    };
-  });
+  app.get("/api/dashboard-sound-state", async () => resolveDashboardSoundState());
 
-  app.patch<{ Body: { muted?: unknown } }>("/api/dashboard-sound-state", async (request, reply) => {
-    const muted = request.body?.muted;
-    if (typeof muted !== "boolean") {
-      return badRequest(reply, "Campo muted deve ser booleano");
-    }
+  app.patch<{ Body: { muted?: unknown; reason?: unknown } }>(
+    "/api/dashboard-sound-state",
+    async (request, reply) => {
+      const muted = request.body?.muted;
+      const reason = request.body?.reason;
 
-    const settings = await prisma.systemSettings.upsert({
-      where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
-      update: { dashboardSoundMuted: muted },
-      create: {
-        id: GLOBAL_SYSTEM_SETTINGS_ID,
-        dashboardSoundMuted: muted,
-      },
-    });
+      if (typeof muted !== "boolean") {
+        return badRequest(reply, "Campo muted deve ser booleano");
+      }
+      if (
+        reason !== undefined &&
+        reason !== "manual" &&
+        reason !== "auto"
+      ) {
+        return badRequest(reply, "Motivo do mute deve ser manual ou auto");
+      }
 
-    return {
-      muted: settings.dashboardSoundMuted,
-      updatedAt: settings.updatedAt,
-    };
-  });
+      return setDashboardSoundState(
+        muted,
+        (reason === "auto" ? "auto" : "manual") as DashboardSoundMuteReason,
+      );
+    },
+  );
 
   app.patch<{ Body: UpdateSystemSettingsBody }>("/api/system-settings", async (request, reply) => {
     const body = request.body ?? {};
@@ -158,7 +160,6 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof dashboardSoundActiveDurationMinutes === "number"
         ? { dashboardSoundActiveDurationMinutes }
         : {}),
-      ...(typeof dashboardSoundMuted === "boolean" ? { dashboardSoundMuted } : {}),
       ...(dashboardMachineOrderMode === "default" || dashboardMachineOrderMode === "priority"
         ? { dashboardMachineOrderMode }
         : {}),
@@ -168,7 +169,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...("rfidCodeLength" in body ? { rfidCodeLength: rfidCodeLength as number | null } : {}),
     };
 
-    return prisma.systemSettings.upsert({
+    const settings = await prisma.systemSettings.upsert({
       where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
       update: patch,
       create: {
@@ -176,5 +177,12 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
         ...patch,
       },
     });
+
+    if (typeof dashboardSoundMuted === "boolean") {
+      await setDashboardSoundState(dashboardSoundMuted, "manual");
+      return getSystemSettings();
+    }
+
+    return settings;
   });
 }
