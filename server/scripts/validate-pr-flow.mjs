@@ -837,6 +837,7 @@ async function run() {
   assert.equal(defaultWorkOrderSettings.dashboardSoundMuteDurationMinutes, 3);
   assert.equal(defaultWorkOrderSettings.dashboardSoundAutoMuteTimerEnabled, false);
   assert.equal(defaultWorkOrderSettings.dashboardSoundActiveDurationMinutes, 3);
+  assert.equal(defaultWorkOrderSettings.dashboardSoundMuted, false);
 
   const dashboardSoundMuteSettings = await request(
     "/api/system-settings",
@@ -845,12 +846,14 @@ async function run() {
       dashboardSoundMuteDurationMinutes: 5,
       dashboardSoundAutoMuteTimerEnabled: true,
       dashboardSoundActiveDurationMinutes: 4,
+      dashboardSoundMuted: true,
     }),
   );
   assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteTimerEnabled, true);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundMuteDurationMinutes, 5);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundAutoMuteTimerEnabled, true);
   assert.equal(dashboardSoundMuteSettings.dashboardSoundActiveDurationMinutes, 4);
+  assert.equal(dashboardSoundMuteSettings.dashboardSoundMuted, true);
   await request(
     "/api/system-settings",
     json("PATCH", { dashboardSoundMuteDurationMinutes: 0 }),
@@ -873,11 +876,17 @@ async function run() {
   );
   await request(
     "/api/system-settings",
+    json("PATCH", { dashboardSoundMuted: "true" }),
+    400,
+  );
+  await request(
+    "/api/system-settings",
     json("PATCH", {
       dashboardSoundMuteTimerEnabled: false,
       dashboardSoundMuteDurationMinutes: 3,
       dashboardSoundAutoMuteTimerEnabled: false,
       dashboardSoundActiveDurationMinutes: 3,
+      dashboardSoundMuted: false,
     }),
   );
 
