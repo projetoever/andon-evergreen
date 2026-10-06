@@ -201,12 +201,32 @@ export function formatMachinePanelDurationMinutes(minutes: number): string {
   const mins = Math.floor((totalSeconds % 3600) / 60);
 
   if (days > 0) {
+    return `${days} d ${hours.toString().padStart(2, "0")} h`;
+  }
+
+  return `${hours} h ${mins.toString().padStart(2, "0")} min`;
+}
+
+export function formatMachineStoppedDurationMinutes(minutes: number): string {
+  const totalSeconds = Math.max(0, Math.floor(minutes * 60));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (days > 0) {
     return `${days} d ${hours.toString().padStart(2, "0")} h ${mins
       .toString()
       .padStart(2, "0")} min`;
   }
 
-  return `${hours} h ${mins.toString().padStart(2, "0")} min`;
+  if (hours > 0) {
+    return `${hours} h ${mins.toString().padStart(2, "0")} min ${secs
+      .toString()
+      .padStart(2, "0")} s`;
+  }
+
+  return formatDurationMinutes(minutes);
 }
 
 export function formatCompactDurationMinutes(minutes: number, emptyLabel = "sem registro"): string {
