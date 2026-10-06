@@ -9,7 +9,9 @@ import {
   getKnownRealCallIds,
   hasDashboardAlertingCall,
   hasNewRealCall,
+  hasRealCallOpenedAfter,
   startDashboardSoundActiveTimer,
+  startDashboardSoundMuteDeadlineTimer,
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
@@ -336,12 +338,15 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /audioUnlocked: audioUnlocked && !dashboardSoundMuted/);
   assert.match(dashboard, /soundScope: "dashboard"/);
   assert.match(dashboard, /setDashboardSoundMuted\(false\)/);
-  assert.match(dashboard, /hasNewRealCall\(mutedKnownCallIdsRef\.current, calls\)/);
+  assert.match(
+    dashboard,
+    /hasRealCallOpenedAfter\(calls, dashboardMutedAtRef\.current\)/,
+  );
   assert.match(dashboard, /startDashboardSoundActiveTimer/);
   assert.match(dashboard, /dashboardMuteReasonRef/);
   assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
-  assert.match(dashboard, /updateDashboardSoundState\(muted\)/);
+  assert.match(dashboard, /updateDashboardSoundState\(muted, reason\)/);
   assert.match(dashboard, /getDashboardSoundState\(\)/);
   assert.match(dashboard, /persistDashboardSoundMuted/);
 });
@@ -354,12 +359,122 @@ test("API dedicada publica o estado operacional mute/desmute para o Agent", asyn
   ]);
 
   assert.match(route, /\/api\/dashboard-sound-state/);
-  assert.match(route, /muted: settings\.dashboardSoundMuted/);
+  assert.match(route, /resolveDashboardSoundState/);
+  assert.match(route, /setDashboardSoundState/);
   assert.match(service, /getDashboardSoundState/);
   assert.match(service, /updateDashboardSoundState/);
   assert.match(service, /\/api\/dashboard-sound-state/);
-  assert.match(dashboard, /updateDashboardSoundState\(muted\)/);
+  assert.match(dashboard, /updateDashboardSoundState\(muted, reason\)/);
   assert.match(dashboard, /getDashboardSoundState\(\)/);
+});
+
+
+
+test("novo chamado é detectado pelo horário do mute, inclusive na mesma máquina", () => {
+  const calls = [
+    {
+      openedAt: "2026-10-06T15:00:00.000Z",
+      isSystemTest: false,
+    },
+    {
+      openedAt: "2026-10-06T15:05:00.000Z",
+      isSystemTest: false,
+    },
+  ];
+
+  assert.equal(
+    hasRealCallOpenedAfter(calls, "2026-10-06T15:02:00.000Z"),
+    true,
+  );
+  assert.equal(
+    hasRealCallOpenedAfter(calls, "2026-10-06T15:06:00.000Z"),
+    false,
+  );
+});
+
+test("chamado de teste não quebra mute por horário", () => {
+  assert.equal(
+    hasRealCallOpenedAfter(
+      [
+        {
+          openedAt: "2026-10-06T15:05:00.000Z",
+          isSystemTest: true,
+        },
+      ],
+      "2026-10-06T15:02:00.000Z",
+    ),
+    false,
+  );
+});
+
+test("deadline restaurado usa somente o tempo restante do mute", () => {
+  const timer = fakeTimer();
+  let expired = false;
+
+  startDashboardSoundMuteDeadlineTimer(
+    "2026-10-06T15:03:00.000Z",
+    () => {
+      expired = true;
+    },
+    timer.schedule,
+    timer.cancel,
+    new Date("2026-10-06T15:01:00.000Z").getTime(),
+  );
+
+  assert.equal(timer.getDelay(), 120_000);
+  timer.run();
+  assert.equal(expired, true);
+});
+
+test("contexto global de mute possui início, deadline e motivo", async () => {
+  const [schema, migration, serverState, clientTypes] = await Promise.all([
+    readFile(new URL("../server/prisma/schema.prisma", import.meta.url), "utf8"),
+    readFile(
+      new URL(
+        "../server/prisma/migrations/20261006165000_add_dashboard_sound_mute_context/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL("../server/src/services/dashboardSoundState.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../src/types/systemSettings.ts", import.meta.url), "utf8"),
+  ]);
+
+  for (const source of [schema, migration, clientTypes]) {
+    assert.match(source, /dashboardSoundMutedAt/);
+    assert.match(source, /dashboardSoundMutedUntil/);
+    assert.match(source, /dashboardSoundMuteReason/);
+  }
+
+  assert.match(serverState, /openedAt: \{ gt: settings\.dashboardSoundMutedAt \}/);
+  assert.match(serverState, /isSystemTest: false/);
+  assert.match(serverState, /reactivatedBy/);
+  assert.match(serverState, /"timeout"/);
+  assert.match(serverState, /"new_call"/);
+  assert.doesNotMatch(migration, /\bDROP\b|\bDELETE\b|\bTRUNCATE\b/i);
+});
+
+test("dashboard restaura mute sem reiniciar prazo e iniciar painel não desmuta", async () => {
+  const dashboard = await readFile(
+    new URL("../src/pages/DashboardPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(dashboard, /soundState\.mutedAt/);
+  assert.match(dashboard, /soundState\.mutedUntil/);
+  assert.match(dashboard, /soundState\.reason/);
+  assert.match(dashboard, /startDashboardSoundMuteDeadlineTimer/);
+  assert.match(
+    dashboard,
+    /Painel ativo — som do dashboard permanece silenciado/,
+  );
+  assert.doesNotMatch(
+    dashboard,
+    /function handleUnlock\(\)[\s\S]{0,180}reactivateDashboardSound/,
+  );
 });
 
 test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudio", async () => {
