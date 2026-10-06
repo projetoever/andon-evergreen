@@ -10,6 +10,8 @@ export interface SystemSettings {
   restrictMaintenanceCompletionToAttendanceWorkstation: boolean;
   dashboardSoundMuteTimerEnabled: boolean;
   dashboardSoundMuteDurationMinutes: number;
+  dashboardSoundAutoMuteTimerEnabled: boolean;
+  dashboardSoundActiveDurationMinutes: number;
   dashboardMachineOrderMode: DashboardMachineOrderMode;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
@@ -26,6 +28,8 @@ export interface SystemSettingsPatch {
   restrictMaintenanceCompletionToAttendanceWorkstation?: boolean;
   dashboardSoundMuteTimerEnabled?: boolean;
   dashboardSoundMuteDurationMinutes?: number;
+  dashboardSoundAutoMuteTimerEnabled?: boolean;
+  dashboardSoundActiveDurationMinutes?: number;
   dashboardMachineOrderMode?: DashboardMachineOrderMode;
   attendanceMode?: AttendanceMode;
   rfidReaderMode?: "keyboard_hid";
