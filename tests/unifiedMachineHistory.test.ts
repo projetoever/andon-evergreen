@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { formatMachinePanelDurationMinutes } from "../src/utils/durationUtils";
+import {
+  formatMachinePanelDurationMinutes,
+  formatMachineStoppedDurationMinutes,
+} from "../src/utils/durationUtils";
 
 test("unifica chamados, falhas vinculadas e ocorrências órfãs por máquina", async () => {
   const history = await readFile(
@@ -116,11 +119,20 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
 });
 
 
-test("temporizadores grandes ocultam segundos a partir de uma hora", () => {
-  assert.equal(formatMachinePanelDurationMinutes(59 + 59 / 60), "59 min 59 s");
-  assert.equal(formatMachinePanelDurationMinutes(60), "1 h 00 min");
+test("temporizadores de chamado exibem no máximo duas unidades", () => {
+  assert.equal(formatMachinePanelDurationMinutes(45 / 60), "45 s");
+  assert.equal(formatMachinePanelDurationMinutes(22 + 15 / 60), "22 min 15 s");
   assert.equal(formatMachinePanelDurationMinutes(73.5), "1 h 13 min");
-  assert.equal(formatMachinePanelDurationMinutes(120 + 5 / 60), "2 h 00 min");
+  assert.equal(formatMachinePanelDurationMinutes(2 * 1440 + 4 * 60 + 12), "2 d 04 h");
+});
+
+test("temporizador de parada mantém até três unidades", () => {
+  assert.equal(formatMachineStoppedDurationMinutes(59 + 59 / 60), "59 min 59 s");
+  assert.equal(formatMachineStoppedDurationMinutes(89 + 18 / 60), "1 h 29 min 18 s");
+  assert.equal(
+    formatMachineStoppedDurationMinutes(24 * 60 + 3 * 60 + 12),
+    "1 d 03 h 12 min",
+  );
 });
 
 test("painéis da máquina usam o formato compacto nos temporizadores destacados", async () => {
@@ -135,7 +147,7 @@ test("painéis da máquina usam o formato compacto nos temporizadores destacados
     ),
   ]);
 
-  assert.match(statusPanel, /formatMachinePanelDurationMinutes\(stoppedMin\)/);
+  assert.match(statusPanel, /formatMachineStoppedDurationMinutes\(stoppedMin\)/);
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(waiting\)/);
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(attending\)/);
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(postMaintenance\)/);
