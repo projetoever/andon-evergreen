@@ -212,6 +212,8 @@ test("detecção do ciclo considera somente chamado aberto elegível para alarme
   const soundConfigs = [
     {
       key: "electrical",
+      label: "Elétrica",
+      fileName: "electrical.mp3",
       enabled: true,
       repeatUntilAttended: true,
       repeatIntervalSeconds: 30,
