@@ -13,6 +13,13 @@ import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPrio
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { isDashboardPriorityAuthenticated } from "@/services/dashboardPriorityService";
 import { getMachineScreenLock } from "@/services/machineScreenLockService";
+import {
+  clearDashboardSoundMuteSession,
+  createDashboardSoundMuteSessionState,
+  loadDashboardSoundMuteSession,
+  saveDashboardSoundMuteSession,
+  startDashboardSoundMuteSessionTimer,
+} from "@/services/dashboardSoundMuteSessionService";
 import { toast } from "sonner";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
@@ -24,7 +31,6 @@ import {
   hasDashboardAlertingCall,
   hasNewRealCall,
   startDashboardSoundActiveTimer,
-  startDashboardSoundMuteTimer,
 } from "@/utils/dashboardSoundMuteUtils";
 
 export function DashboardPage() {
@@ -34,7 +40,10 @@ export function DashboardPage() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
-  const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
+  const [restoredMuteSession] = useState(() => loadDashboardSoundMuteSession());
+  const [dashboardSoundMuted, setDashboardSoundMuted] = useState(
+    () => restoredMuteSession !== null,
+  );
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
   const [dashboardMuteTimerEnabled, setDashboardMuteTimerEnabled] = useState(false);
@@ -47,8 +56,12 @@ export function DashboardPage() {
   );
   const muteTimerCancelRef = useRef<(() => void) | null>(null);
   const activeTimerCancelRef = useRef<(() => void) | null>(null);
-  const mutedKnownCallIdsRef = useRef<Set<string>>(new Set());
-  const dashboardMuteReasonRef = useRef<"manual" | "auto" | null>(null);
+  const mutedKnownCallIdsRef = useRef<Set<string>>(
+    new Set(restoredMuteSession?.knownCallIds ?? []),
+  );
+  const dashboardMuteReasonRef = useRef<"manual" | "auto" | null>(
+    restoredMuteSession?.reason ?? null,
+  );
   const callsRef = useRef(calls);
 
   useEffect(() => {
@@ -87,6 +100,7 @@ export function DashboardPage() {
       cancelDashboardActiveTimer();
       mutedKnownCallIdsRef.current = new Set();
       dashboardMuteReasonRef.current = null;
+      clearDashboardSoundMuteSession();
       setDashboardSoundMuted(false);
       if (message) toast.success(message);
     },
@@ -97,14 +111,23 @@ export function DashboardPage() {
     (reason: "manual" | "auto", message?: string) => {
       cancelDashboardActiveTimer();
       cancelDashboardMuteTimer();
-      mutedKnownCallIdsRef.current = getKnownRealCallIds(callsRef.current);
+
+      const knownCallIds = getKnownRealCallIds(callsRef.current);
+      const muteSession = createDashboardSoundMuteSessionState({
+        reason,
+        knownCallIds,
+        timerEnabled: dashboardMuteTimerEnabled,
+        durationMinutes: dashboardMuteDurationMinutes,
+      });
+
+      mutedKnownCallIdsRef.current = new Set(muteSession.knownCallIds);
       dashboardMuteReasonRef.current = reason;
+      saveDashboardSoundMuteSession(muteSession);
       setDashboardSoundMuted(true);
       stopAndonSound(undefined, "dashboard");
 
-      muteTimerCancelRef.current = startDashboardSoundMuteTimer(
-        dashboardMuteTimerEnabled,
-        dashboardMuteDurationMinutes,
+      muteTimerCancelRef.current = startDashboardSoundMuteSessionTimer(
+        muteSession,
         () => {
           muteTimerCancelRef.current = null;
           reactivateDashboardSound(
@@ -156,6 +179,22 @@ export function DashboardPage() {
       window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
     };
   }, []);
+
+  useEffect(() => {
+    if (!restoredMuteSession || !dashboardSoundMuted) return;
+
+    muteTimerCancelRef.current = startDashboardSoundMuteSessionTimer(
+      restoredMuteSession,
+      () => {
+        muteTimerCancelRef.current = null;
+        reactivateDashboardSound(
+          restoredMuteSession.reason === "auto"
+            ? "Tempo de silêncio encerrado — ciclo do alarme reativado"
+            : "Tempo de silêncio encerrado — som do dashboard reativado",
+        );
+      },
+    );
+  }, [dashboardSoundMuted, reactivateDashboardSound, restoredMuteSession]);
 
   useEffect(
     () => () => {
@@ -244,8 +283,11 @@ export function DashboardPage() {
   function handleUnlock() {
     unlockAudio();
     setAudioUnlocked(true);
-    reactivateDashboardSound();
-    toast.success("Painel ativo — sons habilitados");
+    toast.success(
+      dashboardSoundMuted
+        ? "Painel ativo — som do dashboard permanece silenciado"
+        : "Painel ativo — sons habilitados",
+    );
   }
 
   function handleToggleDashboardSound() {
