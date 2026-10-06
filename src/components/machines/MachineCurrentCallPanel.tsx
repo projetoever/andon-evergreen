@@ -40,7 +40,7 @@ function TimerMetric({ label, value, tone = "foreground" }: TimerMetricProps) {
       <dt className="text-xs uppercase text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "mt-0.5 whitespace-nowrap pb-0.5 text-xl font-bold leading-[1.15] md:text-2xl",
+          "mt-1 whitespace-nowrap pb-0.5 text-[clamp(1.5rem,2.25vw,2.5rem)] font-black leading-none",
           tone === "warning" && "text-warning",
           tone === "info" && "text-info",
           tone === "foreground" && "text-foreground",
@@ -177,7 +177,7 @@ export function MachineCurrentCallPanel({
             </dd>
           </div>
         )}
-        <div className="col-span-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/15 p-2 lg:col-span-3 xl:grid-cols-4">
+        <div className="col-span-2 mt-1 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 lg:col-span-3 xl:grid-cols-4">
           <TimerMetric label="Aguardando" value={formatDurationMinutes(waiting)} tone="warning" />
           <TimerMetric
             label="Em atendimento"
