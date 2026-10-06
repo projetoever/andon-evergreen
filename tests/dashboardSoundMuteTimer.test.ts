@@ -341,8 +341,25 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /dashboardMuteReasonRef/);
   assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
-  assert.match(dashboard, /dashboardSoundMuted: muted/);
+  assert.match(dashboard, /updateDashboardSoundState\(muted\)/);
+  assert.match(dashboard, /getDashboardSoundState\(\)/);
   assert.match(dashboard, /persistDashboardSoundMuted/);
+});
+
+test("API dedicada publica o estado operacional mute/desmute para o Agent", async () => {
+  const [dashboard, route, service] = await Promise.all([
+    readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/systemSettings.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/systemSettingsService.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(route, /\/api\/dashboard-sound-state/);
+  assert.match(route, /muted: settings\.dashboardSoundMuted/);
+  assert.match(service, /getDashboardSoundState/);
+  assert.match(service, /updateDashboardSoundState/);
+  assert.match(service, /\/api\/dashboard-sound-state/);
+  assert.match(dashboard, /updateDashboardSoundState\(muted\)/);
+  assert.match(dashboard, /getDashboardSoundState\(\)/);
 });
 
 test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudio", async () => {
