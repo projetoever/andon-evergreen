@@ -243,6 +243,7 @@ export function DashboardPage() {
 
     if (
       !audioUnlocked ||
+      !dashboardSoundStateLoaded ||
       dashboardSoundMuted ||
       !dashboardAutoMuteTimerEnabled ||
       !hasDashboardAlertCall
@@ -273,6 +274,7 @@ export function DashboardPage() {
     dashboardMuteDurationMinutes,
     dashboardMuteTimerEnabled,
     dashboardSoundMuted,
+    dashboardSoundStateLoaded,
     hasDashboardAlertCall,
     muteDashboardSound,
   ]);
@@ -380,7 +382,7 @@ export function DashboardPage() {
                 dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
               }
               onClick={handleToggleDashboardSound}
-              disabled={dashboardSoundSyncing}
+              disabled={dashboardSoundSyncing || !dashboardSoundStateLoaded}
               className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {dashboardSoundMuted ? (
