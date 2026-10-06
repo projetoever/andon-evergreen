@@ -18,6 +18,9 @@ model SystemSettings {
   dashboardSoundAutoMuteTimerEnabled                   Boolean  @default(false)
   dashboardSoundActiveDurationMinutes                  Int      @default(3)
   dashboardSoundMuted                                  Boolean  @default(false)
+  dashboardSoundMutedAt                                DateTime?
+  dashboardSoundMutedUntil                             DateTime?
+  dashboardSoundMuteReason                             String?
   dashboardMachineOrderMode                            String   @default("default")
   attendanceMode                                       String   @default("name")
   rfidReaderMode                                       String   @default("keyboard_hid")
