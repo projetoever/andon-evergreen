@@ -212,7 +212,7 @@ export function MachineCard({
                 title="Clique para ler a informação completa do operador"
               >
                 <MessageSquareText className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Info: {operatorNoteSummary}</span>
+                <span className="truncate">{operatorNoteSummary}</span>
               </button>
             )}
           </div>
