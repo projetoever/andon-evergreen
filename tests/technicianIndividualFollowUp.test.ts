@@ -17,6 +17,7 @@ import type { Machine } from "../src/types/machine";
 import {
   buildTechnicianParticipationSummaries,
   getTechnicianAccumulatedMinutes,
+  getTechnicianPhaseAccumulatedMinutes,
 } from "../src/utils/technicianSessionUtils";
 import { buildTechnicianTimeAllocations } from "../src/utils/technicianTimeAllocationUtils";
 
@@ -429,6 +430,8 @@ test("contador acumulado preserva tempo do mantenedor entre manutenção, acompa
 
   assert.equal(summary.maintenanceMinutes, 35);
   assert.equal(summary.followUpMinutes, 25);
+  assert.equal(getTechnicianPhaseAccumulatedMinutes(summary, "maintenance"), 35);
+  assert.equal(getTechnicianPhaseAccumulatedMinutes(summary, "follow_up"), 25);
   assert.equal(getTechnicianAccumulatedMinutes(summary), 60);
   assert.equal(summary.activePhase, "follow_up");
 });
@@ -517,7 +520,7 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.match(page, /Encerrar acompanhamento/);
   assert.match(page, /setEndOpen\(true\)/);
   assert.match(page, /EndTechnicianSessionModal/);
-  assert.match(page, /getTechnicianAccumulatedMinutes\(summary\)/);
+  assert.match(page, /getTechnicianPhaseAccumulatedMinutes\(summary, phase\)/);
   assert.doesNotMatch(page, /handleEndActiveSession/);
   assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
   assert.doesNotMatch(page, /maintenanceIntervals\.map/);
@@ -535,10 +538,10 @@ test("tempos individuais ficam legíveis e acompanhamento usa verde", async () =
   ]);
 
   assert.match(page, /text-base font-black md:text-lg 2xl:text-xl/);
-  assert.match(
-    page,
-    /currentCall\.status === "post_maintenance" \? "text-success" : "text-info"/,
-  );
+  assert.match(page, /const phase = summary\.activePhase \?\? "maintenance"/);
+  assert.match(page, /const phaseMinutes = getTechnicianPhaseAccumulatedMinutes\(summary, phase\)/);
+  assert.match(page, /isFollowUp \? "text-success" : "text-info"/);
+  assert.match(page, /isFollowUp \? "Acompanhamento" : "Atendimento"/);
   assert.match(callPanel, /tone\?: "warning" \| "info" \| "success" \| "foreground"/);
   assert.match(callPanel, /tone === "success" && "text-success"/);
   assert.match(
@@ -569,4 +572,68 @@ test("tela da máquina importa cn antes de renderizar tempos de mantenedores ati
   assert.match(page, /import \{ cn \} from "@\/lib\/utils"/);
   assert.match(page, /className=\{cn\(/);
   assert.match(page, /activeParticipationSummaries\.map/);
+});
+
+
+test("contador individual retoma o acumulado correto ao voltar para manutenção", () => {
+  const sessions: TechnicianAttendanceSession[] = [
+    {
+      id: "maintenance-1",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "maintenance",
+      cycleIndex: 1,
+      startedAt: "2026-10-02T10:00:00.000Z",
+      endedAt: "2026-10-02T10:20:00.000Z",
+    },
+    {
+      id: "follow-up-1",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "follow_up",
+      cycleIndex: 1,
+      startedAt: "2026-10-02T10:20:00.000Z",
+      endedAt: "2026-10-02T10:30:00.000Z",
+    },
+    {
+      id: "maintenance-2",
+      callId: "call",
+      machineId: "m1",
+      technicianId: "a",
+      technicianName: "Técnico A",
+      phase: "maintenance",
+      cycleIndex: 2,
+      startedAt: "2026-10-02T10:30:00.000Z",
+    },
+  ];
+
+  const [summary] = buildTechnicianParticipationSummaries(
+    sessions,
+    "2026-10-02T10:45:00.000Z",
+    "in_progress",
+  );
+
+  assert.equal(summary.activePhase, "maintenance");
+  assert.equal(getTechnicianPhaseAccumulatedMinutes(summary, "maintenance"), 35);
+  assert.equal(getTechnicianPhaseAccumulatedMinutes(summary, "follow_up"), 10);
+  assert.equal(getTechnicianAccumulatedMinutes(summary), 45);
+});
+
+test("histórico discrimina atendimento, acompanhamento e total individual sem inventar fases legadas", async () => {
+  const history = await readFile(
+    new URL("../src/pages/MachineCallHistoryPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(history, /hasPhaseAwareSessions/);
+  assert.match(history, /buildTechnicianParticipationSummaries/);
+  assert.match(history, />\s*Atendimento\s*</);
+  assert.match(history, />\s*Acompanhamento\s*</);
+  assert.match(history, />\s*Total individual\s*</);
+  assert.match(history, /Tempo total legado/);
+  assert.match(history, /phaseAwareRows\.length > 0 \? phaseAwareRows : legacyRows/);
 });
