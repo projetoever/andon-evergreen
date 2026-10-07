@@ -169,11 +169,11 @@ test("ações da máquina usam altura responsiva e fluxo centralizado", async ()
   assert.match(source, /layoutStage === "idle"/);
   assert.match(source, /layoutStage === "open"/);
   assert.match(source, /layoutStage === "active"/);
-  assert.match(source, /min-h-\[clamp\(6\.25rem,11vh,8\.25rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(7\.25rem,14\.5vh,9\.75rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(5\.25rem,9vh,6\.5rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(6\.75rem,12vh,8\.75rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(8rem,15\.5vh,10\.5rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(5\.75rem,9\.75vh,7rem\)\]/);
   assert.match(source, /: "min-h-12 text-sm"/);
-  assert.match(source, /min-h-\[clamp\(5\.75rem,10\.5vh,7rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(6\.25rem,11\.5vh,7\.5rem\)\]/);
   assert.match(source, /sm:max-w-\[46rem\]/);
   assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
   assert.match(source, /flex flex-wrap items-stretch justify-center/);
@@ -231,11 +231,11 @@ test("chamado aberto prioriza acessibilidade com ações significativamente maio
 
   assert.match(
     source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(7\.25rem,14\.5vh,9\.75rem\)\]/,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(8rem,15\.5vh,10\.5rem\)\]/,
   );
   assert.match(
     source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(5\.75rem,10\.5vh,7rem\)\]/,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(6\.25rem,11\.5vh,7\.5rem\)\]/,
   );
   assert.match(source, /xl:text-2xl/);
   assert.match(source, /md:text-lg/);

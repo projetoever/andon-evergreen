@@ -250,17 +250,17 @@ export function MachineActionPanel({
         : "active";
   const sectorActionClass =
     layoutStage === "idle"
-      ? "min-h-[clamp(6.25rem,11vh,8.25rem)] text-lg xl:text-xl"
+      ? "min-h-[clamp(6.75rem,12vh,8.75rem)] text-lg xl:text-xl"
       : layoutStage === "open"
-        ? "min-h-[clamp(7.25rem,14.5vh,9.75rem)] text-lg xl:text-2xl"
+        ? "min-h-[clamp(8rem,15.5vh,10.5rem)] text-lg xl:text-2xl"
         : layoutStage === "active"
-          ? "min-h-[clamp(5.25rem,9vh,6.5rem)] text-base lg:text-xl"
+          ? "min-h-[clamp(5.75rem,9.75vh,7rem)] text-base lg:text-xl"
           : "min-h-12 text-sm";
   const workflowActionClass =
     layoutStage === "open"
-      ? "min-h-[clamp(5.75rem,10.5vh,7rem)] w-full px-4 text-base sm:flex-1 sm:max-w-[46rem] md:text-lg"
+      ? "min-h-[clamp(6.25rem,11.5vh,7.5rem)] w-full px-4 text-base sm:flex-1 sm:max-w-[46rem] md:text-lg"
       : layoutStage === "active"
-        ? "min-h-[clamp(4rem,7vh,4.75rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem] md:text-base"
+        ? "min-h-[clamp(4.5rem,8vh,5.25rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem] md:text-base"
         : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] sm:text-sm";
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
