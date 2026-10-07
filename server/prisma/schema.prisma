@@ -241,6 +241,7 @@ model AndonCall {
   category                    String
   subtype                     String?
   workOrderNumber             String?
+  operatorNote                String?
   status                      String
   criticality                 String
   machineCondition            String?
