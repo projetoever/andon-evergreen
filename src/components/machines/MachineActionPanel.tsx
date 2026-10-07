@@ -235,17 +235,33 @@ export function MachineActionPanel({
   maintenanceCompletionHintTone = "warning",
 }: MachineActionPanelProps) {
   const hasActiveCall = activeCalls.length > 0;
-  const layoutStage = !hasActiveCall ? "idle" : currentCall?.status === "open" ? "open" : "busy";
+  const activeTechnicianCount =
+    currentCall?.technicianSessions?.filter((session) => !session.endedAt).length ?? 0;
+  const hasDenseOperationalContent =
+    activeTechnicianCount > 0 ||
+    currentCall?.status === "post_maintenance" ||
+    Boolean(maintenanceCompletionHint);
+  const layoutStage = !hasActiveCall
+    ? "idle"
+    : hasDenseOperationalContent
+      ? "dense"
+      : currentCall?.status === "open"
+        ? "open"
+        : "active";
   const sectorActionClass =
     layoutStage === "idle"
       ? "min-h-[clamp(6rem,10.5vh,8rem)] text-lg xl:text-xl"
       : layoutStage === "open"
-        ? "min-h-[clamp(4rem,7vh,5rem)] text-base lg:text-lg"
-        : "min-h-12 text-sm";
+        ? "min-h-[clamp(4.75rem,8.5vh,6rem)] text-lg xl:text-xl"
+        : layoutStage === "active"
+          ? "min-h-[clamp(4.25rem,7.5vh,5.25rem)] text-base lg:text-lg"
+          : "min-h-12 text-sm";
   const workflowActionClass =
     layoutStage === "open"
-      ? "min-h-[clamp(3rem,5vh,3.75rem)] w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] md:text-sm"
-      : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem]";
+      ? "min-h-[clamp(3.75rem,6.5vh,4.5rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem] md:text-base"
+      : layoutStage === "active"
+        ? "min-h-[clamp(3.25rem,5.5vh,4rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem]"
+        : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] sm:text-sm";
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

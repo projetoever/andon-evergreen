@@ -180,7 +180,7 @@ export function MachineCard({
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Fora de produção
           </div>
         )}
-        {machine.machineStatus === "running" && (
+        {machine.machineStatus === "running" && !currentCall && (
           <div
             className="truncate rounded-md bg-muted/35 px-2 py-1 text-center font-black text-foreground"
             title={`Última ocorrência • ${lastOccurrenceDetails}`}

@@ -157,6 +157,7 @@ test("cards mostram recência da última ocorrência em vez da duração da últ
   );
   assert.match(card, /text-center font-black text-foreground/);
   assert.doesNotMatch(card, /Última falha:/);
+  assert.match(card, /machine\.machineStatus === "running" && !currentCall/);
 
   assert.match(statusPanel, /Última ocorrência/);
   assert.match(statusPanel, /Tempo desde o último chamado ou falha\./);
@@ -176,4 +177,16 @@ test("mensagem do operador ocupa o card somente enquanto o chamado aguarda", asy
   );
   assert.match(card, /Clique para ler a informação completa do operador/);
   assert.match(card, /DialogTitle>Informação do operador/);
+});
+
+
+test("card evita redundância de recência enquanto existe chamado ativo", async () => {
+  const card = await readFile(
+    new URL("../src/components/machines/MachineCard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(card, /machine\.machineStatus === "running" && !currentCall/);
+  assert.match(card, /\{currentCall && \(/);
+  assert.match(card, /callElapsedLabel/);
 });

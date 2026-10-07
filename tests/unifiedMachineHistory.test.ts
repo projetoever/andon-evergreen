@@ -161,12 +161,19 @@ test("ações da máquina usam altura responsiva e fluxo centralizado", async ()
     "utf8",
   );
 
+  assert.match(source, /activeTechnicianCount/);
+  assert.match(source, /hasDenseOperationalContent/);
   assert.match(source, /layoutStage === "idle"/);
+  assert.match(source, /layoutStage === "open"/);
+  assert.match(source, /layoutStage === "active"/);
   assert.match(source, /min-h-\[clamp\(6rem,10\.5vh,8rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(4rem,7vh,5rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(4\.75rem,8\.5vh,6rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(4\.25rem,7\.5vh,5\.25rem\)\]/);
   assert.match(source, /: "min-h-12 text-sm"/);
+  assert.match(source, /min-h-\[clamp\(3\.75rem,6\.5vh,4\.5rem\)\]/);
+  assert.match(source, /sm:max-w-\[44rem\]/);
+  assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
   assert.match(source, /flex flex-wrap items-stretch justify-center/);
-  assert.match(source, /sm:max-w-\[38rem\]/);
   assert.match(source, /> Atender selecionado/);
   assert.match(source, /> Cancelar selecionado/);
 });
