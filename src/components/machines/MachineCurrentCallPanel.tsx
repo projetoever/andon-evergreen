@@ -110,13 +110,13 @@ export function MachineCurrentCallPanel({
         className,
       )}
     >
-      <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-1">
+      <div className="mb-2 flex min-h-[3.25rem] min-w-0 flex-wrap items-start justify-between gap-1">
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
           Chamado atual
         </h3>
         <CallIdLabel callId={call.id} className="text-right" />
       </div>
-      <dl className="grid min-h-0 flex-1 content-start grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
+      <dl className="grid min-h-0 shrink-0 content-start grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 xl:min-h-[9.5rem]">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
