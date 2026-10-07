@@ -558,3 +558,15 @@ test("início do atendimento não solicita observação inicial", async () => {
   assert.doesNotMatch(source, /notes: notes\.trim\(\) \|\| null/);
   assert.doesNotMatch(source, /components\/ui\/textarea/);
 });
+
+
+test("tela da máquina importa cn antes de renderizar tempos de mantenedores ativos", async () => {
+  const page = await readFile(
+    new URL("../src/pages/MachineDetailPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /import \{ cn \} from "@\/lib\/utils"/);
+  assert.match(page, /className=\{cn\(/);
+  assert.match(page, /activeParticipationSummaries\.map/);
+});
