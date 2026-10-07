@@ -259,12 +259,12 @@ test("status e chamado alinham os temporizadores na zona superior", async () => 
   assert.match(callPanel, /min-h-\[3\.25rem\]/);
   assert.match(statusPanel, /xl:min-h-\[9\.5rem\]/);
   assert.match(callPanel, /xl:min-h-\[9\.5rem\]/);
-  assert.match(statusPanel, /grid min-h-0 shrink-0 content-start/);
-  assert.match(callPanel, /grid min-h-0 shrink-0 content-start/);
+  assert.match(statusPanel, /xl:grid-rows-1 xl:items-stretch/);
+  assert.match(callPanel, /xl:auto-rows-fr/);
   assert.doesNotMatch(statusPanel, /grid min-h-0 flex-1 content-start/);
   assert.doesNotMatch(callPanel, /grid min-h-0 flex-1 content-start/);
-  assert.match(statusPanel, /<dl className="mt-2 shrink-0">/);
-  assert.match(callPanel, /<dl className="mt-2 grid shrink-0/);
+  assert.match(statusPanel, /<dl className="mt-1\.5 shrink-0">/);
+  assert.match(callPanel, /<dl className="mt-1\.5 grid shrink-0/);
   assert.match(statusPanel, /Tempo total em falha/);
   assert.match(callPanel, /label="Aguardando"/);
   assert.match(callPanel, /label="Em atendimento"/);
@@ -287,4 +287,24 @@ test("conteúdo denso continua compactando as ações automaticamente", async ()
     source,
     /: "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\] sm:text-sm"/,
   );
+});
+
+
+test("cartões de status preenchem a faixa informativa e contadores seguem logo abaixo", async () => {
+  const [statusPanel, callPanel] = await Promise.all([
+    readFile(
+      new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(statusPanel, /xl:grid-rows-1 xl:items-stretch/);
+  assert.match(statusPanel, /xl:h-full/);
+  assert.match(callPanel, /xl:auto-rows-fr/);
+  assert.match(statusPanel, /mt-1\.5 shrink-0/);
+  assert.match(callPanel, /mt-1\.5 grid shrink-0/);
 });
