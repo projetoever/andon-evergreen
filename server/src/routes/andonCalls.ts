@@ -1257,7 +1257,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const machineCondition = optionalString(body.machineCondition);
     const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
     const operatorNote = normalizeOperatorNote(body.operatorNote);
-    const operatorNote = normalizeOperatorNote(body.operatorNote);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!category) return badRequest(reply, "Campo category é obrigatório");
@@ -1487,6 +1486,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const criticality = optionalString(body.criticality) ?? "medium";
     const machineCondition = optionalString(body.machineCondition);
     const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
+    const operatorNote = normalizeOperatorNote(body.operatorNote);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!subtypes.length || subtypes.length > 20) {
