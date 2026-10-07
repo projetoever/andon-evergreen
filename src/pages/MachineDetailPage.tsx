@@ -41,7 +41,7 @@ import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
 import { getServerNowIso } from "@/utils/serverClock";
 import {
   buildTechnicianParticipationSummaries,
-  getTechnicianAccumulatedMinutes,
+  getTechnicianPhaseAccumulatedMinutes,
   resolveSessionPhase,
 } from "@/utils/technicianSessionUtils";
 import {
@@ -552,24 +552,35 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 className="mt-1.5 grid gap-1.5"
                 style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
               >
-                {activeParticipationSummaries.map((summary) => (
-                  <div
-                    key={summary.key}
-                    className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-2.5 py-1.5"
-                  >
-                    <span className="min-w-0 truncate text-sm font-bold text-foreground">
-                      {summary.technicianName}
-                    </span>
-                    <strong
-                      className={cn(
-                        "whitespace-nowrap font-mono text-base font-black md:text-lg 2xl:text-xl",
-                        currentCall.status === "post_maintenance" ? "text-success" : "text-info",
-                      )}
+                {activeParticipationSummaries.map((summary) => {
+                  const phase = summary.activePhase ?? "maintenance";
+                  const phaseMinutes = getTechnicianPhaseAccumulatedMinutes(summary, phase);
+                  const isFollowUp = phase === "follow_up";
+
+                  return (
+                    <div
+                      key={summary.key}
+                      className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-2.5 py-1.5"
                     >
-                      {formatDurationMinutes(getTechnicianAccumulatedMinutes(summary))}
-                    </strong>
-                  </div>
-                ))}
+                      <span className="min-w-0 truncate text-sm font-bold text-foreground">
+                        {summary.technicianName}
+                      </span>
+                      <div className="shrink-0 text-right">
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground md:text-[11px]">
+                          {isFollowUp ? "Acompanhamento" : "Atendimento"}
+                        </div>
+                        <strong
+                          className={cn(
+                            "whitespace-nowrap font-mono text-base font-black md:text-lg 2xl:text-xl",
+                            isFollowUp ? "text-success" : "text-info",
+                          )}
+                        >
+                          {formatDurationMinutes(phaseMinutes)}
+                        </strong>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
