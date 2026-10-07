@@ -162,3 +162,18 @@ test("cards mostram recência da última ocorrência em vez da duração da últ
   assert.match(statusPanel, /Tempo desde o último chamado ou falha\./);
   assert.match(statusPanel, /formatElapsedSince\(lastOccurrence\?\.occurredAt\)/);
 });
+
+
+test("mensagem do operador ocupa o card somente enquanto o chamado aguarda", async () => {
+  const card = await readFile(
+    new URL("../src/components/machines/MachineCard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    card,
+    /currentCall\?\.status === "open" \? currentCall\.operatorNote\?\.trim\(\) \|\| null : null/,
+  );
+  assert.match(card, /Clique para ler a informação completa do operador/);
+  assert.match(card, /DialogTitle>Informação do operador/);
+});
