@@ -50,6 +50,7 @@ export interface OpenAndonCallParams {
   category: CallCategory;
   subtype: CallSubtype;
   workOrderNumber?: string;
+  operatorNote?: string;
   criticality?: CallCriticality;
   machineCondition?: MachineStatus;
 }
@@ -346,6 +347,7 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
     impactTrackingVersion?: unknown;
     impactIntervals?: unknown;
     workOrderNumber?: unknown;
+    operatorNote?: unknown;
   };
   const technicianNames = Array.isArray(source.technicianNames)
     ? source.technicianNames.filter((name): name is string => typeof name === "string" && !!name)
@@ -425,6 +427,8 @@ export function normalizeAndonCall(call: AndonCall): AndonCall {
       : [],
     workOrderNumber:
       typeof source.workOrderNumber === "string" ? source.workOrderNumber : null,
+    operatorNote:
+      typeof source.operatorNote === "string" ? source.operatorNote : null,
     criticality: isCallCriticality(source.criticality) ? source.criticality : "medium",
     machineCondition:
       source.machineCondition === "stopped" || source.machineCondition === "running"
@@ -537,6 +541,7 @@ export function openAndonCall(
     category: params.category,
     subtype: params.subtype,
     workOrderNumber: normalizeWorkOrderNumber(params.workOrderNumber ?? "") || null,
+    operatorNote: params.operatorNote?.trim() || null,
     status: "open",
     criticality: params.criticality ?? "medium",
     machineCondition: condition,
