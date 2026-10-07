@@ -97,3 +97,10 @@ export function buildTechnicianParticipationSummaries(
 export function getTechnicianAccumulatedMinutes(summary: TechnicianParticipationSummary): number {
   return summary.maintenanceMinutes + summary.followUpMinutes;
 }
+
+export function getTechnicianPhaseAccumulatedMinutes(
+  summary: TechnicianParticipationSummary,
+  phase: TechnicianSessionPhase,
+): number {
+  return phase === "follow_up" ? summary.followUpMinutes : summary.maintenanceMinutes;
+}
