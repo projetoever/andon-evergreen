@@ -114,14 +114,14 @@ export function MachineCurrentStatusPanel({
       </div>
 
       <dl className={cn(
-        "grid min-h-0 shrink-0 content-start grid-cols-1 gap-2 sm:grid-cols-2",
+        "grid min-h-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2",
         compactNormal
           ? "xl:grid-cols-3 xl:content-start"
-          : "xl:min-h-[9.5rem] xl:grid-cols-3",
+          : "xl:min-h-[9.5rem] xl:grid-cols-3 xl:grid-rows-1 xl:items-stretch",
       )}>
         <div
           className={cn(
-            compactNormal ? "rounded-lg border p-2.5" : "rounded-lg border p-2.5 sm:col-span-2 xl:col-span-1",
+            compactNormal ? "rounded-lg border p-2.5" : "rounded-lg border p-2.5 sm:col-span-2 xl:col-span-1 xl:h-full",
             isStopped ? "border-danger/30 bg-danger/10" : "border-success/30 bg-success/10",
           )}
         >
@@ -139,7 +139,7 @@ export function MachineCurrentStatusPanel({
           />
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+        <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", !compactNormal && "xl:h-full")}>
           <dt className="text-xs uppercase text-muted-foreground">Última alteração de status</dt>
           <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
             {formatDateTime(machine.lastStatusChangedAt)}
@@ -147,7 +147,7 @@ export function MachineCurrentStatusPanel({
         </div>
 
         {isStopped && activeStoppedAt && (
-          <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5">
+          <div className={cn("rounded-lg border border-warning/30 bg-warning/10 p-2.5", !compactNormal && "xl:h-full")}>
             <dt className="text-xs uppercase text-muted-foreground">Falha iniciada em</dt>
             <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
               {formatDateTime(activeStoppedAt)}
@@ -156,7 +156,7 @@ export function MachineCurrentStatusPanel({
         )}
 
         {!isStopped && (
-          <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1")}>
+          <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1 xl:h-full")}>
             <dt className="text-xs uppercase text-muted-foreground">Última ocorrência</dt>
             <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
               {formatElapsedSince(lastOccurrence?.occurredAt)}
@@ -172,7 +172,7 @@ export function MachineCurrentStatusPanel({
       </dl>
 
       {isStopped && activeStoppedAt && (
-        <dl className="mt-2 shrink-0">
+        <dl className="mt-1.5 shrink-0">
           <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5">
             <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
             <dd className="mt-2 text-[clamp(2rem,3vw,3.25rem)] font-black leading-none text-danger">

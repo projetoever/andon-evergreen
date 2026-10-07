@@ -541,7 +541,8 @@ test("tempos individuais ficam legíveis e acompanhamento usa verde", async () =
   assert.match(page, /const phase = summary\.activePhase \?\? "maintenance"/);
   assert.match(page, /const phaseMinutes = getTechnicianPhaseAccumulatedMinutes\(summary, phase\)/);
   assert.match(page, /isFollowUp \? "text-success" : "text-info"/);
-  assert.match(page, /isFollowUp \? "Acompanhamento" : "Atendimento"/);
+  assert.doesNotMatch(page, /isFollowUp \? "Acompanhamento" : "Atendimento"/);
+  assert.match(page, /min-h-9 px-2\.5 text-\[11px\] shadow-none md:min-h-10/);
   assert.match(callPanel, /tone\?: "warning" \| "info" \| "success" \| "foreground"/);
   assert.match(callPanel, /tone === "success" && "text-success"/);
   assert.match(

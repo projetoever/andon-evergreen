@@ -116,7 +116,7 @@ export function MachineCurrentCallPanel({
         </h3>
         <CallIdLabel callId={call.id} className="text-right" />
       </div>
-      <dl className="grid min-h-0 shrink-0 content-start grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 xl:min-h-[9.5rem]">
+      <dl className="grid min-h-0 shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 xl:min-h-[9.5rem] xl:auto-rows-fr">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
@@ -187,7 +187,7 @@ export function MachineCurrentCallPanel({
         )}
       </dl>
 
-      <dl className="mt-2 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-4">
+      <dl className="mt-1.5 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-4">
         <TimerMetric
           label="Aguardando"
           value={formatMachinePanelDurationMinutes(waiting)}
