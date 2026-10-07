@@ -44,6 +44,10 @@ import { formatTechnicianDisplayName } from "@/utils/technicianDisplayUtils";
 import { getServerNow } from "@/utils/serverClock";
 import { buildTechnicianTimeAllocations } from "@/utils/technicianTimeAllocationUtils";
 import {
+  buildTechnicianParticipationSummaries,
+  getTechnicianAccumulatedMinutes,
+} from "@/utils/technicianSessionUtils";
+import {
   calculateOperationalImpactBreakdown,
   calculateProductionModeBreakdownForPeriod,
   formatBreakdownDuration,
@@ -787,9 +791,46 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 : call.technicianName
                   ? [call.technicianName]
                   : [];
-            const allocationRows = buildTechnicianTimeAllocations({
+            const finalizedAt =
+              call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString();
+            const hasPhaseAwareSessions = sessions.some(
+              (session) => session.phase === "maintenance" || session.phase === "follow_up",
+            );
+            const phaseAwareRows = hasPhaseAwareSessions
+              ? buildTechnicianParticipationSummaries(
+                  sessions,
+                  finalizedAt,
+                  call.status,
+                ).map((summary) => {
+                  const intervals = [
+                    ...summary.maintenanceIntervals,
+                    ...summary.followUpIntervals,
+                  ].sort((current, next) =>
+                    current.startedAt.localeCompare(next.startedAt),
+                  );
+                  const firstInterval = intervals[0] ?? null;
+                  const hasOpenInterval = intervals.some((interval) => !interval.endedAt);
+                  const lastEndedInterval = intervals
+                    .filter((interval) => Boolean(interval.endedAt))
+                    .sort((current, next) =>
+                      (next.endedAt ?? "").localeCompare(current.endedAt ?? ""),
+                    )[0];
+
+                  return {
+                    id: summary.key,
+                    technicianName: formatTechnicianDisplayName(summary.technicianName),
+                    startedAt: firstInterval?.startedAt ?? null,
+                    endedAt: hasOpenInterval ? null : (lastEndedInterval?.endedAt ?? null),
+                    maintenanceMinutes: summary.maintenanceMinutes,
+                    followUpMinutes: summary.followUpMinutes,
+                    totalMinutes: getTechnicianAccumulatedMinutes(summary),
+                    phaseAware: true,
+                  };
+                })
+              : [];
+            const legacyAllocationRows = buildTechnicianTimeAllocations({
               call,
-              finalizedAt: call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString(),
+              finalizedAt,
               technicianNames: finalTechnicianNames,
             }).map((allocation, index) => ({
               id:
@@ -798,8 +839,10 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               technicianName: formatTechnicianDisplayName(allocation.technicianName),
               startedAt: allocation.startedAt ?? null,
               endedAt: allocation.endedAt ?? null,
-              minutes: typeof allocation.minutes === "number" ? allocation.minutes : 0,
-              source: allocation.source,
+              maintenanceMinutes: 0,
+              followUpMinutes: 0,
+              totalMinutes: typeof allocation.minutes === "number" ? allocation.minutes : 0,
+              phaseAware: false,
             }));
 
             const hasLegacyUnassignedAttendance =
@@ -810,20 +853,24 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             const legacyUnassignedAllocation = allocations.find(
               (allocation) => allocation.source === "unassigned_time",
             );
-            const technicianRows =
+            const legacyRows =
               hasLegacyUnassignedAttendance && legacyUnassignedAllocation
                 ? [
-                    ...allocationRows,
+                    ...legacyAllocationRows,
                     {
                       id: `${call.id}-legacy-unassigned`,
                       technicianName: "Sem manutentor apontado",
                       startedAt: legacyUnassignedAllocation.startedAt,
                       endedAt: legacyUnassignedAllocation.endedAt,
-                      minutes: legacyUnassignedAllocation.minutes,
-                      source: legacyUnassignedAllocation.source,
+                      maintenanceMinutes: 0,
+                      followUpMinutes: 0,
+                      totalMinutes: legacyUnassignedAllocation.minutes,
+                      phaseAware: false,
                     },
                   ]
-                : allocationRows;
+                : legacyAllocationRows;
+            const technicianRows =
+              phaseAwareRows.length > 0 ? phaseAwareRows : legacyRows;
 
             const shouldShowTechnicianSection =
               isMaintenance || sessions.length > 0 || allocations.length > 0 || hasTechnicianNames;
@@ -1184,14 +1231,51 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             technicianRows.map((row) => (
                               <div
                                 key={row.id}
-                                className="rounded border border-border bg-card p-2 text-sm"
+                                className="rounded-lg border border-border bg-card p-2.5 text-sm"
                               >
                                 <div className="font-semibold">{row.technicianName}</div>
-                                <div>Início: {formatDateTime(row.startedAt)}</div>
-                                <div>Fim: {formatDateTime(row.endedAt)}</div>
-                                <div>
-                                  Tempo:{" "}
-                                  {row.minutes > 0 ? formatDurationMinutes(row.minutes) : "—"}
+                                {row.phaseAware ? (
+                                  <dl className="mt-2 grid gap-2 sm:grid-cols-3">
+                                    <div className="rounded-md border border-info/25 bg-info/10 p-2">
+                                      <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                                        Atendimento
+                                      </dt>
+                                      <dd className="mt-0.5 font-mono font-black text-info">
+                                        {formatDurationMinutes(row.maintenanceMinutes)}
+                                      </dd>
+                                    </div>
+                                    <div className="rounded-md border border-success/25 bg-success/10 p-2">
+                                      <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                                        Acompanhamento
+                                      </dt>
+                                      <dd className="mt-0.5 font-mono font-black text-success">
+                                        {formatDurationMinutes(row.followUpMinutes)}
+                                      </dd>
+                                    </div>
+                                    <div className="rounded-md border border-border bg-muted/20 p-2">
+                                      <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                                        Total individual
+                                      </dt>
+                                      <dd className="mt-0.5 font-mono font-black text-foreground">
+                                        {formatDurationMinutes(row.totalMinutes)}
+                                      </dd>
+                                    </div>
+                                  </dl>
+                                ) : (
+                                  <div className="mt-2 rounded-md border border-border bg-muted/20 p-2">
+                                    <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                                      Tempo total legado
+                                    </div>
+                                    <div className="mt-0.5 font-mono font-black text-foreground">
+                                      {row.totalMinutes > 0
+                                        ? formatDurationMinutes(row.totalMinutes)
+                                        : "—"}
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="mt-2 grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-2">
+                                  <div>Primeiro início: {formatDateTime(row.startedAt)}</div>
+                                  <div>Último fim: {formatDateTime(row.endedAt)}</div>
                                 </div>
                               </div>
                             ))

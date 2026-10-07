@@ -57,8 +57,11 @@ test("remove Apuração somente da interface e preserva os tempos técnicos", as
   assert.doesNotMatch(history, /Apuração:/);
   assert.doesNotMatch(history, /formatTimeAllocationSource/);
   assert.match(history, /buildTechnicianTimeAllocations/);
-  assert.match(history, /Início: \{formatDateTime\(row\.startedAt\)\}/);
-  assert.match(history, /Fim: \{formatDateTime\(row\.endedAt\)\}/);
+  assert.match(history, /buildTechnicianParticipationSummaries/);
+  assert.match(history, /Primeiro início: \{formatDateTime\(row\.startedAt\)\}/);
+  assert.match(history, /Último fim: \{formatDateTime\(row\.endedAt\)\}/);
+  assert.match(history, /Total individual/);
+  assert.match(history, /Tempo total legado/);
   assert.match(types, /source: TechnicianTimeAllocationSource/);
 });
 
@@ -237,4 +240,28 @@ test("chamado aberto prioriza acessibilidade com ações significativamente maio
   assert.match(source, /xl:text-2xl/);
   assert.match(source, /md:text-lg/);
   assert.match(source, /hasDenseOperationalContent/);
+});
+
+
+test("status e chamado alinham horizontalmente as faixas de temporizadores", async () => {
+  const [statusPanel, callPanel] = await Promise.all([
+    readFile(
+      new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(statusPanel, /grid min-h-0 flex-1 content-start/);
+  assert.match(statusPanel, /<dl className="mt-2 shrink-0">/);
+  assert.match(callPanel, /grid min-h-0 flex-1 content-start/);
+  assert.match(callPanel, /<dl className="mt-2 grid shrink-0/);
+  assert.match(statusPanel, /Tempo total em falha/);
+  assert.match(callPanel, /label="Aguardando"/);
+  assert.match(callPanel, /label="Em atendimento"/);
+  assert.match(callPanel, /label="Acompanhamento"/);
+  assert.match(callPanel, /label="Total"/);
 });

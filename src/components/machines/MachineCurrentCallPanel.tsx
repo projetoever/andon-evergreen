@@ -116,7 +116,7 @@ export function MachineCurrentCallPanel({
         </h3>
         <CallIdLabel callId={call.id} className="text-right" />
       </div>
-      <dl className="grid min-h-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
+      <dl className="grid min-h-0 flex-1 content-start grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
@@ -179,26 +179,31 @@ export function MachineCurrentCallPanel({
             </dd>
           </div>
         )}
-        <div className="col-span-2 mt-1 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 lg:col-span-3 xl:grid-cols-4">
-          <TimerMetric label="Aguardando" value={formatMachinePanelDurationMinutes(waiting)} tone="warning" />
-          <TimerMetric
-            label="Em atendimento"
-            value={formatMachinePanelDurationMinutes(attending)}
-            tone="info"
-          />
-          <TimerMetric
-            label="Acompanhamento"
-            value={formatMachinePanelDurationMinutes(postMaintenance)}
-            tone="success"
-          />
-          <TimerMetric label="Total" value={formatMachinePanelDurationMinutes(total)} />
-        </div>
         {call.notes && (
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
             <dd className="text-sm text-foreground">{call.notes}</dd>
           </div>
         )}
+      </dl>
+
+      <dl className="mt-2 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-4">
+        <TimerMetric
+          label="Aguardando"
+          value={formatMachinePanelDurationMinutes(waiting)}
+          tone="warning"
+        />
+        <TimerMetric
+          label="Em atendimento"
+          value={formatMachinePanelDurationMinutes(attending)}
+          tone="info"
+        />
+        <TimerMetric
+          label="Acompanhamento"
+          value={formatMachinePanelDurationMinutes(postMaintenance)}
+          tone="success"
+        />
+        <TimerMetric label="Total" value={formatMachinePanelDurationMinutes(total)} />
       </dl>
     </div>
   );
