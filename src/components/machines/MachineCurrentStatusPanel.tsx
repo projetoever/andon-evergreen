@@ -114,7 +114,7 @@ export function MachineCurrentStatusPanel({
       </div>
 
       <dl className={cn(
-        "grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2",
+        "grid min-h-0 flex-1 content-start grid-cols-1 gap-2 sm:grid-cols-2",
         compactNormal ? "xl:grid-cols-3 xl:content-start" : "xl:grid-cols-3",
       )}>
         <div
@@ -145,20 +145,12 @@ export function MachineCurrentStatusPanel({
         </div>
 
         {isStopped && activeStoppedAt && (
-          <>
-            <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5">
-              <dt className="text-xs uppercase text-muted-foreground">Falha iniciada em</dt>
-              <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
-                {formatDateTime(activeStoppedAt)}
-              </dd>
-            </div>
-            <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5 sm:col-span-2 xl:col-span-3">
-              <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
-              <dd className="mt-2 text-[clamp(2rem,3vw,3.25rem)] font-black leading-none text-danger">
-                {formatMachineStoppedDurationMinutes(stoppedMin)}
-              </dd>
-            </div>
-          </>
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5">
+            <dt className="text-xs uppercase text-muted-foreground">Falha iniciada em</dt>
+            <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
+              {formatDateTime(activeStoppedAt)}
+            </dd>
+          </div>
         )}
 
         {!isStopped && (
@@ -176,6 +168,17 @@ export function MachineCurrentStatusPanel({
           </div>
         )}
       </dl>
+
+      {isStopped && activeStoppedAt && (
+        <dl className="mt-2 shrink-0">
+          <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5">
+            <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
+            <dd className="mt-2 text-[clamp(2rem,3vw,3.25rem)] font-black leading-none text-danger">
+              {formatMachineStoppedDurationMinutes(stoppedMin)}
+            </dd>
+          </div>
+        </dl>
+      )}
     </div>
   );
 }
