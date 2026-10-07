@@ -167,11 +167,11 @@ test("ações da máquina usam altura responsiva e fluxo centralizado", async ()
   assert.match(source, /layoutStage === "open"/);
   assert.match(source, /layoutStage === "active"/);
   assert.match(source, /min-h-\[clamp\(6rem,10\.5vh,8rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(4\.75rem,8\.5vh,6rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(4\.25rem,7\.5vh,5\.25rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(5\.75rem,11vh,8rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(5rem,8\.5vh,6\.25rem\)\]/);
   assert.match(source, /: "min-h-12 text-sm"/);
-  assert.match(source, /min-h-\[clamp\(3\.75rem,6\.5vh,4\.5rem\)\]/);
-  assert.match(source, /sm:max-w-\[44rem\]/);
+  assert.match(source, /min-h-\[clamp\(4\.5rem,8vh,5\.5rem\)\]/);
+  assert.match(source, /sm:max-w-\[46rem\]/);
   assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
   assert.match(source, /flex flex-wrap items-stretch justify-center/);
   assert.match(source, /> Atender selecionado/);
@@ -217,4 +217,24 @@ test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", 
   assert.ok(pairStart >= 0);
   assert.ok(historyIndex > pairStart);
   assert.ok(lockIndex > historyIndex);
+});
+
+
+test("chamado aberto prioriza acessibilidade com ações significativamente maiores", async () => {
+  const source = await readFile(
+    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(5\.75rem,11vh,8rem\)\]/,
+  );
+  assert.match(
+    source,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(4\.5rem,8vh,5\.5rem\)\]/,
+  );
+  assert.match(source, /xl:text-2xl/);
+  assert.match(source, /md:text-lg/);
+  assert.match(source, /hasDenseOperationalContent/);
 });
