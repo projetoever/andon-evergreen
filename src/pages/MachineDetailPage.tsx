@@ -28,6 +28,7 @@ import {
   isMachineSoundEnabled,
   setMachineSoundEnabled,
 } from "@/services/machineSoundPreferenceService";
+import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { playAndonSound, stopAndonSound, unlockAudio } from "@/services/soundService";
