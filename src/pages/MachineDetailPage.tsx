@@ -513,11 +513,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               <h3 className="mr-auto text-xs font-bold uppercase tracking-wider text-muted-foreground md:text-sm">
                 {currentCall.status === "post_maintenance" ? "Acompanhamento" : "Atendimento"}
               </h3>
-              <div className="grid min-w-[300px] flex-1 grid-cols-2 gap-1.5 md:max-w-xl">
+              <div className="grid min-w-[300px] flex-1 grid-cols-2 gap-1.5 py-0.5 md:max-w-xl">
                 <BigButton
                   tone="info"
                   size="md"
-                  className="min-h-8 px-2.5 text-[11px] shadow-none md:text-xs"
+                  className="min-h-9 px-2.5 text-[11px] shadow-none md:min-h-10 md:text-xs"
                   onClick={() => setAddOpen(true)}
                 >
                   {currentCall.status === "post_maintenance"
@@ -527,7 +527,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                 <BigButton
                   tone="warning"
                   size="md"
-                  className="min-h-8 px-2.5 text-[11px] shadow-none md:text-xs"
+                  className="min-h-9 px-2.5 text-[11px] shadow-none md:min-h-10 md:text-xs"
                   disabled={activeSessions.length === 0}
                   onClick={() => setEndOpen(true)}
                 >
@@ -549,7 +549,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               </div>
             ) : (
               <div
-                className="mt-1.5 grid gap-1.5"
+                className="mt-2 grid gap-1.5"
                 style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
               >
                 {activeParticipationSummaries.map((summary) => {
@@ -565,19 +565,14 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                       <span className="min-w-0 truncate text-sm font-bold text-foreground">
                         {summary.technicianName}
                       </span>
-                      <div className="shrink-0 text-right">
-                        <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground md:text-[11px]">
-                          {isFollowUp ? "Acompanhamento" : "Atendimento"}
-                        </div>
-                        <strong
-                          className={cn(
-                            "whitespace-nowrap font-mono text-base font-black md:text-lg 2xl:text-xl",
-                            isFollowUp ? "text-success" : "text-info",
-                          )}
-                        >
-                          {formatDurationMinutes(phaseMinutes)}
-                        </strong>
-                      </div>
+                      <strong
+                        className={cn(
+                          "shrink-0 whitespace-nowrap font-mono text-base font-black md:text-lg 2xl:text-xl",
+                          isFollowUp ? "text-success" : "text-info",
+                        )}
+                      >
+                        {formatDurationMinutes(phaseMinutes)}
+                      </strong>
                     </div>
                   );
                 })}
