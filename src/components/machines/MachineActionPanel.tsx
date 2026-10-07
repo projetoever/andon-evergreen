@@ -252,13 +252,13 @@ export function MachineActionPanel({
     layoutStage === "idle"
       ? "min-h-[clamp(6rem,10.5vh,8rem)] text-lg xl:text-xl"
       : layoutStage === "open"
-        ? "min-h-[clamp(5.75rem,11vh,8rem)] text-lg xl:text-2xl"
+        ? "min-h-[clamp(7rem,14vh,9.5rem)] text-lg xl:text-2xl"
         : layoutStage === "active"
           ? "min-h-[clamp(5rem,8.5vh,6.25rem)] text-base lg:text-xl"
           : "min-h-12 text-sm";
   const workflowActionClass =
     layoutStage === "open"
-      ? "min-h-[clamp(4.5rem,8vh,5.5rem)] w-full px-4 text-base sm:flex-1 sm:max-w-[46rem] md:text-lg"
+      ? "min-h-[clamp(5.5rem,10vh,6.75rem)] w-full px-4 text-base sm:flex-1 sm:max-w-[46rem] md:text-lg"
       : layoutStage === "active"
         ? "min-h-[clamp(3.75rem,6.5vh,4.5rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem] md:text-base"
         : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] sm:text-sm";

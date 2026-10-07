@@ -170,10 +170,10 @@ test("ações da máquina usam altura responsiva e fluxo centralizado", async ()
   assert.match(source, /layoutStage === "open"/);
   assert.match(source, /layoutStage === "active"/);
   assert.match(source, /min-h-\[clamp\(6rem,10\.5vh,8rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(5\.75rem,11vh,8rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(7rem,14vh,9\.5rem\)\]/);
   assert.match(source, /min-h-\[clamp\(5rem,8\.5vh,6\.25rem\)\]/);
   assert.match(source, /: "min-h-12 text-sm"/);
-  assert.match(source, /min-h-\[clamp\(4\.5rem,8vh,5\.5rem\)\]/);
+  assert.match(source, /min-h-\[clamp\(5\.5rem,10vh,6\.75rem\)\]/);
   assert.match(source, /sm:max-w-\[46rem\]/);
   assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
   assert.match(source, /flex flex-wrap items-stretch justify-center/);
@@ -231,11 +231,11 @@ test("chamado aberto prioriza acessibilidade com ações significativamente maio
 
   assert.match(
     source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(5\.75rem,11vh,8rem\)\]/,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(7rem,14vh,9\.5rem\)\]/,
   );
   assert.match(
     source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(4\.5rem,8vh,5\.5rem\)\]/,
+    /layoutStage === "open"[\s\S]*min-h-\[clamp\(5\.5rem,10vh,6\.75rem\)\]/,
   );
   assert.match(source, /xl:text-2xl/);
   assert.match(source, /md:text-lg/);
@@ -243,7 +243,7 @@ test("chamado aberto prioriza acessibilidade com ações significativamente maio
 });
 
 
-test("status e chamado alinham horizontalmente as faixas de temporizadores", async () => {
+test("status e chamado alinham os temporizadores na zona superior", async () => {
   const [statusPanel, callPanel] = await Promise.all([
     readFile(
       new URL("../src/components/machines/MachineCurrentStatusPanel.tsx", import.meta.url),
@@ -255,13 +255,36 @@ test("status e chamado alinham horizontalmente as faixas de temporizadores", asy
     ),
   ]);
 
-  assert.match(statusPanel, /grid min-h-0 flex-1 content-start/);
+  assert.match(statusPanel, /min-h-\[3\.25rem\]/);
+  assert.match(callPanel, /min-h-\[3\.25rem\]/);
+  assert.match(statusPanel, /xl:min-h-\[9\.5rem\]/);
+  assert.match(callPanel, /xl:min-h-\[9\.5rem\]/);
+  assert.match(statusPanel, /grid min-h-0 shrink-0 content-start/);
+  assert.match(callPanel, /grid min-h-0 shrink-0 content-start/);
+  assert.doesNotMatch(statusPanel, /grid min-h-0 flex-1 content-start/);
+  assert.doesNotMatch(callPanel, /grid min-h-0 flex-1 content-start/);
   assert.match(statusPanel, /<dl className="mt-2 shrink-0">/);
-  assert.match(callPanel, /grid min-h-0 flex-1 content-start/);
   assert.match(callPanel, /<dl className="mt-2 grid shrink-0/);
   assert.match(statusPanel, /Tempo total em falha/);
   assert.match(callPanel, /label="Aguardando"/);
   assert.match(callPanel, /label="Em atendimento"/);
   assert.match(callPanel, /label="Acompanhamento"/);
   assert.match(callPanel, /label="Total"/);
+});
+
+
+test("conteúdo denso continua compactando as ações automaticamente", async () => {
+  const source = await readFile(
+    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /activeTechnicianCount > 0/);
+  assert.match(source, /currentCall\?\.status === "post_maintenance"/);
+  assert.match(source, /Boolean\(maintenanceCompletionHint\)/);
+  assert.match(source, /: "min-h-12 text-sm"/);
+  assert.match(
+    source,
+    /: "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\] sm:text-sm"/,
+  );
 });
