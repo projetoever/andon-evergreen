@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Bell, Wrench } from "lucide-react";
+import { AlertTriangle, Bell, MessageSquareText, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Machine } from "@/types/machine";
 import { useAndon } from "@/context/AndonProvider";
 import { useTicker } from "@/hooks/useTicker";
@@ -33,6 +41,7 @@ export function MachineCard({
   productionPriorityRank = null,
 }: MachineCardProps) {
   const { calls, settings } = useAndon();
+  const [operatorNoteOpen, setOperatorNoteOpen] = useState(false);
   const currentCall = machine.currentCallId
     ? calls.find((c) => c.id === machine.currentCallId)
     : null;
@@ -71,6 +80,12 @@ export function MachineCard({
       : currentCall?.status === "post_maintenance"
         ? postMaintenanceMin
         : null;
+  const visibleOperatorNote =
+    currentCall?.status === "open" ? currentCall.operatorNote?.trim() || null : null;
+  const operatorNoteSummary =
+    visibleOperatorNote && visibleOperatorNote.length > 58
+      ? `${visibleOperatorNote.slice(0, 55).trimEnd()}...`
+      : visibleOperatorNote;
   const lastOccurrence = getLastMachineOccurrence(machine, calls);
   const lastOccurrenceDetails = lastOccurrence
     ? [
@@ -182,6 +197,17 @@ export function MachineCard({
                 {callElapsedLabel}: <strong className="text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
               </div>
             )}
+            {visibleOperatorNote && (
+              <button
+                type="button"
+                onClick={() => setOperatorNoteOpen(true)}
+                className="flex min-w-0 items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-1.5 py-1 text-left text-[11px] font-bold text-warning transition hover:bg-warning/15 2xl:text-xs"
+                title="Clique para ler a informação completa do operador"
+              >
+                <MessageSquareText className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Info: {operatorNoteSummary}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -193,6 +219,20 @@ export function MachineCard({
       >
         Ver Máquina
       </Link>
+
+      <Dialog open={operatorNoteOpen} onOpenChange={setOperatorNoteOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Informação do operador</DialogTitle>
+            <DialogDescription>
+              Registrada na abertura do chamado de {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
+            {visibleOperatorNote ?? "Sem informação registrada."}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
