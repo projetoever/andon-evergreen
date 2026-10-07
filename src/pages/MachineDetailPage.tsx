@@ -559,7 +559,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                     <span className="min-w-0 truncate text-sm font-bold text-foreground">
                       {summary.technicianName}
                     </span>
-                    <strong className="whitespace-nowrap font-mono text-xs text-info">
+                    <strong
+                      className={cn(
+                        "whitespace-nowrap font-mono text-base font-black md:text-lg 2xl:text-xl",
+                        currentCall.status === "post_maintenance" ? "text-success" : "text-info",
+                      )}
+                    >
                       {formatDurationMinutes(getTechnicianAccumulatedMinutes(summary))}
                     </strong>
                   </div>
