@@ -94,7 +94,7 @@ export function MachineCurrentStatusPanel({
         className,
       )}
     >
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+      <div className="mb-2 flex min-h-[3.25rem] flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
             Status atual da máquina
@@ -114,8 +114,10 @@ export function MachineCurrentStatusPanel({
       </div>
 
       <dl className={cn(
-        "grid min-h-0 flex-1 content-start grid-cols-1 gap-2 sm:grid-cols-2",
-        compactNormal ? "xl:grid-cols-3 xl:content-start" : "xl:grid-cols-3",
+        "grid min-h-0 shrink-0 content-start grid-cols-1 gap-2 sm:grid-cols-2",
+        compactNormal
+          ? "xl:grid-cols-3 xl:content-start"
+          : "xl:min-h-[9.5rem] xl:grid-cols-3",
       )}>
         <div
           className={cn(
