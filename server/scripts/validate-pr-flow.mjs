@@ -1047,6 +1047,7 @@ async function run() {
       machineId: ids.workOrderMachine,
       subtypes: ["electrical", "mechanical"],
       workOrderNumber: " 000777 ",
+      operatorNote: "  Vibração percebida pelo operador  ",
       machineCondition: "running",
     }),
     201,
@@ -1054,6 +1055,10 @@ async function run() {
   assert.deepEqual(
     batchWorkOrderCalls.map((call) => call.workOrderNumber),
     ["000777", "000777"],
+  );
+  assert.deepEqual(
+    batchWorkOrderCalls.map((call) => call.operatorNote),
+    ["Vibração percebida pelo operador", "Vibração percebida pelo operador"],
   );
   for (const call of batchWorkOrderCalls) {
     await request(
@@ -1142,6 +1147,39 @@ async function run() {
   await request(
     `/api/andon-calls/${optionalMachineCall.id}/cancel`,
     json("PATCH", { reason: "Máquina sem exigência individual de OS" }),
+  );
+
+  const operatorNoteCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.machine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "running",
+      operatorNote: "  Falha intermitente após partida  ",
+    }),
+    201,
+  );
+  assert.equal(operatorNoteCall.operatorNote, "Falha intermitente após partida");
+  await request(
+    `/api/andon-calls/${operatorNoteCall.id}/cancel`,
+    json("PATCH", { reason: "Validação da informação do operador" }),
+  );
+
+  const tooLongOperatorNote = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.machine,
+      category: "production",
+      subtype: "quality",
+      machineCondition: "running",
+      operatorNote: "x".repeat(501),
+    }),
+    400,
+  );
+  assert.match(
+    tooLongOperatorNote.message,
+    /Informação do operador deve ter no máximo 500 caracteres/i,
   );
 
   const configuredMachineCall = await request(
