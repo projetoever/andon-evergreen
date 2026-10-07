@@ -352,6 +352,7 @@ export class ApiAndonRepository implements AndonRepository {
       criticality: first.criticality ?? "medium",
       machineCondition: first.machineCondition,
       workOrderNumber: first.workOrderNumber,
+      operatorNote: first.operatorNote,
     });
     return this.loadResult();
   }
