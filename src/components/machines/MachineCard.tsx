@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Bell, MessageSquareText, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -86,6 +86,13 @@ export function MachineCard({
     visibleOperatorNote && visibleOperatorNote.length > 58
       ? `${visibleOperatorNote.slice(0, 55).trimEnd()}...`
       : visibleOperatorNote;
+
+  useEffect(() => {
+    if (!visibleOperatorNote) {
+      setOperatorNoteOpen(false);
+    }
+  }, [visibleOperatorNote]);
+
   const lastOccurrence = getLastMachineOccurrence(machine, calls);
   const lastOccurrenceDetails = lastOccurrence
     ? [
