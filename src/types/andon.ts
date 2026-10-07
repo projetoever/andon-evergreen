@@ -110,6 +110,7 @@ export interface AndonCall {
   category: CallCategory;
   subtype: CallSubtype;
   workOrderNumber?: string | null;
+  operatorNote?: string | null;
   status: AndonStatus;
   criticality: CallCriticality;
   machineCondition: MachineStatus;

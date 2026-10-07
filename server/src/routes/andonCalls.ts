@@ -42,6 +42,7 @@ type OpenAndonCallBody = {
   isSystemTest?: unknown;
   machineCondition?: unknown;
   workOrderNumber?: unknown;
+  operatorNote?: unknown;
 };
 
 type AttendAndonCallBody = {
@@ -64,6 +65,7 @@ type BatchOpenAndonCallsBody = {
   criticality?: unknown;
   machineCondition?: unknown;
   workOrderNumber?: unknown;
+  operatorNote?: unknown;
 };
 
 type EndTechnicianBody = {
@@ -157,12 +159,20 @@ function optionalString(value: unknown) {
 }
 
 const MAX_WORK_ORDER_NUMBER_LENGTH = 100;
+const MAX_OPERATOR_NOTE_LENGTH = 500;
 
 function normalizeWorkOrderNumber(value: unknown) {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim().replace(/\s+/g, " ");
   return normalized || undefined;
 }
+
+function normalizeOperatorNote(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+  return normalized || undefined;
+}
+
 
 function uniqueNames(names: Array<string | undefined>) {
   return Array.from(new Set(names.filter((name): name is string => Boolean(name))));
@@ -1246,6 +1256,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const isSystemTest = body.isSystemTest === true;
     const machineCondition = optionalString(body.machineCondition);
     const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
+    const operatorNote = normalizeOperatorNote(body.operatorNote);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!category) return badRequest(reply, "Campo category é obrigatório");
@@ -1268,6 +1279,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Condição da máquina inválida");
     if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
       return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
+    }
+    if (operatorNote && operatorNote.length > MAX_OPERATOR_NOTE_LENGTH) {
+      return badRequest(reply, "Informação do operador deve ter no máximo 500 caracteres");
     }
     const configuredCategory = await prisma.andonCategory.findUnique({ where: { id: subtype } });
     if (!configuredCategory || (!configuredCategory.active && !isSystemTest)) {
@@ -1365,6 +1379,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             category,
             subtype,
             workOrderNumber: workOrderNumber ?? null,
+            operatorNote: isSystemTest ? null : (operatorNote ?? null),
             status: "open",
             criticality,
             machineCondition: effectiveMachineCondition,
@@ -1471,6 +1486,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const criticality = optionalString(body.criticality) ?? "medium";
     const machineCondition = optionalString(body.machineCondition);
     const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
+    const operatorNote = normalizeOperatorNote(body.operatorNote);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!subtypes.length || subtypes.length > 20) {
@@ -1482,6 +1498,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     }
     if (workOrderNumber && workOrderNumber.length > MAX_WORK_ORDER_NUMBER_LENGTH) {
       return badRequest(reply, "Número da OS deve ter no máximo 100 caracteres");
+    }
+    if (operatorNote && operatorNote.length > MAX_OPERATOR_NOTE_LENGTH) {
+      return badRequest(reply, "Informação do operador deve ter no máximo 500 caracteres");
     }
     try {
       const calls = await prisma.$transaction(async (tx) => {
@@ -1540,6 +1559,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               category: categoryBySubtype.get(subtype)?.categoryGroup ?? "maintenance",
               subtype,
               workOrderNumber,
+              operatorNote: operatorNote ?? null,
               status: "open",
               criticality,
               machineCondition: effectiveMachineCondition,

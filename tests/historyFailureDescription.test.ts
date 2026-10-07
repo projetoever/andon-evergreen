@@ -51,6 +51,7 @@ test("histórico mantém diagnóstico, auditorias e compatibilidade legada", asy
   assert.match(history, /!callFailureDetails\.description &&/);
   assert.match(history, /Classificação da falha/);
   assert.match(history, /Descrição da falha/);
+  assert.match(history, /Informação do operador na abertura/);
   assert.match(history, /Observações do chamado/);
   assert.match(history, /Justificativa do cancelamento/);
   assert.match(history, /Justificativa da correção/);

@@ -19,6 +19,7 @@ import { MachineAssetSelector } from "./MachineAssetSelector";
 import { BigButton } from "@/components/common/BigButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +51,7 @@ export function OpenCallModal({
   const [allowWholeSetCalls, setAllowWholeSetCalls] = useState(true);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
+  const [operatorNote, setOperatorNote] = useState("");
   const [isLoadingSystemSettings, setIsLoadingSystemSettings] = useState(false);
   const [hasLoadedSystemSettings, setHasLoadedSystemSettings] = useState(false);
   const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
@@ -69,6 +71,7 @@ export function OpenCallModal({
       initializedMachineIdRef.current = preselectedMachineId ?? null;
       machineConditionTouchedRef.current = false;
       setWorkOrderNumber("");
+      setOperatorNote("");
       return;
     }
 
@@ -88,6 +91,7 @@ export function OpenCallModal({
     setIsWholeSetSelected(false);
     setMachineSets([]);
     setWorkOrderNumber("");
+    setOperatorNote("");
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
     setMachineCondition(selectedMachine?.machineStatus ?? "running");
@@ -337,6 +341,7 @@ export function OpenCallModal({
       criticality: "medium" as const,
       machineCondition,
       workOrderNumber: normalizedWorkOrderNumber || undefined,
+      operatorNote: operatorNote.trim() || undefined,
     };
 
     try {
@@ -441,6 +446,23 @@ export function OpenCallModal({
             />
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="open-call-operator-note">
+            Informação para o mantenedor <span className="font-normal text-muted-foreground">(opcional)</span>
+          </Label>
+          <Textarea
+            id="open-call-operator-note"
+            value={operatorNote}
+            maxLength={500}
+            rows={2}
+            onChange={(event) => setOperatorNote(event.target.value)}
+            placeholder="Ex.: ruído anormal, falha intermitente, cheiro de queimado..."
+          />
+          <p className="text-right text-[11px] text-muted-foreground">
+            {operatorNote.length}/500
+          </p>
+        </div>
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">

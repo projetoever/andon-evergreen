@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { getSystemSettings } from "@/services/systemSettingsService";
@@ -45,6 +46,7 @@ export function QuickOpenCallModal({
   const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
+  const [operatorNote, setOperatorNote] = useState("");
   const option = subtype ? getCallTypeOption(subtype) : null;
   const machineRequiresWorkOrder =
     machines.find((machine) => machine.id === machineId)?.requireWorkOrderAtOpen === true;
@@ -62,6 +64,7 @@ export function QuickOpenCallModal({
   useEffect(() => {
     if (!open) {
       setWorkOrderNumber("");
+      setOperatorNote("");
       setRequireWorkOrderAtOpen(false);
       setHasLoadedSettings(false);
       setSystemSettingsLoadFailed(false);
@@ -109,6 +112,7 @@ export function QuickOpenCallModal({
           criticality: "medium",
           machineCondition: forcedMachineCondition ?? machineCondition,
           workOrderNumber: normalizedWorkOrderNumber || undefined,
+          operatorNote: operatorNote.trim() || undefined,
         },
       ]);
       toast.success(`Chamado de ${option.label} aberto.`);
@@ -144,6 +148,23 @@ export function QuickOpenCallModal({
             />
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="quick-open-operator-note">
+            Informação para o mantenedor <span className="font-normal text-muted-foreground">(opcional)</span>
+          </Label>
+          <Textarea
+            id="quick-open-operator-note"
+            value={operatorNote}
+            maxLength={500}
+            rows={2}
+            onChange={(event) => setOperatorNote(event.target.value)}
+            placeholder="Ex.: ruído anormal, falha intermitente, cheiro de queimado..."
+          />
+          <p className="text-right text-[11px] text-muted-foreground">
+            {operatorNote.length}/500
+          </p>
+        </div>
 
         {systemSettingsLoadFailed && (
           <p className="text-sm text-danger">
