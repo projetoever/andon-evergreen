@@ -195,3 +195,19 @@ test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala
     /h-9.*text-\[11px\].*md:h-10/s,
   );
 });
+
+
+test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", async () => {
+  const source = await readFile(
+    new URL("../src/components/machines/MachineDetailHeader.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /inline-flex shrink-0 items-center gap-1\.5/);
+  const pairStart = source.indexOf('className="inline-flex shrink-0 items-center gap-1.5"');
+  const historyIndex = source.indexOf('aria-label="Histórico da máquina"', pairStart);
+  const lockIndex = source.indexOf("onClick={onToggleScreenLock}", pairStart);
+  assert.ok(pairStart >= 0);
+  assert.ok(historyIndex > pairStart);
+  assert.ok(lockIndex > historyIndex);
+});

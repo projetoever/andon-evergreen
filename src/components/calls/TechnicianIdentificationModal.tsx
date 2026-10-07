@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { useTechnicians } from "@/hooks/useTechnicians";
@@ -66,7 +65,6 @@ export function TechnicianIdentificationModal({
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [names, setNames] = useState<string[]>([]);
   const [credentialValue, setCredentialValue] = useState("");
-  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
   const initializedCallRef = useRef<string | null>(null);
@@ -83,7 +81,6 @@ export function TechnicianIdentificationModal({
     setLoadFailed(false);
     setNames([]);
     setCredentialValue("");
-    setNotes("");
     setShowAlternatives(false);
     setAvailabilityNotice(null);
     setIsSubmitting(false);
@@ -124,7 +121,7 @@ export function TechnicianIdentificationModal({
     setIsSubmitting(true);
     try {
       if (purpose === "start") {
-        await attendCall({ callId: call.id, technicians, notes: notes.trim() || null });
+        await attendCall({ callId: call.id, technicians });
         toast.success("Chamado em atendimento");
       } else {
         await addTechnicianSessions({ callId: call.id, technicians });
@@ -387,19 +384,6 @@ export function TechnicianIdentificationModal({
             <span className="font-bold">Mantenedor indisponível.</span>{" "}
             <span className="text-foreground/80">{availabilityNotice}</span>
           </div>
-        )}
-
-        {purpose === "start" && (
-          <label className="block text-sm font-bold">
-            Observação inicial (opcional)
-            <Textarea
-              className="mt-1"
-              rows={2}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Descreva o contexto inicial do atendimento."
-            />
-          </label>
         )}
 
         <DialogFooter className="gap-2">

@@ -32,7 +32,7 @@ interface MachineCurrentCallPanelProps {
 interface TimerMetricProps {
   label: string;
   value: string;
-  tone?: "warning" | "info" | "foreground";
+  tone?: "warning" | "info" | "success" | "foreground";
 }
 
 function TimerMetric({ label, value, tone = "foreground" }: TimerMetricProps) {
@@ -44,6 +44,7 @@ function TimerMetric({ label, value, tone = "foreground" }: TimerMetricProps) {
           "mt-1 whitespace-nowrap pb-0.5 text-[clamp(1.5rem,2.25vw,2.5rem)] font-black leading-none",
           tone === "warning" && "text-warning",
           tone === "info" && "text-info",
+          tone === "success" && "text-success",
           tone === "foreground" && "text-foreground",
         )}
       >
@@ -188,7 +189,7 @@ export function MachineCurrentCallPanel({
           <TimerMetric
             label="Acompanhamento"
             value={formatMachinePanelDurationMinutes(postMaintenance)}
-            tone="info"
+            tone="success"
           />
           <TimerMetric label="Total" value={formatMachinePanelDurationMinutes(total)} />
         </div>

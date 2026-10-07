@@ -68,33 +68,35 @@ export function MachineDetailHeader({
           productionMode={machine.productionMode}
           className="text-xs md:text-sm"
         />
-        <Link
-          to="/machines/$machineId/call-history"
-          params={{ machineId: machine.id }}
-          className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
-          title="Histórico da máquina"
-          aria-label="Histórico da máquina"
-        >
-          <History className="h-4 w-4" />
-          Histórico
-        </Link>
-        <button
-          type="button"
-          onClick={onToggleScreenLock}
-          className={cn(
-            "inline-flex h-9 items-center gap-1 rounded-xl border px-2.5 text-[11px] font-bold uppercase tracking-wide transition md:h-10",
-            screenLocked
-              ? "border-warning/60 bg-warning/15 text-warning hover:bg-warning/25"
-              : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
-          )}
-          title={screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"}
-          aria-label={
-            screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"
-          }
-        >
-          {screenLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          {screenLocked ? "Tela fixada" : "Fixar tela"}
-        </button>
+        <div className="inline-flex shrink-0 items-center gap-1.5">
+          <Link
+            to="/machines/$machineId/call-history"
+            params={{ machineId: machine.id }}
+            className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
+            title="Histórico da máquina"
+            aria-label="Histórico da máquina"
+          >
+            <History className="h-4 w-4" />
+            Histórico
+          </Link>
+          <button
+            type="button"
+            onClick={onToggleScreenLock}
+            className={cn(
+              "inline-flex h-9 items-center gap-1 rounded-xl border px-2.5 text-[11px] font-bold uppercase tracking-wide transition md:h-10",
+              screenLocked
+                ? "border-warning/60 bg-warning/15 text-warning hover:bg-warning/25"
+                : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+            title={screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"}
+            aria-label={
+              screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"
+            }
+          >
+            {screenLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+            {screenLocked ? "Tela fixada" : "Fixar tela"}
+          </button>
+        </div>
       </div>
     </div>
   );

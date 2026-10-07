@@ -523,3 +523,38 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.doesNotMatch(page, /maintenanceIntervals\.map/);
   assert.doesNotMatch(page, /followUpIntervals\.map/);
 });
+
+
+test("tempos individuais ficam legíveis e acompanhamento usa verde", async () => {
+  const [page, callPanel] = await Promise.all([
+    readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(page, /text-base font-black md:text-lg 2xl:text-xl/);
+  assert.match(
+    page,
+    /currentCall\.status === "post_maintenance" \? "text-success" : "text-info"/,
+  );
+  assert.match(callPanel, /tone\?: "warning" \| "info" \| "success" \| "foreground"/);
+  assert.match(callPanel, /tone === "success" && "text-success"/);
+  assert.match(
+    callPanel,
+    /label="Acompanhamento"[\s\S]*tone="success"/,
+  );
+});
+
+test("início do atendimento não solicita observação inicial", async () => {
+  const source = await readFile(
+    new URL("../src/components/calls/TechnicianIdentificationModal.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(source, /Observação inicial \(opcional\)/);
+  assert.doesNotMatch(source, /Descreva o contexto inicial do atendimento/);
+  assert.doesNotMatch(source, /notes: notes\.trim\(\) \|\| null/);
+  assert.doesNotMatch(source, /components\/ui\/textarea/);
+});
