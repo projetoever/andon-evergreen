@@ -9,52 +9,12 @@ export const WORKSTATION_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 const apiClient = createAndonApiClient();
 let memoryWorkstations: Workstation[] = [];
 
-function getLocalStorage() {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function isWorkstation(value: unknown): value is Workstation {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Partial<Workstation>;
-  return (
-    isValidWorkstationId(item.id) &&
-    (item.name === null || typeof item.name === "string") &&
-    typeof item.active === "boolean" &&
-    typeof item.lastSeenAt === "string" &&
-    typeof item.createdAt === "string" &&
-    typeof item.updatedAt === "string"
-  );
-}
-
 function readLocalWorkstations() {
-  const storage = getLocalStorage();
-  if (!storage) return memoryWorkstations;
-
-  try {
-    const raw = storage.getItem(LOCAL_WORKSTATIONS_STORAGE_KEY);
-    if (!raw) return memoryWorkstations;
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return memoryWorkstations;
-    memoryWorkstations = parsed.filter(isWorkstation);
-  } catch {
-    // Mantém os registros válidos já carregados quando o storage estiver indisponível.
-  }
-
   return memoryWorkstations;
 }
 
 function saveLocalWorkstations(workstations: Workstation[]) {
   memoryWorkstations = workstations;
-  try {
-    getLocalStorage()?.setItem(LOCAL_WORKSTATIONS_STORAGE_KEY, JSON.stringify(workstations));
-  } catch {
-    // O modo local continua funcional em memória quando o storage estiver bloqueado.
-  }
 }
 
 function registerLocalWorkstation(id: string) {
@@ -67,6 +27,7 @@ function registerLocalWorkstation(id: string) {
         id,
         name: null,
         active: true,
+        lockedMachineId: null,
         lastSeenAt: now,
         createdAt: now,
         updatedAt: now,
