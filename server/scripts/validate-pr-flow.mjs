@@ -609,6 +609,48 @@ async function run() {
     remainingFailureEvents.map((event) => event.id),
     [secondFailure.event.id],
   );
+
+  const directRunningStatus = await request(
+    `/api/machines/${ids.failureRaceMachine}/status`,
+    json("PATCH", { machineStatus: "running" }),
+  );
+  assert.equal(directRunningStatus.machineStatus, "running");
+  assert.equal(
+    await prisma.failureEvent.count({
+      where: { machineId: ids.failureRaceMachine, endedAt: null },
+    }),
+    0,
+    "status running direto deve encerrar falhas abertas",
+  );
+
+  const directStoppedStatus = await request(
+    `/api/machines/${ids.failureRaceMachine}/status`,
+    json("PATCH", { machineStatus: "stopped" }),
+  );
+  assert.equal(directStoppedStatus.machineStatus, "stopped");
+  const directStatusFailureEvents = await prisma.failureEvent.findMany({
+    where: { machineId: ids.failureRaceMachine, endedAt: null },
+  });
+  assert.equal(
+    directStatusFailureEvents.length,
+    1,
+    "status stopped direto deve garantir uma falha aberta",
+  );
+
+  const repeatedStoppedStatus = await request(
+    `/api/machines/${ids.failureRaceMachine}/status`,
+    json("PATCH", { machineStatus: "stopped" }),
+  );
+  assert.equal(repeatedStoppedStatus.machineStatus, "stopped");
+  const repeatedDirectStatusFailureEvents = await prisma.failureEvent.findMany({
+    where: { machineId: ids.failureRaceMachine, endedAt: null },
+  });
+  assert.deepEqual(
+    repeatedDirectStatusFailureEvents.map((event) => event.id),
+    directStatusFailureEvents.map((event) => event.id),
+    "repetir status stopped não pode duplicar FailureEvent",
+  );
+
   for (const [id, name] of [
     [ids.sessionMachineA, "Máquina PR 42 sessão A"],
     [ids.sessionMachineB, "Máquina PR 42 sessão B"],
