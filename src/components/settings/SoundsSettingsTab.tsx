@@ -523,7 +523,7 @@ export function SoundsSettingsTab({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
             <BigButton
               tone="primary"
               size="md"
