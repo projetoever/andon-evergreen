@@ -234,7 +234,7 @@ export function ShiftsSettingsTab() {
             )}
           </div>
 
-          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+          <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
                 <p className="text-sm font-bold">Nenhum turno configurado</p>

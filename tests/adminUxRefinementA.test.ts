@@ -96,7 +96,7 @@ test("classificações possuem pesquisa, filtro de status e contador", async () 
   assert.match(source, /Inativos/);
   assert.match(source, /filteredItems\.length/);
   assert.match(source, /Nenhuma classificação encontrada/);
-  assert.match(source, /max-h-\[52vh\]/);
+  assert.match(source, /max-h-\[calc\(96dvh-22rem\)\]/);
 });
 
 test("classificações mantêm edição e ID histórico estável", async () => {
@@ -127,7 +127,7 @@ test("setores possuem pesquisa, filtro de status, contador e seleção destacada
   assert.match(source, /filteredItems\.length/);
   assert.match(source, /Nenhum setor encontrado/);
   assert.match(source, /ring-primary\/30/);
-  assert.match(source, /max-h-\[52vh\]/);
+  assert.match(source, /max-h-\[calc\(96dvh-22rem\)\]/);
 });
 
 
@@ -203,7 +203,7 @@ test("catálogos de ativos possuem busca, status, contador e estados profissiona
   assert.match(source, /filteredItems\.length/);
   assert.match(source, /Nenhum tipo encontrado/);
   assert.match(source, /Tentar novamente/);
-  assert.match(source, /max-h-\[52vh\]/);
+  assert.match(source, /max-h-\[calc\(96dvh-22rem\)\]/);
   assert.match(source, /ring-primary\/30/);
   assert.match(source, /Limpar filtros/);
 });
@@ -310,4 +310,23 @@ test("modo de atendimento possui retry, alterações pendentes e cancelamento", 
   assert.match(source, /savedSettings && setSettings\(savedSettings\)/);
   assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges\}/);
   assert.match(source, /Informe entre 4 e 64 caracteres para a leitura RFID/);
+});
+
+
+test("listas de catálogo do Admin aproveitam a altura útil do modal", async () => {
+  const paths = [
+    "../src/components/settings/CategoriesSettingsTab.tsx",
+    "../src/components/settings/ShiftsSettingsTab.tsx",
+    "../src/components/settings/SoundsSettingsTab.tsx",
+    "../src/components/settings/MachineAssetCatalogPanel.tsx",
+    "../src/components/settings/AdminSettingsModal.tsx",
+  ];
+
+  for (const path of paths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /min-h-\[12rem\]/);
+    assert.match(source, /max-h-\[calc\(96dvh-22rem\)\]/);
+    assert.match(source, /overscroll-contain/);
+    assert.doesNotMatch(source, /max-h-\[52vh\]/);
+  }
 });
