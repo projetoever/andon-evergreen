@@ -74,7 +74,13 @@ function Section({
 }
 
 export function MachineAdminPanel() {
-  const { machines, createMachine, updateMachineCatalog, updateMachineActive } = useAndon();
+  const {
+    machines,
+    createMachine,
+    updateMachineCatalog,
+    updateMachineActive,
+    updateMachineProductionMode,
+  } = useAndon();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [workOrderFilter, setWorkOrderFilter] = useState<"all" | "required" | "optional">("all");
@@ -582,9 +588,10 @@ export function MachineAdminPanel() {
                   <Select
                     value={selectedMachine.productionMode}
                     onValueChange={(value) =>
-                      updateMachineCatalog(selectedMachine.id, {
-                        productionMode: value as ProductionMode,
-                      })
+                      updateMachineProductionMode(
+                        selectedMachine.id,
+                        value as ProductionMode,
+                      )
                     }
                   >
                     <SelectTrigger>
