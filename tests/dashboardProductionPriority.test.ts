@@ -257,3 +257,36 @@ test("schema de histórico de prioridade é preparado para análise temporal do 
   assert.match(schema, /reason\s+String\?/);
   assert.match(schema, /@@index\(\[machineId, changedAt\]\)/);
 });
+
+
+test("modo de produção usa exclusivamente o fluxo dedicado com histórico", async () => {
+  const [panel, provider, contract, localRepository, route] = await Promise.all([
+    readFile(new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/context/AndonProvider.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/repositories/andonRepository.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/repositories/localAndonRepository.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/machines.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(panel, /updateMachineProductionMode/);
+  assert.doesNotMatch(
+    panel,
+    /updateMachineCatalog\(selectedMachine\.id,\s*\{\s*productionMode/,
+  );
+
+  const catalogPatch = contract.split("export interface MachineCatalogPatch")[1]?.split("}")[0] ?? "";
+  assert.doesNotMatch(catalogPatch, /productionMode/);
+
+  const localCatalog = localRepository.slice(
+    localRepository.indexOf("async updateMachineCatalog"),
+    localRepository.indexOf("async updateMachineActive"),
+  );
+  assert.doesNotMatch(localCatalog, /patch\.productionMode/);
+
+  assert.match(
+    route,
+    /Use a rota específica de modo de produção para preservar o histórico operacional/,
+  );
+  assert.match(route, /"\/api\/machines\/:id\/production-mode"/);
+  assert.match(route, /lockMachineFlow/);
+});
