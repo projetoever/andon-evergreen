@@ -954,6 +954,15 @@ export function finishAndonCall(
     throw new Error("Chamado já encerrado");
   }
 
+  if (!call.isSystemTest) {
+    if (call.category === "maintenance" && call.status !== "post_maintenance") {
+      throw new Error("Chamado de manutenção deve concluir a manutenção antes da finalização");
+    }
+    if (call.category === "production" && call.status !== "in_progress") {
+      throw new Error("Chamado de produção deve estar em atendimento para ser finalizado");
+    }
+  }
+
   const requiresAssetConfirmation = call.category === "maintenance";
 
   const assetConfirmedBy = requiresAssetConfirmation

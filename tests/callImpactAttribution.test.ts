@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { finishAndonCall, openAndonCall } from "../src/services/andonService";
+import { attendAndonCall, finishAndonCall, openAndonCall } from "../src/services/andonService";
 import type { AndonCall } from "../src/types/andon";
 import type { Machine } from "../src/types/machine";
 
@@ -88,8 +88,15 @@ test("atribui impacto somente ao chamado que informou a parada e transfere sem r
   assert.equal(hotMelt.call.impactIntervals?.length, 0);
   assert.equal(quality.call.impactIntervals?.length, 0);
 
+  const attendedMechanical = attendAndonCall(machines, calls, mechanical.call.id);
+  machines = attendedMechanical.machines;
+  calls = attendedMechanical.calls;
+  const mechanicalInProgress = calls.find((call) => call.id === mechanical.call.id);
+  assert.ok(mechanicalInProgress);
+  assert.equal(mechanicalInProgress.status, "in_progress");
+
   assert.throws(
-    () => finishAndonCall(machines, calls, finishParams(mechanical.call)),
+    () => finishAndonCall(machines, calls, finishParams(mechanicalInProgress)),
     /máquina continua em falha/i,
   );
 
@@ -97,7 +104,7 @@ test("atribui impacto somente ao chamado que informou a parada e transfere sem r
   const transferred = finishAndonCall(
     machines,
     calls,
-    finishParams(mechanical.call, {
+    finishParams(mechanicalInProgress, {
       machineStatus: "stopped",
       impactCallIds: [electrical.call.id, hotMelt.call.id],
       failureClassification: "quality_failure",
