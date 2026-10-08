@@ -290,3 +290,29 @@ test("modo de produção usa exclusivamente o fluxo dedicado com histórico", as
   assert.match(route, /"\/api\/machines\/:id\/production-mode"/);
   assert.match(route, /lockMachineFlow/);
 });
+
+
+test("máquina inativa não recebe chamados e inativação revalida após lock", async () => {
+  const [machineRoute, callRoute] = await Promise.all([
+    readFile(new URL("../server/src/routes/machines.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+  ]);
+
+  const activeRoute = machineRoute.slice(
+    machineRoute.indexOf('"/api/machines/:id/active"'),
+    machineRoute.indexOf('"/api/machines/:id/status"'),
+  );
+  const lockIndex = activeRoute.indexOf("await lockMachineFlow");
+  const reloadIndex = activeRoute.indexOf("const lockedTarget = await tx.machine.findUnique");
+  const activeCallIndex = activeRoute.indexOf("lockedTarget.currentCallId");
+
+  assert.ok(lockIndex >= 0);
+  assert.ok(reloadIndex > lockIndex);
+  assert.ok(activeCallIndex > reloadIndex);
+
+  const inactiveGuardMatches =
+    callRoute.match(/Máquina inativa para abertura de chamados/g) ?? [];
+  assert.equal(inactiveGuardMatches.length, 2);
+  assert.match(callRoute, /!isSystemTest && !lockedMachine\.isActive/);
+  assert.match(callRoute, /if \(!machine\.isActive\)/);
+});
