@@ -1,4 +1,7 @@
-import { getAdminAuthorizationHeader } from "@/services/adminSessionStorage";
+import {
+  clearAdminSession,
+  getAdminAuthorizationHeader,
+} from "@/services/adminSessionStorage";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 export interface AndonApiClientConfig {
@@ -143,6 +146,16 @@ export function createAndonApiClient(
     }
 
     if (!response.ok) {
+      if (
+        response.status === 401 &&
+        payload &&
+        typeof payload === "object" &&
+        "error" in payload &&
+        (payload as { error?: unknown }).error === "admin_auth_required"
+      ) {
+        clearAdminSession();
+      }
+
       throw new AndonApiError(
         buildErrorMessage(
           response.status,

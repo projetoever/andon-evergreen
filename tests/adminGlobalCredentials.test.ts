@@ -86,3 +86,15 @@ test("sessão Admin usa bearer do servidor e é anexada pelo cliente API", async
   assert.match(authorization, /isAdminProtectedMutation/);
   assert.match(authorization, /Sessão administrativa necessária/);
 });
+
+
+test("cliente limpa sessão Admin quando o servidor rejeita token expirado ou perdido", async () => {
+  const source = await readFile(
+    new URL("../src/api/andonApiClient.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /clearAdminSession/);
+  assert.match(source, /admin_auth_required/);
+  assert.match(source, /response\.status === 401/);
+});
