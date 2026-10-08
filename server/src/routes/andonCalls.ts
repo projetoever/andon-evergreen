@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
+import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import {
   allowsWholeSetCalls,
@@ -188,9 +189,7 @@ function parseCredentialBodies(value: unknown): TechnicianCredentialBody[] {
 class AndonCallValidationError extends Error {}
 
 async function lockMachineCallFlow(tx: Prisma.TransactionClient, machineId: string) {
-  await tx.$queryRaw(Prisma.sql`
-    SELECT pg_advisory_xact_lock(hashtext(${machineId}))::text AS "lockResult"
-  `);
+  await lockMachineFlow(tx, machineId);
 }
 
 async function lockTechnicianSessionFlow(tx: Prisma.TransactionClient, technicianId: string) {
