@@ -7,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ADMIN_PASSWORD_MIN_LENGTH, changeAdminPassword } from "@/services/adminAuthService";
+import {
+  ADMIN_PASSWORD_MIN_LENGTH,
+  changeAdminPassword,
+  generateAdminRecoveryCode,
+} from "@/services/adminAuthService";
 import {
   configureDashboardPriorityCredentials,
   getDashboardPriorityAccessStatus,
@@ -27,6 +31,10 @@ export function GeneralSettingsTab() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingAdminPassword, setIsSavingAdminPassword] = useState(false);
+  const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
+  const [generatedRecoveryCode, setGeneratedRecoveryCode] = useState("");
+  const [isGeneratingRecoveryCode, setIsGeneratingRecoveryCode] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
   const [isSavingDashboardOrderMode, setIsSavingDashboardOrderMode] = useState(false);
@@ -223,7 +231,7 @@ export function GeneralSettingsTab() {
     }
   }
 
-  function handleChangePassword(event: FormEvent<HTMLFormElement>) {
+  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (newPassword.trim() !== confirmPassword.trim()) {
@@ -231,16 +239,46 @@ export function GeneralSettingsTab() {
       return;
     }
 
-    const result = changeAdminPassword(currentPassword, newPassword);
-    if (!result.ok) {
-      toast.error(result.message);
+    setIsSavingAdminPassword(true);
+    try {
+      const result = await changeAdminPassword(currentPassword, newPassword);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success(result.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível alterar a senha administrativa.",
+      );
+    } finally {
+      setIsSavingAdminPassword(false);
+    }
+  }
+
+  async function handleGenerateRecoveryCode() {
+    if (!recoveryCurrentPassword.trim()) {
+      toast.error("Informe a senha administrativa atual para gerar o código de recuperação.");
       return;
     }
 
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    toast.success(result.message);
+    setIsGeneratingRecoveryCode(true);
+    try {
+      const result = await generateAdminRecoveryCode(recoveryCurrentPassword);
+      setGeneratedRecoveryCode(result.recoveryCode);
+      setRecoveryCurrentPassword("");
+      toast.success("Novo código de recuperação gerado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível gerar o código de recuperação.",
+      );
+    } finally {
+      setIsGeneratingRecoveryCode(false);
+    }
   }
 
   return (
@@ -340,10 +378,10 @@ export function GeneralSettingsTab() {
               Senha administrativa
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
             <form className="space-y-3" onSubmit={handleChangePassword}>
               <p className="text-sm text-muted-foreground">
-                Altere a senha usada no painel administrativo e no desbloqueio de telas fixadas.
+                Esta senha é salva no servidor e passa a valer para o Admin e desbloqueio em todas as máquinas.
               </p>
               <div className="space-y-1">
                 <Label htmlFor="current-admin-password">Senha atual</Label>
@@ -381,9 +419,58 @@ export function GeneralSettingsTab() {
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button type="submit">Alterar senha</Button>
+                <Button type="submit" disabled={isSavingAdminPassword}>
+                  {isSavingAdminPassword ? "Salvando..." : "Alterar senha global"}
+                </Button>
               </div>
             </form>
+
+            <div className="border-t border-border pt-4">
+              <div className="space-y-1">
+                <p className="font-black">Recuperação da senha do Admin</p>
+                <p className="text-xs text-muted-foreground">
+                  Gere um código de recuperação e guarde-o fora do ANDON. O código é exibido somente
+                  nesta geração e fica armazenado no servidor apenas como hash.
+                </p>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Label htmlFor="admin-recovery-current-password">Senha administrativa atual</Label>
+                  <Input
+                    id="admin-recovery-current-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={recoveryCurrentPassword}
+                    onChange={(event) => setRecoveryCurrentPassword(event.target.value)}
+                    placeholder="Confirme a senha atual"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isGeneratingRecoveryCode}
+                  onClick={() => void handleGenerateRecoveryCode()}
+                >
+                  {isGeneratingRecoveryCode ? "Gerando..." : "Gerar novo código"}
+                </Button>
+              </div>
+
+              {generatedRecoveryCode && (
+                <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-warning">
+                    Guarde este código agora
+                  </p>
+                  <p className="mt-2 select-all font-mono text-xl font-black tracking-wider text-foreground">
+                    {generatedRecoveryCode}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Em caso de esquecimento, use “Esqueci a senha” na tela de acesso administrativo.
+                    Após uma recuperação, este código é invalidado e um novo deve ser gerado.
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -444,7 +531,7 @@ export function GeneralSettingsTab() {
                     <p className="font-black">Acesso à gestão de prioridades</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Credencial independente usada somente na tela de ordenação das máquinas.
+                    Credencial independente salva no servidor e válida em todas as máquinas/workstations.
                   </p>
                 </div>
                 <span
