@@ -44,6 +44,8 @@ test("credencial de prioridades permanece centralizada no PostgreSQL", async () 
   ]);
 
   assert.match(service, /\/api\/dashboard-priority\/credentials/);
+  assert.match(service, /\/api\/dashboard-priority\/access-status/);
+  assert.match(service, /não confirmou a persistência das credenciais de prioridades/);
   assert.match(route, /prisma\.dashboardPriorityConfig\.upsert/);
   assert.match(route, /managerPasswordHash/);
   assert.match(schema, /model DashboardPriorityConfig/);
