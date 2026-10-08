@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { lockMachineFlow } from "../db/machineFlowLock.js";
+import { lockTechnicianSessionFlow } from "../db/technicianSessionFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import {
   allowsWholeSetCalls,
@@ -190,14 +191,6 @@ class AndonCallValidationError extends Error {}
 
 async function lockMachineCallFlow(tx: Prisma.TransactionClient, machineId: string) {
   await lockMachineFlow(tx, machineId);
-}
-
-async function lockTechnicianSessionFlow(tx: Prisma.TransactionClient, technicianId: string) {
-  await tx.$queryRaw(Prisma.sql`
-    SELECT pg_advisory_xact_lock(
-      hashtext(${`andon-technician-session:${technicianId}`})
-    )::text AS "lockResult"
-  `);
 }
 
 async function findDuplicateActiveSectorCall(
@@ -1058,6 +1051,23 @@ async function lockAndFindMissingActiveTechnicians(
 
   for (const technicianId of technicianIds) {
     await lockTechnicianSessionFlow(tx, technicianId);
+  }
+
+  const stillActiveTechnicians = await tx.technician.findMany({
+    where: {
+      id: { in: technicianIds },
+      active: true,
+    },
+    select: { id: true },
+  });
+  const stillActiveIds = new Set(stillActiveTechnicians.map((technician) => technician.id));
+  const inactiveTechnician = technicians.find(
+    (technician) => !stillActiveIds.has(technician.id),
+  );
+  if (inactiveTechnician) {
+    throw new AndonCallValidationError(
+      `Mantenedor ${inactiveTechnician.name} está inativo`,
+    );
   }
 
   const activeSessions = await tx.technicianSession.findMany({
