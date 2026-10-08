@@ -21,6 +21,7 @@ export interface SystemSettings {
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;
   rfidCodeLength: number | null;
+  filterTechniciansByCurrentShift: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,4 +41,5 @@ export interface SystemSettingsPatch {
   rfidReaderMode?: "keyboard_hid";
   rfidInputTerminator?: RfidInputTerminator;
   rfidCodeLength?: number | null;
+  filterTechniciansByCurrentShift?: boolean;
 }
