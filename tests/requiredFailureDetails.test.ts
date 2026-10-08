@@ -356,3 +356,38 @@ test("finalização preserva auditoria e evita duplicar a descrição no modo lo
     /Descrição da falha é obrigatória/,
   );
 });
+
+
+test("finalização respeita a máquina de estados por categoria", async () => {
+  const [route, service, actions] = await Promise.all([
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    route,
+    /call\.category === "maintenance" && call\.status !== "post_maintenance"/,
+  );
+  assert.match(
+    route,
+    /call\.category === "production" && call\.status !== "in_progress"/,
+  );
+  assert.match(
+    service,
+    /call\.category === "maintenance" && call\.status !== "post_maintenance"/,
+  );
+  assert.match(
+    service,
+    /call\.category === "production" && call\.status !== "in_progress"/,
+  );
+
+  assert.match(
+    actions,
+    /currentCall\.status === "in_progress" && currentCall\.category === "production"/,
+  );
+  assert.match(
+    actions,
+    /currentCall\.status === "post_maintenance"[\s\S]*onFinish/,
+  );
+});
