@@ -6,7 +6,12 @@ import {
   findApplicableFailureEvent,
   isSpecificFailureClassification,
 } from "../src/utils/failureEventUtils";
-import { finishAndonCall, normalizeAndonCall, openAndonCall } from "../src/services/andonService";
+import {
+  attendAndonCall,
+  finishAndonCall,
+  normalizeAndonCall,
+  openAndonCall,
+} from "../src/services/andonService";
 import { extractFailureDescriptionForFinish } from "../src/utils/failureDescriptionUtils";
 import type { Machine, MachineStopEvent } from "../src/types/machine";
 
@@ -56,9 +61,11 @@ function createFinishScenario(machineCondition: "running" | "stopped") {
     machineCondition,
   });
 
+  const attended = attendAndonCall(opened.machines, opened.calls, opened.call.id);
+
   return {
-    machines: opened.machines,
-    calls: opened.calls,
+    machines: attended.machines,
+    calls: attended.calls,
     params: {
       callId: opened.call.id,
       technicianName: null,
