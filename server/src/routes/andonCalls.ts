@@ -1339,6 +1339,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         await lockMachineCallFlow(tx, machineId);
         const lockedMachine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!lockedMachine) throw new AndonCallValidationError("Máquina não encontrada");
+        if (!isSystemTest && !lockedMachine.isActive) {
+          throw new AndonCallValidationError("Máquina inativa para abertura de chamados");
+        }
         if (
           !isSystemTest &&
           (await requiresWorkOrderAtOpen(lockedMachine.requireWorkOrderAtOpen)) &&
@@ -1506,6 +1509,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         await lockMachineCallFlow(tx, machineId);
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
+        if (!machine.isActive) {
+          throw new AndonCallValidationError("Máquina inativa para abertura de chamados");
+        }
         if ((await requiresWorkOrderAtOpen(machine.requireWorkOrderAtOpen)) && !workOrderNumber) {
           throw new AndonCallValidationError("Informe o número da OS para abrir o chamado");
         }
