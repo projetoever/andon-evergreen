@@ -2,6 +2,7 @@ import "./config/env.js";
 import Fastify from "fastify";
 
 import { registerCorsSupport } from "./config/cors.js";
+import { enforceAdminAuthorization } from "./security/adminAuthorization.js";
 import { prisma } from "./db/prisma.js";
 import {
   createPlcRuntime,
@@ -36,6 +37,7 @@ export function buildServer() {
   });
 
   registerCorsSupport(app);
+  app.addHook("preHandler", enforceAdminAuthorization);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error({ error }, "Erro ao processar requisição");
