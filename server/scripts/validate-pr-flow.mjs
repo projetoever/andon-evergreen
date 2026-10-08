@@ -2300,7 +2300,48 @@ async function run() {
     "aberturas concorrentes não podem criar dois chamados do mesmo setor",
   );
 
+  const successfulConcurrentOpen = concurrentResponses.find(
+    (response) => response.status === 201,
+  );
+  assert.ok(successfulConcurrentOpen);
+  const concurrentRaceCall = await successfulConcurrentOpen.json();
+
   await prisma.$connect();
+
+  const cancellationRace = await runAfterAdvisoryLockWait(
+    ids.raceMachine,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentRaceCall.id}/cancel`,
+        json("PATCH", {
+          reason: "Cancelamento concorrente após início do atendimento",
+          cancelledBy: "integration-test",
+        }),
+        400,
+      ),
+    async () => {
+      const attendedAt = new Date();
+      await prisma.andonCall.update({
+        where: { id: concurrentRaceCall.id },
+        data: {
+          status: "in_progress",
+          attendedAt,
+          currentAttendanceStartedAt: attendedAt,
+        },
+      });
+      return attendedAt;
+    },
+  );
+  assert.match(cancellationRace.result.message, /já atendido/i);
+  const callAfterCancellationRace = await prisma.andonCall.findUniqueOrThrow({
+    where: { id: concurrentRaceCall.id },
+  });
+  assert.equal(
+    callAfterCancellationRace.status,
+    "in_progress",
+    "cancelamento aguardando lock não pode sobrescrever atendimento iniciado",
+  );
+  assert.ok(callAfterCancellationRace.attendedAt);
 
   const storedTechnicians = await prisma.technician.findMany({
     where: { id: { in: [electrical.id, mechanical.id] } },
