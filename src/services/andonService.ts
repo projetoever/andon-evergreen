@@ -671,7 +671,7 @@ export function attendAndonCall(
   const selectedTechnicians = typeof params === "string" ? [] : params.technicians;
   const shouldRequireTechnician = requiresMaintenanceTechnician(call);
   if (shouldRequireTechnician && selectedTechnicians.length === 0) {
-    throw new Error("Selecione pelo menos um manutentor para iniciar o atendimento.");
+    throw new Error("Selecione pelo menos um mantenedor para iniciar o atendimento.");
   }
   if (shouldRequireTechnician) {
     assertWorkstationCanStartAttendance(workstationContext);
@@ -973,7 +973,7 @@ export function finishAndonCall(
   const technicianName = technicianNames[0] ?? params.technicianName ?? null;
 
   if (requiresMaintenanceTechnician(call) && !technicianName) {
-    throw new Error("Selecione um manutentor para chamados de manutenção");
+    throw new Error("Selecione um mantenedor para chamados de manutenção");
   }
 
   function assetKey(
