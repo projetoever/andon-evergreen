@@ -1,4 +1,5 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { ShiftConfig } from "@/types/settings";
 
 const apiClient = createAndonApiClient();
@@ -30,6 +31,8 @@ export function getShiftConfigs() {
 }
 
 export async function refreshShiftConfigs() {
+  if (CONFIGURED_DATA_MODE === "local") return cachedShifts;
+
   const shifts = await apiClient.get<Array<{
     id: string;
     name: string;
@@ -43,6 +46,13 @@ export async function refreshShiftConfigs() {
 }
 
 export async function saveShiftConfig(config: ShiftConfig) {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedShifts = cachedShifts.map((item) =>
+      item.id === config.id ? { ...config } : item,
+    );
+    return config;
+  }
+
   const updated = await apiClient.patch<{
     id: string;
     name: string;
