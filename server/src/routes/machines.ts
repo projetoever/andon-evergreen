@@ -182,11 +182,12 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const machine = await findMachineOr404(request.params.id, reply);
       if (!("id" in machine)) return machine;
-      const productionMode = normalizeProductionMode(
-        optionalBodyString(request.body?.productionMode),
-      );
-      if (productionMode && !PRODUCTION_MODES.has(productionMode))
-        return badRequest(reply, "Modo de produção inválido");
+      if ("productionMode" in (request.body ?? {})) {
+        return badRequest(
+          reply,
+          "Use a rota específica de modo de produção para preservar o histórico operacional",
+        );
+      }
       const requireWorkOrderAtOpen = parseBoolean(request.body?.requireWorkOrderAtOpen);
       if (
         "requireWorkOrderAtOpen" in (request.body ?? {}) &&
@@ -200,7 +201,6 @@ export async function registerMachineRoutes(app: FastifyInstance) {
           ...(optionalBodyString(request.body?.name)
             ? { name: optionalBodyString(request.body?.name) }
             : {}),
-          ...(productionMode ? { productionMode } : {}),
           ...(requireWorkOrderAtOpen !== undefined ? { requireWorkOrderAtOpen } : {}),
         },
         select: machineSelect,

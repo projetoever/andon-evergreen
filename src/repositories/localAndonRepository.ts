@@ -296,7 +296,6 @@ export class LocalAndonRepository implements AndonRepository {
       updated = andonService.normalizeMachine({
         ...machine,
         name: patch.name?.trim() || machine.name,
-        productionMode: patch.productionMode ?? machine.productionMode,
         requireWorkOrderAtOpen: patch.requireWorkOrderAtOpen ?? machine.requireWorkOrderAtOpen,
       });
       return updated;
