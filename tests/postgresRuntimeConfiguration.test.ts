@@ -12,6 +12,7 @@ const CENTRALIZED_SERVICES = [
   "../src/services/technicianShiftFilterService.ts",
   "../src/services/workstationIdentityService.ts",
   "../src/services/workstationService.ts",
+  "../src/services/localStorageService.ts",
 ];
 
 test("configurações operacionais não persistem em localStorage", async () => {
@@ -48,4 +49,15 @@ test("identidade persistente da workstation usa cookie técnico, não configura�
   assert.match(identity, /document\.cookie/);
   assert.match(identity, /SameSite=Lax/);
   assert.doesNotMatch(identity, /localStorage/);
+});
+
+
+test("modo local legado mantém somente memória de processo", async () => {
+  const source = await readFile(
+    new URL("../src/services/localStorageService.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /new Map<string, string>\(\)/);
+  assert.doesNotMatch(source, /window\.localStorage|localStorage\./);
 });
