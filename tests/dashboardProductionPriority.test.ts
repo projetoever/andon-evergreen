@@ -102,6 +102,7 @@ test("CORS autoriza método PUT e header Authorization usados pela gestão de pr
   );
 
   assert.match(source, /"PUT"/);
+  assert.match(source, /"DELETE"/);
   assert.match(source, /"Authorization"/);
   assert.match(source, /CORS_METHODS\.join\(","\)/);
   assert.match(source, /CORS_ALLOWED_HEADERS\.join\(","\)/);
