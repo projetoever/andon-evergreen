@@ -44,7 +44,6 @@ export interface MachineCatalogInput {
 
 export interface MachineCatalogPatch {
   name?: string;
-  productionMode?: ProductionMode;
   requireWorkOrderAtOpen?: boolean;
 }
 
