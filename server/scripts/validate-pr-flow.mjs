@@ -2707,6 +2707,34 @@ async function run() {
   });
   await finishWorkstationCall(tracedUnrestrictedCall.id);
 
+  const inactiveTraceCall = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.workstationMachineA,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    201,
+  );
+  const inactiveTraceAttendance = await request(
+    `/api/andon-calls/${inactiveTraceCall.id}/attend`,
+    {
+      ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
+      headers: workstationHeaders(ids.inactiveWorkstation),
+    },
+  );
+  assert.equal(
+    inactiveTraceAttendance.technicianSessions[0].workstationId,
+    null,
+    "regra OFF não deve gravar workstation administrativamente inativa",
+  );
+  await request(
+    `/api/andon-calls/${inactiveTraceCall.id}/finish-maintenance`,
+    json("PATCH", {}),
+  );
+  await finishWorkstationCall(inactiveTraceCall.id);
+
   const restrictedSettings = await request(
     "/api/system-settings",
     json("PATCH", { restrictMaintenanceCompletionToAttendanceWorkstation: true }),
@@ -2806,14 +2834,28 @@ async function run() {
     json("PATCH", { reason: "Validar workstation desativada" }),
   );
 
-  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: false }));
+  const activeWorkstationDeactivation = await request(
+    `/api/workstations/${ids.workstation}`,
+    json("PATCH", { active: false }),
+    400,
+  );
+  assert.match(activeWorkstationDeactivation.message, /atendimento ativo/i);
+
+  // Defesa em profundidade: dado legado/corrompido ainda deve bloquear a conclusão.
+  await prisma.workstation.update({
+    where: { id: ids.workstation },
+    data: { active: false },
+  });
   const inactiveCompletion = await request(
     `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
     { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
     400,
   );
   assert.match(inactiveCompletion.message, /desativada/i);
-  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: true }));
+  await prisma.workstation.update({
+    where: { id: ids.workstation },
+    data: { active: true },
+  });
 
   await request(
     `/api/andon-calls/${restrictedCall.id}/technicians/end`,
@@ -2829,10 +2871,14 @@ async function run() {
     ...json("PATCH", {}),
     headers: workstationHeaders(ids.workstationB),
   });
-  await request(`/api/workstations/${ids.workstationB}`, json("PATCH", { active: false }));
+  const secondActiveWorkstationDeactivation = await request(
+    `/api/workstations/${ids.workstationB}`,
+    json("PATCH", { active: false }),
+    400,
+  );
+  assert.match(secondActiveWorkstationDeactivation.message, /atendimento ativo/i);
   const finalWithoutWorkstationLock = await finishWorkstationCall(restrictedCall.id);
   assert.equal(finalWithoutWorkstationLock.status, "finished");
-  await request(`/api/workstations/${ids.workstationB}`, json("PATCH", { active: true }));
 
   const legacyRestrictedCall = await request(
     "/api/andon-calls",
