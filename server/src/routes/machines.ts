@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
+import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import {
   buildCurrentPrioritySnapshot,
@@ -287,9 +288,9 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     const machine = await findMachineOr404(request.params.id, reply);
     if (!("id" in machine)) return machine;
 
-    const now = new Date();
-
     return prisma.$transaction(async (tx) => {
+      await lockMachineFlow(tx, request.params.id);
+
       const currentMachine = await tx.machine.findUnique({
         where: { id: request.params.id },
         select: { id: true, productionMode: true },
@@ -305,6 +306,8 @@ export async function registerMachineRoutes(app: FastifyInstance) {
       if (currentMachine.productionMode === productionMode && openProductionEvent) {
         return tx.machine.findUniqueOrThrow({ where: { id: request.params.id }, select: machineSelect });
       }
+
+      const now = new Date();
 
       if (openProductionEvent) {
         await tx.machineProductionEvent.update({
