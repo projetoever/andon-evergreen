@@ -2302,6 +2302,17 @@ async function run() {
   assert.equal(attendedSessionCallA.technicianSessions.length, 1);
   assert.equal(attendedSessionCallA.technicianSessions[0].technicianId, electrical.id);
 
+  const activeTechnicianDeactivation = await request(
+    `/api/technicians/${electrical.id}`,
+    json("PATCH", { active: false }),
+    400,
+  );
+  assert.match(activeTechnicianDeactivation.message, /atendimento ativo/i);
+  assert.equal(
+    (await prisma.technician.findUniqueOrThrow({ where: { id: electrical.id } })).active,
+    true,
+  );
+
   const sessionCallB = await request(
     "/api/andon-calls",
     json("POST", {

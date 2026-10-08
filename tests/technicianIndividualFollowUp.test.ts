@@ -512,7 +512,7 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.match(schema, /phase\s+String\?/);
   assert.match(schema, /cycleIndex\s+Int\?/);
   assert.match(packageJson, /technicianIndividualFollowUp\.test\.ts/);
-  assert.match(route, /pg_advisory_xact_lock/);
+  assert.match(route, /lockTechnicianSessionFlow/);
   assert.match(route, /followUpSessionIds/);
   assert.match(page, /getServerNowIso\(\)/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
@@ -637,4 +637,41 @@ test("histórico discrimina atendimento, acompanhamento e total individual sem i
   assert.match(history, />\s*Total individual\s*</);
   assert.match(history, /Tempo total legado/);
   assert.match(history, /phaseAwareRows\.length > 0 \? phaseAwareRows : legacyRows/);
+});
+
+
+test("inativação de mantenedor é serializada com criação de sessões", async () => {
+  const [callsRoute, techniciansRoute, lock] = await Promise.all([
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/technicians.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/db/technicianSessionFlowLock.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(lock, /andon-technician-session:/);
+  assert.match(lock, /pg_advisory_xact_lock/);
+
+  const availability = callsRoute.slice(
+    callsRoute.indexOf("async function lockAndFindMissingActiveTechnicians"),
+    callsRoute.indexOf("async function createTechnicianSessions"),
+  );
+  const lockIndex = availability.indexOf("await lockTechnicianSessionFlow");
+  const activeReloadIndex = availability.indexOf("tx.technician.findMany");
+  const sessionLookupIndex = availability.indexOf("tx.technicianSession.findMany");
+
+  assert.ok(lockIndex >= 0);
+  assert.ok(activeReloadIndex > lockIndex);
+  assert.ok(sessionLookupIndex > activeReloadIndex);
+  assert.match(availability, /Mantenedor \$\{inactiveTechnician\.name\} está inativo/);
+
+  const updateRoute = techniciansRoute.slice(
+    techniciansRoute.indexOf('"/api/technicians/:id"'),
+  );
+  const updateLockIndex = updateRoute.indexOf("await lockTechnicianSessionFlow(tx, current.id)");
+  const activeSessionIndex = updateRoute.indexOf("tx.technicianSession.findFirst");
+  const updateIndex = updateRoute.indexOf("return tx.technician.update");
+
+  assert.ok(updateLockIndex >= 0);
+  assert.ok(activeSessionIndex > updateLockIndex);
+  assert.ok(updateIndex > activeSessionIndex);
+  assert.match(updateRoute, /Não é possível inativar mantenedor com atendimento ativo/);
 });
