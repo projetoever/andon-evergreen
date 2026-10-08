@@ -1,11 +1,14 @@
 import type { FastifyInstance } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 type RegisterWorkstationBody = { id?: unknown };
 type UpdateWorkstationBody = { name?: unknown; active?: unknown };
+
+class WorkstationUpdateValidationError extends Error {}
 
 const workstationSelect = {
   id: true,
@@ -84,14 +87,55 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       const existing = await prisma.workstation.findUnique({ where: { id }, select: { id: true } });
       if (!existing) return notFound(reply, "Workstation não encontrada");
 
-      return prisma.workstation.update({
-        where: { id },
-        data: {
-          ...(hasName ? { name } : {}),
-          ...(active !== undefined ? { active } : {}),
-        },
-        select: workstationSelect,
-      });
+      try {
+        return await prisma.$transaction(async (tx) => {
+          await lockWorkstationFlow(tx, id);
+
+          const lockedWorkstation = await tx.workstation.findUnique({
+            where: { id },
+            select: { id: true, active: true },
+          });
+          if (!lockedWorkstation) {
+            throw new WorkstationUpdateValidationError("Workstation não encontrada");
+          }
+
+          if (active === false && lockedWorkstation.active) {
+            const activeSession = await tx.technicianSession.findFirst({
+              where: {
+                workstationId: id,
+                endedAt: null,
+              },
+              select: {
+                id: true,
+                callId: true,
+                machineId: true,
+              },
+            });
+            if (activeSession) {
+              throw new WorkstationUpdateValidationError(
+                "Não é possível desativar workstation com atendimento ativo.",
+              );
+            }
+          }
+
+          return tx.workstation.update({
+            where: { id },
+            data: {
+              ...(hasName ? { name } : {}),
+              ...(active !== undefined ? { active } : {}),
+            },
+            select: workstationSelect,
+          });
+        });
+      } catch (error) {
+        if (error instanceof WorkstationUpdateValidationError) {
+          if (error.message === "Workstation não encontrada") {
+            return notFound(reply, error.message);
+          }
+          return badRequest(reply, error.message);
+        }
+        throw error;
+      }
     },
   );
 }
