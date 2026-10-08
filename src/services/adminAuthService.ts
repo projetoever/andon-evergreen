@@ -9,11 +9,11 @@ import {
 } from "@/services/adminSessionStorage";
 
 const apiClient = createAndonApiClient();
-const PASSWORD_KEY = "andonAdminPassword";
-const RECOVERY_KEY = "andonAdminRecoveryCode";
 const ADMIN_USER = "admin";
 const DEFAULT_ADMIN_PASSWORD = "123456";
 const LOCAL_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+let localAdminPassword = DEFAULT_ADMIN_PASSWORD;
+let localRecoveryCode: string | null = null;
 export const ADMIN_PASSWORD_MIN_LENGTH = 6;
 
 export interface AdminAuthStatus {
@@ -23,16 +23,8 @@ export interface AdminAuthStatus {
   recoveryCodeIssuedAt: string | null;
 }
 
-function canUseStorage() {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
 function getLocalAdminPassword() {
-  if (!canUseStorage()) return DEFAULT_ADMIN_PASSWORD;
-  const storedPassword = window.localStorage.getItem(PASSWORD_KEY)?.trim();
-  return storedPassword && storedPassword.length >= ADMIN_PASSWORD_MIN_LENGTH
-    ? storedPassword
-    : DEFAULT_ADMIN_PASSWORD;
+  return localAdminPassword;
 }
 
 function normalizeRecoveryCode(value: string) {
@@ -68,8 +60,8 @@ export async function getAdminAuthStatus(): Promise<AdminAuthStatus> {
   if (CONFIGURED_DATA_MODE === "local") {
     return {
       username: ADMIN_USER,
-      passwordConfigured: Boolean(window.localStorage.getItem(PASSWORD_KEY)),
-      recoveryConfigured: Boolean(window.localStorage.getItem(RECOVERY_KEY)),
+      passwordConfigured: localAdminPassword !== DEFAULT_ADMIN_PASSWORD,
+      recoveryConfigured: Boolean(localRecoveryCode),
       recoveryCodeIssuedAt: null,
     };
   }
@@ -109,10 +101,7 @@ export async function changeAdminPassword(currentPassword: string, newPassword: 
     if (currentPassword !== getLocalAdminPassword()) {
       return { ok: false, message: "Senha atual inválida." };
     }
-    if (!canUseStorage()) {
-      return { ok: false, message: "Não foi possível salvar a senha neste navegador." };
-    }
-    window.localStorage.setItem(PASSWORD_KEY, normalizedPassword);
+    localAdminPassword = normalizedPassword;
     return { ok: true, message: "Senha administrativa alterada com sucesso." };
   }
 
@@ -128,7 +117,7 @@ export async function generateAdminRecoveryCode(currentPassword: string) {
       throw new Error("Senha administrativa atual inválida.");
     }
     const recoveryCode = generateLocalRecoveryCode();
-    window.localStorage.setItem(RECOVERY_KEY, normalizeRecoveryCode(recoveryCode));
+    localRecoveryCode = normalizeRecoveryCode(recoveryCode);
     return {
       recoveryCode,
       issuedAt: new Date().toISOString(),
@@ -153,12 +142,11 @@ export async function recoverAdminPassword(recoveryCode: string, newPassword: st
   }
 
   if (CONFIGURED_DATA_MODE === "local") {
-    const expected = window.localStorage.getItem(RECOVERY_KEY);
-    if (!expected || expected !== normalizeRecoveryCode(recoveryCode)) {
+    if (!localRecoveryCode || localRecoveryCode !== normalizeRecoveryCode(recoveryCode)) {
       throw new Error("Código de recuperação inválido.");
     }
-    window.localStorage.setItem(PASSWORD_KEY, normalizedPassword);
-    window.localStorage.removeItem(RECOVERY_KEY);
+    localAdminPassword = normalizedPassword;
+    localRecoveryCode = null;
     writeAdminSession(createLocalAdminSession());
     return {
       ok: true,
