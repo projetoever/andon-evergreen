@@ -7,6 +7,8 @@ import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 type RegisterWorkstationBody = { id?: unknown };
 type UpdateWorkstationBody = { name?: unknown; active?: unknown };
+type ScreenLockBody = { machineId?: unknown };
+type MachineSoundPreferenceBody = { enabled?: unknown };
 
 class WorkstationUpdateValidationError extends Error {}
 
@@ -16,6 +18,7 @@ const workstationSelect = {
   active: true,
   lastSeenAt: true,
   createdAt: true,
+  lockedMachineId: true,
   updatedAt: true,
 };
 
@@ -56,6 +59,135 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
     if (!workstation) return notFound(reply, "Workstation não encontrada");
     return workstation;
   });
+
+  app.get<{ Params: { id: string } }>(
+    "/api/workstations/:id/runtime-preferences",
+    async (request, reply) => {
+      const id = parseWorkstationId(request.params.id);
+      if (!id) return badRequest(reply, "Identificador de workstation inválido");
+
+      const workstation = await prisma.workstation.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          active: true,
+          lockedMachineId: true,
+          soundPreferences: {
+            select: {
+              machineId: true,
+              enabled: true,
+            },
+          },
+        },
+      });
+      if (!workstation) return notFound(reply, "Workstation não encontrada");
+
+      return {
+        workstationId: workstation.id,
+        active: workstation.active,
+        lockedMachineId: workstation.lockedMachineId,
+        machineSoundPreferences: Object.fromEntries(
+          workstation.soundPreferences.map((item) => [item.machineId, item.enabled]),
+        ),
+      };
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: ScreenLockBody }>(
+    "/api/workstations/:id/screen-lock",
+    async (request, reply) => {
+      const id = parseWorkstationId(request.params.id);
+      if (!id) return badRequest(reply, "Identificador de workstation inválido");
+
+      const rawMachineId = request.body?.machineId;
+      const machineId =
+        rawMachineId === null
+          ? null
+          : typeof rawMachineId === "string" && rawMachineId.trim()
+            ? rawMachineId.trim()
+            : undefined;
+      if (machineId === undefined) {
+        return badRequest(reply, "Informe machineId válido ou null para desbloquear");
+      }
+
+      return prisma.$transaction(async (tx) => {
+        await lockWorkstationFlow(tx, id);
+
+        const workstation = await tx.workstation.findUnique({
+          where: { id },
+          select: { id: true, active: true },
+        });
+        if (!workstation) return notFound(reply, "Workstation não encontrada");
+        if (!workstation.active) return badRequest(reply, "Workstation desativada");
+
+        if (machineId) {
+          const machine = await tx.machine.findUnique({
+            where: { id: machineId },
+            select: { id: true, isActive: true },
+          });
+          if (!machine?.isActive) return badRequest(reply, "Máquina inválida ou inativa");
+        }
+
+        await tx.workstation.update({
+          where: { id },
+          data: { lockedMachineId: machineId },
+        });
+
+        return {
+          workstationId: id,
+          lockedMachineId: machineId,
+        };
+      });
+    },
+  );
+
+  app.put<{ Params: { id: string; machineId: string }; Body: MachineSoundPreferenceBody }>(
+    "/api/workstations/:id/machine-sound/:machineId",
+    async (request, reply) => {
+      const id = parseWorkstationId(request.params.id);
+      if (!id) return badRequest(reply, "Identificador de workstation inválido");
+      const machineId = request.params.machineId.trim();
+      if (!machineId) return badRequest(reply, "Máquina inválida");
+      if (typeof request.body?.enabled !== "boolean") {
+        return badRequest(reply, "Campo enabled deve ser booleano");
+      }
+
+      const [workstation, machine] = await Promise.all([
+        prisma.workstation.findUnique({ where: { id }, select: { id: true, active: true } }),
+        prisma.machine.findUnique({ where: { id: machineId }, select: { id: true } }),
+      ]);
+      if (!workstation) return notFound(reply, "Workstation não encontrada");
+      if (!workstation.active) return badRequest(reply, "Workstation desativada");
+      if (!machine) return notFound(reply, "Máquina não encontrada");
+
+      const preference = await prisma.workstationMachineSoundPreference.upsert({
+        where: {
+          workstationId_machineId: {
+            workstationId: id,
+            machineId,
+          },
+        },
+        create: {
+          workstationId: id,
+          machineId,
+          enabled: request.body.enabled,
+        },
+        update: {
+          enabled: request.body.enabled,
+        },
+        select: {
+          machineId: true,
+          enabled: true,
+          updatedAt: true,
+        },
+      });
+
+      return {
+        workstationId: id,
+        ...preference,
+      };
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: UpdateWorkstationBody }>(
     "/api/workstations/:id",
