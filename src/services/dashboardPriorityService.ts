@@ -149,7 +149,7 @@ export async function configureDashboardPriorityCredentials(username: string, pa
   }
 
   clearSession();
-  return apiClient.request<{ configured: true; username: string }>(
+  const saved = await apiClient.request<{ configured: true; username: string }>(
     "/api/dashboard-priority/credentials",
     {
       method: "PUT",
@@ -157,6 +157,13 @@ export async function configureDashboardPriorityCredentials(username: string, pa
       headers: { "Content-Type": "application/json" },
     },
   );
+  const confirmed = await apiClient.get<DashboardPriorityAccessStatus>(
+    "/api/dashboard-priority/access-status",
+  );
+  if (!confirmed.configured || confirmed.username !== saved.username) {
+    throw new Error("O servidor não confirmou a persistência das credenciais de prioridades.");
+  }
+  return saved;
 }
 
 export async function loginDashboardPriority(username: string, password: string) {
