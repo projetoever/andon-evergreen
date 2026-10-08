@@ -261,9 +261,9 @@ function assertTechniciansAvailableForCall(
 
 /**
  * Camada de serviço pura — opera sobre arrays e retorna novas versões.
- * Hoje os dados vêm/voltam para LocalStorage via AndonContext.
- * No futuro essa mesma assinatura pode ser substituída por chamadas
- * a uma API Node.js sem alterar componentes.
+ * A camada permanece pura e independente da persistência.
+ * Em produção, os dados são persistidos pela API/PostgreSQL; o modo local
+ * de desenvolvimento mantém apenas estado em memória.
  */
 
 function isProductionMode(value: unknown): value is ProductionMode {

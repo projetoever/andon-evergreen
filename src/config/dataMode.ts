@@ -33,8 +33,8 @@ function normalizeDataMode(
  *
  * - builds de produção operam obrigatoriamente pela API;
  * - o instalador e o menu ANDON geram builds em modo API;
- * - LocalStorage pode ser selecionado somente em desenvolvimento;
- * - não existe fallback silencioso para LocalStorage em produção.
+ * - o modo local em memória pode ser selecionado somente em desenvolvimento;
+ * - não existe fallback silencioso para dados locais em produção.
  */
 export const DEFAULT_DATA_MODE: DataMode =
   API_DATA_MODE;
