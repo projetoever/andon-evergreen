@@ -98,3 +98,27 @@ test("telas enviam o texto informado sem alterar atender ou finalizar", async ()
     assert.match(source, /FinishCallModal/);
   }
 });
+
+
+test("cancelamento revalida atendimento depois de obter o lock da máquina", async () => {
+  const route = await readFile(
+    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
+    "utf8",
+  );
+  const cancelRoute = route.slice(
+    route.indexOf('"/api/andon-calls/:id/cancel"'),
+    route.indexOf('"/api/andon-calls/:id/technicians"'),
+  );
+
+  const lockPosition = cancelRoute.indexOf("await lockMachineCallFlow");
+  const lockedLookupPosition = cancelRoute.indexOf("const currentCall = await tx.andonCall.findUnique");
+  const lockedStatusPosition = cancelRoute.indexOf('currentCall.status !== "open"');
+  const updatePosition = cancelRoute.indexOf("await tx.andonCall.update");
+
+  assert.ok(lockPosition >= 0);
+  assert.ok(lockedLookupPosition > lockPosition);
+  assert.ok(lockedStatusPosition > lockedLookupPosition);
+  assert.ok(updatePosition > lockedStatusPosition);
+  assert.match(cancelRoute, /currentHasAttendance/);
+  assert.match(cancelRoute, /currentHasTechnician/);
+});
