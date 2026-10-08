@@ -14,6 +14,7 @@ interface UseAndonOpenCallSoundParams {
   audioUnlocked: boolean;
   machineId?: string;
   respectMachinePreference?: boolean;
+  machineSoundEnabled?: boolean;
   soundScope?: "dashboard" | "machine";
 }
 
@@ -25,6 +26,7 @@ export function useAndonOpenCallSound({
   audioUnlocked,
   machineId,
   respectMachinePreference = false,
+  machineSoundEnabled = true,
   soundScope = "dashboard",
 }: UseAndonOpenCallSoundParams) {
   const activeMachines = useMemo(
@@ -40,12 +42,22 @@ export function useAndonOpenCallSound({
           if (call.status !== "open") return false;
           if (machineId && call.machineId !== machineId) return false;
           if (!activeMachines.has(call.machineId)) return false;
-          if (respectMachinePreference && !isMachineSoundEnabled(call.machineId)) return false;
+          if (
+            respectMachinePreference &&
+            (!machineSoundEnabled || !isMachineSoundEnabled(call.machineId))
+          ) return false;
           const config = soundConfigs.find((item) => item.key === call.subtype);
           return Boolean(getCallTypeOption(call.subtype) && config?.enabled);
         })
         .sort((a, b) => b.openedAt.localeCompare(a.openedAt))[0] ?? null,
-    [activeMachines, calls, machineId, respectMachinePreference, soundConfigs],
+    [
+      activeMachines,
+      calls,
+      machineId,
+      machineSoundEnabled,
+      respectMachinePreference,
+      soundConfigs,
+    ],
   );
 
   const callId = callToAlert?.id ?? null;
