@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test:auth": "node --import tsx --test src/security/technicianCredentials.test.ts",
+    "test:auth": "node --import tsx --test src/security/technicianCredentials.test.ts src/security/adminAuthorization.test.ts",
     "test:dashboard": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/dashboardPriority.test.ts ../tests/callDurationFreeze.test.ts ../tests/dashboardSoundMuteTimer.test.ts ../tests/dashboardCardAttention.test.ts",
     "test:impact": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/callImpactAttribution.test.ts ../tests/failureDescriptionUtils.test.ts",
     "test:ui": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/virtualKeyboardUtils.test.ts ../tests/multipleActiveCalls.test.tsx ../tests/localClock.test.tsx ../tests/serverOperationalTime.test.ts ../tests/failureClassificationCatalog.test.ts ../tests/requiredFailureDetails.test.ts ../tests/unifiedMachineHistory.test.ts ../tests/technicianMultipleAreas.test.ts ../tests/technicianIndividualFollowUp.test.ts ../tests/callHistoryFilters.test.ts ../tests/soundIsolation.test.ts ../tests/uxFeedback.test.ts ../tests/adminConsoleLayout.test.ts ../tests/adminEntitySearchFilters.test.ts ../tests/adminUxRefinementA.test.ts ../tests/adminGlobalCredentials.test.ts ../tests/dashboardProductionPriority.test.ts",
