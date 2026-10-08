@@ -1,29 +1,20 @@
+const memoryStorage = new Map<string, string>();
+
 export function loadFromStorage<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+  const raw = memoryStorage.get(key);
+  if (!raw) return fallback;
+
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
     return JSON.parse(raw) as T;
-  } catch (err) {
-    console.error(`[storage] failed to load ${key}`, err);
+  } catch {
     return fallback;
   }
 }
 
 export function saveToStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.error(`[storage] failed to save ${key}`, err);
-  }
+  memoryStorage.set(key, JSON.stringify(value));
 }
 
 export function removeFromStorage(key: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(key);
-  } catch (err) {
-    console.error(`[storage] failed to remove ${key}`, err);
-  }
+  memoryStorage.delete(key);
 }
