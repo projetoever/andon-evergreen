@@ -212,16 +212,16 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
     const pin = normalizePin(request.body?.pin);
     const tag = request.body && "tag" in request.body ? normalizeTag(request.body.tag) : null;
 
-    if (!name) return badRequest(reply, "Informe o nome do manutentor");
+    if (!name) return badRequest(reply, "Informe o nome do mantenedor");
     if (!employeeId) return badRequest(reply, "Informe o ID do colaborador");
     if (!technicalAreas.length) return badRequest(reply, "Informe pelo menos uma área técnica");
-    if (!shiftId) return badRequest(reply, "Informe o turno do manutentor");
+    if (!shiftId) return badRequest(reply, "Informe o turno do mantenedor");
     if (!pin) return badRequest(reply, "Informe um PIN de 4 a 8 números");
     if (request.body && "tag" in request.body && request.body.tag && !tag) {
       return badRequest(reply, "Código da tag inválido");
     }
     if (request.body && "active" in request.body && parsedActive === undefined) {
-      return badRequest(reply, "Status do manutentor inválido");
+      return badRequest(reply, "Status do mantenedor inválido");
     }
 
     const [duplicate, duplicateEmployeeId, hasShift] = await Promise.all([
@@ -230,7 +230,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       shiftExists(shiftId),
     ]);
 
-    if (duplicate) return badRequest(reply, "Já existe manutentor com este nome");
+    if (duplicate) return badRequest(reply, "Já existe mantenedor com este nome");
     if (duplicateEmployeeId) {
       return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
     }
@@ -311,7 +311,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         select: technicianIdentitySelect,
       });
 
-      if (!current) return notFound(reply, "Manutentor não encontrado");
+      if (!current) return notFound(reply, "Mantenedor não encontrado");
 
       const name =
         request.body && "name" in request.body ? requiredString(request.body.name) : undefined;
@@ -353,7 +353,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       const tag = tagProvided && !shouldClearTag ? normalizeTag(request.body.tag) : null;
 
       if (request.body && "name" in request.body && !name) {
-        return badRequest(reply, "Informe o nome do manutentor");
+        return badRequest(reply, "Informe o nome do mantenedor");
       }
       if (employeeIdProvided && !employeeId) {
         return badRequest(reply, "Informe o ID do colaborador");
@@ -374,10 +374,10 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
         return badRequest(reply, "Informe pelo menos uma área técnica");
       }
       if (request.body && "shiftId" in request.body && !shiftId) {
-        return badRequest(reply, "Informe o turno do manutentor");
+        return badRequest(reply, "Informe o turno do mantenedor");
       }
       if (request.body && "active" in request.body && active === undefined) {
-        return badRequest(reply, "Status do manutentor inválido");
+        return badRequest(reply, "Status do mantenedor inválido");
       }
       if ((!current.pinHash && !pinProvided) || (pinProvided && !pin)) {
         return badRequest(reply, "Informe um PIN de 4 a 8 números");
@@ -387,7 +387,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       }
 
       if (name && (await findDuplicateName(name, current.id))) {
-        return badRequest(reply, "Já existe manutentor com este nome");
+        return badRequest(reply, "Já existe mantenedor com este nome");
       }
       if (employeeId && (await findDuplicateEmployeeId(employeeId, current.id))) {
         return badRequest(reply, "Este ID do colaborador já está cadastrado para outro mantenedor");
