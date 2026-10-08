@@ -16,6 +16,7 @@ let adminAuthorization = null;
 const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
+  failureRaceMachine: "pr-failure-race-machine",
   impactMachine: "pr49-impact-machine",
   workOrderMachine: "pr43-work-order-machine",
   sessionMachineA: "pr42-session-machine-a",
@@ -156,6 +157,7 @@ async function cleanup() {
   const machineIds = [
     ids.machine,
     ids.raceMachine,
+    ids.failureRaceMachine,
     ids.impactMachine,
     ids.workOrderMachine,
     ids.sessionMachineA,
@@ -477,6 +479,79 @@ async function run() {
       productionMode: "scheduled",
     }),
     201,
+  );
+  await request(
+    "/api/machines",
+    json("POST", {
+      id: ids.failureRaceMachine,
+      name: "Máquina concorrência FailureEvent",
+      productionMode: "scheduled",
+    }),
+    201,
+  );
+
+  const concurrentFailureResponses = await Promise.all(
+    [1, 2].map(() =>
+      fetch(`${API_URL}/api/failure-events`, {
+        ...json("POST", {
+          machineId: ids.failureRaceMachine,
+          classification: "unidentified_stop",
+          source: "integration_race",
+          machineStatus: "stopped",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  assert.deepEqual(
+    concurrentFailureResponses.map((response) => response.status).sort(),
+    [200, 201],
+    "duas paradas concorrentes devem reutilizar uma única falha aberta",
+  );
+  const openFailureEventsAfterRace = await prisma.failureEvent.findMany({
+    where: { machineId: ids.failureRaceMachine, endedAt: null },
+  });
+  assert.equal(
+    openFailureEventsAfterRace.length,
+    1,
+    "concorrência não pode criar duas FailureEvent abertas para a mesma máquina",
+  );
+
+  const firstFailureEvent = openFailureEventsAfterRace[0];
+  const firstFinishedFailure = await request(
+    `/api/failure-events/${firstFailureEvent.id}/finish`,
+    json("PATCH", { machineStatus: "running", notes: "Primeira falha encerrada" }),
+  );
+  assert.equal(firstFinishedFailure.machine.machineStatus, "running");
+
+  const secondFailure = await request(
+    "/api/failure-events",
+    json("POST", {
+      machineId: ids.failureRaceMachine,
+      classification: "unidentified_stop",
+      source: "integration_replay",
+      machineStatus: "stopped",
+    }),
+    201,
+  );
+  assert.notEqual(secondFailure.event.id, firstFailureEvent.id);
+  assert.equal(secondFailure.machine.machineStatus, "stopped");
+
+  const staleFinishReplay = await request(
+    `/api/failure-events/${firstFailureEvent.id}/finish`,
+    json("PATCH", { machineStatus: "running", notes: "Replay tardio" }),
+  );
+  assert.equal(
+    staleFinishReplay.machine.machineStatus,
+    "stopped",
+    "replay da finalização antiga não pode liberar máquina com nova falha aberta",
+  );
+  const remainingFailureEvents = await prisma.failureEvent.findMany({
+    where: { machineId: ids.failureRaceMachine, endedAt: null },
+  });
+  assert.deepEqual(
+    remainingFailureEvents.map((event) => event.id),
+    [secondFailure.event.id],
   );
   for (const [id, name] of [
     [ids.sessionMachineA, "Máquina PR 42 sessão A"],
