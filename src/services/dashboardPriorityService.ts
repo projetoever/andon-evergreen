@@ -4,9 +4,14 @@ import type { Machine } from "@/types/machine";
 
 const apiClient = createAndonApiClient();
 const SESSION_KEY = "andon.dashboardPriority.session";
-const LOCAL_CONFIG_KEY = "andon.dashboardPriority.localConfig";
-const LOCAL_ORDER_KEY = "andon.dashboardPriority.localOrder";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+let localConfig: {
+  username: string;
+  password: string;
+  lastOrderUpdatedAt?: string | null;
+  lastOrderUpdatedBy?: string | null;
+} | null = null;
+let localOrderIds: string[] = [];
 
 export interface DashboardPriorityAccessStatus {
   configured: boolean;
@@ -62,20 +67,7 @@ function clearSession() {
 }
 
 function readLocalConfig() {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(LOCAL_CONFIG_KEY);
-    return raw
-      ? (JSON.parse(raw) as {
-          username: string;
-          password: string;
-          lastOrderUpdatedAt?: string | null;
-          lastOrderUpdatedBy?: string | null;
-        })
-      : null;
-  } catch {
-    return null;
-  }
+  return localConfig;
 }
 
 function fallbackOrder(machine: Pick<Machine, "id" | "displayOrder" | "priorityOrder">) {
@@ -135,15 +127,12 @@ export async function getDashboardPriorityAccessStatus(): Promise<DashboardPrior
 export async function configureDashboardPriorityCredentials(username: string, password: string) {
   if (CONFIGURED_DATA_MODE === "local") {
     const current = readLocalConfig();
-    window.localStorage.setItem(
-      LOCAL_CONFIG_KEY,
-      JSON.stringify({
-        username: username.trim(),
-        password,
-        lastOrderUpdatedAt: current?.lastOrderUpdatedAt ?? null,
-        lastOrderUpdatedBy: current?.lastOrderUpdatedBy ?? null,
-      }),
-    );
+    localConfig = {
+      username: username.trim(),
+      password,
+      lastOrderUpdatedAt: current?.lastOrderUpdatedAt ?? null,
+      lastOrderUpdatedBy: current?.lastOrderUpdatedBy ?? null,
+    };
     clearSession();
     return { configured: true, username: username.trim() };
   }
@@ -211,17 +200,7 @@ export async function getDashboardPriorityOrder(
   if (!session) throw new Error("Sessão de prioridades necessária.");
 
   if (CONFIGURED_DATA_MODE === "local") {
-    let orderIds: string[] = [];
-    if (typeof window !== "undefined") {
-      try {
-        const parsed = JSON.parse(window.localStorage.getItem(LOCAL_ORDER_KEY) ?? "[]");
-        orderIds = Array.isArray(parsed)
-          ? parsed.filter((id): id is string => typeof id === "string")
-          : [];
-      } catch {
-        orderIds = [];
-      }
-    }
+    const orderIds = localOrderIds;
     const config = readLocalConfig();
     return {
       machines: sortPriorityMachines(currentMachines, orderIds),
@@ -242,17 +221,14 @@ export async function saveDashboardPriorityOrder(machineIds: string[]) {
 
   if (CONFIGURED_DATA_MODE === "local") {
     const updatedAt = new Date().toISOString();
-    window.localStorage.setItem(LOCAL_ORDER_KEY, JSON.stringify(machineIds));
+    localOrderIds = [...machineIds];
     const config = readLocalConfig();
     if (config) {
-      window.localStorage.setItem(
-        LOCAL_CONFIG_KEY,
-        JSON.stringify({
-          ...config,
-          lastOrderUpdatedAt: updatedAt,
-          lastOrderUpdatedBy: session.username,
-        }),
-      );
+      localConfig = {
+        ...config,
+        lastOrderUpdatedAt: updatedAt,
+        lastOrderUpdatedBy: session.username,
+      };
     }
     return {
       ok: true,
