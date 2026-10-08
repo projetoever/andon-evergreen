@@ -3,7 +3,6 @@ import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { Workstation, WorkstationUpdate } from "@/types/workstation";
 import { getCurrentWorkstationId, isValidWorkstationId } from "./workstationIdentityService";
 
-const LOCAL_WORKSTATIONS_STORAGE_KEY = "andonWebIndustrial.workstations";
 export const WORKSTATION_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 const apiClient = createAndonApiClient();
