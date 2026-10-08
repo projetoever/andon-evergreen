@@ -741,7 +741,7 @@ export function MachineAssetCatalogPanel() {
         </CardContent>
       </Card>
 
-      <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
         {isLoading ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
             Carregando catálogo...
