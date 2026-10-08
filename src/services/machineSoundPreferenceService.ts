@@ -1,4 +1,5 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 type MachineSoundPreferences = Record<string, boolean>;
@@ -15,6 +16,8 @@ export function isMachineSoundEnabled(machineId: string): boolean {
 }
 
 export async function refreshMachineSoundPreferences() {
+  if (CONFIGURED_DATA_MODE === "local") return getMachineSoundPreferences();
+
   const workstationId = getCurrentWorkstationId();
   if (!workstationId) {
     cachedPreferences = {};
@@ -31,6 +34,14 @@ export async function refreshMachineSoundPreferences() {
 }
 
 export async function setMachineSoundEnabled(machineId: string, enabled: boolean) {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedPreferences = {
+      ...cachedPreferences,
+      [machineId]: enabled,
+    };
+    return enabled;
+  }
+
   const workstationId = getCurrentWorkstationId();
   if (!workstationId) throw new Error("Workstation não identificada.");
 
