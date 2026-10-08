@@ -1,3 +1,4 @@
+import { getAdminAuthorizationHeader } from "@/services/adminSessionStorage";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 export interface AndonApiClientConfig {
@@ -98,6 +99,7 @@ export function createAndonApiClient(
   ): Promise<T> {
     const url = normalizeUrl(path);
     const workstationId = getCurrentWorkstationId();
+    const adminAuthorization = getAdminAuthorizationHeader();
 
     let response: Response;
 
@@ -109,6 +111,7 @@ export function createAndonApiClient(
             ? { "Content-Type": "application/json" }
             : {}),
           ...(workstationId ? { "X-Andon-Workstation-Id": workstationId } : {}),
+          ...(adminAuthorization ? { Authorization: adminAuthorization } : {}),
           ...init.headers,
         },
         signal: AbortSignal.timeout(config.timeoutMs),
