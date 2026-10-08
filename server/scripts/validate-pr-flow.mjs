@@ -18,6 +18,7 @@ const ids = {
   raceMachine: "pr47-race-machine",
   failureRaceMachine: "pr-failure-race-machine",
   productionRaceMachine: "pr-production-race-machine",
+  activationRaceMachine: "pr-activation-race-machine",
   impactMachine: "pr49-impact-machine",
   workOrderMachine: "pr43-work-order-machine",
   sessionMachineA: "pr42-session-machine-a",
@@ -160,6 +161,7 @@ async function cleanup() {
     ids.raceMachine,
     ids.failureRaceMachine,
     ids.productionRaceMachine,
+    ids.activationRaceMachine,
     ids.impactMachine,
     ids.workOrderMachine,
     ids.sessionMachineA,
@@ -500,6 +502,50 @@ async function run() {
     }),
     201,
   );
+  await request(
+    "/api/machines",
+    json("POST", {
+      id: ids.activationRaceMachine,
+      name: "Máquina concorrência ativação",
+      productionMode: "scheduled",
+    }),
+    201,
+  );
+
+  const inactiveMachine = await request(
+    `/api/machines/${ids.activationRaceMachine}/active`,
+    json("PATCH", { isActive: false }),
+  );
+  assert.equal(inactiveMachine.isActive, false);
+
+  const inactiveSingleOpen = await request(
+    "/api/andon-calls",
+    json("POST", {
+      machineId: ids.activationRaceMachine,
+      category: "maintenance",
+      subtype: "electrical",
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(inactiveSingleOpen.message, /Máquina inativa/i);
+
+  const inactiveBatchOpen = await request(
+    "/api/andon-calls/batch",
+    json("POST", {
+      machineId: ids.activationRaceMachine,
+      subtypes: ["electrical"],
+      machineCondition: "running",
+    }),
+    400,
+  );
+  assert.match(inactiveBatchOpen.message, /Máquina inativa/i);
+
+  const reactivatedMachine = await request(
+    `/api/machines/${ids.activationRaceMachine}/active`,
+    json("PATCH", { isActive: true }),
+  );
+  assert.equal(reactivatedMachine.isActive, true);
 
   const concurrentProductionModeResponses = await Promise.all(
     [1, 2].map(() =>
