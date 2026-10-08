@@ -6,11 +6,11 @@ import { BigButton } from "@/components/common/BigButton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
-  getShiftConfigs,
-  saveShiftConfigs,
+  refreshShiftConfigs,
+  saveShiftConfig,
 } from "@/services/shiftConfigService";
 import {
-  getTechnicianShiftFilterConfig,
+  refreshTechnicianShiftFilterConfig,
   saveTechnicianShiftFilterConfig,
 } from "@/services/technicianShiftFilterService";
 import type { ShiftConfig } from "@/types/settings";
@@ -53,18 +53,36 @@ export function ShiftsSettingsTab() {
   const [statusFilter, setStatusFilter] =
     useState<"all" | "active" | "inactive">("all");
   const [filterByCurrentShift, setFilterByCurrentShift] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const list = getShiftConfigs();
-    setItems(list);
+    let cancelled = false;
 
-    const first = list.find((shift) => shift.id === "morning") ?? list[0] ?? null;
-    setSelectedId(first?.id ?? null);
-    setDraft(first ? { ...first } : null);
+    Promise.all([
+      refreshShiftConfigs(),
+      refreshTechnicianShiftFilterConfig(),
+    ])
+      .then(([list, filterConfig]) => {
+        if (cancelled) return;
+        setItems(list);
+        const first = list.find((shift) => shift.id === "morning") ?? list[0] ?? null;
+        setSelectedId(first?.id ?? null);
+        setDraft(first ? { ...first } : null);
+        setFilterByCurrentShift(filterConfig.filterByCurrentShift);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar os turnos do servidor.",
+          );
+        }
+      });
 
-    setFilterByCurrentShift(
-      getTechnicianShiftFilterConfig().filterByCurrentShift,
-    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -105,7 +123,7 @@ export function ShiftsSettingsTab() {
     setDraft({ ...item });
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!draft) return;
     if (!draft.name.trim()) {
       toast.error("Informe o nome do turno.");
@@ -122,31 +140,49 @@ export function ShiftsSettingsTab() {
       crossesMidnight: draft.startTime > draft.endTime,
     };
 
-    const next = items.map((item) =>
-      item.id === normalized.id ? normalized : item,
-    );
-
-    setItems(next);
-    saveShiftConfigs(next);
-    setDraft(normalized);
-    toast.success("Turno salvo.");
+    setIsSaving(true);
+    try {
+      const saved = await saveShiftConfig(normalized);
+      setItems((current) =>
+        current.map((item) => (item.id === saved.id ? saved : item)),
+      );
+      setDraft(saved);
+      toast.success("Turno salvo no servidor.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível salvar o turno.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleCancel() {
     if (original) setDraft({ ...original });
   }
 
-  function handleSaveFilter(enabled: boolean) {
+  async function handleSaveFilter(enabled: boolean) {
+    const previous = filterByCurrentShift;
     setFilterByCurrentShift(enabled);
-    saveTechnicianShiftFilterConfig({
-      filterByCurrentShift: enabled,
-      updatedAt: new Date().toISOString(),
-    });
-    toast.success(
-      enabled
-        ? "Filtro por turno atual habilitado."
-        : "Filtro por turno atual desabilitado.",
-    );
+
+    try {
+      await saveTechnicianShiftFilterConfig({
+        filterByCurrentShift: enabled,
+        updatedAt: new Date().toISOString(),
+      });
+      toast.success(
+        enabled
+          ? "Filtro por turno atual habilitado."
+          : "Filtro por turno atual desabilitado.",
+      );
+    } catch (error) {
+      setFilterByCurrentShift(previous);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a configuração de turno.",
+      );
+    }
   }
 
   if (!draft && items.length > 0) return null;
@@ -373,8 +409,8 @@ export function ShiftsSettingsTab() {
                     <BigButton
                       tone="primary"
                       size="md"
-                      onClick={handleSave}
-                      disabled={!hasUnsavedChanges}
+                      onClick={() => void handleSave()}
+                      disabled={!hasUnsavedChanges || isSaving}
                     >
                       Salvar turno
                     </BigButton>
@@ -411,7 +447,7 @@ export function ShiftsSettingsTab() {
               </span>
               <Switch
                 checked={filterByCurrentShift}
-                onCheckedChange={handleSaveFilter}
+                onCheckedChange={(checked) => void handleSaveFilter(checked)}
                 aria-label="Priorizar mantenedores do turno atual"
               />
             </label>
