@@ -1,6 +1,7 @@
+import { createAndonApiClient } from "@/api/andonApiClient";
 import type { ShiftConfig } from "@/types/settings";
 
-const KEY = "andonShiftConfig";
+const apiClient = createAndonApiClient();
 
 export const DEFAULT_SHIFTS: ShiftConfig[] = [
   { id: "morning", name: "Manhã", startTime: "06:00", endTime: "14:00", active: true, crossesMidnight: false },
@@ -9,12 +10,55 @@ export const DEFAULT_SHIFTS: ShiftConfig[] = [
   { id: "business", name: "Comercial", startTime: "06:00", endTime: "16:00", active: true, crossesMidnight: false },
 ];
 
-export function getShiftConfigs() {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return DEFAULT_SHIFTS;
-  try { return JSON.parse(raw) as ShiftConfig[]; } catch { return DEFAULT_SHIFTS; }
+let cachedShifts: ShiftConfig[] = DEFAULT_SHIFTS;
+
+function normalizeShift(value: {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+}): ShiftConfig {
+  return {
+    ...value,
+    crossesMidnight: value.endTime <= value.startTime,
+  };
 }
 
-export function saveShiftConfigs(configs: ShiftConfig[]) {
-  localStorage.setItem(KEY, JSON.stringify(configs));
+export function getShiftConfigs() {
+  return cachedShifts;
+}
+
+export async function refreshShiftConfigs() {
+  const shifts = await apiClient.get<Array<{
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    active: boolean;
+  }>>("/api/shifts");
+
+  cachedShifts = shifts.map(normalizeShift);
+  return cachedShifts;
+}
+
+export async function saveShiftConfig(config: ShiftConfig) {
+  const updated = await apiClient.patch<{
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    active: boolean;
+  }>(`/api/shifts/${encodeURIComponent(config.id)}`, {
+    name: config.name,
+    startTime: config.startTime,
+    endTime: config.endTime,
+    active: config.active,
+  });
+
+  const normalized = normalizeShift(updated);
+  cachedShifts = cachedShifts.map((item) =>
+    item.id === normalized.id ? normalized : item,
+  );
+  return normalized;
 }
