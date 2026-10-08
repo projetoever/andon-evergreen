@@ -1,12 +1,19 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
+import {
+  clearAdminSession,
+  getAdminAuthorizationHeader,
+  readAdminSession,
+  writeAdminSession,
+  type AdminSession,
+} from "@/services/adminSessionStorage";
 
 const apiClient = createAndonApiClient();
-const SESSION_KEY = "andonAdminSession";
 const PASSWORD_KEY = "andonAdminPassword";
 const RECOVERY_KEY = "andonAdminRecoveryCode";
 const ADMIN_USER = "admin";
 const DEFAULT_ADMIN_PASSWORD = "123456";
+const LOCAL_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 export const ADMIN_PASSWORD_MIN_LENGTH = 6;
 
 export interface AdminAuthStatus {
@@ -41,10 +48,12 @@ function generateLocalRecoveryCode() {
   return `ADM-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
-function markAdminAuthenticated() {
-  if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(SESSION_KEY, "true");
-  }
+function createLocalAdminSession(): AdminSession {
+  return {
+    token: "local",
+    username: ADMIN_USER,
+    expiresAt: new Date(Date.now() + LOCAL_SESSION_TTL_MS).toISOString(),
+  };
 }
 
 export function isValidAdminPasswordFormat(password: string) {
@@ -52,7 +61,7 @@ export function isValidAdminPasswordFormat(password: string) {
 }
 
 export function isAdminAuthenticated() {
-  return typeof window !== "undefined" && window.sessionStorage.getItem(SESSION_KEY) === "true";
+  return Boolean(readAdminSession());
 }
 
 export async function getAdminAuthStatus(): Promise<AdminAuthStatus> {
@@ -71,16 +80,16 @@ export async function getAdminAuthStatus(): Promise<AdminAuthStatus> {
 export async function loginAdmin(username: string, password: string) {
   if (CONFIGURED_DATA_MODE === "local") {
     const valid = username.trim() === ADMIN_USER && password === getLocalAdminPassword();
-    if (valid) markAdminAuthenticated();
+    if (valid) writeAdminSession(createLocalAdminSession());
     return valid;
   }
 
   try {
-    await apiClient.post<{ ok: true; username: string }>("/api/admin-auth/login", {
+    const session = await apiClient.post<{ ok: true } & AdminSession>("/api/admin-auth/login", {
       username,
       password,
     });
-    markAdminAuthenticated();
+    writeAdminSession(session);
     return true;
   } catch {
     return false;
@@ -150,7 +159,7 @@ export async function recoverAdminPassword(recoveryCode: string, newPassword: st
     }
     window.localStorage.setItem(PASSWORD_KEY, normalizedPassword);
     window.localStorage.removeItem(RECOVERY_KEY);
-    markAdminAuthenticated();
+    writeAdminSession(createLocalAdminSession());
     return {
       ok: true,
       username: ADMIN_USER,
@@ -158,16 +167,26 @@ export async function recoverAdminPassword(recoveryCode: string, newPassword: st
     };
   }
 
-  const result = await apiClient.post<{ ok: true; username: string; message: string }>(
-    "/api/admin-auth/recover",
-    { recoveryCode, newPassword: normalizedPassword },
-  );
-  markAdminAuthenticated();
+  const result = await apiClient.post<
+    { ok: true; message: string } & AdminSession
+  >("/api/admin-auth/recover", {
+    recoveryCode,
+    newPassword: normalizedPassword,
+  });
+  writeAdminSession(result);
   return result;
 }
 
 export function logoutAdmin() {
-  if (typeof window !== "undefined") {
-    window.sessionStorage.removeItem(SESSION_KEY);
+  const authorization = getAdminAuthorizationHeader();
+  clearAdminSession();
+
+  if (CONFIGURED_DATA_MODE === "api" && authorization) {
+    void apiClient
+      .request("/api/admin-auth/logout", {
+        method: "POST",
+        headers: { Authorization: authorization },
+      })
+      .catch(() => undefined);
   }
 }

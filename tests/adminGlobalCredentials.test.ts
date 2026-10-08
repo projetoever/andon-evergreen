@@ -64,3 +64,25 @@ test("rotas públicas de configurações nunca expõem hashes administrativos", 
   assert.doesNotMatch(service, /adminRecoveryCodeHash:\s*true/);
   assert.match(route, /return getSystemSettings\(\)/);
 });
+
+
+test("sessão Admin usa bearer do servidor e é anexada pelo cliente API", async () => {
+  const [authService, sessionStorage, apiClient, server, authorization] = await Promise.all([
+    readFile(new URL("../src/services/adminAuthService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/adminSessionStorage.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/andonApiClient.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/adminAuthorization.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(authService, /writeAdminSession/);
+  assert.match(authService, /\/api\/admin-auth\/logout/);
+  assert.match(sessionStorage, /expiresAt/);
+  assert.match(sessionStorage, /Bearer \$\{session\.token\}/);
+  assert.match(apiClient, /getAdminAuthorizationHeader/);
+  assert.match(apiClient, /Authorization: adminAuthorization/);
+  assert.match(server, /enforceAdminAuthorization/);
+  assert.match(server, /addHook\("preHandler", enforceAdminAuthorization\)/);
+  assert.match(authorization, /isAdminProtectedMutation/);
+  assert.match(authorization, /Sessão administrativa necessária/);
+});

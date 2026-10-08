@@ -12,6 +12,7 @@ if (process.env.ANDON_INTEGRATION_TEST !== "1" || databaseUrl.pathname !== "/and
 }
 
 const prisma = new PrismaClient();
+let adminAuthorization = null;
 const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
@@ -56,6 +57,7 @@ async function request(path, options = {}, expectedStatus = 200) {
     ...options,
     headers: {
       ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+      ...(adminAuthorization ? { authorization: adminAuthorization } : {}),
       ...options.headers,
     },
   });
@@ -225,6 +227,13 @@ async function run() {
   await waitForApi();
   await request("/health/db");
   await cleanup();
+
+  const adminSession = await request(
+    "/api/admin-auth/login",
+    json("POST", { username: "admin", password: "123456" }),
+  );
+  assert.ok(adminSession.token, "login Admin deve emitir token de sessão");
+  adminAuthorization = `Bearer ${adminSession.token}`;
 
   const registeredWorkstation = await request(
     "/api/workstations/register",
