@@ -351,3 +351,29 @@ test("interface padroniza o termo mantenedor", async () => {
   assert.match(admin, /Mantenedores/);
   assert.match(admin, /mantenedor/);
 });
+
+
+test("editores do Admin mantêm ações visíveis em telas de menor altura", async () => {
+  const paths = [
+    "../src/components/settings/AdminSettingsModal.tsx",
+    "../src/components/settings/CategoriesSettingsTab.tsx",
+    "../src/components/settings/ShiftsSettingsTab.tsx",
+    "../src/components/settings/SoundsSettingsTab.tsx",
+  ];
+
+  for (const path of paths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /sticky bottom-0 z-10/);
+    assert.match(source, /bg-background\/95/);
+    assert.match(source, /backdrop-blur/);
+  }
+});
+
+test("classificações usam o mesmo destaque de seleção das demais listas", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /border-primary bg-primary\/10 ring-1 ring-primary\/30/);
+});
