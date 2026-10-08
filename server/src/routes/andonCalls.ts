@@ -1751,7 +1751,6 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         return badRequest(reply, "Não é possível cancelar chamado já atendido.");
       }
 
-      const now = new Date();
       const cancelledBy = optionalString(request.body?.cancelledBy);
       const cancellationNoteParts = [
         `Motivo: ${reason}`,
@@ -1761,53 +1760,98 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         ? cancellationNoteParts.join(" | ")
         : undefined;
 
-      const updatedCall = await prisma.$transaction(async (tx) => {
-        await lockMachineCallFlow(tx, call.machineId);
-        const currentMachine = await tx.machine.findUnique({
-          where: { id: call.machineId },
-          select: { machineStatus: true },
-        });
-        if (!currentMachine) {
-          throw new AndonCallValidationError("Máquina não encontrada");
-        }
+      let updatedCall;
+      try {
+        updatedCall = await prisma.$transaction(async (tx) => {
+          await lockMachineCallFlow(tx, call.machineId);
 
-        const finalMachineStatus = call.isSystemTest
-          ? call.machineStatusAtOpen
-          : await resumeMachineWhenFinishingOwnedStop(tx, {
-              callId: call.id,
-              machineId: call.machineId,
-              currentMachineStatus: currentMachine.machineStatus,
+          const currentCall = await tx.andonCall.findUnique({
+            include: { technicianSessions: true },
+            where: { id: call.id },
+          });
+          if (!currentCall) {
+            throw new AndonCallValidationError("Chamado não encontrado");
+          }
+
+          const currentHasTechnician = Boolean(
+            currentCall.technicianName ||
+              currentCall.technicianNames.length ||
+              currentCall.technicianArea,
+          );
+          const currentHasAttendance = Boolean(
+            currentCall.attendedAt ||
+              currentCall.currentAttendanceStartedAt ||
+              currentCall.technicianSessions.length,
+          );
+          if (
+            currentCall.status !== "open" ||
+            currentHasTechnician ||
+            currentHasAttendance
+          ) {
+            throw new AndonCallValidationError(
+              "Não é possível cancelar chamado já atendido.",
+            );
+          }
+
+          const now = new Date();
+          const currentMachine = await tx.machine.findUnique({
+            where: { id: currentCall.machineId },
+            select: { machineStatus: true },
+          });
+          if (!currentMachine) {
+            throw new AndonCallValidationError("Máquina não encontrada");
+          }
+
+          const finalMachineStatus = currentCall.isSystemTest
+            ? currentCall.machineStatusAtOpen
+            : await resumeMachineWhenFinishingOwnedStop(tx, {
+                callId: currentCall.id,
+                machineId: currentCall.machineId,
+                currentMachineStatus: currentMachine.machineStatus,
+                finishedAt: now,
+                requireStatusConfirmation: false,
+              });
+          const machineStoppedMinutes = currentCall.isSystemTest
+            ? 0
+            : currentCall.impactTrackingVersion === 1
+              ? await calculateCallImpactMinutes(tx, currentCall.id, now)
+              : await calculateStoppedMinutesForPeriod(
+                  tx,
+                  currentCall.machineId,
+                  currentCall.openedAt,
+                  now,
+                );
+
+          await tx.andonCall.update({
+            where: { id: currentCall.id },
+            data: {
+              status: "cancelled",
               finishedAt: now,
-              requireStatusConfirmation: false,
-            });
-        const machineStoppedMinutes = call.isSystemTest
-          ? 0
-          : call.impactTrackingVersion === 1
-            ? await calculateCallImpactMinutes(tx, call.id, now)
-            : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
+              currentAttendanceStartedAt: null,
+              callWaitingMinutes: diffMinutes(currentCall.openedAt, now),
+              attendanceMinutes: 0,
+              postMaintenanceMinutes: 0,
+              totalCallMinutes: diffMinutes(currentCall.openedAt, now),
+              machineStoppedMinutes,
+              productionModeAtFinish: currentCall.productionModeAtOpen,
+              machineStatusAtFinish: finalMachineStatus,
+              cancelReason: reason,
+              notes: appendNote(currentCall.notes, cancellationNote, "Cancelamento"),
+            },
+          });
 
-        await tx.andonCall.update({
-          where: { id: call.id },
-          data: {
-            status: "cancelled",
-            finishedAt: now,
-            currentAttendanceStartedAt: null,
-            callWaitingMinutes: diffMinutes(call.openedAt, now),
-            attendanceMinutes: 0,
-            postMaintenanceMinutes: 0,
-            totalCallMinutes: diffMinutes(call.openedAt, now),
-            machineStoppedMinutes,
-            productionModeAtFinish: call.productionModeAtOpen,
-            machineStatusAtFinish: finalMachineStatus,
-            cancelReason: reason,
-            notes: appendNote(call.notes, cancellationNote, "Cancelamento"),
-          },
+          if (!currentCall.isSystemTest) {
+            await syncMachineOperationalState(tx, currentCall.machineId);
+          }
+
+          return findCallWithSessions(tx, currentCall.id);
         });
-
-        if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-
-        return findCallWithSessions(tx, call.id);
-      });
+      } catch (error) {
+        if (error instanceof AndonCallValidationError) {
+          return badRequest(reply, error.message);
+        }
+        throw error;
+      }
 
       const [enrichedCall] = await enrichCallsWithAssetSnapshots(updatedCall ? [updatedCall] : []);
       return reply.send(

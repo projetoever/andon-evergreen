@@ -132,8 +132,8 @@ test("cenário E: cancelReason e dados do cancelamento permanecem preservados", 
 
   assert.match(cancelRoute, /status: "cancelled"/);
   assert.match(cancelRoute, /finishedAt: now/);
-  assert.match(cancelRoute, /callWaitingMinutes: diffMinutes\(call\.openedAt, now\)/);
-  assert.match(cancelRoute, /totalCallMinutes: diffMinutes\(call\.openedAt, now\)/);
+  assert.match(cancelRoute, /callWaitingMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
+  assert.match(cancelRoute, /totalCallMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
   assert.match(cancelRoute, /cancelReason: reason/);
 
   const apiCall = createCall({
