@@ -40,8 +40,9 @@ function normalizePassword(value: unknown) {
 
 function normalizeRecoveryCode(value: unknown) {
   if (typeof value !== "string") return null;
-  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return normalized.length >= 12 && normalized.length <= 32 ? normalized : null;
+  const compact = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const normalized = compact.startsWith("ADM") ? compact.slice(3) : compact;
+  return normalized.length === 12 ? normalized : null;
 }
 
 function formatRecoveryCode(raw: string) {
