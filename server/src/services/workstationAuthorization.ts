@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
+import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+
 import { GLOBAL_SYSTEM_SETTINGS_ID } from "./systemSettings.js";
 
 export const WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE =
@@ -43,6 +45,8 @@ export async function resolveAttendanceWorkstationId(
     return null;
   }
 
+  await lockWorkstationFlow(tx, workstationId);
+
   const workstation = await tx.workstation.findUnique({
     where: { id: workstationId },
     select: { id: true, active: true },
@@ -55,8 +59,11 @@ export async function resolveAttendanceWorkstationId(
     return null;
   }
 
-  if (restricted && !workstation.active) {
-    throw new WorkstationAuthorizationError(WORKSTATION_INACTIVE_MESSAGE);
+  if (!workstation.active) {
+    if (restricted) {
+      throw new WorkstationAuthorizationError(WORKSTATION_INACTIVE_MESSAGE);
+    }
+    return null;
   }
 
   return workstation.id;
