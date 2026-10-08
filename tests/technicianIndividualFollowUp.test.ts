@@ -512,7 +512,7 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.match(schema, /phase\s+String\?/);
   assert.match(schema, /cycleIndex\s+Int\?/);
   assert.match(packageJson, /technicianIndividualFollowUp\.test\.ts/);
-  assert.match(route, /pg_advisory_xact_lock/);
+  assert.match(route, /lockTechnicianSessionFlow/);
   assert.match(route, /followUpSessionIds/);
   assert.match(page, /getServerNowIso\(\)/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
