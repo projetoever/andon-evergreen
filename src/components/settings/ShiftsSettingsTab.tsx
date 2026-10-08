@@ -365,7 +365,7 @@ export function ShiftsSettingsTab() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
                   <p className="text-xs font-bold text-warning">
                     {hasUnsavedChanges ? "Alterações não salvas" : "Cadastro sincronizado"}
                   </p>

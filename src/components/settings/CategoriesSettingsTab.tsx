@@ -437,7 +437,7 @@ export function CategoriesSettingsTab() {
             Setores com chamados históricos não são apagados; inative-os para preservar os registros.
           </p>
 
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
             <BigButton tone="primary" size="md" onClick={() => void handleSave()} disabled={isBusy}>
               {isBusy ? "Salvando..." : "Salvar setor"}
             </BigButton>
