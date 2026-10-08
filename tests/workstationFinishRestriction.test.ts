@@ -58,6 +58,7 @@ function backendTransaction(params: {
   }>;
 }) {
   return {
+    $queryRaw: async () => [],
     systemSettings: {
       findUnique: async () => ({
         restrictMaintenanceCompletionToAttendanceWorkstation: params.restricted,
@@ -102,6 +103,22 @@ test("backend registra workstation válida com regra OFF sem tornar o header obr
   assert.equal(
     await resolveAttendanceWorkstationId(tx, {
       workstationHeader: undefined,
+      isSystemTest: false,
+    }),
+    null,
+  );
+});
+
+
+test("backend ignora workstation inativa com regra OFF sem bloquear a operação", async () => {
+  const tx = backendTransaction({
+    restricted: false,
+    workstations: { [WS_B]: { active: false } },
+  });
+
+  assert.equal(
+    await resolveAttendanceWorkstationId(tx, {
+      workstationHeader: WS_B,
       isSystemTest: false,
     }),
     null,
@@ -487,4 +504,31 @@ test("página não bloqueia por incerteza de carregamento e mantém erro do back
   assert.match(page, /return maintenanceCompletionAuthorization\.message/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
   assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
+});
+
+
+test("inativação de workstation é serializada com sessões ativas", async () => {
+  const [route, authorization, lock] = await Promise.all([
+    readFile(new URL("../server/src/routes/workstations.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/workstationAuthorization.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/db/workstationFlowLock.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(lock, /andon-workstation:/);
+  assert.match(lock, /pg_advisory_xact_lock/);
+  assert.match(authorization, /await lockWorkstationFlow\(tx, workstationId\)/);
+  assert.match(authorization, /if \(!workstation\.active\)/);
+  assert.match(authorization, /return null/);
+
+  const updateRoute = route.slice(route.indexOf('"/api/workstations/:id"'));
+  const lockIndex = updateRoute.indexOf("await lockWorkstationFlow(tx, id)");
+  const reloadIndex = updateRoute.indexOf("const lockedWorkstation = await tx.workstation.findUnique");
+  const sessionIndex = updateRoute.indexOf("tx.technicianSession.findFirst");
+  const updateIndex = updateRoute.indexOf("return tx.workstation.update");
+
+  assert.ok(lockIndex >= 0);
+  assert.ok(reloadIndex > lockIndex);
+  assert.ok(sessionIndex > reloadIndex);
+  assert.ok(updateIndex > sessionIndex);
+  assert.match(updateRoute, /Não é possível desativar workstation com atendimento ativo/);
 });
