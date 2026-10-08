@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
+import { lockAndonCategoryFlow } from "../db/andonCategoryFlowLock.js";
 import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { lockTechnicianSessionFlow } from "../db/technicianSessionFlowLock.js";
 import { prisma } from "../db/prisma.js";
@@ -1347,6 +1348,19 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     try {
       const call = await prisma.$transaction(async (tx) => {
         await lockMachineCallFlow(tx, machineId);
+        await lockAndonCategoryFlow(tx, subtype);
+
+        const lockedCategory = await tx.andonCategory.findUnique({
+          where: { id: subtype },
+          select: { id: true, active: true, categoryGroup: true },
+        });
+        if (!lockedCategory || (!lockedCategory.active && !isSystemTest)) {
+          throw new AndonCallValidationError("Setor inválido ou inativo");
+        }
+        if (lockedCategory.categoryGroup !== category) {
+          throw new AndonCallValidationError("Setor incompatível com a categoria");
+        }
+
         const lockedMachine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!lockedMachine) throw new AndonCallValidationError("Máquina não encontrada");
         if (!isSystemTest && !lockedMachine.isActive) {
@@ -1517,6 +1531,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     try {
       const calls = await prisma.$transaction(async (tx) => {
         await lockMachineCallFlow(tx, machineId);
+        for (const subtype of [...subtypes].sort()) {
+          await lockAndonCategoryFlow(tx, subtype);
+        }
+
         const machine = await tx.machine.findUnique({ where: { id: machineId } });
         if (!machine) throw new AndonCallValidationError("Máquina não encontrada");
         if (!machine.isActive) {

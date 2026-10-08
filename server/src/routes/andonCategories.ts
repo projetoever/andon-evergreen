@@ -1,11 +1,16 @@
 import type { FastifyInstance } from "fastify";
+import type { Prisma } from "@prisma/client";
 
+import { lockAndonCategoryFlow } from "../db/andonCategoryFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
 
 const CATEGORY_GROUPS = new Set(["maintenance", "production"]);
 const CATEGORY_ID_PATTERN = /^[a-z0-9_]{2,40}$/;
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+const ACTIVE_CALL_STATUSES = ["open", "in_progress", "post_maintenance"];
+
+class CategoryUpdateValidationError extends Error {}
 
 type CategoryQuery = {
   active?: string;
@@ -29,10 +34,13 @@ function parseDisplayOrder(value: unknown) {
   return Number.isInteger(parsed) && parsed >= 0 && parsed <= 9999 ? parsed : undefined;
 }
 
-async function countAssignedTechnicians(technicalArea: string) {
+async function countAssignedTechnicians(
+  technicalArea: string,
+  client: Pick<Prisma.TransactionClient, "technician" | "technicianTechnicalArea"> = prisma,
+) {
   const [legacyAssignments, relationalAssignments] = await Promise.all([
-    prisma.technician.count({ where: { technicalArea } }),
-    prisma.technicianTechnicalArea.count({ where: { technicalArea } }),
+    client.technician.count({ where: { technicalArea } }),
+    client.technicianTechnicalArea.count({ where: { technicalArea } }),
   ]);
 
   return legacyAssignments + relationalAssignments;
@@ -120,26 +128,69 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
       if ("displayOrder" in (request.body ?? {}) && displayOrder === undefined) {
         return badRequest(reply, "Ordem de exibição inválida");
       }
-      if (categoryGroup === "production" && current.categoryGroup === "maintenance") {
-        const assignedTechnicians = await countAssignedTechnicians(current.id);
-        if (assignedTechnicians > 0) {
-          return conflict(
-            reply,
-            "Realoque os mantenedores deste setor antes de alterar o grupo para produção",
-          );
-        }
-      }
+      try {
+        return await prisma.$transaction(async (tx) => {
+          await lockAndonCategoryFlow(tx, current.id);
 
-      return prisma.andonCategory.update({
-        where: { id: current.id },
-        data: {
-          ...(displayName ? { displayName } : {}),
-          ...(categoryGroup ? { categoryGroup } : {}),
-          ...(color ? { color } : {}),
-          ...(active !== undefined ? { active } : {}),
-          ...(displayOrder !== undefined ? { displayOrder } : {}),
-        },
-      });
+          const lockedCurrent = await tx.andonCategory.findUnique({
+            where: { id: current.id },
+          });
+          if (!lockedCurrent) {
+            throw new CategoryUpdateValidationError("Setor não encontrado");
+          }
+
+          const changesOperationalAvailability =
+            active === false ||
+            Boolean(categoryGroup && categoryGroup !== lockedCurrent.categoryGroup);
+
+          if (changesOperationalAvailability) {
+            const activeCall = await tx.andonCall.findFirst({
+              where: {
+                subtype: current.id,
+                isSystemTest: false,
+                status: { in: ACTIVE_CALL_STATUSES },
+              },
+              select: { id: true, machineId: true, status: true },
+            });
+            if (activeCall) {
+              throw new CategoryUpdateValidationError(
+                "Não é possível inativar ou alterar o grupo de um setor com chamado ativo.",
+              );
+            }
+          }
+
+          if (
+            categoryGroup === "production" &&
+            lockedCurrent.categoryGroup === "maintenance"
+          ) {
+            const assignedTechnicians = await countAssignedTechnicians(current.id, tx);
+            if (assignedTechnicians > 0) {
+              throw new CategoryUpdateValidationError(
+                "Realoque os mantenedores deste setor antes de alterar o grupo para produção",
+              );
+            }
+          }
+
+          return tx.andonCategory.update({
+            where: { id: current.id },
+            data: {
+              ...(displayName ? { displayName } : {}),
+              ...(categoryGroup ? { categoryGroup } : {}),
+              ...(color ? { color } : {}),
+              ...(active !== undefined ? { active } : {}),
+              ...(displayOrder !== undefined ? { displayOrder } : {}),
+            },
+          });
+        });
+      } catch (error) {
+        if (error instanceof CategoryUpdateValidationError) {
+          if (error.message === "Setor não encontrado") {
+            return notFound(reply, error.message);
+          }
+          return conflict(reply, error.message);
+        }
+        throw error;
+      }
     },
   );
 
