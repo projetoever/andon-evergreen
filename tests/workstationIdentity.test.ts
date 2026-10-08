@@ -84,7 +84,7 @@ test("Admin identifica a workstation atual e permite nome e status", async () =>
   assert.match(source, /updateWorkstation/);
 });
 
-test("modo local usa a mesma identidade persistente sem vincular Machine.id", async () => {
+test("identidade da workstation não usa localStorage no navegador", async () => {
   const identitySource = await readFile(
     new URL("../src/services/workstationIdentityService.ts", import.meta.url),
     "utf8",
@@ -94,7 +94,9 @@ test("modo local usa a mesma identidade persistente sem vincular Machine.id", as
     "utf8",
   );
 
-  assert.match(serviceSource, /CONFIGURED_DATA_MODE === "local"/);
+  assert.match(identitySource, /document\.cookie/);
+  assert.doesNotMatch(identitySource, /localStorage/);
+  assert.doesNotMatch(serviceSource, /window\.localStorage/);
   assert.match(serviceSource, /getCurrentWorkstationId\(\)/);
   assert.doesNotMatch(identitySource, /machineId|hostname|ipAddress|macAddress/i);
 });
@@ -139,4 +141,19 @@ test("camada central prepara requisições futuras sem alterar finalização", a
 
   assert.match(apiClient, /X-Andon-Workstation-Id/);
   assert.match(cors, /X-Andon-Workstation-Id/);
+});
+
+
+test("estado runtime da workstation é centralizado no PostgreSQL", async () => {
+  const [schema, route, lockService] = await Promise.all([
+    readFile(new URL("../server/prisma/schema.prisma", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/workstations.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/machineScreenLockService.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(schema, /lockedMachineId\s+String\?/);
+  assert.match(route, /runtime-preferences/);
+  assert.match(route, /screen-lock/);
+  assert.match(lockService, /runtime-preferences/);
+  assert.doesNotMatch(lockService, /localStorage/);
 });
