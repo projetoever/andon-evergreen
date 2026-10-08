@@ -1,4 +1,5 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 export interface MachineScreenLock {
@@ -14,6 +15,8 @@ export function getMachineScreenLock(): MachineScreenLock | null {
 }
 
 export async function refreshMachineScreenLock() {
+  if (CONFIGURED_DATA_MODE === "local") return cachedLock;
+
   const workstationId = getCurrentWorkstationId();
   if (!workstationId) {
     cachedLock = null;
@@ -32,6 +35,11 @@ export async function refreshMachineScreenLock() {
 }
 
 export async function lockMachineScreen(machineId: string) {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedLock = { locked: true, machineId };
+    return cachedLock;
+  }
+
   const workstationId = getCurrentWorkstationId();
   if (!workstationId) throw new Error("Workstation não identificada.");
 
@@ -44,6 +52,11 @@ export async function lockMachineScreen(machineId: string) {
 }
 
 export async function unlockMachineScreen() {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedLock = null;
+    return;
+  }
+
   const workstationId = getCurrentWorkstationId();
   if (!workstationId) throw new Error("Workstation não identificada.");
 
