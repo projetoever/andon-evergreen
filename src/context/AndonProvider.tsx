@@ -381,7 +381,6 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       machineId: string,
       patch: {
         name?: string;
-        productionMode?: ProductionMode;
         requireWorkOrderAtOpen?: boolean;
       },
     ) => {
