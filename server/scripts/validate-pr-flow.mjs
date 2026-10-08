@@ -17,6 +17,7 @@ const ids = {
   machine: "pr47-machine",
   raceMachine: "pr47-race-machine",
   failureRaceMachine: "pr-failure-race-machine",
+  productionRaceMachine: "pr-production-race-machine",
   impactMachine: "pr49-impact-machine",
   workOrderMachine: "pr43-work-order-machine",
   sessionMachineA: "pr42-session-machine-a",
@@ -158,6 +159,7 @@ async function cleanup() {
     ids.machine,
     ids.raceMachine,
     ids.failureRaceMachine,
+    ids.productionRaceMachine,
     ids.impactMachine,
     ids.workOrderMachine,
     ids.sessionMachineA,
@@ -488,6 +490,60 @@ async function run() {
       productionMode: "scheduled",
     }),
     201,
+  );
+  await request(
+    "/api/machines",
+    json("POST", {
+      id: ids.productionRaceMachine,
+      name: "Máquina concorrência modo de produção",
+      productionMode: "scheduled",
+    }),
+    201,
+  );
+
+  const concurrentProductionModeResponses = await Promise.all(
+    [1, 2].map(() =>
+      fetch(`${API_URL}/api/machines/${ids.productionRaceMachine}/production-mode`, {
+        ...json("PATCH", { productionMode: "not_scheduled" }),
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  assert.deepEqual(
+    concurrentProductionModeResponses.map((response) => response.status).sort(),
+    [200, 200],
+  );
+  const openProductionEventsAfterRace = await prisma.machineProductionEvent.findMany({
+    where: { machineId: ids.productionRaceMachine, endedAt: null },
+  });
+  assert.equal(
+    openProductionEventsAfterRace.length,
+    1,
+    "trocas concorrentes não podem deixar dois períodos de produção abertos",
+  );
+  assert.equal(openProductionEventsAfterRace[0].productionMode, "not_scheduled");
+
+  await request(
+    `/api/machines/${ids.productionRaceMachine}/production-mode`,
+    json("PATCH", { productionMode: "scheduled" }),
+  );
+  const productionTransitionAfterLock = await runAfterAdvisoryLockWait(
+    ids.productionRaceMachine,
+    () =>
+      request(
+        `/api/machines/${ids.productionRaceMachine}/production-mode`,
+        json("PATCH", { productionMode: "not_scheduled" }),
+      ),
+  );
+  const currentProductionEvent = await prisma.machineProductionEvent.findFirstOrThrow({
+    where: { machineId: ids.productionRaceMachine, endedAt: null },
+    orderBy: { startedAt: "desc" },
+  });
+  assert.equal(productionTransitionAfterLock.result.productionMode, "not_scheduled");
+  assert.ok(
+    currentProductionEvent.startedAt.getTime() >=
+      new Date(productionTransitionAfterLock.barrierAt).getTime(),
+    "startedAt do período de produção deve ser posterior à obtenção do lock",
   );
 
   const concurrentFailureResponses = await Promise.all(
