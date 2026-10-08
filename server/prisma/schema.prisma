@@ -26,6 +26,9 @@ model SystemSettings {
   rfidReaderMode                                       String   @default("keyboard_hid")
   rfidInputTerminator                                  String   @default("enter")
   rfidCodeLength                                       Int?
+  adminPasswordHash                                    String?
+  adminRecoveryCodeHash                                String?
+  adminRecoveryCodeIssuedAt                            DateTime?
   createdAt                                            DateTime @default(now())
   updatedAt                                            DateTime @updatedAt
 

@@ -7,6 +7,7 @@ import {
   createPlcRuntime,
   registerPlcHealthRoute,
 } from "./integrations/plc/index.js";
+import { registerAdminAuthRoutes } from "./routes/adminAuth.js";
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerAndonCategoryRoutes } from "./routes/andonCategories.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
@@ -58,6 +59,7 @@ export function buildServer() {
   }));
 
   void registerHealthDbRoute(app);
+  void registerAdminAuthRoutes(app);
   void registerPlcHealthRoute(app, plcRuntime);
   void registerMachineRoutes(app);
   void registerMachineCatalogRoutes(app);

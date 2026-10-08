@@ -30,10 +30,18 @@ const EMPTY_DRAFT: TechnicianConfig = {
   tag: "",
 };
 
-function CardSection({ title, children }: { title: string; children: ReactNode }) {
+function CardSection({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">{title}</h4>
+    <section className={cn("space-y-3 rounded-xl border border-border bg-card p-4", className)}>
+      <h4 className="shrink-0 text-sm font-bold uppercase tracking-wide text-foreground">{title}</h4>
       {children}
     </section>
   );
@@ -319,8 +327,11 @@ export function TechniciansSettingsTab() {
       )}
 
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
-        <CardSection title="Manutentores cadastrados">
-          <div className="space-y-2">
+        <CardSection
+          title="Manutentores cadastrados"
+          className="md:flex md:h-[calc(96dvh-13rem)] md:min-h-0 md:flex-col"
+        >
+          <div className="shrink-0 space-y-2">
             <div className="relative">
               <Search
                 aria-hidden="true"
@@ -447,7 +458,7 @@ export function TechniciansSettingsTab() {
             Adicionar manutentor
           </BigButton>
 
-          <div className="max-h-[56vh] space-y-2 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {isLoading && (
               <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
             )}
