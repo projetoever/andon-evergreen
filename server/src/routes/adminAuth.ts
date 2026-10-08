@@ -2,6 +2,11 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import {
+  createAdminSession,
+  readAdminSession,
+  revokeAdminSession,
+} from "../security/adminAuthorization.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
 
@@ -103,7 +108,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
       return invalidCredentials(reply);
     }
 
-    return { ok: true, username: ADMIN_USER };
+    return { ok: true, ...createAdminSession(ADMIN_USER) };
   });
 
   app.put<{ Body: ChangePasswordBody }>("/api/admin-auth/password", async (request, reply) => {
@@ -207,9 +212,22 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
 
     return {
       ok: true,
-      username: ADMIN_USER,
+      ...createAdminSession(ADMIN_USER),
       message:
         "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
     };
+  });
+
+  app.post("/api/admin-auth/logout", async (request, reply) => {
+    const auth = readAdminSession(request);
+    if (!auth) {
+      return reply.status(401).send({
+        error: "admin_auth_required",
+        message: "Sessão administrativa necessária.",
+      });
+    }
+
+    revokeAdminSession(auth.token);
+    return { ok: true };
   });
 }
