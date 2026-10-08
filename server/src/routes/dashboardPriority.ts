@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
+import { lockMachinePriorityFlow } from "../db/priorityFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import {
   buildCurrentPrioritySnapshot,
@@ -14,6 +15,8 @@ const GLOBAL_PRIORITY_CONFIG_ID = "global";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 6;
+
+class PriorityCatalogChangedError extends Error {}
 
 type PrioritySession = {
   username: string;
@@ -254,78 +257,98 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     }
 
     const normalizedIds = machineIds.map((id) => id.trim());
-    const currentMachines = await prisma.machine.findMany({
-      select: {
-        id: true,
-        isActive: true,
-        priorityOrder: true,
-        displayOrder: true,
-      },
-    });
-    const currentIds = new Set(currentMachines.map((machine) => machine.id));
 
-    if (
-      normalizedIds.length !== currentIds.size ||
-      normalizedIds.some((id) => !currentIds.has(id))
-    ) {
-      return reply.status(409).send({
-        error: "priority_machine_catalog_changed",
-        message:
-          "O cadastro de máquinas mudou durante a edição. Recarregue a lista antes de salvar.",
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        await lockMachinePriorityFlow(tx);
+
+        const currentMachines = await tx.machine.findMany({
+          select: {
+            id: true,
+            isActive: true,
+            priorityOrder: true,
+            displayOrder: true,
+          },
+        });
+        const currentIds = new Set(currentMachines.map((machine) => machine.id));
+
+        if (
+          normalizedIds.length !== currentIds.size ||
+          normalizedIds.some((id) => !currentIds.has(id))
+        ) {
+          throw new PriorityCatalogChangedError(
+            "O cadastro de máquinas mudou durante a edição. Recarregue a lista antes de salvar.",
+          );
+        }
+
+        const currentById = new Map(
+          currentMachines.map((machine) => [machine.id, machine]),
+        );
+        const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+        const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
+        const priorityChanges = diffPrioritySnapshots(
+          normalizedIds,
+          previousSnapshot,
+          nextSnapshot,
+        );
+
+        const updatedAt = new Date();
+
+        for (const [index, id] of normalizedIds.entries()) {
+          await tx.machine.update({
+            where: { id },
+            data: { priorityOrder: index + 1 },
+          });
+        }
+
+        for (const change of priorityChanges) {
+          await tx.machinePriorityHistory.create({
+            data: {
+              machineId: change.machineId,
+              previousOrder: change.previousOrder,
+              newOrder: change.newOrder,
+              previousPriorityRank: change.previousPriorityRank,
+              newPriorityRank: change.newPriorityRank,
+              changedAt: updatedAt,
+              changedBy: auth.session.username,
+              source: "priority_manager",
+            },
+          });
+        }
+
+        await tx.dashboardPriorityConfig.upsert({
+          where: { id: GLOBAL_PRIORITY_CONFIG_ID },
+          update: {
+            lastOrderUpdatedAt: updatedAt,
+            lastOrderUpdatedBy: auth.session.username,
+          },
+          create: {
+            id: GLOBAL_PRIORITY_CONFIG_ID,
+            lastOrderUpdatedAt: updatedAt,
+            lastOrderUpdatedBy: auth.session.username,
+          },
+        });
+
+        return {
+          updatedAt,
+          updatedBy: auth.session.username,
+        };
       });
+
+      return {
+        ok: true,
+        lastOrderUpdatedAt: result.updatedAt,
+        lastOrderUpdatedBy: result.updatedBy,
+      };
+    } catch (error) {
+      if (error instanceof PriorityCatalogChangedError) {
+        return reply.status(409).send({
+          error: "priority_machine_catalog_changed",
+          message: error.message,
+        });
+      }
+      throw error;
     }
-
-    const currentById = new Map(currentMachines.map((machine) => [machine.id, machine]));
-    const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
-    const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
-    const priorityChanges = diffPrioritySnapshots(
-      normalizedIds,
-      previousSnapshot,
-      nextSnapshot,
-    );
-
-    const updatedAt = new Date();
-    const historyEntries = priorityChanges.map((change) =>
-      prisma.machinePriorityHistory.create({
-        data: {
-          machineId: change.machineId,
-          previousOrder: change.previousOrder,
-          newOrder: change.newOrder,
-          previousPriorityRank: change.previousPriorityRank,
-          newPriorityRank: change.newPriorityRank,
-          changedAt: updatedAt,
-          changedBy: auth.session.username,
-          source: "priority_manager",
-        },
-      }),
-    );
-
-    await prisma.$transaction([
-      ...normalizedIds.map((id, index) =>
-        prisma.machine.update({
-          where: { id },
-          data: { priorityOrder: index + 1 },
-        }),
-      ),
-      ...historyEntries,
-      prisma.dashboardPriorityConfig.upsert({
-        where: { id: GLOBAL_PRIORITY_CONFIG_ID },
-        update: {
-          lastOrderUpdatedAt: updatedAt,
-          lastOrderUpdatedBy: auth.session.username,
-        },
-        create: {
-          id: GLOBAL_PRIORITY_CONFIG_ID,
-          lastOrderUpdatedAt: updatedAt,
-          lastOrderUpdatedBy: auth.session.username,
-        },
-      }),
-    ]);
-
-    return {
-      ok: true,
-      lastOrderUpdatedAt: updatedAt,
-      lastOrderUpdatedBy: auth.session.username,
-    };
   });
+
 }

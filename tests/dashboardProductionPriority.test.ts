@@ -35,6 +35,7 @@ test("API de prioridades usa hash, sessão e salvamento transacional", async () 
   assert.match(source, /randomBytes\(32\)/);
   assert.match(source, /SESSION_TTL_MS/);
   assert.match(source, /prisma\.\$transaction/);
+  assert.match(source, /lockMachinePriorityFlow/);
   assert.match(source, /priorityOrder: index \+ 1/);
   assert.doesNotMatch(source, /AndonCall|machineStatus|andonStatus|productionMode/);
 });
@@ -170,10 +171,10 @@ test("salvamento de prioridade registra somente mudanças reais na mesma transa�
   assert.match(routeSource, /buildCurrentPrioritySnapshot/);
   assert.match(routeSource, /buildPrioritySnapshot/);
   assert.match(routeSource, /diffPrioritySnapshots/);
-  assert.match(routeSource, /prisma\.machinePriorityHistory\.create/);
+  assert.match(routeSource, /tx\.machinePriorityHistory\.create/);
   assert.match(routeSource, /changedBy: auth\.session\.username/);
   assert.match(routeSource, /source: "priority_manager"/);
-  assert.match(routeSource, /\.\.\.historyEntries/);
+  assert.match(routeSource, /lockMachinePriorityFlow\(tx\)/);
   assert.match(routeSource, /prisma\.\$transaction/);
   assert.match(helperSource, /previousPriorityRank === newPriorityRank/);
 });
@@ -315,4 +316,40 @@ test("máquina inativa não recebe chamados e inativação revalida após lock",
   assert.equal(inactiveGuardMatches.length, 2);
   assert.match(callRoute, /!isSystemTest && !lockedMachine\.isActive/);
   assert.match(callRoute, /if \(!machine\.isActive\)/);
+});
+
+
+test("todas as mutações da sequência compartilham lock global de prioridade", async () => {
+  const [lock, machines, priority] = await Promise.all([
+    readFile(new URL("../server/src/db/priorityFlowLock.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/machines.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/dashboardPriority.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(lock, /andon-machine-priority/);
+  assert.match(lock, /pg_advisory_xact_lock/);
+
+  const createRoute = machines.slice(
+    machines.indexOf('app.post<{ Body: CreateMachineBody }>'),
+    machines.indexOf('app.get<{ Params: { id: string } }>'),
+  );
+  const activeRoute = machines.slice(
+    machines.indexOf('"/api/machines/:id/active"'),
+    machines.indexOf('"/api/machines/:id/status"'),
+  );
+  const orderRoute = priority.slice(
+    priority.indexOf('app.put<{ Body: OrderBody }>'),
+  );
+
+  assert.match(createRoute, /lockMachinePriorityFlow\(tx\)/);
+  assert.match(activeRoute, /lockMachinePriorityFlow\(tx\)/);
+  assert.match(orderRoute, /lockMachinePriorityFlow\(tx\)/);
+
+  const orderLockIndex = orderRoute.indexOf("lockMachinePriorityFlow(tx)");
+  const orderReadIndex = orderRoute.indexOf("tx.machine.findMany");
+  assert.ok(orderReadIndex > orderLockIndex);
+
+  const createLockIndex = createRoute.indexOf("lockMachinePriorityFlow(tx)");
+  const createAggregateIndex = createRoute.indexOf("tx.machine.aggregate");
+  assert.ok(createAggregateIndex > createLockIndex);
 });

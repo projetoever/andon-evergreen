@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { lockMachineFlow } from "../db/machineFlowLock.js";
+import { lockMachinePriorityFlow } from "../db/priorityFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import {
   buildCurrentPrioritySnapshot,
@@ -120,50 +121,55 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     const requireWorkOrderAtOpen = parsedRequireWorkOrderAtOpen ?? false;
 
     try {
-      const [highestOrder, activeMachineCount, machineCount] = await Promise.all([
-        prisma.machine.aggregate({
-          _max: {
-            priorityOrder: true,
-            displayOrder: true,
-          },
-        }),
-        prisma.machine.count({ where: { isActive: true } }),
-        prisma.machine.count(),
-      ]);
-      const nextPriorityOrder =
-        Math.max(
-          highestOrder._max.priorityOrder ?? 0,
-          highestOrder._max.displayOrder ?? 0,
-        ) + 1;
-      const createdAt = new Date();
-      const initialPriorityRank = activeMachineCount < 5 ? activeMachineCount + 1 : null;
+      const machine = await prisma.$transaction(async (tx) => {
+        await lockMachinePriorityFlow(tx);
 
-      const machine = await prisma.machine.create({
-        data: {
-          id,
-          name: optionalBodyString(request.body?.name) || `Máquina ${id}`,
-          productionMode,
-          requireWorkOrderAtOpen,
-          displayOrder: Number.isFinite(Number(id)) ? Number(id) : undefined,
-          priorityOrder: nextPriorityOrder,
-          machineStatus: "running",
-          andonStatus: "normal",
-          currentCallId: null,
-          isActive: true,
-          productionEvents: { create: { productionMode, startedAt: createdAt } },
-          priorityHistory: {
-            create: {
-              previousOrder: null,
-              newOrder: machineCount + 1,
-              previousPriorityRank: null,
-              newPriorityRank: initialPriorityRank,
-              changedAt: createdAt,
-              source: "machine_created",
+        const [highestOrder, activeMachineCount, machineCount] = await Promise.all([
+          tx.machine.aggregate({
+            _max: {
+              priorityOrder: true,
+              displayOrder: true,
+            },
+          }),
+          tx.machine.count({ where: { isActive: true } }),
+          tx.machine.count(),
+        ]);
+        const nextPriorityOrder =
+          Math.max(
+            highestOrder._max.priorityOrder ?? 0,
+            highestOrder._max.displayOrder ?? 0,
+          ) + 1;
+        const createdAt = new Date();
+        const initialPriorityRank = activeMachineCount < 5 ? activeMachineCount + 1 : null;
+
+        return tx.machine.create({
+          data: {
+            id,
+            name: optionalBodyString(request.body?.name) || `Máquina ${id}`,
+            productionMode,
+            requireWorkOrderAtOpen,
+            displayOrder: Number.isFinite(Number(id)) ? Number(id) : undefined,
+            priorityOrder: nextPriorityOrder,
+            machineStatus: "running",
+            andonStatus: "normal",
+            currentCallId: null,
+            isActive: true,
+            productionEvents: { create: { productionMode, startedAt: createdAt } },
+            priorityHistory: {
+              create: {
+                previousOrder: null,
+                newOrder: machineCount + 1,
+                previousPriorityRank: null,
+                newPriorityRank: initialPriorityRank,
+                changedAt: createdAt,
+                source: "machine_created",
+              },
             },
           },
-        },
-        select: machineSelect,
+          select: machineSelect,
+        });
       });
+
       return reply.status(201).send(machine);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -222,6 +228,7 @@ export async function registerMachineRoutes(app: FastifyInstance) {
       try {
         return await prisma.$transaction(async (tx) => {
           await lockMachineFlow(tx, request.params.id);
+          await lockMachinePriorityFlow(tx);
 
           const lockedTarget = await tx.machine.findUnique({
             where: { id: request.params.id },
