@@ -44,6 +44,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     rfidReaderMode: "keyboard_hid",
     rfidInputTerminator: "enter",
     rfidCodeLength: null,
+    filterTechniciansByCurrentShift: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -92,6 +93,8 @@ function readLocalSystemSettings() {
           : null,
       dashboardMachineOrderMode:
         parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
+      filterTechniciansByCurrentShift:
+        parsed.filterTechniciansByCurrentShift !== false,
     };
     return localSystemSettings;
   } catch {
