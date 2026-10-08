@@ -2,6 +2,7 @@ export const WORKSTATION_ID_STORAGE_KEY = "andon.workstationId";
 
 const WORKSTATION_ID_PATTERN =
   /^ws_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKSTATION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5;
 
 export interface WorkstationIdentityStorage {
   getItem(key: string): string | null;
@@ -65,19 +66,37 @@ export function ensureWorkstationId(
   try {
     storage.setItem(WORKSTATION_ID_STORAGE_KEY, workstationId);
   } catch {
-    // localStorage pode estar bloqueado; o chamador ainda recebe uma identidade de sessão.
+    // O chamador ainda recebe uma identidade estável durante esta execução.
   }
 
   return workstationId;
 }
 
+function readCookie(key: string) {
+  if (typeof document === "undefined") return null;
+  const prefix = `${encodeURIComponent(key)}=`;
+  const part = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(prefix));
+  return part ? decodeURIComponent(part.slice(prefix.length)) : null;
+}
+
+function writeCookie(key: string, value: string) {
+  if (typeof document === "undefined") return;
+  const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+  document.cookie =
+    `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${WORKSTATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+}
+
+const browserCookieStorage: WorkstationIdentityStorage = {
+  getItem: readCookie,
+  setItem: writeCookie,
+};
+
 function getBrowserStorage() {
   if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return inMemoryStorage;
-  }
+  return typeof document === "undefined" ? inMemoryStorage : browserCookieStorage;
 }
 
 export function getCurrentWorkstationId() {
