@@ -169,7 +169,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...("rfidCodeLength" in body ? { rfidCodeLength: rfidCodeLength as number | null } : {}),
     };
 
-    const settings = await prisma.systemSettings.upsert({
+    await prisma.systemSettings.upsert({
       where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
       update: patch,
       create: {
@@ -180,9 +180,8 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
 
     if (typeof dashboardSoundMuted === "boolean") {
       await setDashboardSoundState(dashboardSoundMuted, "manual");
-      return getSystemSettings();
     }
 
-    return settings;
+    return getSystemSettings();
   });
 }
