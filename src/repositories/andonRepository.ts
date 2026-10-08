@@ -50,9 +50,8 @@ export interface MachineCatalogPatch {
 /**
  * Contrato incremental para separar o frontend da origem dos dados.
  *
- * A implementação local mantém a regra atual baseada em arrays + LocalStorage no
- * AndonProvider. A implementação API é apenas um ponto de extensão para a futura
- * API Node.js/PostgreSQL e não é usada por padrão nesta tarefa.
+ * A implementação local mantém somente dados em memória para desenvolvimento.
+ * Em produção, a implementação API/PostgreSQL é a fonte autoritativa e obrigatória.
  */
 export interface AndonRepository {
   loadSnapshot(): Promise<AndonSnapshot | null>;
