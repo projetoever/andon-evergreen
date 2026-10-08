@@ -232,7 +232,7 @@ export function TechnicianSelector({
 
         {hasShiftFallback && (
           <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-            Nenhum manutentor ativo no turno atual. Exibindo todos os ativos.
+            Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.
           </p>
         )}
 
@@ -336,7 +336,7 @@ export function TechnicianSelector({
       <div className="flex flex-wrap items-center gap-3">
         {hasShiftFallback && (
           <p className="text-xs text-muted-foreground">
-            Nenhum manutentor ativo no turno atual. Exibindo todos os ativos.
+            Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.
           </p>
         )}
 
@@ -377,7 +377,7 @@ export function TechnicianSelector({
         <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhum manutentor cadastrado para esta seleção.
+          Nenhum mantenedor cadastrado para esta seleção.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

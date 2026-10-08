@@ -330,3 +330,24 @@ test("listas de catálogo do Admin aproveitam a altura útil do modal", async ()
     assert.doesNotMatch(source, /max-h-\[52vh\]/);
   }
 });
+
+
+test("interface padroniza o termo mantenedor", async () => {
+  const paths = [
+    "../src/components/settings/TechniciansSettingsTab.tsx",
+    "../src/components/calls/TechnicianSelector.tsx",
+    "../src/pages/MachineCallHistoryPage.tsx",
+  ];
+
+  for (const path of paths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /Manutentor|manutentor|Manutentores|manutentores/);
+  }
+
+  const admin = await readFile(
+    new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(admin, /Mantenedores/);
+  assert.match(admin, /mantenedor/);
+});

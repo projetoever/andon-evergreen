@@ -408,7 +408,7 @@ export class ApiAndonRepository implements AndonRepository {
     const session = call?.technicianSessions?.find((item) =>
       params.sessionId ? item.id === params.sessionId : item.technicianName === params.technicianName,
     );
-    if (!params.credential && !session) throw new Error("Sessão de manutentor não encontrada");
+    if (!params.credential && !session) throw new Error("Sessão de mantenedor não encontrada");
 
     await this.apiClient.patch(
       `/api/andon-calls/${params.callId}/technicians/end`,

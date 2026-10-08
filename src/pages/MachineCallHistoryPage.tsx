@@ -737,7 +737,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 : call.technicianName
                   ? formatTechnicianDisplayName(call.technicianName)
                   : isMaintenance
-                    ? "Sem manutentor apontado"
+                    ? "Sem mantenedor apontado"
                     : "Não aplicável";
             const effectiveAssetLocation = getEffectiveAssetLocationLabel(call, "Não informado");
             const isExpanded = expandedCallIds.includes(call.id);
@@ -859,7 +859,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     ...legacyAllocationRows,
                     {
                       id: `${call.id}-legacy-unassigned`,
-                      technicianName: "Sem manutentor apontado",
+                      technicianName: "Sem mantenedor apontado",
                       startedAt: legacyUnassignedAllocation.startedAt,
                       endedAt: legacyUnassignedAllocation.endedAt,
                       maintenanceMinutes: 0,
@@ -919,7 +919,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Manutentores: {technicianNames}
+                      Mantenedores: {technicianNames}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -1281,7 +1281,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             ))
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Sem manutentor apontado
+                              Sem mantenedor apontado
                             </div>
                           )}
                         </div>

@@ -12,7 +12,7 @@ export function formatShiftName(shiftName?: string | null): string {
 
 export function formatTechnicianDisplayName(name?: string | null): string {
   const normalizedName = name?.trim();
-  if (!normalizedName) return "Sem manutentor apontado";
+  if (!normalizedName) return "Sem mantenedor apontado";
   return normalizedName;
 }
 
@@ -41,7 +41,7 @@ export function formatTimeAllocationSource(source?: string | null): string {
     registered_session: "Sessão registrada",
     full_period_final_selection: "Período completo selecionado na finalização",
     single_responsible_full_period: "Responsável único pelo atendimento",
-    unassigned_time: "Tempo sem manutentor apontado",
+    unassigned_time: "Tempo sem mantenedor apontado",
   };
   return labels[source] ?? source;
 }

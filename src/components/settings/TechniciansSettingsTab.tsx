@@ -226,13 +226,13 @@ export function TechniciansSettingsTab() {
   async function handleSave() {
     const trimmedName = draft.name.trim();
     const employeeId = draft.employeeId?.trim() ?? "";
-    if (!trimmedName) return toast.error("Informe o nome do manutentor.");
+    if (!trimmedName) return toast.error("Informe o nome do mantenedor.");
     if (!employeeId) return toast.error("Informe o ID do colaborador.");
     if (!selectedAreas.length) return toast.error("Selecione pelo menos uma área técnica.");
     if (new Set(selectedAreas).size !== selectedAreas.length) {
       return toast.error("Não repita áreas técnicas no cadastro.");
     }
-    if (!draft.shiftId) return toast.error("Selecione o turno do manutentor.");
+    if (!draft.shiftId) return toast.error("Selecione o turno do mantenedor.");
     const pin = draft.pin?.trim() ?? "";
     if ((!draft.id || !draft.hasPin) && !/^\d{4,8}$/.test(pin)) {
       return toast.error("Informe um PIN obrigatório de 4 a 8 números.");
@@ -246,7 +246,7 @@ export function TechniciansSettingsTab() {
         technician.id !== draft.id &&
         technician.name.localeCompare(trimmedName, "pt-BR", { sensitivity: "base" }) === 0,
     );
-    if (duplicate) return toast.error("Já existe manutentor com este nome.");
+    if (duplicate) return toast.error("Já existe mantenedor com este nome.");
 
     setIsSaving(true);
 
@@ -267,10 +267,10 @@ export function TechniciansSettingsTab() {
 
       setSelectedId(saved.id);
       setDraft({ ...saved, pin: "", tag: "" });
-      toast.success("Manutentor salvo no banco de dados.");
+      toast.success("Mantenedor salvo no banco de dados.");
     } catch (saveError) {
       toast.error(
-        saveError instanceof Error ? saveError.message : "Não foi possível salvar o manutentor.",
+        saveError instanceof Error ? saveError.message : "Não foi possível salvar o mantenedor.",
       );
     } finally {
       setIsSaving(false);
@@ -293,10 +293,10 @@ export function TechniciansSettingsTab() {
         employeeId,
       });
       setDraft(saved);
-      toast.success(saved.active ? "Manutentor reativado." : "Manutentor inativado.");
+      toast.success(saved.active ? "Mantenedor reativado." : "Mantenedor inativado.");
     } catch (saveError) {
       toast.error(
-        saveError instanceof Error ? saveError.message : "Não foi possível atualizar o manutentor.",
+        saveError instanceof Error ? saveError.message : "Não foi possível atualizar o mantenedor.",
       );
     } finally {
       setIsSaving(false);
@@ -306,7 +306,7 @@ export function TechniciansSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Manutentores</h3>
+        <h3 className="text-base font-bold">Mantenedores</h3>
         <p className="text-sm text-muted-foreground">
           Cadastre, edite e inative mantenedores por área e turno. Os registros são armazenados no
           banco de dados do ANDON.
@@ -328,7 +328,7 @@ export function TechniciansSettingsTab() {
 
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
         <CardSection
-          title="Manutentores cadastrados"
+          title="Mantenedores cadastrados"
           className="md:flex md:h-[calc(96dvh-13rem)] md:min-h-0 md:flex-col"
         >
           <div className="shrink-0 space-y-2">
@@ -455,7 +455,7 @@ export function TechniciansSettingsTab() {
             onClick={handleAddTechnician}
             disabled={isLoading || Boolean(error)}
           >
-            Adicionar manutentor
+            Adicionar mantenedor
           </BigButton>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
