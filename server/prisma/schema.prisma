@@ -26,6 +26,7 @@ model SystemSettings {
   rfidReaderMode                                       String   @default("keyboard_hid")
   rfidInputTerminator                                  String   @default("enter")
   rfidCodeLength                                       Int?
+  filterTechniciansByCurrentShift                      Boolean  @default(true)
   adminPasswordHash                                    String?
   adminRecoveryCodeHash                                String?
   adminRecoveryCodeIssuedAt                            DateTime?
@@ -56,6 +57,8 @@ model Workstation {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   technicianSessions TechnicianSession[]
+  soundPreferences   WorkstationMachineSoundPreference[]
+  lockedMachineId    String?
 
   @@index([active])
   @@index([lastSeenAt])
@@ -101,8 +104,23 @@ model Machine {
   productionEvents    MachineProductionEvent[]
   priorityHistory     MachinePriorityHistory[]
   kioskDevices        KioskDevice[]
+  workstationSoundPreferences WorkstationMachineSoundPreference[]
 
   @@map("machines")
+}
+
+model WorkstationMachineSoundPreference {
+  workstationId String
+  machineId     String
+  enabled       Boolean     @default(true)
+  workstation  Workstation @relation(fields: [workstationId], references: [id], onDelete: Cascade)
+  machine      Machine     @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@id([workstationId, machineId])
+  @@index([machineId])
+  @@map("workstation_machine_sound_preferences")
 }
 
 model MachinePriorityHistory {
