@@ -15,6 +15,8 @@ import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
 
+class MachineActivationValidationError extends Error {}
+
 type MachineQuery = { includeInactive?: string };
 type MachineStatusBody = { machineStatus?: unknown };
 type ProductionModeBody = { productionMode?: unknown };
@@ -208,70 +210,102 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     },
   );
 
-  app.patch<{ Params: { id: string }; Body: ActiveMachineBody }>("/api/machines/:id/active", async (request, reply) => {
-    const isActive = parseBoolean(request.body?.isActive);
-    if (isActive === undefined) return badRequest(reply, "Campo isActive inválido");
-    const machine = await findMachineOr404(request.params.id, reply);
-    if (!("id" in machine)) return machine;
-    if (!isActive && machine.currentCallId) return badRequest(reply, "Não é possível desativar máquina com chamado ativo");
+  app.patch<{ Params: { id: string }; Body: ActiveMachineBody }>(
+    "/api/machines/:id/active",
+    async (request, reply) => {
+      const isActive = parseBoolean(request.body?.isActive);
+      if (isActive === undefined) return badRequest(reply, "Campo isActive inválido");
 
-    const currentMachines = await prisma.machine.findMany({
-      select: {
-        id: true,
-        isActive: true,
-        priorityOrder: true,
-        displayOrder: true,
-      },
-    });
-    const currentTarget = currentMachines.find((item) => item.id === request.params.id);
-    if (!currentTarget) return notFound(reply, "Máquina não encontrada");
+      const machine = await findMachineOr404(request.params.id, reply);
+      if (!("id" in machine)) return machine;
 
-    if (currentTarget.isActive === isActive) {
-      return prisma.machine.findUniqueOrThrow({
-        where: { id: request.params.id },
-        select: machineSelect,
-      });
-    }
+      try {
+        return await prisma.$transaction(async (tx) => {
+          await lockMachineFlow(tx, request.params.id);
 
-    const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
-    const nextMachines: PriorityMachineState[] = currentMachines.map((item) =>
-      item.id === request.params.id ? { ...item, isActive } : item,
-    );
-    const nextById = new Map(nextMachines.map((item) => [item.id, item]));
-    const orderedIds = sortPriorityMachineIds(nextMachines);
-    const nextSnapshot = buildPrioritySnapshot(orderedIds, nextById);
-    const priorityChanges = diffPrioritySnapshots(
-      orderedIds,
-      previousSnapshot,
-      nextSnapshot,
-    );
-    const changedAt = new Date();
+          const lockedTarget = await tx.machine.findUnique({
+            where: { id: request.params.id },
+            select: {
+              id: true,
+              isActive: true,
+              currentCallId: true,
+              priorityOrder: true,
+              displayOrder: true,
+            },
+          });
+          if (!lockedTarget) throw new Error("Máquina não encontrada");
 
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.machine.update({
-        where: { id: request.params.id },
-        data: { isActive },
-        select: machineSelect,
-      });
+          if (!isActive && lockedTarget.currentCallId) {
+            throw new MachineActivationValidationError(
+              "Não é possível desativar máquina com chamado ativo",
+            );
+          }
 
-      for (const change of priorityChanges) {
-        await tx.machinePriorityHistory.create({
-          data: {
-            machineId: change.machineId,
-            previousOrder: change.previousOrder,
-            newOrder: change.newOrder,
-            previousPriorityRank: change.previousPriorityRank,
-            newPriorityRank: change.newPriorityRank,
-            changedAt,
-            source: "machine_activation",
-            reason: isActive ? "activated" : "inactivated",
-          },
+          const currentMachines = await tx.machine.findMany({
+            select: {
+              id: true,
+              isActive: true,
+              priorityOrder: true,
+              displayOrder: true,
+            },
+          });
+          const currentTarget = currentMachines.find(
+            (item) => item.id === request.params.id,
+          );
+          if (!currentTarget) throw new Error("Máquina não encontrada");
+
+          if (currentTarget.isActive === isActive) {
+            return tx.machine.findUniqueOrThrow({
+              where: { id: request.params.id },
+              select: machineSelect,
+            });
+          }
+
+          const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+          const nextMachines: PriorityMachineState[] = currentMachines.map((item) =>
+            item.id === request.params.id ? { ...item, isActive } : item,
+          );
+          const nextById = new Map(nextMachines.map((item) => [item.id, item]));
+          const orderedIds = sortPriorityMachineIds(nextMachines);
+          const nextSnapshot = buildPrioritySnapshot(orderedIds, nextById);
+          const priorityChanges = diffPrioritySnapshots(
+            orderedIds,
+            previousSnapshot,
+            nextSnapshot,
+          );
+          const changedAt = new Date();
+
+          const updated = await tx.machine.update({
+            where: { id: request.params.id },
+            data: { isActive },
+            select: machineSelect,
+          });
+
+          for (const change of priorityChanges) {
+            await tx.machinePriorityHistory.create({
+              data: {
+                machineId: change.machineId,
+                previousOrder: change.previousOrder,
+                newOrder: change.newOrder,
+                previousPriorityRank: change.previousPriorityRank,
+                newPriorityRank: change.newPriorityRank,
+                changedAt,
+                source: "machine_activation",
+                reason: isActive ? "activated" : "inactivated",
+              },
+            });
+          }
+
+          return updated;
         });
+      } catch (error) {
+        if (error instanceof MachineActivationValidationError) {
+          return badRequest(reply, error.message);
+        }
+        throw error;
       }
-
-      return updated;
-    });
-  });
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: MachineStatusBody }>(
     "/api/machines/:id/status",
