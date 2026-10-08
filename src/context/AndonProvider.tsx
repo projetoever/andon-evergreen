@@ -27,6 +27,8 @@ import {
   registerCurrentWorkstation,
   WORKSTATION_HEARTBEAT_INTERVAL_MS,
 } from "@/services/workstationService";
+import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
+import { refreshMachineSoundPreferences } from "@/services/machineSoundPreferenceService";
 
 const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
 const MIN_API_SYNC_INTERVAL_MS = 500;
@@ -128,11 +130,18 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const register = () => {
-      void registerCurrentWorkstation().catch((error) => {
-        console.error(
-          error instanceof Error ? error.message : "Falha ao registrar a workstation atual.",
-        );
-      });
+      void registerCurrentWorkstation()
+        .then(() =>
+          Promise.all([
+            refreshMachineScreenLock(),
+            refreshMachineSoundPreferences(),
+          ]),
+        )
+        .catch((error) => {
+          console.error(
+            error instanceof Error ? error.message : "Falha ao registrar a workstation atual.",
+          );
+        });
     };
 
     register();

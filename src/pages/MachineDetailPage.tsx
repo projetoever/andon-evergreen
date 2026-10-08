@@ -22,10 +22,12 @@ import { useTicker } from "@/hooks/useTicker";
 import {
   getMachineScreenLock,
   lockMachineScreen,
+  refreshMachineScreenLock,
   unlockMachineScreen,
 } from "@/services/machineScreenLockService";
 import {
   isMachineSoundEnabled,
+  refreshMachineSoundPreferences,
   setMachineSoundEnabled,
 } from "@/services/machineSoundPreferenceService";
 import { cn } from "@/lib/utils";
@@ -211,19 +213,54 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }, []);
 
   useEffect(() => {
-    const lockedScreen = getMachineScreenLock();
-    setScreenLock(lockedScreen);
-    if (lockedScreen?.locked && lockedScreen.machineId !== machineId) {
-      void navigate({
-        to: "/machines/$machineId",
-        params: { machineId: lockedScreen.machineId },
-        replace: true,
+    let cancelled = false;
+
+    void registerCurrentWorkstation()
+      .then(() => refreshMachineScreenLock())
+      .then((lockedScreen) => {
+        if (cancelled) return;
+        setScreenLock(lockedScreen);
+        if (lockedScreen?.locked && lockedScreen.machineId !== machineId) {
+          void navigate({
+            to: "/machines/$machineId",
+            params: { machineId: lockedScreen.machineId },
+            replace: true,
+          });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar o bloqueio da workstation.",
+          );
+        }
       });
-    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [machineId, navigate]);
 
   useEffect(() => {
-    if (machine) setMachineSoundEnabledState(isMachineSoundEnabled(machine.id));
+    if (!machine) return;
+    let cancelled = false;
+
+    void registerCurrentWorkstation()
+      .then(() => refreshMachineSoundPreferences())
+      .then(() => {
+        if (!cancelled) {
+          setMachineSoundEnabledState(isMachineSoundEnabled(machine.id));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMachineSoundEnabledState(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [machine]);
 
   const nowIso = useMemo(() => {
@@ -301,6 +338,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     audioUnlocked,
     machineId,
     respectMachinePreference: true,
+    machineSoundEnabled,
     soundScope: "machine",
   });
 
@@ -310,21 +348,34 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     toast.success("Som da máquina ativado nesta workstation");
   }
 
-  function handleToggleScreenLock() {
+  async function handleToggleScreenLock() {
     if (!machine) return;
     if (screenLocked) {
       setUnlockLoginOpen(true);
       return;
     }
-    lockMachineScreen(machine.id);
-    setScreenLock({ locked: true, machineId: machine.id });
-    toast.success(`Tela da máquina ${machine.id} fixada`);
+
+    try {
+      const lock = await lockMachineScreen(machine.id);
+      setScreenLock(lock);
+      toast.success(`Tela da máquina ${machine.id} fixada`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível fixar a tela.",
+      );
+    }
   }
 
-  function handleUnlockSuccess() {
-    unlockMachineScreen();
-    setScreenLock(null);
-    toast.success("Tela desbloqueada. Navegação liberada.");
+  async function handleUnlockSuccess() {
+    try {
+      await unlockMachineScreen();
+      setScreenLock(null);
+      toast.success("Tela desbloqueada. Navegação liberada.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível desbloquear a tela.",
+      );
+    }
   }
 
   async function handleCancelCall(reason: string) {
@@ -462,29 +513,40 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
         screenLocked={screenLocked}
-        onToggleScreenLock={handleToggleScreenLock}
+        onToggleScreenLock={() => void handleToggleScreenLock()}
         onToggleMachineSound={() => {
           const next = !machineSoundEnabled;
-          setMachineSoundEnabled(machine.id, next);
-          setMachineSoundEnabledState(next);
-          if (!next) {
-            stopAndonSound(machine.id, "machine");
-            toast.success("Som do ANDON silenciado somente nesta máquina");
-            return;
-          }
+          void setMachineSoundEnabled(machine.id, next)
+            .then(() => {
+              setMachineSoundEnabledState(next);
+              if (!next) {
+                stopAndonSound(machine.id, "machine");
+                toast.success("Som do ANDON silenciado somente nesta máquina");
+                return;
+              }
 
-          if (latestOpenCall && settings.soundsEnabled && audioUnlocked) {
-            const config = soundConfigs.find((item) => item.key === latestOpenCall.subtype);
-            const repeatInterval = config?.repeatUntilAttended ? config.repeatIntervalSeconds : 0;
-            void playAndonSound(
-              machine.id,
-              latestOpenCall.subtype,
-              repeatInterval,
-              "machine",
-              true,
-            );
-          }
-          toast.success("Som do ANDON ativado somente para esta máquina");
+              if (latestOpenCall && settings.soundsEnabled && audioUnlocked) {
+                const config = soundConfigs.find((item) => item.key === latestOpenCall.subtype);
+                const repeatInterval = config?.repeatUntilAttended
+                  ? config.repeatIntervalSeconds
+                  : 0;
+                void playAndonSound(
+                  machine.id,
+                  latestOpenCall.subtype,
+                  repeatInterval,
+                  "machine",
+                  true,
+                );
+              }
+              toast.success("Som do ANDON ativado somente para esta máquina");
+            })
+            .catch((error) => {
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível salvar a preferência de som.",
+              );
+            });
         }}
       />
 
@@ -633,7 +695,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <AdminLoginModal
         open={unlockLoginOpen}
         onOpenChange={setUnlockLoginOpen}
-        onSuccess={handleUnlockSuccess}
+        onSuccess={() => void handleUnlockSuccess()}
         title="Desbloquear tela fixada"
         description="Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel."
         successLabel="Desbloquear"

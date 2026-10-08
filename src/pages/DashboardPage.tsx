@@ -12,8 +12,9 @@ import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { isDashboardPriorityAuthenticated } from "@/services/dashboardPriorityService";
-import { getMachineScreenLock } from "@/services/machineScreenLockService";
+import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "sonner";
+import { registerCurrentWorkstation } from "@/services/workstationService";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import {
   getDashboardSoundState,
@@ -289,23 +290,34 @@ export function DashboardPage() {
     }
   }, [dashboardSoundMuted, hasDashboardAlertCall, reactivateDashboardSound]);
 
-  const [lockedMachineId, setLockedMachineId] = useState<string | null>(
-    () => getMachineScreenLock()?.machineId ?? null,
-  );
+  const [lockedMachineId, setLockedMachineId] = useState<string | null>(null);
 
   useEffect(() => {
-    const lockedScreen = getMachineScreenLock();
-    if (!lockedScreen?.locked) {
-      setLockedMachineId(null);
-      return;
-    }
+    let cancelled = false;
 
-    setLockedMachineId(lockedScreen.machineId);
-    void navigate({
-      to: "/machines/$machineId",
-      params: { machineId: lockedScreen.machineId },
-      replace: true,
-    });
+    void registerCurrentWorkstation()
+      .then(() => refreshMachineScreenLock())
+      .then((lockedScreen) => {
+        if (cancelled) return;
+        if (!lockedScreen?.locked) {
+          setLockedMachineId(null);
+          return;
+        }
+
+        setLockedMachineId(lockedScreen.machineId);
+        void navigate({
+          to: "/machines/$machineId",
+          params: { machineId: lockedScreen.machineId },
+          replace: true,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setLockedMachineId(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   function handleUnlock() {

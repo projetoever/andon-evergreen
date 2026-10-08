@@ -25,6 +25,7 @@ test("protege somente mutações administrativas", () => {
     ["POST", "/api/failure-classifications"],
     ["PATCH", "/api/failure-classifications/f1"],
     ["PATCH", "/api/workstations/ws_1"],
+    ["PATCH", "/api/shifts/morning"],
     ["POST", "/api/machine-set-types"],
     ["PATCH", "/api/machine-set-types/type-1"],
     ["DELETE", "/api/machine-set-types/type-1"],
@@ -63,6 +64,9 @@ test("mantém fluxos operacionais fora do bloqueio administrativo", () => {
     ["PUT", "/api/dashboard-priority/order"],
     ["POST", "/api/admin-auth/login"],
     ["POST", "/api/admin-auth/recover"],
+    ["GET", "/api/workstations/ws_1/runtime-preferences"],
+    ["PATCH", "/api/workstations/ws_1/screen-lock"],
+    ["PUT", "/api/workstations/ws_1/machine-sound/9"],
   ];
 
   for (const [method, path] of operationalRoutes) {

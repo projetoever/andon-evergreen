@@ -67,10 +67,15 @@ test("workstation da máquina possui ativação própria de áudio", async () =>
   assert.match(machinePage, /ATIVAR SOM DA MÁQUINA/);
 });
 
-test("preferência de mute por máquina continua local à workstation", async () => {
-  const preferenceService = await readSource("src/services/machineSoundPreferenceService.ts");
+test("preferência de mute por máquina é persistida no servidor por workstation", async () => {
+  const [preferenceService, workstationRoute, schema] = await Promise.all([
+    readSource("src/services/machineSoundPreferenceService.ts"),
+    readSource("server/src/routes/workstations.ts"),
+    readSource("server/prisma/schema.prisma"),
+  ]);
 
-  assert.match(preferenceService, /andon\.machineSoundPreferences/);
-  assert.match(preferenceService, /window\.localStorage\.getItem/);
-  assert.match(preferenceService, /window\.localStorage\.setItem/);
+  assert.match(preferenceService, /\/api\/workstations\/.*\/machine-sound\//);
+  assert.doesNotMatch(preferenceService, /localStorage/);
+  assert.match(workstationRoute, /workstationMachineSoundPreference\.upsert/);
+  assert.match(schema, /model WorkstationMachineSoundPreference/);
 });

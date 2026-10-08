@@ -3,7 +3,6 @@ import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { SystemSettings, SystemSettingsPatch } from "@/types/systemSettings";
 
 const apiClient = createAndonApiClient();
-const LOCAL_SYSTEM_SETTINGS_KEY = "andonWebIndustrial.systemSettings.api";
 let localSystemSettings: SystemSettings | null = null;
 
 export const VIRTUAL_KEYBOARD_SETTING_CHANGED_EVENT = "andon:virtual-keyboard-setting-changed";
@@ -44,68 +43,21 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     rfidReaderMode: "keyboard_hid",
     rfidInputTerminator: "enter",
     rfidCodeLength: null,
+    filterTechniciansByCurrentShift: true,
     createdAt: now,
     updatedAt: now,
   };
 }
 
 function readLocalSystemSettings() {
-  if (localSystemSettings) return localSystemSettings;
-  const fallback = createDefaultLocalSystemSettings();
-  if (typeof window === "undefined") return fallback;
-
-  try {
-    const stored = window.localStorage.getItem(LOCAL_SYSTEM_SETTINGS_KEY);
-    if (!stored) return fallback;
-    const parsed = JSON.parse(stored) as Partial<SystemSettings>;
-    localSystemSettings = {
-      ...fallback,
-      ...parsed,
-      restrictMaintenanceCompletionToAttendanceWorkstation:
-        parsed.restrictMaintenanceCompletionToAttendanceWorkstation === true,
-      dashboardSoundMuteTimerEnabled: parsed.dashboardSoundMuteTimerEnabled === true,
-      dashboardSoundMuteDurationMinutes: isValidDashboardSoundMuteDuration(
-        parsed.dashboardSoundMuteDurationMinutes,
-      )
-        ? parsed.dashboardSoundMuteDurationMinutes
-        : 3,
-      dashboardSoundAutoMuteTimerEnabled:
-        parsed.dashboardSoundAutoMuteTimerEnabled === true,
-      dashboardSoundActiveDurationMinutes: isValidDashboardSoundMuteDuration(
-        parsed.dashboardSoundActiveDurationMinutes,
-      )
-        ? parsed.dashboardSoundActiveDurationMinutes
-        : 3,
-      dashboardSoundMuted: parsed.dashboardSoundMuted === true,
-      dashboardSoundMutedAt:
-        typeof parsed.dashboardSoundMutedAt === "string"
-          ? parsed.dashboardSoundMutedAt
-          : null,
-      dashboardSoundMutedUntil:
-        typeof parsed.dashboardSoundMutedUntil === "string"
-          ? parsed.dashboardSoundMutedUntil
-          : null,
-      dashboardSoundMuteReason:
-        parsed.dashboardSoundMuteReason === "manual" ||
-        parsed.dashboardSoundMuteReason === "auto"
-          ? parsed.dashboardSoundMuteReason
-          : null,
-      dashboardMachineOrderMode:
-        parsed.dashboardMachineOrderMode === "priority" ? "priority" : "default",
-    };
-    return localSystemSettings;
-  } catch {
-    return fallback;
+  if (!localSystemSettings) {
+    localSystemSettings = createDefaultLocalSystemSettings();
   }
+  return localSystemSettings;
 }
 
 function saveLocalSystemSettings(settings: SystemSettings) {
   localSystemSettings = settings;
-  try {
-    window.localStorage.setItem(LOCAL_SYSTEM_SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    // O modo local continua funcional em memória quando o storage estiver bloqueado.
-  }
 }
 
 export function getSystemSettings() {

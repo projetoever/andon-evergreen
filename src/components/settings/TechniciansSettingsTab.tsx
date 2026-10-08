@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { BigButton } from "@/components/common/BigButton";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
-import { getShiftConfigs } from "@/services/shiftConfigService";
+import { refreshShiftConfigs } from "@/services/shiftConfigService";
 import { DEFAULT_CATEGORIES, getCategoryConfigs } from "@/services/categoryConfigService";
 import type { CallSubtype } from "@/types/andon";
 import type { AndonCategoryConfig, ShiftConfig, TechnicianConfig } from "@/types/settings";
@@ -82,8 +82,15 @@ export function TechniciansSettingsTab() {
   const [shiftFilter, setShiftFilter] = useState("all");
 
   useEffect(() => {
-    setShifts(getShiftConfigs());
-    getCategoryConfigs()
+    void refreshShiftConfigs()
+      .then(setShifts)
+      .catch((loadError) =>
+        toast.error(
+          loadError instanceof Error ? loadError.message : "Não foi possível carregar os turnos.",
+        ),
+      );
+
+    void getCategoryConfigs()
       .then(setCategories)
       .catch((loadError) =>
         toast.error(

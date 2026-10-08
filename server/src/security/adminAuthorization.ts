@@ -99,7 +99,8 @@ export function isAdminProtectedMutation(method: string, url: string) {
       matchesIdRoute(path, "/api/machine-set-types") ||
       matchesIdRoute(path, "/api/machine-subset-types") ||
       matchesIdRoute(path, "/api/machine-sets") ||
-      matchesIdRoute(path, "/api/machine-subsets"))
+      matchesIdRoute(path, "/api/machine-subsets") ||
+      matchesIdRoute(path, "/api/shifts"))
   ) {
     return true;
   }

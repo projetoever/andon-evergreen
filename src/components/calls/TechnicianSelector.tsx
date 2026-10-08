@@ -4,10 +4,11 @@ import { useTechnicians } from "@/hooks/useTechnicians";
 import {
   getCurrentShiftFromConfig,
   getTechnicianShiftFilterConfig,
+  refreshTechnicianShiftFilterConfig,
 } from "@/services/technicianShiftFilterService";
 import type { TechnicianArea } from "@/types/andon";
 import type { TechnicianConfig } from "@/types/settings";
-import { getShiftConfigs } from "@/services/shiftConfigService";
+import { getShiftConfigs, refreshShiftConfigs } from "@/services/shiftConfigService";
 import { cn } from "@/lib/utils";
 import { getServerClockRevision, subscribeServerClock } from "@/utils/serverClock";
 import type { TechnicianActiveAssignment } from "@/utils/technicianAvailabilityUtils";
@@ -86,8 +87,27 @@ export function TechnicianSelector({
   const [areaFilter, setAreaFilter] = useState<TechnicianArea | "all">(area);
   const [searchTerm, setSearchTerm] = useState("");
   const [serverClockRevision, setServerClockRevision] = useState(getServerClockRevision);
+  const [runtimeConfigRevision, setRuntimeConfigRevision] = useState(0);
 
   useEffect(() => subscribeServerClock(() => setServerClockRevision(getServerClockRevision())), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      refreshShiftConfigs(),
+      refreshTechnicianShiftFilterConfig(),
+    ])
+      .then(() => {
+        if (!cancelled) setRuntimeConfigRevision((current) => current + 1);
+      })
+      .catch(() => {
+        // A seleção continua disponível; o backend segue sendo a fonte autoritativa.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const normalizedOptionalAreas = useMemo(
     () => optionalAreas.filter((optionalArea) => optionalArea !== area),
@@ -142,7 +162,7 @@ export function TechnicianSelector({
     if (inShift.length > 0) return { list: inShift, hasShiftFallback: false };
 
     return { list: allActive, hasShiftFallback: true };
-  }, [visibleAreas, showAll, excludeNames, technicians, serverClockRevision]);
+  }, [visibleAreas, showAll, excludeNames, technicians, serverClockRevision, runtimeConfigRevision]);
 
   const filteredList = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");

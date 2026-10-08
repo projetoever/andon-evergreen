@@ -30,6 +30,7 @@ type UpdateSystemSettingsBody = {
   rfidReaderMode?: unknown;
   rfidInputTerminator?: unknown;
   rfidCodeLength?: unknown;
+  filterTechniciansByCurrentShift?: unknown;
 };
 
 const RFID_READER_MODES = new Set(["keyboard_hid"]);
@@ -81,6 +82,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const rfidReaderMode = body.rfidReaderMode;
     const rfidInputTerminator = body.rfidInputTerminator;
     const rfidCodeLength = body.rfidCodeLength;
+    const filterTechniciansByCurrentShift = body.filterTechniciansByCurrentShift;
 
     if (!Object.keys(body).length) return badRequest(reply, "Informe ao menos uma configuração");
     if ("allowWholeSetCalls" in body && typeof allowWholeSetCalls !== "boolean") {
@@ -140,6 +142,12 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     ) {
       return badRequest(reply, "Tamanho do código RFID deve ficar entre 4 e 64");
     }
+    if (
+      "filterTechniciansByCurrentShift" in body &&
+      typeof filterTechniciansByCurrentShift !== "boolean"
+    ) {
+      return badRequest(reply, "Campo filterTechniciansByCurrentShift deve ser booleano");
+    }
 
     const patch = {
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
@@ -167,6 +175,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof rfidReaderMode === "string" ? { rfidReaderMode } : {}),
       ...(typeof rfidInputTerminator === "string" ? { rfidInputTerminator } : {}),
       ...("rfidCodeLength" in body ? { rfidCodeLength: rfidCodeLength as number | null } : {}),
+      ...(typeof filterTechniciansByCurrentShift === "boolean"
+        ? { filterTechniciansByCurrentShift }
+        : {}),
     };
 
     await prisma.systemSettings.upsert({

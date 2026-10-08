@@ -2,6 +2,7 @@ export interface Workstation {
   id: string;
   name: string | null;
   active: boolean;
+  lockedMachineId: string | null;
   lastSeenAt: string;
   createdAt: string;
   updatedAt: string;

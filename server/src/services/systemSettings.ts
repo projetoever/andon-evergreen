@@ -23,6 +23,7 @@ const PUBLIC_SYSTEM_SETTINGS_SELECT = {
   rfidReaderMode: true,
   rfidInputTerminator: true,
   rfidCodeLength: true,
+  filterTechniciansByCurrentShift: true,
   createdAt: true,
   updatedAt: true,
 } as const;

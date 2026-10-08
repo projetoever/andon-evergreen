@@ -1,41 +1,68 @@
-import { LOCAL_STORAGE_KEYS } from "@/constants/localStorageKeys";
+import { createAndonApiClient } from "@/api/andonApiClient";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
+import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 export interface MachineScreenLock {
   locked: boolean;
   machineId: string;
 }
 
-function canUseLocalStorage() {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
+const apiClient = createAndonApiClient();
+let cachedLock: MachineScreenLock | null = null;
 
 export function getMachineScreenLock(): MachineScreenLock | null {
-  if (!canUseLocalStorage()) return null;
+  return cachedLock;
+}
 
-  const rawLock = window.localStorage.getItem(LOCAL_STORAGE_KEYS.machineScreenLock);
-  if (!rawLock) return null;
+export async function refreshMachineScreenLock() {
+  if (CONFIGURED_DATA_MODE === "local") return cachedLock;
 
-  try {
-    const parsedLock = JSON.parse(rawLock) as Partial<MachineScreenLock>;
-    if (parsedLock.locked === true && typeof parsedLock.machineId === "string" && parsedLock.machineId.trim()) {
-      return { locked: true, machineId: parsedLock.machineId };
-    }
-  } catch {
-    window.localStorage.removeItem(LOCAL_STORAGE_KEYS.machineScreenLock);
+  const workstationId = getCurrentWorkstationId();
+  if (!workstationId) {
+    cachedLock = null;
+    return null;
   }
 
-  return null;
+  const runtime = await apiClient.get<{
+    workstationId: string;
+    lockedMachineId: string | null;
+  }>(`/api/workstations/${encodeURIComponent(workstationId)}/runtime-preferences`);
+
+  cachedLock = runtime.lockedMachineId
+    ? { locked: true, machineId: runtime.lockedMachineId }
+    : null;
+  return cachedLock;
 }
 
-export function lockMachineScreen(machineId: string) {
-  if (!canUseLocalStorage()) return;
+export async function lockMachineScreen(machineId: string) {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedLock = { locked: true, machineId };
+    return cachedLock;
+  }
 
-  const lock: MachineScreenLock = { locked: true, machineId };
-  window.localStorage.setItem(LOCAL_STORAGE_KEYS.machineScreenLock, JSON.stringify(lock));
+  const workstationId = getCurrentWorkstationId();
+  if (!workstationId) throw new Error("Workstation não identificada.");
+
+  await apiClient.patch(
+    `/api/workstations/${encodeURIComponent(workstationId)}/screen-lock`,
+    { machineId },
+  );
+  cachedLock = { locked: true, machineId };
+  return cachedLock;
 }
 
-export function unlockMachineScreen() {
-  if (!canUseLocalStorage()) return;
+export async function unlockMachineScreen() {
+  if (CONFIGURED_DATA_MODE === "local") {
+    cachedLock = null;
+    return;
+  }
 
-  window.localStorage.removeItem(LOCAL_STORAGE_KEYS.machineScreenLock);
+  const workstationId = getCurrentWorkstationId();
+  if (!workstationId) throw new Error("Workstation não identificada.");
+
+  await apiClient.patch(
+    `/api/workstations/${encodeURIComponent(workstationId)}/screen-lock`,
+    { machineId: null },
+  );
+  cachedLock = null;
 }
