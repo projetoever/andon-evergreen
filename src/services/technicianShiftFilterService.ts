@@ -1,14 +1,18 @@
 import { getShiftConfigs } from "@/services/shiftConfigService";
-import { IS_API_DATA_MODE } from "@/config/dataMode";
+import {
+  getSystemSettings,
+  updateSystemSettings,
+} from "@/services/systemSettingsService";
 import type { ShiftConfig, TechnicianShiftFilterConfig } from "@/types/settings";
 import { getServerNow, getServerTimeZone, isServerClockSynchronized } from "@/utils/serverClock";
 
-const KEY = "andonTechnicianShiftFilterConfig";
 const SHIFT_PRIORITY = ["morning", "afternoon", "night", "business"];
 
 const DEFAULT_CONFIG: TechnicianShiftFilterConfig = {
   filterByCurrentShift: true,
 };
+
+let cachedConfig: TechnicianShiftFilterConfig = DEFAULT_CONFIG;
 
 function parseMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
@@ -60,26 +64,33 @@ export function getCurrentShift(
 }
 
 export function getTechnicianShiftFilterConfig(): TechnicianShiftFilterConfig {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return DEFAULT_CONFIG;
-  try {
-    const parsed = JSON.parse(raw) as Partial<TechnicianShiftFilterConfig>;
-    return {
-      filterByCurrentShift: parsed.filterByCurrentShift ?? DEFAULT_CONFIG.filterByCurrentShift,
-      updatedAt: parsed.updatedAt,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+  return cachedConfig;
 }
 
-export function saveTechnicianShiftFilterConfig(config: TechnicianShiftFilterConfig): void {
-  localStorage.setItem(KEY, JSON.stringify(config));
+export async function refreshTechnicianShiftFilterConfig() {
+  const settings = await getSystemSettings();
+  cachedConfig = {
+    filterByCurrentShift: settings.filterTechniciansByCurrentShift,
+    updatedAt: settings.updatedAt,
+  };
+  return cachedConfig;
+}
+
+export async function saveTechnicianShiftFilterConfig(
+  config: TechnicianShiftFilterConfig,
+) {
+  const settings = await updateSystemSettings({
+    filterTechniciansByCurrentShift: config.filterByCurrentShift,
+  });
+  cachedConfig = {
+    filterByCurrentShift: settings.filterTechniciansByCurrentShift,
+    updatedAt: settings.updatedAt,
+  };
+  return cachedConfig;
 }
 
 export function getCurrentShiftFromConfig(date?: Date): ShiftConfig | null {
   if (date) return getCurrentShift(getShiftConfigs(), date);
-  if (!IS_API_DATA_MODE) return getCurrentShift(getShiftConfigs(), new Date());
   if (!isServerClockSynchronized()) return null;
   return getCurrentShift(getShiftConfigs(), getServerNow(), getServerTimeZone());
 }
