@@ -51,3 +51,16 @@ test("credencial de prioridades permanece centralizada no PostgreSQL", async () 
   assert.match(schema, /model DashboardPriorityConfig/);
   assert.match(schema, /managerPasswordHash\s+String\?/);
 });
+
+
+test("rotas públicas de configurações nunca expõem hashes administrativos", async () => {
+  const [service, route] = await Promise.all([
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/systemSettings.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(service, /PUBLIC_SYSTEM_SETTINGS_SELECT/);
+  assert.doesNotMatch(service, /adminPasswordHash:\s*true/);
+  assert.doesNotMatch(service, /adminRecoveryCodeHash:\s*true/);
+  assert.match(route, /return getSystemSettings\(\)/);
+});
