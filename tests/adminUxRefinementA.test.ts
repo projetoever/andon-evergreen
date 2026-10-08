@@ -54,6 +54,19 @@ test("mantenedores usam ficha organizada por blocos funcionais", async () => {
   assert.match(source, /sticky bottom-0/);
 });
 
+test("mantenedores usam a altura útil do Admin e rolam até o último registro", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /md:h-\[calc\(96dvh-13rem\)\]/);
+  assert.match(source, /md:flex-col/);
+  assert.match(source, /min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain/);
+  assert.doesNotMatch(source, /max-h-\[56vh\]/);
+});
+
+
 test("mantenedores indicam alterações pendentes e permitem cancelar edição", async () => {
   const source = await readFile(
     new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
@@ -247,6 +260,20 @@ test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", 
   assert.match(source, /não são distribuídas automaticamente para outras workstations/);
   assert.match(admin, /SoundsSettingsTab/);
   assert.doesNotMatch(admin, /function SoundsTab\(/);
+});
+
+
+test("configurações gerais deixam credenciais globais e recuperação explícitas", async () => {
+  const source = await readFile(
+    new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /todas as máquinas/);
+  assert.match(source, /Gerar novo código/);
+  assert.match(source, /Esqueci a senha/);
+  assert.match(source, /armazenado no servidor apenas como hash/);
+  assert.match(source, /válida em todas as máquinas\/workstations/);
 });
 
 
