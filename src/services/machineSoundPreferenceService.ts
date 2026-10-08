@@ -1,27 +1,50 @@
-const MACHINE_SOUND_PREFERENCES_KEY = "andon.machineSoundPreferences";
+import { createAndonApiClient } from "@/api/andonApiClient";
+import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 
 type MachineSoundPreferences = Record<string, boolean>;
 
+const apiClient = createAndonApiClient();
+let cachedPreferences: MachineSoundPreferences = {};
+
 export function getMachineSoundPreferences(): MachineSoundPreferences {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(MACHINE_SOUND_PREFERENCES_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as MachineSoundPreferences;
-    return typeof parsed === "object" && parsed !== null ? parsed : {};
-  } catch {
-    return {};
-  }
+  return { ...cachedPreferences };
 }
 
 export function isMachineSoundEnabled(machineId: string): boolean {
-  const prefs = getMachineSoundPreferences();
-  return prefs[machineId] ?? true;
+  return cachedPreferences[machineId] ?? true;
 }
 
-export function setMachineSoundEnabled(machineId: string, enabled: boolean): void {
-  if (typeof window === "undefined") return;
-  const prefs = getMachineSoundPreferences();
-  prefs[machineId] = enabled;
-  window.localStorage.setItem(MACHINE_SOUND_PREFERENCES_KEY, JSON.stringify(prefs));
+export async function refreshMachineSoundPreferences() {
+  const workstationId = getCurrentWorkstationId();
+  if (!workstationId) {
+    cachedPreferences = {};
+    return cachedPreferences;
+  }
+
+  const runtime = await apiClient.get<{
+    workstationId: string;
+    machineSoundPreferences: MachineSoundPreferences;
+  }>(`/api/workstations/${encodeURIComponent(workstationId)}/runtime-preferences`);
+
+  cachedPreferences = runtime.machineSoundPreferences ?? {};
+  return getMachineSoundPreferences();
+}
+
+export async function setMachineSoundEnabled(machineId: string, enabled: boolean) {
+  const workstationId = getCurrentWorkstationId();
+  if (!workstationId) throw new Error("Workstation não identificada.");
+
+  await apiClient.request(
+    `/api/workstations/${encodeURIComponent(workstationId)}/machine-sound/${encodeURIComponent(machineId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    },
+  );
+
+  cachedPreferences = {
+    ...cachedPreferences,
+    [machineId]: enabled,
+  };
+  return enabled;
 }
