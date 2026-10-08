@@ -99,7 +99,7 @@ export function TechnicianProvider({ children }: { children: ReactNode }) {
     async (id: string, patch: Partial<TechnicianConfigDraft>) => {
       if (!isApiMode) {
         const current = technicians.find((technician) => technician.id === id);
-        if (!current) throw new Error("Manutentor não encontrado.");
+        if (!current) throw new Error("Mantenedor não encontrado.");
 
         const areas = patch.areas?.length ? patch.areas : patch.area ? [patch.area] : current.areas;
         const updated: TechnicianConfig = {
