@@ -273,13 +273,111 @@ export async function registerMachineRoutes(app: FastifyInstance) {
     });
   });
 
-  app.patch<{ Params: { id: string }; Body: MachineStatusBody }>("/api/machines/:id/status", async (request, reply) => {
-    const machineStatus = requiredBodyString(request.body?.machineStatus);
-    if (!machineStatus || !MACHINE_STATUSES.has(machineStatus)) return badRequest(reply, "Status operacional inválido");
-    const machine = await findMachineOr404(request.params.id, reply);
-    if (!("id" in machine)) return machine;
-    return prisma.machine.update({ where: { id: request.params.id }, data: { machineStatus, lastStatusChangedAt: new Date() }, select: machineSelect });
-  });
+  app.patch<{ Params: { id: string }; Body: MachineStatusBody }>(
+    "/api/machines/:id/status",
+    async (request, reply) => {
+      const machineStatus = requiredBodyString(request.body?.machineStatus);
+      if (!machineStatus || !MACHINE_STATUSES.has(machineStatus)) {
+        return badRequest(reply, "Status operacional inválido");
+      }
+
+      const machine = await findMachineOr404(request.params.id, reply);
+      if (!("id" in machine)) return machine;
+
+      return prisma.$transaction(async (tx) => {
+        await lockMachineFlow(tx, request.params.id);
+
+        const currentMachine = await tx.machine.findUnique({
+          where: { id: request.params.id },
+          select: {
+            id: true,
+            machineStatus: true,
+            productionMode: true,
+          },
+        });
+        if (!currentMachine) throw new Error("Máquina não encontrada");
+
+        const openFailureEvents = await tx.failureEvent.findMany({
+          where: {
+            machineId: request.params.id,
+            endedAt: null,
+          },
+          orderBy: { startedAt: "desc" },
+        });
+
+        if (machineStatus === "stopped") {
+          if (openFailureEvents.length > 0) {
+            if (currentMachine.machineStatus === "stopped") {
+              return tx.machine.findUniqueOrThrow({
+                where: { id: request.params.id },
+                select: machineSelect,
+              });
+            }
+
+            return tx.machine.update({
+              where: { id: request.params.id },
+              data: {
+                machineStatus: "stopped",
+                lastStatusChangedAt: openFailureEvents[0].startedAt,
+              },
+              select: machineSelect,
+            });
+          }
+
+          const now = new Date();
+          await tx.failureEvent.create({
+            data: {
+              machineId: request.params.id,
+              startedAt: now,
+              classification: "unidentified_stop",
+              source: "manual",
+              productionMode: currentMachine.productionMode,
+              machineStatus: "stopped",
+              notes: "Falha gerada por atualização direta de status",
+            },
+          });
+
+          return tx.machine.update({
+            where: { id: request.params.id },
+            data: {
+              machineStatus: "stopped",
+              lastStatusChangedAt: now,
+            },
+            select: machineSelect,
+          });
+        }
+
+        if (currentMachine.machineStatus === "running" && openFailureEvents.length === 0) {
+          return tx.machine.findUniqueOrThrow({
+            where: { id: request.params.id },
+            select: machineSelect,
+          });
+        }
+
+        const now = new Date();
+        for (const event of openFailureEvents) {
+          await tx.failureEvent.update({
+            where: { id: event.id },
+            data: {
+              endedAt: now,
+              durationSeconds: event.durationSeconds ?? diffSeconds(event.startedAt, now),
+              machineStatus: "running",
+              notes: event.notes ?? "Máquina pronta para rodar por atualização direta de status",
+            },
+          });
+        }
+
+        return tx.machine.update({
+          where: { id: request.params.id },
+          data: {
+            machineStatus: "running",
+            lastStatusChangedAt: now,
+          },
+          select: machineSelect,
+        });
+      });
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: ProductionModeBody }>("/api/machines/:id/production-mode", async (request, reply) => {
     const productionMode = normalizeProductionMode(requiredBodyString(request.body?.productionMode));
