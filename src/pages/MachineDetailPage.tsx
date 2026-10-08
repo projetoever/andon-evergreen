@@ -338,6 +338,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     audioUnlocked,
     machineId,
     respectMachinePreference: true,
+    machineSoundEnabled,
     soundScope: "machine",
   });
 
