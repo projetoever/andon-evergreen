@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import { lockTechnicianSessionFlow } from "../db/technicianSessionFlowLock.js";
 import {
   hashCredential,
   normalizeCredential,
@@ -43,6 +44,7 @@ type IdentifyTechnicianBody = {
 
 class TechnicianCredentialConflictError extends Error {}
 class TechnicianAreaValidationError extends Error {}
+class TechnicianActiveSessionError extends Error {}
 
 function duplicateCredentialMessage(method: "pin" | "rfid") {
   return method === "pin"
@@ -404,11 +406,40 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
       try {
         const technician = await prisma.$transaction(
           async (tx) => {
+            await lockTechnicianSessionFlow(tx, current.id);
+
+            const lockedCurrent = await tx.technician.findUnique({
+              where: { id: current.id },
+              select: technicianIdentitySelect,
+            });
+            if (!lockedCurrent) {
+              throw new TechnicianActiveSessionError("Mantenedor não encontrado");
+            }
+
+            if (active === false) {
+              const activeSession = await tx.technicianSession.findFirst({
+                where: {
+                  technicianId: current.id,
+                  endedAt: null,
+                },
+                select: {
+                  id: true,
+                  callId: true,
+                  machineId: true,
+                },
+              });
+              if (activeSession) {
+                throw new TechnicianActiveSessionError(
+                  "Não é possível inativar mantenedor com atendimento ativo.",
+                );
+              }
+            }
+
             if (requestedTechnicalAreas) {
               await validateTechnicalAreas(
                 tx,
                 requestedTechnicalAreas,
-                new Set(effectiveCurrentAreas(current)),
+                new Set(effectiveCurrentAreas(lockedCurrent)),
               );
             }
 
@@ -450,7 +481,7 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
                 ...(requestedTechnicalAreas
                   ? {
                       technicalArea: resolveLegacyTechnicalArea(
-                        current.technicalArea,
+                        lockedCurrent.technicalArea,
                         requestedTechnicalAreas,
                       ),
                       technicalAreas: {
@@ -477,6 +508,12 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
           return badRequest(reply, error.message);
         }
         if (error instanceof TechnicianAreaValidationError) {
+          return badRequest(reply, error.message);
+        }
+        if (error instanceof TechnicianActiveSessionError) {
+          if (error.message === "Mantenedor não encontrado") {
+            return notFound(reply, error.message);
+          }
           return badRequest(reply, error.message);
         }
         if (isUniqueConstraintError(error)) {
