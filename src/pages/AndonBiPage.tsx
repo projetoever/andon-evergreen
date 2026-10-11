@@ -228,6 +228,30 @@ export function AndonBiPage() {
     setDrillError(null);
   };
 
+  // Modal keyboard behavior: Escape closes; focus returns to the control
+  // that opened the detail, preserving fast keyboard navigation.
+  useEffect(() => {
+    if (!drillSelection) return;
+
+    const previousFocus = document.activeElement;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDrillSelection(null);
+      setDrilldown(null);
+      setDrillError(null);
+    };
+
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }, [drillSelection]);
+
   return (
     <main className="h-dvh overflow-hidden bg-background text-foreground">
       <div className="mx-auto flex h-full w-full max-w-[1920px] flex-col gap-3 px-4 py-3 md:px-6">

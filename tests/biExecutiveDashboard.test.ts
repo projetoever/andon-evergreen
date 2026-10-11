@@ -154,3 +154,39 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
   assert.match(tabs, /Qualidade do Dado/);
   assert.match(drilldown, /página/);
 });
+
+
+test("BI-UX-1.1 pagina participação pela altura e preserva cobertura de fases", async () => {
+  const component = await readFile(
+    new URL("../src/components/bi/BiMaintenanceParticipation.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(component, /ResizeObserver/);
+  assert.match(component, /viewport\.clientHeight \/ rowHeight/);
+  assert.match(component, /useVisibleRows\(62, Boolean\(data\)\)/);
+  assert.match(component, /useVisibleRows\(63, Boolean\(data\)\)/);
+  assert.match(component, /ref=\{technicianViewport\}/);
+  assert.match(component, /ref=\{areaViewport\}/);
+  assert.match(component, /PageControls/);
+  assert.match(component, /Cobertura de fases/);
+  assert.doesNotMatch(component, /technicians\.slice\(0, 6\)/);
+  assert.doesNotMatch(component, /technicalAreas\.slice\(0, 6\)/);
+});
+
+test("BI-UX-1.1 fecha modal com Esc e usa linhas de altura natural", async () => {
+  const [page, detail, badActors] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiBadActorsPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /event\.key !== "Escape"/);
+  assert.match(page, /document\.addEventListener\("keydown", onKeyDown, true\)/);
+  assert.match(page, /document\.removeEventListener\("keydown", onKeyDown, true\)/);
+  assert.match(page, /previousFocus\.focus\(\)/);
+  assert.match(detail, /autoFocus/);
+  assert.match(detail, /Esc para fechar/);
+  assert.doesNotMatch(detail, /<table className="h-full/);
+  assert.doesNotMatch(badActors, /<table className="h-full/);
+});

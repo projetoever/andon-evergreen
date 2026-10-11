@@ -76,7 +76,7 @@ export function BiBadActorsPanel({
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background/25">
-        <table className="h-full w-full table-fixed text-left text-[11px]">
+        <table className="w-full table-fixed text-left text-[11px]">
           <thead className="border-b border-border text-[9px] uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="w-[22%] px-3 py-2">Ativo</th>
