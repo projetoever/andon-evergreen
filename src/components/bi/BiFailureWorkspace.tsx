@@ -1,19 +1,29 @@
+import { useState } from "react";
+import { BiFailureIntelligencePanel } from "@/components/bi/BiFailureIntelligencePanel";
 import type {
   AnalyticsDrilldownSelection,
+  AnalyticsFailureIntelligence,
   AnalyticsOverview,
 } from "@/types/analytics";
 
 export function BiFailureWorkspace({
   overview,
+  intelligence,
+  intelligenceLoading,
+  intelligenceError,
   classificationLabels,
   sectorLabels,
   onDrilldown,
 }: {
   overview: AnalyticsOverview | null;
+  intelligence: AnalyticsFailureIntelligence | null;
+  intelligenceLoading: boolean;
+  intelligenceError: string | null;
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
 }) {
+  const [mode, setMode] = useState<"recurrence" | "distribution">("recurrence");
   const classificationData = (overview?.classificationPareto ?? [])
     .slice(0, 8)
     .map((item) => ({
@@ -31,7 +41,46 @@ export function BiFailureWorkspace({
     }));
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-2 gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <div className="text-xs font-black uppercase tracking-wide">Inteligência de falhas</div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+          <button
+            type="button"
+            onClick={() => setMode("recurrence")}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+              mode === "recurrence"
+                ? "bg-red-500/15 text-red-300"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
+          >
+            Reincidências
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("distribution")}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+              mode === "distribution"
+                ? "bg-amber-500/15 text-amber-300"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
+          >
+            Classificações e setores
+          </button>
+        </div>
+      </div>
+
+      {mode === "recurrence" ? (
+        <div className="min-h-0 flex-1">
+          <BiFailureIntelligencePanel
+            data={intelligence}
+            loading={intelligenceLoading}
+            error={intelligenceError}
+            classificationLabels={classificationLabels}
+          />
+        </div>
+      ) : (
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
       <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="shrink-0">
           <h2 className="text-sm font-black uppercase tracking-wide">
@@ -128,16 +177,15 @@ export function BiFailureWorkspace({
           )}
         </div>
 
-        <div className="mt-4 shrink-0 rounded-lg border border-red-500/20 bg-red-500/[0.04] p-4">
-          <div className="text-[10px] font-black uppercase tracking-wide text-red-300">
-            Próxima camada analítica
-          </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Esta aba será a base da Failure Intelligence: reincidência, conjunto/subconjunto,
-            intervalo entre ocorrências e timeline por ativo.
+        <div className="mt-3 shrink-0 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3">
+          <p className="text-[10px] leading-4 text-muted-foreground">
+            Classificações representam diagnósticos de chamados concluídos; demanda por setor
+            considera aberturas. Para repetição de diagnóstico, use a aba Reincidências.
           </p>
         </div>
       </section>
+      </div>
+      )}
     </div>
   );
 }
