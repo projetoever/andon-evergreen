@@ -2,6 +2,7 @@ import { andonBiApiClient } from "@/api/andonBiApiClient";
 import type {
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
+  AnalyticsMaintenanceParticipation,
   AnalyticsOverview,
   AndonBiClassificationOption,
   AndonBiFilterOptions,
@@ -97,5 +98,22 @@ export async function loadAnalyticsDrilldown(
 
   return andonBiApiClient.get<AnalyticsDrilldownResult>(
     `/api/analytics/drilldown?${query.toString()}`,
+  );
+}
+
+
+export async function loadMaintenanceParticipation(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+): Promise<AnalyticsMaintenanceParticipation> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+  });
+
+  applyDimensionFilters(query, filters);
+
+  return andonBiApiClient.get<AnalyticsMaintenanceParticipation>(
+    `/api/analytics/maintenance?${query.toString()}`,
   );
 }
