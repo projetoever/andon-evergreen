@@ -21,7 +21,7 @@ test("dashboard executivo usa Analytics API real e nao placeholders", async () =
 
   assert.match(page, /loadExecutiveOverview/);
   assert.match(page, /Pareto de máquinas/);
-  assert.match(page, /Downtime físico/);
+  assert.match(page, /Downtime acumulado/);
   assert.match(page, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
 });
@@ -51,4 +51,24 @@ test("dashboard BI oferece resumo executivo, downtime temporal e drill-down read
   assert.match(service, /\/api\/analytics\/drilldown/);
   assert.match(summary, /período anterior equivalente/);
   assert.match(drilldown, /Registros analíticos que sustentam o ponto selecionado/);
+});
+
+
+test("dashboard BI formaliza MTTR, MTBF estimado e semântica visual ANDON", async () => {
+  const [page, card, reliability, summary] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiKpiCard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiReliabilityStrip.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /MTTR operacional/);
+  assert.match(page, /Downtime acumulado/);
+  assert.match(reliability, /MTBF estimado/);
+  assert.match(reliability, /Downtime \/ episódio/);
+  assert.match(card, /Baixa amostra/);
+  assert.match(card, /border-red-500/);
+  assert.match(card, /border-amber-500/);
+  assert.match(card, /border-emerald-500/);
+  assert.match(summary, /amostra baixa/i);
 });

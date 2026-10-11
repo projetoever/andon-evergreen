@@ -33,10 +33,16 @@ export type AnalyticsFailureEventRecord = {
   linkedCallIsSystemTest: boolean;
 };
 
+export type AnalyticsReliabilityAsset = {
+  machineId: string;
+  exposureStartedAt: Date;
+};
+
 export type BuildExecutiveOverviewParams = {
   calls: AnalyticsCallRecord[];
   activeCallsNow: number | null;
   failureEvents: AnalyticsFailureEventRecord[];
+  reliabilityAssets: AnalyticsReliabilityAsset[] | null;
   start: Date;
   end: Date;
   effectiveEnd: Date;
@@ -289,6 +295,56 @@ export function calculatePhysicalDowntimeTrend(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export function calculateEstimatedMtbf(
+  events: AnalyticsFailureEventRecord[],
+  assets: AnalyticsReliabilityAsset[] | null,
+  start: Date,
+  end: Date,
+) {
+  const groups = buildMergedDowntimeIntervalsByMachine(events, start, end);
+  const physicalStopEpisodes = Array.from(groups.values()).reduce(
+    (total, group) => total + group.intervals.length,
+    0,
+  );
+  const downtimeMs = Array.from(groups.values()).reduce(
+    (total, group) =>
+      total +
+      group.intervals.reduce(
+        (machineTotal, interval) =>
+          machineTotal + (interval.endMs - interval.startMs),
+        0,
+      ),
+    0,
+  );
+
+  if (!assets || assets.length === 0 || end.getTime() <= start.getTime()) {
+    return {
+      mtbfEstimatedMinutes: null,
+      physicalStopEpisodes,
+      monitoredMachineCount: assets?.length ?? null,
+      calendarExposureMinutes: null,
+      operatingExposureMinutes: null,
+    };
+  }
+
+  const exposureMs = assets.reduce((total, asset) => {
+    const assetStart = Math.max(start.getTime(), asset.exposureStartedAt.getTime());
+    return total + Math.max(0, end.getTime() - assetStart);
+  }, 0);
+  const operatingMs = Math.max(0, exposureMs - downtimeMs);
+
+  return {
+    mtbfEstimatedMinutes:
+      physicalStopEpisodes > 0
+        ? round2(operatingMs / physicalStopEpisodes / 60_000)
+        : null,
+    physicalStopEpisodes,
+    monitoredMachineCount: assets.length,
+    calendarExposureMinutes: round2(exposureMs / 60_000),
+    operatingExposureMinutes: round2(operatingMs / 60_000),
+  };
+}
+
 function countByLabel(values: Array<string | null>) {
   const counts = new Map<string, number>();
 
@@ -315,6 +371,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     timeZone,
     filters,
     activeCallsNow,
+    reliabilityAssets,
   } = params;
 
   const calls = params.calls.filter((call) => !call.isSystemTest);
@@ -358,6 +415,12 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
   const failureOccurrences = failureEvents.filter((event) =>
     isInPeriod(event.startedAt, start, effectiveEnd),
   );
+  const reliability = calculateEstimatedMtbf(
+    failureEvents,
+    reliabilityAssets,
+    start,
+    effectiveEnd,
+  );
 
   const occurrencesByMachine = new Map<string, number>();
   for (const event of failureOccurrences) {
@@ -394,10 +457,19 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
   const totalDowntimeMinutes = round2(
     downtimeByMachine.reduce((total, machine) => total + machine.downtimeMinutes, 0),
   );
+  const mttrMinutes = average(maintenanceValues);
+  const classificationCoveragePercent =
+    finishedCalls.length > 0
+      ? round2(
+          (finishedCalls.filter((call) => Boolean(call.failureClassification)).length /
+            finishedCalls.length) *
+            100,
+        )
+      : null;
 
   return {
     meta: {
-      metricDefinitionVersion: "bi-mvp-3",
+      metricDefinitionVersion: "bi-mvp-4",
       generatedAt: generatedAt.toISOString(),
       timeZone,
       period: {
@@ -411,10 +483,14 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       },
       semantics: {
         mtta: "attendedAt - openedAt para atendimentos iniciados no período",
-        maintenanceTime:
-          "attendanceMinutes persistido para chamados finalizados no período",
+        mttr:
+          "MTTR operacional = média de attendanceMinutes dos chamados finalizados no período",
         downtime:
-          "união temporal de FailureEvent por máquina, recortada ao período, sem dupla contagem",
+          "downtime acumulado = união temporal de FailureEvent por máquina; soma entre máquinas",
+        mtbfEstimated:
+          reliabilityAssets === null
+            ? "indisponível com filtro de setor ou classificação"
+            : "estimativa = exposição calendário operacional acumulada menos downtime físico, dividida pelos episódios físicos de parada; não representa tempo produtivo planejado",
         activeCalls:
           "snapshot atual; quando há filtro de classificação o valor pode ser indisponível",
       },
@@ -424,17 +500,26 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       activeCallsNow,
       callsFinished: finishedCalls.length,
       mttaMinutes: average(mttaValues),
-      avgMaintenanceMinutes: average(maintenanceValues),
+      mttrMinutes,
+      avgMaintenanceMinutes: mttrMinutes,
       avgPostMaintenanceMinutes: average(followUpValues),
       avgTotalCallMinutes: average(totalCallValues),
       downtimeMinutes: totalDowntimeMinutes,
+      avgDowntimePerEpisodeMinutes:
+        reliability.physicalStopEpisodes > 0
+          ? round2(totalDowntimeMinutes / reliability.physicalStopEpisodes)
+          : null,
       failureOccurrences: failureOccurrences.length,
+      physicalStopEpisodes: reliability.physicalStopEpisodes,
+      mtbfEstimatedMinutes: reliability.mtbfEstimatedMinutes,
+      mtbfEstimatedMachineCount: reliability.monitoredMachineCount,
       returnedCalls: returnedCalls.length,
       maintenanceReturnCycles,
       maintenanceReturnRatePercent:
         finishedCalls.length > 0
           ? round2((returnedCalls.length / finishedCalls.length) * 100)
           : null,
+      classificationCoveragePercent,
     },
     trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     downtimeTrend: calculatePhysicalDowntimeTrend(
@@ -450,6 +535,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     sectorDistribution: countByLabel(openedCalls.map((call) => call.subtype)),
     coverage: {
       mttaSampleSize: mttaValues.length,
+      mttrSampleSize: maintenanceValues.length,
       maintenanceTimeSampleSize: maintenanceValues.length,
       finishedCalls: finishedCalls.length,
       finishedCallsWithClassification: finishedCalls.filter(
@@ -460,6 +546,8 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
         (event) => Boolean(event.classification),
       ).length,
       failureEventsLinkedToCalls: failureEvents.filter((event) => Boolean(event.callId)).length,
+      calendarExposureMinutes: reliability.calendarExposureMinutes,
+      operatingExposureMinutes: reliability.operatingExposureMinutes,
     },
   };
 }
@@ -513,6 +601,11 @@ export function buildOverviewComparison(
       previous.kpis.downtimeMinutes,
     ),
     mttaMinutes: comparisonMetric(current.kpis.mttaMinutes, previous.kpis.mttaMinutes),
+    mttrMinutes: comparisonMetric(current.kpis.mttrMinutes, previous.kpis.mttrMinutes),
+    mtbfEstimatedMinutes: comparisonMetric(
+      current.kpis.mtbfEstimatedMinutes,
+      previous.kpis.mtbfEstimatedMinutes,
+    ),
     maintenanceReturnRate: {
       current: currentReturnRate,
       previous: previousReturnRate,

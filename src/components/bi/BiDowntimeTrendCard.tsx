@@ -30,10 +30,10 @@ export function BiDowntimeTrendCard({
   data: Array<{ date: string; downtimeMinutes: number }>;
 }) {
   return (
-    <article className="min-h-80 rounded-xl border border-border bg-card p-5 shadow-sm">
+    <article className="min-h-80 rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-5 shadow-sm">
       <h2 className="text-sm font-black uppercase tracking-wide">Evolução do downtime</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Parada física por dia operacional, sem dupla contagem por máquina
+        Parada física acumulada por dia operacional, sem dupla contagem por máquina
       </p>
 
       {data.length ? (
@@ -55,7 +55,7 @@ export function BiDowntimeTrendCard({
               />
               <Tooltip
                 labelFormatter={(value) => formatDateLabel(String(value))}
-                formatter={(value) => [formatMinutes(Number(value)), "Downtime"]}
+                formatter={(value) => [formatMinutes(Number(value)), "Downtime acumulado"]}
                 contentStyle={{
                   background: "var(--popover)",
                   borderColor: "var(--border)",
@@ -63,11 +63,11 @@ export function BiDowntimeTrendCard({
                 }}
               />
               <Area
-                name="Downtime"
+                name="Downtime acumulado"
                 type="monotone"
                 dataKey="downtimeMinutes"
-                stroke="var(--chart-3)"
-                fill="var(--chart-3)"
+                stroke="#ef4444"
+                fill="#ef4444"
                 fillOpacity={0.16}
                 strokeWidth={2}
               />

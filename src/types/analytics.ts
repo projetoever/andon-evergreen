@@ -32,20 +32,33 @@ export type AnalyticsOverview = {
     exclusions: {
       systemTests: boolean;
     };
+    semantics?: {
+      mtta?: string;
+      mttr?: string;
+      downtime?: string;
+      mtbfEstimated?: string;
+      activeCalls?: string;
+    };
   };
   kpis: {
     callsOpened: number;
     activeCallsNow: number | null;
     callsFinished: number;
     mttaMinutes: number | null;
+    mttrMinutes: number | null;
     avgMaintenanceMinutes: number | null;
     avgPostMaintenanceMinutes: number | null;
     avgTotalCallMinutes: number | null;
     downtimeMinutes: number;
+    avgDowntimePerEpisodeMinutes: number | null;
     failureOccurrences: number;
+    physicalStopEpisodes: number;
+    mtbfEstimatedMinutes: number | null;
+    mtbfEstimatedMachineCount: number | null;
     returnedCalls: number;
     maintenanceReturnCycles: number;
     maintenanceReturnRatePercent: number | null;
+    classificationCoveragePercent: number | null;
   };
   trend: Array<{
     date: string;
@@ -78,6 +91,8 @@ export type AnalyticsOverview = {
     callsOpened: AnalyticsMetricComparison;
     downtimeMinutes: AnalyticsMetricComparison;
     mttaMinutes: AnalyticsMetricComparison;
+    mttrMinutes: AnalyticsMetricComparison;
+    mtbfEstimatedMinutes: AnalyticsMetricComparison;
     maintenanceReturnRate: {
       current: number | null;
       previous: number | null;
@@ -105,12 +120,15 @@ export type AnalyticsOverview = {
   };
   coverage: {
     mttaSampleSize: number;
+    mttrSampleSize: number;
     maintenanceTimeSampleSize: number;
     finishedCalls: number;
     finishedCallsWithClassification: number;
     failureEventsOverlappingPeriod: number;
     failureEventsWithClassification: number;
     failureEventsLinkedToCalls: number;
+    calendarExposureMinutes: number | null;
+    operatingExposureMinutes: number | null;
   };
 };
 

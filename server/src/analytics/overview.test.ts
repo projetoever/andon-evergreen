@@ -5,6 +5,7 @@ import {
   buildExecutiveOverview,
   buildExecutiveHighlights,
   buildOverviewComparison,
+  calculateEstimatedMtbf,
   calculatePhysicalDowntimeByMachine,
   calculatePhysicalDowntimeTrend,
   parseAnalyticsInstant,
@@ -216,6 +217,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
     calls,
     activeCallsNow: 3,
     failureEvents,
+    reliabilityAssets: null,
     start: date("2026-10-01T09:00:00Z"),
     end: date("2026-10-01T13:00:00Z"),
     effectiveEnd: date("2026-10-01T13:00:00Z"),
@@ -229,10 +231,14 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
   assert.equal(result.kpis.activeCallsNow, 3);
   assert.equal(result.kpis.mttaMinutes, 15);
   assert.equal(result.kpis.avgMaintenanceMinutes, 35);
+  assert.equal(result.kpis.mttrMinutes, 35);
   assert.equal(result.kpis.avgPostMaintenanceMinutes, 15);
   assert.equal(result.kpis.avgTotalCallMinutes, 60);
   assert.equal(result.kpis.downtimeMinutes, 60);
   assert.equal(result.kpis.failureOccurrences, 3);
+  assert.equal(result.kpis.physicalStopEpisodes, 2);
+  assert.equal(result.kpis.avgDowntimePerEpisodeMinutes, 30);
+  assert.equal(result.kpis.classificationCoveragePercent, 100);
   assert.equal(result.kpis.returnedCalls, 1);
   assert.equal(result.kpis.maintenanceReturnCycles, 1);
   assert.equal(result.kpis.maintenanceReturnRatePercent, 50);
@@ -329,6 +335,7 @@ test("comparação executiva e destaques permanecem determinísticos", () => {
         linkedCallIsSystemTest: false,
       },
     ],
+    reliabilityAssets: null,
     start: date("2026-10-02T09:00:00Z"),
     end: date("2026-10-02T11:00:00Z"),
     effectiveEnd: date("2026-10-02T11:00:00Z"),
@@ -341,6 +348,7 @@ test("comparação executiva e destaques permanecem determinísticos", () => {
     calls: [],
     activeCallsNow: null,
     failureEvents: [],
+    reliabilityAssets: null,
     start: date("2026-10-02T07:00:00Z"),
     end: date("2026-10-02T09:00:00Z"),
     effectiveEnd: date("2026-10-02T09:00:00Z"),
@@ -358,4 +366,58 @@ test("comparação executiva e destaques permanecem determinísticos", () => {
   assert.equal(highlights.topMachine?.sharePercent, 100);
   assert.equal(highlights.topClassification?.classification, "sensor");
   assert.equal(highlights.topSector?.subtype, "electrical");
+});
+
+
+test("MTBF estimado usa exposição calendário menos downtime e episódios físicos unidos", () => {
+  const events: AnalyticsFailureEventRecord[] = [
+    {
+      id: "a",
+      machineId: "55",
+      machineName: "Máquina 55",
+      startedAt: date("2026-10-01T10:10:00Z"),
+      endedAt: date("2026-10-01T10:30:00Z"),
+      classification: "sensor",
+      callId: "c1",
+      linkedCallIsSystemTest: false,
+    },
+    {
+      id: "b",
+      machineId: "55",
+      machineName: "Máquina 55",
+      startedAt: date("2026-10-01T10:20:00Z"),
+      endedAt: date("2026-10-01T10:40:00Z"),
+      classification: "sensor",
+      callId: "c2",
+      linkedCallIsSystemTest: false,
+    },
+  ];
+
+  const result = calculateEstimatedMtbf(
+    events,
+    [
+      { machineId: "55", exposureStartedAt: date("2026-10-01T10:00:00Z") },
+      { machineId: "31", exposureStartedAt: date("2026-10-01T10:00:00Z") },
+    ],
+    date("2026-10-01T10:00:00Z"),
+    date("2026-10-01T11:00:00Z"),
+  );
+
+  assert.equal(result.physicalStopEpisodes, 1);
+  assert.equal(result.calendarExposureMinutes, 120);
+  assert.equal(result.operatingExposureMinutes, 90);
+  assert.equal(result.mtbfEstimatedMinutes, 90);
+  assert.equal(result.monitoredMachineCount, 2);
+});
+
+test("MTBF fica indisponível quando a população de ativos não é semanticamente suportada", () => {
+  const result = calculateEstimatedMtbf(
+    [],
+    null,
+    date("2026-10-01T10:00:00Z"),
+    date("2026-10-01T11:00:00Z"),
+  );
+
+  assert.equal(result.mtbfEstimatedMinutes, null);
+  assert.equal(result.monitoredMachineCount, null);
 });
