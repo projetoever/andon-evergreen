@@ -384,7 +384,7 @@ export function BiMaintenanceParticipation({
             <p className="text-[10px] leading-4 text-muted-foreground">
               {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) com fase explícita.
               {data.coverage.legacySessions > 0 &&
-                ` ${data.coverage.legacySessions} legada(s) · ${formatMinutes(data.coverage.legacyMinutes)} sem fase.`}
+                ` ${data.coverage.legacySessions} sessão(ões) legada(s) · ${formatMinutes(data.coverage.legacyMinutes)} sem fase.`}
             </p>
           </div>
         </div>
