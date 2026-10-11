@@ -367,7 +367,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 
       const machineWhere: Prisma.MachineWhereInput = filters.machineId
         ? { id: filters.machineId }
-        : { createdAt: { lt: effectiveEnd } };
+        : { isActive: true, createdAt: { lt: effectiveEnd } };
 
       const callScopeWhere: Prisma.AndonCallWhereInput = {
         isSystemTest: false,
