@@ -369,6 +369,6 @@ export function openReportPrintDialog(html: string): void {
     });
   };
 
-  document.body.appendChild(frame);
   frame.srcdoc = html;
+  document.body.appendChild(frame);
 }
