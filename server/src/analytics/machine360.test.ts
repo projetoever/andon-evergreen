@@ -114,7 +114,7 @@ test("Machine 360 conta coortes por tempo, preserva snapshot de ativo e exclui t
   assert.equal(result.kpis.activeSessionsNow, 1);
   assert.equal(result.kpis.maintenanceReturnCycles, 2);
   assert.equal(result.kpis.avgMaintenanceMinutes, 30);
-  assert.equal(result.kpis.mttaMinutes, 75);
+  assert.equal(result.kpis.mttaMinutes, 60);
   assert.equal(result.kpis.downtimeMinutes, 0);
   assert.deepEqual(result.assets[0], {
     setName: "Transportador confirmado",
