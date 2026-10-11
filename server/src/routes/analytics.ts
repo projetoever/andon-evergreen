@@ -8,6 +8,7 @@ import {
   parseAnalyticsInstant,
   type AnalyticsFailureEventRecord,
   type AnalyticsOverviewFilters,
+  type AnalyticsReliabilityAsset,
 } from "../analytics/overview.js";
 import { prisma } from "../db/prisma.js";
 import { badRequest } from "./routeUtils.js";
@@ -66,8 +67,9 @@ async function loadOverviewDataset(
   includeActiveCalls: boolean,
 ) {
   const dimensionsWhere = callDimensionsWhere(filters);
+  const reliabilityEnabled = !filters.subtype && !filters.classification;
 
-  const [calls, activeCallsNow] = await Promise.all([
+  const [calls, activeCallsNow, rawReliabilityAssets] = await Promise.all([
     prisma.andonCall.findMany({
       where: {
         isSystemTest: false,
@@ -104,7 +106,26 @@ async function loadOverviewDataset(
           },
         })
       : Promise.resolve(null),
+    reliabilityEnabled
+      ? prisma.machine.findMany({
+          where: {
+            ...(filters.machineId ? { id: filters.machineId } : { isActive: true }),
+            createdAt: { lt: effectiveEnd },
+          },
+          select: {
+            id: true,
+            createdAt: true,
+          },
+        })
+      : Promise.resolve(null),
   ]);
+
+  const reliabilityAssets: AnalyticsReliabilityAsset[] | null = rawReliabilityAssets
+    ? rawReliabilityAssets.map((machine) => ({
+        machineId: machine.id,
+        exposureStartedAt: machine.createdAt,
+      }))
+    : null;
 
   let failureEvents: AnalyticsFailureEventRecord[] = [];
 
@@ -158,7 +179,7 @@ async function loadOverviewDataset(
       }));
   }
 
-  return { calls, activeCallsNow, failureEvents };
+  return { calls, activeCallsNow, failureEvents, reliabilityAssets };
 }
 
 function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Date) {
