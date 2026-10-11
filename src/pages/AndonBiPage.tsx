@@ -24,6 +24,8 @@ import {
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
+import { BiKpiCard } from "@/components/bi/BiKpiCard";
+import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
 import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
@@ -76,31 +78,6 @@ function formatDateLabel(value: string) {
     month: "2-digit",
     timeZone: "UTC",
   }).format(date);
-}
-
-function KpiCard({
-  label,
-  value,
-  detail,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  icon: typeof Activity;
-}) {
-  return (
-    <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="mt-4 text-3xl font-black tabular-nums">{value}</div>
-      <p className="mt-2 min-h-8 text-xs leading-4 text-muted-foreground">{detail}</p>
-    </article>
-  );
 }
 
 export function AndonBiPage() {
@@ -372,14 +349,18 @@ export function AndonBiPage() {
           </div>
         )}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <KpiCard
-            label="Chamados"
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <BiKpiCard
+            label="Chamados abertos"
             value={loading && !overview ? "…" : String(kpis?.callsOpened ?? 0)}
-            detail={`${kpis?.callsFinished ?? 0} concluídos no período`}
+            detail={`${kpis?.callsFinished ?? 0} concluído(s) no período`}
             icon={Activity}
+            tone="amber"
+            trend={overview?.comparison.callsOpened}
+            trendMeaning="neutral"
+            tooltip="Chamados com openedAt dentro do período selecionado."
           />
-          <KpiCard
+          <BiKpiCard
             label="Ativos agora"
             value={
               loading && !overview
@@ -394,31 +375,42 @@ export function AndonBiPage() {
                 : "Snapshot atual do ANDON"
             }
             icon={BarChart3}
+            tone="blue"
           />
-          <KpiCard
+          <BiKpiCard
             label="MTTA"
             value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
-            detail={`Amostra: ${overview?.coverage.mttaSampleSize ?? 0} atendimentos`}
+            detail={`Tempo médio até atendimento · ${overview?.coverage.mttaSampleSize ?? 0} atendimento(s)`}
             icon={Clock3}
+            tone="amber"
+            trend={overview?.comparison.mttaMinutes}
+            trendMeaning="lowerBetter"
+            sampleSize={overview?.coverage.mttaSampleSize}
+            tooltip="MTTA = attendedAt - openedAt para atendimentos iniciados no período."
           />
-          <KpiCard
-            label="Manutenção"
-            value={
-              loading && !overview
-                ? "…"
-                : formatMinutes(kpis?.avgMaintenanceMinutes ?? null)
-            }
-            detail={`Média · ${overview?.coverage.maintenanceTimeSampleSize ?? 0} chamados`}
+          <BiKpiCard
+            label="MTTR operacional"
+            value={loading && !overview ? "…" : formatMinutes(kpis?.mttrMinutes ?? null)}
+            detail={`Tempo médio efetivo de manutenção · ${overview?.coverage.mttrSampleSize ?? 0} chamado(s)`}
             icon={Wrench}
+            tone="blue"
+            trend={overview?.comparison.mttrMinutes}
+            trendMeaning="lowerBetter"
+            sampleSize={overview?.coverage.mttrSampleSize}
+            tooltip="MTTR operacional = média de attendanceMinutes dos chamados finalizados no período."
           />
-          <KpiCard
-            label="Downtime físico"
+          <BiKpiCard
+            label="Downtime acumulado"
             value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? 0)}
-            detail={`${kpis?.failureOccurrences ?? 0} ocorrências físicas iniciadas`}
+            detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) físico(s) · soma multi-máquinas`}
             icon={TimerReset}
+            tone="red"
+            trend={overview?.comparison.downtimeMinutes}
+            trendMeaning="lowerBetter"
+            tooltip="União temporal de FailureEvent por máquina e soma entre máquinas."
           />
-          <KpiCard
-            label="Retorno"
+          <BiKpiCard
+            label="Retorno à manutenção"
             value={
               loading && !overview
                 ? "…"
@@ -426,10 +418,14 @@ export function AndonBiPage() {
                   ? "—"
                   : `${kpis?.maintenanceReturnRatePercent ?? 0}%`
             }
-            detail={`${kpis?.returnedCalls ?? 0} chamados · ${kpis?.maintenanceReturnCycles ?? 0} ciclos`}
+            detail={`${kpis?.returnedCalls ?? 0} chamado(s) · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
             icon={RotateCcw}
+            tone="red"
+            sampleSize={overview?.coverage.finishedCalls}
           />
         </section>
+
+        {overview && <BiReliabilityStrip overview={overview} />}
 
         {overview && (
           <BiExecutiveSummary
@@ -485,7 +481,7 @@ export function AndonBiPage() {
                       name="Abertos"
                       type="monotone"
                       dataKey="callsOpened"
-                      stroke="var(--chart-2)"
+                      stroke="#f59e0b"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -493,7 +489,7 @@ export function AndonBiPage() {
                       name="Concluídos"
                       type="monotone"
                       dataKey="callsFinished"
-                      stroke="var(--chart-1)"
+                      stroke="#22c55e"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -514,7 +510,7 @@ export function AndonBiPage() {
               Pareto de máquinas
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Downtime físico sem dupla contagem · clique em uma barra para detalhar
+              Downtime acumulado por máquina · clique em uma barra para detalhar
             </p>
 
             {overview?.machinePareto.length ? (
@@ -550,7 +546,7 @@ export function AndonBiPage() {
                     />
                     <Bar
                       dataKey="downtimeMinutes"
-                      fill="var(--chart-3)"
+                      fill="#ef4444"
                       radius={[0, 4, 4, 0]}
                       cursor="pointer"
                       onClick={openMachineDrilldown}
@@ -599,7 +595,7 @@ export function AndonBiPage() {
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-primary"
+                            className="h-full rounded-full bg-amber-400"
                             style={{ width: `${Math.max(4, (item.count / max) * 100)}%` }}
                           />
                         </div>
@@ -634,7 +630,7 @@ export function AndonBiPage() {
                         label: item.label,
                       })
                     }
-                    className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-4 py-3 text-left transition hover:bg-muted"
+                    className="flex items-center justify-between rounded-lg border border-border border-l-2 border-l-sky-400 bg-background/40 px-4 py-3 text-left transition hover:bg-muted"
                   >
                     <span className="truncate text-sm font-semibold">{item.label}</span>
                     <span className="ml-3 text-lg font-black tabular-nums">{item.count}</span>
@@ -668,8 +664,7 @@ export function AndonBiPage() {
         {overview && (
           <footer className="flex flex-col gap-2 border-t border-border pt-4 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
             <span>
-              Fórmula {overview.meta.metricDefinitionVersion} · testes de sistema excluídos ·
-              PostgreSQL como fonte oficial
+              Fórmula {overview.meta.metricDefinitionVersion} · testes de sistema excluídos · PostgreSQL como fonte oficial · MTBF identificado como estimativa
             </span>
             <span>
               Cobertura de classificação: {overview.coverage.finishedCallsWithClassification}/

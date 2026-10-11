@@ -231,10 +231,14 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
   assert.equal(result.kpis.activeCallsNow, 3);
   assert.equal(result.kpis.mttaMinutes, 15);
   assert.equal(result.kpis.avgMaintenanceMinutes, 35);
+  assert.equal(result.kpis.mttrMinutes, 35);
   assert.equal(result.kpis.avgPostMaintenanceMinutes, 15);
   assert.equal(result.kpis.avgTotalCallMinutes, 60);
   assert.equal(result.kpis.downtimeMinutes, 60);
   assert.equal(result.kpis.failureOccurrences, 3);
+  assert.equal(result.kpis.physicalStopEpisodes, 2);
+  assert.equal(result.kpis.avgDowntimePerEpisodeMinutes, 30);
+  assert.equal(result.kpis.classificationCoveragePercent, 100);
   assert.equal(result.kpis.returnedCalls, 1);
   assert.equal(result.kpis.maintenanceReturnCycles, 1);
   assert.equal(result.kpis.maintenanceReturnRatePercent, 50);
