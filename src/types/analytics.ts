@@ -383,3 +383,71 @@ export type AnalyticsFailureIntelligence = {
     groupCaseCap: number;
   };
 };
+
+export type AnalyticsMachine360 = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: { start: string; end: string; effectiveEnd: string };
+    filters: { machineId: string; subtype?: string; classification?: string };
+    semantics: {
+      downtime: string;
+      physicalStopEpisodes: string;
+      mtbf: string;
+      avgDowntime: string;
+      mtta: string;
+      active: string;
+      classification: string;
+      hierarchy: string;
+      history: string;
+    };
+  };
+  machine: {
+    id: string;
+    name: string;
+    isActive: boolean;
+    machineStatus: string;
+    productionMode: string;
+  };
+  kpis: {
+    callsOpened: number;
+    callsFinished: number;
+    callsActiveNow: number;
+    activeSessionsNow: number;
+    mttaMinutes: number | null;
+    avgMaintenanceMinutes: number | null;
+    downtimeMinutes: number;
+    physicalStopEpisodes: number;
+    avgDowntimePerEpisodeMinutes: number | null;
+    mtbfEstimatedMinutes: number | null;
+    maintenanceReturnCycles: number;
+  };
+  diagnoses: Array<{ classification: string; count: number }>;
+  assets: Array<{ setName: string | null; subsetName: string | null; calls: number }>;
+  dataHealth: {
+    oldestActiveCallMinutes: number | null;
+    openFailureEvents: number;
+    oldestOpenFailureMinutes: number | null;
+    activeSessionsNow: number;
+    finishedWithoutClassification: number;
+    standaloneFailureEvents: number;
+  };
+  timeline: {
+    total: number;
+    truncated: boolean;
+    items: Array<{
+      kind: "call" | "failure_event";
+      id: string;
+      callId: string | null;
+      occurredAt: string;
+      status: string;
+      classification: string | null;
+      description: string | null;
+      workOrderNumber: string | null;
+      technicianNames: string[];
+      setName: string | null;
+      subsetName: string | null;
+      durationMinutes: number | null;
+    }>;
+  };
+};
