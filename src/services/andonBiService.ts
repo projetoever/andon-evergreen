@@ -5,6 +5,7 @@ import type {
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
   AnalyticsMaintenanceParticipation,
+  AnalyticsMachine360,
   AnalyticsOverview,
   AndonBiClassificationOption,
   AndonBiFilterOptions,
@@ -148,5 +149,22 @@ export async function loadFailureIntelligence(
   applyDimensionFilters(query, filters);
   return andonBiApiClient.get<AnalyticsFailureIntelligence>(
     `/api/analytics/failure-intelligence?${query.toString()}`,
+  );
+}
+
+export async function loadMachine360(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+  machineId: string,
+): Promise<AnalyticsMachine360> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+    machineId,
+  });
+  if (filters.subtype) query.set("subtype", filters.subtype);
+  if (filters.classification) query.set("classification", filters.classification);
+  return andonBiApiClient.get<AnalyticsMachine360>(
+    `/api/analytics/machine-360?${query.toString()}`,
   );
 }
