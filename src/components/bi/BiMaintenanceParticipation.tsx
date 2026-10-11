@@ -23,7 +23,7 @@ function formatMinutes(value: number) {
  * The BI page has no document scroll. Measure only the available list viewport,
  * then paginate rather than clipping technician and technical-area records.
  */
-function useVisibleRows(rowHeight: number) {
+function useVisibleRows(rowHeight: number, enabled: boolean) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [visibleRows, setVisibleRows] = useState(3);
 
@@ -39,7 +39,7 @@ function useVisibleRows(rowHeight: number) {
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [rowHeight]);
+  }, [rowHeight, enabled]);
 
   return { viewportRef, visibleRows };
 }
@@ -125,9 +125,9 @@ export function BiMaintenanceParticipation({
 }) {
   // Keep hooks unconditional, including while analytics are loading.
   const { viewportRef: technicianViewport, visibleRows: technicianRows } =
-    useVisibleRows(62);
+    useVisibleRows(62, Boolean(data));
   const { viewportRef: areaViewport, visibleRows: areaRows } =
-    useVisibleRows(63);
+    useVisibleRows(63, Boolean(data));
   const [technicianPage, setTechnicianPage] = useState(0);
   const [areaPage, setAreaPage] = useState(0);
 
