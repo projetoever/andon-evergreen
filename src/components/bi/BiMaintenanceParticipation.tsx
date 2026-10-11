@@ -46,7 +46,7 @@ export function BiMaintenanceParticipation({
 }) {
   if (loading && !data) {
     return (
-      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="h-36 animate-pulse rounded-lg bg-muted/40" />
       </section>
     );
@@ -54,7 +54,7 @@ export function BiMaintenanceParticipation({
 
   if (error) {
     return (
-      <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-5 text-sm text-amber-200">
+      <section className="h-full rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-4 text-sm text-amber-200">
         Participação técnica indisponível: {error}
       </section>
     );
@@ -65,7 +65,7 @@ export function BiMaintenanceParticipation({
   const maxMinutes = data.technicians[0]?.totalPersonMinutes || 1;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function BiMaintenanceParticipation({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid shrink-0 grid-cols-4 gap-2">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] p-3">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
@@ -144,20 +144,20 @@ export function BiMaintenanceParticipation({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-        <div className="rounded-lg border border-border bg-background/25 p-4">
+      <div className="mt-3 grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
+        <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background/25 p-3">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-wide">
               Distribuição por mantenedor
             </h3>
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Top 8 por pessoa-minutos
+              Top 6 por pessoa-minutos
             </span>
           </div>
 
           {data.technicians.length ? (
-            <div className="space-y-4">
-              {data.technicians.slice(0, 8).map((technician) => (
+            <div className="space-y-3">
+              {data.technicians.slice(0, 6).map((technician) => (
                 <div
                   key={technician.technicianId ?? `legacy-${technician.technicianName}`}
                   className="grid gap-2"
@@ -205,7 +205,7 @@ export function BiMaintenanceParticipation({
           )}
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid min-h-0 gap-3">
           <div className="rounded-lg border border-border bg-background/25 p-4">
             <h3 className="text-xs font-black uppercase tracking-wide">Áreas técnicas</h3>
             <div className="mt-3 space-y-3">
