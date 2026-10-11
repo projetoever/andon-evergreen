@@ -22,6 +22,7 @@ import {
 } from "recharts";
 
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
+import { BiAssetReliability } from "@/components/bi/BiAssetReliability";
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
@@ -30,10 +31,12 @@ import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
 import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
+  loadAssetReliability,
   loadExecutiveOverview,
   loadMaintenanceParticipation,
 } from "@/services/andonBiService";
 import type {
+  AnalyticsAssetReliability,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
   AnalyticsMaintenanceParticipation,
@@ -89,9 +92,13 @@ export function AndonBiPage() {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [maintenance, setMaintenance] =
     useState<AnalyticsMaintenanceParticipation | null>(null);
+  const [assetReliability, setAssetReliability] =
+    useState<AnalyticsAssetReliability | null>(null);
   const [loading, setLoading] = useState(true);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+  const [reliabilityLoading, setReliabilityLoading] = useState(false);
+  const [reliabilityError, setReliabilityError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -129,6 +136,8 @@ export function AndonBiPage() {
     setError(null);
     setMaintenance(null);
     setMaintenanceError(null);
+    setAssetReliability(null);
+    setReliabilityError(null);
 
     void loadExecutiveOverview(filters)
       .then(async (result) => {
@@ -136,24 +145,37 @@ export function AndonBiPage() {
 
         setOverview(result);
         setMaintenanceLoading(true);
+        setReliabilityLoading(true);
 
-        try {
-          const maintenanceResult = await loadMaintenanceParticipation(
-            filters,
-            result.meta.period,
+        const [maintenanceResult, reliabilityResult] = await Promise.allSettled([
+          loadMaintenanceParticipation(filters, result.meta.period),
+          loadAssetReliability(filters, result.meta.period),
+        ]);
+
+        if (!active) return;
+
+        if (maintenanceResult.status === "fulfilled") {
+          setMaintenance(maintenanceResult.value);
+        } else {
+          setMaintenanceError(
+            maintenanceResult.reason instanceof Error
+              ? maintenanceResult.reason.message
+              : "Falha ao carregar participação técnica.",
           );
-          if (active) setMaintenance(maintenanceResult);
-        } catch (maintenanceLoadError) {
-          if (active) {
-            setMaintenanceError(
-              maintenanceLoadError instanceof Error
-                ? maintenanceLoadError.message
-                : "Falha ao carregar participação técnica.",
-            );
-          }
-        } finally {
-          if (active) setMaintenanceLoading(false);
         }
+
+        if (reliabilityResult.status === "fulfilled") {
+          setAssetReliability(reliabilityResult.value);
+        } else {
+          setReliabilityError(
+            reliabilityResult.reason instanceof Error
+              ? reliabilityResult.reason.message
+              : "Falha ao carregar confiabilidade por ativo.",
+          );
+        }
+
+        setMaintenanceLoading(false);
+        setReliabilityLoading(false);
       })
       .catch((loadError) => {
         if (active) {
@@ -462,6 +484,22 @@ export function AndonBiPage() {
             overview={overview}
             classificationLabels={classificationLabels}
             sectorLabels={sectorLabels}
+          />
+        )}
+
+        {overview && (
+          <BiAssetReliability
+            data={assetReliability}
+            loading={reliabilityLoading}
+            error={reliabilityError}
+            classificationLabels={classificationLabels}
+            onSelectMachine={(machineId, machineName) =>
+              setDrillSelection({
+                dimension: "machine",
+                value: machineId,
+                label: machineName,
+              })
+            }
           />
         )}
 
