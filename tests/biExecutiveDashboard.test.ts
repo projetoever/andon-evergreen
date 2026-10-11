@@ -95,3 +95,25 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
   assert.match(route, /isSystemTest: false/);
   assert.match(route, /phase maintenance\/follow_up/);
 });
+
+
+test("BI-MVP-6 adiciona bad actors, reincidência e saúde do dado sem score oculto", async () => {
+  const [page, service, component, route, analytics] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiAssetReliability.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/analytics/reliability.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /BiAssetReliability/);
+  assert.match(service, /\/api\/analytics\/reliability/);
+  assert.match(component, /Ativos prioritários · Bad Actors/);
+  assert.match(component, /Saúde do dado operacional/);
+  assert.match(component, /Diag\. repetido/);
+  assert.match(component, /Chamados ativos > 24h/);
+  assert.match(route, /badActors:/);
+  assert.match(route, /não há score oculto/);
+  assert.match(analytics, /countRepeatDiagnoses/);
+  assert.match(analytics, /mergeIntervals/);
+});
