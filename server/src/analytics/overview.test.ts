@@ -3,7 +3,10 @@ import test from "node:test";
 
 import {
   buildExecutiveOverview,
+  buildExecutiveHighlights,
+  buildOverviewComparison,
   calculatePhysicalDowntimeByMachine,
+  calculatePhysicalDowntimeTrend,
   parseAnalyticsInstant,
   type AnalyticsCallRecord,
   type AnalyticsFailureEventRecord,
@@ -254,4 +257,105 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
     { label: "electrical", count: 1 },
     { label: "mechanical", count: 1 },
   ]);
+});
+
+
+test("downtime diário respeita meia-noite operacional e mantém união por máquina", () => {
+  const events: AnalyticsFailureEventRecord[] = [
+    {
+      id: "overnight-a",
+      machineId: "55",
+      machineName: "Máquina 55",
+      startedAt: date("2026-10-02T02:30:00Z"),
+      endedAt: date("2026-10-02T03:30:00Z"),
+      classification: "sensor",
+      callId: "c1",
+      linkedCallIsSystemTest: false,
+    },
+    {
+      id: "overnight-overlap",
+      machineId: "55",
+      machineName: "Máquina 55",
+      startedAt: date("2026-10-02T03:10:00Z"),
+      endedAt: date("2026-10-02T03:40:00Z"),
+      classification: "sensor",
+      callId: "c2",
+      linkedCallIsSystemTest: false,
+    },
+  ];
+
+  const trend = calculatePhysicalDowntimeTrend(
+    events,
+    date("2026-10-02T02:00:00Z"),
+    date("2026-10-02T04:00:00Z"),
+    "America/Sao_Paulo",
+  );
+
+  assert.deepEqual(trend, [
+    { date: "2026-10-01", downtimeMinutes: 30 },
+    { date: "2026-10-02", downtimeMinutes: 40 },
+  ]);
+});
+
+test("comparação executiva e destaques permanecem determinísticos", () => {
+  const current = buildExecutiveOverview({
+    calls: [
+      {
+        id: "current",
+        machineId: "55",
+        subtype: "electrical",
+        status: "finished",
+        openedAt: date("2026-10-02T10:00:00Z"),
+        attendedAt: date("2026-10-02T10:10:00Z"),
+        maintenanceCompletedAt: date("2026-10-02T10:20:00Z"),
+        finishedAt: date("2026-10-02T10:30:00Z"),
+        attendanceMinutes: 10,
+        postMaintenanceMinutes: 10,
+        maintenanceReturnCount: 0,
+        failureClassification: "sensor",
+        isSystemTest: false,
+      },
+    ],
+    activeCallsNow: 0,
+    failureEvents: [
+      {
+        id: "current-stop",
+        machineId: "55",
+        machineName: "Máquina 55",
+        startedAt: date("2026-10-02T10:00:00Z"),
+        endedAt: date("2026-10-02T10:30:00Z"),
+        classification: "sensor",
+        callId: "current",
+        linkedCallIsSystemTest: false,
+      },
+    ],
+    start: date("2026-10-02T09:00:00Z"),
+    end: date("2026-10-02T11:00:00Z"),
+    effectiveEnd: date("2026-10-02T11:00:00Z"),
+    generatedAt: date("2026-10-02T11:00:00Z"),
+    timeZone: "America/Sao_Paulo",
+    filters: {},
+  });
+
+  const previous = buildExecutiveOverview({
+    calls: [],
+    activeCallsNow: null,
+    failureEvents: [],
+    start: date("2026-10-02T07:00:00Z"),
+    end: date("2026-10-02T09:00:00Z"),
+    effectiveEnd: date("2026-10-02T09:00:00Z"),
+    generatedAt: date("2026-10-02T11:00:00Z"),
+    timeZone: "America/Sao_Paulo",
+    filters: {},
+  });
+
+  const comparison = buildOverviewComparison(current, previous);
+  const highlights = buildExecutiveHighlights(current);
+
+  assert.equal(comparison.callsOpened.direction, "new");
+  assert.equal(comparison.downtimeMinutes.direction, "new");
+  assert.equal(highlights.topMachine?.machineId, "55");
+  assert.equal(highlights.topMachine?.sharePercent, 100);
+  assert.equal(highlights.topClassification?.classification, "sensor");
+  assert.equal(highlights.topSector?.subtype, "electrical");
 });

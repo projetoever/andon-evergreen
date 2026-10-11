@@ -7,6 +7,13 @@ export type AndonBiFilters = {
   classification: string;
 };
 
+export type AnalyticsMetricComparison = {
+  current: number | null;
+  previous: number | null;
+  deltaPercent: number | null;
+  direction: "up" | "down" | "flat" | "new" | "unavailable";
+};
+
 export type AnalyticsOverview = {
   meta: {
     metricDefinitionVersion: string;
@@ -45,6 +52,10 @@ export type AnalyticsOverview = {
     callsOpened: number;
     callsFinished: number;
   }>;
+  downtimeTrend: Array<{
+    date: string;
+    downtimeMinutes: number;
+  }>;
   machinePareto: Array<{
     machineId: string;
     machineName: string;
@@ -59,6 +70,39 @@ export type AnalyticsOverview = {
     label: string;
     count: number;
   }>;
+  comparison: {
+    period: {
+      start: string;
+      end: string;
+    };
+    callsOpened: AnalyticsMetricComparison;
+    downtimeMinutes: AnalyticsMetricComparison;
+    mttaMinutes: AnalyticsMetricComparison;
+    maintenanceReturnRate: {
+      current: number | null;
+      previous: number | null;
+      deltaPoints: number | null;
+    };
+  };
+  highlights: {
+    topMachine: {
+      machineId: string;
+      machineName: string;
+      downtimeMinutes: number;
+      occurrences: number;
+      sharePercent: number;
+    } | null;
+    topClassification: {
+      classification: string;
+      count: number;
+      sharePercent: number;
+    } | null;
+    topSector: {
+      subtype: string;
+      count: number;
+      sharePercent: number;
+    } | null;
+  };
   coverage: {
     mttaSampleSize: number;
     maintenanceTimeSampleSize: number;
@@ -68,6 +112,47 @@ export type AnalyticsOverview = {
     failureEventsWithClassification: number;
     failureEventsLinkedToCalls: number;
   };
+};
+
+export type AnalyticsDrilldownDimension = "machine" | "classification" | "sector";
+
+export type AnalyticsDrilldownSelection = {
+  dimension: AnalyticsDrilldownDimension;
+  value: string;
+  label: string;
+};
+
+export type AnalyticsDrilldownItem = {
+  kind: "failure_event" | "call";
+  id: string;
+  callId: string | null;
+  machineId: string;
+  machineName: string;
+  subtype: string | null;
+  classification: string | null;
+  occurredAt: string;
+  endedAt: string | null;
+  durationMinutes: number | null;
+  status: string | null;
+  workOrderNumber: string | null;
+  technicianNames: string[];
+  description: string | null;
+  source: string;
+};
+
+export type AnalyticsDrilldownResult = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: {
+      start: string;
+      end: string;
+      effectiveEnd: string;
+    };
+  };
+  dimension: AnalyticsDrilldownDimension;
+  value: string;
+  items: AnalyticsDrilldownItem[];
 };
 
 export type AndonBiMachineOption = {

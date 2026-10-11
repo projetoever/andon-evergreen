@@ -1,5 +1,7 @@
 import { andonBiApiClient } from "@/api/andonBiApiClient";
 import type {
+  AnalyticsDrilldownResult,
+  AnalyticsDrilldownSelection,
   AnalyticsOverview,
   AndonBiClassificationOption,
   AndonBiFilterOptions,
@@ -35,6 +37,12 @@ export function buildRollingPeriod(serverTimestamp: string, preset: AndonBiPerio
   };
 }
 
+function applyDimensionFilters(query: URLSearchParams, filters: AndonBiFilters) {
+  if (filters.machineId) query.set("machineId", filters.machineId);
+  if (filters.subtype) query.set("subtype", filters.subtype);
+  if (filters.classification) query.set("classification", filters.classification);
+}
+
 export async function loadAndonBiFilterOptions(): Promise<AndonBiFilterOptions> {
   const [machines, sectors, classifications] = await Promise.all([
     andonBiApiClient.get<AndonBiMachineOption[]>("/api/machines?includeInactive=true"),
@@ -65,11 +73,29 @@ export async function loadExecutiveOverview(
     endDate: period.endDate,
   });
 
-  if (filters.machineId) query.set("machineId", filters.machineId);
-  if (filters.subtype) query.set("subtype", filters.subtype);
-  if (filters.classification) query.set("classification", filters.classification);
+  applyDimensionFilters(query, filters);
 
   return andonBiApiClient.get<AnalyticsOverview>(
     `/api/analytics/overview?${query.toString()}`,
+  );
+}
+
+export async function loadAnalyticsDrilldown(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+  selection: AnalyticsDrilldownSelection,
+): Promise<AnalyticsDrilldownResult> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+    dimension: selection.dimension,
+    value: selection.value,
+    limit: "20",
+  });
+
+  applyDimensionFilters(query, filters);
+
+  return andonBiApiClient.get<AnalyticsDrilldownResult>(
+    `/api/analytics/drilldown?${query.toString()}`,
   );
 }

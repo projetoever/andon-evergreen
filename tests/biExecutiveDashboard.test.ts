@@ -35,3 +35,20 @@ test("servico BI usa relogio autoritativo do servidor para definir o periodo", a
   assert.match(service, /andonBiApiClient\.get<ApiHealth>\("\/health"\)/);
   assert.match(service, /buildRollingPeriod\(health\.timestamp, filters\.period\)/);
 });
+
+
+test("dashboard BI oferece resumo executivo, downtime temporal e drill-down read-only", async () => {
+  const [page, service, summary, drilldown] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /BiExecutiveSummary/);
+  assert.match(page, /BiDowntimeTrendCard/);
+  assert.match(page, /BiAnalyticsDrillDown/);
+  assert.match(service, /\/api\/analytics\/drilldown/);
+  assert.match(summary, /período anterior equivalente/);
+  assert.match(drilldown, /Registros analíticos que sustentam o ponto selecionado/);
+});

@@ -21,8 +21,17 @@ import {
   YAxis,
 } from "recharts";
 
-import { loadAndonBiFilterOptions, loadExecutiveOverview } from "@/services/andonBiService";
+import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
+import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
+import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
+import {
+  loadAnalyticsDrilldown,
+  loadAndonBiFilterOptions,
+  loadExecutiveOverview,
+} from "@/services/andonBiService";
 import type {
+  AnalyticsDrilldownResult,
+  AnalyticsDrilldownSelection,
   AnalyticsOverview,
   AndonBiFilterOptions,
   AndonBiFilters,
@@ -102,6 +111,11 @@ export function AndonBiPage() {
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [drillSelection, setDrillSelection] =
+    useState<AnalyticsDrilldownSelection | null>(null);
+  const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillError, setDrillError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -154,6 +168,41 @@ export function AndonBiPage() {
 
   useEffect(() => loadOverview(), [loadOverview, refreshVersion]);
 
+  useEffect(() => {
+    setDrillSelection(null);
+    setDrilldown(null);
+    setDrillError(null);
+  }, [filters]);
+
+  useEffect(() => {
+    if (!drillSelection || !overview) return;
+
+    let active = true;
+    setDrillLoading(true);
+    setDrillError(null);
+
+    void loadAnalyticsDrilldown(filters, overview.meta.period, drillSelection)
+      .then((result) => {
+        if (active) setDrilldown(result);
+      })
+      .catch((loadError) => {
+        if (active) {
+          setDrillError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Falha ao carregar o detalhamento analítico.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setDrillLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [drillSelection, filters, overview]);
+
   const classificationLabels = useMemo(
     () => new Map(options.classifications.map((item) => [item.value, item.label])),
     [options.classifications],
@@ -167,6 +216,7 @@ export function AndonBiPage() {
     () =>
       (overview?.classificationPareto ?? []).slice(0, 8).map((item) => ({
         ...item,
+        value: item.label,
         label: classificationLabels.get(item.label) ?? item.label,
       })),
     [classificationLabels, overview],
@@ -176,12 +226,23 @@ export function AndonBiPage() {
     () =>
       (overview?.sectorDistribution ?? []).slice(0, 8).map((item) => ({
         ...item,
+        value: item.label,
         label: sectorLabels.get(item.label) ?? item.label,
       })),
     [overview, sectorLabels],
   );
 
   const kpis = overview?.kpis;
+
+  const openMachineDrilldown = useCallback((entry: unknown) => {
+    const item = entry as { machineId?: unknown; machineName?: unknown };
+    if (typeof item.machineId !== "string" || typeof item.machineName !== "string") return;
+    setDrillSelection({
+      dimension: "machine",
+      value: item.machineId,
+      label: item.machineName,
+    });
+  }, []);
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
@@ -370,8 +431,16 @@ export function AndonBiPage() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-5">
-          <article className="min-h-80 rounded-xl border border-border bg-card p-5 shadow-sm xl:col-span-3">
+        {overview && (
+          <BiExecutiveSummary
+            overview={overview}
+            classificationLabels={classificationLabels}
+            sectorLabels={sectorLabels}
+          />
+        )}
+
+        <section className="grid gap-4 xl:grid-cols-3">
+          <article className="min-h-80 rounded-xl border border-border bg-card p-5 shadow-sm">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-sm font-black uppercase tracking-wide">
@@ -438,12 +507,14 @@ export function AndonBiPage() {
             )}
           </article>
 
-          <article className="min-h-80 rounded-xl border border-border bg-card p-5 shadow-sm xl:col-span-2">
+          <BiDowntimeTrendCard data={overview?.downtimeTrend ?? []} />
+
+          <article className="min-h-80 rounded-xl border border-border bg-card p-5 shadow-sm">
             <h2 className="text-sm font-black uppercase tracking-wide">
               Pareto de máquinas
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Downtime físico sem dupla contagem
+              Downtime físico sem dupla contagem · clique em uma barra para detalhar
             </p>
 
             {overview?.machinePareto.length ? (
@@ -477,7 +548,13 @@ export function AndonBiPage() {
                         borderRadius: 10,
                       }}
                     />
-                    <Bar dataKey="downtimeMinutes" fill="var(--chart-3)" radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="downtimeMinutes"
+                      fill="var(--chart-3)"
+                      radius={[0, 4, 4, 0]}
+                      cursor="pointer"
+                      onClick={openMachineDrilldown}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -502,7 +579,18 @@ export function AndonBiPage() {
                 classificationData.map((item, index) => {
                   const max = classificationData[0]?.count || 1;
                   return (
-                    <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                    <button
+                      type="button"
+                      key={item.value}
+                      onClick={() =>
+                        setDrillSelection({
+                          dimension: "classification",
+                          value: item.value,
+                          label: item.label,
+                        })
+                      }
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-md p-1 text-left transition hover:bg-muted/40"
+                    >
                       <div>
                         <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                           <span className="truncate font-semibold">
@@ -517,7 +605,7 @@ export function AndonBiPage() {
                         </div>
                       </div>
                       <span className="self-end text-sm font-black tabular-nums">{item.count}</span>
-                    </div>
+                    </button>
                   );
                 })
               ) : (
@@ -536,13 +624,21 @@ export function AndonBiPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {sectorData.length ? (
                 sectorData.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-4 py-3"
+                  <button
+                    type="button"
+                    key={item.value}
+                    onClick={() =>
+                      setDrillSelection({
+                        dimension: "sector",
+                        value: item.value,
+                        label: item.label,
+                      })
+                    }
+                    className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-4 py-3 text-left transition hover:bg-muted"
                   >
                     <span className="truncate text-sm font-semibold">{item.label}</span>
                     <span className="ml-3 text-lg font-black tabular-nums">{item.count}</span>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <div className="col-span-full py-10 text-center text-sm text-muted-foreground">
@@ -552,6 +648,22 @@ export function AndonBiPage() {
             </div>
           </article>
         </section>
+
+        {drillSelection && (
+          <BiAnalyticsDrillDown
+            selection={drillSelection}
+            result={drilldown}
+            loading={drillLoading}
+            error={drillError}
+            classificationLabels={classificationLabels}
+            sectorLabels={sectorLabels}
+            onClose={() => {
+              setDrillSelection(null);
+              setDrilldown(null);
+              setDrillError(null);
+            }}
+          />
+        )}
 
         {overview && (
           <footer className="flex flex-col gap-2 border-t border-border pt-4 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
