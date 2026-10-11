@@ -18,12 +18,14 @@ import {
   loadAndonBiFilterOptions,
   loadAssetReliability,
   loadExecutiveOverview,
+  loadFailureIntelligence,
   loadMaintenanceParticipation,
 } from "@/services/andonBiService";
 import type {
   AnalyticsAssetReliability,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
+  AnalyticsFailureIntelligence,
   AnalyticsMaintenanceParticipation,
   AnalyticsOverview,
   AndonBiFilterOptions,
@@ -59,11 +61,15 @@ export function AndonBiPage() {
     useState<AnalyticsMaintenanceParticipation | null>(null);
   const [assetReliability, setAssetReliability] =
     useState<AnalyticsAssetReliability | null>(null);
+  const [failureIntelligence, setFailureIntelligence] =
+    useState<AnalyticsFailureIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
   const [reliabilityLoading, setReliabilityLoading] = useState(false);
   const [reliabilityError, setReliabilityError] = useState<string | null>(null);
+  const [failureLoading, setFailureLoading] = useState(false);
+  const [failureError, setFailureError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -107,6 +113,8 @@ export function AndonBiPage() {
     setMaintenanceError(null);
     setAssetReliability(null);
     setReliabilityError(null);
+    setFailureIntelligence(null);
+    setFailureError(null);
 
     void loadExecutiveOverview(filters)
       .then(async (result) => {
@@ -115,10 +123,12 @@ export function AndonBiPage() {
         setOverview(result);
         setMaintenanceLoading(true);
         setReliabilityLoading(true);
+        setFailureLoading(true);
 
-        const [maintenanceResult, reliabilityResult] = await Promise.allSettled([
+        const [maintenanceResult, reliabilityResult, failureResult] = await Promise.allSettled([
           loadMaintenanceParticipation(filters, result.meta.period),
           loadAssetReliability(filters, result.meta.period),
+          loadFailureIntelligence(filters, result.meta.period),
         ]);
 
         if (!active) return;
@@ -143,8 +153,19 @@ export function AndonBiPage() {
           );
         }
 
+        if (failureResult.status === "fulfilled") {
+          setFailureIntelligence(failureResult.value);
+        } else {
+          setFailureError(
+            failureResult.reason instanceof Error
+              ? failureResult.reason.message
+              : "Falha ao carregar reincidências.",
+          );
+        }
+
         setMaintenanceLoading(false);
         setReliabilityLoading(false);
+        setFailureLoading(false);
       })
       .catch((loadError) => {
         if (active) {
@@ -440,6 +461,9 @@ export function AndonBiPage() {
           {activeTab === "failures" && (
             <BiFailureWorkspace
               overview={overview}
+              intelligence={failureIntelligence}
+              intelligenceLoading={failureLoading}
+              intelligenceError={failureError}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
               onDrilldown={setDrillSelection}
