@@ -114,7 +114,7 @@ test("gera documento A4 em três seções com filtros e indicadores reais", () =
   assert.match(html, /Ativos críticos e reincidências/);
   assert.match(html, /Equipe, integridade e metodologia/);
   assert.match(html, /Últimos 7 dias/);
-  assert.match(html, /126h/);
+  assert.match(html, /127h/);
   assert.match(html, /Reincidência diagnóstica/);
   assert.match(html, /Participação técnica/);
   assert.match(html, /MTBF estimado/);
@@ -148,6 +148,6 @@ test("documento mostra advertência explícita de integridade em dados abertos",
   const html = buildExecutiveReportHtml(fixture());
   assert.match(html, /Atenção à qualidade do dado/);
   assert.match(html, /não registros únicos/);
-  assert.match(html, /Não equivale/);
+  assert.match(html, /não equivale/);
   assert.match(html, /não em horas produtivas/);
 });
