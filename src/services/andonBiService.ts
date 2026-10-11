@@ -3,6 +3,7 @@ import type {
   AnalyticsAssetReliability,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
+  AnalyticsFailureIntelligence,
   AnalyticsMaintenanceParticipation,
   AnalyticsOverview,
   AndonBiClassificationOption,
@@ -133,5 +134,19 @@ export async function loadAssetReliability(
 
   return andonBiApiClient.get<AnalyticsAssetReliability>(
     `/api/analytics/reliability?${query.toString()}`,
+  );
+}
+
+export async function loadFailureIntelligence(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+): Promise<AnalyticsFailureIntelligence> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+  });
+  applyDimensionFilters(query, filters);
+  return andonBiApiClient.get<AnalyticsFailureIntelligence>(
+    `/api/analytics/failure-intelligence?${query.toString()}`,
   );
 }

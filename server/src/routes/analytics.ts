@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
+import { buildFailureIntelligence } from "../analytics/failureIntelligence.js";
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
 import {
@@ -261,6 +262,125 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           ...buildOverviewComparison(currentOverview, previousOverview),
         },
         highlights: buildExecutiveHighlights(currentOverview),
+      };
+    },
+  );
+
+  app.get<{ Querystring: AnalyticsOverviewQuery }>(
+    "/api/analytics/failure-intelligence",
+    async (request, reply) => {
+      const period = parseAnalyticsPeriod(request.query);
+      if (!period) {
+        return badRequest(
+          reply,
+          "startDate e endDate são obrigatórios, com fuso horário e startDate anterior a endDate",
+        );
+      }
+
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
+      const filters: AnalyticsOverviewFilters = {
+        machineId: optionalQueryString(request.query.machineId),
+        subtype: optionalQueryString(request.query.subtype),
+        classification: optionalQueryString(request.query.classification),
+      };
+      const historyStart = new Date(period.start.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Histórico da mesma máquina e diagnóstico, independente do setor antigo.
+      // O setor selecionado delimita a coorte finalizada, não seus antecedentes.
+      const history = effectiveEnd.getTime() > period.start.getTime()
+        ? await prisma.andonCall.findMany({
+            where: {
+              isSystemTest: false,
+              status: "finished",
+              finishedAt: { gte: historyStart, lt: effectiveEnd },
+              failureClassification: filters.classification
+                ? filters.classification
+                : { not: null },
+              ...(filters.machineId ? { machineId: filters.machineId } : {}),
+            },
+            select: {
+              id: true,
+              machineId: true,
+              machine: { select: { name: true } },
+              subtype: true,
+              openedAt: true,
+              finishedAt: true,
+              failureClassification: true,
+              failureDescription: true,
+              workOrderNumber: true,
+              maintenanceReturnCount: true,
+              isSystemTest: true,
+              confirmedMachineSetId: true,
+              confirmedMachineSetNameSnapshot: true,
+              confirmedMachineSubsetId: true,
+              confirmedMachineSubsetNameSnapshot: true,
+              machineSetId: true,
+              machineSetNameSnapshot: true,
+              machineSubsetId: true,
+              machineSubsetNameSnapshot: true,
+            },
+            orderBy: [{ finishedAt: "asc" }, { id: "asc" }],
+          })
+        : [];
+
+      const result = buildFailureIntelligence({
+        calls: history.flatMap((call) =>
+          call.finishedAt
+            ? [{
+                id: call.id,
+                machineId: call.machineId,
+                machineName: call.machine.name,
+                subtype: call.subtype,
+                openedAt: call.openedAt,
+                finishedAt: call.finishedAt,
+                classification: call.failureClassification,
+                description: call.failureDescription,
+                workOrderNumber: call.workOrderNumber,
+                maintenanceReturnCount: call.maintenanceReturnCount,
+                isSystemTest: call.isSystemTest,
+                confirmedMachineSetId: call.confirmedMachineSetId,
+                confirmedMachineSetNameSnapshot: call.confirmedMachineSetNameSnapshot,
+                confirmedMachineSubsetId: call.confirmedMachineSubsetId,
+                confirmedMachineSubsetNameSnapshot: call.confirmedMachineSubsetNameSnapshot,
+                machineSetId: call.machineSetId,
+                machineSetNameSnapshot: call.machineSetNameSnapshot,
+                machineSubsetId: call.machineSubsetId,
+                machineSubsetNameSnapshot: call.machineSubsetNameSnapshot,
+              }]
+            : [],
+        ),
+        start: period.start,
+        effectiveEnd,
+        filters,
+      });
+
+      return {
+        meta: {
+          metricDefinitionVersion: "bi-mvp-7",
+          generatedAt: generatedAt.toISOString(),
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+          period: {
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            effectiveEnd: effectiveEnd.toISOString(),
+          },
+          filters,
+          semantics: {
+            cohort:
+              "chamados reais finalizados no período (finishedAt), com classificação preenchida",
+            recurrence:
+              "novo diagnóstico igual na mesma máquina até 24h, 7d ou 30d após conclusão anterior; não presume mesma causa raiz",
+            lookback:
+              "consulta 30 dias anteriores ao início do período para identificar antecedente; setor filtra coorte, não o diagnóstico histórico",
+            assets:
+              "conjunto e subconjunto históricos confirmados, com fallback para snapshots da abertura; ausentes continuam desconhecidos",
+            returns:
+              "ciclos de retorno à manutenção registrados no próprio chamado, separados das reincidências entre chamados",
+          },
+        },
+        ...result,
       };
     },
   );
