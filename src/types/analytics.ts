@@ -317,3 +317,69 @@ export type AnalyticsAssetReliability = {
     standaloneFailureEvents: number;
   };
 };
+
+export type AnalyticsFailureIntelligence = {
+  meta: {
+    metricDefinitionVersion: string;
+    generatedAt: string;
+    timeZone: string;
+    period: { start: string; end: string; effectiveEnd: string };
+    filters: { machineId?: string; subtype?: string; classification?: string };
+    semantics: {
+      cohort: string;
+      recurrence: string;
+      lookback: string;
+      assets: string;
+      returns: string;
+    };
+  };
+  totals: {
+    diagnosedFinishedCalls: number;
+    repeated24h: number;
+    repeated7d: number;
+    repeated30d: number;
+    repeatRate30dPercent: number | null;
+    maintenanceReturnCycles: number;
+    locatedSetCount: number;
+  };
+  groups: Array<{
+    machineId: string;
+    machineName: string;
+    classification: string;
+    calls: number;
+    repeats24h: number;
+    repeats7d: number;
+    repeats30d: number;
+    returnCycles: number;
+    averageRepeatGapHours: number | null;
+    totalCases: number;
+    assetBreakdown: Array<{
+      setName: string | null;
+      subsetName: string | null;
+      count: number;
+    }>;
+    cases: Array<{
+      callId: string;
+      finishedAt: string;
+      machineName: string;
+      classification: string;
+      subtype: string | null;
+      setName: string | null;
+      subsetName: string | null;
+      description: string | null;
+      workOrderNumber: string | null;
+      returnCycles: number;
+      gapSincePreviousHours: number | null;
+      repeat24h: boolean;
+      repeat7d: boolean;
+      repeat30d: boolean;
+    }>;
+  }>;
+  coverage: {
+    includedHistoryCalls: number;
+    diagnosedFinishedCalls: number;
+    withSetSnapshot: number;
+    withSetSnapshotPercent: number | null;
+    groupCaseCap: number;
+  };
+};
