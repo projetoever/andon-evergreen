@@ -50,10 +50,10 @@ function chosenAsset(
   openingId: string | null,
   openingName: string | null,
 ) {
-  return {
-    id: confirmedId ?? openingId,
-    name: validLabel(confirmedName) ?? validLabel(openingName),
-  };
+  if (confirmedId || validLabel(confirmedName)) {
+    return { id: confirmedId, name: validLabel(confirmedName) };
+  }
+  return { id: openingId, name: validLabel(openingName) };
 }
 
 function cohortMatch(call: FailureIntelligenceCall, filters: FailureIntelligenceFilters) {
@@ -244,8 +244,7 @@ export function buildFailureIntelligence({
       averageRepeatGapHours:
         group.gapSamples > 0 ? round2(group.totalGapHours / group.gapSamples) : null,
       assetBreakdown: Array.from(group.assets.values())
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8),
+        .sort((a, b) => b.count - a.count),
       totalCases: group.cases.length,
       cases: group.cases.slice(-30).reverse(),
     }))
