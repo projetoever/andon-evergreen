@@ -1,5 +1,6 @@
 import { andonBiApiClient } from "@/api/andonBiApiClient";
 import type {
+  AnalyticsAssetReliability,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
   AnalyticsMaintenanceParticipation,
@@ -115,5 +116,22 @@ export async function loadMaintenanceParticipation(
 
   return andonBiApiClient.get<AnalyticsMaintenanceParticipation>(
     `/api/analytics/maintenance?${query.toString()}`,
+  );
+}
+
+
+export async function loadAssetReliability(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+): Promise<AnalyticsAssetReliability> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+  });
+
+  applyDimensionFilters(query, filters);
+
+  return andonBiApiClient.get<AnalyticsAssetReliability>(
+    `/api/analytics/reliability?${query.toString()}`,
   );
 }
