@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
+import { buildAssetReliability } from "../analytics/reliability.js";
 import {
   buildExecutiveHighlights,
   buildExecutiveOverview,
@@ -339,6 +340,258 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           start: period.start,
           effectiveEnd,
         }),
+      };
+    },
+  );
+
+  app.get<{ Querystring: AnalyticsOverviewQuery }>(
+    "/api/analytics/reliability",
+    async (request, reply) => {
+      const period = parseAnalyticsPeriod(request.query);
+
+      if (!period) {
+        return badRequest(
+          reply,
+          "startDate e endDate são obrigatórios, devem incluir fuso horário e startDate deve ser anterior a endDate",
+        );
+      }
+
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
+      const filters: AnalyticsOverviewFilters = {
+        machineId: optionalQueryString(request.query.machineId),
+        subtype: optionalQueryString(request.query.subtype),
+        classification: optionalQueryString(request.query.classification),
+      };
+
+      const machineWhere: Prisma.MachineWhereInput = filters.machineId
+        ? { id: filters.machineId }
+        : { isActive: true, createdAt: { lt: effectiveEnd } };
+
+      const callScopeWhere: Prisma.AndonCallWhereInput = {
+        isSystemTest: false,
+        ...(filters.machineId ? { machineId: filters.machineId } : {}),
+        ...(filters.subtype ? { subtype: filters.subtype } : {}),
+      };
+
+      const [
+        machines,
+        calls,
+        rawFailureEvents,
+        activeCalls,
+        activeSessions,
+        healthOpenFailureEvents,
+        finishedCallsMissingClassification,
+      ] = await Promise.all([
+        prisma.machine.findMany({
+          where: machineWhere,
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+            createdAt: true,
+          },
+        }),
+        prisma.andonCall.findMany({
+          where: {
+            ...callScopeWhere,
+            ...(filters.classification
+              ? { failureClassification: filters.classification }
+              : {}),
+            OR: [
+              { openedAt: { gte: period.start, lt: effectiveEnd } },
+              { finishedAt: { gte: period.start, lt: effectiveEnd } },
+            ],
+          },
+          select: {
+            id: true,
+            machineId: true,
+            status: true,
+            openedAt: true,
+            finishedAt: true,
+            failureClassification: true,
+            maintenanceReturnCount: true,
+          },
+        }),
+        effectiveEnd.getTime() > period.start.getTime()
+          ? prisma.failureEvent.findMany({
+              where: {
+                ...(filters.machineId ? { machineId: filters.machineId } : {}),
+                ...(filters.classification
+                  ? { classification: filters.classification }
+                  : {}),
+                startedAt: { lt: effectiveEnd },
+                OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
+              },
+              select: {
+                id: true,
+                machineId: true,
+                startedAt: true,
+                endedAt: true,
+                classification: true,
+                callId: true,
+                call: {
+                  select: {
+                    isSystemTest: true,
+                    subtype: true,
+                  },
+                },
+              },
+            })
+          : Promise.resolve([]),
+        prisma.andonCall.findMany({
+          where: {
+            ...callScopeWhere,
+            status: { in: ACTIVE_CALL_STATUSES },
+          },
+          select: {
+            id: true,
+            machineId: true,
+            status: true,
+            openedAt: true,
+            finishedAt: true,
+            failureClassification: true,
+            maintenanceReturnCount: true,
+          },
+        }),
+        prisma.technicianSession.findMany({
+          where: {
+            endedAt: null,
+            ...(filters.machineId ? { machineId: filters.machineId } : {}),
+            call: {
+              isSystemTest: false,
+              ...(filters.subtype ? { subtype: filters.subtype } : {}),
+            },
+          },
+          select: {
+            id: true,
+            machineId: true,
+            startedAt: true,
+          },
+        }),
+        prisma.failureEvent.findMany({
+          where: {
+            endedAt: null,
+            ...(filters.machineId ? { machineId: filters.machineId } : {}),
+          },
+          select: {
+            id: true,
+            machineId: true,
+            startedAt: true,
+            endedAt: true,
+            classification: true,
+            callId: true,
+            call: {
+              select: {
+                isSystemTest: true,
+                subtype: true,
+              },
+            },
+          },
+        }),
+        prisma.andonCall.count({
+          where: {
+            ...callScopeWhere,
+            status: "finished",
+            finishedAt: { gte: period.start, lt: effectiveEnd },
+            failureClassification: null,
+          },
+        }),
+      ]);
+
+      const failureEvents = rawFailureEvents
+        .filter((event) => event.call?.isSystemTest !== true)
+        .filter(
+          (event) =>
+            !filters.subtype ||
+            (event.call !== null && event.call.subtype === filters.subtype),
+        )
+        .map((event) => ({
+          id: event.id,
+          machineId: event.machineId,
+          startedAt: event.startedAt,
+          endedAt: event.endedAt,
+          classification: event.classification,
+          callId: event.callId,
+        }));
+
+      const healthOpenEvents = healthOpenFailureEvents
+        .filter((event) => event.call?.isSystemTest !== true)
+        .filter(
+          (event) =>
+            !filters.subtype ||
+            (event.call !== null && event.call.subtype === filters.subtype),
+        );
+
+      const result = buildAssetReliability({
+        machines,
+        failureEvents,
+        calls,
+        activeCalls,
+        activeSessions,
+        start: period.start,
+        effectiveEnd,
+      });
+
+      const ageMinutes = (value: Date) =>
+        Math.max(
+          0,
+          Math.round(
+            ((generatedAt.getTime() - value.getTime()) / 60_000) * 100,
+          ) / 100,
+        );
+      const activeCallAges = activeCalls.map((call) => ageMinutes(call.openedAt));
+      const activeSessionAges = activeSessions.map((session) =>
+        ageMinutes(session.startedAt),
+      );
+      const openFailureAges = healthOpenEvents.map((event) =>
+        ageMinutes(event.startedAt),
+      );
+
+      return {
+        meta: {
+          generatedAt: generatedAt.toISOString(),
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+          period: {
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            effectiveEnd: effectiveEnd.toISOString(),
+          },
+          filters,
+          semantics: {
+            badActors:
+              "ativos ordenados por downtime físico unido; não há score oculto ou ponderação subjetiva",
+            repeatDiagnosis:
+              "repetições adicionais da mesma classificação em chamados concluídos da mesma máquina no período; não equivale a causa raiz",
+            dataHealth:
+              "snapshot operacional atual; respeita máquina/setor e não aplica classificação a registros ainda ativos",
+          },
+        },
+        assets: result.assets,
+        dataHealth: {
+          ...result.dataHealth,
+          activeCallsOver24h: activeCallAges.filter(
+            (minutes) => minutes >= 24 * 60,
+          ).length,
+          oldestActiveCallMinutes:
+            activeCallAges.length ? Math.max(...activeCallAges) : 0,
+          openFailureEvents: openFailureAges.length,
+          openFailureEventsOver24h: openFailureAges.filter(
+            (minutes) => minutes >= 24 * 60,
+          ).length,
+          oldestOpenFailureMinutes:
+            openFailureAges.length ? Math.max(...openFailureAges) : 0,
+          activeSessionsOver24h: activeSessionAges.filter(
+            (minutes) => minutes >= 24 * 60,
+          ).length,
+          oldestActiveSessionMinutes:
+            activeSessionAges.length ? Math.max(...activeSessionAges) : 0,
+          finishedCallsMissingClassification,
+          standaloneFailureEvents: failureEvents.filter(
+            (event) => !event.callId,
+          ).length,
+        },
       };
     },
   );
