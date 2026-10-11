@@ -14,15 +14,18 @@ test("cliente do ANDON BI permanece read-only e nao gera identidade de workstati
 });
 
 test("dashboard executivo usa Analytics API real e nao placeholders", async () => {
-  const page = await readFile(
-    new URL("../src/pages/AndonBiPage.tsx", import.meta.url),
-    "utf8",
-  );
+  const [page, overview] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
   assert.match(page, /loadExecutiveOverview/);
-  assert.match(page, /Pareto de máquinas/);
-  assert.match(page, /Downtime acumulado/);
-  assert.match(page, /MTTA/);
+  assert.match(overview, /Pareto de máquinas/);
+  assert.match(overview, /Downtime acumulado/);
+  assert.match(overview, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
 });
 
@@ -38,32 +41,40 @@ test("servico BI usa relogio autoritativo do servidor para definir o periodo", a
 
 
 test("dashboard BI oferece resumo executivo, downtime temporal e drill-down read-only", async () => {
-  const [page, service, summary, drilldown] = await Promise.all([
+  const [page, overview, service, summary, drilldown] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /BiExecutiveSummary/);
-  assert.match(page, /BiDowntimeTrendCard/);
+  assert.match(overview, /BiExecutiveSummary/);
+  assert.match(overview, /BiDowntimeTrendCard/);
   assert.match(page, /BiAnalyticsDrillDown/);
   assert.match(service, /\/api\/analytics\/drilldown/);
   assert.match(summary, /período anterior equivalente/);
   assert.match(drilldown, /Registros analíticos que sustentam o ponto selecionado/);
+  assert.match(drilldown, /PAGE_SIZE = 7/);
 });
 
 
-test("dashboard BI formaliza MTTR, MTBF estimado e semântica visual ANDON", async () => {
-  const [page, card, reliability, summary] = await Promise.all([
-    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () => {
+  const [overview, card, reliability, summary] = await Promise.all([
+    readFile(
+      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/components/bi/BiKpiCard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiReliabilityStrip.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /MTTR operacional/);
-  assert.match(page, /Downtime acumulado/);
+  assert.match(overview, /Tempo efetivo manutenção/);
+  assert.match(overview, /Downtime acumulado/);
   assert.match(reliability, /MTBF estimado/);
   assert.match(reliability, /Downtime \/ episódio/);
   assert.match(card, /Baixa amostra/);
@@ -97,23 +108,49 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
 });
 
 
-test("BI-MVP-6 adiciona bad actors, reincidência e saúde do dado sem score oculto", async () => {
-  const [page, service, component, route, analytics] = await Promise.all([
+test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () => {
+  const [page, service, badActors, dataHealth, route, analytics] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/components/bi/BiAssetReliability.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiBadActorsPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiDataHealthPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
     readFile(new URL("../server/src/analytics/reliability.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /BiAssetReliability/);
+  assert.match(page, /BiBadActorsPanel/);
+  assert.match(page, /BiDataHealthPanel/);
   assert.match(service, /\/api\/analytics\/reliability/);
-  assert.match(component, /Ativos prioritários · Bad Actors/);
-  assert.match(component, /Saúde do dado operacional/);
-  assert.match(component, /Diag\. repetido/);
-  assert.match(component, /Chamados ativos > 24h/);
+  assert.match(badActors, /Ativos prioritários · Bad Actors/);
+  assert.match(badActors, /Diag\. repetido/);
+  assert.match(dataHealth, /Saúde do dado operacional/);
+  assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
   assert.match(route, /não há score oculto/);
   assert.match(analytics, /countRepeatDiagnoses/);
   assert.match(analytics, /mergeIntervals/);
+});
+
+
+test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", async () => {
+  const [page, tabs, drilldown] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiWorkspaceTabs.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /h-dvh overflow-hidden/);
+  assert.match(page, /min-h-0 flex-1 overflow-hidden/);
+  assert.match(page, /activeTab === "overview"/);
+  assert.match(page, /activeTab === "reliability"/);
+  assert.match(page, /activeTab === "failures"/);
+  assert.match(page, /activeTab === "maintenance"/);
+  assert.match(page, /activeTab === "data-quality"/);
+  assert.match(page, /fixed inset-0 z-50/);
+  assert.match(tabs, /Visão Geral/);
+  assert.match(tabs, /Confiabilidade/);
+  assert.match(tabs, /Falhas/);
+  assert.match(tabs, /Manutenção/);
+  assert.match(tabs, /Qualidade do Dado/);
+  assert.match(drilldown, /página/);
 });

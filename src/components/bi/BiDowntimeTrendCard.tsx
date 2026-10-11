@@ -30,14 +30,14 @@ export function BiDowntimeTrendCard({
   data: Array<{ date: string; downtimeMinutes: number }>;
 }) {
   return (
-    <article className="min-h-80 rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-5 shadow-sm">
-      <h2 className="text-sm font-black uppercase tracking-wide">Evolução do downtime</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
+    <article className="flex h-full min-h-0 flex-col rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-4 shadow-sm">
+      <h2 className="text-xs font-black uppercase tracking-wide">Evolução do downtime</h2>
+      <p className="mt-1 text-[10px] text-muted-foreground">
         Parada física acumulada por dia operacional, sem dupla contagem por máquina
       </p>
 
       {data.length ? (
-        <div className="mt-5 h-60 w-full">
+        <div className="mt-2 min-h-0 flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -75,7 +75,7 @@ export function BiDowntimeTrendCard({
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="mt-5 flex h-60 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+        <div className="mt-2 flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
           Sem downtime no período
         </div>
       )}
