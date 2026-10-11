@@ -25,15 +25,18 @@ import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
+import { BiMaintenanceParticipation } from "@/components/bi/BiMaintenanceParticipation";
 import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
 import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
   loadExecutiveOverview,
+  loadMaintenanceParticipation,
 } from "@/services/andonBiService";
 import type {
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
+  AnalyticsMaintenanceParticipation,
   AnalyticsOverview,
   AndonBiFilterOptions,
   AndonBiFilters,
@@ -84,7 +87,11 @@ export function AndonBiPage() {
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
   const [options, setOptions] = useState<AndonBiFilterOptions>(EMPTY_OPTIONS);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [maintenance, setMaintenance] =
+    useState<AnalyticsMaintenanceParticipation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -120,10 +127,33 @@ export function AndonBiPage() {
     let active = true;
     setLoading(true);
     setError(null);
+    setMaintenance(null);
+    setMaintenanceError(null);
 
     void loadExecutiveOverview(filters)
-      .then((result) => {
-        if (active) setOverview(result);
+      .then(async (result) => {
+        if (!active) return;
+
+        setOverview(result);
+        setMaintenanceLoading(true);
+
+        try {
+          const maintenanceResult = await loadMaintenanceParticipation(
+            filters,
+            result.meta.period,
+          );
+          if (active) setMaintenance(maintenanceResult);
+        } catch (maintenanceLoadError) {
+          if (active) {
+            setMaintenanceError(
+              maintenanceLoadError instanceof Error
+                ? maintenanceLoadError.message
+                : "Falha ao carregar participação técnica.",
+            );
+          }
+        } finally {
+          if (active) setMaintenanceLoading(false);
+        }
       })
       .catch((loadError) => {
         if (active) {
@@ -432,6 +462,15 @@ export function AndonBiPage() {
             overview={overview}
             classificationLabels={classificationLabels}
             sectorLabels={sectorLabels}
+          />
+        )}
+
+        {overview && (
+          <BiMaintenanceParticipation
+            data={maintenance}
+            loading={maintenanceLoading}
+            error={maintenanceError}
+            areaLabels={sectorLabels}
           />
         )}
 
