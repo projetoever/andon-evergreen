@@ -1,13 +1,47 @@
-import { Activity, CircleDot, Users, Wrench } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  CircleDot,
+  Users,
+  Wrench,
+} from "lucide-react";
 
 import type { AnalyticsMaintenanceParticipation } from "@/types/analytics";
 
 function formatMinutes(value: number) {
   if (!Number.isFinite(value)) return "—";
-  if (value < 60) return `${Math.round(value)} min`;
-  const hours = Math.floor(value / 60);
-  const minutes = Math.round(value % 60);
+  const rounded = Math.round(value);
+  if (rounded < 60) return `${rounded} min`;
+  const hours = Math.floor(rounded / 60);
+  const minutes = rounded % 60;
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+/**
+ * The BI page has no document scroll. Measure only the available list viewport,
+ * then paginate rather than clipping technician and technical-area records.
+ */
+function useVisibleRows(rowHeight: number) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [visibleRows, setVisibleRows] = useState(3);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const measure = () =>
+      setVisibleRows(Math.max(1, Math.floor(viewport.clientHeight / rowHeight)));
+
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [rowHeight]);
+
+  return { viewportRef, visibleRows };
 }
 
 function SplitBar({
@@ -22,13 +56,58 @@ function SplitBar({
   const followUpShare = total > 0 ? (followUpMinutes / total) * 100 : 0;
 
   return (
-    <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
+    <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
       {maintenanceShare > 0 && (
         <div className="bg-sky-400" style={{ width: `${maintenanceShare}%` }} />
       )}
       {followUpShare > 0 && (
         <div className="bg-emerald-400" style={{ width: `${followUpShare}%` }} />
       )}
+    </div>
+  );
+}
+
+function PageControls({
+  page,
+  totalPages,
+  shown,
+  total,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  shown: number;
+  total: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[10px] text-muted-foreground">
+      <span className="tabular-nums">
+        {total === 0 ? "0 registros" : `${page * shown + 1}–${Math.min((page + 1) * shown, total)} de ${total}`}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          aria-label="Página anterior"
+          disabled={page === 0}
+          onClick={() => onChange(Math.max(0, page - 1))}
+          className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span className="min-w-9 text-center tabular-nums">
+          {page + 1}/{totalPages}
+        </span>
+        <button
+          type="button"
+          aria-label="Próxima página"
+          disabled={page >= totalPages - 1}
+          onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
+          className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -44,17 +123,30 @@ export function BiMaintenanceParticipation({
   error: string | null;
   areaLabels: Map<string, string>;
 }) {
+  // Keep hooks unconditional, including while analytics are loading.
+  const { viewportRef: technicianViewport, visibleRows: technicianRows } =
+    useVisibleRows(62);
+  const { viewportRef: areaViewport, visibleRows: areaRows } =
+    useVisibleRows(63);
+  const [technicianPage, setTechnicianPage] = useState(0);
+  const [areaPage, setAreaPage] = useState(0);
+
+  useEffect(() => {
+    setTechnicianPage(0);
+    setAreaPage(0);
+  }, [data]);
+
   if (loading && !data) {
     return (
-      <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="h-36 animate-pulse rounded-lg bg-muted/40" />
+      <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div className="h-full animate-pulse rounded-lg bg-muted/40" />
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="h-full rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-4 text-sm text-amber-200">
+      <section className="h-full rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-3 text-sm text-amber-200">
         Participação técnica indisponível: {error}
       </section>
     );
@@ -63,120 +155,135 @@ export function BiMaintenanceParticipation({
   if (!data) return null;
 
   const maxMinutes = data.technicians[0]?.totalPersonMinutes || 1;
+  const technicianPages = Math.max(1, Math.ceil(data.technicians.length / technicianRows));
+  const areaPages = Math.max(1, Math.ceil(data.technicalAreas.length / areaRows));
+  const safeTechnicianPage = Math.min(technicianPage, technicianPages - 1);
+  const safeAreaPage = Math.min(areaPage, areaPages - 1);
+  const technicians = data.technicians.slice(
+    safeTechnicianPage * technicianRows,
+    (safeTechnicianPage + 1) * technicianRows,
+  );
+  const areas = data.technicalAreas.slice(
+    safeAreaPage * areaRows,
+    (safeAreaPage + 1) * areaRows,
+  );
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
-        <div>
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3 shadow-sm">
+      <header className="flex shrink-0 items-center justify-between gap-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-sky-400" />
             <h2 className="text-sm font-black uppercase tracking-wide">
               Participação técnica
             </h2>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pessoa-minutos registrados por mantenedor. Volume de participação, não ranking de desempenho.
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Pessoa-minutos registrados por mantenedor. Participação, não ranking de desempenho.
           </p>
         </div>
-        <div className="flex gap-4 text-[11px] font-semibold text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
+        <div className="flex shrink-0 gap-3 text-[10px] font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-sky-400" /> Manutenção
           </span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-emerald-400" /> Acompanhamento
           </span>
         </div>
-      </div>
+      </header>
 
-      <div className="mt-3 grid shrink-0 grid-cols-4 gap-2">
-        <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] p-3">
+      <div className="mt-2 grid shrink-0 grid-cols-4 gap-2">
+        <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
-            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
               Esforço manutenção
             </span>
-            <Wrench className="h-4 w-4" />
+            <Wrench className="h-3.5 w-3.5" />
           </div>
-          <div className="mt-2 text-xl font-black tabular-nums">
+          <div className="mt-1 text-xl font-black tabular-nums">
             {formatMinutes(data.totals.maintenancePersonMinutes)}
           </div>
         </div>
 
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] p-3">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-emerald-300">
-            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
               Acompanhamento
             </span>
-            <Activity className="h-4 w-4" />
+            <Activity className="h-3.5 w-3.5" />
           </div>
-          <div className="mt-2 text-xl font-black tabular-nums">
+          <div className="mt-1 text-xl font-black tabular-nums">
             {formatMinutes(data.totals.followUpPersonMinutes)}
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-background/30 p-3">
+        <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
-            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
               Mantenedores
             </span>
-            <Users className="h-4 w-4" />
+            <Users className="h-3.5 w-3.5" />
           </div>
-          <div className="mt-2 text-xl font-black tabular-nums">
+          <div className="mt-1 text-xl font-black tabular-nums">
             {data.totals.technicianCount}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[9px] text-muted-foreground">
             {data.totals.callCount} chamado(s) com fase explícita
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-background/30 p-3">
+        <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-amber-300">
-            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
               Sessões ativas
             </span>
-            <CircleDot className="h-4 w-4" />
+            <CircleDot className="h-3.5 w-3.5" />
           </div>
-          <div className="mt-2 text-xl font-black tabular-nums">
+          <div className="mt-1 text-xl font-black tabular-nums">
             {data.totals.activeSessionCount}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[9px] text-muted-foreground">
             {data.totals.returnCycleSessions} sessão(ões) em ciclo de retorno
           </p>
         </div>
       </div>
 
-      <div className="mt-3 grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
-        <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-background/25 p-3">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="mt-2 grid min-h-0 flex-1 gap-2 md:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.65fr)]">
+        <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background/25 p-3">
+          <div className="flex shrink-0 items-center justify-between gap-3">
             <h3 className="text-xs font-black uppercase tracking-wide">
               Distribuição por mantenedor
             </h3>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Top 6 por pessoa-minutos
+            <span className="text-[10px] text-muted-foreground">
+              Ordenado por pessoa-minutos
             </span>
           </div>
 
-          {data.technicians.length ? (
-            <div className="space-y-3">
-              {data.technicians.slice(0, 6).map((technician) => (
+          <div ref={technicianViewport} className="mt-1 min-h-0 flex-1 overflow-hidden">
+            {technicians.length ? (
+              technicians.map((technician) => (
                 <div
                   key={technician.technicianId ?? `legacy-${technician.technicianName}`}
-                  className="grid gap-2"
+                  className="flex h-[62px] flex-col justify-center gap-1 border-b border-border/50 py-1 last:border-b-0"
                 >
-                  <div className="flex items-center justify-between gap-3 text-xs">
-                    <div className="min-w-0">
+                  <div className="flex min-w-0 items-center justify-between gap-3 text-[11px]">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-bold">{technician.technicianName}</span>
                       {technician.activePhase && (
-                        <span className="ml-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-300">
-                          {technician.activePhase === "maintenance" ? "em manutenção" : "em acompanhamento"}
+                        <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">
+                          {technician.activePhase === "maintenance"
+                            ? "em manutenção"
+                            : "em acompanhamento"}
                         </span>
                       )}
                     </div>
-                    <span className="font-black tabular-nums">
+                    <span className="shrink-0 font-black tabular-nums">
                       {formatMinutes(technician.totalPersonMinutes)}
                     </span>
                   </div>
 
                   <div
+                    className="max-w-full"
                     style={{
                       width: `${Math.max(
                         12,
@@ -189,67 +296,95 @@ export function BiMaintenanceParticipation({
                       followUpMinutes={technician.followUpMinutes}
                     />
                   </div>
-
-                  <div className="flex flex-wrap gap-x-3 text-[10px] text-muted-foreground">
-                    <span>{technician.callCount} chamado(s)</span>
-                    <span>{formatMinutes(technician.maintenanceMinutes)} manutenção</span>
-                    <span>{formatMinutes(technician.followUpMinutes)} acompanhamento</span>
+                  <div className="truncate text-[10px] text-muted-foreground">
+                    {technician.callCount} chamado(s) ·{" "}
+                    {formatMinutes(technician.maintenanceMinutes)} manutenção ·{" "}
+                    {formatMinutes(technician.followUpMinutes)} acompanhamento
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Sem sessões com fase explícita no período
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                Sem sessões com fase explícita no período
+              </div>
+            )}
+          </div>
+          <PageControls
+            page={safeTechnicianPage}
+            totalPages={technicianPages}
+            shown={technicianRows}
+            total={data.technicians.length}
+            onChange={setTechnicianPage}
+          />
         </div>
 
-        <div className="grid min-h-0 gap-3">
-          <div className="rounded-lg border border-border bg-background/25 p-4">
-            <h3 className="text-xs font-black uppercase tracking-wide">Áreas técnicas</h3>
-            <div className="mt-3 space-y-3">
-              {data.technicalAreas.slice(0, 6).map((area) => (
-                <div key={area.technicalArea ?? "unclassified"} className="rounded-md border border-border bg-card/40 p-3">
-                  <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="font-bold">
-                      {area.technicalArea
-                        ? areaLabels.get(area.technicalArea) ?? area.technicalArea
-                        : "Sem área registrada"}
-                    </span>
-                    <span className="font-black tabular-nums">
-                      {formatMinutes(area.totalPersonMinutes)}
-                    </span>
-                  </div>
-                  <div className="mt-2">
+        <div className="flex min-h-0 flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-background/25 p-3">
+            <h3 className="shrink-0 text-xs font-black uppercase tracking-wide">
+              Áreas técnicas
+            </h3>
+            <div ref={areaViewport} className="mt-1 min-h-0 flex-1 overflow-hidden">
+              {areas.length ? (
+                areas.map((area) => (
+                  <div
+                    key={area.technicalArea ?? "unclassified"}
+                    className="flex h-[63px] flex-col justify-center gap-1 border-b border-border/50 py-1 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="truncate font-bold">
+                        {area.technicalArea
+                          ? areaLabels.get(area.technicalArea) ?? area.technicalArea
+                          : "Sem área registrada"}
+                      </span>
+                      <span className="shrink-0 font-black tabular-nums">
+                        {formatMinutes(area.totalPersonMinutes)}
+                      </span>
+                    </div>
                     <SplitBar
                       maintenanceMinutes={area.maintenanceMinutes}
                       followUpMinutes={area.followUpMinutes}
                     />
+                    <p className="truncate text-[9px] text-muted-foreground">
+                      {area.technicianCount} mantenedor(es) · {area.sessionCount} sessão(ões)
+                    </p>
                   </div>
-                  <p className="mt-2 text-[10px] text-muted-foreground">
-                    {area.technicianCount} mantenedor(es) · {area.sessionCount} sessão(ões)
-                  </p>
+                ))
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                  Sem áreas técnicas com fase explícita
                 </div>
-              ))}
+              )}
             </div>
+            <PageControls
+              page={safeAreaPage}
+              totalPages={areaPages}
+              shown={areaRows}
+              total={data.technicalAreas.length}
+              onChange={setAreaPage}
+            />
           </div>
 
-          <div className={
-            data.coverage.legacySessions > 0
-              ? "rounded-lg border border-amber-500/30 bg-amber-500/[0.05] p-4"
-              : "rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] p-4"
-          }>
-            <h3 className="text-xs font-black uppercase tracking-wide">Cobertura de fases</h3>
-            <div className="mt-2 text-2xl font-black tabular-nums">
-              {data.coverage.phaseAwareSessionPercent === null
-                ? "—"
-                : `${data.coverage.phaseAwareSessionPercent}%`}
+          <div
+            className={
+              data.coverage.legacySessions > 0
+                ? "shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/[0.05] px-3 py-2"
+                : "shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] px-3 py-2"
+            }
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-[10px] font-black uppercase tracking-wide">
+                Cobertura de fases
+              </h3>
+              <span className="text-xl font-black tabular-nums">
+                {data.coverage.phaseAwareSessionPercent === null
+                  ? "—"
+                  : `${data.coverage.phaseAwareSessionPercent}%`}
+              </span>
             </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) possuem fase explícita.
+            <p className="text-[10px] leading-4 text-muted-foreground">
+              {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) com fase explícita.
               {data.coverage.legacySessions > 0 &&
-                ` ${data.coverage.legacySessions} sessão(ões) legada(s), equivalentes a ${formatMinutes(data.coverage.legacyMinutes)}, permanecem sem classificação de fase.`}
+                ` ${data.coverage.legacySessions} legada(s) · ${formatMinutes(data.coverage.legacyMinutes)} sem fase.`}
             </p>
           </div>
         </div>
