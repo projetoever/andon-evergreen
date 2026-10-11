@@ -162,7 +162,7 @@ export function BiFailureIntelligencePanel({
       <div className="grid shrink-0 grid-cols-4 gap-3">
         <Stat title="Repetições até 24h" value={String(numbers.repeated24h)} detail="Mesmo ativo e diagnóstico" color="red" />
         <Stat title="Repetições até 7 dias" value={String(numbers.repeated7d)} detail="Janela cumulativa" color="amber" />
-        <Stat title="Repetições até 30 dias" value={String(numbers.repeated30d)} detail={`${numbers.repeatRate30dPercent ?? "—"}% dos concluídos diagnosticados`} color="blue" />
+        <Stat title="Repetições até 30 dias" value={String(numbers.repeated30d)} detail={`${numbers.repeatRate30dPercent === null ? "—" : `${numbers.repeatRate30dPercent}%`} dos concluídos diagnosticados`} color="blue" />
         <Stat title="Retornos à manutenção" value={String(numbers.maintenanceReturnCycles)} detail={`${numbers.diagnosedFinishedCalls} chamado(s) classificado(s) · métrica separada`} color="green" />
       </div>
 
@@ -282,13 +282,14 @@ export function BiFailureIntelligencePanel({
 
           {selected && (
             <div className="shrink-0 border-t border-border pt-1 text-[9px] text-muted-foreground">
-              Conjunto/subconjunto do snapshot histórico · {data.coverage.withSetSnapshotPercent ?? "—"}% da amostra com conjunto identificado
+              Conjunto/subconjunto do snapshot histórico · {data.coverage.withSetSnapshotPercent === null ? "—" : `${data.coverage.withSetSnapshotPercent}%`} com conjunto identificado
+              {selected.totalCases > cases.length ? ` · exibindo últimas ${cases.length} de ${selected.totalCases} ocorrências` : ""}
             </div>
           )}
           <Pager
             page={safeCasePage}
             pages={totalCasePages}
-            total={selected?.totalCases ?? 0}
+            total={cases.length}
             onChange={setCasePage}
           />
         </section>
