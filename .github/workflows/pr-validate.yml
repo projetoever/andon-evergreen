@@ -74,6 +74,7 @@ jobs:
         run: |
           npm run build --prefix server
           npm run test:auth --prefix server
+          npm run test:analytics --prefix server
           npm run test:dashboard --prefix server
           npm run test:impact --prefix server
           npm run test:ui --prefix server
