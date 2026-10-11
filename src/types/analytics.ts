@@ -259,3 +259,61 @@ export type AnalyticsMaintenanceParticipation = {
     phaseAwareMinutePercent: number | null;
   };
 };
+
+
+export type AnalyticsAssetReliability = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: {
+      start: string;
+      end: string;
+      effectiveEnd: string;
+    };
+    filters: {
+      machineId?: string;
+      subtype?: string;
+      classification?: string;
+    };
+    semantics: {
+      badActors: string;
+      repeatDiagnosis: string;
+      dataHealth: string;
+    };
+  };
+  assets: Array<{
+    machineId: string;
+    machineName: string;
+    isActive: boolean;
+    downtimeMinutes: number;
+    physicalStopEpisodes: number;
+    mtbfEstimatedMinutes: number | null;
+    avgDowntimePerEpisodeMinutes: number | null;
+    callsOpened: number;
+    callsFinished: number;
+    maintenanceReturnCycles: number;
+    repeatDiagnosisCount: number;
+    topDiagnosis: {
+      classification: string;
+      count: number;
+    } | null;
+    activeCallCount: number | null;
+    oldestActiveCallMinutes: number | null;
+    openFailureEventCount: number;
+    oldestOpenFailureMinutes: number | null;
+    activeTechnicianSessionCount: number | null;
+    oldestActiveTechnicianSessionMinutes: number | null;
+  }>;
+  dataHealth: {
+    activeCallsOver24h: number | null;
+    oldestActiveCallMinutes: number | null;
+    openFailureEvents: number;
+    openFailureEventsOver24h: number;
+    oldestOpenFailureMinutes: number;
+    activeSessionsOver24h: number | null;
+    oldestActiveSessionMinutes: number | null;
+    finishedCallsMissingClassification: number;
+    finishedCalls: number;
+    standaloneFailureEvents: number;
+  };
+};
