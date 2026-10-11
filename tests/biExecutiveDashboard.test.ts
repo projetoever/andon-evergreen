@@ -190,3 +190,29 @@ test("BI-UX-1.1 fecha modal com Esc e usa linhas de altura natural", async () =>
   assert.doesNotMatch(detail, /<table className="h-full/);
   assert.doesNotMatch(badActors, /<table className="h-full/);
 });
+
+
+test("BI-MVP-7 mantém Pareto e acrescenta reincidência com linha do tempo read-only", async () => {
+  const [page, workspace, panel, service, route] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiFailureWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiFailureIntelligencePanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /loadFailureIntelligence/);
+  assert.match(workspace, /Reincidências/);
+  assert.match(workspace, /Classificações e setores/);
+  assert.match(workspace, /BiFailureIntelligencePanel/);
+  assert.match(panel, /Repetições até 24h/);
+  assert.match(panel, /Repetições até 7 dias/);
+  assert.match(panel, /Repetições até 30 dias/);
+  assert.match(panel, /Histórico \/ linha do tempo/);
+  assert.match(panel, /ResizeObserver/);
+  assert.match(panel, /Página anterior/);
+  assert.match(service, /\/api\/analytics\/failure-intelligence/);
+  assert.match(route, /buildFailureIntelligence/);
+  assert.match(route, /isSystemTest: false/);
+  assert.match(route, /status: "finished"/);
+});
