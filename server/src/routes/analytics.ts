@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
+import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import {
   buildExecutiveHighlights,
   buildExecutiveOverview,
@@ -259,6 +260,85 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           ...buildOverviewComparison(currentOverview, previousOverview),
         },
         highlights: buildExecutiveHighlights(currentOverview),
+      };
+    },
+  );
+
+  app.get<{ Querystring: AnalyticsOverviewQuery }>(
+    "/api/analytics/maintenance",
+    async (request, reply) => {
+      const period = parseAnalyticsPeriod(request.query);
+
+      if (!period) {
+        return badRequest(
+          reply,
+          "startDate e endDate são obrigatórios, devem incluir fuso horário e startDate deve ser anterior a endDate",
+        );
+      }
+
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
+      const filters: AnalyticsOverviewFilters = {
+        machineId: optionalQueryString(request.query.machineId),
+        subtype: optionalQueryString(request.query.subtype),
+        classification: optionalQueryString(request.query.classification),
+      };
+
+      const sessions =
+        effectiveEnd.getTime() > period.start.getTime()
+          ? await prisma.technicianSession.findMany({
+              where: {
+                ...(filters.machineId ? { machineId: filters.machineId } : {}),
+                startedAt: { lt: effectiveEnd },
+                OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
+                call: {
+                  isSystemTest: false,
+                  ...(filters.subtype ? { subtype: filters.subtype } : {}),
+                  ...(filters.classification
+                    ? { failureClassification: filters.classification }
+                    : {}),
+                },
+              },
+              select: {
+                id: true,
+                callId: true,
+                machineId: true,
+                technicianId: true,
+                technicianName: true,
+                technicalArea: true,
+                phase: true,
+                cycleIndex: true,
+                startedAt: true,
+                endedAt: true,
+              },
+            })
+          : [];
+
+      return {
+        meta: {
+          generatedAt: generatedAt.toISOString(),
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+          period: {
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            effectiveEnd: effectiveEnd.toISOString(),
+          },
+          filters,
+          semantics: {
+            personMinutes:
+              "soma do tempo individual das sessões; múltiplos mantenedores simultâneos somam pessoa-minutos e não tempo de máquina",
+            phases:
+              "somente sessões com phase maintenance/follow_up são atribuídas às fases; legado sem phase permanece não classificado",
+            interpretation:
+              "distribuição de participação técnica; não representa ranking de desempenho nem capacidade de equipe",
+          },
+        },
+        ...buildMaintenanceParticipation({
+          sessions,
+          start: period.start,
+          effectiveEnd,
+        }),
       };
     },
   );

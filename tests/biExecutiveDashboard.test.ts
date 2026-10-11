@@ -72,3 +72,26 @@ test("dashboard BI formaliza MTTR, MTBF estimado e semântica visual ANDON", asy
   assert.match(card, /border-emerald-500/);
   assert.match(summary, /amostra baixa/i);
 });
+
+
+test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", async () => {
+  const [page, service, component, route] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/bi/BiMaintenanceParticipation.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /BiMaintenanceParticipation/);
+  assert.match(service, /\/api\/analytics\/maintenance/);
+  assert.match(component, /Pessoa-minutos/);
+  assert.match(component, /não ranking de desempenho/);
+  assert.match(component, /Cobertura de fases/);
+  assert.match(component, /sessão\(ões\) legada\(s\)/);
+  assert.match(route, /technicianSession\.findMany/);
+  assert.match(route, /isSystemTest: false/);
+  assert.match(route, /phase maintenance\/follow_up/);
+});
