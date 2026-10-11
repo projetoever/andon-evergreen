@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as BiRouteImport } from './routes/bi'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MachinePrioritiesRouteImport } from './routes/machine-priorities'
 import { Route as HistoryRouteImport } from './routes/history'
@@ -18,6 +19,11 @@ import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machin
 import { Route as MachinesMachineIdFailureHistoryRouteImport } from './routes/machines.$machineId_.failure-history'
 import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
 
+const BiRoute = BiRouteImport.update({
+  id: '/bi',
+  path: '/bi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -63,6 +69,7 @@ const MachinesMachineIdCallHistoryRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
@@ -84,6 +92,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
   '/active-calls': typeof ActiveCallsRoute
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bi'
     | '/active-calls'
     | '/history'
     | '/machine-priorities'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bi'
     | '/active-calls'
     | '/history'
     | '/machine-priorities'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/bi'
     | '/active-calls'
     | '/history'
     | '/machine-priorities'
@@ -127,6 +139,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BiRoute: typeof BiRoute
   ActiveCallsRoute: typeof ActiveCallsRoute
   HistoryRoute: typeof HistoryRoute
   MachinePrioritiesRoute: typeof MachinePrioritiesRoute
@@ -138,6 +151,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/bi': {
+      id: '/bi'
+      path: '/bi'
+      fullPath: '/bi'
+      preLoaderRoute: typeof BiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -199,6 +219,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BiRoute: BiRoute,
   ActiveCallsRoute: ActiveCallsRoute,
   HistoryRoute: HistoryRoute,
   MachinePrioritiesRoute: MachinePrioritiesRoute,

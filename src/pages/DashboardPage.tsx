@@ -6,7 +6,7 @@ import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
-import { ListOrdered, Volume2, VolumeX, Settings } from "lucide-react";
+import { BarChart3, ListOrdered, Volume2, VolumeX, Settings } from "lucide-react";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
@@ -405,6 +405,16 @@ export function DashboardPage() {
               {dashboardSoundMuted ? "Som silenciado" : "Silenciar som"}
             </button>
           )}
+
+          <button
+            type="button"
+            title="Abrir ANDON BI"
+            aria-label="Abrir ANDON BI"
+            onClick={() => void navigate({ to: "/bi" })}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
+          >
+            <BarChart3 className="h-4 w-4" />
+          </button>
 
           <button
             type="button"
