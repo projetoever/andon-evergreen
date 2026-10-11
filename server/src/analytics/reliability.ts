@@ -205,8 +205,17 @@ export function buildAssetReliability({
       round2(calendarExposureMinutes - downtimeMinutes),
     );
     const machineCalls = callsByMachine.get(machine.id) ?? [];
+    const openedCalls = machineCalls.filter(
+      (call) =>
+        call.openedAt.getTime() >= start.getTime() &&
+        call.openedAt.getTime() < effectiveEndMs,
+    );
     const finishedCalls = machineCalls.filter(
-      (call) => call.status === "finished" && call.finishedAt,
+      (call) =>
+        call.status === "finished" &&
+        call.finishedAt &&
+        call.finishedAt.getTime() >= start.getTime() &&
+        call.finishedAt.getTime() < effectiveEndMs,
     );
     const currentActiveCalls = activeCallsByMachine.get(machine.id) ?? [];
     const currentSessions = activeSessionsByMachine.get(machine.id) ?? [];
@@ -248,7 +257,7 @@ export function buildAssetReliability({
         physicalStopEpisodes > 0
           ? round2(downtimeMinutes / physicalStopEpisodes)
           : null,
-      callsOpened: machineCalls.length,
+      callsOpened: openedCalls.length,
       callsFinished: finishedCalls.length,
       maintenanceReturnCycles: finishedCalls.reduce(
         (total, call) => total + Math.max(0, call.maintenanceReturnCount),
@@ -288,7 +297,11 @@ export function buildAssetReliability({
       minutesBetween(session.startedAt.getTime(), effectiveEndMs),
     ) ?? null;
   const finishedCalls = calls.filter(
-    (call) => call.status === "finished" && call.finishedAt,
+    (call) =>
+      call.status === "finished" &&
+      call.finishedAt &&
+      call.finishedAt.getTime() >= start.getTime() &&
+      call.finishedAt.getTime() < effectiveEndMs,
   );
 
   return {
