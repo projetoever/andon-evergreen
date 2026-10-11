@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
 import { buildFailureIntelligence } from "../analytics/failureIntelligence.js";
+import { buildMachine360 } from "../analytics/machine360.js";
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
 import {
@@ -262,6 +263,187 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           ...buildOverviewComparison(currentOverview, previousOverview),
         },
         highlights: buildExecutiveHighlights(currentOverview),
+      };
+    },
+  );
+
+  app.get<{ Querystring: AnalyticsOverviewQuery }>(
+    "/api/analytics/machine-360",
+    async (request, reply) => {
+      const period = parseAnalyticsPeriod(request.query);
+      const machineId = optionalQueryString(request.query.machineId);
+      if (!period || !machineId) {
+        return badRequest(reply, "machineId, startDate e endDate válidos são obrigatórios");
+      }
+
+      const generatedAt = new Date();
+      const effectiveEnd = new Date(
+        Math.min(period.end.getTime(), generatedAt.getTime()),
+      );
+      const subtype = optionalQueryString(request.query.subtype);
+      const classification = optionalQueryString(request.query.classification);
+
+      const machine = await prisma.machine.findUnique({
+        where: { id: machineId },
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+          createdAt: true,
+          machineStatus: true,
+          productionMode: true,
+        },
+      });
+      if (!machine) {
+        return reply.code(404).send({ error: "Máquina não encontrada" });
+      }
+
+      const callDimensions: Prisma.AndonCallWhereInput = {
+        machineId,
+        isSystemTest: false,
+        ...(subtype ? { subtype } : {}),
+        ...(classification ? { failureClassification: classification } : {}),
+      };
+      const [calls, currentCalls, rawEvents, sessions] = await Promise.all([
+        prisma.andonCall.findMany({
+          where: {
+            ...callDimensions,
+            OR: [
+              { openedAt: { gte: period.start, lt: effectiveEnd } },
+              { attendedAt: { gte: period.start, lt: effectiveEnd } },
+              { finishedAt: { gte: period.start, lt: effectiveEnd } },
+            ],
+          },
+          select: {
+            id: true,
+            machineId: true,
+            subtype: true,
+            status: true,
+            openedAt: true,
+            attendedAt: true,
+            finishedAt: true,
+            attendanceMinutes: true,
+            failureClassification: true,
+            failureDescription: true,
+            workOrderNumber: true,
+            maintenanceReturnCount: true,
+            technicianNames: true,
+            isSystemTest: true,
+            machineSetNameSnapshot: true,
+            machineSubsetNameSnapshot: true,
+            confirmedMachineSetNameSnapshot: true,
+            confirmedMachineSubsetNameSnapshot: true,
+          },
+        }),
+        prisma.andonCall.findMany({
+          where: {
+            machineId,
+            isSystemTest: false,
+            status: { in: ACTIVE_CALL_STATUSES },
+            ...(subtype ? { subtype } : {}),
+            // Classification is a finalized diagnosis, not a current-state dimension.
+          },
+          select: {
+            id: true,
+            machineId: true,
+            subtype: true,
+            status: true,
+            openedAt: true,
+            attendedAt: true,
+            finishedAt: true,
+            attendanceMinutes: true,
+            failureClassification: true,
+            failureDescription: true,
+            workOrderNumber: true,
+            maintenanceReturnCount: true,
+            technicianNames: true,
+            isSystemTest: true,
+            machineSetNameSnapshot: true,
+            machineSubsetNameSnapshot: true,
+            confirmedMachineSetNameSnapshot: true,
+            confirmedMachineSubsetNameSnapshot: true,
+          },
+        }),
+        effectiveEnd.getTime() > period.start.getTime()
+          ? prisma.failureEvent.findMany({
+              where: {
+                machineId,
+                ...(classification ? { classification } : {}),
+                startedAt: { lt: effectiveEnd },
+                OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
+              },
+              select: {
+                id: true,
+                machineId: true,
+                callId: true,
+                startedAt: true,
+                endedAt: true,
+                classification: true,
+                notes: true,
+                call: { select: { isSystemTest: true, subtype: true } },
+              },
+            })
+          : Promise.resolve([]),
+        prisma.technicianSession.findMany({
+          where: {
+            machineId,
+            endedAt: null,
+            call: {
+              isSystemTest: false,
+              ...(subtype ? { subtype } : {}),
+            },
+          },
+          select: { id: true, startedAt: true },
+        }),
+      ]);
+
+      const events = rawEvents
+        .filter((event) => event.call?.isSystemTest !== true)
+        .filter((event) =>
+          !subtype || (event.call !== null && event.call.subtype === subtype),
+        )
+        .map((event) => ({
+          id: event.id,
+          machineId: event.machineId,
+          callId: event.callId,
+          startedAt: event.startedAt,
+          endedAt: event.endedAt,
+          classification: event.classification,
+          notes: event.notes,
+          linkedCallIsSystemTest: false,
+        }));
+
+      return {
+        meta: {
+          generatedAt: generatedAt.toISOString(),
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+          period: {
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            effectiveEnd: effectiveEnd.toISOString(),
+          },
+          filters: { machineId, subtype, classification },
+          semantics: {
+            downtime: "união dos intervalos FailureEvent sobrepostos, por máquina e recortados ao período; não soma tempos de chamados",
+            physicalStopEpisodes: "episódios físicos unidos no período, não contagem bruta de FailureEvents",
+            mtbf: "estimativa por exposição calendário menos downtime físico, não horas produtivas reais",
+            avgDowntime: "downtime unido dividido pelos episódios físicos no período; inclui episódios ainda abertos",
+            mtta: "abertura até primeiro atendimento dos chamados atendidos no período",
+            active: "snapshot atual; não aplica classificação a chamados/sessões ainda ativos",
+            classification: "diagnóstico de chamado e classificação de evento físico são domínios distintos",
+            hierarchy: "conjunto e subconjunto registrados historicamente no chamado; confirmação tem preferência",
+            history: "eventos físicos e chamados são exibidos separadamente e não devem ter durações somadas",
+          },
+        },
+        ...buildMachine360({
+          machine,
+          calls,
+          activeCalls: currentCalls,
+          events,
+          activeSessions: sessions,
+          start: period.start,
+          effectiveEnd,
+        }),
       };
     },
   );

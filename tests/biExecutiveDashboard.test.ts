@@ -216,3 +216,28 @@ test("BI-MVP-7 mantém Pareto e acrescenta reincidência com linha do tempo read
   assert.match(route, /isSystemTest: false/);
   assert.match(route, /status: "finished"/);
 });
+
+
+test("BI-MVP-8 abre Machine 360 read-only com filtros, snapshot e paginação sem rolagem", async () => {
+  const [page, overlay, client, endpoint, model] = await Promise.all([
+    readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiMachine360Overlay.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/analytics/machine360.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /BiMachine360Overlay/);
+  assert.match(page, /loadMachine360/);
+  assert.match(page, /setMachineSelection/);
+  assert.match(client, /\/api\/analytics\/machine-360/);
+  assert.match(overlay, /Machine 360/);
+  assert.match(overlay, /event\.key !== "Escape"/);
+  assert.match(overlay, /ResizeObserver/);
+  assert.match(overlay, /role="dialog"/);
+  assert.match(overlay, /Linha do tempo/);
+  assert.match(endpoint, /"\/api\/analytics\/machine-360"/);
+  assert.match(endpoint, /isSystemTest: false/);
+  assert.match(model, /buildAssetReliability/);
+  assert.match(model, /timeline:/);
+});

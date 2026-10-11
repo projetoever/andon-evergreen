@@ -7,6 +7,7 @@ import { BiBadActorsPanel } from "@/components/bi/BiBadActorsPanel";
 import { BiDataHealthPanel } from "@/components/bi/BiDataHealthPanel";
 import { BiFailureWorkspace } from "@/components/bi/BiFailureWorkspace";
 import { BiMaintenanceParticipation } from "@/components/bi/BiMaintenanceParticipation";
+import { BiMachine360Overlay } from "@/components/bi/BiMachine360Overlay";
 import { BiOverviewWorkspace } from "@/components/bi/BiOverviewWorkspace";
 import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
 import {
@@ -20,6 +21,7 @@ import {
   loadExecutiveOverview,
   loadFailureIntelligence,
   loadMaintenanceParticipation,
+  loadMachine360,
 } from "@/services/andonBiService";
 import type {
   AnalyticsAssetReliability,
@@ -27,6 +29,7 @@ import type {
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
   AnalyticsMaintenanceParticipation,
+  AnalyticsMachine360,
   AnalyticsOverview,
   AndonBiFilterOptions,
   AndonBiFilters,
@@ -78,6 +81,11 @@ export function AndonBiPage() {
   const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
+  const [machineSelection, setMachineSelection] =
+    useState<{ id: string; name: string } | null>(null);
+  const [machine360, setMachine360] = useState<AnalyticsMachine360 | null>(null);
+  const [machine360Loading, setMachine360Loading] = useState(false);
+  const [machine360Error, setMachine360Error] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -191,6 +199,9 @@ export function AndonBiPage() {
     setDrillSelection(null);
     setDrilldown(null);
     setDrillError(null);
+    setMachineSelection(null);
+    setMachine360(null);
+    setMachine360Error(null);
   }, [filters, activeTab]);
 
   useEffect(() => {
@@ -221,6 +232,41 @@ export function AndonBiPage() {
       active = false;
     };
   }, [drillSelection, filters, overview]);
+
+  useEffect(() => {
+    if (!machineSelection || !overview) return;
+    let active = true;
+    setMachine360(null);
+    setMachine360Loading(true);
+    setMachine360Error(null);
+
+    void loadMachine360(filters, overview.meta.period, machineSelection.id)
+      .then((result) => {
+        if (active) setMachine360(result);
+      })
+      .catch((loadError) => {
+        if (active) {
+          setMachine360Error(
+            loadError instanceof Error
+              ? loadError.message
+              : "Não foi possível carregar o Machine 360.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setMachine360Loading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [machineSelection, filters, overview]);
+
+  const closeMachine360 = useCallback(() => {
+    setMachineSelection(null);
+    setMachine360(null);
+    setMachine360Error(null);
+  }, []);
 
   const classificationLabels = useMemo(
     () => new Map(options.classifications.map((item) => [item.value, item.label])),
@@ -447,13 +493,10 @@ export function AndonBiPage() {
                 loading={reliabilityLoading}
                 error={reliabilityError}
                 classificationLabels={classificationLabels}
-                onSelectMachine={(machineId, machineName) =>
-                  setDrillSelection({
-                    dimension: "machine",
-                    value: machineId,
-                    label: machineName,
-                  })
-                }
+                onSelectMachine={(machineId, machineName) => {
+                  setDrillSelection(null);
+                  setMachineSelection({ id: machineId, name: machineName });
+                }}
               />
             </div>
           )}
@@ -501,6 +544,17 @@ export function AndonBiPage() {
           </span>
         </footer>
       </div>
+
+      {machineSelection && (
+        <BiMachine360Overlay
+          machineName={machineSelection.name}
+          data={machine360}
+          loading={machine360Loading}
+          error={machine360Error}
+          classificationLabels={classificationLabels}
+          onClose={closeMachine360}
+        />
+      )}
 
       {drillSelection && (
         <div
