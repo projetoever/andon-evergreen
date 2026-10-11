@@ -97,31 +97,31 @@ export function BiExecutiveSummary({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-sm font-black uppercase tracking-wide">Resumo executivo</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h2 className="text-xs font-black uppercase tracking-wide">Resumo executivo</h2>
+          <p className="mt-1 text-[10px] text-muted-foreground">
             Leitura determinística do período atual contra o período anterior equivalente
           </p>
         </div>
-        <span className="mt-2 text-xs font-semibold text-muted-foreground md:mt-0">
+        <span className="mt-1 text-[10px] font-semibold text-muted-foreground md:mt-0">
           Sem IA · mesmas fórmulas do dashboard
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-3 grid gap-2 lg:grid-cols-2">
         {items.slice(0, 4).map((item, index) => (
           <div
             key={item.text}
-            className={`flex gap-3 rounded-lg border p-4 ${TONE_CLASSES[item.tone]}`}
+            className={`flex gap-2 rounded-lg border p-3 ${TONE_CLASSES[item.tone]}`}
           >
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${NUMBER_CLASSES[item.tone]}`}
             >
               {index + 1}
             </span>
-            <p className="text-sm leading-5 text-foreground">{item.text}</p>
+            <p className="text-xs leading-4 text-foreground">{item.text}</p>
           </div>
         ))}
       </div>
