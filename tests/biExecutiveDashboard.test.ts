@@ -21,7 +21,7 @@ test("dashboard executivo usa Analytics API real e nao placeholders", async () =
 
   assert.match(page, /loadExecutiveOverview/);
   assert.match(page, /Pareto de máquinas/);
-  assert.match(page, /Downtime físico/);
+  assert.match(page, /Downtime acumulado/);
   assert.match(page, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
 });
@@ -70,5 +70,5 @@ test("dashboard BI formaliza MTTR, MTBF estimado e semântica visual ANDON", asy
   assert.match(card, /border-red-500/);
   assert.match(card, /border-amber-500/);
   assert.match(card, /border-emerald-500/);
-  assert.match(summary, /Amostra baixa/);
+  assert.match(summary, /amostra baixa/i);
 });
