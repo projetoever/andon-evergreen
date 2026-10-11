@@ -198,3 +198,64 @@ export type AndonBiFilterOptions = {
   sectors: AndonBiSectorOption[];
   classifications: AndonBiClassificationOption[];
 };
+
+
+export type AnalyticsMaintenanceParticipation = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: {
+      start: string;
+      end: string;
+      effectiveEnd: string;
+    };
+    filters: {
+      machineId?: string;
+      subtype?: string;
+      classification?: string;
+    };
+    semantics: {
+      personMinutes: string;
+      phases: string;
+      interpretation: string;
+    };
+  };
+  totals: {
+    maintenancePersonMinutes: number;
+    followUpPersonMinutes: number;
+    totalPersonMinutes: number;
+    technicianCount: number;
+    callCount: number;
+    activeSessionCount: number;
+    returnCycleSessions: number;
+  };
+  technicians: Array<{
+    technicianId: string | null;
+    technicianName: string;
+    maintenanceMinutes: number;
+    followUpMinutes: number;
+    totalPersonMinutes: number;
+    callCount: number;
+    sessionCount: number;
+    technicalAreas: string[];
+    returnCycleSessions: number;
+    activePhase: "maintenance" | "follow_up" | null;
+  }>;
+  technicalAreas: Array<{
+    technicalArea: string | null;
+    maintenanceMinutes: number;
+    followUpMinutes: number;
+    totalPersonMinutes: number;
+    technicianCount: number;
+    sessionCount: number;
+  }>;
+  coverage: {
+    totalSessions: number;
+    phaseAwareSessions: number;
+    legacySessions: number;
+    phaseAwareSessionPercent: number | null;
+    phaseAwareMinutes: number;
+    legacyMinutes: number;
+    phaseAwareMinutePercent: number | null;
+  };
+};
