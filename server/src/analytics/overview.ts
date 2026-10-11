@@ -50,6 +50,12 @@ type DowntimeInterval = {
   endMs: number;
 };
 
+type MachineDowntimeIntervals = {
+  machineId: string;
+  machineName: string;
+  intervals: DowntimeInterval[];
+};
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -70,7 +76,7 @@ function isInPeriod(value: Date | null, start: Date, end: Date) {
 }
 
 function operationalDateKey(value: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
@@ -88,6 +94,62 @@ function operationalDateKey(value: Date, timeZone: string) {
   return `${year}-${month}-${day}`;
 }
 
+function addOperationalDays(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function getTimeZoneOffsetMs(value: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(value);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => {
+    const part = parts.find((item) => item.type === type)?.value;
+    if (!part) throw new Error("Não foi possível resolver o fuso operacional");
+    return Number(part);
+  };
+
+  const asUtc = Date.UTC(
+    getPart("year"),
+    getPart("month") - 1,
+    getPart("day"),
+    getPart("hour"),
+    getPart("minute"),
+    getPart("second"),
+  );
+  const normalizedInput = Math.floor(value.getTime() / 1000) * 1000;
+
+  return asUtc - normalizedInput;
+}
+
+function operationalDayStart(dateKey: string, timeZone: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const wallClockUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
+  const firstOffset = getTimeZoneOffsetMs(new Date(wallClockUtc), timeZone);
+  let resultMs = wallClockUtc - firstOffset;
+  const correctedOffset = getTimeZoneOffsetMs(new Date(resultMs), timeZone);
+
+  if (correctedOffset !== firstOffset) {
+    resultMs = wallClockUtc - correctedOffset;
+  }
+
+  return new Date(resultMs);
+}
+
 export function parseAnalyticsInstant(value: unknown) {
   if (typeof value !== "string") return null;
 
@@ -98,20 +160,16 @@ export function parseAnalyticsInstant(value: unknown) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function calculatePhysicalDowntimeByMachine(
+function buildMergedDowntimeIntervalsByMachine(
   events: AnalyticsFailureEventRecord[],
   start: Date,
   end: Date,
 ) {
   const startMs = start.getTime();
   const endMs = end.getTime();
+  const groups = new Map<string, MachineDowntimeIntervals>();
 
-  if (endMs <= startMs) return [];
-
-  const groups = new Map<
-    string,
-    { machineId: string; machineName: string; intervals: DowntimeInterval[] }
-  >();
+  if (endMs <= startMs) return groups;
 
   for (const event of events) {
     if (event.linkedCallIsSystemTest) continue;
@@ -131,23 +189,37 @@ export function calculatePhysicalDowntimeByMachine(
     groups.set(event.machineId, current);
   }
 
-  return Array.from(groups.values())
-    .map((group) => {
-      const sorted = [...group.intervals].sort((a, b) => a.startMs - b.startMs);
-      const merged: DowntimeInterval[] = [];
+  for (const group of groups.values()) {
+    const sorted = [...group.intervals].sort((a, b) => a.startMs - b.startMs);
+    const merged: DowntimeInterval[] = [];
 
-      for (const interval of sorted) {
-        const previous = merged[merged.length - 1];
+    for (const interval of sorted) {
+      const previous = merged[merged.length - 1];
 
-        if (!previous || interval.startMs > previous.endMs) {
-          merged.push({ ...interval });
-          continue;
-        }
-
-        previous.endMs = Math.max(previous.endMs, interval.endMs);
+      if (!previous || interval.startMs > previous.endMs) {
+        merged.push({ ...interval });
+        continue;
       }
 
-      const totalMs = merged.reduce(
+      previous.endMs = Math.max(previous.endMs, interval.endMs);
+    }
+
+    group.intervals = merged;
+  }
+
+  return groups;
+}
+
+export function calculatePhysicalDowntimeByMachine(
+  events: AnalyticsFailureEventRecord[],
+  start: Date,
+  end: Date,
+) {
+  const groups = buildMergedDowntimeIntervalsByMachine(events, start, end);
+
+  return Array.from(groups.values())
+    .map((group) => {
+      const totalMs = group.intervals.reduce(
         (total, interval) => total + (interval.endMs - interval.startMs),
         0,
       );
@@ -163,6 +235,58 @@ export function calculatePhysicalDowntimeByMachine(
         next.downtimeMinutes - current.downtimeMinutes ||
         current.machineName.localeCompare(next.machineName, "pt-BR", { numeric: true }),
     );
+}
+
+export function calculatePhysicalDowntimeTrend(
+  events: AnalyticsFailureEventRecord[],
+  start: Date,
+  end: Date,
+  timeZone: string,
+) {
+  if (end.getTime() <= start.getTime()) return [];
+
+  const totalsByDate = new Map<string, number>();
+  const firstKey = operationalDateKey(start, timeZone);
+  const lastKey = operationalDateKey(new Date(end.getTime() - 1), timeZone);
+  let key = firstKey;
+
+  for (let guard = 0; guard < 4000; guard += 1) {
+    totalsByDate.set(key, 0);
+    if (key === lastKey) break;
+    key = addOperationalDays(key, 1);
+  }
+
+  const groups = buildMergedDowntimeIntervalsByMachine(events, start, end);
+
+  for (const group of groups.values()) {
+    for (const interval of group.intervals) {
+      let cursor = interval.startMs;
+
+      for (let guard = 0; cursor < interval.endMs && guard < 4000; guard += 1) {
+        const dateKey = operationalDateKey(new Date(cursor), timeZone);
+        const nextDateKey = addOperationalDays(dateKey, 1);
+        const nextBoundary = operationalDayStart(nextDateKey, timeZone).getTime();
+        const segmentEnd = Math.min(interval.endMs, nextBoundary);
+
+        if (segmentEnd <= cursor) {
+          throw new Error("Falha ao segmentar downtime pelo dia operacional");
+        }
+
+        totalsByDate.set(
+          dateKey,
+          (totalsByDate.get(dateKey) ?? 0) + (segmentEnd - cursor),
+        );
+        cursor = segmentEnd;
+      }
+    }
+  }
+
+  return Array.from(totalsByDate.entries())
+    .map(([date, totalMs]) => ({
+      date,
+      downtimeMinutes: round2(totalMs / 60_000),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function countByLabel(values: Array<string | null>) {
@@ -273,7 +397,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
 
   return {
     meta: {
-      metricDefinitionVersion: "bi-mvp-1",
+      metricDefinitionVersion: "bi-mvp-3",
       generatedAt: generatedAt.toISOString(),
       timeZone,
       period: {
@@ -313,6 +437,12 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
           : null,
     },
     trend: Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+    downtimeTrend: calculatePhysicalDowntimeTrend(
+      failureEvents,
+      start,
+      effectiveEnd,
+      timeZone,
+    ),
     machinePareto,
     classificationPareto: countByLabel(
       finishedCalls.map((call) => call.failureClassification),
@@ -331,5 +461,110 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       ).length,
       failureEventsLinkedToCalls: failureEvents.filter((event) => Boolean(event.callId)).length,
     },
+  };
+}
+
+export type ExecutiveOverview = ReturnType<typeof buildExecutiveOverview>;
+
+function comparisonMetric(current: number | null, previous: number | null) {
+  if (current === null || previous === null) {
+    return {
+      current,
+      previous,
+      deltaPercent: null,
+      direction: "unavailable" as const,
+    };
+  }
+
+  if (previous === 0) {
+    return {
+      current,
+      previous,
+      deltaPercent: current === 0 ? 0 : null,
+      direction: current === 0 ? ("flat" as const) : ("new" as const),
+    };
+  }
+
+  const deltaPercent = round2(((current - previous) / Math.abs(previous)) * 100);
+  return {
+    current,
+    previous,
+    deltaPercent,
+    direction:
+      deltaPercent > 0
+        ? ("up" as const)
+        : deltaPercent < 0
+          ? ("down" as const)
+          : ("flat" as const),
+  };
+}
+
+export function buildOverviewComparison(
+  current: ExecutiveOverview,
+  previous: ExecutiveOverview,
+) {
+  const currentReturnRate = current.kpis.maintenanceReturnRatePercent;
+  const previousReturnRate = previous.kpis.maintenanceReturnRatePercent;
+
+  return {
+    callsOpened: comparisonMetric(current.kpis.callsOpened, previous.kpis.callsOpened),
+    downtimeMinutes: comparisonMetric(
+      current.kpis.downtimeMinutes,
+      previous.kpis.downtimeMinutes,
+    ),
+    mttaMinutes: comparisonMetric(current.kpis.mttaMinutes, previous.kpis.mttaMinutes),
+    maintenanceReturnRate: {
+      current: currentReturnRate,
+      previous: previousReturnRate,
+      deltaPoints:
+        currentReturnRate !== null && previousReturnRate !== null
+          ? round2(currentReturnRate - previousReturnRate)
+          : null,
+    },
+  };
+}
+
+export function buildExecutiveHighlights(overview: ExecutiveOverview) {
+  const topMachine = overview.machinePareto[0] ?? null;
+  const totalDowntime = overview.kpis.downtimeMinutes;
+  const topClassification = overview.classificationPareto[0] ?? null;
+  const classifiedTotal = overview.classificationPareto.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
+  const topSector = overview.sectorDistribution[0] ?? null;
+  const sectorTotal = overview.sectorDistribution.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
+
+  return {
+    topMachine: topMachine
+      ? {
+          ...topMachine,
+          sharePercent:
+            totalDowntime > 0
+              ? round2((topMachine.downtimeMinutes / totalDowntime) * 100)
+              : 0,
+        }
+      : null,
+    topClassification: topClassification
+      ? {
+          classification: topClassification.label,
+          count: topClassification.count,
+          sharePercent:
+            classifiedTotal > 0
+              ? round2((topClassification.count / classifiedTotal) * 100)
+              : 0,
+        }
+      : null,
+    topSector: topSector
+      ? {
+          subtype: topSector.label,
+          count: topSector.count,
+          sharePercent:
+            sectorTotal > 0 ? round2((topSector.count / sectorTotal) * 100) : 0,
+        }
+      : null,
   };
 }
