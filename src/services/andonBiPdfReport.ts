@@ -144,18 +144,33 @@ export function buildExecutiveReportHtml({
     highlights.push("Nenhum registro ultrapassou o limiar de 24 horas entre os alertas atualmente monitorados.");
   }
 
-  const topMachines = reliability.assets
-    .filter((asset) =>
-      asset.downtimeMinutes > 0 ||
-      asset.callsOpened > 0 ||
-      (asset.activeCallCount ?? 0) > 0,
-    )
+  // Single physical source of truth shared with the executive top-machine
+  // highlight. Reliability.assets may intentionally contain only active machines;
+  // missing per-asset MTBF/call counts must remain unavailable, not become zero.
+  const reliabilityById = new Map(reliability.assets.map((asset) => [asset.machineId, asset]));
+  const machineStatusById = new Map(options.machines.map((machine) => [machine.id, machine.isActive]));
+  const topMachines = overview.machinePareto
+    .filter((asset) => asset.downtimeMinutes > 0)
     .slice(0, 8);
-  const topMachineRows = topMachines.map((asset, index) => row([
-    index + 1, asset.machineName, minutes(asset.downtimeMinutes),
-    asset.physicalStopEpisodes, minutes(asset.mtbfEstimatedMinutes),
-    asset.activeCallCount === null ? "—" : asset.activeCallCount,
-  ]));
+  const topMachineRows = topMachines.map((asset, index) => {
+    const reliabilityAsset = reliabilityById.get(asset.machineId);
+    const machineActive = machineStatusById.get(asset.machineId);
+    const registration = machineActive === false
+      ? "Inativa"
+      : machineActive === true
+        ? "Ativa"
+        : "Não informado";
+    return row([
+      index + 1,
+      asset.machineName,
+      registration,
+      minutes(asset.downtimeMinutes),
+      reliabilityAsset ? reliabilityAsset.physicalStopEpisodes : asset.occurrences,
+      minutes(reliabilityAsset?.mtbfEstimatedMinutes),
+      reliabilityAsset?.activeCallCount ?? "—",
+    ]);
+  });
+  const assetsOutsideReliability = topMachines.filter((asset) => !reliabilityById.has(asset.machineId));
 
   const topFailures = failures.groups.slice(0, 6).map((group) => row([
     group.machineName,
