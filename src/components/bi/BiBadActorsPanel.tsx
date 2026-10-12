@@ -20,12 +20,14 @@ export function BiBadActorsPanel({
   error,
   classificationLabels,
   onSelectMachine,
+  population = "active",
 }: {
   data: AnalyticsAssetReliability | null;
   loading: boolean;
   error: string | null;
   classificationLabels: Map<string, string>;
   onSelectMachine: (machineId: string, machineName: string) => void;
+  population?: "active" | "inactive" | "all";
 }) {
   if (loading && !data) {
     return (
@@ -45,7 +47,10 @@ export function BiBadActorsPanel({
 
   if (!data) return null;
 
-  const assets = data.assets
+  const eligibleAssets = data.assets
+    .filter((asset) =>
+      population === "all" || (population === "active" ? asset.isActive : !asset.isActive),
+    )
     .filter(
       (asset) =>
         asset.downtimeMinutes > 0 ||
@@ -53,8 +58,8 @@ export function BiBadActorsPanel({
         (asset.activeCallCount ?? 0) > 0 ||
         asset.repeatDiagnosisCount > 0 ||
         asset.maintenanceReturnCycles > 0,
-    )
-    .slice(0, 8);
+    );
+  const assets = eligibleAssets.slice(0, 8);
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -67,11 +72,11 @@ export function BiBadActorsPanel({
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Priorização objetiva por downtime físico unido.
+            Priorização por downtime físico unido · {population === "active" ? "máquinas ativas" : population === "inactive" ? "máquinas inativas" : "todas as máquinas"} · top 8.
           </p>
         </div>
         <span className="text-[10px] text-muted-foreground">
-          Clique no ativo para detalhar
+          {eligibleAssets.length} ativo(s) · clique para Machine 360
         </span>
       </div>
 
