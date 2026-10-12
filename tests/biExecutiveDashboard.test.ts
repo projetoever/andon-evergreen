@@ -123,7 +123,7 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(service, /\/api\/analytics\/reliability/);
   assert.match(badActors, /Ativos prioritários · Bad Actors/);
   assert.match(badActors, /Diag\. repetido/);
-  assert.match(dataHealth, /Saúde do dado operacional/);
+  assert.match(dataHealth, /Saúde do dado · Investigação/);
   assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
   assert.match(route, /não há score oculto/);
