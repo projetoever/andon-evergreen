@@ -52,6 +52,19 @@ function fixture(): ExecutiveReportData {
         topMachine: { machineId: "machine9", machineName: "Máquina <9>", downtimeMinutes: 7620, sharePercent: 100 },
       },
       classificationPareto: [{ label: "sensor", count: 1 }],
+      machinePareto: [{
+        machineId: "machine9",
+        machineName: "Máquina <9>",
+        downtimeMinutes: 7620,
+        occurrences: 1,
+      }],
+      downtimeTrend: [{
+        date: "2026-10-10",
+        downtimeMinutes: 3600,
+      }, {
+        date: "2026-10-11",
+        downtimeMinutes: 4020,
+      }],
     },
     reliability: {
       assets: [{
@@ -115,6 +128,10 @@ test("gera documento A4 em três seções com filtros e indicadores reais", () =
   assert.match(html, /Equipe, integridade e metodologia/);
   assert.match(html, /Últimos 7 dias/);
   assert.match(html, /127h/);
+  assert.match(html, /viewBox="0 0 610 150"/);
+  assert.match(html, /viewBox="0 0 610 182"/);
+  assert.match(html, /@page \{ size: A4 portrait; margin: 0; \}/);
+  assert.equal((html.match(/<section class="page">/g) ?? []).length, 3);
   assert.match(html, /Reincidência diagnóstica/);
   assert.match(html, /Participação técnica/);
   assert.match(html, /MTBF estimado/);
@@ -147,7 +164,47 @@ test("não fabrica zeros quando a amostra é desconhecida", () => {
 test("documento mostra advertência explícita de integridade em dados abertos", () => {
   const html = buildExecutiveReportHtml(fixture());
   assert.match(html, /Atenção à qualidade do dado/);
-  assert.match(html, /não registros únicos/);
+  assert.match(html, /não necessariamente incidentes operacionais únicos/);
   assert.match(html, /não equivale/);
   assert.match(html, /não em horas produtivas/);
+});
+
+
+test("o ranking impresso reflete o mesmo Pareto físico do resumo, inclusive máquinas inativas", () => {
+  const data = fixture();
+  data.options.machines.push({
+    id: "inactive45",
+    name: "45",
+    isActive: false,
+  });
+  data.overview.machinePareto.unshift({
+    machineId: "inactive45",
+    machineName: "45",
+    downtimeMinutes: 10080,
+    occurrences: 1,
+  });
+  data.overview.highlights.topMachine = {
+    machineId: "inactive45",
+    machineName: "45",
+    downtimeMinutes: 10080,
+    occurrences: 1,
+    sharePercent: 56.9,
+  };
+  const html = buildExecutiveReportHtml(data);
+  const pageTwo = html.split('<section class="page">')[2];
+  assert.match(html, /45: 168h de downtime/);
+  assert.match(pageTwo, /<td>45<\/td><td>Inativa<\/td><td>168h<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/);
+  assert.ok(pageTwo.indexOf('<td>45</td>') < pageTwo.indexOf("Máquina &lt;9&gt;"));
+  assert.match(pageTwo, /não integram a população consultada pela aba Confiabilidade/);
+  assert.match(pageTwo, /não zerados/);
+});
+
+test("impressão separa versão do relatório, dados faltantes e sessões abertas", () => {
+  const html = buildExecutiveReportHtml(fixture());
+  assert.match(html, /Relatório R9\.1 · Fórmulas bi-mvp-4/);
+  assert.match(html, /sessão\(ões\) técnicas abertas há mais de 24h/);
+  assert.match(html, /podem ampliar os tempos medidos/);
+  assert.match(html, /Ausência de dado não equivale a zero/);
+  assert.match(html, /@media print \{ html, body \{ width: 210mm/);
+  assert.doesNotMatch(html, /@page \{ size: A4 portrait; margin: 12mm/);
 });
