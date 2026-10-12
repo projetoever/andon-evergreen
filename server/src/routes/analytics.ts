@@ -24,6 +24,7 @@ type AnalyticsOverviewQuery = {
   machineId?: string;
   subtype?: string;
   classification?: string;
+  includeInactive?: string;
 };
 
 type AnalyticsDrilldownQuery = AnalyticsOverviewQuery & {
