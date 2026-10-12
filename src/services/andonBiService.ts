@@ -3,6 +3,8 @@ import type {
   AnalyticsAssetReliability,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
+  AnalyticsDataQualityCategory,
+  AnalyticsDataQualityDetails,
   AnalyticsFailureIntelligence,
   AnalyticsMaintenanceParticipation,
   AnalyticsMachine360,
@@ -125,6 +127,7 @@ export async function loadMaintenanceParticipation(
 export async function loadAssetReliability(
   filters: AndonBiFilters,
   period: AnalyticsOverview["meta"]["period"],
+  includeInactive = false,
 ): Promise<AnalyticsAssetReliability> {
   const query = new URLSearchParams({
     startDate: period.start,
@@ -132,6 +135,7 @@ export async function loadAssetReliability(
   });
 
   applyDimensionFilters(query, filters);
+  if (includeInactive) query.set("includeInactive", "true");
 
   return andonBiApiClient.get<AnalyticsAssetReliability>(
     `/api/analytics/reliability?${query.toString()}`,
@@ -166,5 +170,23 @@ export async function loadMachine360(
   if (filters.classification) query.set("classification", filters.classification);
   return andonBiApiClient.get<AnalyticsMachine360>(
     `/api/analytics/machine-360?${query.toString()}`,
+  );
+}
+
+export async function loadDataQualityDetails(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+  category: AnalyticsDataQualityCategory,
+  page: number,
+): Promise<AnalyticsDataQualityDetails> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+    category,
+    page: String(page),
+  });
+  applyDimensionFilters(query, filters);
+  return andonBiApiClient.get<AnalyticsDataQualityDetails>(
+    `/api/analytics/data-quality-details?${query.toString()}`,
   );
 }
