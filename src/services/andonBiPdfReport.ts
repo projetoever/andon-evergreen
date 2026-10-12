@@ -255,9 +255,15 @@ export function buildExecutiveReportHtml({
   ]));
 
   const periodNote = `Gerado em ${generatedAt} · fuso ${timeZone}`;
+  const sourceMismatchNote = assetsOutsideReliability.length
+    ? `Atenção: ${assetsOutsideReliability.length} máquina(s) com downtime no Pareto geral não integram a população consultada pela aba Confiabilidade (${assetsOutsideReliability.map((asset) => asset.machineName).join(", ")}). Seus episódios, MTBF e chamados atuais ficam indisponíveis nesta tabela, não zerados.`
+    : "Ranking e resumo usam a mesma base de downtime físico. Episódios e MTBF seguem a população disponível da aba Confiabilidade.";
+  const noFinishedCallsNote = overview.coverage.finishedCalls === 0
+    ? "Sem chamados finalizados no período. A ausência de reincidências ou classificações não comprova ausência de falhas."
+    : `${overview.coverage.finishedCalls} chamado(s) finalizado(s); reincidência exige classificação e diagnóstico anterior no mesmo ativo.`;
   const footer = (page: number) => `<div class="footer">
     <span>ANDON BI · Registros reais do ANDON · Sem dados de teste</span>
-    <span>${esc(overview.meta.metricDefinitionVersion)} · Página ${page}/3</span>
+    <span>Relatório R9.1 · Fórmulas ${esc(overview.meta.metricDefinitionVersion)} · Página ${page}/3</span>
   </div>`;
 
   const css = `
@@ -331,6 +337,7 @@ export function buildExecutiveReportHtml({
     </div>
     ${sectionTitle("Síntese executiva")}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
+    ${dailyDowntimeGraph(overview.downtimeTrend)}
     ${sectionTitle("Confiabilidade e completude")}
     <div class="mini-grid">
       <div class="mini"><strong>${esc(String(k.physicalStopEpisodes))}</strong><span>Episódios físicos</span></div>
@@ -340,16 +347,19 @@ export function buildExecutiveReportHtml({
     </div>
     <div class="note ${warn ? "red" : "good"}">
       <strong>${warn ? "Atenção à qualidade do dado" : "Sem alertas de duração prolongada"}</strong><br>
-      ${esc(`${warn} alerta(s) de integridade somados nos grupos monitorados. A contagem representa categorias de alerta, não registros únicos. Nenhum dado foi alterado ou encerrado pelo BI.`)}
+      ${esc(`${warn} ocorrências de alerta somadas por tipo de registro, não necessariamente incidentes operacionais únicos. Eventos e sessões em aberto podem ampliar os tempos medidos; revisar encerramentos antes de decisões. Nenhum dado foi alterado ou encerrado pelo BI.`)}
     </div>
     ${footer(1)}
   </section>
 
   <section class="page">
     ${pageHeader("02", "Ativos críticos e reincidências", periodNote)}
-    ${sectionTitle("Máquinas prioritárias", "Downtime físico recortado no período, unido por máquina; ativos com perdas ou chamados.")}
-    ${reportTable(["#", "MÁQUINA", "DOWNTIME", "EPISÓDIOS", "MTBF EST.", "ATIVOS AGORA"], topMachineRows)}
+    ${sectionTitle("Máquinas prioritárias", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
+    ${paretoGraph(topMachines)}
+    ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "MTBF EST.", "ATIVOS"], topMachineRows)}
+    <div class="note subtle">${esc(sourceMismatchNote)}</div>
     ${sectionTitle("Reincidência diagnóstica", "Mesmo diagnóstico em novo chamado finalizado da mesma máquina; não equivale a causa raiz.")}
+    <p class="context emphasis">${esc(noFinishedCallsNote)}</p>
     <div class="mini-grid">
       <div class="mini"><strong>${esc(String(failures.totals.repeated24h))}</strong><span>Até 24 horas</span></div>
       <div class="mini"><strong>${esc(String(failures.totals.repeated7d))}</strong><span>Até 7 dias</span></div>
@@ -376,7 +386,11 @@ export function buildExecutiveReportHtml({
 
   <section class="page">
     ${pageHeader("03", "Equipe, integridade e metodologia", periodNote)}
-    ${sectionTitle("Participação técnica", "Pessoa-minutos por mantenedor: volume registrado, não produtividade individual.")}
+    ${sectionTitle("Participação técnica", "Pessoa-minutos registrados, não horas produtivas auditadas nem ranking de desempenho.")}
+    <div class="note red">
+      <strong>Atenção: ${esc(String(h.activeSessionsOver24h ?? "—"))} sessão(ões) técnicas abertas há mais de 24h.</strong>
+      O esforço inclui tempo acumulado de sessões ainda abertas; verificar a situação operacional antes de interpretar os totais.
+    </div>
     <div class="mini-grid">
       <div class="mini"><strong>${esc(minutes(maintenance.totals.maintenancePersonMinutes))}</strong><span>Manutenção</span></div>
       <div class="mini"><strong>${esc(minutes(maintenance.totals.followUpPersonMinutes))}</strong><span>Acompanhamento</span></div>
@@ -384,6 +398,7 @@ export function buildExecutiveReportHtml({
       <div class="mini"><strong>${esc(String(maintenance.totals.activeSessionCount))}</strong><span>Sessões ativas</span></div>
     </div>
     ${reportTable(["MANTENEDOR", "MANUTENÇÃO", "ACOMPANHAMENTO", "TOTAL PESSOA", "CHAMADOS"], techRows)}
+    <p class="context">Pessoa-minutos somam participações simultâneas. Diferenças residuais de 1 minuto podem ocorrer por arredondamento independente das colunas.</p>
     <div class="two-col">
       <div>
         ${sectionTitle("Distribuição por área técnica")}
@@ -407,6 +422,7 @@ export function buildExecutiveReportHtml({
       <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Sem registros fictícios e sem inclusão de testes de sistema.</p>
       <p><strong>Filtros:</strong> setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores indisponíveis são exibidos com travessão.</p>
       <p><strong>Rastreabilidade:</strong> geração a partir das APIs read-only do ANDON BI. Cada conjunto de métricas utiliza a mesma janela de período escolhida; os dados podem evoluir com novos registros.</p>
+      <p><strong>Populações analíticas:</strong> o Pareto físico inclui máquinas com perdas mesmo quando inativas; os indicadores específicos de confiabilidade podem ter população reduzida. Ausência de dado não equivale a zero.</p>
     </div>
     ${footer(3)}
   </section>
