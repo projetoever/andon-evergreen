@@ -19,6 +19,7 @@ import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
   loadAssetReliability,
+  loadDataQualityDetails,
   loadExecutiveOverview,
   loadFailureIntelligence,
   loadMaintenanceParticipation,
@@ -26,6 +27,8 @@ import {
 } from "@/services/andonBiService";
 import type {
   AnalyticsAssetReliability,
+  AnalyticsDataQualityCategory,
+  AnalyticsDataQualityDetails,
   AnalyticsDrilldownResult,
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
@@ -65,6 +68,15 @@ export function AndonBiPage() {
     useState<AnalyticsMaintenanceParticipation | null>(null);
   const [assetReliability, setAssetReliability] =
     useState<AnalyticsAssetReliability | null>(null);
+  const [allReliability, setAllReliability] = useState<AnalyticsAssetReliability | null>(null);
+  const [allReliabilityLoading, setAllReliabilityLoading] = useState(false);
+  const [allReliabilityError, setAllReliabilityError] = useState<string | null>(null);
+  const [assetPopulation, setAssetPopulation] = useState<"active" | "inactive" | "all">("active");
+  const [qualityCategory, setQualityCategory] = useState<AnalyticsDataQualityCategory>("active-calls");
+  const [qualityPage, setQualityPage] = useState(1);
+  const [qualityDetails, setQualityDetails] = useState<AnalyticsDataQualityDetails | null>(null);
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualityError, setQualityError] = useState<string | null>(null);
   const [failureIntelligence, setFailureIntelligence] =
     useState<AnalyticsFailureIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +136,8 @@ export function AndonBiPage() {
     setMaintenanceError(null);
     setAssetReliability(null);
     setReliabilityError(null);
+    setAllReliability(null);
+    setAllReliabilityError(null);
     setFailureIntelligence(null);
     setFailureError(null);
 
@@ -264,6 +278,51 @@ export function AndonBiPage() {
       active = false;
     };
   }, [machineSelection, filters, overview]);
+
+  useEffect(() => {
+    if (activeTab !== "reliability" || assetPopulation === "active" || !overview) return;
+    let active = true;
+    setAllReliabilityLoading(true);
+    setAllReliabilityError(null);
+    void loadAssetReliability(filters, overview.meta.period, true)
+      .then((result) => {
+        if (active) setAllReliability(result);
+      })
+      .catch((reason) => {
+        if (active) setAllReliabilityError(
+          reason instanceof Error ? reason.message : "Falha ao consultar máquinas inativas.",
+        );
+      })
+      .finally(() => {
+        if (active) setAllReliabilityLoading(false);
+      });
+    return () => { active = false; };
+  }, [activeTab, assetPopulation, filters, overview]);
+
+  useEffect(() => {
+    setQualityPage(1);
+  }, [filters]);
+
+  useEffect(() => {
+    if (activeTab !== "data-quality" || !overview) return;
+    let active = true;
+    setQualityDetails(null);
+    setQualityLoading(true);
+    setQualityError(null);
+    void loadDataQualityDetails(filters, overview.meta.period, qualityCategory, qualityPage)
+      .then((result) => {
+        if (active) setQualityDetails(result);
+      })
+      .catch((reason) => {
+        if (active) setQualityError(
+          reason instanceof Error ? reason.message : "Falha ao consultar detalhes de qualidade.",
+        );
+      })
+      .finally(() => {
+        if (active) setQualityLoading(false);
+      });
+    return () => { active = false; };
+  }, [activeTab, filters, overview, qualityCategory, qualityPage]);
 
   const closeMachine360 = useCallback(() => {
     setMachineSelection(null);
@@ -533,16 +592,34 @@ export function AndonBiPage() {
           )}
 
           {activeTab === "reliability" && (
-            <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <span className="text-[10px] text-muted-foreground">
+                  MTBF da faixa superior mantém sua população padrão; tabela abaixo pode incluir inativas.
+                </span>
+                <label className="flex items-center gap-2 text-[10px] font-semibold">
+                  População da tabela
+                  <select
+                    value={assetPopulation}
+                    onChange={(event) => setAssetPopulation(event.target.value as "active" | "inactive" | "all")}
+                    className="h-8 rounded-md border border-border bg-card px-3 text-xs text-foreground"
+                  >
+                    <option value="active">Máquinas ativas</option>
+                    <option value="inactive">Máquinas inativas</option>
+                    <option value="all">Todas as máquinas</option>
+                  </select>
+                </label>
+              </div>
               {overview ? (
                 <BiReliabilityStrip overview={overview} />
               ) : (
                 <div className="h-32 animate-pulse rounded-xl border border-border bg-muted/20" />
               )}
               <BiBadActorsPanel
-                data={assetReliability}
-                loading={reliabilityLoading}
-                error={reliabilityError}
+                data={assetPopulation === "active" ? assetReliability : allReliability}
+                loading={assetPopulation === "active" ? reliabilityLoading : allReliabilityLoading}
+                error={assetPopulation === "active" ? reliabilityError : allReliabilityError}
+                population={assetPopulation}
                 classificationLabels={classificationLabels}
                 onSelectMachine={(machineId, machineName) => {
                   setDrillSelection(null);
@@ -580,6 +657,20 @@ export function AndonBiPage() {
               data={assetReliability}
               loading={reliabilityLoading}
               error={reliabilityError}
+              details={qualityDetails}
+              detailsLoading={qualityLoading}
+              detailsError={qualityError}
+              category={qualityCategory}
+              page={qualityPage}
+              onCategoryChange={(next) => {
+                setQualityCategory(next);
+                setQualityPage(1);
+              }}
+              onPageChange={setQualityPage}
+              onMachineSelect={(id, name) => {
+                setDrillSelection(null);
+                setMachineSelection({ id, name });
+              }}
             />
           )}
         </section>
