@@ -194,7 +194,7 @@ test("o ranking impresso reflete o mesmo Pareto físico do resumo, inclusive má
   const pageTwo = html.split('<section class="page">')[2];
   assert.match(html, /45: 168h de downtime/);
   assert.match(pageTwo, /<td>45<\/td><td>Inativa<\/td><td>168h<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/);
-  const rankingRows = pageTwo.match(/<tbody>([\\s\\S]*?)<\\/tbody>/)?.[1] ?? "";
+  const rankingRows = pageTwo.split("<tbody>")[1]?.split("</tbody>")[0] ?? "";
   assert.ok(rankingRows.indexOf("<td>45</td>") < rankingRows.indexOf("<td>Máquina &lt;9&gt;</td>"));
   assert.match(pageTwo, /não integram a população consultada pela aba Confiabilidade/);
   assert.match(pageTwo, /não zerados/);
