@@ -16,6 +16,7 @@ import {
 } from "../analytics/overview.js";
 import { prisma } from "../db/prisma.js";
 import { badRequest } from "./routeUtils.js";
+import { registerAnalyticsDataQualityRoutes } from "./analyticsDataQuality.js";
 
 type AnalyticsOverviewQuery = {
   startDate?: string;
@@ -193,6 +194,8 @@ function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Da
 }
 
 export async function registerAnalyticsRoutes(app: FastifyInstance) {
+  await registerAnalyticsDataQualityRoutes(app);
+
   app.get<{ Querystring: AnalyticsOverviewQuery }>(
     "/api/analytics/overview",
     async (request, reply) => {
@@ -667,9 +670,13 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         classification: optionalQueryString(request.query.classification),
       };
 
+      const includeInactive = request.query.includeInactive === "true";
       const machineWhere: Prisma.MachineWhereInput = filters.machineId
         ? { id: filters.machineId }
-        : { isActive: true, createdAt: { lt: effectiveEnd } };
+        : {
+            ...(includeInactive ? {} : { isActive: true }),
+            createdAt: { lt: effectiveEnd },
+          };
 
       const callScopeWhere: Prisma.AndonCallWhereInput = {
         isSystemTest: false,
@@ -863,7 +870,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           filters,
           semantics: {
             badActors:
-              "ativos ordenados por downtime físico unido; não há score oculto ou ponderação subjetiva",
+              "ativos ordenados por downtime físico unido; não há score oculto ou ponderação subjetiva. O parâmetro includeInactive permite comparar máquinas ativas e inativas.",
             repeatDiagnosis:
               "repetições adicionais da mesma classificação em chamados concluídos da mesma máquina no período; não equivale a causa raiz",
             dataHealth:
