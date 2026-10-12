@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, RefreshCw } from "lucide-react";
+import { BarChart3, FileDown, RefreshCw } from "lucide-react";
 
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
 import { BiBadActorsPanel } from "@/components/bi/BiBadActorsPanel";
@@ -14,6 +14,7 @@ import {
   BiWorkspaceTabs,
   type BiWorkspaceTab,
 } from "@/components/bi/BiWorkspaceTabs";
+import { buildExecutiveReportHtml, openReportPrintDialog } from "@/services/andonBiPdfReport";
 import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
@@ -76,6 +77,8 @@ export function AndonBiPage() {
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [drillSelection, setDrillSelection] =
     useState<AnalyticsDrilldownSelection | null>(null);
   const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
@@ -289,6 +292,39 @@ export function AndonBiPage() {
     );
   }, [assetReliability]);
 
+  async function exportExecutivePdf() {
+    if (reportLoading) return;
+    setReportLoading(true);
+    setReportError(null);
+    try {
+      // Re-fetch the authoritative period at click time. Never mix stale
+      // overview cards with a new filter or a different reporting window.
+      const reportOverview = await loadExecutiveOverview(filters);
+      const [reportReliability, reportMaintenance, reportFailures] = await Promise.all([
+        loadAssetReliability(filters, reportOverview.meta.period),
+        loadMaintenanceParticipation(filters, reportOverview.meta.period),
+        loadFailureIntelligence(filters, reportOverview.meta.period),
+      ]);
+      const reportHtml = buildExecutiveReportHtml({
+        overview: reportOverview,
+        reliability: reportReliability,
+        maintenance: reportMaintenance,
+        failures: reportFailures,
+        filters,
+        options,
+      });
+      openReportPrintDialog(reportHtml);
+    } catch (reportFailure) {
+      setReportError(
+        reportFailure instanceof Error
+          ? reportFailure.message
+          : "Não foi possível preparar o relatório executivo.",
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   const closeDrilldown = () => {
     setDrillSelection(null);
     setDrilldown(null);
@@ -349,6 +385,16 @@ export function AndonBiPage() {
                 }).format(new Date(overview.meta.generatedAt))}
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => void exportExecutivePdf()}
+              disabled={reportLoading}
+              title="Preparar relatório A4 e selecionar Salvar como PDF no navegador"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {reportLoading ? "Preparando PDF…" : "Exportar PDF"}
+            </button>
             <button
               type="button"
               onClick={() => setRefreshVersion((value) => value + 1)}
@@ -466,6 +512,11 @@ export function AndonBiPage() {
         {error && (
           <div className="shrink-0 rounded-lg border border-destructive/60 bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">
             {error}
+          </div>
+        )}
+        {reportError && (
+          <div role="alert" className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Não foi possível exportar o PDF: {reportError}
           </div>
         )}
 
