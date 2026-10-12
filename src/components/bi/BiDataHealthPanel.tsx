@@ -134,7 +134,7 @@ export function BiDataHealthPanel({
             <p>Chamados, eventos e sessões em aberto são snapshots atuais. Não dependem do período histórico nem da classificação escolhida.</p>
             <p>Concluídos sem classificação e eventos sem vínculo respeitam a janela. Eventos órfãos não recebem setor presumido.</p>
             <p>Clicar no nome da máquina abre Machine 360. O botão <strong className="text-foreground">Abrir</strong> consulta o histórico da máquina em outra aba; use o ID para identificar o registro.</p>
-            <p className="rounded-lg border border-amber-500/20 bg-amber-500/[0.05] p-2 text-amber-200">Testes manuais não marcados como testes de sistema também aparecem. Os números do notebook de homologação não representam perdas reais da produção.</p>
+            <p className="rounded-lg border border-amber-500/20 bg-amber-500/[0.05] p-2 text-amber-200">Em ambiente de homologação, testes manuais não marcados como testes de sistema também aparecem nas métricas. Confirme a origem dos registros antes de interpretar como perdas reais.</p>
           </div>
         </aside>
       </div>
