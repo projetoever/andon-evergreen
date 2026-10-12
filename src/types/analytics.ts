@@ -451,3 +451,46 @@ export type AnalyticsMachine360 = {
     }>;
   };
 };
+
+export type AnalyticsDataQualityCategory =
+  | "active-calls"
+  | "open-events"
+  | "active-sessions"
+  | "unclassified-calls"
+  | "unlinked-events";
+
+export type AnalyticsDataQualityDetails = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: { start: string; end: string; effectiveEnd: string };
+    filters: { machineId?: string; subtype?: string; classification?: string };
+    category: AnalyticsDataQualityCategory;
+    semantics: {
+      active: string;
+      historical: string;
+      unlinked: string;
+      source: string;
+    };
+  };
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  items: Array<{
+    kind: AnalyticsDataQualityCategory;
+    id: string;
+    machineId: string;
+    machineName: string;
+    machineIsActive: boolean;
+    callId: string | null;
+    startedAt: string;
+    ageMinutes: number | null;
+    status: string;
+    technicianName: string | null;
+    technicalArea: string | null;
+    workOrderNumber: string | null;
+    classification: string | null;
+    description: string | null;
+  }>;
+};
