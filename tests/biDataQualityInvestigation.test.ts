@@ -60,5 +60,5 @@ test("BI-10 permite detalhar alertas e navegar ao histórico preservando ids", a
   assert.match(panel, /encodeURIComponent\(item\.machineId\)/);
   assert.match(panel, /"failure-history"/);
   assert.match(panel, /"call-history"/);
-  assert.match(panel, /Testes manuais não marcados/);
+  assert.match(panel, /testes manuais não marcados/i);
 });
