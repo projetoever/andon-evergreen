@@ -75,6 +75,64 @@ function reportTable(headers: string[], rows: string[]) {
   return `<table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${tableRows(rows, headers.length)}</tbody></table>`;
 }
 
+/**
+ * Embedded SVG is vector-safe in Chrome/Edge print. Values are generated from
+ * the same overview dataset as the executive KPIs; do not infer OEE or shifts.
+ */
+function dailyDowntimeGraph(
+  data: Array<{ date: string; downtimeMinutes: number }>,
+) {
+  const visible = data.slice(-12);
+  if (!visible.length) return '<p class="chart-empty">Sem downtime diário na janela selecionada.</p>';
+  const max = Math.max(...visible.map((p) => Math.max(0, p.downtimeMinutes)), 1);
+  const chartWidth = 534;
+  const step = chartWidth / visible.length;
+  const width = Math.min(28, step * 0.61);
+  const bars = visible.map((p, i) => {
+    const value = Math.max(0, p.downtimeMinutes);
+    const height = (value / max) * 88;
+    const x = 50 + i * step + (step - width) / 2;
+    const y = 119 - height;
+    const label = p.date.slice(8, 10) + "/" + p.date.slice(5, 7);
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${width.toFixed(1)}" height="${Math.max(0.8, height).toFixed(1)}" rx="3" fill="#dc2626"/>
+      ${visible.length <= 7 || i % 2 === 0 ? `<text x="${(x + width / 2).toFixed(1)}" y="139" text-anchor="middle" fill="#475569" font-size="10">${esc(label)}</text>` : ""}`;
+  }).join("");
+  return `<div class="chart">
+    <div class="chart-title">Evolução do downtime físico por dia <span>últimos ${visible.length} dia(s) exibidos da janela</span></div>
+    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Downtime físico diário, em horas" viewBox="0 0 610 150">
+      <line x1="49" y1="30" x2="590" y2="30" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+      <line x1="49" y1="74" x2="590" y2="74" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+      <line x1="49" y1="119" x2="590" y2="119" stroke="#94a3b8"/>
+      <text x="43" y="33" text-anchor="end" fill="#64748b" font-size="9">${esc(minutes(max))}</text>
+      <text x="43" y="77" text-anchor="end" fill="#64748b" font-size="9">${esc(minutes(max / 2))}</text>
+      <text x="43" y="123" text-anchor="end" fill="#64748b" font-size="9">0</text>
+      ${bars}
+    </svg>
+    <p class="chart-footnote">Cada barra representa a parcela de parada física daquele dia operacional. Eventos em aberto continuam acumulando tempo.</p>
+  </div>`;
+}
+
+function paretoGraph(data: Array<{ machineName: string; downtimeMinutes: number }>) {
+  const entries = data.slice(0, 6);
+  if (!entries.length) return '<p class="chart-empty">Sem perdas físicas registradas no período.</p>';
+  const max = Math.max(...entries.map((v) => Math.max(0, v.downtimeMinutes)), 1);
+  const rows = entries.map((value, index) => {
+    const y = 22 + index * 25;
+    const w = (Math.max(0, value.downtimeMinutes) / max) * 305;
+    const trimmedName = value.machineName.length > 21
+      ? value.machineName.slice(0, 20) + "…"
+      : value.machineName;
+    return `<text x="5" y="${y + 11}" fill="#334155" font-size="11" font-weight="700">${esc(trimmedName)}</text>
+      <rect x="164" y="${y}" width="310" height="16" fill="#f1f5f9" rx="3"/>
+      <rect x="164" y="${y}" width="${w.toFixed(1)}" height="16" fill="#dc2626" rx="3"/>
+      <text x="486" y="${y + 11}" fill="#475569" font-size="10">${esc(minutes(value.downtimeMinutes))}</text>`;
+  }).join("");
+  return `<div class="chart">
+    <div class="chart-title">Pareto de downtime por máquina <span>mesma população do resumo executivo</span></div>
+    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Máquinas ordenadas por downtime físico" viewBox="0 0 610 182">${rows}</svg>
+  </div>`;
+}
+
 function pageHeader(number: string, heading: string, stamp: string) {
   return `<div class="page-heading"><div>
     <div class="brand"><span class="brand-square"></span> ANDON BI <span class="brand-sub">MAINTENANCE &amp; RELIABILITY INTELLIGENCE</span></div>
@@ -165,7 +223,7 @@ export function buildExecutiveReportHtml({
       asset.machineName,
       registration,
       minutes(asset.downtimeMinutes),
-      reliabilityAsset ? reliabilityAsset.physicalStopEpisodes : asset.occurrences,
+      reliabilityAsset ? reliabilityAsset.physicalStopEpisodes : "—",
       minutes(reliabilityAsset?.mtbfEstimatedMinutes),
       reliabilityAsset?.activeCallCount ?? "—",
     ]);
