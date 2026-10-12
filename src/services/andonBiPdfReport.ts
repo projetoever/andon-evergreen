@@ -318,7 +318,8 @@ export function buildExecutiveReportHtml({
     .chart-footnote { margin: 1px 0 3px; font-size: 8px; color: #64748b; }
     .chart-empty { margin-top: 10px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; color: #64748b; font-size: 10px; }
     .footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8px; color: #64748b; }
-    @media screen { body { background: #e2e8f0; } .page { background: #fff; box-shadow: 0 2px 10px #94a3b8; margin: 12px auto; } }\n    @media print { html, body { width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { box-shadow: none; margin: 0; } }
+    @media screen { body { background: #e2e8f0; } .page { background: #fff; box-shadow: 0 2px 10px #94a3b8; margin: 12px auto; } }
+    @media print { html, body { width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { box-shadow: none; margin: 0; } }
   `;
 
   return `<!doctype html>
