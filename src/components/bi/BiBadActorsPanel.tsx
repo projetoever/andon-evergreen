@@ -87,7 +87,7 @@ export function BiBadActorsPanel({
               <th className="w-[22%] px-3 py-2">Ativo</th>
               <th className="w-[12%] px-2 py-2">Downtime</th>
               <th className="w-[9%] px-2 py-2">Episódios</th>
-              <th className="w-[12%] px-2 py-2">MTBF est.</th>
+              <th className="w-[12%] px-2 py-2" title="MTBF estimado indisponível para máquinas inativas">MTBF est.</th>
               <th className="w-[11%] px-2 py-2">Diag. repetido</th>
               <th className="w-[9%] px-2 py-2">Retornos</th>
               <th className="w-[12%] px-2 py-2">Ativo agora</th>
@@ -120,7 +120,7 @@ export function BiBadActorsPanel({
                 </td>
                 <td className="px-2 py-2 tabular-nums">{asset.physicalStopEpisodes}</td>
                 <td className="px-2 py-2 font-semibold tabular-nums text-emerald-300">
-                  {formatMinutes(asset.mtbfEstimatedMinutes)}
+                  {asset.isActive ? formatMinutes(asset.mtbfEstimatedMinutes) : "—"}
                 </td>
                 <td className="px-2 py-2">
                   {asset.repeatDiagnosisCount > 0 ? (
