@@ -2,9 +2,9 @@ import { ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from "lucide-r
 import type { AnalyticsAssetReliability, AnalyticsDataQualityCategory, AnalyticsDataQualityDetails } from "@/types/analytics";
 
 const LABELS: Record<AnalyticsDataQualityCategory, string> = {
-  "active-calls": "Chamados ativos >24h",
-  "open-events": "Eventos físicos >24h",
-  "active-sessions": "Sessões técnicas >24h",
+  "active-calls": "Chamados ativos > 24h",
+  "open-events": "Eventos físicos > 24h",
+  "active-sessions": "Sessões técnicas > 24h",
   "unclassified-calls": "Concluídos sem classificação",
   "unlinked-events": "Eventos sem chamado",
 };
