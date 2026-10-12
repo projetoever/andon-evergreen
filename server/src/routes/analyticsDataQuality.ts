@@ -6,7 +6,7 @@ import { prisma } from "../db/prisma.js";
 import { badRequest } from "./routeUtils.js";
 
 const ZONE = process.env.ANDON_TIME_ZONE?.trim() || "America/Sao_Paulo";
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 6;
 const OVER_24H_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_STATUSES = ["open", "in_progress", "post_maintenance"];
 const CATEGORIES = [
