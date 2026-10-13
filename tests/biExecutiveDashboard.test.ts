@@ -73,7 +73,7 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(overview, /Manutenção média/);
+  assert.match(overview, /Tempo médio de manutenção/);
   assert.match(overview, /Tempo de parada/);
   assert.match(reliability, /MTBF estimado/);
   assert.match(reliability, /Parada média \/ episódio/);
