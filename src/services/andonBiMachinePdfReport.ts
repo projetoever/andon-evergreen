@@ -123,7 +123,7 @@ export function buildMachinePdfHtml(
   ${table(["DIAGNÓSTICO", "CHAMADOS CONCLUÍDOS"], diagnostics)}
   <div class="note"><strong>Leitura executiva:</strong> downtime é a união dos intervalos físicos por máquina.
   O MTBF é estimado por exposição calendário, não horas reais de produção. Sessões em aberto podem ampliar tempos.
-  O BI não presume que registros do notebook de homologação sejam perdas reais.</div>
+  Registros de ambientes de homologação podem conter testes manuais; confirme a origem antes de interpretar os tempos como perdas reais.</div>
   <div class="foot"><span>ANDON BI · Somente leitura · Gerado em ${escapeHtml(localDate(data.meta.generatedAt, zone))}</span><span>Machine 360 · Página 1/2</span></div>
 </section>
 <section class="page">

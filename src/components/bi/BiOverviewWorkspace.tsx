@@ -72,16 +72,18 @@ export function BiOverviewWorkspace({
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
-          label="Chamados abertos"
+          label="Novos chamados"
+          tooltip="Chamados que começaram dentro do período selecionado. Não inclui todos os chamados ainda ativos."
           value={loading && !overview ? "…" : String(kpis?.callsOpened ?? 0)}
-          detail={`${kpis?.callsFinished ?? 0} concluído(s) no período`}
+          detail={`${kpis?.callsFinished ?? 0} finalizado(s) na janela · aberturas do período`}
           icon={Activity}
           tone="amber"
           trend={overview?.comparison.callsOpened}
           trendMeaning="neutral"
         />
         <BiKpiCard
-          label="Ativos agora"
+          label="Chamados ativos"
+          tooltip="Quantidade de chamados em aberto ou atendimento agora; pode incluir chamados iniciados antes do período."
           value={
             loading && !overview
               ? "…"
@@ -99,8 +101,9 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="MTTA"
+          tooltip="Mean Time To Acknowledge: tempo médio da abertura até o primeiro atendimento, conforme amostra."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
-          detail={`${overview?.coverage.mttaSampleSize ?? 0} atendimento(s)`}
+          detail={`Abertura → 1º atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
           icon={Clock3}
           tone="amber"
           trend={overview?.comparison.mttaMinutes}
@@ -108,9 +111,10 @@ export function BiOverviewWorkspace({
           sampleSize={overview?.coverage.mttaSampleSize}
         />
         <BiKpiCard
-          label="Tempo efetivo manutenção"
+          label="Manutenção média"
+          tooltip="Tempo médio efetivo de manutenção registrado nos chamados finalizados da janela; não é o tempo físico total de parada."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttrMinutes ?? null)}
-          detail={`${overview?.coverage.mttrSampleSize ?? 0} chamado(s) finalizado(s)`}
+          detail={`Tempo nos concluídos · ${overview?.coverage.mttrSampleSize ?? 0} amostra(s)`}
           icon={Wrench}
           tone="blue"
           trend={overview?.comparison.mttrMinutes}
@@ -118,16 +122,18 @@ export function BiOverviewWorkspace({
           sampleSize={overview?.coverage.mttrSampleSize}
         />
         <BiKpiCard
-          label="Downtime acumulado"
+          label="Tempo de parada"
+          tooltip="Soma da parada física por máquina, usando união de intervalos para não contar eventos sobrepostos duas vezes na mesma máquina."
           value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? 0)}
-          detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) físico(s)`}
+          detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) físico(s) · várias máquinas somadas`}
           icon={TimerReset}
           tone="red"
           trend={overview?.comparison.downtimeMinutes}
           trendMeaning="lowerBetter"
         />
         <BiKpiCard
-          label="Retorno à manutenção"
+          label="Taxa de retorno"
+          tooltip="Proporção de chamados finalizados que retornaram à manutenção ao menos uma vez; não equivale à reincidência em novo chamado."
           value={
             loading && !overview
               ? "…"
@@ -135,7 +141,7 @@ export function BiOverviewWorkspace({
                 ? "—"
                 : `${kpis?.maintenanceReturnRatePercent ?? 0}%`
           }
-          detail={`${kpis?.returnedCalls ?? 0} chamado(s) · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
+          detail={`${kpis?.returnedCalls ?? 0} chamado(s) com retorno · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
           icon={RotateCcw}
           tone="red"
           sampleSize={overview?.coverage.finishedCalls}
@@ -157,10 +163,10 @@ export function BiOverviewWorkspace({
           <div className="flex shrink-0 items-start justify-between gap-3">
             <div>
               <h2 className="text-xs font-black uppercase tracking-wide">
-                Tendência de chamados
+                Chamados por dia
               </h2>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Aberturas × conclusões
+                Novos × finalizados em cada data
               </p>
             </div>
             <span className="text-[10px] font-semibold text-muted-foreground">
@@ -176,13 +182,13 @@ export function BiOverviewWorkspace({
                   <XAxis
                     dataKey="date"
                     tickFormatter={formatDateLabel}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 9 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 9 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -224,9 +230,9 @@ export function BiOverviewWorkspace({
 
         <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
           <div className="shrink-0">
-            <h2 className="text-xs font-black uppercase tracking-wide">Pareto de máquinas</h2>
+            <h2 className="text-xs font-black uppercase tracking-wide">Máquinas com maior parada</h2>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Downtime acumulado · clique para detalhar
+              Parada acumulada por máquina · clique para detalhar
             </p>
           </div>
 

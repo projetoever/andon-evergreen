@@ -135,7 +135,7 @@ test("gera documento A4 em três seções com filtros e indicadores reais", () =
   assert.match(html, /Reincidência diagnóstica/);
   assert.match(html, /Participação técnica/);
   assert.match(html, /MTBF estimado/);
-  assert.match(html, /Sem dados de teste/);
+  assert.match(html, /Testes marcados excluídos/);
   assert.match(html, /Página 3\/3/);
 });
 

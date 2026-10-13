@@ -250,7 +250,7 @@ export function buildAssetReliability({
       downtimeMinutes,
       physicalStopEpisodes,
       mtbfEstimatedMinutes:
-        physicalStopEpisodes > 0
+        physicalStopEpisodes > 0 && operatingExposureMinutes > 0
           ? round2(operatingExposureMinutes / physicalStopEpisodes)
           : null,
       avgDowntimePerEpisodeMinutes:

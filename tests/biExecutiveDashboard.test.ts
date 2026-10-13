@@ -23,8 +23,8 @@ test("dashboard executivo usa Analytics API real e nao placeholders", async () =
   ]);
 
   assert.match(page, /loadExecutiveOverview/);
-  assert.match(overview, /Pareto de máquinas/);
-  assert.match(overview, /Downtime acumulado/);
+  assert.match(overview, /Máquinas com maior parada/);
+  assert.match(overview, /Tempo de parada/);
   assert.match(overview, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
 });
@@ -73,10 +73,10 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(overview, /Tempo efetivo manutenção/);
-  assert.match(overview, /Downtime acumulado/);
+  assert.match(overview, /Manutenção média/);
+  assert.match(overview, /Tempo de parada/);
   assert.match(reliability, /MTBF estimado/);
-  assert.match(reliability, /Downtime \/ episódio/);
+  assert.match(reliability, /Parada média \/ episódio/);
   assert.match(card, /Baixa amostra/);
   assert.match(card, /border-red-500/);
   assert.match(card, /border-amber-500/);
@@ -98,8 +98,8 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
 
   assert.match(page, /BiMaintenanceParticipation/);
   assert.match(service, /\/api\/analytics\/maintenance/);
-  assert.match(component, /Pessoa-minutos/);
-  assert.match(component, /não ranking de desempenho/);
+  assert.match(component, /Soma de horas por técnico/);
+  assert.match(component, /Não equivale a downtime nem avalia desempenho/);
   assert.match(component, /Cobertura de fases/);
   assert.match(component, /sessão\(ões\) legada\(s\)/);
   assert.match(route, /technicianSession\.findMany/);
@@ -121,9 +121,9 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(page, /BiBadActorsPanel/);
   assert.match(page, /BiDataHealthPanel/);
   assert.match(service, /\/api\/analytics\/reliability/);
-  assert.match(badActors, /Ativos prioritários · Bad Actors/);
-  assert.match(badActors, /Diag\. repetido/);
-  assert.match(dataHealth, /Saúde do dado · Investigação/);
+  assert.match(badActors, /Máquinas críticas · Bad Actors/);
+  assert.ok(badActors.includes("Diag. repet."));
+  assert.match(dataHealth, /Qualidade dos dados · Investigação/);
   assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
   assert.match(route, /não há score oculto/);
@@ -151,7 +151,7 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
   assert.match(tabs, /Confiabilidade/);
   assert.match(tabs, /Falhas/);
   assert.match(tabs, /Manutenção/);
-  assert.match(tabs, /Qualidade do Dado/);
+  assert.match(tabs, /Qualidade dos Dados/);
   assert.match(drilldown, /página/);
 });
 

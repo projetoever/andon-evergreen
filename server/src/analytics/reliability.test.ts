@@ -177,3 +177,33 @@ test("saúde do dado destaca chamados, eventos e sessões abertas acima de 24 ho
   assert.equal(result.assets[0].activeCallCount, 1);
   assert.equal(result.assets[0].openFailureEventCount, 1);
 });
+
+test("MTBF por máquina fica indisponível quando toda a janela é parada", () => {
+  const start = date("2026-10-12T06:00:00Z");
+  const effectiveEnd = date("2026-10-13T06:00:00Z");
+  const data = buildAssetReliability({
+    machines: [{
+      id: "machine36",
+      name: "36",
+      isActive: true,
+      createdAt: date("2026-09-01T00:00:00Z"),
+    }],
+    failureEvents: [{
+      id: "event36",
+      machineId: "machine36",
+      startedAt: date("2026-10-09T01:00:00Z"),
+      endedAt: null,
+      classification: null,
+      callId: null,
+    }],
+    calls: [],
+    activeCalls: [],
+    activeSessions: [],
+    start,
+    effectiveEnd,
+  });
+  assert.equal(data.assets[0].downtimeMinutes, 1440);
+  assert.equal(data.assets[0].physicalStopEpisodes, 1);
+  assert.equal(data.assets[0].mtbfEstimatedMinutes, null);
+  assert.equal(data.assets[0].avgDowntimePerEpisodeMinutes, 1440);
+});

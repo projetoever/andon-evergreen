@@ -262,7 +262,7 @@ export function buildExecutiveReportHtml({
     ? "Sem chamados finalizados no período. A ausência de reincidências ou classificações não comprova ausência de falhas."
     : `${overview.coverage.finishedCalls} chamado(s) finalizado(s); reincidência exige classificação e diagnóstico anterior no mesmo ativo.`;
   const footer = (page: number) => `<div class="footer">
-    <span>ANDON BI · Registros reais do ANDON · Sem dados de teste</span>
+    <span>ANDON BI · Ambiente consultado · Testes marcados excluídos</span>
     <span>Relatório R9.1 · Fórmulas ${esc(overview.meta.metricDefinitionVersion)} · Página ${page}/3</span>
   </div>`;
 
@@ -333,13 +333,13 @@ export function buildExecutiveReportHtml({
   <section class="page">
     ${pageHeader("01", "Relatório executivo de manutenção", periodNote)}
     ${meta}
-    ${sectionTitle("Indicadores executivos", "Dados filtrados; métricas sem amostra são apresentadas como indisponíveis.")}
+    ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
     <div class="kpis">
-      ${tile("Chamados abertos", String(k.callsOpened), `${k.callsFinished} concluído(s) no período`, "amber")}
-      ${tile("Ativos agora", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
+      ${tile("Novos chamados", String(k.callsOpened), `${k.callsFinished} concluído(s) no período`, "amber")}
+      ${tile("Chamados ativos", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("Tempo efetivo manutenção", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
-      ${tile("Downtime físico", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
+      ${tile("Manutenção média", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
+      ${tile("Tempo de parada física", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
       ${tile("MTBF estimado", minutes(k.mtbfEstimatedMinutes), "Baseado em exposição calendário, não em horas produtivas", "green")}
     </div>
     ${sectionTitle("Síntese executiva")}
@@ -361,7 +361,7 @@ export function buildExecutiveReportHtml({
 
   <section class="page">
     ${pageHeader("02", "Ativos críticos e reincidências", periodNote)}
-    ${sectionTitle("Máquinas prioritárias", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
+    ${sectionTitle("Máquinas com maior parada", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
     ${paretoGraph(topMachines)}
     ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "MTBF EST.", "ATIVOS"], topMachineRows)}
     <div class="note subtle">${esc(sourceMismatchNote)}</div>
@@ -426,7 +426,7 @@ export function buildExecutiveReportHtml({
       <p><strong>Recorte temporal:</strong> aberturas por openedAt; conclusões por finishedAt; MTTA por attendedAt; ativos são snapshot do momento de extração.</p>
       <p><strong>Downtime físico:</strong> união de intervalos de FailureEvent por máquina, sem dupla contagem na mesma máquina. Em várias máquinas o downtime é acumulado entre os ativos.</p>
       <p><strong>MTBF:</strong> estimado a partir de exposição calendário menos downtime. Não substitui MTBF calculado por horas reais em operação.</p>
-      <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Sem registros fictícios e sem inclusão de testes de sistema.</p>
+      <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Testes manuais não identificados como testes de sistema podem aparecer; verifique se a fonte é homologação ou produção.</p>
       <p><strong>Filtros:</strong> setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores indisponíveis são exibidos com travessão.</p>
       <p><strong>Rastreabilidade:</strong> geração a partir das APIs read-only do ANDON BI. Cada conjunto de métricas utiliza a mesma janela de período escolhida; os dados podem evoluir com novos registros.</p>
       <p><strong>Populações analíticas:</strong> o Pareto físico inclui máquinas com perdas mesmo quando inativas; os indicadores específicos de confiabilidade podem ter população reduzida. Ausência de dado não equivale a zero.</p>

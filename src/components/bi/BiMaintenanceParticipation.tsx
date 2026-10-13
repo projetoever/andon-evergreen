@@ -81,7 +81,7 @@ function PageControls({
   onChange: (next: number) => void;
 }) {
   return (
-    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[10px] text-muted-foreground">
+    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
       <span className="tabular-nums">
         {total === 0 ? "0 registros" : `${page * shown + 1}–${Math.min((page + 1) * shown, total)} de ${total}`}
       </span>
@@ -178,11 +178,11 @@ export function BiMaintenanceParticipation({
               Participação técnica
             </h2>
           </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Pessoa-minutos registrados por mantenedor. Participação, não ranking de desempenho.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Soma de horas por técnico, inclusive simultâneas. Não equivale a downtime nem avalia desempenho.
           </p>
         </div>
-        <div className="flex shrink-0 gap-3 text-[10px] font-semibold text-muted-foreground">
+        <div className="flex shrink-0 gap-3 text-[11px] font-semibold text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-sky-400" /> Manutenção
           </span>
@@ -195,8 +195,8 @@ export function BiMaintenanceParticipation({
       <div className="mt-2 grid shrink-0 grid-cols-4 gap-2">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
-            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-              Esforço manutenção
+            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+              Horas técnicas: manutenção
             </span>
             <Wrench className="h-3.5 w-3.5" />
           </div>
@@ -207,8 +207,8 @@ export function BiMaintenanceParticipation({
 
         <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-emerald-300">
-            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-              Acompanhamento
+            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+              Horas técnicas: acompanhamento
             </span>
             <Activity className="h-3.5 w-3.5" />
           </div>
@@ -219,7 +219,7 @@ export function BiMaintenanceParticipation({
 
         <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
-            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
               Mantenedores
             </span>
             <Users className="h-3.5 w-3.5" />
@@ -227,14 +227,14 @@ export function BiMaintenanceParticipation({
           <div className="mt-1 text-xl font-black tabular-nums">
             {data.totals.technicianCount}
           </div>
-          <p className="text-[9px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             {data.totals.callCount} chamado(s) com fase explícita
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-amber-300">
-            <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
               Sessões ativas
             </span>
             <CircleDot className="h-3.5 w-3.5" />
@@ -242,7 +242,7 @@ export function BiMaintenanceParticipation({
           <div className="mt-1 text-xl font-black tabular-nums">
             {data.totals.activeSessionCount}
           </div>
-          <p className="text-[9px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             {data.totals.returnCycleSessions} sessão(ões) em ciclo de retorno
           </p>
         </div>
@@ -254,8 +254,8 @@ export function BiMaintenanceParticipation({
             <h3 className="text-xs font-black uppercase tracking-wide">
               Distribuição por mantenedor
             </h3>
-            <span className="text-[10px] text-muted-foreground">
-              Ordenado por pessoa-minutos
+            <span className="text-[11px] text-muted-foreground">
+              Ordenado por horas técnicas
             </span>
           </div>
 
@@ -266,11 +266,11 @@ export function BiMaintenanceParticipation({
                   key={technician.technicianId ?? `legacy-${technician.technicianName}`}
                   className="flex h-[62px] flex-col justify-center gap-1 border-b border-border/50 py-1 last:border-b-0"
                 >
-                  <div className="flex min-w-0 items-center justify-between gap-3 text-[11px]">
+                  <div className="flex min-w-0 items-center justify-between gap-3 text-xs">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-bold">{technician.technicianName}</span>
                       {technician.activePhase && (
-                        <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">
+                        <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
                           {technician.activePhase === "maintenance"
                             ? "em manutenção"
                             : "em acompanhamento"}
@@ -296,7 +296,7 @@ export function BiMaintenanceParticipation({
                       followUpMinutes={technician.followUpMinutes}
                     />
                   </div>
-                  <div className="truncate text-[10px] text-muted-foreground">
+                  <div className="truncate text-[11px] text-muted-foreground">
                     {technician.callCount} chamado(s) ·{" "}
                     {formatMinutes(technician.maintenanceMinutes)} manutenção ·{" "}
                     {formatMinutes(technician.followUpMinutes)} acompanhamento
@@ -330,7 +330,7 @@ export function BiMaintenanceParticipation({
                     key={area.technicalArea ?? "unclassified"}
                     className="flex h-[63px] flex-col justify-center gap-1 border-b border-border/50 py-1 last:border-b-0"
                   >
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center justify-between gap-2 text-xs">
                       <span className="truncate font-bold">
                         {area.technicalArea
                           ? areaLabels.get(area.technicalArea) ?? area.technicalArea
@@ -344,7 +344,7 @@ export function BiMaintenanceParticipation({
                       maintenanceMinutes={area.maintenanceMinutes}
                       followUpMinutes={area.followUpMinutes}
                     />
-                    <p className="truncate text-[9px] text-muted-foreground">
+                    <p className="truncate text-[10px] text-muted-foreground">
                       {area.technicianCount} mantenedor(es) · {area.sessionCount} sessão(ões)
                     </p>
                   </div>
@@ -372,7 +372,7 @@ export function BiMaintenanceParticipation({
             }
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[10px] font-black uppercase tracking-wide">
+              <h3 className="text-[11px] font-black uppercase tracking-wide">
                 Cobertura de fases
               </h3>
               <span className="text-xl font-black tabular-nums">
@@ -381,7 +381,7 @@ export function BiMaintenanceParticipation({
                   : `${data.coverage.phaseAwareSessionPercent}%`}
               </span>
             </div>
-            <p className="text-[10px] leading-4 text-muted-foreground">
+            <p className="text-[11px] leading-4 text-muted-foreground">
               {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) com fase explícita.
               {data.coverage.legacySessions > 0 &&
                 ` ${data.coverage.legacySessions} sessão(ões) legada(s) · ${formatMinutes(data.coverage.legacyMinutes)} sem fase.`}

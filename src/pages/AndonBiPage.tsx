@@ -421,14 +421,14 @@ export function AndonBiPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               <BarChart3 className="h-3.5 w-3.5" />
-              Maintenance & Reliability Intelligence
+              Inteligência em Manutenção e Confiabilidade
             </div>
             <div className="mt-1 flex items-baseline gap-3">
               <h1 className="text-2xl font-black tracking-tight md:text-3xl">
                 ANDON BI
               </h1>
               <span className="hidden text-xs text-muted-foreground xl:inline">
-                Gestão executiva · confiabilidade · manutenção
+                Visão executiva · falhas · equipe técnica
               </span>
             </div>
           </div>
@@ -472,7 +472,7 @@ export function AndonBiPage() {
         </header>
 
         <section className="grid shrink-0 grid-cols-4 gap-3 rounded-xl border border-border bg-card p-3">
-          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <label className="grid gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
             Período
             <select
               value={filters.period}
@@ -595,10 +595,10 @@ export function AndonBiPage() {
             <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
               <div className="flex shrink-0 items-center justify-between gap-2">
                 <span className="text-[10px] text-muted-foreground">
-                  MTBF da faixa superior mantém sua população padrão; tabela abaixo pode incluir inativas.
+                  MTBF geral: população padrão. O ranking abaixo pode incluir máquinas inativas.
                 </span>
                 <label className="flex items-center gap-2 text-[10px] font-semibold">
-                  População da tabela
+                  Máquinas no ranking
                   <select
                     value={assetPopulation}
                     onChange={(event) => setAssetPopulation(event.target.value as "active" | "inactive" | "all")}
@@ -675,9 +675,9 @@ export function AndonBiPage() {
           )}
         </section>
 
-        <footer className="flex shrink-0 items-center justify-between border-t border-border pt-2 text-[9px] uppercase tracking-wide text-muted-foreground">
+        <footer className="flex shrink-0 items-center justify-between border-t border-border pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
           <span>
-            PostgreSQL · testes de sistema excluídos · BI read-only
+            PostgreSQL · testes automáticos marcados excluídos · somente leitura
           </span>
           <span>
             {overview

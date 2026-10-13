@@ -58,7 +58,7 @@ export function BiExecutiveSummary({
   const items: Array<{ text: string; tone: SummaryTone }> = [
     {
       text: comparisonSentence(
-        "Downtime acumulado",
+        "Tempo de parada",
         overview.comparison.downtimeMinutes,
         formatMinutes,
       ),
@@ -66,7 +66,7 @@ export function BiExecutiveSummary({
         overview.comparison.downtimeMinutes.direction === "down" ? "green" : "red",
     },
     {
-      text: comparisonSentence("Volume de chamados", overview.comparison.callsOpened),
+      text: comparisonSentence("Novos chamados", overview.comparison.callsOpened),
       tone: "amber",
     },
   ];
@@ -101,7 +101,7 @@ export function BiExecutiveSummary({
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-xs font-black uppercase tracking-wide">Resumo executivo</h2>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Leitura determinística do período atual contra o período anterior equivalente
           </p>
         </div>
@@ -121,7 +121,7 @@ export function BiExecutiveSummary({
             >
               {index + 1}
             </span>
-            <p className="text-xs leading-4 text-foreground">{item.text}</p>
+            <p className="text-[13px] leading-5 text-foreground">{item.text}</p>
           </div>
         ))}
       </div>

@@ -68,29 +68,29 @@ export function BiBadActorsPanel({
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-red-400" />
             <h2 className="text-sm font-black uppercase tracking-wide">
-              Ativos prioritários · Bad Actors
+              Máquinas críticas · Bad Actors
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Priorização por downtime físico unido · {population === "active" ? "máquinas ativas" : population === "inactive" ? "máquinas inativas" : "todas as máquinas"} · top 8.
+            Ranking por tempo de parada físico · {population === "active" ? "máquinas ativas" : population === "inactive" ? "máquinas inativas" : "todas as máquinas"} · top 8.
           </p>
         </div>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground">
           {eligibleAssets.length} ativo(s) · clique para Machine 360
         </span>
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background/25">
-        <table className="w-full table-fixed text-left text-[11px]">
-          <thead className="border-b border-border text-[9px] uppercase tracking-wide text-muted-foreground">
+        <table className="w-full table-fixed text-left text-xs">
+          <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="w-[22%] px-3 py-2">Ativo</th>
-              <th className="w-[12%] px-2 py-2">Downtime</th>
+              <th className="w-[12%] px-2 py-2">Parada</th>
               <th className="w-[9%] px-2 py-2">Episódios</th>
-              <th className="w-[12%] px-2 py-2" title="MTBF estimado indisponível para máquinas inativas">MTBF est.</th>
-              <th className="w-[11%] px-2 py-2">Diag. repetido</th>
+              <th className="w-[12%] px-2 py-2" title="MTBF estimado indisponível para máquinas inativas">MTBF estim.</th>
+              <th className="w-[11%] px-2 py-2">Diag. repet.</th>
               <th className="w-[9%] px-2 py-2">Retornos</th>
-              <th className="w-[12%] px-2 py-2">Ativo agora</th>
+              <th className="w-[12%] px-2 py-2">Chamados ativos</th>
               <th className="px-2 py-2">Diagnóstico</th>
             </tr>
           </thead>
@@ -106,7 +106,7 @@ export function BiBadActorsPanel({
                     <span
                       className={
                         index < 3
-                          ? "flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-[9px] font-black text-red-300"
+                          ? "flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-[10px] font-black text-red-300"
                           : "flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-black text-muted-foreground"
                       }
                     >
