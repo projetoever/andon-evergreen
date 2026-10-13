@@ -26,7 +26,9 @@ import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSe
 import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
   DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
+  getKnownRealCallIds,
   hasDashboardAlertingCall,
+  hasNewRealCall,
   hasRealCallOpenedAfter,
   startDashboardSoundActiveTimer,
   startDashboardSoundMuteDeadlineTimer,
@@ -56,6 +58,10 @@ export function DashboardPage() {
   const activeTimerCancelRef = useRef<(() => void) | null>(null);
   const dashboardMutedAtRef = useRef<string | null>(null);
   const dashboardMuteReasonRef = useRef<"manual" | "auto" | null>(null);
+  const knownCallsAtMuteRef = useRef<ReadonlySet<string> | null>(null);
+  const currentCallsRef = useRef(calls);
+  const reactivatingRef = useRef(false);
+  currentCallsRef.current = calls;
 
   const hasDashboardAlertCall = useMemo(
     () =>
@@ -105,16 +111,24 @@ export function DashboardPage() {
 
   const reactivateDashboardSound = useCallback(
     async (message?: string) => {
-      const synced = await persistDashboardSoundMuted(false);
-      if (!synced) return false;
+      if (reactivatingRef.current) return false;
+      reactivatingRef.current = true;
 
-      cancelDashboardMuteTimer();
-      cancelDashboardActiveTimer();
-      dashboardMutedAtRef.current = null;
-      dashboardMuteReasonRef.current = null;
-      setDashboardSoundMuted(false);
-      if (message) toast.success(message);
-      return true;
+      try {
+        const synced = await persistDashboardSoundMuted(false);
+        if (!synced) return false;
+
+        cancelDashboardMuteTimer();
+        cancelDashboardActiveTimer();
+        dashboardMutedAtRef.current = null;
+        dashboardMuteReasonRef.current = null;
+        knownCallsAtMuteRef.current = null;
+        setDashboardSoundMuted(false);
+        if (message) toast.success(message);
+        return true;
+      } finally {
+        reactivatingRef.current = false;
+      }
     },
     [cancelDashboardActiveTimer, cancelDashboardMuteTimer, persistDashboardSoundMuted],
   );
@@ -124,6 +138,9 @@ export function DashboardPage() {
       cancelDashboardActiveTimer();
       cancelDashboardMuteTimer();
       dashboardMuteReasonRef.current = reason;
+      // Captura os chamados conhecidos no instante do mute. Qualquer ID novo,
+      // inclusive de setor dinâmico ou já atendido, interrompe o silêncio.
+      knownCallsAtMuteRef.current = getKnownRealCallIds(currentCallsRef.current);
       setDashboardSoundMuted(true);
       stopAndonSound(undefined, "dashboard");
 
@@ -131,6 +148,7 @@ export function DashboardPage() {
       if (!synced) {
         dashboardMutedAtRef.current = null;
         dashboardMuteReasonRef.current = null;
+        knownCallsAtMuteRef.current = null;
         setDashboardSoundMuted(false);
         return false;
       }
@@ -191,6 +209,7 @@ export function DashboardPage() {
         cancelDashboardMuteTimer();
         dashboardMutedAtRef.current = soundState.mutedAt;
         dashboardMuteReasonRef.current = soundState.reason;
+        knownCallsAtMuteRef.current = null; // mute restaurado: usa o carimbo do servidor
         setDashboardSoundMuted(soundState.muted);
 
         if (soundState.muted) {
@@ -232,11 +251,21 @@ export function DashboardPage() {
   );
 
   useEffect(() => {
-    if (!dashboardSoundMuted) return;
-    if (!hasRealCallOpenedAfter(calls, dashboardMutedAtRef.current)) return;
+    if (!dashboardSoundStateLoaded || !dashboardSoundMuted || dashboardSoundSyncing) return;
+
+    const newCallId = knownCallsAtMuteRef.current !== null &&
+      hasNewRealCall(knownCallsAtMuteRef.current, calls);
+    const openedAfterMute = hasRealCallOpenedAfter(calls, dashboardMutedAtRef.current);
+    if (!newCallId && !openedAfterMute) return;
 
     void reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
-  }, [calls, dashboardSoundMuted, reactivateDashboardSound]);
+  }, [
+    calls,
+    dashboardSoundMuted,
+    dashboardSoundStateLoaded,
+    dashboardSoundSyncing,
+    reactivateDashboardSound,
+  ]);
 
 
   useEffect(() => {
