@@ -23,7 +23,7 @@ test("dashboard executivo usa Analytics API real e nao placeholders", async () =
   ]);
 
   assert.match(page, /loadExecutiveOverview/);
-  assert.match(overview, /Pareto de máquinas/);
+  assert.match(overview, /Máquinas com maior parada/);
   assert.match(overview, /Downtime acumulado/);
   assert.match(overview, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
@@ -121,9 +121,9 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(page, /BiBadActorsPanel/);
   assert.match(page, /BiDataHealthPanel/);
   assert.match(service, /\/api\/analytics\/reliability/);
-  assert.match(badActors, /Ativos prioritários · Bad Actors/);
+  assert.match(badActors, /Máquinas críticas · Bad Actors/);
   assert.match(badActors, /Diag\. repetido/);
-  assert.match(dataHealth, /Saúde do dado · Investigação/);
+  assert.match(dataHealth, /Qualidade dos dados · Investigação/);
   assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
   assert.match(route, /não há score oculto/);
