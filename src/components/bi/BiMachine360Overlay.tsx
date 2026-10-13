@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { BiMachineRecurrence } from "@/components/bi/BiMachineRecurrence";
+import { buildMachinePdfHtml } from "@/services/andonBiMachinePdfReport";
+import { openReportPrintDialog } from "@/services/andonBiPdfReport";
 import {
-  Activity, AlertTriangle, ChevronLeft, ChevronRight, Clock3,
+  Activity, AlertTriangle, ChevronLeft, ChevronRight, Clock3, FileDown,
   Layers3, ShieldAlert, TimerReset, Wrench, X,
 } from "lucide-react";
 
@@ -95,6 +98,7 @@ export function BiMachine360Overlay({
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
+  const [activeView, setActiveView] = useState<"overview" | "recurrence">("overview");
   const [visibleRows, setVisibleRows] = useState(3);
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export function BiMachine360Overlay({
 
   useEffect(() => {
     setPage(0);
+    setActiveView("overview");
   }, [data?.machine.id, data?.meta.generatedAt]);
 
   useEffect(() => {
@@ -164,6 +169,17 @@ export function BiMachine360Overlay({
               {data?.meta.filters.classification ? " · ativos atuais independem da classificação" : ""}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+          {data && !loading && !error && (
+            <button
+              type="button"
+              onClick={() => openReportPrintDialog(buildMachinePdfHtml(data, classificationLabels))}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 text-xs font-black text-amber-200 hover:bg-amber-500/20"
+              title="Salvar relatório individual da máquina como PDF pelo navegador"
+            >
+              <FileDown className="h-4 w-4" /> Exportar PDF
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -174,6 +190,7 @@ export function BiMachine360Overlay({
           >
             <X className="h-5 w-5" />
           </button>
+          </div>
         </header>
 
         {loading && (
@@ -220,6 +237,19 @@ export function BiMachine360Overlay({
               </div>
             </div>
 
+            <nav className="grid shrink-0 grid-cols-2 gap-2 rounded-lg border border-border bg-card p-1" aria-label="Seções Machine 360">
+              <button type="button" aria-pressed={activeView === "overview"}
+                onClick={() => setActiveView("overview")}
+                className={`rounded-md px-3 py-2 text-xs font-black uppercase transition ${activeView === "overview" ? "bg-sky-500/15 text-sky-300" : "text-muted-foreground hover:bg-muted"}`}>
+                Visão da máquina
+              </button>
+              <button type="button" aria-pressed={activeView === "recurrence"}
+                onClick={() => setActiveView("recurrence")}
+                className={`rounded-md px-3 py-2 text-xs font-black uppercase transition ${activeView === "recurrence" ? "bg-amber-500/15 text-amber-200" : "text-muted-foreground hover:bg-muted"}`}>
+                Reincidências e componentes
+              </button>
+            </nav>
+            {activeView === "overview" ? (
             <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] gap-3">
               <div className="grid min-h-0 grid-rows-3 gap-3">
                 <article className="min-h-0 overflow-hidden rounded-lg border border-border bg-card p-3">
@@ -316,6 +346,11 @@ export function BiMachine360Overlay({
                 )}
               </article>
             </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <BiMachineRecurrence data={data} classificationLabels={classificationLabels} />
+              </div>
+            )}
             <footer className="shrink-0 border-t border-border pt-2 text-[9px] text-muted-foreground">
               Máquina: {data.machine.machineStatus} · produção: {data.machine.productionMode} ·
               sem alteração operacional · Esc para fechar
