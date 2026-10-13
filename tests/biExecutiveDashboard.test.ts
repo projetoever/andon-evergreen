@@ -76,7 +76,7 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
   assert.match(overview, /Manutenção média/);
   assert.match(overview, /Tempo de parada/);
   assert.match(reliability, /MTBF estimado/);
-  assert.match(reliability, /Downtime \/ episódio/);
+  assert.match(reliability, /Parada média \/ episódio/);
   assert.match(card, /Baixa amostra/);
   assert.match(card, /border-red-500/);
   assert.match(card, /border-amber-500/);
@@ -122,7 +122,7 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(page, /BiDataHealthPanel/);
   assert.match(service, /\/api\/analytics\/reliability/);
   assert.match(badActors, /Máquinas críticas · Bad Actors/);
-  assert.match(badActors, /Diag\\. repet\\./);
+  assert.ok(badActors.includes("Diag. repet."));
   assert.match(dataHealth, /Qualidade dos dados · Investigação/);
   assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
