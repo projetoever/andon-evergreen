@@ -15,6 +15,7 @@ import {
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
+import { createFallbackAlertWav } from "../src/utils/fallbackAlertSound";
 import type { SystemSettingsPatch } from "../src/types/systemSettings";
 
 const existingOpenCall = { id: "call-a", status: "open" as const, isSystemTest: false };
@@ -506,4 +507,101 @@ test("Admin e API persistem as duas fases do ciclo sem alterar arquivos de áudi
   }
   assert.match(admin, /updateSystemSettings\(/);
   assert.doesNotMatch(admin, /saveSoundConfig|removeSoundConfig/);
+});
+
+
+test("qualquer novo chamado real desmuta, inclusive Hot Melt e Afiação com outro chamado aberto", () => {
+  const known = [
+    { id: "electric-1", status: "open" as const, isSystemTest: false },
+    { id: "mechanic-1", status: "in_progress" as const, isSystemTest: false },
+  ];
+  const baseline = getKnownRealCallIds(known);
+  assert.equal(hasNewRealCall(baseline, known), false);
+
+  for (const subtype of ["hot_melt", "afiacao", "quality", "leadership"]) {
+    const newCall = {
+      id: `new-${subtype}`,
+      subtype,
+      machineId: "37",
+      status: "open" as const,
+      isSystemTest: false,
+    };
+    assert.equal(hasNewRealCall(baseline, [...known, newCall]), true, subtype);
+    assert.equal(
+      hasNewRealCall(baseline, [...known, { ...newCall, status: "in_progress" as const }]),
+      true,
+      `o chamado ${subtype} já atendido também é novo`,
+    );
+  }
+
+  assert.equal(
+    hasNewRealCall(baseline, [
+      ...known,
+      { id: "system-check", status: "open", isSystemTest: true },
+    ]),
+    false,
+  );
+});
+
+test("setor dinâmico usa alarme de reserva quando não existe configuração de som", () => {
+  const machine = [{ id: "37", isActive: true }];
+  const soundConfigs = [
+    {
+      key: "hot_melt",
+      label: "Hot Melt",
+      fileName: "hot-melt.mp3",
+      enabled: true,
+      repeatUntilAttended: true,
+      repeatIntervalSeconds: 10,
+    },
+  ];
+
+  for (const subtype of ["hot_melt", "afiacao"]) {
+    assert.equal(
+      hasDashboardAlertingCall(
+        [{ machineId: "37", status: "open", subtype, isSystemTest: false }],
+        machine,
+        soundConfigs,
+      ),
+      true,
+      subtype,
+    );
+  }
+  assert.equal(
+    hasDashboardAlertingCall(
+      [{ machineId: "37", status: "open", subtype: "hot_melt", isSystemTest: false }],
+      machine,
+      [{ ...soundConfigs[0], enabled: false }],
+    ),
+    false,
+    "configuração explicitamente desabilitada deve ser respeitada",
+  );
+});
+
+test("alarme genérico é um WAV válido, audível sem arquivo MP3", async () => {
+  const wav = createFallbackAlertWav();
+  assert.equal(wav.type, "audio/wav");
+  assert.ok(wav.size > 44);
+  const bytes = new Uint8Array(await wav.arrayBuffer());
+  const ascii = (start: number, end: number) =>
+    String.fromCharCode(...bytes.slice(start, end));
+  assert.equal(ascii(0, 4), "RIFF");
+  assert.equal(ascii(8, 12), "WAVE");
+  assert.equal(ascii(36, 40), "data");
+  assert.ok(bytes.slice(44).some((byte) => byte !== 0));
+});
+
+test("Dashboard detecta novo ID mesmo se o timestamp ainda não mudou", async () => {
+  const [dashboard, hook, soundService] = await Promise.all([
+    readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/hooks/useAndonOpenCallSound.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/soundService.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(dashboard, /knownCallsAtMuteRef\.current = getKnownRealCallIds/);
+  assert.match(dashboard, /hasNewRealCall\(knownCallsAtMuteRef\.current, calls\)/);
+  assert.match(dashboard, /hasRealCallOpenedAfter\(calls, dashboardMutedAtRef\.current\)/);
+  assert.match(dashboard, /if \(!newCallId && !openedAfterMute\) return/);
+  assert.match(soundService, /createFallbackAlertWav\(\)/);
+  assert.match(hook, /config\?\.enabled !== false/);
 });
