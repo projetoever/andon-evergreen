@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
-import { getCallTypeOption } from "@/data/callTypes";
 import { isMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
 import { playAndonSound, stopAndonSound } from "@/services/soundService";
 
@@ -47,7 +46,7 @@ export function useAndonOpenCallSound({
             (!machineSoundEnabled || !isMachineSoundEnabled(call.machineId))
           ) return false;
           const config = soundConfigs.find((item) => item.key === call.subtype);
-          return Boolean(getCallTypeOption(call.subtype) && config?.enabled);
+          return config?.enabled !== false;
         })
         .sort((a, b) => b.openedAt.localeCompare(a.openedAt))[0] ?? null,
     [
