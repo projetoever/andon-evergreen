@@ -116,23 +116,29 @@ export function buildTemporalPatterns(input: TemporalInput) {
     callsOpened: callMatrix[weekday].reduce((n,x) => n + x, 0),
     downtimeMinutes: round2(downtimeMs[weekday].reduce((n,x) => n + x, 0) / 60_000),
   }));
-  const peakCallHour = [...byHour].sort((a,b) => b.callsOpened - a.callsOpened || a.hour - b.hour)[0]!;
-  const peakPhysicalHour = [...byHour].sort((a,b) => b.downtimeMinutes - a.downtimeMinutes || a.hour - b.hour)[0]!;
+  // Long open stops often give identical maximums across multiple hours.
+  // Calling midnight the single "peak" in that case would be misleading.
+  const maxCalls = Math.max(0, ...byHour.map(x => x.callsOpened));
+  const maxDowntime = Math.max(0, ...byHour.map(x => x.downtimeMinutes));
+  const peakCallHours = maxCalls > 0 ? byHour.filter(x => x.callsOpened === maxCalls).map(x => x.hour) : [];
+  const peakPhysicalHours = maxDowntime > 0 ? byHour.filter(x => x.downtimeMinutes === maxDowntime).map(x => x.hour) : [];
 
   return {
     totals: {
       callsOpened: callsCount,
       physicalDowntimeMinutes: round2(physicalMs / 60_000),
       physicalEpisodes,
-      peakCallHour: peakCallHour.callsOpened > 0 ? peakCallHour.hour : null,
-      peakPhysicalHour: peakPhysicalHour.downtimeMinutes > 0 ? peakPhysicalHour.hour : null,
+      peakCallHour: peakCallHours.length === 1 ? peakCallHours[0] : null,
+      peakPhysicalHour: peakPhysicalHours.length === 1 ? peakPhysicalHours[0] : null,
+      peakCallHours,
+      peakPhysicalHours,
     },
     heatmap, byHour, byWeekday,
     methodology: {
       calls: "Chamados agrupados pelo horário de abertura (openedAt), não pelo início físico da falha.",
       downtime: "Paradas físicas de FailureEvent agrupadas por minutos reais em cada hora local; intervalos sobrepostos da mesma máquina contam uma vez; máquinas diferentes somam.",
       filters: "Setor usa vínculo com chamado; eventos sem chamado não recebem setor presumido. Diagnóstico de chamada difere da classificação de FailureEvent.",
-      exposure: "Distribuição bruta na janela móvel. Sem horários produtivos por turno, não representa taxa de falha nem risco relativo.",
+      exposure: "Distribuição bruta na janela móvel. Sem horários produtivos por turno, não representa taxa de falha nem risco relativo. Picos empatados são apresentados como empate.",
     },
   };
 }
