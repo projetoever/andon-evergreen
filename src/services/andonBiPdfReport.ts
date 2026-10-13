@@ -272,7 +272,7 @@ export function buildExecutiveReportHtml({
     html, body { margin: 0; padding: 0; background: #fff; color: #1e293b; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
     /* Exactly one physical sheet per logical page. The footer must not flow
        to the next sheet (as happened in the October homologation PDF). */
-    .page { position: relative; width: 210mm; height: 297mm; min-height: 0; padding: 13mm 14mm 21mm; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
+    .page { position: relative; width: 210mm; height: 296mm; min-height: 0; padding: 13mm 14mm 21mm; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
     .page:last-child { break-after: auto; page-break-after: auto; }
     .page-heading { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #f59e0b; }
     .brand { font-size: 18px; letter-spacing: 1px; font-weight: 900; color: #101820; }
