@@ -72,6 +72,7 @@ type Breakdown = {
   key: string;
   calls: number;
   repeats30d: number;
+  repeatsSet30d: number;
   lastFinishedAt: string;
 };
 
@@ -159,10 +160,12 @@ export function buildMachine360Recurrence({
         classification: diagnosis,
         calls: 0,
         repeats30d: 0,
+        repeatsSet30d: 0,
         lastFinishedAt: c.finishedAt.toISOString(),
       };
       group.calls++;
       group.repeats30d += Number(sub30);
+      group.repeatsSet30d += Number(s30);
       group.lastFinishedAt = c.finishedAt.toISOString();
       groups.set(groupKey, group);
       cases.push({
