@@ -224,9 +224,9 @@ export function BiOverviewWorkspace({
 
         <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
           <div className="shrink-0">
-            <h2 className="text-xs font-black uppercase tracking-wide">Pareto de máquinas</h2>
+            <h2 className="text-xs font-black uppercase tracking-wide">Máquinas com maior parada</h2>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Downtime acumulado · clique para detalhar
+              Parada acumulada por máquina · clique para detalhar
             </p>
           </div>
 
