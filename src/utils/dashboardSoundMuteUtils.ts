@@ -1,4 +1,3 @@
-import { getCallTypeOption } from "@/data/callTypes";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { SoundConfig } from "@/types/settings";
@@ -97,10 +96,8 @@ export function hasDashboardAlertingCall(
   return calls.some((call) => {
     if (call.isSystemTest || call.status !== "open") return false;
     if (!activeMachineIds.has(call.machineId)) return false;
-    if (!getCallTypeOption(call.subtype)) return false;
-
     const config = soundConfigs.find((item) => item.key === call.subtype);
-    return config?.enabled === true;
+    return config?.enabled !== false;
   });
 }
 
