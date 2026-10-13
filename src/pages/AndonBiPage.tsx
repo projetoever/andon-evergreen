@@ -138,6 +138,14 @@ export function AndonBiPage() {
     let active = true;
     setLoading(true);
     setError(null);
+    // Never show cards for a previous period beneath newly selected filters.
+    // Keep the same authoritative snapshot across all BI modules.
+    setOverview(null);
+    setDrillSelection(null);
+    setDrilldown(null);
+    setMachineSelection(null);
+    setMachine360(null);
+    setQualityDetails(null);
     setMaintenance(null);
     setMaintenanceError(null);
     setAssetReliability(null);
@@ -484,10 +492,11 @@ export function AndonBiPage() {
             <button
               type="button"
               onClick={() => setRefreshVersion((value) => value + 1)}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted"
+              disabled={loading}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              Atualizar
+              {loading ? "Atualizando…" : "Atualizar"}
             </button>
             <Link
               to="/"
