@@ -432,6 +432,54 @@ export type AnalyticsMachine360 = {
     finishedWithoutClassification: number;
     standaloneFailureEvents: number;
   };
+  recurrence: {
+    totals: {
+      diagnosedFinishedCalls: number;
+      repeated24h: number;
+      repeated7d: number;
+      repeated30d: number;
+      repeatedSet30d: number;
+      repeatedSubset30d: number;
+      maintenanceReturnCycles: number;
+      withSetSnapshot: number;
+      withSubsetSnapshot: number;
+    };
+    groups: Array<{
+      setName: string | null;
+      subsetName: string | null;
+      classification: string;
+      calls: number;
+      repeats30d: number;
+      lastFinishedAt: string;
+    }>;
+    groupsTruncated: boolean;
+    timeline: Array<{
+      callId: string;
+      finishedAt: string;
+      classification: string;
+      setName: string | null;
+      subsetName: string | null;
+      workOrderNumber: string | null;
+      description: string | null;
+      returnCycles: number;
+      previousDiagnosisHours: number | null;
+      previousSetHours: number | null;
+      previousSubsetHours: number | null;
+      repeat24h: boolean;
+      repeat7d: boolean;
+      repeat30d: boolean;
+      repeatSet30d: boolean;
+      repeatSubset30d: boolean;
+    }>;
+    totalTimelineCases: number;
+    timelineTruncated: boolean;
+    semantics: {
+      diagnostic: string;
+      hierarchy: string;
+      lookback: string;
+      counts: string;
+    };
+  };
   timeline: {
     total: number;
     truncated: boolean;
