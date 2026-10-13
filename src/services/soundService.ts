@@ -1,6 +1,5 @@
 import type { CallSubtype, SoundKey } from "@/types/andon";
 import { getCallTypeOption } from "@/data/callTypes";
-import { createFallbackAlertWav } from "@/utils/fallbackAlertSound";
 import { DEFAULT_SOUND_MACHINE_ID, type SoundMachineId } from "@/types/sound";
 import { getSoundBlob } from "@/services/soundStorageService";
 import { isMachineSoundEnabled } from "@/services/machineSoundPreferenceService";
@@ -263,7 +262,7 @@ export async function playAndonSound(
   try {
     audio = await createCustomAudio(machineId, subtype);
   } catch {
-    // IndexedDB pode estar indisponível. O alerta genérico ainda deve tocar.
+    // Sem áudio configurado ou IndexedDB indisponível: não criar som substituto.
   }
 
   if (playbackToken !== state.playbackToken) {
@@ -278,13 +277,7 @@ export async function playAndonSound(
     audio = ensureAudio(scope, key);
   }
 
-  if (!audio) {
-    // Não deixe setores novos (ex.: Afiação) ou MP3 ausente sem alerta.
-    const url = URL.createObjectURL(createFallbackAlertWav());
-    audio = new Audio(url);
-    audio.preload = "auto";
-    customAudioUrls.set(audio, url);
-  }
+  if (!audio) return;
 
   try {
     state.currentAudio = audio;

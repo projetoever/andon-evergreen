@@ -15,7 +15,6 @@ import {
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
-import { createFallbackAlertWav } from "../src/utils/fallbackAlertSound";
 import type { SystemSettingsPatch } from "../src/types/systemSettings";
 
 const existingOpenCall = { id: "call-a", status: "open" as const, isSystemTest: false };
@@ -543,7 +542,7 @@ test("qualquer novo chamado real desmuta, inclusive Hot Melt e Afiação com out
   );
 });
 
-test("setor dinâmico usa alarme de reserva quando não existe configuração de som", () => {
+test("setor dinâmico continua elegível a desmute, independente do arquivo de som", () => {
   const machine = [{ id: "37", isActive: true }];
   const soundConfigs = [
     {
@@ -578,17 +577,16 @@ test("setor dinâmico usa alarme de reserva quando não existe configuração de
   );
 });
 
-test("alarme genérico é um WAV válido, audível sem arquivo MP3", async () => {
-  const wav = createFallbackAlertWav();
-  assert.equal(wav.type, "audio/wav");
-  assert.ok(wav.size > 44);
-  const bytes = new Uint8Array(await wav.arrayBuffer());
-  const ascii = (start: number, end: number) =>
-    String.fromCharCode(...bytes.slice(start, end));
-  assert.equal(ascii(0, 4), "RIFF");
-  assert.equal(ascii(8, 12), "WAVE");
-  assert.equal(ascii(36, 40), "data");
-  assert.ok(bytes.slice(44).some((byte) => byte !== 0));
+test("sem áudio configurado não reproduz som genérico no Dashboard", async () => {
+  const soundService = await readFile(
+    new URL("../src/services/soundService.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(soundService, /createFallbackAlertWav|fallbackAlertSound/);
+  assert.match(soundService, /audio = await createCustomAudio\(machineId, subtype\)/);
+  assert.match(soundService, /if \(!audio && callType\) \{[\s\S]*?ensureAudio\(scope, key\)/);
+  assert.match(soundService, /if \(!audio\) return;/);
 });
 
 test("Dashboard detecta novo ID mesmo se o timestamp ainda não mudou", async () => {
@@ -602,6 +600,6 @@ test("Dashboard detecta novo ID mesmo se o timestamp ainda não mudou", async ()
   assert.match(dashboard, /hasNewRealCall\(knownCallsAtMuteRef\.current, calls\)/);
   assert.match(dashboard, /hasRealCallOpenedAfter\(calls, dashboardMutedAtRef\.current\)/);
   assert.match(dashboard, /if \(!newCallId && !openedAfterMute\) return/);
-  assert.match(soundService, /createFallbackAlertWav\(\)/);
+  assert.doesNotMatch(soundService, /createFallbackAlertWav/);
   assert.match(hook, /config\?\.enabled !== false/);
 });
