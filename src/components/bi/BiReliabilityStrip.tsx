@@ -46,7 +46,7 @@ function MiniMetric({
         <Icon className="h-4 w-4" />
       </div>
       <div className="mt-1 text-lg font-black tabular-nums text-foreground">{value}</div>
-      <div className="mt-1 text-[9px] leading-3 text-muted-foreground">{detail}</div>
+      <div className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</div>
     </article>
   );
 }
@@ -59,15 +59,15 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
     <section className="rounded-xl border border-border bg-card/60 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-            Confiabilidade & qualidade da informação
+          <h2 className="text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+            Indicadores de confiabilidade
           </h2>
           <p className="hidden">
             Indicadores complementares para leitura de manutenção e confiabilidade
           </p>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          MTBF estimado usa exposição calendário; disponibilidade/OEE permanecem fora do MVP
+        <span className="text-xs text-muted-foreground">
+          MTBF = estimativa por calendário (todas as máquinas da população); não é tempo produtivo real
         </span>
       </div>
 
@@ -86,33 +86,33 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         <MiniMetric
           label="Episódios físicos"
           value={String(kpis.physicalStopEpisodes)}
-          detail={`${kpis.failureOccurrences} evento(s) FailureEvent registrados`}
+          detail={`${kpis.failureOccurrences} evento(s) físicos iniciados na janela; episódios podem ter começado antes`}
           icon={ShieldAlert}
           accent="red"
         />
         <MiniMetric
-          label="Downtime / episódio"
+          label="Parada média / episódio"
           value={formatMinutes(kpis.avgDowntimePerEpisodeMinutes)}
-          detail="Média sobre episódios físicos unidos por máquina"
+          detail="Tempo físico médio por episódio, inclusive paradas abertas"
           icon={TimerReset}
           accent="red"
         />
         <MiniMetric
-          label="Ciclo médio total"
+          label="Duração média do chamado"
           value={formatMinutes(kpis.avgTotalCallMinutes)}
-          detail="Da abertura à finalização dos chamados concluídos"
+          detail="Da abertura ao encerramento dos chamados finalizados"
           icon={Timer}
           accent="blue"
         />
         <MiniMetric
-          label="Concluídos"
+          label="Chamados finalizados"
           value={String(kpis.callsFinished)}
-          detail={`${kpis.callsOpened} chamado(s) abertos no período`}
+          detail={`${kpis.callsOpened} abertura(s) na janela`}
           icon={CheckCircle2}
           accent="green"
         />
         <MiniMetric
-          label="Cobertura classificação"
+          label="Diagnósticos preenchidos"
           value={
             kpis.classificationCoveragePercent === null
               ? "—"
