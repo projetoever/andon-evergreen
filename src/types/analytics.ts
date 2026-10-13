@@ -1,5 +1,38 @@
 export type AndonBiPeriodPreset = "24h" | "7d" | "30d";
 
+export type AnalyticsTemporalPatterns = {
+  meta: {
+    generatedAt: string;
+    timeZone: string;
+    period: { start: string; end: string; effectiveEnd: string };
+    filters: { machineId?: string; subtype?: string; classification?: string };
+    exclusions: { systemTests: boolean };
+  };
+  totals: {
+    callsOpened: number;
+    physicalDowntimeMinutes: number;
+    physicalEpisodes: number;
+    peakCallHour: number | null;
+    peakPhysicalHour: number | null;
+  };
+  heatmap: Array<{
+    weekday: number;
+    day: string;
+    hour: number;
+    callsOpened: number;
+    downtimeMinutes: number;
+  }>;
+  byHour: Array<{ hour: number; callsOpened: number; downtimeMinutes: number }>;
+  byWeekday: Array<{ weekday: number; day: string; callsOpened: number; downtimeMinutes: number }>;
+  methodology: {
+    calls: string;
+    downtime: string;
+    filters: string;
+    exposure: string;
+  };
+};
+
+
 export type AndonBiFilters = {
   period: AndonBiPeriodPreset;
   machineId: string;
