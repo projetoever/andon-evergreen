@@ -133,7 +133,7 @@ export function BiMachine360Overlay({
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [data]);
+  }, [data, activeView]);
 
   const items = data?.timeline.items ?? [];
   const pages = Math.max(1, Math.ceil(items.length / visibleRows));
