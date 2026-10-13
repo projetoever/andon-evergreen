@@ -73,6 +73,7 @@ export function BiOverviewWorkspace({
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
           label="Novos chamados"
+          tooltip="Chamados que começaram dentro do período selecionado. Não inclui todos os chamados ainda ativos."
           value={loading && !overview ? "…" : String(kpis?.callsOpened ?? 0)}
           detail={`${kpis?.callsFinished ?? 0} finalizado(s) na janela · aberturas do período`}
           icon={Activity}
@@ -82,6 +83,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Chamados ativos"
+          tooltip="Quantidade de chamados em aberto ou atendimento agora; pode incluir chamados iniciados antes do período."
           value={
             loading && !overview
               ? "…"
@@ -99,6 +101,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="MTTA"
+          tooltip="Mean Time To Acknowledge: tempo médio da abertura até o primeiro atendimento, conforme amostra."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
           detail={`Abertura → 1º atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
           icon={Clock3}
@@ -109,6 +112,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Manutenção média"
+          tooltip="Tempo médio efetivo de manutenção registrado nos chamados finalizados da janela; não é o tempo físico total de parada."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttrMinutes ?? null)}
           detail={`Tempo nos concluídos · ${overview?.coverage.mttrSampleSize ?? 0} amostra(s)`}
           icon={Wrench}
@@ -119,6 +123,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Tempo de parada"
+          tooltip="Soma da parada física por máquina, usando união de intervalos para não contar eventos sobrepostos duas vezes na mesma máquina."
           value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? 0)}
           detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) físico(s) · várias máquinas somadas`}
           icon={TimerReset}
@@ -128,6 +133,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Taxa de retorno"
+          tooltip="Proporção de chamados finalizados que retornaram à manutenção ao menos uma vez; não equivale à reincidência em novo chamado."
           value={
             loading && !overview
               ? "…"
