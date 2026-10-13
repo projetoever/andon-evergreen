@@ -75,7 +75,7 @@ export function BiOverviewWorkspace({
           label="Novos chamados"
           tooltip="Chamados que começaram dentro do período selecionado. Não inclui todos os chamados ainda ativos."
           value={loading && !overview ? "…" : String(kpis?.callsOpened ?? 0)}
-          detail={`${kpis?.callsFinished ?? 0} finalizado(s) na janela · aberturas do período`}
+          detail={`${kpis?.callsOpened ?? 0} abertura(s) no período · ${kpis?.callsFinished ?? 0} finalizado(s) na janela`}
           icon={Activity}
           tone="amber"
           trend={overview?.comparison.callsOpened}
@@ -111,7 +111,7 @@ export function BiOverviewWorkspace({
           sampleSize={overview?.coverage.mttaSampleSize}
         />
         <BiKpiCard
-          label="Manutenção média"
+          label="Tempo médio de manutenção"
           tooltip="Tempo médio efetivo de manutenção registrado nos chamados finalizados da janela; não é o tempo físico total de parada."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttrMinutes ?? null)}
           detail={`Tempo nos concluídos · ${overview?.coverage.mttrSampleSize ?? 0} amostra(s)`}
@@ -141,7 +141,7 @@ export function BiOverviewWorkspace({
                 ? "—"
                 : `${kpis?.maintenanceReturnRatePercent ?? 0}%`
           }
-          detail={`${kpis?.returnedCalls ?? 0} chamado(s) com retorno · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
+          detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.callsFinished ?? 0} finalizados retornaram · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
           icon={RotateCcw}
           tone="red"
           sampleSize={overview?.coverage.finishedCalls}
@@ -165,13 +165,19 @@ export function BiOverviewWorkspace({
               <h2 className="text-xs font-black uppercase tracking-wide">
                 Chamados por dia
               </h2>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Novos × finalizados em cada data
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Aberturas e conclusões por data operacional
               </p>
             </div>
-            <span className="text-[10px] font-semibold text-muted-foreground">
-              {PERIOD_LABELS[period]}
-            </span>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">
+                {PERIOD_LABELS[period]}
+              </span>
+              <div aria-label="Legenda do gráfico de chamados" className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[10px] font-semibold">
+                <span className="inline-flex items-center gap-1.5 text-amber-300"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-400" />Novos chamados</span>
+                <span className="inline-flex items-center gap-1.5 text-emerald-300"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-400" />Finalizados</span>
+              </div>
+            </div>
           </div>
 
           {overview?.trend.length ? (
@@ -201,16 +207,16 @@ export function BiOverviewWorkspace({
                     }}
                   />
                   <Line
-                    name="Abertos"
-                    type="monotone"
+                    name="Novos chamados"
+                    type="linear"
                     dataKey="callsOpened"
                     stroke="#f59e0b"
                     strokeWidth={2}
                     dot={false}
                   />
                   <Line
-                    name="Concluídos"
-                    type="monotone"
+                    name="Finalizados"
+                    type="linear"
                     dataKey="callsFinished"
                     stroke="#22c55e"
                     strokeWidth={2}

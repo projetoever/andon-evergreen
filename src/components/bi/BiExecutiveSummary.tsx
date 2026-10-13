@@ -8,7 +8,7 @@ function formatMinutes(value: number | null) {
   if (value < 60) return `${Math.round(value)} min`;
   const hours = Math.floor(value / 60);
   const minutes = Math.round(value % 60);
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  return minutes ? `${hours}h ${minutes}min` : `${hours}h`;
 }
 
 function comparisonSentence(
@@ -27,7 +27,7 @@ function comparisonSentence(
   }
 
   const verb = metric.direction === "up" ? "subiu" : "caiu";
-  return `${label}: ${verb} ${Math.abs(metric.deltaPercent ?? 0)}% frente ao período anterior (${formatter(metric.previous)} → ${formatter(metric.current)}).`;
+  return `${label}: ${verb} ${Math.abs(metric.deltaPercent ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% frente ao período anterior (${formatter(metric.previous)} → ${formatter(metric.current)}).`;
 }
 
 type SummaryTone = "red" | "amber" | "green" | "blue";
@@ -74,7 +74,7 @@ export function BiExecutiveSummary({
   if (overview.highlights.topMachine) {
     const machine = overview.highlights.topMachine;
     items.push({
-      text: `${machine.machineName} concentra ${machine.sharePercent}% do downtime acumulado do período (${formatMinutes(machine.downtimeMinutes)}).`,
+      text: `A máquina ${machine.machineName} concentrou ${machine.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do tempo de parada do período (${formatMinutes(machine.downtimeMinutes)}).`,
       tone: "red",
     });
   }
@@ -85,13 +85,13 @@ export function BiExecutiveSummary({
       overview.coverage.finishedCallsWithClassification > 0 &&
       overview.coverage.finishedCallsWithClassification < 5;
     items.push({
-      text: `${classificationLabels.get(classification.classification) ?? classification.classification} é a classificação mais recorrente entre os chamados concluídos: ${classification.count} registro(s), ${classification.sharePercent}% do total classificado.${lowSample ? ` Atenção: amostra baixa (${overview.coverage.finishedCallsWithClassification} chamado(s) classificado(s)).` : ""}`,
+      text: `${classificationLabels.get(classification.classification) ?? classification.classification} foi o diagnóstico mais registrado entre os chamados finalizados: ${classification.count} ocorrência(s), ${classification.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% dos classificados.${lowSample ? ` Atenção: amostra baixa (${overview.coverage.finishedCallsWithClassification} chamado(s) classificado(s)).` : ""}`,
       tone: lowSample ? "amber" : "blue",
     });
   } else if (overview.highlights.topSector) {
     const sector = overview.highlights.topSector;
     items.push({
-      text: `${sectorLabels.get(sector.subtype) ?? sector.subtype} lidera a demanda do período com ${sector.count} chamado(s), ${sector.sharePercent}% das aberturas.`,
+      text: `${sectorLabels.get(sector.subtype) ?? sector.subtype} concentrou ${sector.count} chamado(s), correspondentes a ${sector.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% das aberturas do período.`,
       tone: "blue",
     });
   }
@@ -106,7 +106,7 @@ export function BiExecutiveSummary({
           </p>
         </div>
         <span className="mt-1 text-[10px] font-semibold text-muted-foreground md:mt-0">
-          Sem IA · mesmas fórmulas do dashboard
+          Resumo automático · mesmas fórmulas dos indicadores
         </span>
       </div>
 
