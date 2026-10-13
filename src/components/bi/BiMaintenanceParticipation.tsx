@@ -81,7 +81,7 @@ function PageControls({
   onChange: (next: number) => void;
 }) {
   return (
-    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[10px] text-muted-foreground">
+    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-xs text-muted-foreground">
       <span className="tabular-nums">
         {total === 0 ? "0 registros" : `${page * shown + 1}–${Math.min((page + 1) * shown, total)} de ${total}`}
       </span>
@@ -179,7 +179,7 @@ export function BiMaintenanceParticipation({
             </h2>
           </div>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Pessoa-minutos registrados por mantenedor. Participação, não ranking de desempenho.
+            Soma das horas de cada técnico, inclusive simultâneas · não é tempo de parada nem ranking de desempenho.
           </p>
         </div>
         <div className="flex shrink-0 gap-3 text-[10px] font-semibold text-muted-foreground">
@@ -196,7 +196,7 @@ export function BiMaintenanceParticipation({
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-              Esforço manutenção
+              Horas técnicas de manutenção
             </span>
             <Wrench className="h-3.5 w-3.5" />
           </div>
@@ -227,7 +227,7 @@ export function BiMaintenanceParticipation({
           <div className="mt-1 text-xl font-black tabular-nums">
             {data.totals.technicianCount}
           </div>
-          <p className="text-[9px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             {data.totals.callCount} chamado(s) com fase explícita
           </p>
         </div>
@@ -255,7 +255,7 @@ export function BiMaintenanceParticipation({
               Distribuição por mantenedor
             </h3>
             <span className="text-[10px] text-muted-foreground">
-              Ordenado por pessoa-minutos
+              Ordenado por horas técnicas
             </span>
           </div>
 
