@@ -53,3 +53,23 @@ test("PDF identifica a fonte como ambiente consultado sem negar testes manuais",
   assert.doesNotMatch(report, /Sem dados de teste/);
   assert.match(machine, /ambientes de homologação podem conter testes manuais/);
 });
+
+test("BI: legendas verde e amarela identificam explicitamente o gráfico de chamados", async () => {
+  const graph = await readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8");
+  assert.match(graph, /Legenda do gráfico de chamados/);
+  assert.match(graph, /bg-amber-400/);
+  assert.match(graph, /bg-emerald-400/);
+  assert.match(graph, /name="Novos chamados"/);
+  assert.match(graph, /name="Finalizados"/);
+  assert.match(graph, /type="linear"/);
+  assert.match(graph, /Aberturas e conclusões por data operacional/);
+  assert.match(graph, /de \$\{kpis\?\.callsFinished \?\? 0\} finalizados retornaram/);
+});
+
+test("BI: resumo executivo determinístico usa percentuais brasileiros e evita a expressão Sem IA", async () => {
+  const src = await readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8");
+  assert.match(src, /Resumo automático · mesmas fórmulas dos indicadores/);
+  assert.match(src, /\.toLocaleString\("pt-BR"/);
+  assert.match(src, /tempo de parada do período/);
+  assert.doesNotMatch(src, /Sem IA/);
+});
