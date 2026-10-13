@@ -11,7 +11,7 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
   assert.match(overview, /label="Novos chamados"/);
   assert.match(overview, /label="Chamados ativos"/);
   assert.match(overview, /label="Tempo de parada"/);
-  assert.match(overview, /label="Manutenção média"/);
+  assert.match(overview, /label="Tempo médio de manutenção"/);
   assert.match(summary, /"Tempo de parada"/);
   assert.match(shell, /testes automáticos marcados excluídos/);
   assert.match(shell, /h-dvh overflow-hidden/);
