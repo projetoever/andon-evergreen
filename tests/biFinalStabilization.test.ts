@@ -57,3 +57,14 @@ test("BI-13: stabilization stays within current five-tab UI and does not change 
   assert.equal((tabs.match(/id: "(overview|reliability|failures|maintenance|data-quality)"/g) ?? []).length, 5);
   assert.match(JSON.parse(uiScript).scripts["test:ui"], /biFinalStabilization\.test\.ts/);
 });
+
+test("BI-13: não apresenta duração final de zero para chamados ainda ativos", async () => {
+  const [route, drill] = await Promise.all([
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /durationMinutes: call\.finishedAt/);
+  assert.match(drill, /item\.kind === "call" && !item\.endedAt/);
+  assert.match(drill, /Em aberto/);
+  assert.match(drill, /duração final consolidada/);
+});
