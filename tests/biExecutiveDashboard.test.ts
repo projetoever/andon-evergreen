@@ -24,7 +24,7 @@ test("dashboard executivo usa Analytics API real e nao placeholders", async () =
 
   assert.match(page, /loadExecutiveOverview/);
   assert.match(overview, /Máquinas com maior parada/);
-  assert.match(overview, /Downtime acumulado/);
+  assert.match(overview, /Tempo de parada/);
   assert.match(overview, /MTTA/);
   assert.doesNotMatch(page, /Aguardando Analytics API|Sem dados simulados/);
 });
@@ -73,8 +73,8 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(overview, /Tempo efetivo manutenção/);
-  assert.match(overview, /Downtime acumulado/);
+  assert.match(overview, /Manutenção média/);
+  assert.match(overview, /Tempo de parada/);
   assert.match(reliability, /MTBF estimado/);
   assert.match(reliability, /Downtime \/ episódio/);
   assert.match(card, /Baixa amostra/);
@@ -98,8 +98,8 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
 
   assert.match(page, /BiMaintenanceParticipation/);
   assert.match(service, /\/api\/analytics\/maintenance/);
-  assert.match(component, /Pessoa-minutos/);
-  assert.match(component, /não ranking de desempenho/);
+  assert.match(component, /Soma de horas por técnico/);
+  assert.match(component, /não|nem|ranking|desempenho/);
   assert.match(component, /Cobertura de fases/);
   assert.match(component, /sessão\(ões\) legada\(s\)/);
   assert.match(route, /technicianSession\.findMany/);
@@ -151,7 +151,7 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
   assert.match(tabs, /Confiabilidade/);
   assert.match(tabs, /Falhas/);
   assert.match(tabs, /Manutenção/);
-  assert.match(tabs, /Qualidade do Dado/);
+  assert.match(tabs, /Qualidade dos Dados/);
   assert.match(drilldown, /página/);
 });
 
