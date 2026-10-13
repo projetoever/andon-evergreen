@@ -125,7 +125,7 @@ export function BiMachineRecurrence({
                 }`}>
                 <div className="flex justify-between gap-2 text-[11px] font-bold">
                   <span className="truncate">{group.setName ?? "Conjunto não identificado"} → {group.subsetName ?? "Subconjunto não identificado"}</span>
-                  <span className="shrink-0 tabular-nums text-red-300">{group.repeats30d} rep.</span>
+                  <span className="shrink-0 tabular-nums text-red-300">{group.repeatsSet30d} conj. · {group.repeats30d} sub.</span>
                 </div>
                 <p className="truncate text-[10px] text-muted-foreground">{classificationLabels.get(group.classification) ?? group.classification}</p>
                 <p className="text-[9px] text-muted-foreground">{group.calls} concluído(s) na janela</p>
