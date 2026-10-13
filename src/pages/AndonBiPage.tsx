@@ -22,6 +22,7 @@ import {
   loadDataQualityDetails,
   loadExecutiveOverview,
   loadFailureIntelligence,
+  loadTemporalPatterns,
   loadMaintenanceParticipation,
   loadMachine360,
 } from "@/services/andonBiService";
@@ -35,6 +36,7 @@ import type {
   AnalyticsMaintenanceParticipation,
   AnalyticsMachine360,
   AnalyticsOverview,
+  AnalyticsTemporalPatterns,
   AndonBiFilterOptions,
   AndonBiFilters,
   AndonBiPeriodPreset,
@@ -79,6 +81,10 @@ export function AndonBiPage() {
   const [qualityError, setQualityError] = useState<string | null>(null);
   const [failureIntelligence, setFailureIntelligence] =
     useState<AnalyticsFailureIntelligence | null>(null);
+  const [temporalRequested, setTemporalRequested] = useState(false);
+  const [temporal, setTemporal] = useState<AnalyticsTemporalPatterns | null>(null);
+  const [temporalLoading, setTemporalLoading] = useState(false);
+  const [temporalError, setTemporalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
@@ -140,6 +146,8 @@ export function AndonBiPage() {
     setAllReliabilityError(null);
     setFailureIntelligence(null);
     setFailureError(null);
+    setTemporal(null);
+    setTemporalError(null);
 
     void loadExecutiveOverview(filters)
       .then(async (result) => {
@@ -323,6 +331,25 @@ export function AndonBiPage() {
       });
     return () => { active = false; };
   }, [activeTab, filters, overview, qualityCategory, qualityPage]);
+
+  // Query only after the user opens the Temporal Patterns view.
+  // The result always uses the same period and filters as the executive BI.
+  useEffect(() => {
+    if (!temporalRequested || activeTab !== "failures" || !overview || loading) return;
+    let active = true;
+    setTemporal(null);
+    setTemporalError(null);
+    setTemporalLoading(true);
+    void loadTemporalPatterns(filters, overview.meta.period)
+      .then(result => { if (active) setTemporal(result); })
+      .catch(reason => {
+        if (active) setTemporalError(
+          reason instanceof Error ? reason.message : "Falha ao carregar padrões temporais.",
+        );
+      })
+      .finally(() => { if (active) setTemporalLoading(false); });
+    return () => { active = false; };
+  }, [temporalRequested, activeTab, overview, filters, loading]);
 
   const closeMachine360 = useCallback(() => {
     setMachineSelection(null);
@@ -635,6 +662,10 @@ export function AndonBiPage() {
               intelligence={failureIntelligence}
               intelligenceLoading={failureLoading}
               intelligenceError={failureError}
+              temporal={temporal}
+              temporalLoading={temporalLoading}
+              temporalError={temporalError}
+              onTemporalSelected={() => setTemporalRequested(true)}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
               onDrilldown={setDrillSelection}
