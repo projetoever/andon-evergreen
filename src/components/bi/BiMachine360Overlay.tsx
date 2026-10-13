@@ -36,9 +36,9 @@ function PanelMetric({
   };
   return (
     <div className={`rounded-lg border px-3 py-2 ${colors[tone]}`}>
-      <div className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-black tabular-nums">{value}</div>
-      <div className="truncate text-[9px] text-muted-foreground" title={note}>{note}</div>
+      <div className="truncate text-[10px] text-muted-foreground" title={note}>{note}</div>
     </div>
   );
 }
@@ -55,7 +55,7 @@ function Paging({
   onPage: (index: number) => void;
 }) {
   return (
-    <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-t border-border pt-1 text-[10px] text-muted-foreground">
+    <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-t border-border pt-1 text-[11px] text-muted-foreground">
       <span>{total} registro(s) · página {page + 1}/{pages}</span>
       <div className="flex gap-1">
         <button
@@ -160,12 +160,12 @@ export function BiMachine360Overlay({
       <section className="flex h-[calc(100dvh-24px)] w-full max-w-[1620px] min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-emerald-500/30 bg-background p-4 shadow-2xl">
         <header className="flex shrink-0 items-center justify-between border-b border-border pb-3">
           <div>
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.17em] text-emerald-300">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.17em] text-emerald-300">
               <Activity className="h-4 w-4" /> Confiabilidade por ativo
             </div>
             <h2 className="mt-1 text-2xl font-black">Machine 360 · {data?.machine.name ?? machineName}</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Dados reais · período do BI · downtime físico sem dupla contagem
+            <p className="text-xs text-muted-foreground">
+              Registros do ambiente consultado · período do BI · parada física sem dupla contagem
               {data?.meta.filters.classification ? " · ativos atuais independem da classificação" : ""}
             </p>
           </div>
@@ -209,7 +209,7 @@ export function BiMachine360Overlay({
               <PanelMetric label="Downtime físico" value={duration(data.kpis.downtimeMinutes)} note="União dos eventos de parada" tone="red" />
               <PanelMetric label="Episódios" value={String(data.kpis.physicalStopEpisodes)} note="Episódios físicos unidos" tone="red" />
               <PanelMetric label="Parada / episódio" value={duration(data.kpis.avgDowntimePerEpisodeMinutes)} note="Inclui eventos ainda abertos" tone="amber" />
-              <PanelMetric label="MTBF estimado" value={duration(data.kpis.mtbfEstimatedMinutes)} note="Exposição calendário estimada" tone="green" />
+              <PanelMetric label="MTBF estimado" value={data.machine.isActive ? duration(data.kpis.mtbfEstimatedMinutes) : "—"} note="Indisponível sem exposição fora das paradas; não equivale a horas produtivas" tone="green" />
               <PanelMetric label="MTTA" value={duration(data.kpis.mttaMinutes)} note="Abertura até primeiro atendimento" tone="blue" />
               <PanelMetric label="Manutenção efetiva" value={duration(data.kpis.avgMaintenanceMinutes)} note="Média dos concluídos com registro" tone="blue" />
             </div>
@@ -286,7 +286,7 @@ export function BiMachine360Overlay({
                   <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide">
                     <AlertTriangle className="h-4 w-4 text-amber-300" /> Saúde dos registros
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                     <span>Evento(s) abertos: <strong>{data.dataHealth.openFailureEvents}</strong></span>
                     <span>Mais antigo: <strong>{duration(data.dataHealth.oldestOpenFailureMinutes)}</strong></span>
                     <span>Chamado mais antigo: <strong>{duration(data.dataHealth.oldestActiveCallMinutes)}</strong></span>
@@ -301,7 +301,7 @@ export function BiMachine360Overlay({
                     <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide">
                       <Clock3 className="h-4 w-4 text-sky-400" /> Linha do tempo
                     </div>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
+                    <p className="mt-1 text-[11px] text-muted-foreground">
                       Chamados e eventos físicos separados · até 40 ocorrências recentes
                     </p>
                   </div>
@@ -313,7 +313,7 @@ export function BiMachine360Overlay({
                     <div key={`${item.kind}-${item.id}`} className="flex h-[88px] flex-col justify-center gap-1 border-b border-border/60 px-1 text-xs last:border-b-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-black">{localTime(item.occurredAt)}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase ${
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${
                           item.kind === "failure_event"
                             ? "border-red-500/30 bg-red-500/10 text-red-300"
                             : "border-sky-500/30 bg-sky-500/10 text-sky-300"
@@ -321,13 +321,13 @@ export function BiMachine360Overlay({
                           {item.kind === "failure_event" ? "Evento físico" : "Chamado"}
                         </span>
                       </div>
-                      <span className="truncate text-[11px]" title={item.description ?? undefined}>
+                      <span className="truncate text-xs" title={item.description ?? undefined}>
                         {item.description ?? "Sem descrição"} · {item.classification ? classificationLabels.get(item.classification) ?? item.classification : "Sem classificação"}
                       </span>
-                      <span className="truncate text-[10px] text-muted-foreground">
+                      <span className="truncate text-[11px] text-muted-foreground">
                         OS: {item.workOrderNumber ?? "—"} · {item.setName ?? "sem conjunto"} / {item.subsetName ?? "sem subconjunto"}
                       </span>
-                      <span className="truncate text-[9px] text-muted-foreground">
+                      <span className="truncate text-[10px] text-muted-foreground">
                         {item.kind === "failure_event" ? `Parada recortada: ${duration(item.durationMinutes)}` : `ID do chamado: ${item.callId}`}
                       </span>
                     </div>
@@ -340,7 +340,7 @@ export function BiMachine360Overlay({
                 </div>
                 <Paging page={safePage} pages={pages} onPage={setPage} total={data.timeline.total} />
                 {data.timeline.truncated && (
-                  <p className="shrink-0 text-[9px] text-amber-300">
+                  <p className="shrink-0 text-[10px] text-amber-300">
                     Exibindo as últimas 40 ocorrências; os KPIs usam todos os registros.
                   </p>
                 )}
@@ -351,7 +351,7 @@ export function BiMachine360Overlay({
                 <BiMachineRecurrence data={data} classificationLabels={classificationLabels} />
               </div>
             )}
-            <footer className="shrink-0 border-t border-border pt-2 text-[9px] text-muted-foreground">
+            <footer className="shrink-0 border-t border-border pt-2 text-[10px] text-muted-foreground">
               Máquina: {data.machine.machineStatus} · produção: {data.machine.productionMode} ·
               sem alteração operacional · Esc para fechar
             </footer>
