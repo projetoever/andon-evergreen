@@ -67,13 +67,10 @@ export function BiMachineRecurrence({
   const [selected, setSelected] = useState<string | null>(null);
   const { ref: groupViewport, rows: groupRows } = usePageRows(70, Boolean(data));
   const { ref: timelineViewport, rows: timelineRows } = usePageRows(88, Boolean(data));
-  const groupKey = (g: Group) => JSON.stringify([g.setName, g.subsetName, g.classification]);
+  const groupKey = (g: Group) => g.key;
   const matched = info.groups.find(g => groupKey(g) === selected) ?? null;
   const timeline = matched
-    ? info.timeline.filter(c =>
-        c.classification === matched.classification &&
-        c.setName === matched.setName &&
-        c.subsetName === matched.subsetName)
+    ? info.timeline.filter(c => c.groupKey === matched.key)
     : info.timeline;
   useEffect(() => {
     setGroupPage(0);
