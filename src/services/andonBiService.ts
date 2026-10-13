@@ -9,6 +9,7 @@ import type {
   AnalyticsMaintenanceParticipation,
   AnalyticsMachine360,
   AnalyticsOverview,
+  AnalyticsTemporalPatterns,
   AndonBiClassificationOption,
   AndonBiFilterOptions,
   AndonBiFilters,
@@ -188,5 +189,19 @@ export async function loadDataQualityDetails(
   applyDimensionFilters(query, filters);
   return andonBiApiClient.get<AnalyticsDataQualityDetails>(
     `/api/analytics/data-quality-details?${query.toString()}`,
+  );
+}
+
+export async function loadTemporalPatterns(
+  filters: AndonBiFilters,
+  period: AnalyticsOverview["meta"]["period"],
+): Promise<AnalyticsTemporalPatterns> {
+  const query = new URLSearchParams({
+    startDate: period.start,
+    endDate: period.end,
+  });
+  applyDimensionFilters(query, filters);
+  return andonBiApiClient.get<AnalyticsTemporalPatterns>(
+    `/api/analytics/temporal?${query.toString()}`,
   );
 }
