@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import { buildFailureIntelligence } from "../analytics/failureIntelligence.js";
 import { buildMachine360 } from "../analytics/machine360.js";
+import { buildMachine360Recurrence } from "../analytics/machine360Recurrence.js";
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
 import {
@@ -417,6 +418,58 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           linkedCallIsSystemTest: false,
         }));
 
+      // The BI-11 historical cohort includes up to 30 days before the start.
+      // Past sector assignments are never used to erase a valid antecedent.
+      const historyStart = new Date(period.start.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const historicalFinished = effectiveEnd.getTime() > period.start.getTime()
+        ? await prisma.andonCall.findMany({
+            where: {
+              machineId,
+              isSystemTest: false,
+              status: "finished",
+              finishedAt: { gte: historyStart, lt: effectiveEnd },
+              failureClassification: { not: null },
+            },
+            select: {
+              id: true, subtype: true, finishedAt: true,
+              failureClassification: true, workOrderNumber: true,
+              failureDescription: true, maintenanceReturnCount: true,
+              isSystemTest: true,
+              machineSetId: true, machineSetNameSnapshot: true,
+              machineSubsetId: true, machineSubsetNameSnapshot: true,
+              confirmedMachineSetId: true, confirmedMachineSetNameSnapshot: true,
+              confirmedMachineSubsetId: true, confirmedMachineSubsetNameSnapshot: true,
+            },
+            orderBy: [{ finishedAt: "asc" }, { id: "asc" }],
+          })
+        : [];
+      const recurrence = buildMachine360Recurrence({
+        calls: historicalFinished.flatMap((call) =>
+          call.finishedAt ? [{
+            id: call.id,
+            subtype: call.subtype,
+            finishedAt: call.finishedAt,
+            classification: call.failureClassification,
+            workOrderNumber: call.workOrderNumber,
+            description: call.failureDescription,
+            maintenanceReturnCount: call.maintenanceReturnCount,
+            isSystemTest: call.isSystemTest,
+            machineSetId: call.machineSetId,
+            machineSetNameSnapshot: call.machineSetNameSnapshot,
+            machineSubsetId: call.machineSubsetId,
+            machineSubsetNameSnapshot: call.machineSubsetNameSnapshot,
+            confirmedMachineSetId: call.confirmedMachineSetId,
+            confirmedMachineSetNameSnapshot: call.confirmedMachineSetNameSnapshot,
+            confirmedMachineSubsetId: call.confirmedMachineSubsetId,
+            confirmedMachineSubsetNameSnapshot: call.confirmedMachineSubsetNameSnapshot,
+          }] : [],
+        ),
+        start: period.start,
+        effectiveEnd,
+        subtype,
+        classification,
+      });
+
       return {
         meta: {
           generatedAt: generatedAt.toISOString(),
@@ -437,6 +490,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             classification: "diagnóstico de chamado e classificação de evento físico são domínios distintos",
             hierarchy: "conjunto e subconjunto registrados historicamente no chamado; confirmação tem preferência",
             history: "eventos físicos e chamados são exibidos separadamente e não devem ter durações somadas",
+            recurrence: "diagnóstico repetido em novo chamado finalizado; por conjunto e subconjunto exige identidade histórica correspondente, sem inferir causa raiz",
           },
         },
         ...buildMachine360({
@@ -448,6 +502,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           start: period.start,
           effectiveEnd,
         }),
+        recurrence,
       };
     },
   );
