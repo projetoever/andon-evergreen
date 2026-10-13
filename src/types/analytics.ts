@@ -451,6 +451,7 @@ export type AnalyticsMachine360 = {
       key: string;
       calls: number;
       repeats30d: number;
+      repeatsSet30d: number;
       lastFinishedAt: string;
     }>;
     groupsTruncated: boolean;
