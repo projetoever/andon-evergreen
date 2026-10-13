@@ -450,21 +450,34 @@ export function openReportPrintDialog(html: string): void {
   frame.style.border = "0";
   frame.style.pointerEvents = "none";
   let printStarted = false;
+  let cleanupTimer: number | undefined;
 
   const dispose = () => {
+    if (cleanupTimer !== undefined) window.clearTimeout(cleanupTimer);
+    frame.onload = null;
     if (frame.isConnected) frame.remove();
   };
   frame.onload = () => {
     const inner = frame.contentWindow;
-    if (!inner || printStarted) return;
+    if (printStarted) return;
+    if (!inner) {
+      dispose();
+      return;
+    }
     printStarted = true;
     inner.addEventListener("afterprint", dispose, { once: true });
-    void (frame.contentDocument?.fonts.ready ?? Promise.resolve()).then(() => {
-      inner.focus();
-      inner.print();
-    });
+    void (frame.contentDocument?.fonts.ready ?? Promise.resolve())
+      .then(() => {
+        if (!frame.isConnected) return;
+        inner.focus();
+        inner.print();
+      })
+      .catch(dispose);
   };
 
   frame.srcdoc = html;
   document.body.appendChild(frame);
+  // afterprint can be skipped when printing is cancelled or restricted.
+  // Prevent invisible PDF iframes from accumulating in long kiosk sessions.
+  cleanupTimer = window.setTimeout(dispose, 120_000);
 }
