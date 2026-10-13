@@ -45,7 +45,7 @@ const TABS: Array<{
   },
   {
     id: "data-quality",
-    label: "Qualidade do Dado",
+    label: "Qualidade dos Dados",
     icon: DatabaseZap,
     activeClass: "border-amber-400/60 bg-amber-500/10 text-amber-200",
   },
@@ -76,7 +76,7 @@ export function BiWorkspaceTabs({
             type="button"
             onClick={() => onChange(tab.id)}
             className={[
-              "relative inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-black uppercase tracking-wide transition",
+              "relative inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs xl:text-[13px] font-black uppercase tracking-wide transition",
               active
                 ? tab.activeClass
                 : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground",
@@ -85,7 +85,7 @@ export function BiWorkspaceTabs({
             <Icon className="h-4 w-4" />
             <span className="hidden lg:inline">{tab.label}</span>
             {showAttention && (
-              <span className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[9px] font-black text-white">
+              <span title="Soma de alertas por categoria; não corresponde necessariamente a ocorrências únicas" aria-label={`${attentionCount} alertas por categoria de qualidade do dado`} className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white">
                 {attentionCount}
               </span>
             )}
