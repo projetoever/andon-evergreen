@@ -72,3 +72,23 @@ test("eventos cruzando meia-noite são divididos por dia/hora locais",()=>{
   assert.equal(cell(r,1,23).downtimeMinutes,30);
   assert.equal(cell(r,2,0).downtimeMinutes,30);
 });
+
+test("picos empatados não inventam um horário mais crítico",()=>{
+  const r=analyze([
+    {id:"ten",openedAt:date("2026-10-12T13:00:00Z"),isSystemTest:false},
+    {id:"eleven",openedAt:date("2026-10-12T14:00:00Z"),isSystemTest:false},
+  ], [event("all-day","m","2026-10-12T12:00:00Z","2026-10-14T12:00:00Z")]);
+  assert.equal(r.totals.peakCallHour,null);
+  assert.deepEqual(r.totals.peakCallHours,[10,11]);
+  assert.equal(r.totals.peakPhysicalHour,null);
+  assert.equal(r.totals.peakPhysicalHours.length,24);
+  assert.equal(r.totals.physicalDowntimeMinutes,2880);
+});
+
+test("janela vazia não confunde zero com pico",()=>{
+  const r=analyze();
+  assert.equal(r.totals.peakCallHour,null);
+  assert.equal(r.totals.peakPhysicalHour,null);
+  assert.deepEqual(r.totals.peakCallHours,[]);
+  assert.deepEqual(r.totals.peakPhysicalHours,[]);
+});

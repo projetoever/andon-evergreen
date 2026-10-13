@@ -1184,16 +1184,17 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
               ? (call.finishedAt ?? call.openedAt).toISOString()
               : call.openedAt.toISOString(),
           endedAt: call.finishedAt?.toISOString() ?? null,
-          durationMinutes:
-            call.totalCallMinutes ??
-            (call.finishedAt
-              ? Math.max(
-                  0,
-                  Math.round(
-                    ((call.finishedAt.getTime() - call.openedAt.getTime()) / 60_000) * 100,
-                  ) / 100,
-                )
-              : null),
+          // An unfinished call has no frozen total duration. A stored default
+          // zero must not be presented as a completed zero-minute call.
+          durationMinutes: call.finishedAt
+            ? (call.totalCallMinutes ??
+              Math.max(
+                0,
+                Math.round(
+                  ((call.finishedAt.getTime() - call.openedAt.getTime()) / 60_000) * 100,
+                ) / 100,
+              ))
+            : null,
           status: call.status,
           workOrderNumber: call.workOrderNumber,
           technicianNames: call.technicianNames,

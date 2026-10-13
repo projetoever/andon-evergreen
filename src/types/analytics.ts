@@ -14,6 +14,8 @@ export type AnalyticsTemporalPatterns = {
     physicalEpisodes: number;
     peakCallHour: number | null;
     peakPhysicalHour: number | null;
+    peakCallHours: number[];
+    peakPhysicalHours: number[];
   };
   heatmap: Array<{
     weekday: number;

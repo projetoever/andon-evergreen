@@ -75,10 +75,16 @@ export function BiTemporalPatterns({
       <div className="grid shrink-0 grid-cols-4 gap-2">
         <SmallCard label="Novos chamados" value={String(t.callsOpened)} note="Aberturas na janela selecionada" type="amber"/>
         <SmallCard label="Parada física" value={minutes(t.physicalDowntimeMinutes)} note="Intervalos físicos unidos por máquina" type="red"/>
-        <SmallCard label="Pico de aberturas" value={t.peakCallHour===null?"—":`${String(t.peakCallHour).padStart(2,"0")}h`}
-          note={t.peakCallHour===null?"Sem aberturas no período":"Horário local com maior volume"} type="blue"/>
-        <SmallCard label="Pico de parada" value={t.peakPhysicalHour===null?"—":`${String(t.peakPhysicalHour).padStart(2,"0")}h`}
-          note={t.peakPhysicalHour===null?"Sem parada no período":"Faixa local com mais minutos acumulados"} type="red"/>
+        <SmallCard label="Pico de aberturas"
+          value={t.peakCallHours.length === 0 ? "—" : t.peakCallHours.length > 1 ? "Empate" : `${String(t.peakCallHour).padStart(2,"0")}h`}
+          note={t.peakCallHours.length === 0 ? "Sem aberturas no período" :
+            t.peakCallHours.length > 1 ? `${t.peakCallHours.length} horários empatados no volume máximo` :
+            "Horário local com maior volume"} type="blue"/>
+        <SmallCard label="Pico de parada"
+          value={t.peakPhysicalHours.length === 0 ? "—" : t.peakPhysicalHours.length > 1 ? "Empate" : `${String(t.peakPhysicalHour).padStart(2,"0")}h`}
+          note={t.peakPhysicalHours.length === 0 ? "Sem parada no período" :
+            t.peakPhysicalHours.length > 1 ? `${t.peakPhysicalHours.length} horários empatados; parada prolongada é possível` :
+            "Faixa local com mais minutos acumulados"} type="red"/>
       </div>
 
       <div className="grid min-h-0 gap-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.65fr)]">
