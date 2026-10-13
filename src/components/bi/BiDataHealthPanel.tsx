@@ -2,9 +2,9 @@ import { ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from "lucide-r
 import type { AnalyticsAssetReliability, AnalyticsDataQualityCategory, AnalyticsDataQualityDetails } from "@/types/analytics";
 
 const LABELS: Record<AnalyticsDataQualityCategory, string> = {
-  "active-calls": "Chamados ativos há mais de 24h",
-  "open-events": "Paradas abertas há mais de 24h",
-  "active-sessions": "Sessões abertas há mais de 24h",
+  "active-calls": "Chamados ativos > 24h",
+  "open-events": "Paradas físicas > 24h",
+  "active-sessions": "Sessões técnicas > 24h",
   "unclassified-calls": "Concluídos sem classificação",
   "unlinked-events": "Eventos sem chamado",
 };
@@ -55,9 +55,9 @@ export function BiDataHealthPanel({
       <header className="flex shrink-0 items-start justify-between gap-2">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wide">Qualidade dos dados · Investigação</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Selecione uma categoria para consultar os registros. Sem alterações no ANDON.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Selecione uma categoria para investigar os registros. Sem alterações operacionais.</p>
         </div>
-        <span className="text-[10px] xl:text-[11px] text-muted-foreground">Dados do ambiente conectado · somente leitura</span>
+        <span className="text-[11px] text-muted-foreground">Dados do ambiente conectado · somente leitura</span>
       </header>
       <div className="grid shrink-0 grid-cols-5 gap-2">
         {categories.map((type) => (
@@ -66,9 +66,9 @@ export function BiDataHealthPanel({
             className={category === type
               ? "rounded-lg border border-amber-400/70 bg-amber-500/10 p-3 text-left"
               : "rounded-lg border border-border bg-background/30 p-3 text-left hover:bg-muted/50"}>
-            <div className="truncate text-[10px] font-black uppercase text-muted-foreground">{LABELS[type]}</div>
+            <div className="truncate text-[11px] font-black uppercase text-muted-foreground">{LABELS[type]}</div>
             <div className="mt-2 text-xl font-black tabular-nums">{counts[type] ?? "—"}</div>
-            <div className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground">{type === "unclassified-calls" || type === "unlinked-events" ? "Período filtrado" : "Snapshot atual"}</div>
+            <div className="mt-1 text-[10px] text-muted-foreground">{type === "unclassified-calls" || type === "unlinked-events" ? "Período filtrado" : "Snapshot atual"}</div>
           </button>
         ))}
       </div>
@@ -76,7 +76,7 @@ export function BiDataHealthPanel({
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background/20 p-3">
           <div className="mb-2 flex shrink-0 justify-between">
             <h3 className="text-xs font-black uppercase tracking-wide">{LABELS[category]}</h3>
-            <span className="text-[10px] text-muted-foreground">{detailsLoading ? "Consultando..." : String(details?.total ?? 0) + " registro(s)"}</span>
+            <span className="text-[11px] text-muted-foreground">{detailsLoading ? "Consultando..." : String(details?.total ?? 0) + " registro(s)"}</span>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
             {detailsLoading ? (
@@ -84,8 +84,8 @@ export function BiDataHealthPanel({
             ) : detailsError ? (
               <div role="alert" className="p-3 text-xs text-red-300">{detailsError}</div>
             ) : details?.items.length ? (
-              <table className="w-full table-fixed text-left text-[11px]">
-                <thead className="border-b border-border bg-background/40 text-[9px] uppercase text-muted-foreground">
+              <table className="w-full table-fixed text-left text-xs">
+                <thead className="border-b border-border bg-background/40 text-[10px] uppercase text-muted-foreground">
                   <tr><th className="w-[21%] px-2 py-2">Máquina</th><th className="w-[18%] px-2 py-2">Data</th><th className="w-[13%] px-2 py-2">Idade</th><th className="w-[29%] px-2 py-2">Registro / OS</th><th className="px-2 py-2">Histórico</th></tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -94,19 +94,19 @@ export function BiDataHealthPanel({
                       <td className="px-2 py-1">
                         <button type="button" className="block max-w-full truncate text-left font-bold hover:text-sky-300"
                           title="Abrir Machine 360" onClick={() => onMachineSelect(item.machineId, item.machineName)}>{item.machineName}</button>
-                        <span className="text-[9px] text-muted-foreground">{item.machineIsActive ? "Ativa" : "Inativa"}</span>
+                        <span className="text-[10px] text-muted-foreground">{item.machineIsActive ? "Ativa" : "Inativa"}</span>
                       </td>
-                      <td className="whitespace-nowrap px-2 text-[10px]">{date(item.startedAt)}</td>
+                      <td className="whitespace-nowrap px-2 text-[11px]">{date(item.startedAt)}</td>
                       <td className="whitespace-nowrap px-2 font-bold">{duration(item.ageMinutes)}</td>
                       <td className="px-2">
                         <div className="truncate" title={item.technicianName ?? item.status}>{item.technicianName ?? item.status}</div>
-                        <div className="truncate font-mono text-[9px] text-muted-foreground" title={item.id}>{item.workOrderNumber ? "OS " + item.workOrderNumber + " · " : ""}{item.id}</div>
+                        <div className="truncate font-mono text-[10px] text-muted-foreground" title={item.id}>{item.workOrderNumber ? "OS " + item.workOrderNumber + " · " : ""}{item.id}</div>
                       </td>
                       <td className="px-2">
                         <a href={"/machines/" + encodeURIComponent(item.machineId) + "/" + (item.kind === "open-events" || item.kind === "unlinked-events" ? "failure-history" : "call-history")}
                           target="_blank" rel="noopener noreferrer"
                           title="Abre o histórico da máquina, não um evento específico. Localize pelo ID informado."
-                          className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[9px] font-semibold text-sky-300 hover:bg-muted">
+                          className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[10px] font-semibold text-sky-300 hover:bg-muted">
                           Abrir <ExternalLink className="h-3 w-3" />
                         </a>
                       </td>
@@ -118,7 +118,7 @@ export function BiDataHealthPanel({
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Nenhum registro nessa categoria e filtro.</div>
             )}
           </div>
-          <footer className="mt-2 flex h-7 shrink-0 items-center justify-between text-[10px] text-muted-foreground">
+          <footer className="mt-2 flex h-7 shrink-0 items-center justify-between text-[11px] text-muted-foreground">
             <span>{details ? "Página " + details.page + "/" + details.totalPages + " · identifique o registro pelo ID" : "Aguardando dados"}</span>
             <div className="flex items-center gap-1">
               <button type="button" aria-label="Página anterior" disabled={!details || page <= 1 || detailsLoading}
@@ -130,7 +130,7 @@ export function BiDataHealthPanel({
         </div>
         <aside className="min-h-0 rounded-lg border border-border bg-background/20 p-3">
           <div className="flex items-center gap-2 text-xs font-black uppercase"><AlertTriangle className="h-4 w-4 text-amber-300"/>Leitura do alerta</div>
-          <div className="mt-3 space-y-3 text-[11px] leading-5 text-muted-foreground">
+          <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
             <p>Chamados, eventos e sessões em aberto são snapshots atuais. Não dependem do período histórico nem da classificação escolhida.</p>
             <p>Concluídos sem classificação e eventos sem vínculo respeitam a janela. Eventos órfãos não recebem setor presumido.</p>
             <p>Clicar no nome da máquina abre Machine 360. O botão <strong className="text-foreground">Abrir</strong> consulta o histórico da máquina em outra aba; use o ID para identificar o registro.</p>
