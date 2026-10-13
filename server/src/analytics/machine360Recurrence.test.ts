@@ -104,3 +104,23 @@ test("classifica janelas cumulativas e mantém chamadas distintas dos ciclos de 
   assert.equal(x.totals.maintenanceReturnCycles, 4);
   assert.equal(x.totalTimelineCases, 2);
 });
+
+test("identificadores históricos mantêm grupos estáveis após renomear componentes", () => {
+  const x = run([
+    call("before", "2026-10-07T01:00:00Z", {
+      machineSetId: "set-01", machineSetNameSnapshot: "Esteira antiga",
+      machineSubsetId: "sub-01", machineSubsetNameSnapshot: "Sensor antigo",
+    }),
+    call("after", "2026-10-07T03:00:00Z", {
+      machineSetId: "set-01", machineSetNameSnapshot: "Esteira nova",
+      machineSubsetId: "sub-01", machineSubsetNameSnapshot: "Sensor novo",
+    }),
+  ]);
+  assert.equal(x.totals.repeatedSet30d, 1);
+  assert.equal(x.totals.repeatedSubset30d, 1);
+  assert.equal(x.groups.length, 1);
+  assert.equal(x.groups[0].repeatsSet30d, 1);
+  assert.equal(x.groups[0].repeats30d, 1);
+  assert.equal(x.timeline[0].groupKey, x.timeline[1].groupKey);
+  assert.equal(x.groups[0].key, x.timeline[0].groupKey);
+});
