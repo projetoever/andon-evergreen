@@ -448,6 +448,7 @@ export type AnalyticsMachine360 = {
       setName: string | null;
       subsetName: string | null;
       classification: string;
+      key: string;
       calls: number;
       repeats30d: number;
       lastFinishedAt: string;
@@ -457,6 +458,7 @@ export type AnalyticsMachine360 = {
       callId: string;
       finishedAt: string;
       classification: string;
+      groupKey: string;
       setName: string | null;
       subsetName: string | null;
       workOrderNumber: string | null;
