@@ -188,13 +188,13 @@ export function buildExecutiveReportHtml({
   const highlights: string[] = [];
   const downCompare = overview.comparison.downtimeMinutes;
   if (downCompare.direction === "up" || downCompare.direction === "down") {
-    highlights.push(`Downtime ${downCompare.direction === "up" ? "aumentou" : "reduziu"} ${percentage(Math.abs(downCompare.deltaPercent ?? 0))} em relação ao período anterior equivalente.`);
+    highlights.push(`Tempo de parada ${downCompare.direction === "up" ? "aumentou" : "reduziu"} ${percentage(Math.abs(downCompare.deltaPercent ?? 0))} em relação ao período anterior equivalente.`);
   } else {
     highlights.push("Comparação de downtime indisponível ou sem variação relevante na janela equivalente.");
   }
   if (overview.highlights.topMachine) {
     const top = overview.highlights.topMachine;
-    highlights.push(`${top.machineName}: ${minutes(top.downtimeMinutes)} de downtime, equivalentes a ${percentage(top.sharePercent)} do total filtrado.`);
+    highlights.push(`${top.machineName}: ${minutes(top.downtimeMinutes)} de tempo de parada, equivalentes a ${percentage(top.sharePercent)} do total filtrado.`);
   }
   if (warn > 0) {
     highlights.push(`Atenção à integridade: ${h.activeCallsOver24h ?? 0} chamados, ${h.openFailureEventsOver24h} eventos físicos e ${h.activeSessionsOver24h ?? 0} sessões técnicas ultrapassam 24 horas em aberto.`);
@@ -270,7 +270,9 @@ export function buildExecutiveReportHtml({
     @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: #fff; color: #1e293b; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
-    .page { width: 210mm; min-height: 297mm; padding: 13mm 14mm 12mm; margin: 0 auto; display: flex; flex-direction: column; break-after: page; page-break-after: always; }
+    /* Exactly one physical sheet per logical page. The footer must not flow
+       to the next sheet (as happened in the October homologation PDF). */
+    .page { position: relative; width: 210mm; height: 297mm; min-height: 0; padding: 13mm 14mm 21mm; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
     .page:last-child { break-after: auto; page-break-after: auto; }
     .page-heading { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #f59e0b; }
     .brand { font-size: 18px; letter-spacing: 1px; font-weight: 900; color: #101820; }
@@ -317,7 +319,19 @@ export function buildExecutiveReportHtml({
     .chart svg { display: block; width: 100%; height: 44mm; margin-top: 4px; }
     .chart-footnote { margin: 1px 0 3px; font-size: 8px; color: #64748b; }
     .chart-empty { margin-top: 10px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; color: #64748b; font-size: 10px; }
-    .footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8px; color: #64748b; }
+    .footer { position: absolute; left: 14mm; right: 14mm; bottom: 10mm; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 8px; color: #64748b; }
+    /* Page two contains two ranking tables. Compress its whitespace instead
+       of allowing the footer to become a fourth physical page. */
+    .page:nth-of-type(2) h2 { margin: 9px 0 5px; }
+    .page:nth-of-type(2) .chart { margin: 6px 0 2px; padding: 7px 10px 3px; }
+    .page:nth-of-type(2) .chart svg { height: 34mm; }
+    .page:nth-of-type(2) th, .page:nth-of-type(2) td { padding: 5px 6px; }
+    .page:nth-of-type(2) .mini-grid { margin-top: 6px; }
+    .page:nth-of-type(2) .mini { padding: 6px 8px; }
+    .page:nth-of-type(2) .note { margin-top: 5px; padding: 6px 8px; }
+    .page:nth-of-type(2) .legal { line-height: 1.35; }
+    .page:nth-of-type(2) .legal p { margin: 3px 0; }
+    .page:nth-of-type(2) .context { margin-bottom: 5px; }
     @media screen { body { background: #e2e8f0; } .page { background: #fff; box-shadow: 0 2px 10px #94a3b8; margin: 12px auto; } }
     @media print { html, body { width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { box-shadow: none; margin: 0; } }
   `;
@@ -335,10 +349,10 @@ export function buildExecutiveReportHtml({
     ${meta}
     ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
     <div class="kpis">
-      ${tile("Novos chamados", String(k.callsOpened), `${k.callsFinished} concluído(s) no período`, "amber")}
+      ${tile("Novos chamados", String(k.callsOpened), `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s)`, "amber")}
       ${tile("Chamados ativos", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("Manutenção média", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
+      ${tile("Tempo médio de manutenção", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
       ${tile("Tempo de parada física", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
       ${tile("MTBF estimado", minutes(k.mtbfEstimatedMinutes), "Baseado em exposição calendário, não em horas produtivas", "green")}
     </div>
@@ -394,9 +408,11 @@ export function buildExecutiveReportHtml({
   <section class="page">
     ${pageHeader("03", "Equipe, integridade e metodologia", periodNote)}
     ${sectionTitle("Participação técnica", "Pessoa-minutos registrados, não horas produtivas auditadas nem ranking de desempenho.")}
-    <div class="note red">
-      <strong>Atenção: ${esc(String(h.activeSessionsOver24h ?? "—"))} sessão(ões) técnicas abertas há mais de 24h.</strong>
-      O esforço inclui tempo acumulado de sessões ainda abertas; verificar a situação operacional antes de interpretar os totais.
+    <div class="note ${(h.activeSessionsOver24h ?? 0) > 0 ? "red" : "good"}">
+      <strong>${(h.activeSessionsOver24h ?? 0) > 0
+        ? `Atenção: ${esc(String(h.activeSessionsOver24h))} sessão(ões) técnicas abertas há mais de 24h.`
+        : "Sem sessões técnicas abertas há mais de 24h."}</strong>
+      Horas técnicas representam soma de participações simultâneas, não tempo de máquina parada. Verifique encerramentos antes de concluir a análise.
     </div>
     <div class="mini-grid">
       <div class="mini"><strong>${esc(minutes(maintenance.totals.maintenancePersonMinutes))}</strong><span>Manutenção</span></div>
