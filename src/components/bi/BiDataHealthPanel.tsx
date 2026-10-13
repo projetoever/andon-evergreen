@@ -2,9 +2,9 @@ import { ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from "lucide-r
 import type { AnalyticsAssetReliability, AnalyticsDataQualityCategory, AnalyticsDataQualityDetails } from "@/types/analytics";
 
 const LABELS: Record<AnalyticsDataQualityCategory, string> = {
-  "active-calls": "Chamados ativos > 24h",
-  "open-events": "Eventos físicos > 24h",
-  "active-sessions": "Sessões técnicas > 24h",
+  "active-calls": "Chamados ativos há mais de 24h",
+  "open-events": "Paradas abertas há mais de 24h",
+  "active-sessions": "Sessões abertas há mais de 24h",
   "unclassified-calls": "Concluídos sem classificação",
   "unlinked-events": "Eventos sem chamado",
 };
@@ -54,10 +54,10 @@ export function BiDataHealthPanel({
     <section className="flex h-full min-h-0 flex-col gap-3 rounded-xl border border-border bg-card p-4">
       <header className="flex shrink-0 items-start justify-between gap-2">
         <div>
-          <h2 className="text-sm font-black uppercase tracking-wide">Saúde do dado · Investigação</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">Selecione um alerta para consultar seus registros. Não altera dados operacionais.</p>
+          <h2 className="text-sm font-black uppercase tracking-wide">Qualidade dos dados · Investigação</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Selecione uma categoria para consultar os registros. Sem alterações no ANDON.</p>
         </div>
-        <span className="text-[10px] text-muted-foreground">Dados do ambiente conectado · somente leitura</span>
+        <span className="text-[10px] xl:text-[11px] text-muted-foreground">Dados do ambiente conectado · somente leitura</span>
       </header>
       <div className="grid shrink-0 grid-cols-5 gap-2">
         {categories.map((type) => (
@@ -68,7 +68,7 @@ export function BiDataHealthPanel({
               : "rounded-lg border border-border bg-background/30 p-3 text-left hover:bg-muted/50"}>
             <div className="truncate text-[10px] font-black uppercase text-muted-foreground">{LABELS[type]}</div>
             <div className="mt-2 text-xl font-black tabular-nums">{counts[type] ?? "—"}</div>
-            <div className="mt-1 text-[9px] text-muted-foreground">{type === "unclassified-calls" || type === "unlinked-events" ? "Período filtrado" : "Snapshot atual"}</div>
+            <div className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground">{type === "unclassified-calls" || type === "unlinked-events" ? "Período filtrado" : "Snapshot atual"}</div>
           </button>
         ))}
       </div>
