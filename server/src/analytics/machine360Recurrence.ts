@@ -50,6 +50,7 @@ type Occurrence = {
   callId: string;
   finishedAt: string;
   classification: string;
+  groupKey: string;
   setName: string | null;
   subsetName: string | null;
   workOrderNumber: string | null;
@@ -68,6 +69,7 @@ type Breakdown = {
   setName: string | null;
   subsetName: string | null;
   classification: string;
+  key: string;
   calls: number;
   repeats30d: number;
   lastFinishedAt: string;
@@ -151,6 +153,7 @@ export function buildMachine360Recurrence({
       returnCycles += Math.max(0, c.maintenanceReturnCount);
       const groupKey = JSON.stringify([setIdentity, subsetIdentity, diagnosis]);
       const group = groups.get(groupKey) ?? {
+        key: groupKey,
         setName: set.name,
         subsetName: subset.name,
         classification: diagnosis,
@@ -166,6 +169,7 @@ export function buildMachine360Recurrence({
         callId: c.id,
         finishedAt: c.finishedAt.toISOString(),
         classification: diagnosis,
+        groupKey,
         setName: set.name,
         subsetName: subset.name,
         workOrderNumber: c.workOrderNumber,
