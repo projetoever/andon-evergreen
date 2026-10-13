@@ -127,7 +127,9 @@ export function BiAnalyticsDrillDown({
                           : "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 font-semibold">
-                        {formatMinutes(item.durationMinutes)}
+                        {item.kind === "call" && !item.endedAt
+                          ? <span title="Chamado em andamento; ainda não possui duração final consolidada" className="text-amber-300">Em aberto</span>
+                          : formatMinutes(item.durationMinutes)}
                       </td>
                       <td className="px-3 py-2">
                         <div className="truncate">{item.workOrderNumber || "Sem OS"}</div>
