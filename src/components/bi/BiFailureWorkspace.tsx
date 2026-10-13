@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { BiFailureIntelligencePanel } from "@/components/bi/BiFailureIntelligencePanel";
+import { BiTemporalPatterns } from "@/components/bi/BiTemporalPatterns";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
   AnalyticsOverview,
+  AnalyticsTemporalPatterns,
 } from "@/types/analytics";
 
 export function BiFailureWorkspace({
@@ -11,6 +13,10 @@ export function BiFailureWorkspace({
   intelligence,
   intelligenceLoading,
   intelligenceError,
+  temporal,
+  temporalLoading,
+  temporalError,
+  onTemporalSelected,
   classificationLabels,
   sectorLabels,
   onDrilldown,
@@ -19,11 +25,15 @@ export function BiFailureWorkspace({
   intelligence: AnalyticsFailureIntelligence | null;
   intelligenceLoading: boolean;
   intelligenceError: string | null;
+  temporal: AnalyticsTemporalPatterns | null;
+  temporalLoading: boolean;
+  temporalError: string | null;
+  onTemporalSelected: () => void;
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
 }) {
-  const [mode, setMode] = useState<"recurrence" | "distribution">("recurrence");
+  const [mode, setMode] = useState<"recurrence" | "distribution" | "temporal">("recurrence");
   const classificationData = (overview?.classificationPareto ?? [])
     .slice(0, 8)
     .map((item) => ({
@@ -67,6 +77,21 @@ export function BiFailureWorkspace({
           >
             Classificações e setores
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("temporal");
+              onTemporalSelected();
+            }}
+            aria-pressed={mode === "temporal"}
+            className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+              mode === "temporal"
+                ? "bg-sky-500/15 text-sky-300"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
+          >
+            Padrões temporais
+          </button>
         </div>
       </div>
 
@@ -78,6 +103,10 @@ export function BiFailureWorkspace({
             error={intelligenceError}
             classificationLabels={classificationLabels}
           />
+        </div>
+      ) : mode === "temporal" ? (
+        <div className="min-h-0 flex-1">
+          <BiTemporalPatterns data={temporal} loading={temporalLoading} error={temporalError}/>
         </div>
       ) : (
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
