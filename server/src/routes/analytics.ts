@@ -6,6 +6,7 @@ import { buildMachine360 } from "../analytics/machine360.js";
 import { buildMachine360Recurrence } from "../analytics/machine360Recurrence.js";
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
+import { buildTemporalPatterns } from "../analytics/temporal.js";
 import {
   buildExecutiveHighlights,
   buildExecutiveOverview,
@@ -268,6 +269,50 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           ...buildOverviewComparison(currentOverview, previousOverview),
         },
         highlights: buildExecutiveHighlights(currentOverview),
+      };
+    },
+  );
+
+  // BI-12: analytical time-of-day patterns. No operational writes.
+  app.get<{ Querystring: AnalyticsOverviewQuery }>(
+    "/api/analytics/temporal",
+    async (request, reply) => {
+      const period = parseAnalyticsPeriod(request.query);
+      if (!period) {
+        return badRequest(reply, "startDate e endDate válidos com fuso são obrigatórios");
+      }
+      if (period.end.getTime() - period.start.getTime() > 31 * 24 * 60 * 60 * 1000) {
+        return badRequest(reply, "O limite desta visualização temporal é de 31 dias");
+      }
+      const generatedAt = new Date();
+      const effectiveEnd = new Date(Math.min(generatedAt.getTime(), period.end.getTime()));
+      const filters: AnalyticsOverviewFilters = {
+        machineId: optionalQueryString(request.query.machineId),
+        subtype: optionalQueryString(request.query.subtype),
+        classification: optionalQueryString(request.query.classification),
+      };
+      const data = effectiveEnd.getTime() > period.start.getTime()
+        ? await loadOverviewDataset(period.start, period.end, effectiveEnd, filters, false)
+        : { calls: [], failureEvents: [] };
+      return {
+        meta: {
+          generatedAt: generatedAt.toISOString(),
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+          period: {
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            effectiveEnd: effectiveEnd.toISOString(),
+          },
+          filters,
+          exclusions: { systemTests: true },
+        },
+        ...buildTemporalPatterns({
+          calls: data.calls,
+          failureEvents: data.failureEvents,
+          start: period.start,
+          effectiveEnd,
+          timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+        }),
       };
     },
   );
