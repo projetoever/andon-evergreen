@@ -335,11 +335,11 @@ export function buildExecutiveReportHtml({
     ${meta}
     ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
     <div class="kpis">
-      ${tile("Chamados abertos", String(k.callsOpened), `${k.callsFinished} concluído(s) no período`, "amber")}
-      ${tile("Ativos agora", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
+      ${tile("Novos chamados", String(k.callsOpened), `${k.callsFinished} concluído(s) no período`, "amber")}
+      ${tile("Chamados ativos", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("Tempo efetivo manutenção", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
-      ${tile("Downtime físico", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
+      ${tile("Manutenção média", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
+      ${tile("Tempo de parada física", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
       ${tile("MTBF estimado", minutes(k.mtbfEstimatedMinutes), "Baseado em exposição calendário, não em horas produtivas", "green")}
     </div>
     ${sectionTitle("Síntese executiva")}
@@ -361,7 +361,7 @@ export function buildExecutiveReportHtml({
 
   <section class="page">
     ${pageHeader("02", "Ativos críticos e reincidências", periodNote)}
-    ${sectionTitle("Máquinas prioritárias", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
+    ${sectionTitle("Máquinas com maior parada", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
     ${paretoGraph(topMachines)}
     ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "MTBF EST.", "ATIVOS"], topMachineRows)}
     <div class="note subtle">${esc(sourceMismatchNote)}</div>
