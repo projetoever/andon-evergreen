@@ -209,3 +209,32 @@ test("impressão separa versão do relatório, dados faltantes e sessões aberta
   assert.match(html, /@media print \{ html, body \{ width: 210mm/);
   assert.doesNotMatch(html, /@page \{ size: A4 portrait; margin: 12mm/);
 });
+
+test("paginação A4: rodapé da página 2 fica fixo na mesma folha sem criar página de sobra", () => {
+  const html = buildExecutiveReportHtml(fixture());
+  assert.equal((html.match(/<section class="page">/g) ?? []).length, 3);
+  assert.match(html, /\.page \{ position: relative; width: 210mm; height: 296mm; min-height: 0;/);
+  assert.match(html, /\.footer \{ position: absolute; left: 14mm; right: 14mm; bottom: 10mm;/);
+  assert.match(html, /\.page:nth-of-type\(2\) \.chart svg \{ height: 34mm; \}/);
+  assert.match(html, /\.page:nth-of-type\(2\) th, \.page:nth-of-type\(2\) td \{ padding: 5px 6px; \}/);
+  assert.doesNotMatch(html, /\.page \{ width: 210mm; min-height: 297mm;/);
+  assert.match(html, /Página 1\/3/);
+  assert.match(html, /Página 2\/3/);
+  assert.match(html, /Página 3\/3/);
+});
+
+test("sem sessões antigas não gera aviso falso de manutenção em vermelho", () => {
+  const data = fixture();
+  data.reliability.dataHealth.activeSessionsOver24h = 0;
+  const html = buildExecutiveReportHtml(data);
+  assert.match(html, /Sem sessões técnicas abertas há mais de 24h/);
+  assert.doesNotMatch(html, /Atenção: 0 sessão/);
+  assert.match(html, /Horas técnicas representam soma de participações simultâneas/);
+});
+
+test("relatório diferencia novos chamados de finalizados e descreve tempo de parada em português", () => {
+  const html = buildExecutiveReportHtml(fixture());
+  assert.match(html, /4 abertura\(s\) na janela · 1 finalizado\(s\)/);
+  assert.match(html, /Tempo médio de manutenção/);
+  assert.match(html, /Tempo de parada aumentou/);
+});
