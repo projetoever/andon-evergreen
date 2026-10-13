@@ -99,7 +99,7 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
   assert.match(page, /BiMaintenanceParticipation/);
   assert.match(service, /\/api\/analytics\/maintenance/);
   assert.match(component, /Soma de horas por técnico/);
-  assert.match(component, /não|nem|ranking|desempenho/);
+  assert.match(component, /Não equivale a downtime nem avalia desempenho/);
   assert.match(component, /Cobertura de fases/);
   assert.match(component, /sessão\(ões\) legada\(s\)/);
   assert.match(route, /technicianSession\.findMany/);
@@ -122,7 +122,7 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(page, /BiDataHealthPanel/);
   assert.match(service, /\/api\/analytics\/reliability/);
   assert.match(badActors, /Máquinas críticas · Bad Actors/);
-  assert.match(badActors, /Diag\. repetido/);
+  assert.match(badActors, /Diag\\. repet\\./);
   assert.match(dataHealth, /Qualidade dos dados · Investigação/);
   assert.match(dataHealth, /Chamados ativos > 24h/);
   assert.match(route, /badActors:/);
