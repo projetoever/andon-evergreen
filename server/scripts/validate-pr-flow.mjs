@@ -2648,7 +2648,7 @@ async function run() {
   await request(`/api/workstations/${ids.inactiveWorkstation}`, json("PATCH", { active: false }));
   const blockedApiRequest = await request(
     "/api/machines",
-    { headers: workstationHeaders(ids.inactiveWorkstation) },
+    { headers: { "x-andon-workstation-id": ids.inactiveWorkstation } },
     403,
   );
   assert.match(blockedApiRequest.message, /desativada/i);
