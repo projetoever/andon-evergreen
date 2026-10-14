@@ -88,7 +88,6 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
     "Setor livre abre chamado; setor ativo seleciona o chamado.": "Select a free sector to open a call or an active sector to view its call.",
     "Selecionado": "Selected",
     "Selecionar chamado": "Select call",
-    "Abrir novo chamado": "Open new call",
     "Ativo": "Active",
     "Ativos": "Active",
     "Atender selecionado": "Attend selected",
