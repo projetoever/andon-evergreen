@@ -1,6 +1,7 @@
 import type { AndonCall } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useTicker } from "@/hooks/useTicker";
 import {
   calculateAttendanceMinutes,
@@ -61,6 +62,7 @@ export function MachineCurrentCallPanel({
   currentMachineStatus,
 }: MachineCurrentCallPanelProps) {
   useTicker(1000);
+  const { t } = useLanguage();
   if (!call) {
     if (compactEmpty) {
       return (
@@ -73,9 +75,9 @@ export function MachineCurrentCallPanel({
           <div className="text-muted-foreground">
             <Inbox className="h-9 w-9" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">Sem chamado ativo</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("Sem chamado ativo")}</h3>
           <p className="max-w-md text-sm text-muted-foreground">
-            Selecione um dos setores abaixo para registrar um novo chamado.
+            {t("Selecione um dos setores abaixo para registrar um novo chamado.")}
           </p>
         </div>
       );
@@ -84,8 +86,8 @@ export function MachineCurrentCallPanel({
     return (
       <EmptyState
         icon={<Inbox className="h-12 w-12" />}
-        title="Sem chamado ativo"
-        description="Selecione um dos setores abaixo para registrar um novo chamado."
+        title={t("Sem chamado ativo")}
+        description={t("Selecione um dos setores abaixo para registrar um novo chamado.")}
         className={cn("h-full min-h-0 border-solid bg-card px-6 py-8 shadow-md", className)}
       />
     );
@@ -112,76 +114,76 @@ export function MachineCurrentCallPanel({
     >
       <div className="mb-2 flex min-h-[3.25rem] min-w-0 flex-wrap items-start justify-between gap-1">
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-          Chamado atual
+          {t("Chamado atual")}
         </h3>
         <CallIdLabel callId={call.id} className="text-right" />
       </div>
       <dl className="grid min-h-0 shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 xl:min-h-[9.5rem] xl:auto-rows-fr">
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Categoria</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Categoria")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {call.category === "maintenance" ? "Manutenção" : "Produção"}
+            {call.category === "maintenance" ? t("Manutenção") : t("Produção")}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Subtipo</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Subtipo")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {getCallSubtypeLabel(call.subtype)}
+            {t(getCallSubtypeLabel(call.subtype))}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Status</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Status")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {getAndonStatusLabel(call.status)}
+            {t(getAndonStatusLabel(call.status))}
           </dd>
         </div>
 
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Criticidade")}</dt>
           <dd
             className={
               "inline-flex rounded-md border px-2 py-0.5 text-sm font-bold " +
               getCriticalityColorClass(call.criticality)
             }
           >
-            Criticidade: {getCriticalityLabel(call.criticality)}
+            {t("Criticidade")}: {t(getCriticalityLabel(call.criticality))}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Aberto em</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Aberto em")}</dt>
           <dd className="font-mono text-sm leading-tight text-foreground">
             {formatDateTime(call.openedAt)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Atendido em</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Atendido em")}</dt>
           <dd className="font-mono text-sm leading-tight text-foreground">
             {formatDateTime(call.attendedAt)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Conclusão da manutenção</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Conclusão da manutenção")}</dt>
           <dd className="font-mono text-sm leading-tight text-foreground">
             {formatDateTime(call.maintenanceCompletedAt)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Condição atual da máquina</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Condição atual da máquina")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {getMachineConditionLabel(displayedMachineCondition)}
+            {t(getMachineConditionLabel(displayedMachineCondition))}
           </dd>
         </div>
         {showOpeningCondition && (
           <div>
-            <dt className="text-xs uppercase text-muted-foreground">Condição ao abrir</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{t("Condição ao abrir")}</dt>
             <dd className="text-base font-bold leading-tight text-muted-foreground md:text-lg">
-              {getMachineConditionLabel(call.machineCondition)}
+              {t(getMachineConditionLabel(call.machineCondition))}
             </dd>
           </div>
         )}
         {call.notes && (
           <div className="sm:col-span-2 lg:col-span-3">
-            <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{t("Descrição")}</dt>
             <dd className="text-sm text-foreground">{call.notes}</dd>
           </div>
         )}
@@ -189,21 +191,21 @@ export function MachineCurrentCallPanel({
 
       <dl className="mt-1.5 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-4">
         <TimerMetric
-          label="Aguardando"
+          label={t("Aguardando")}
           value={formatMachinePanelDurationMinutes(waiting)}
           tone="warning"
         />
         <TimerMetric
-          label="Em atendimento"
+          label={t("Em atendimento")}
           value={formatMachinePanelDurationMinutes(attending)}
           tone="info"
         />
         <TimerMetric
-          label="Acompanhamento"
+          label={t("Acompanhamento")}
           value={formatMachinePanelDurationMinutes(postMaintenance)}
           tone="success"
         />
-        <TimerMetric label="Total" value={formatMachinePanelDurationMinutes(total)} />
+        <TimerMetric label={t("Total")} value={formatMachinePanelDurationMinutes(total)} />
       </dl>
     </div>
   );
