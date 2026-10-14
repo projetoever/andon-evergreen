@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import type { MachineStatus } from "@/types/machine";
 import { getMachineStatusLabel } from "@/utils/statusUtils";
 
@@ -9,6 +10,7 @@ interface MachineStatusBadgeProps {
 
 export function MachineStatusBadge({ status, className }: MachineStatusBadgeProps) {
   const isRunning = status === "running";
+  const { t } = useLanguage();
   return (
     <span
       className={cn(
@@ -25,7 +27,7 @@ export function MachineStatusBadge({ status, className }: MachineStatusBadgeProp
           isRunning ? "bg-success" : "bg-danger",
         )}
       />
-      {getMachineStatusLabel(status)}
+      {t(getMachineStatusLabel(status))}
     </span>
   );
 }
