@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("cliente do ANDON BI permanece read-only e nao gera identidade de workstation", async () => {
-  const client = await readFile(
-    new URL("../src/api/andonBiApiClient.ts", import.meta.url),
-    "utf8",
-  );
+test("cliente BI continua read-only e herda identificação de workstation da API central", async () => {
+  const [client, sharedClient, root] = await Promise.all([
+    readFile(new URL("../src/api/andonBiApiClient.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/andonApiClient.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/routes/__root.tsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.doesNotMatch(client, /workstationIdentity|X-Andon-Workstation-Id|adminSession/);
-  assert.match(client, /method: "GET"/);
-  assert.doesNotMatch(client, /post\(|patch\(|delete\(/);
+  assert.match(client, /createAndonApiClient/);
+  assert.match(client, /apiClient\.get<T>\(path\)/);
+  assert.doesNotMatch(client, /apiClient\.(post|patch|delete)\(/);
+  assert.match(sharedClient, /"X-Andon-Workstation-Id": workstationId/);
+  assert.match(root, /if \(isBiRoute\)/);
+  assert.match(root, /<WorkstationAccessGate>/);
 });
 
 test("dashboard executivo usa Analytics API real e nao placeholders", async () => {
