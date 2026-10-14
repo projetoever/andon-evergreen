@@ -108,7 +108,7 @@ export function WorkstationsSettingsTab() {
     try {
       const updated = await updateWorkstation(workstation.id, { active });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
-      toast.success(active ? "Acesso à workstation liberado." : "Acesso à workstation bloqueado.");
+      toast.success(active ? "Workstation ativada. Acesso liberado." : "Workstation inativada. Acesso bloqueado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
     } finally {
@@ -154,7 +154,7 @@ export function WorkstationsSettingsTab() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Pesquisar nome, ID ou IP..."
-            aria-label="Pesquisar workstations por nome, ID ou IP"
+            aria-label="Pesquisar workstations por nome ou ID (inclui IP)"
             className="pl-9 pr-9"
           />
           {searchQuery && (

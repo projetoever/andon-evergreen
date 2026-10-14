@@ -12,6 +12,11 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AccessState>(CONFIGURED_DATA_MODE === "local" ? "allowed" : "checking");
   const [detail, setDetail] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [visibleWorkstationId, setVisibleWorkstationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setVisibleWorkstationId(getCurrentWorkstationId());
+  }, []);
 
   useEffect(() => {
     if (CONFIGURED_DATA_MODE === "local") return;
@@ -74,7 +79,7 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
               ? "Validando a identidade deste navegador com o servidor."
               : detail ?? "Não foi possível consultar o servidor."}
         </p>
-        <p className="break-all font-mono text-xs text-muted-foreground">{getCurrentWorkstationId() ?? "Sem identidade"}</p>
+        <p className="break-all font-mono text-xs text-muted-foreground">{visibleWorkstationId ?? "Sem identidade"}</p>
         {status !== "checking" && (
           <Button type="button" variant="outline" onClick={() => { setStatus("checking"); setRevision((value) => value + 1); }}>
             Verificar novamente
