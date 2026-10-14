@@ -349,13 +349,14 @@ export function buildExecutiveReportHtml({
     ${meta}
     ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
     <div class="kpis">
-      ${tile("Novos chamados", String(k.callsOpened), `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s)`, "amber")}
-      ${tile("Chamados ativos", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
+      ${tile("Disponibilidade", percentage(overview.production?.availabilityPercent), `${overview.production?.coveredMachineCount ?? 0}/${overview.production?.populationCount ?? 0} máquinas com histórico completo`, "green")}
+      ${tile("MTBF programado", minutes(overview.production?.plannedMtbfMinutes), `${overview.production?.productionFailureEpisodes ?? 0} episódio(s) em produção programada`, "green")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("Tempo médio de manutenção", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
-      ${tile("Tempo de parada física", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
-      ${tile("MTBF estimado", minutes(k.mtbfEstimatedMinutes), "Baseado em exposição calendário, não em horas produtivas", "green")}
+      ${tile("MTTR restabelecimento", minutes(overview.production?.resolvedMttrMinutes), `${overview.production?.resolvedEpisodes ?? 0} episódio(s) encerrado(s)`, "blue")}
+      ${tile("Tempo de parada", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s), inclusive fora da programação`, "red")}
+      ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.callsFinished} finalizados retornaram`, "red")}
     </div>
+    <p class="context">Produção Programada é um modo registrado no ANDON, não calendário de turnos. Disponibilidade/MTBF excluem máquinas sem histórico completo. Chamados: ${k.callsOpened} abertura(s), ${k.callsFinished} finalizado(s), ${k.activeCallsNow ?? "—"} ativo(s) agora. Tempo médio de manutenção: ${minutes(k.avgMaintenanceMinutes)} (métrica distinta do MTTR físico).</p>
     ${sectionTitle("Síntese executiva")}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}
