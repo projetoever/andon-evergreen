@@ -155,7 +155,7 @@ test("não fabrica zeros quando a amostra é desconhecida", () => {
   data.overview.kpis.activeCallsNow = null;
   data.failures.totals.repeatRate30dPercent = null;
   const html = buildExecutiveReportHtml(data);
-  assert.match(html, /Snapshot operacional atual/);
+  assert.match(html, /Disponibilidade/);
   assert.match(html, /MTTA/);
   assert.match(html, /MTBF estimado/);
   assert.match(html, /<div class="kpi-value">—<\/div>/);
@@ -166,7 +166,7 @@ test("documento mostra advertência explícita de integridade em dados abertos",
   assert.match(html, /Atenção à qualidade do dado/);
   assert.match(html, /não necessariamente incidentes operacionais únicos/);
   assert.match(html, /não equivale/);
-  assert.match(html, /não em horas produtivas/);
+  assert.match(html, /não calendário de turnos/);
 });
 
 
