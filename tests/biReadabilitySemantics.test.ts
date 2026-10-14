@@ -8,10 +8,10 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(overview, /label="Novos chamados"/);
-  assert.match(overview, /label="Chamados ativos"/);
+  assert.match(overview, /label="Disponibilidade"/);
+  assert.match(overview, /label="MTBF"/);
   assert.match(overview, /label="Tempo de parada"/);
-  assert.match(overview, /label="Tempo médio de manutenção"/);
+  assert.match(overview, /label="MTTR"/);
   assert.match(summary, /"Tempo de parada"/);
   assert.match(shell, /testes automáticos marcados excluídos/);
   assert.match(shell, /h-dvh overflow-hidden/);
@@ -21,7 +21,7 @@ test("Parada diária usa barras e parcelas por data, sem simular uma tendência 
   const src = await readFile(new URL("../src/components/bi/BiDowntimeTrendCard.tsx", import.meta.url), "utf8");
   assert.match(src, /<BarChart/);
   assert.match(src, /<Bar\s/);
-  assert.match(src, /Parada física por dia/);
+  assert.match(src, /Tempo de parada por dia/);
   assert.match(src, /dias parciais no período móvel/);
   assert.match(src, /Parada no dia/);
   assert.match(src, /tickFormatter=/);
@@ -54,16 +54,21 @@ test("PDF identifica a fonte como ambiente consultado sem negar testes manuais",
   assert.match(machine, /ambientes de homologação podem conter testes manuais/);
 });
 
-test("BI: legendas verde e amarela identificam explicitamente o gráfico de chamados", async () => {
-  const graph = await readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(graph, /Legenda do gráfico de chamados/);
-  assert.match(graph, /bg-amber-400/);
-  assert.match(graph, /bg-emerald-400/);
-  assert.match(graph, /name="Novos chamados"/);
-  assert.match(graph, /name="Finalizados"/);
-  assert.match(graph, /type="linear"/);
-  assert.match(graph, /Aberturas e conclusões por data operacional/);
-  assert.match(graph, /de \$\{kpis\?\.callsFinished \?\? 0\} finalizados retornaram/);
+test("BI: visão executiva utiliza disponibilidade histórica, sem estimar operação 24x7",async()=>{
+  const [overview,chart,route]=await Promise.all([
+    readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),"utf8"),
+    readFile(new URL("../src/components/bi/BiDailyAvailabilityCard.tsx", import.meta.url),"utf8"),
+    readFile(new URL("../server/src/routes/analytics.ts", import.meta.url),"utf8"),
+  ]);
+  assert.match(overview,/BiDailyAvailabilityCard/);
+  assert.match(overview,/label="MTBF"/);
+  assert.match(overview,/label="MTTR"/);
+  assert.match(overview,/label="Disponibilidade"/);
+  assert.doesNotMatch(overview,/<LineChart/);
+  assert.match(chart,/Disponibilidade por dia/);
+  assert.match(chart,/programado sem paradas registradas/);
+  assert.match(route,/machineProductionEvent\.findMany/);
+  assert.match(route,/buildPlannedProductionKpis/);
 });
 
 test("BI: resumo executivo determinístico usa percentuais brasileiros e evita a expressão Sem IA", async () => {

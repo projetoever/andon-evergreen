@@ -6,6 +6,7 @@ import { buildMachine360 } from "../analytics/machine360.js";
 import { buildMachine360Recurrence } from "../analytics/machine360Recurrence.js";
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
+import { buildPlannedProductionKpis } from "../analytics/productionKpis.js";
 import { buildTemporalPatterns } from "../analytics/temporal.js";
 import {
   buildExecutiveHighlights,
@@ -240,6 +241,33 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         ),
       ]);
 
+      // The mode history is not a shift calendar. Missing intervals remain
+      // unmeasured rather than assuming every hour was scheduled.
+      const assets = currentData.reliabilityAssets;
+      const productionEvents = assets?.length
+        ? await prisma.machineProductionEvent.findMany({
+            where: {
+              machineId: { in: assets.map((asset) => asset.machineId) },
+              startedAt: { lt: effectiveEnd },
+              OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
+            },
+            select: {
+              machineId: true,
+              productionMode: true,
+              startedAt: true,
+              endedAt: true,
+            },
+          })
+        : [];
+      const production = buildPlannedProductionKpis({
+        assets,
+        productionEvents,
+        failureEvents: currentData.failureEvents,
+        start: period.start,
+        effectiveEnd,
+        timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+      });
+
       const currentOverview = buildExecutiveOverview({
         ...currentData,
         start: period.start,
@@ -261,6 +289,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 
       return {
         ...currentOverview,
+        production,
         comparison: {
           period: {
             start: previousStart.toISOString(),

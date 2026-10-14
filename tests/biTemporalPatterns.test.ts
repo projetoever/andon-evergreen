@@ -41,7 +41,7 @@ test("BI-12 mantém cinco áreas, com modo temporal somente dentro de Falhas", a
   assert.match(workspace, /BiTemporalPatterns/);
   assert.match(chart, /Mapa de calor por dia e hora/);
   assert.match(chart, /Chamados/);
-  assert.match(chart, /Parada física/);
+  assert.match(chart, /Tempo de parada/);
   assert.match(chart, /horários de abertura e de parada|Horários de abertura e de parada/);
   assert.match(chart, /ResponsiveContainer/);
   assert.match(chart, /aria-label=\{tip\}/);

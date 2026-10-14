@@ -81,7 +81,7 @@ function isInPeriod(value: Date | null, start: Date, end: Date) {
   return timestamp >= start.getTime() && timestamp < end.getTime();
 }
 
-function operationalDateKey(value: Date, timeZone: string) {
+export function operationalDateKey(value: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -100,7 +100,7 @@ function operationalDateKey(value: Date, timeZone: string) {
   return `${year}-${month}-${day}`;
 }
 
-function addOperationalDays(dateKey: string, days: number) {
+export function addOperationalDays(dateKey: string, days: number) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
 
@@ -142,7 +142,7 @@ function getTimeZoneOffsetMs(value: Date, timeZone: string) {
   return asUtc - normalizedInput;
 }
 
-function operationalDayStart(dateKey: string, timeZone: string) {
+export function operationalDayStart(dateKey: string, timeZone: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const wallClockUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
   const firstOffset = getTimeZoneOffsetMs(new Date(wallClockUtc), timeZone);
