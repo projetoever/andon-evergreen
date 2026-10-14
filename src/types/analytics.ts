@@ -49,7 +49,35 @@ export type AnalyticsMetricComparison = {
   direction: "up" | "down" | "flat" | "new" | "unavailable";
 };
 
+export type AnalyticsProductionMetrics = {
+  availabilityPercent: number | null;
+  plannedMtbfMinutes: number | null;
+  scheduledMinutes: number;
+  scheduledDowntimeMinutes: number;
+  operatingMinutes: number;
+  productionFailureEpisodes: number;
+  coveredMachineCount: number;
+  uncoveredMachineCount: number;
+  populationCount: number;
+  resolvedMttrMinutes: number | null;
+  resolvedEpisodes: number;
+  daily: Array<{
+    date: string;
+    scheduledMinutes: number;
+    scheduledDowntimeMinutes: number;
+    availabilityPercent: number | null;
+  }>;
+  availabilityStatus: "available" | "no_programmed_minutes" | "insufficient_schedule" | "dimension_filtered";
+  methodology: {
+    availability: string;
+    mtbf: string;
+    mttr: string;
+    caveat: string;
+  };
+};
+
 export type AnalyticsOverview = {
+  production?: AnalyticsProductionMetrics;
   meta: {
     metricDefinitionVersion: string;
     generatedAt: string;
