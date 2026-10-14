@@ -87,7 +87,7 @@ export function BiBadActorsPanel({
               <th className="w-[22%] px-3 py-2">Ativo</th>
               <th className="w-[12%] px-2 py-2">Parada</th>
               <th className="w-[9%] px-2 py-2">Episódios</th>
-              <th className="w-[12%] px-2 py-2" title="MTBF estimado indisponível para máquinas inativas">MTBF estim.</th>
+              <th className="w-[12%] px-2 py-2" title="MTBF estimado por calendário; indisponível para máquinas inativas, diferente do MTBF programado da Visão Geral">MTBF estim.</th>
               <th className="w-[11%] px-2 py-2">Diag. repet.</th>
               <th className="w-[9%] px-2 py-2">Retornos</th>
               <th className="w-[12%] px-2 py-2">Chamados ativos</th>

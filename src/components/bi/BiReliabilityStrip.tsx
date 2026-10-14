@@ -67,13 +67,13 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
           </p>
         </div>
         <span className="text-xs text-muted-foreground">
-          MTBF = estimativa por calendário (todas as máquinas da população); não é tempo produtivo real
+          MTBF desta aba usa calendário; o MTBF programado fica na Visão Geral e exige histórico de programação completo
         </span>
       </div>
 
       <div className="grid grid-cols-6 gap-2">
         <MiniMetric
-          label="MTBF estimado"
+          label="MTBF estimado (calendário)"
           value={formatMinutes(kpis.mtbfEstimatedMinutes)}
           detail={
             mtbfAvailable

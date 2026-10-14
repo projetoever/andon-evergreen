@@ -349,13 +349,14 @@ export function buildExecutiveReportHtml({
     ${meta}
     ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
     <div class="kpis">
-      ${tile("Novos chamados", String(k.callsOpened), `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s)`, "amber")}
-      ${tile("Chamados ativos", k.activeCallsNow === null ? "—" : String(k.activeCallsNow), "Snapshot operacional atual", "blue")}
+      ${tile("Disponibilidade operacional", percentage(overview.scheduledPerformance?.availabilityPercent), overview.scheduledPerformance?.coverageComplete ? `${minutes(overview.scheduledPerformance.scheduledMinutes)} programados · ${minutes(overview.scheduledPerformance.scheduledDowntimeMinutes)} parados` : (overview.scheduledPerformance?.reason ?? "Histórico de programação insuficiente"), "green")}
+      ${tile("MTBF programado", minutes(overview.scheduledPerformance?.mtbfScheduledMinutes), "Estimado apenas durante Produção Programada registrada", "green")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("Tempo médio de manutenção", minutes(k.avgMaintenanceMinutes), `${overview.coverage.maintenanceTimeSampleSize} registro(s) de manutenção`, "blue")}
-      ${tile("Tempo de parada física", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s)`, "red")}
-      ${tile("MTBF estimado", minutes(k.mtbfEstimatedMinutes), "Baseado em exposição calendário, não em horas produtivas", "green")}
+      ${tile("MTTR operacional", minutes(k.mttrMinutes), `${overview.coverage.maintenanceTimeSampleSize} manutenções concluídas · não é tempo de restabelecimento`, "blue")}
+      ${tile("Tempo de parada", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s), inclusive fora da programação`, "red")}
+      ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.callsFinished} finalizados retornaram`, "red")}
     </div>
+    <p class="context">Disponibilidade e MTBF programado exigem histórico integral do modo de produção em todas as máquinas da população. Sem cobertura comprovada, aparecem como indisponíveis. MTTR operacional corresponde a tempo de manutenção nos chamados finalizados.</p>
     ${sectionTitle("Síntese executiva")}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}

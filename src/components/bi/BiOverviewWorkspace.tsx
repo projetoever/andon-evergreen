@@ -1,6 +1,6 @@
 import {
   Activity,
-  BarChart3,
+  Gauge,
   Clock3,
   RotateCcw,
   TimerReset,
@@ -10,14 +10,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
+import { BiAvailabilityDailyCard } from "@/components/bi/BiAvailabilityDailyCard";
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
@@ -26,12 +25,6 @@ import type {
   AnalyticsOverview,
   AndonBiPeriodPreset,
 } from "@/types/analytics";
-
-const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
-  "24h": "Últimas 24h",
-  "7d": "Últimos 7 dias",
-  "30d": "Últimos 30 dias",
-};
 
 function formatMinutes(value: number | null) {
   if (value === null || !Number.isFinite(value)) return "—";
@@ -42,19 +35,9 @@ function formatMinutes(value: number | null) {
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
-function formatDateLabel(value: string) {
-  const date = new Date(`${value}T12:00:00Z`);
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "UTC",
-  }).format(date);
-}
-
 export function BiOverviewWorkspace({
   overview,
   loading,
-  period,
   classificationLabels,
   sectorLabels,
   onDrilldown,
@@ -72,38 +55,31 @@ export function BiOverviewWorkspace({
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
-          label="Novos chamados"
-          tooltip="Chamados que começaram dentro do período selecionado. Não inclui todos os chamados ainda ativos."
-          value={loading && !overview ? "…" : String(kpis?.callsOpened ?? 0)}
-          detail={`${kpis?.callsOpened ?? 0} abertura(s) no período · ${kpis?.callsFinished ?? 0} finalizado(s) na janela`}
-          icon={Activity}
-          tone="amber"
-          trend={overview?.comparison.callsOpened}
-          trendMeaning="neutral"
+          label="Disponibilidade operacional"
+          tooltip="Percentual do tempo registrado como Produção Programada sem parada física. Só disponível com histórico completo de programação para todas as máquinas consideradas; não é OEE."
+          value={loading && !overview ? "…" : kpis && overview?.scheduledPerformance.availabilityPercent !== null
+            ? `${overview?.scheduledPerformance.availabilityPercent.toLocaleString("pt-BR",{maximumFractionDigits:2})}%` : "—"}
+          detail={overview?.scheduledPerformance.coverageComplete
+            ? `${formatMinutes(overview.scheduledPerformance.scheduledMinutes)} programados · ${formatMinutes(overview.scheduledPerformance.scheduledDowntimeMinutes)} parados`
+            : overview?.scheduledPerformance.reason ?? "Aguardando dados de programação"}
+          icon={Gauge}
+          tone="green"
         />
         <BiKpiCard
-          label="Chamados ativos"
-          tooltip="Quantidade de chamados em aberto ou atendimento agora; pode incluir chamados iniciados antes do período."
-          value={
-            loading && !overview
-              ? "…"
-              : kpis?.activeCallsNow === null
-                ? "—"
-                : String(kpis?.activeCallsNow ?? 0)
-          }
-          detail={
-            kpis?.activeCallsNow === null
-              ? "Indisponível com classificação"
-              : "Snapshot atual do ANDON"
-          }
-          icon={BarChart3}
-          tone="blue"
+          label="MTBF programado"
+          tooltip="MTBF calculado com tempo registrado como Produção Programada, descontando o tempo de parada dentro desses intervalos, dividido pelos episódios de parada correspondentes. Sem histórico completo, o resultado fica indisponível."
+          value={loading && !overview ? "…" : formatMinutes(overview?.scheduledPerformance.mtbfScheduledMinutes ?? null)}
+          detail={overview?.scheduledPerformance.coverageComplete
+            ? `${overview.scheduledPerformance.scheduledStopEpisodes} episódio(s) em produção programada`
+            : overview?.scheduledPerformance.reason ?? "Histórico de programação insuficiente"}
+          icon={Activity}
+          tone="green"
         />
         <BiKpiCard
           label="MTTA"
-          tooltip="Mean Time To Acknowledge: tempo médio da abertura até o primeiro atendimento, conforme amostra."
+          tooltip="Tempo médio entre abertura do chamado e primeiro atendimento iniciado na janela selecionada."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
-          detail={`Abertura → 1º atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
+          detail={`Da abertura ao 1º atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
           icon={Clock3}
           tone="amber"
           trend={overview?.comparison.mttaMinutes}
@@ -111,10 +87,10 @@ export function BiOverviewWorkspace({
           sampleSize={overview?.coverage.mttaSampleSize}
         />
         <BiKpiCard
-          label="Tempo médio de manutenção"
-          tooltip="Tempo médio efetivo de manutenção registrado nos chamados finalizados da janela; não é o tempo físico total de parada."
+          label="MTTR operacional"
+          tooltip="Tempo médio efetivo de manutenção nos chamados finalizados da janela (attendanceMinutes). Não representa necessariamente o tempo físico total até o restabelecimento da produção."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttrMinutes ?? null)}
-          detail={`Tempo nos concluídos · ${overview?.coverage.mttrSampleSize ?? 0} amostra(s)`}
+          detail={`Tempo de manutenção registrado · ${overview?.coverage.mttrSampleSize ?? 0} amostra(s)`}
           icon={Wrench}
           tone="blue"
           trend={overview?.comparison.mttrMinutes}
@@ -123,9 +99,9 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Tempo de parada"
-          tooltip="Soma da parada física por máquina, usando união de intervalos para não contar eventos sobrepostos duas vezes na mesma máquina."
-          value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? 0)}
-          detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) físico(s) · várias máquinas somadas`}
+          tooltip="Soma da duração das paradas físicas registradas, com deduplicação de intervalos sobrepostos por máquina. Inclui paradas fora da produção programada; é diferente do tempo de parada usado na disponibilidade."
+          value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? null)}
+          detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) · todas as paradas registradas`}
           icon={TimerReset}
           tone="red"
           trend={overview?.comparison.downtimeMinutes}
@@ -133,14 +109,9 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label="Taxa de retorno"
-          tooltip="Proporção de chamados finalizados que retornaram à manutenção ao menos uma vez; não equivale à reincidência em novo chamado."
-          value={
-            loading && !overview
-              ? "…"
-              : kpis?.maintenanceReturnRatePercent === null
-                ? "—"
-                : `${kpis?.maintenanceReturnRatePercent ?? 0}%`
-          }
+          tooltip="Quantidade de chamados finalizados com pelo menos um retorno à manutenção dividida pelos chamados finalizados no período. Não significa reincidência em novo chamado."
+          value={loading && !overview ? "…" : kpis?.maintenanceReturnRatePercent === null
+            ? "—" : `${kpis?.maintenanceReturnRatePercent ?? 0}%`}
           detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.callsFinished ?? 0} finalizados retornaram · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
           icon={RotateCcw}
           tone="red"
@@ -159,78 +130,7 @@ export function BiOverviewWorkspace({
       )}
 
       <section className="grid min-h-0 grid-cols-3 gap-3">
-        <article className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex shrink-0 items-start justify-between gap-3">
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-wide">
-                Chamados por dia
-              </h2>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Aberturas e conclusões por data operacional
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {PERIOD_LABELS[period]}
-              </span>
-              <div aria-label="Legenda do gráfico de chamados" className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[10px] font-semibold">
-                <span className="inline-flex items-center gap-1.5 text-amber-300"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-400" />Novos chamados</span>
-                <span className="inline-flex items-center gap-1.5 text-emerald-300"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-400" />Finalizados</span>
-              </div>
-            </div>
-          </div>
-
-          {overview?.trend.length ? (
-            <div className="mt-2 min-h-0 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={overview.trend}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatDateLabel}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    labelFormatter={(value) => formatDateLabel(String(value))}
-                    contentStyle={{
-                      background: "var(--popover)",
-                      borderColor: "var(--border)",
-                      borderRadius: 10,
-                    }}
-                  />
-                  <Line
-                    name="Novos chamados"
-                    type="linear"
-                    dataKey="callsOpened"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    name="Finalizados"
-                    type="linear"
-                    dataKey="callsFinished"
-                    stroke="#22c55e"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center text-xs text-muted-foreground">
-              Sem chamados no período
-            </div>
-          )}
-        </article>
+        <BiAvailabilityDailyCard overview={overview} />
 
         <BiDowntimeTrendCard data={overview?.downtimeTrend ?? []} />
 

@@ -95,6 +95,23 @@ export type AnalyticsOverview = {
     maintenanceReturnRatePercent: number | null;
     classificationCoveragePercent: number | null;
   };
+  scheduledPerformance: {
+    availabilityPercent: number | null;
+    mtbfScheduledMinutes: number | null;
+    scheduledMinutes: number | null;
+    scheduledDowntimeMinutes: number | null;
+    scheduledStopEpisodes: number | null;
+    machineCount: number;
+    coveredMachineCount: number;
+    coverageComplete: boolean;
+    reason: string | null;
+    daily: Array<{
+      date: string;
+      scheduledMinutes: number;
+      stoppedMinutes: number;
+      availabilityPercent: number | null;
+    }>;
+  };
   trend: Array<{
     date: string;
     callsOpened: number;

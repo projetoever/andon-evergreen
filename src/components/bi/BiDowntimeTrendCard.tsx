@@ -37,7 +37,7 @@ export function BiDowntimeTrendCard({
   return (
     <article className="flex h-full min-h-0 flex-col rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-3 xl:p-4 shadow-sm">
       <h2 className="text-xs xl:text-sm font-black uppercase tracking-wide">
-        Parada física por dia
+        Tempo de parada por dia
       </h2>
       <p className="mt-1 text-[10px] xl:text-[11px] leading-4 text-muted-foreground"
         title="São parcelas do downtime por data operacional; o primeiro e o último dia podem estar incompletos. Uma barra menor não indica melhora da máquina.">
