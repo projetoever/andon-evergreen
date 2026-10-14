@@ -35,7 +35,7 @@ test("BI explicita que MTBF é estimativa e esforço técnico soma pessoas", asy
     readFile(new URL("../src/components/bi/BiBadActorsPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiDataHealthPanel.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(reliability, /estimativa por calendário/);
+  assert.match(reliability, /MTBF desta aba usa calendário/);
   assert.match(reliability, /Máquina|máquina|população/);
   assert.match(attendance, /Soma de horas por técnico, inclusive simultâneas/);
   assert.match(actors, /Máquinas críticas · Bad Actors/);
