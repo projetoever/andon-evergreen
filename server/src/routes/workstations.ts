@@ -6,7 +6,7 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 type RegisterWorkstationBody = { id?: unknown };
-type UpdateWorkstationBody = { name?: unknown; active?: unknown };
+type UpdateWorkstationBody = { name?: unknown; active?: unknown; allowOperational?: unknown; allowBi?: unknown };
 type ScreenLockBody = { machineId?: unknown };
 type MachineSoundPreferenceBody = { enabled?: unknown };
 
@@ -16,6 +16,8 @@ const workstationSelect = {
   id: true,
   name: true,
   active: true,
+  allowOperational: true,
+  allowBi: true,
   lastIpAddress: true,
   lastSeenAt: true,
   createdAt: true,
@@ -199,7 +201,15 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
 
       const hasName = Object.prototype.hasOwnProperty.call(request.body ?? {}, "name");
       const hasActive = Object.prototype.hasOwnProperty.call(request.body ?? {}, "active");
-      if (!hasName && !hasActive) return badRequest(reply, "Nenhuma alteração informada");
+      const hasOperational = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowOperational");
+      const hasBi = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowBi");
+      if (!hasName && !hasActive && !hasOperational && !hasBi) return badRequest(reply, "Nenhuma alteração informada");
+      if ((hasOperational && typeof request.body.allowOperational !== "boolean") ||
+          (hasBi && typeof request.body.allowBi !== "boolean")) {
+        return badRequest(reply, "Permissões de módulos devem ser booleanas");
+      }
+      const allowOperational = hasOperational ? request.body.allowOperational as boolean : undefined;
+      const allowBi = hasBi ? request.body.allowBi as boolean : undefined;
 
       let name: string | null | undefined;
       if (hasName) {
@@ -217,6 +227,9 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       if (hasActive && active === undefined) {
         return badRequest(reply, "Campo active deve ser booleano");
       }
+      if (active === false && parseWorkstationId(request.headers["x-andon-workstation-id"]) === id) {
+        return badRequest(reply, "Não é possível desativar a própria workstation administrativa.");
+      }
 
       const existing = await prisma.workstation.findUnique({ where: { id }, select: { id: true } });
       if (!existing) return notFound(reply, "Workstation não encontrada");
@@ -227,13 +240,17 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
 
           const lockedWorkstation = await tx.workstation.findUnique({
             where: { id },
-            select: { id: true, active: true },
+            select: { id: true, active: true, lockedMachineId: true },
           });
           if (!lockedWorkstation) {
             throw new WorkstationUpdateValidationError("Workstation não encontrada");
           }
 
-          if (active === false && lockedWorkstation.active) {
+          if ((allowOperational === false || active === false) && lockedWorkstation.lockedMachineId) {
+            throw new WorkstationUpdateValidationError("Desbloqueie a tela da máquina antes de retirar o acesso operacional.");
+          }
+
+          if ((active === false && lockedWorkstation.active) || allowOperational === false) {
             const activeSession = await tx.technicianSession.findFirst({
               where: {
                 workstationId: id,
@@ -247,7 +264,7 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             });
             if (activeSession) {
               throw new WorkstationUpdateValidationError(
-                "Não é possível desativar workstation com atendimento ativo.",
+                "Não é possível desativar ou retirar acesso operacional de workstation com atendimento ativo.",
               );
             }
           }
@@ -257,6 +274,8 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             data: {
               ...(hasName ? { name } : {}),
               ...(active !== undefined ? { active } : {}),
+              ...(allowOperational !== undefined ? { allowOperational } : {}),
+              ...(allowBi !== undefined ? { allowBi } : {}),
             },
             select: workstationSelect,
           });

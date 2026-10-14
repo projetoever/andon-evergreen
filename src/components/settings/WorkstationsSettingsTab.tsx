@@ -13,6 +13,7 @@ import {
   updateWorkstation,
 } from "@/services/workstationService";
 import type { Workstation } from "@/types/workstation";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { toast } from "sonner";
 
 function workstationLabel(workstation: Workstation) {
@@ -25,6 +26,7 @@ function formatLastSeen(value: string) {
 }
 
 export function WorkstationsSettingsTab() {
+  const { refresh } = useModuleAccess();
   const currentWorkstationId = getCurrentWorkstationId();
   const [items, setItems] = useState<Workstation[]>([]);
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
@@ -114,6 +116,17 @@ export function WorkstationsSettingsTab() {
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function changeModule(workstation: Workstation, field: "allowOperational" | "allowBi", allowed: boolean) {
+    setSavingId(workstation.id);
+    try {
+      const updated = await updateWorkstation(workstation.id, { [field]: allowed });
+      setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
+      await refresh();
+      toast.success("Permissão do módulo atualizada.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao atualizar permissão."); }
+    finally { setSavingId(null); }
   }
 
   return (
@@ -294,11 +307,20 @@ export function WorkstationsSettingsTab() {
                   <label className="flex items-center gap-2 font-semibold">
                     <Switch
                       checked={workstation.active}
-                      disabled={isSaving}
+                      disabled={isSaving || isCurrent}
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
                     {workstation.active ? "Liberado" : "Bloqueado"}
                   </label>
+                </div>
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Módulos autorizados</p>
+                  {([ ["allowOperational", "ANDON operacional"], ["allowBi", "ANDON BI"] ] as const).map(([field, label]) => (
+                    <label key={field} className="flex items-center justify-between gap-3 text-sm font-semibold">
+                      {label}<Switch aria-label={`${label} · ${workstationLabel(workstation)}`} checked={workstation[field]} disabled={isSaving || (field === "allowOperational" && Boolean(workstation.lockedMachineId))} onCheckedChange={(allowed) => void changeModule(workstation, field, allowed)} />
+                    </label>
+                  ))}
+                  <p className="text-xs text-muted-foreground">Prioridades mantém sua credencial própria. Uma tela fixada deve ser desbloqueada antes de retirar o acesso operacional.</p>
                 </div>
               </CardContent>
             </Card>

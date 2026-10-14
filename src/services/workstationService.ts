@@ -26,6 +26,8 @@ function registerLocalWorkstation(id: string) {
         id,
         name: null,
         active: true,
+        allowOperational: true,
+        allowBi: true,
         lastIpAddress: null,
         lockedMachineId: null,
         lastSeenAt: now,
@@ -74,6 +76,8 @@ export async function updateWorkstation(id: string, patch: WorkstationUpdate) {
     ...existing,
     ...(patch.name !== undefined ? { name: patch.name.trim().replace(/\s+/g, " ") || null } : {}),
     ...(patch.active !== undefined ? { active: patch.active } : {}),
+    ...(patch.allowOperational !== undefined ? { allowOperational: patch.allowOperational } : {}),
+    ...(patch.allowBi !== undefined ? { allowBi: patch.allowBi } : {}),
     updatedAt: new Date().toISOString(),
   };
   saveLocalWorkstations(items.map((item) => (item.id === id ? updated : item)));

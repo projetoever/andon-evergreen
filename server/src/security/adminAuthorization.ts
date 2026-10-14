@@ -58,6 +58,9 @@ export function isAdminProtectedMutation(method: string, url: string) {
   const path = normalizePath(url);
   const normalizedMethod = method.toUpperCase();
 
+  if (path === "/api/modules/settings" && ["GET", "PATCH"].includes(normalizedMethod)) return true;
+  if (normalizedMethod === "GET" && path === "/api/workstations") return true;
+
   if (normalizedMethod === "PATCH" && path === "/api/system-settings") return true;
   if (normalizedMethod === "GET" && path === "/api/diagnosis-audit") return true;
 

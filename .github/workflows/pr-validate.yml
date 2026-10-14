@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/dashboard-i18n-pt-en-zh-tw-20261014
 
 permissions:
   contents: read

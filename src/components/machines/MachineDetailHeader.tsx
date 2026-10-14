@@ -7,6 +7,7 @@ import { ProductionModeBadge } from "./ProductionModeBadge";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 
 interface MachineDetailHeaderProps {
   machine: Machine;
@@ -54,6 +55,7 @@ export function MachineDetailHeader({
       </div>
       <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end">
         <ClockDisplay />
+        {!screenLocked && <ModuleNavigation />}
         <button
           type="button"
           onClick={onToggleMachineSound}

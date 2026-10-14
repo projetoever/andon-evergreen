@@ -26,6 +26,7 @@ import { registerShiftRoutes } from "./routes/shifts.js";
 import { registerSystemSettingsRoutes } from "./routes/systemSettings.js";
 import { registerTechnicianRoutes } from "./routes/technicians.js";
 import { registerWorkstationRoutes } from "./routes/workstations.js";
+import { registerModuleRoutes } from "./routes/modules.js";
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = "0.0.0.0";
@@ -82,6 +83,7 @@ export function buildServer() {
   void registerShiftRoutes(app);
   void registerFailureClassificationRoutes(app);
   void registerWorkstationRoutes(app);
+  void registerModuleRoutes(app);
 
   app.addHook("onReady", async () => {
     await plcRuntime.start();

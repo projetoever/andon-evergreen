@@ -146,6 +146,10 @@ export function createAndonApiClient(
     }
 
     if (!response.ok) {
+      if (response.status === 403 && payload && typeof payload === "object" &&
+          "error" in payload && payload.error === "module_forbidden" && typeof window !== "undefined") {
+        window.dispatchEvent(new Event("andon:module-forbidden"));
+      }
       if (
         response.status === 403 &&
         payload && typeof payload === "object" &&
@@ -163,6 +167,7 @@ export function createAndonApiClient(
         (payload as { error?: unknown }).error === "admin_auth_required"
       ) {
         clearAdminSession();
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("andon:admin-session-expired"));
       }
 
       throw new AndonApiError(

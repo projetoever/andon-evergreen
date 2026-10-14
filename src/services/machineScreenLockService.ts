@@ -48,6 +48,7 @@ export async function lockMachineScreen(machineId: string) {
     { machineId },
   );
   cachedLock = { locked: true, machineId };
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("andon:screen-lock-changed"));
   return cachedLock;
 }
 
@@ -65,4 +66,5 @@ export async function unlockMachineScreen() {
     { machineId: null },
   );
   cachedLock = null;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("andon:screen-lock-changed"));
 }

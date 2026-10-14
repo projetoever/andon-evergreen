@@ -15,6 +15,32 @@ export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: AndonLanguage; label: stri
 // and configured sector names remain exactly as stored in PostgreSQL.
 const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, string>> = {
   en: {
+    "Módulos": "Modules",
+    "Central de módulos": "Module hub",
+    "Selecione seu módulo de trabalho": "Choose your workspace module",
+    "Administração do Hub": "Hub administration",
+    "Ir para o Hub": "Go to Hub",
+    "Operação, indicadores e prioridades em um só lugar.": "Operations, insights and priorities in one place.",
+    "Máquinas, chamados e atendimento em tempo real.": "Machines, calls and service in real time.",
+    "Indicadores, análises e confiabilidade industrial.": "Metrics, analytics and industrial reliability.",
+    "Organização da sequência visual das máquinas.": "Manage the visual machine sequence.",
+    "Prioridades de produção": "Production priorities",
+    "Indisponível nesta versão": "Unavailable in this version",
+    "Desativado na instalação": "Disabled for this installation",
+    "Acesso restrito nesta workstation": "Restricted on this workstation",
+    "Entrar com credencial de prioridades": "Sign in with priority credentials",
+    "Abrir módulo": "Open module",
+    "Permissões administradas pelo Hub": "Access managed by the Hub",
+    "Workstation": "Workstation",
+    "Verificando workstation": "Checking workstation",
+    "Acesso indisponível": "Access unavailable",
+    "Acesso ao módulo restrito": "Module access restricted",
+    "Validando a identidade deste navegador com o servidor.": "Verifying this browser identity with the server.",
+    "Solicite ao administrador a liberação desta workstation.": "Ask an administrator to grant access to this workstation.",
+    "Verificar novamente": "Check again",
+    "Ver módulos disponíveis": "View available modules",
+    "Acesso administrativo": "Administrator access",
+    "Hub desativado. As rotas diretas continuam disponíveis conforme as permissões da estação.": "Hub navigation is disabled. Direct routes remain available according to workstation permissions.",
     "Idioma": "Language",
     "Idioma da interface": "Interface language",
     "Máquinas": "Machines",
@@ -151,6 +177,32 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
     "Resumo executivo": "Executive summary",
   },
   "zh-TW": {
+    "Módulos": "模組",
+    "Central de módulos": "模組中心",
+    "Selecione seu módulo de trabalho": "選擇工作模組",
+    "Administração do Hub": "中心管理",
+    "Ir para o Hub": "前往中心",
+    "Operação, indicadores e prioridades em um só lugar.": "集中管理作業、指標與優先順序。",
+    "Máquinas, chamados e atendimento em tempo real.": "即時機台、呼叫與維修作業。",
+    "Indicadores, análises e confiabilidade industrial.": "指標、分析與工業可靠性。",
+    "Organização da sequência visual das máquinas.": "管理機台的顯示順序。",
+    "Prioridades de produção": "生產優先順序",
+    "Indisponível nesta versão": "此版本無法使用",
+    "Desativado na instalação": "此安裝已停用",
+    "Acesso restrito nesta workstation": "此工作站限制存取",
+    "Entrar com credencial de prioridades": "使用優先順序帳號登入",
+    "Abrir módulo": "開啟模組",
+    "Permissões administradas pelo Hub": "由中心管理存取權限",
+    "Workstation": "工作站",
+    "Verificando workstation": "正在檢查工作站",
+    "Acesso indisponível": "目前無法存取",
+    "Acesso ao módulo restrito": "模組存取受限",
+    "Validando a identidade deste navegador com o servidor.": "正在向伺服器驗證此瀏覽器。",
+    "Solicite ao administrador a liberação desta workstation.": "請管理員開放此工作站的存取權限。",
+    "Verificar novamente": "重新檢查",
+    "Ver módulos disponíveis": "查看可用模組",
+    "Acesso administrativo": "管理員存取",
+    "Hub desativado. As rotas diretas continuam disponíveis conforme as permissões da estação.": "中心導覽已停用。直接路徑仍依工作站權限開放。",
     "Idioma": "語言",
     "Idioma da interface": "介面語言",
     "Máquinas": "機台",
@@ -289,7 +341,7 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
 };
 
 export function translateLabel(language: AndonLanguage, source: string): string {
-  return language === DEFAULT_LANGUAGE ? source : translations[language][source] ?? source;
+  return language === "pt-BR" ? source : translations[language][source] ?? source;
 }
 
 export function isAndonLanguage(value: unknown): value is AndonLanguage {

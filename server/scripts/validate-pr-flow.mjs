@@ -249,6 +249,34 @@ async function run() {
   assert.equal(registeredWorkstation.name, null);
   assert.equal(registeredWorkstation.active, true);
 
+  assert.equal(registeredWorkstation.allowOperational, true);
+  assert.equal(registeredWorkstation.allowBi, true);
+  const moduleHeaders = { origin: "http://localhost:8080", "x-andon-workstation-id": ids.workstation, authorization: "" };
+  for (const allowOperational of [true, false]) for (const allowBi of [true, false]) {
+    await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational, allowBi }));
+    const access = await request("/api/modules/access", { headers: moduleHeaders });
+    assert.equal(access.hubEnabled, false);
+    assert.equal(access.modules.find((item) => item.id === "operational").allowed, allowOperational);
+    assert.equal(access.modules.find((item) => item.id === "bi").allowed, allowBi);
+    assert.equal(access.modules.find((item) => item.id === "priorities").allowed, true);
+    await request("/api/machines", { headers: moduleHeaders }, allowOperational ? 200 : 403);
+    const filterOptions = await request("/api/analytics/filter-options", { headers: moduleHeaders }, allowBi ? 200 : 403);
+    if (allowBi) assert.ok(Array.isArray(filterOptions.machines));
+    await request("/api/dashboard-priority/access-status", { headers: moduleHeaders });
+    await request("/api/dashboard-priority/order", { headers: moduleHeaders }, 401);
+    if (!allowOperational) {
+      const denied = await request("/api/andon-calls", { ...json("POST", {}), headers: { ...moduleHeaders, "x-andon-module": "priorities" } }, 403);
+      assert.equal(denied.error, "module_forbidden");
+    }
+  }
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational: true, allowBi: true }));
+  const selfBlock = await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { active: false }), headers: { "x-andon-workstation-id": ids.workstation } }, 400);
+  assert.match(selfBlock.message, /própria workstation/i);
+  await request("/api/modules/settings", { ...json("PATCH", { hubEnabled: true }), headers: moduleHeaders }, 401);
+  await request("/api/modules/settings", json("PATCH", { hubEnabled: true }));
+  assert.equal((await request("/api/modules/access", { headers: moduleHeaders })).hubEnabled, true);
+  await request("/api/modules/settings", json("PATCH", { hubEnabled: false }));
+
   const registeredAgain = await request(
     "/api/workstations/register",
     json("POST", { id: ids.workstation }),
@@ -283,6 +311,13 @@ async function run() {
   assert.ok(listedWorkstations.some((workstation) => workstation.id === ids.workstation));
   const fetchedWorkstation = await request(`/api/workstations/${ids.workstation}`);
   assert.equal(fetchedWorkstation.name, "PC Máquina 37");
+
+  await request("/api/modules/access", { headers: moduleHeaders });
+  await request("/api/machines", { headers: moduleHeaders }, 403);
+  await request("/api/workstations", { headers: moduleHeaders }, 403);
+  await request("/api/workstations", { headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { allowBi: false }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowBi: true }));
 
   const defaultCategories = await request("/api/andon-categories?active=true");
   assert.ok(defaultCategories.some((category) => category.id === "electrical"));
@@ -2664,6 +2699,12 @@ async function run() {
     await request("/api/machines", json("POST", { id, name, productionMode: "scheduled" }), 201);
   }
 
+  await request(`/api/workstations/${ids.workstation}/screen-lock`, json("PATCH", { machineId: ids.workstationMachineA }));
+  const lockedRevocation = await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational: false }), 400);
+  assert.match(lockedRevocation.message, /desbloqueie/i);
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: false }), 400);
+  await request(`/api/workstations/${ids.workstation}/screen-lock`, json("PATCH", { machineId: null }));
+
   const workstationTechnicianA = await request(
     "/api/technicians",
     json("POST", {
@@ -2897,6 +2938,9 @@ async function run() {
     `/api/andon-calls/${restrictedCall.id}/return-to-maintenance`,
     json("PATCH", { reason: "Validar workstation desativada" }),
   );
+
+  const activeOperationalRevocation = await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational: false }), 400);
+  assert.match(activeOperationalRevocation.message, /atendimento ativo/i);
 
   const activeWorkstationDeactivation = await request(
     `/api/workstations/${ids.workstation}`,

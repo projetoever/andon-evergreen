@@ -11,11 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MachinePrioritiesRouteImport } from './routes/machine-priorities'
+import { Route as HubRouteImport } from './routes/hub'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as BiRouteImport } from './routes/bi'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HubIndexRouteImport } from './routes/hub.index'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
+import { Route as HubAdminRouteImport } from './routes/hub.admin'
 import { Route as MachinesMachineIdFailureHistoryRouteImport } from './routes/machines.$machineId_.failure-history'
 import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
 
@@ -27,6 +30,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const MachinePrioritiesRoute = MachinePrioritiesRouteImport.update({
   id: '/machine-priorities',
   path: '/machine-priorities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HubRoute = HubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -49,10 +57,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HubIndexRoute = HubIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HubRoute,
+} as any)
 const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
   id: '/machines/$machineId',
   path: '/machines/$machineId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const HubAdminRoute = HubAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => HubRoute,
 } as any)
 const MachinesMachineIdFailureHistoryRoute =
   MachinesMachineIdFailureHistoryRouteImport.update({
@@ -72,9 +90,12 @@ export interface FileRoutesByFullPath {
   '/active-calls': typeof ActiveCallsRoute
   '/bi': typeof BiRoute
   '/history': typeof HistoryRoute
+  '/hub': typeof HubRouteWithChildren
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/hub/': typeof HubIndexRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
   '/machines/$machineId/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
@@ -85,7 +106,9 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/hub': typeof HubIndexRoute
   '/machines/$machineId/call-history': typeof MachinesMachineIdCallHistoryRoute
   '/machines/$machineId/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
@@ -95,9 +118,12 @@ export interface FileRoutesById {
   '/active-calls': typeof ActiveCallsRoute
   '/bi': typeof BiRoute
   '/history': typeof HistoryRoute
+  '/hub': typeof HubRouteWithChildren
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/hub/': typeof HubIndexRoute
   '/machines/$machineId_/call-history': typeof MachinesMachineIdCallHistoryRoute
   '/machines/$machineId_/failure-history': typeof MachinesMachineIdFailureHistoryRoute
 }
@@ -108,9 +134,12 @@ export interface FileRouteTypes {
     | '/active-calls'
     | '/bi'
     | '/history'
+    | '/hub'
     | '/machine-priorities'
     | '/settings'
+    | '/hub/admin'
     | '/machines/$machineId'
+    | '/hub/'
     | '/machines/$machineId/call-history'
     | '/machines/$machineId/failure-history'
   fileRoutesByTo: FileRoutesByTo
@@ -121,7 +150,9 @@ export interface FileRouteTypes {
     | '/history'
     | '/machine-priorities'
     | '/settings'
+    | '/hub/admin'
     | '/machines/$machineId'
+    | '/hub'
     | '/machines/$machineId/call-history'
     | '/machines/$machineId/failure-history'
   id:
@@ -130,9 +161,12 @@ export interface FileRouteTypes {
     | '/active-calls'
     | '/bi'
     | '/history'
+    | '/hub'
     | '/machine-priorities'
     | '/settings'
+    | '/hub/admin'
     | '/machines/$machineId'
+    | '/hub/'
     | '/machines/$machineId_/call-history'
     | '/machines/$machineId_/failure-history'
   fileRoutesById: FileRoutesById
@@ -142,6 +176,7 @@ export interface RootRouteChildren {
   ActiveCallsRoute: typeof ActiveCallsRoute
   BiRoute: typeof BiRoute
   HistoryRoute: typeof HistoryRoute
+  HubRoute: typeof HubRouteWithChildren
   MachinePrioritiesRoute: typeof MachinePrioritiesRoute
   SettingsRoute: typeof SettingsRoute
   MachinesMachineIdRoute: typeof MachinesMachineIdRoute
@@ -163,6 +198,13 @@ declare module '@tanstack/react-router' {
       path: '/machine-priorities'
       fullPath: '/machine-priorities'
       preLoaderRoute: typeof MachinePrioritiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub': {
+      id: '/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -193,12 +235,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hub/': {
+      id: '/hub/'
+      path: '/'
+      fullPath: '/hub/'
+      preLoaderRoute: typeof HubIndexRouteImport
+      parentRoute: typeof HubRoute
+    }
     '/machines/$machineId': {
       id: '/machines/$machineId'
       path: '/machines/$machineId'
       fullPath: '/machines/$machineId'
       preLoaderRoute: typeof MachinesMachineIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/hub/admin': {
+      id: '/hub/admin'
+      path: '/admin'
+      fullPath: '/hub/admin'
+      preLoaderRoute: typeof HubAdminRouteImport
+      parentRoute: typeof HubRoute
     }
     '/machines/$machineId_/failure-history': {
       id: '/machines/$machineId_/failure-history'
@@ -217,11 +273,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface HubRouteChildren {
+  HubAdminRoute: typeof HubAdminRoute
+  HubIndexRoute: typeof HubIndexRoute
+}
+
+const HubRouteChildren: HubRouteChildren = {
+  HubAdminRoute: HubAdminRoute,
+  HubIndexRoute: HubIndexRoute,
+}
+
+const HubRouteWithChildren = HubRoute._addFileChildren(HubRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActiveCallsRoute: ActiveCallsRoute,
   BiRoute: BiRoute,
   HistoryRoute: HistoryRoute,
+  HubRoute: HubRouteWithChildren,
   MachinePrioritiesRoute: MachinePrioritiesRoute,
   SettingsRoute: SettingsRoute,
   MachinesMachineIdRoute: MachinesMachineIdRoute,
