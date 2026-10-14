@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
+import { normalizePin } from "../security/technicianCredentials.js";
 
 import { lockAndonCategoryFlow } from "../db/andonCategoryFlowLock.js";
 import { lockMachineFlow } from "../db/machineFlowLock.js";
@@ -101,6 +102,7 @@ type FinishAndonCallBody = {
 type EditFailureDetailsBody = {
   failureClassification?: unknown;
   failureDescription?: unknown;
+  pin?: unknown;
 };
 
 type CancelAndonCallBody = {
@@ -2749,8 +2751,13 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         return badRequest(reply, "Selecione uma classificação específica da falha");
       }
       if (!description) return badRequest(reply, "Descrição da falha é obrigatória");
+      const pin = normalizePin(request.body?.pin);
+      if (!pin) return badRequest(reply, "Informe o PIN do mantenedor (4 a 8 números)");
+      const technician = await identifyTechnician({ method: "pin", value: pin });
+      if (!technician) return reply.status(401).send({ error: "invalid_technician_pin", message: "PIN do mantenedor inválido ou inativo" });
 
       const result = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM andon_calls WHERE id = ${request.params.id} FOR UPDATE`;
         const call = await tx.andonCall.findUnique({ where: { id: request.params.id } });
         if (!call) return { error: "Chamado não encontrado", status: 404 } as const;
         if (call.status !== "finished" || call.isSystemTest) {
@@ -2781,9 +2788,29 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           return { error: "Classificação da falha inválida ou inativa", status: 400 } as const;
         }
 
+        if (call.failureClassification === classification && call.failureDescription === description) {
+          return { call: await findCallWithSessions(tx, call.id) };
+        }
+
         await tx.andonCall.update({
           where: { id: call.id },
           data: { failureClassification: classification, failureDescription: description },
+        });
+        await tx.failureDiagnosisAudit.create({
+          data: {
+            callId: call.id,
+            failureEventId: linkedEvent?.id ?? null,
+            machineId: call.machineId,
+            technicianId: technician.id,
+            technicianName: technician.name,
+            workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
+              ? request.headers["x-andon-workstation-id"] : null,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+            previousClassification: call.failureClassification,
+            newClassification: classification,
+            previousDescription: call.failureDescription,
+            newDescription: description,
+          },
         });
         if (linkedEvent) {
           await tx.failureEvent.update({

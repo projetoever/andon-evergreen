@@ -16,6 +16,7 @@ const workstationSelect = {
   id: true,
   name: true,
   active: true,
+  lastIpAddress: true,
   lastSeenAt: true,
   createdAt: true,
   lockedMachineId: true,
@@ -30,10 +31,11 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       if (!id) return badRequest(reply, "Identificador de workstation inválido");
 
       const now = new Date();
+      const lastIpAddress = request.ip.replace(/^::ffff:/, "");
       const workstation = await prisma.workstation.upsert({
         where: { id },
-        create: { id, lastSeenAt: now },
-        update: { lastSeenAt: now },
+        create: { id, lastSeenAt: now, lastIpAddress },
+        update: { lastSeenAt: now, lastIpAddress },
         select: workstationSelect,
       });
 

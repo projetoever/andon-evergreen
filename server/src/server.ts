@@ -3,6 +3,7 @@ import Fastify from "fastify";
 
 import { registerCorsSupport } from "./config/cors.js";
 import { enforceAdminAuthorization } from "./security/adminAuthorization.js";
+import { enforceWorkstationAccess } from "./security/workstationAccess.js";
 import { prisma } from "./db/prisma.js";
 import {
   createPlcRuntime,
@@ -14,6 +15,7 @@ import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerAndonCategoryRoutes } from "./routes/andonCategories.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
 import { registerDashboardPriorityRoutes } from "./routes/dashboardPriority.js";
+import { registerDiagnosisAuditRoutes } from "./routes/diagnosisAudit.js";
 import { registerFailureEventRoutes } from "./routes/failureEvents.js";
 import { registerHealthDbRoute } from "./routes/healthDb.js";
 import { registerMachineRoutes } from "./routes/machines.js";
@@ -38,6 +40,7 @@ export function buildServer() {
   });
 
   registerCorsSupport(app);
+  app.addHook("preHandler", enforceWorkstationAccess);
   app.addHook("preHandler", enforceAdminAuthorization);
 
   app.setErrorHandler((error, _request, reply) => {
@@ -72,6 +75,7 @@ export function buildServer() {
   void registerAndonCategoryRoutes(app);
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
+  void registerDiagnosisAuditRoutes(app);
   void registerSystemSettingsRoutes(app);
   void registerDashboardPriorityRoutes(app);
   void registerTechnicianRoutes(app);

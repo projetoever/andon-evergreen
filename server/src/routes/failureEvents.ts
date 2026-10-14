@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 
 import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { prisma } from "../db/prisma.js";
+import { normalizePin } from "../security/technicianCredentials.js";
+import { identifyTechnician } from "../services/technicianIdentity.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
 
 type FailureEventQuery = {
@@ -31,6 +33,7 @@ type FinishFailureEventBody = {
 type UpdateFailureEventBody = {
   classification?: unknown;
   notes?: unknown;
+  pin?: unknown;
 };
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
@@ -155,29 +158,52 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: UpdateFailureEventBody }>(
     "/api/failure-events/:id",
     async (request, reply) => {
-      const event = await prisma.failureEvent.findUnique({ where: { id: request.params.id } });
-      if (!event) return notFound(reply, "Evento de falha não encontrado");
-
       const classification = optionalString(request.body?.classification);
-      const notes =
-        typeof request.body?.notes === "string" ? request.body.notes.trim() : undefined;
+      const notes = typeof request.body?.notes === "string" ? request.body.notes.trim() : undefined;
+      if (!classification && notes === undefined) return badRequest(reply, "Nenhuma alteração informada");
+      const pin = normalizePin(request.body?.pin);
+      if (!pin) return badRequest(reply, "Informe o PIN do mantenedor (4 a 8 números)");
+      const technician = await identifyTechnician({ method: "pin", value: pin });
+      if (!technician) return reply.status(401).send({ error: "invalid_technician_pin", message: "PIN do mantenedor inválido ou inativo" });
 
       const result = await prisma.$transaction(async (tx) => {
-        const updatedEvent = await tx.failureEvent.update({
-          where: { id: event.id },
-          data: {
-            ...(classification ? { classification } : {}),
-            ...(notes !== undefined ? { notes } : {}),
-          },
-        });
-
+        await tx.$queryRaw`SELECT id FROM failure_events WHERE id = ${request.params.id} FOR UPDATE`;
+        const event = await tx.failureEvent.findUnique({ where: { id: request.params.id } });
+        if (!event) return null;
+        const nextClassification = classification ?? event.classification;
+        const nextNotes = notes ?? event.notes;
+        if (nextClassification !== event.classification || nextNotes !== event.notes) {
+          await tx.failureEvent.update({
+            where: { id: event.id },
+            data: {
+              ...(classification ? { classification } : {}),
+              ...(notes !== undefined ? { notes } : {}),
+            },
+          });
+          await tx.failureDiagnosisAudit.create({
+            data: {
+              callId: event.callId,
+              failureEventId: event.id,
+              machineId: event.machineId,
+              technicianId: technician.id,
+              technicianName: technician.name,
+              workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
+                ? request.headers["x-andon-workstation-id"] : null,
+              ipAddress: request.ip.replace(/^::ffff:/, ""),
+              previousClassification: event.classification,
+              newClassification: nextClassification,
+              previousDescription: event.notes,
+              newDescription: nextNotes,
+            },
+          });
+        }
+        const updatedEvent = await tx.failureEvent.findUniqueOrThrow({ where: { id: event.id } });
         const machine = await tx.machine.findUnique({ where: { id: updatedEvent.machineId } });
         if (!machine) throw new Error("Máquina não encontrada ao atualizar evento de falha");
-
         return { event: updatedEvent, machine };
       });
 
-      return result;
+      return result ?? notFound(reply, "Evento de falha não encontrado");
     },
   );
 
