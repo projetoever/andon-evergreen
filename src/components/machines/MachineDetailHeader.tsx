@@ -6,6 +6,7 @@ import { AndonStatusBadge } from "./AndonStatusBadge";
 import { ProductionModeBadge } from "./ProductionModeBadge";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 interface MachineDetailHeaderProps {
   machine: Machine;
@@ -22,6 +23,7 @@ export function MachineDetailHeader({
   onToggleMachineSound,
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
       <div className="flex min-w-0 items-center gap-2 md:gap-3">
@@ -29,13 +31,13 @@ export function MachineDetailHeader({
           <Link
             to="/"
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-accent md:h-10 md:w-10"
-            aria-label="Voltar ao painel"
+            aria-label={t("Voltar ao painel")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
         )}
         <div className="min-w-0 overflow-hidden">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Máquina</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">{t("Máquina")}</div>
           <div
             className="truncate text-3xl font-black leading-none text-foreground md:text-4xl"
             title={machine.id}
@@ -56,11 +58,11 @@ export function MachineDetailHeader({
           type="button"
           onClick={onToggleMachineSound}
           className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
-          title={machineSoundEnabled ? "Som do ANDON: Ativo" : "Som do ANDON: Silenciado"}
-          aria-label={machineSoundEnabled ? "Som do ANDON: Ativo" : "Som do ANDON: Silenciado"}
+          title={machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
+          aria-label={machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
         >
           {machineSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          {machineSoundEnabled ? "Som do ANDON: Ativo" : "Som do ANDON: Silenciado"}
+          {machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
         </button>
         <MachineStatusBadge status={machine.machineStatus} className="text-xs md:text-sm" />
         <AndonStatusBadge status={machine.andonStatus} className="text-xs md:text-sm" />
@@ -73,11 +75,11 @@ export function MachineDetailHeader({
             to="/machines/$machineId/call-history"
             params={{ machineId: machine.id }}
             className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
-            title="Histórico da máquina"
-            aria-label="Histórico da máquina"
+            title={t("Histórico da máquina")}
+            aria-label={t("Histórico da máquina")}
           >
             <History className="h-4 w-4" />
-            Histórico
+            {t("Histórico")}
           </Link>
           <button
             type="button"
@@ -88,13 +90,13 @@ export function MachineDetailHeader({
                 ? "border-warning/60 bg-warning/15 text-warning hover:bg-warning/25"
                 : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
-            title={screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"}
+            title={screenLocked ? t("Tela fixada: clique para desbloquear") : t("Fixar tela desta máquina")}
             aria-label={
-              screenLocked ? "Tela fixada: clique para desbloquear" : "Fixar tela desta máquina"
+              screenLocked ? t("Tela fixada: clique para desbloquear") : t("Fixar tela desta máquina")
             }
           >
             {screenLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-            {screenLocked ? "Tela fixada" : "Fixar tela"}
+            {screenLocked ? t("Tela fixada") : t("Fixar tela")}
           </button>
         </div>
       </div>
