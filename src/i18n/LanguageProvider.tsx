@@ -87,6 +87,7 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
     "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado.": "Machine stopped: select a free sector to open a call or an active sector to view its call.",
     "Setor livre abre chamado; setor ativo seleciona o chamado.": "Select a free sector to open a call or an active sector to view its call.",
     "Selecionado": "Selected",
+    "Selecionado: chamado": "Selected call:"
     "Selecionar chamado": "Select call",
     "Ativo": "Active",
     "Ativos": "Active",
@@ -222,6 +223,7 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
     "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado.": "機台停機：選擇未啟用部門建立叫修，或選擇進行中部門查看叫修。",
     "Setor livre abre chamado; setor ativo seleciona o chamado.": "選擇未啟用部門建立叫修，或選擇進行中部門查看叫修。",
     "Selecionado": "已選取",
+    "Selecionado: chamado": "已選取叫修："
     "Selecionar chamado": "選擇叫修",
     "Ativo": "處理中",
     "Ativos": "處理中",
