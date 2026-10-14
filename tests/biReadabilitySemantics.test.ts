@@ -8,10 +8,10 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(overview, /label="Novos chamados"/);
-  assert.match(overview, /label="Chamados ativos"/);
+  assert.match(overview, /label="Disponibilidade operacional"/);
+  assert.match(overview, /label="MTBF programado"/);
   assert.match(overview, /label="Tempo de parada"/);
-  assert.match(overview, /label="Tempo médio de manutenção"/);
+  assert.match(overview, /label="MTTR operacional"/);
   assert.match(summary, /"Tempo de parada"/);
   assert.match(shell, /testes automáticos marcados excluídos/);
   assert.match(shell, /h-dvh overflow-hidden/);
@@ -56,13 +56,13 @@ test("PDF identifica a fonte como ambiente consultado sem negar testes manuais",
 
 test("BI: legendas verde e amarela identificam explicitamente o gráfico de chamados", async () => {
   const graph = await readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(graph, /Legenda do gráfico de chamados/);
-  assert.match(graph, /bg-amber-400/);
-  assert.match(graph, /bg-emerald-400/);
-  assert.match(graph, /name="Novos chamados"/);
-  assert.match(graph, /name="Finalizados"/);
-  assert.match(graph, /type="linear"/);
-  assert.match(graph, /Aberturas e conclusões por data operacional/);
+  assert.match(graph, /BiAvailabilityDailyCard/);
+  assert.match(graph, /scheduledPerformance/);
+  assert.match(graph, /MTBF programado/);
+  assert.match(graph, /label="Disponibilidade operacional"/);
+  assert.match(graph, /label="MTTR operacional"/);
+  assert.match(graph, /BiAvailabilityDailyCard/);
+  assert.doesNotMatch(graph, /Chamados por dia/);
   assert.match(graph, /de \$\{kpis\?\.callsFinished \?\? 0\} finalizados retornaram/);
 });
 
