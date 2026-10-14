@@ -1,4 +1,6 @@
 export type ModuleId = "operational" | "bi" | "priorities";
+export const HUB_ADMIN_SECTIONS = ["overview", "workstations", "security", "priorities"] as const;
+export type HubAdminSection = (typeof HUB_ADMIN_SECTIONS)[number];
 
 export interface ModuleDefinition {
   id: ModuleId;

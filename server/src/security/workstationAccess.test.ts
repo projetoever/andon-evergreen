@@ -23,12 +23,18 @@ test("module policy protects direct reads/writes and preserves priorities, recov
     "/api/analytics/overview",
     "/api/analytics/filter-options",
     "/api/dashboard-priority/order",
+    "/api/dashboard-priority/access-status",
+    "/api/dashboard-priority/credentials",
     "/api/modules/access",
     "/api/workstations",
     `/api/workstations/${id}`,
     "/api/modules/settings",
   ]) {
-    app.route({ url, method: ["GET", "POST", "PATCH"], handler: async () => ({ ok: true }) });
+    app.route({
+      url,
+      method: ["GET", "POST", "PATCH", "PUT"],
+      handler: async () => ({ ok: true }),
+    });
   }
   const headers = { origin: "http://andon.test", "x-andon-workstation-id": id };
   for (const allowOperational of [true, false])
@@ -62,6 +68,31 @@ test("module policy protects direct reads/writes and preserves priorities, recov
     "Admin must not bypass operational restrictions",
   );
   station = { ...station, active: false };
+  assert.equal(
+    (await app.inject({ url: "/api/dashboard-priority/access-status", headers: adminHeaders }))
+      .statusCode,
+    200,
+  );
+  assert.equal(
+    (
+      await app.inject({
+        url: "/api/dashboard-priority/credentials",
+        method: "PUT",
+        headers: adminHeaders,
+      })
+    ).statusCode,
+    200,
+  );
+  assert.equal(
+    (await app.inject({ url: "/api/dashboard-priority/credentials", method: "PUT", headers }))
+      .statusCode,
+    403,
+  );
+  assert.equal(
+    (await app.inject({ url: "/api/dashboard-priority/order", headers: adminHeaders })).statusCode,
+    403,
+    "Central Admin must not bypass an inactive station to use Priorities",
+  );
   assert.equal((await app.inject({ url: "/api/modules/access", headers })).statusCode, 200);
   assert.equal(
     (await app.inject({ url: "/api/workstations", headers: adminHeaders })).statusCode,
@@ -83,6 +114,11 @@ test("module policy protects direct reads/writes and preserves priorities, recov
   );
   assert.equal((await app.inject({ url: "/api/workstations", headers })).statusCode, 403);
   station.active = true;
+  assert.equal(
+    (await app.inject({ url: "/api/dashboard-priority/credentials", method: "PUT", headers }))
+      .statusCode,
+    401,
+  );
   assert.equal((await app.inject({ url: "/api/workstations", headers })).statusCode, 401);
   assert.equal(
     (await app.inject({ url: "/api/modules/settings", method: "PATCH", headers })).statusCode,

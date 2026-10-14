@@ -1,16 +1,41 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { ModuleAccess } from "@/types/modules";
-import { registerCurrentWorkstation } from "./workstationService";
+import {
+  registerCurrentWorkstation,
+  WORKSTATION_HEARTBEAT_INTERVAL_MS,
+} from "./workstationService";
 
 const api = createAndonApiClient();
+let localHubEnabled = true;
+let registeredAt: number | null = null;
+let registration: Promise<void> | null = null;
+
+async function ensureRegistration() {
+  if (registeredAt !== null && Date.now() - registeredAt < WORKSTATION_HEARTBEAT_INTERVAL_MS)
+    return;
+  if (!registration) {
+    registration = registerCurrentWorkstation()
+      .then(() => {
+        registeredAt = Date.now();
+      })
+      .finally(() => {
+        registration = null;
+      });
+  }
+  await registration;
+}
 
 export async function loadModuleAccess(): Promise<ModuleAccess> {
+  if (CONFIGURED_DATA_MODE === "api") {
+    await ensureRegistration();
+    return api.get<ModuleAccess>("/api/modules/access");
+  }
   const workstation = await registerCurrentWorkstation();
   // Explicit development mode only; production never falls back to this registry.
   if (CONFIGURED_DATA_MODE === "local")
     return {
-      hubEnabled: true,
+      hubEnabled: localHubEnabled,
       workstation,
       modules: [
         {
@@ -45,8 +70,18 @@ export async function loadModuleAccess(): Promise<ModuleAccess> {
         },
       ],
     };
-  return api.get<ModuleAccess>("/api/modules/access");
+  throw new Error("Modo de dados não suportado para o Hub.");
 }
 
-export const updateHubEnabled = (hubEnabled: boolean) =>
-  api.patch<{ hubEnabled: boolean }>("/api/modules/settings", { hubEnabled });
+export const getHubSettings = () =>
+  CONFIGURED_DATA_MODE === "local"
+    ? Promise.resolve({ hubEnabled: localHubEnabled })
+    : api.get<{ hubEnabled: boolean }>("/api/modules/settings");
+
+export const updateHubEnabled = (hubEnabled: boolean) => {
+  if (CONFIGURED_DATA_MODE === "local") {
+    localHubEnabled = hubEnabled;
+    return Promise.resolve({ hubEnabled });
+  }
+  return api.patch<{ hubEnabled: boolean }>("/api/modules/settings", { hubEnabled });
+};

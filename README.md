@@ -20,7 +20,16 @@ A solução foi desenhada para ambientes industriais que precisam de implantaç�
 | Implantação do piloto | Windows, com banco em Docker |
 | Operação normal | Local e independente de internet após a instalação |
 
-Esta página descreve apenas funcionalidades comprovadas na `main`. Recursos futuros são identificados explicitamente como planejados.
+As funcionalidades entregues abaixo descrevem o estado da `main`. Candidatas em revisão e recursos planejados são identificados separadamente.
+
+## Hub — candidata desta revisão
+
+O [PR #199](https://github.com/projetoever/andon-evergreen/pull/199) adiciona o Hub com a identidade visual atual do ANDON e centraliza estações, permissões, senha administrativa, recuperação e provisionamento do acesso de Prioridades. Os cadastros e as regras industriais permanecem no ANDON; análises no BI e sequência visual no módulo Prioridades.
+
+Esta candidata exige a migration aditiva documentada e validação antes de implantação. Não representa uma atualização já instalada no piloto.
+
+- [Guia do administrador do Hub](docs/ANDON_HUB_GUIA_ADMINISTRADOR.md)
+- [Arquitetura, permissões e limites da revisão](docs/HUB_MODULE_ACCESS_STAGE3.md)
 
 ## Por que o ANDON
 

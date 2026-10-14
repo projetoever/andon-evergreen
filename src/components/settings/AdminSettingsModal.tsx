@@ -33,7 +33,7 @@ import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
-import { WorkstationsSettingsTab } from "./WorkstationsSettingsTab";
+import { PlatformAdminLinks } from "./PlatformAdminLinks";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
 import { SoundsSettingsTab } from "./SoundsSettingsTab";
 
@@ -50,8 +50,8 @@ interface AdminNavigationItem {
 const tabs: AdminNavigationItem[] = [
   {
     id: "general",
-    label: "Configurações gerais",
-    description: "Preferências globais, regras operacionais e segurança administrativa.",
+    label: "Configurações da operação",
+    description: "Regras de chamados, interface e apresentação do dashboard.",
     group: "Sistema",
     icon: Settings2,
   },
@@ -113,8 +113,8 @@ const tabs: AdminNavigationItem[] = [
   },
   {
     id: "workstations",
-    label: "Workstations",
-    description: "Identidades, nomes e estado das estações conectadas ao sistema.",
+    label: "Administração do Hub",
+    description: "Acesso central a estações, permissões e credenciais da plataforma.",
     group: "Infraestrutura",
     icon: MonitorCog,
   },
@@ -157,7 +157,7 @@ export function AdminSettingsModal({
     if (tab === "classifications") return <ClassificationsTab />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
     if (tab === "machines") return <MachineAdminPanel />;
-    if (tab === "workstations") return <WorkstationsSettingsTab />;
+    if (tab === "workstations") return <PlatformAdminLinks />;
     return null;
   };
 

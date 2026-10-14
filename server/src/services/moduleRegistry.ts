@@ -63,6 +63,8 @@ export function isRecoveryRequest(method: string, path: string) {
     (method === "GET" && (path === "/api/workstations" || path === "/api/modules/settings")) ||
     (method === "PATCH" &&
       (path === "/api/modules/settings" || /^\/api\/workstations\/[^/]+$/.test(path))) ||
+    (method === "GET" && path === "/api/dashboard-priority/access-status") ||
+    (method === "PUT" && path === "/api/dashboard-priority/credentials") ||
     (path.startsWith("/api/admin-auth/") && ["GET", "POST", "PUT"].includes(method))
   );
 }

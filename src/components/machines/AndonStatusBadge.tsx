@@ -14,6 +14,7 @@ const TONE: Record<AndonStatus, string> = {
   in_progress: "bg-info/20 text-info",
   post_maintenance: "bg-info/20 text-info",
   finished: "bg-success/20 text-success",
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {

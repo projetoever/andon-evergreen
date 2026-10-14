@@ -1,20 +1,36 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, LogOut, ShieldCheck } from "lucide-react";
+import { Link, useSearch } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  KeyRound,
+  LayoutGrid,
+  ListOrdered,
+  LogOut,
+  MonitorCog,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
+import { HubSecuritySettings } from "@/components/settings/HubSecuritySettings";
+import { PriorityAccessSettings } from "@/components/settings/PriorityAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { createAndonApiClient } from "@/api/andonApiClient";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
-import { updateHubEnabled } from "@/services/moduleService";
+import { getHubSettings, updateHubEnabled } from "@/services/moduleService";
 
-const api = createAndonApiClient();
+const sections = [
+  { id: "overview", label: "Visão geral", icon: LayoutGrid },
+  { id: "workstations", label: "Estações e acessos", icon: MonitorCog },
+  { id: "security", label: "Segurança", icon: KeyRound },
+  { id: "priorities", label: "Acesso de Prioridades", icon: ListOrdered },
+] as const;
 
 /** Recovery entry remains outside operational providers and workstation/module gates. */
 export function HubAdminPage() {
+  const { section: requestedSection } = useSearch({ from: "/hub/admin" });
+  const section = requestedSection ?? "overview";
   const [authenticated, setAuthenticated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
@@ -36,8 +52,7 @@ export function HubAdminPage() {
   useEffect(() => {
     if (!authenticated) return;
     let disposed = false;
-    void api
-      .get<{ hubEnabled: boolean }>("/api/modules/settings")
+    void getHubSettings()
       .then((settings) => {
         if (!disposed) {
           setHubEnabled(settings.hubEnabled);
@@ -115,57 +130,89 @@ export function HubAdminPage() {
           </section>
         ) : (
           <>
-            <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-              <h2 className="text-lg font-bold">Navegação central</h2>
-              <p className="text-sm text-muted-foreground">
-                Ative o botão Módulos nas telas. As rotas diretas e as permissões de acesso são
-                preservadas ao desativar esta opção.
-              </p>
-              {settingsError && (
-                <p role="alert" className="text-sm text-danger">
-                  {settingsError}
-                </p>
-              )}
-              <label className="flex items-center gap-3 text-sm font-bold">
-                <Switch
-                  checked={hubEnabled === true}
-                  disabled={hubEnabled === null || saving}
-                  onCheckedChange={(enabled) => void changeHubEnabled(enabled)}
-                />
-                Navegação do Hub ativa
-              </label>
-            </section>
-            <WorkstationsSettingsTab />
-            <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-              <h2 className="text-lg font-bold">Responsabilidade de cada módulo</h2>
-              <div className="grid gap-3 text-sm md:grid-cols-2">
-                <p>
-                  <strong className="text-primary">Hub</strong>
-                  <br />
-                  Estações, permissões e navegação entre módulos. Segurança administrativa central.
-                </p>
-                <p>
-                  <strong className="text-primary">ANDON operacional</strong>
-                  <br />
-                  Chamados, atendimento, sons, máquinas, ativos, mantenedores, turnos e regras de
-                  operação.
-                </p>
-                <p>
-                  <strong className="text-primary">ANDON BI</strong>
-                  <br />
-                  Indicadores, filtros, análises, qualidade dos dados e relatórios.
-                </p>
-                <p>
-                  <strong className="text-primary">Prioridades</strong>
-                  <br />
-                  Credencial própria e sequência visual de produção.
-                </p>
+            <nav
+              aria-label="Seções administrativas do Hub"
+              className="grid grid-cols-2 gap-2 md:grid-cols-4"
+            >
+              {sections.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Button
+                    key={item.id}
+                    variant={section === item.id ? "default" : "outline"}
+                    className="h-auto min-h-11 whitespace-normal py-3"
+                    asChild
+                  >
+                    <Link
+                      to="/hub/admin"
+                      search={{ section: item.id }}
+                      aria-current={section === item.id ? "page" : undefined}
+                    >
+                      <Icon className="mr-2 h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  </Button>
+                );
+              })}
+            </nav>
+            {section === "overview" && (
+              <div className="space-y-6">
+                <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+                  <h2 className="text-lg font-bold">Navegação central</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Ative o botão Módulos nas telas. As rotas diretas e as permissões de acesso são
+                    preservadas ao desativar esta opção.
+                  </p>
+                  {settingsError && (
+                    <p role="alert" className="text-sm text-danger">
+                      {settingsError}
+                    </p>
+                  )}
+                  <label className="flex items-center gap-3 text-sm font-bold">
+                    <Switch
+                      checked={hubEnabled === true}
+                      disabled={hubEnabled === null || saving}
+                      onCheckedChange={(enabled) => void changeHubEnabled(enabled)}
+                    />
+                    Navegação do Hub ativa
+                  </label>
+                </section>
+                <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+                  <h2 className="text-lg font-bold">Responsabilidade de cada módulo</h2>
+                  <div className="grid gap-3 text-sm md:grid-cols-2">
+                    <p>
+                      <strong className="text-primary">Hub</strong>
+                      <br />
+                      Estações, permissões e navegação entre módulos. Segurança administrativa
+                      central.
+                    </p>
+                    <p>
+                      <strong className="text-primary">ANDON operacional</strong>
+                      <br />
+                      Chamados, atendimento, sons, máquinas, ativos, mantenedores, turnos e regras
+                      de operação.
+                    </p>
+                    <p>
+                      <strong className="text-primary">ANDON BI</strong>
+                      <br />
+                      Indicadores, filtros, análises, qualidade dos dados e relatórios.
+                    </p>
+                    <p>
+                      <strong className="text-primary">Prioridades</strong>
+                      <br />
+                      Credencial própria e sequência visual de produção.
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    O Admin do ANDON concentra cadastros e regras operacionais. Credenciais,
+                    estações e permissões são administradas no Hub.
+                  </p>
+                </section>
               </div>
-              <p className="text-xs text-muted-foreground">
-                As configurações administrativas existentes continuam disponíveis no ANDON durante
-                esta transição.
-              </p>
-            </section>
+            )}
+            {section === "workstations" && <WorkstationsSettingsTab />}
+            {section === "security" && <HubSecuritySettings />}
+            {section === "priorities" && <PriorityAccessSettings />}
           </>
         )}
         <AdminLoginModal

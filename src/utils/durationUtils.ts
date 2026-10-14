@@ -113,13 +113,14 @@ export function calculateCallWaitingSnapshotMinutes(
   call: CallWaitingSnapshot,
   nowIso: string,
 ): number {
+  const waitingMinutes = call.callWaitingMinutes;
   const hasPersistedWaitingDuration =
     call.finishedAt !== null &&
-    typeof call.callWaitingMinutes === "number" &&
-    Number.isFinite(call.callWaitingMinutes) &&
-    call.callWaitingMinutes >= 0;
+    typeof waitingMinutes === "number" &&
+    Number.isFinite(waitingMinutes) &&
+    waitingMinutes >= 0;
 
-  if (hasPersistedWaitingDuration) return call.callWaitingMinutes;
+  if (hasPersistedWaitingDuration) return waitingMinutes;
 
   const end = call.attendedAt ?? call.finishedAt ?? nowIso;
   return diffMinutes(call.openedAt, end);

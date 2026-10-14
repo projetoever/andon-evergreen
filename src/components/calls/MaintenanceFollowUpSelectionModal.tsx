@@ -44,7 +44,7 @@ export function MaintenanceFollowUpSelectionModal({
   if (!call) return null;
 
   async function handleConfirm() {
-    if (isSubmitting) return;
+    if (!call || isSubmitting) return;
     setIsSubmitting(true);
     try {
       await completeMaintenance({

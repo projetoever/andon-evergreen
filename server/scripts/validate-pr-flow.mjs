@@ -319,6 +319,11 @@ async function run() {
   await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { allowBi: false }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
   await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowBi: true }));
 
+  await request("/api/dashboard-priority/access-status", { headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  await request("/api/dashboard-priority/credentials", { ...json("PUT", { username: "x", password: "short" }), headers: { ...moduleHeaders, authorization: adminAuthorization } }, 400);
+  await request("/api/dashboard-priority/credentials", { ...json("PUT", { username: "gestor", password: "valid-password" }), headers: moduleHeaders }, 403);
+  await request("/api/dashboard-priority/order", { headers: { ...moduleHeaders, authorization: adminAuthorization } }, 403);
+
   const selfRecovered = await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { active: true }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
   assert.equal(selfRecovered.active, true, "Admin deve conseguir reativar a própria estação inativa pela recuperação");
   await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: false }));
