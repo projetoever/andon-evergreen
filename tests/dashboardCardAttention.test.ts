@@ -153,7 +153,7 @@ test("cards mostram recência da última ocorrência em vez da duração da últ
   assert.doesNotMatch(card, /Última ocorrência:\s*\{/);
   assert.match(
     card,
-    /formatElapsedSince\(lastOccurrence\?\.occurredAt, undefined, "Sem ocorrência"\)/,
+    /formatElapsedSince\(lastOccurrence\?\.occurredAt, undefined, t\("Sem ocorrência"\)\)/,
   );
   assert.match(card, /text-center font-black text-foreground/);
   assert.doesNotMatch(card, /Última falha:/);
@@ -176,7 +176,7 @@ test("mensagem do operador ocupa o card somente enquanto o chamado aguarda", asy
     /currentCall\?\.status === "open" \? currentCall\.operatorNote\?\.trim\(\) \|\| null : null/,
   );
   assert.match(card, /Clique para ler a informação completa do operador/);
-  assert.match(card, /DialogTitle>Informação do operador/);
+  assert.match(card, /DialogTitle>\{t\("Informação do operador"\)\}/);
 });
 
 
