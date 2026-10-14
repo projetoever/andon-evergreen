@@ -100,7 +100,7 @@ export interface AndonRepository {
   updateCallFailureDetails(
     machines: Machine[],
     calls: AndonCall[],
-    params: { callId: string; failureClassification: string; failureDescription: string },
+    params: { callId: string; failureClassification: string; failureDescription: string; pin?: string },
   ): Promise<AndonRepositoryResult>;
   cancelCall(
     machines: Machine[],
@@ -126,5 +126,6 @@ export interface AndonRepository {
     stopEventId: string,
     failureDescription: string,
     failureClassification?: Machine["stopHistory"][number]["failureClassification"],
+    pin?: string,
   ): Promise<AndonRepositoryMachineResult>;
 }

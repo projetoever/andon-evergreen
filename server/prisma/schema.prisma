@@ -53,6 +53,7 @@ model Workstation {
   id                 String              @id
   name               String?
   active             Boolean             @default(true)
+  lastIpAddress      String?             @db.VarChar(45)
   lastSeenAt         DateTime            @default(now())
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -499,4 +500,25 @@ model KioskDevice {
 
   @@index([defaultMachineId])
   @@map("kiosk_devices")
+}
+
+model FailureDiagnosisAudit {
+  id                     String   @id @default(cuid())
+  callId                 String?
+  failureEventId         String?
+  machineId              String
+  technicianId           String
+  technicianName         String
+  workstationId          String?
+  ipAddress              String?  @db.VarChar(45)
+  previousClassification String?
+  newClassification      String?
+  previousDescription    String?
+  newDescription         String?
+  createdAt              DateTime @default(now())
+
+  @@index([callId, createdAt])
+  @@index([failureEventId, createdAt])
+  @@index([machineId, createdAt])
+  @@map("failure_diagnosis_audit")
 }

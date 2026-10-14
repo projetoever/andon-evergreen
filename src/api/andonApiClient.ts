@@ -147,6 +147,15 @@ export function createAndonApiClient(
 
     if (!response.ok) {
       if (
+        response.status === 403 &&
+        payload && typeof payload === "object" &&
+        "error" in payload &&
+        (payload as { error?: unknown }).error === "workstation_inactive" &&
+        typeof window !== "undefined"
+      ) {
+        window.dispatchEvent(new Event("andon:workstation-inactive"));
+      }
+      if (
         response.status === 401 &&
         payload &&
         typeof payload === "object" &&

@@ -9,6 +9,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
+import { DiagnosisAuditPanel } from "@/components/history/DiagnosisAuditPanel";
 import type { FailureClassification, Machine, MachineStopEvent } from "@/types/machine";
 import type { FailureClassificationConfig } from "@/types/settings";
 import type { AndonCall } from "@/types/andon";
@@ -77,9 +78,12 @@ interface FailureEventCardProps {
   catalogError: string | null;
   isEditing: boolean;
   editingText: string;
+  editingPin: string;
+  isSaving: boolean;
   editingClassification: FailureClassification;
   onStartEditing: (event: MachineStopEvent) => void;
   onEditingTextChange: (value: string) => void;
+  onEditingPinChange: (value: string) => void;
   onEditingClassificationChange: (value: FailureClassification) => void;
   onCancelEditing: () => void;
   onSave: (event: MachineStopEvent) => void;
@@ -95,9 +99,12 @@ function FailureEventCard({
   catalogError,
   isEditing,
   editingText,
+  editingPin,
+  isSaving,
   editingClassification,
   onStartEditing,
   onEditingTextChange,
+  onEditingPinChange,
   onEditingClassificationChange,
   onCancelEditing,
   onSave,
@@ -185,19 +192,34 @@ function FailureEventCard({
                     value={editingText}
                     onChange={(changeEvent) => onEditingTextChange(changeEvent.target.value)}
                   />
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    PIN do mantenedor (obrigatório)
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={8}
+                      value={editingPin}
+                      onChange={(changeEvent) => onEditingPinChange(changeEvent.target.value.replace(/\D/g, ""))}
+                      placeholder="4 a 8 números"
+                      disabled={isSaving}
+                      className="mt-1 block h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
+                    />
+                  </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => onSave(event)}
                       className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"
-                      disabled={catalogLoading || Boolean(catalogError)}
+                      disabled={isSaving || catalogLoading || Boolean(catalogError) || !/^\d{4,8}$/.test(editingPin)}
                     >
                       <Save className="h-4 w-4" />
-                      Salvar
+                      {isSaving ? "Salvando..." : "Salvar"}
                     </button>
                     <button
                       type="button"
                       onClick={onCancelEditing}
+                      disabled={isSaving}
                       className="inline-flex items-center gap-2 self-start rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase tracking-wider"
                     >
                       Cancelar
@@ -224,6 +246,8 @@ function FailureEventCard({
           </div>
         )}
       </dl>
+
+      {showFailureImpact && <DiagnosisAuditPanel failureEventId={event.id} />}
 
       {showFailureImpact && (
         <section className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
@@ -257,6 +281,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCallId, setEditingCallId] = useState<string | null>(null);
   const [savingCallDetails, setSavingCallDetails] = useState(false);
+  const [savingFailure, setSavingFailure] = useState(false);
+  const [editingPin, setEditingPin] = useState("");
   const [editingText, setEditingText] = useState("");
   const [editingClassification, setEditingClassification] = useState<FailureClassification>(
     PLACEHOLDER_CLASSIFICATION,
@@ -388,6 +414,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   const startEditingFailure = (event: MachineStopEvent) => {
     setEditingCallId(null);
     setEditingId(event.id);
+    setEditingPin("");
     setEditingText(event.failureDescription || "");
     setEditingClassification(event.failureClassification ?? PLACEHOLDER_CLASSIFICATION);
   };
@@ -396,6 +423,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     const details = getCallFailureDetails(call, linkedEvents);
     setEditingId(null);
     setEditingCallId(call.id);
+    setEditingPin("");
     setEditingClassification(details.classification ?? PLACEHOLDER_CLASSIFICATION);
     setEditingText(details.description ?? "");
   };
@@ -417,34 +445,54 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       toast.error("Descrição da falha é obrigatória.");
       return;
     }
+    if (!/^\d{4,8}$/.test(editingPin)) {
+      toast.error("Informe o PIN do mantenedor (4 a 8 números).");
+      return;
+    }
     setSavingCallDetails(true);
     try {
       await updateCallFailureDetails({
         callId: call.id,
         failureClassification: classification,
         failureDescription: description,
+        pin: editingPin,
       });
       setEditingCallId(null);
       toast.success("Diagnóstico do chamado atualizado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar o diagnóstico.");
     } finally {
+      setEditingPin("");
       setSavingCallDetails(false);
     }
   };
 
-  const saveFailure = (event: MachineStopEvent) => {
+  const saveFailure = async (event: MachineStopEvent) => {
     if (editingClassification === PLACEHOLDER_CLASSIFICATION) {
       toast.error("Selecione uma classificação específica para a ocorrência.");
       return;
     }
-    updateMachineStopEventDescription(
-      machine.id,
-      event.id,
-      editingText.trim(),
-      editingClassification,
-    );
-    setEditingId(null);
+    if (!/^\d{4,8}$/.test(editingPin)) {
+      toast.error("Informe o PIN do mantenedor (4 a 8 números).");
+      return;
+    }
+    setSavingFailure(true);
+    try {
+      await updateMachineStopEventDescription(
+        machine.id,
+        event.id,
+        editingText.trim(),
+        editingClassification,
+        editingPin,
+      );
+      setEditingId(null);
+      toast.success("Ocorrência atualizada com registro de auditoria.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar ocorrência.");
+    } finally {
+      setEditingPin("");
+      setSavingFailure(false);
+    }
   };
 
   const renderFailureEvent = (event: MachineStopEvent, showFailureImpact: boolean) => (
@@ -459,12 +507,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       catalogError={catalogError}
       isEditing={editingId === event.id}
       editingText={editingText}
+      editingPin={editingPin}
+      isSaving={savingFailure}
       editingClassification={editingClassification}
       onStartEditing={startEditingFailure}
       onEditingTextChange={setEditingText}
+      onEditingPinChange={setEditingPin}
       onEditingClassificationChange={setEditingClassification}
       onCancelEditing={() => setEditingId(null)}
-      onSave={saveFailure}
+      onSave={(event) => { void saveFailure(event); }}
     />
   );
 
@@ -1152,16 +1203,30 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             onChange={(event) => setEditingText(event.target.value)}
                             disabled={savingCallDetails}
                           />
+                          <label className="text-xs font-bold uppercase text-muted-foreground">
+                            PIN do mantenedor (obrigatório)
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              maxLength={8}
+                              value={editingPin}
+                              onChange={(event) => setEditingPin(event.target.value.replace(/\D/g, ""))}
+                              placeholder="4 a 8 números"
+                              disabled={savingCallDetails}
+                              className="mt-1 block h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
+                            />
+                          </label>
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => void saveCallDetails(call, linkedFailureEvents)}
                               disabled={
-                                savingCallDetails || catalogLoading || Boolean(catalogError)
+                                savingCallDetails || catalogLoading || Boolean(catalogError) || !/^\d{4,8}$/.test(editingPin)
                               }
                               className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase text-secondary-foreground"
                             >
-                              <Save className="h-4 w-4" /> Salvar
+                              <Save className="h-4 w-4" /> {savingCallDetails ? "Salvando..." : "Salvar"}
                             </button>
                             <button
                               type="button"
@@ -1174,6 +1239,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           </div>
                         </div>
                       )}
+                      {canEditDiagnosis && <DiagnosisAuditPanel callId={call.id} />}
                     </section>
 
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
