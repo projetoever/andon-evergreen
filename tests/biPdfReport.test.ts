@@ -166,7 +166,7 @@ test("documento mostra advertência explícita de integridade em dados abertos",
   assert.match(html, /Atenção à qualidade do dado/);
   assert.match(html, /não necessariamente incidentes operacionais únicos/);
   assert.match(html, /não equivale/);
-  assert.match(html, /não calendário de turnos/);
+  assert.match(html, /não calendário formal de turnos/);
 });
 
 
