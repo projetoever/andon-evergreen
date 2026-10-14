@@ -104,7 +104,7 @@ export function buildMachinePdfHtml(
   <h1>Machine 360 · ${escapeHtml(data.machine.name)}</h1>
   <div class="filters">${filters.map(x => `<span>${escapeHtml(x)}</span>`).join("")}</div>
   <div class="grid">
-    ${metric("Downtime físico", minutes(data.kpis.downtimeMinutes), "red")}
+    ${metric("Tempo de parada", minutes(data.kpis.downtimeMinutes), "red")}
     ${metric("Episódios físicos", String(data.kpis.physicalStopEpisodes), "red")}
     ${metric("MTBF estimado (calendário)", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
     ${metric("MTTA", minutes(data.kpis.mttaMinutes), "amber")}
