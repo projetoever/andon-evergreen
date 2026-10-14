@@ -443,13 +443,14 @@ export class ApiAndonRepository implements AndonRepository {
   async updateCallFailureDetails(
     _machines: Machine[],
     _calls: AndonCall[],
-    params: { callId: string; failureClassification: string; failureDescription: string },
+    params: { callId: string; failureClassification: string; failureDescription: string; pin?: string },
   ) {
     await this.apiClient.patch(
       `/api/andon-calls/${encodeURIComponent(params.callId)}/failure-details`,
       {
         failureClassification: params.failureClassification,
         failureDescription: params.failureDescription,
+        pin: params.pin,
       },
     );
     return this.loadResult();
@@ -539,6 +540,7 @@ export class ApiAndonRepository implements AndonRepository {
     stopEventId: string,
     failureDescription: string,
     failureClassification?: Machine["stopHistory"][number]["failureClassification"],
+    pin?: string,
   ) {
     const machine = machines.find((item) => item.id === machineId);
     if (!machine) throw new Error("Máquina não encontrada");
@@ -546,6 +548,7 @@ export class ApiAndonRepository implements AndonRepository {
     await this.apiClient.patch<FailureEventMutationResult>(`/api/failure-events/${stopEventId}`, {
       notes: failureDescription,
       classification: failureClassification ?? "unidentified_stop",
+      pin,
     });
 
     const nextMachines = await this.loadMachines();

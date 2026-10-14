@@ -61,6 +61,7 @@ interface AndonContextValue {
     callId: string;
     failureClassification: string;
     failureDescription: string;
+    pin?: string;
   }) => Promise<void>;
   cancelCall: (params: andonService.CancelAndonCallParams) => Promise<void>;
   changeMachineStatus: (machineId: string, status: MachineStatus) => void;
@@ -85,7 +86,8 @@ interface AndonContextValue {
     stopEventId: string,
     failureDescription: string,
     failureClassification?: import("@/types/machine").FailureClassification,
-  ) => Machine;
+    pin?: string,
+  ) => Promise<Machine>;
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateSoundConfigs: (configs: SoundConfig[]) => void;
   resetAllLocalData: () => void;
@@ -333,6 +335,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       callId: string;
       failureClassification: string;
       failureDescription: string;
+      pin?: string;
     }) => {
       const result = await andonRepository.updateCallFailureDetails(machines, calls, params);
       setMachines(result.machines);
@@ -410,38 +413,26 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   );
 
   const updateMachineStopEventDescription = useCallback(
-    (
+    async (
       machineId: string,
       stopEventId: string,
       failureDescription: string,
       failureClassification?: import("@/types/machine").FailureClassification,
+      pin?: string,
     ) => {
-      const optimisticResult = andonService.updateMachineStopEventDescription(
+      // Only update UI after server validates PIN and commits both edit + audit.
+      const result = await andonRepository.updateMachineStopEventDescription(
         machines,
         machineId,
         stopEventId,
         failureDescription,
         failureClassification,
+        pin,
       );
-
-      setMachines(optimisticResult.machines);
-
-      void andonRepository
-        .updateMachineStopEventDescription(
-          machines,
-          machineId,
-          stopEventId,
-          failureDescription,
-          failureClassification,
-        )
-        .then((result) => {
-          setMachines(result.machines.map(andonService.normalizeMachine));
-        })
-        .catch(handleRepositoryError);
-
-      return optimisticResult.machine;
+      setMachines(result.machines.map(andonService.normalizeMachine));
+      return result.machine;
     },
-    [machines, handleRepositoryError],
+    [machines],
   );
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
