@@ -113,7 +113,7 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
   ]);
 
   assert.match(statusPanel, /text-\[clamp\(2rem,3vw,3\.25rem\)\]/);
-  assert.match(callPanel, /text-\[clamp\(1\.5rem,2\.25vw,2\.5rem\)\]/);
+  assert.match(callPanel, /text-\[clamp\(1rem,10cqw,2\.5rem\)\]/);
   assert.match(callPanel, /Aguardando/);
   assert.match(callPanel, /Em atendimento/);
   assert.match(callPanel, /Acompanhamento/);

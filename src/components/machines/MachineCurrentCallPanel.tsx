@@ -38,11 +38,11 @@ interface TimerMetricProps {
 
 function TimerMetric({ label, value, tone = "foreground" }: TimerMetricProps) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 [container-type:inline-size]">
       <dt className="text-xs uppercase text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "mt-1 whitespace-nowrap pb-0.5 text-[clamp(1.5rem,2.25vw,2.5rem)] font-black leading-none",
+          "mt-1 whitespace-nowrap pb-0.5 text-[clamp(1rem,10cqw,2.5rem)] font-black leading-none",
           tone === "warning" && "text-warning",
           tone === "info" && "text-info",
           tone === "success" && "text-success",
