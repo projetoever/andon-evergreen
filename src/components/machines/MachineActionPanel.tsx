@@ -124,9 +124,9 @@ export function MachineSectorButton({
   const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
     ? selected
-      ? `${t("Selecionado: chamado")} ${t(category.displayName)}`
-      : `${t("Selecionar chamado")} ${t(category.displayName)}`
-    : `${t("Abrir novo chamado")} ${t(category.displayName)}`;
+      ? `${t("Selecionado: chamado")} ${category.displayName}`
+      : `${t("Selecionar chamado")} ${category.displayName}`
+    : `${t("Abrir novo chamado")} ${category.displayName}`;
 
   return (
     <button
@@ -184,7 +184,7 @@ export function MachineSectorButton({
             />
           )}
           <span className="min-w-0 break-words text-center [overflow-wrap:anywhere]">
-            {t(category.displayName)}
+            {category.displayName}
           </span>
         </span>
         {activeCall && (

@@ -128,7 +128,7 @@ export function MachineCurrentCallPanel({
         <div>
           <dt className="text-xs uppercase text-muted-foreground">{t("Subtipo")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {t(getCallSubtypeLabel(call.subtype))}
+            {getCallSubtypeLabel(call.subtype)}
           </dd>
         </div>
         <div>

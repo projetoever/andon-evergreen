@@ -199,7 +199,7 @@ export function MachineCard({
               ) : (
                 <Bell className="h-3.5 w-3.5 shrink-0" />
               )}
-              <span className="truncate">{t(getCallSubtypeLabel(currentCall.subtype))}</span>
+              <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
             </div>
             {callElapsedLabel && callElapsedMinutes !== null && (
               <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
@@ -234,7 +234,7 @@ export function MachineCard({
           <DialogHeader>
             <DialogTitle>{t("Informação do operador")}</DialogTitle>
             <DialogDescription>
-              {t("Registrada na abertura do chamado de")} {currentCall ? t(getCallSubtypeLabel(currentCall.subtype)) : "ANDON"}.
+              {t("Registrada na abertura do chamado de")} {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
             </DialogDescription>
           </DialogHeader>
           <div className="whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
