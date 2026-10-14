@@ -177,6 +177,16 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   const scheduledDowntimeMinutes=round2(stoppedScheduledMs/MINUTE);
   const availabilityPercent=scheduledMs>0?round2((operatingMs/scheduledMs)*100):null;
   const plannedMtbfMinutes=episodes>0?round2(operatingMs/MINUTE/episodes):null;
+  if (covered>0) {
+    let cursor=startMs;
+    for(let guard=0;cursor<endMs && guard<40;guard++) {
+      const key=operationalDateKey(new Date(cursor),timeZone);
+      if(!dailyMap.has(key)) dailyMap.set(key,{scheduledMs:0,downtimeMs:0});
+      const next=operationalDayStart(addOperationalDays(key,1),timeZone).getTime();
+      if(next<=cursor)throw new Error("Calendário de produção inválido");
+      cursor=next;
+    }
+  }
   const daily=[...dailyMap].map(([date,d])=>({
     date,scheduledMinutes:round2(d.scheduledMs/MINUTE),
     scheduledDowntimeMinutes:round2(d.downtimeMs/MINUTE),
@@ -189,7 +199,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     operatingMinutes:round2(operatingMs/MINUTE),
     productionFailureEpisodes:episodes,
     coveredMachineCount:covered,uncoveredMachineCount:uncovered,
-    availabilityStatus:scheduledMs>0?"available":"no_programmed_minutes",
+    availabilityStatus:scheduledMs>0?"available":covered===0?"insufficient_schedule":"no_programmed_minutes",
     daily,
   };
 }
