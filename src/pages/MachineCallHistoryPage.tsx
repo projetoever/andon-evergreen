@@ -200,7 +200,7 @@ function FailureEventCard({
                       autoComplete="off"
                       maxLength={8}
                       value={editingPin}
-                      onChange={(changeEvent) => onEditingPinChange(changeEvent.target.value.replace(/\\D/g, ""))}
+                      onChange={(changeEvent) => onEditingPinChange(changeEvent.target.value.replace(/\D/g, ""))}
                       placeholder="4 a 8 números"
                       disabled={isSaving}
                       className="mt-1 block h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
@@ -211,7 +211,7 @@ function FailureEventCard({
                       type="button"
                       onClick={() => onSave(event)}
                       className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"
-                      disabled={isSaving || catalogLoading || Boolean(catalogError) || !/^\\d{4,8}$/.test(editingPin)}
+                      disabled={isSaving || catalogLoading || Boolean(catalogError) || !/^\d{4,8}$/.test(editingPin)}
                     >
                       <Save className="h-4 w-4" />
                       {isSaving ? "Salvando..." : "Salvar"}
