@@ -55,7 +55,7 @@ test("BI-11 gera duas páginas A4 por máquina sem falsificar MTBF de máquina i
   assert.match(html, /Machine 360 · Máquina &lt;9&gt;/);
   assert.match(html, /Repetições ≤30d/);
   assert.match(html, /Mesmo subconjunto ≤30d/);
-  assert.match(html, /<span>MTBF estimado<\/span><strong>—<\/strong>/);
+  assert.match(html, /<span>MTBF estimado \(calendário\)<\/span><strong>—<\/strong>/);
   assert.match(html, /Sensor &amp; falha/);
   assert.match(html, /Sensor &lt;script&gt;/);
   assert.doesNotMatch(html, /<script>/);
