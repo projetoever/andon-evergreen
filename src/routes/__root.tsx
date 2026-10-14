@@ -4,6 +4,7 @@ import { TechnicianProvider } from "@/context/TechnicianProvider";
 import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 import { Toaster } from "@/components/ui/sonner";
 import { WorkstationAccessGate } from "@/components/security/WorkstationAccessGate";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 
 import appCss from "../styles.css?url";
 
@@ -61,12 +62,12 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
       <body>
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
         <Scripts />
       </body>
     </html>
