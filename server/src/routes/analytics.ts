@@ -7,6 +7,7 @@ import { buildMachine360Recurrence } from "../analytics/machine360Recurrence.js"
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
 import { buildTemporalPatterns } from "../analytics/temporal.js";
+import { calculateScheduledPerformance } from "../analytics/scheduledPerformance.js";
 import {
   buildExecutiveHighlights,
   buildExecutiveOverview,
@@ -259,8 +260,37 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         filters,
       });
 
+      // Scheduled production is an explicitly recorded machine mode, not a
+      // shift/template inference. Never infer uncovered historical intervals.
+      const plannedMachines = currentData.reliabilityAssets
+        ? await prisma.machine.findMany({
+            where: { id: { in: currentData.reliabilityAssets.map(m => m.machineId) } },
+            select: { id: true, createdAt: true },
+          })
+        : null;
+      const plannedEvents = plannedMachines?.length
+        ? await prisma.machineProductionEvent.findMany({
+            where: {
+              machineId: { in: plannedMachines.map(m => m.id) },
+              startedAt: { lt: effectiveEnd },
+              OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
+            },
+            select: { machineId: true, productionMode: true, startedAt: true, endedAt: true },
+            orderBy: [{ machineId: "asc" }, { startedAt: "asc" }],
+          })
+        : [];
+      const scheduledPerformance = calculateScheduledPerformance({
+        machines: plannedMachines?.map(m => ({machineId:m.id,createdAt:m.createdAt})) ?? null,
+        events: plannedEvents,
+        failures: currentData.failureEvents,
+        start: period.start,
+        effectiveEnd,
+        timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
+      });
+
       return {
         ...currentOverview,
+        scheduledPerformance,
         comparison: {
           period: {
             start: previousStart.toISOString(),
