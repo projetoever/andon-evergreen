@@ -21,7 +21,7 @@ test("Parada diária usa barras e parcelas por data, sem simular uma tendência 
   const src = await readFile(new URL("../src/components/bi/BiDowntimeTrendCard.tsx", import.meta.url), "utf8");
   assert.match(src, /<BarChart/);
   assert.match(src, /<Bar\s/);
-  assert.match(src, /Parada física por dia/);
+  assert.match(src, /Tempo de parada por dia/);
   assert.match(src, /dias parciais no período móvel/);
   assert.match(src, /Parada no dia/);
   assert.match(src, /tickFormatter=/);
