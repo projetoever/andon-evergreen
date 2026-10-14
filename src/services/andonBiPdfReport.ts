@@ -347,7 +347,7 @@ export function buildExecutiveReportHtml({
   <section class="page">
     ${pageHeader("01", "Relatório executivo de manutenção", periodNote)}
     ${meta}
-    ${sectionTitle("Indicadores executivos", "Dados do ambiente consultado; métricas sem amostra aparecem como indisponíveis.")}
+    ${sectionTitle("Indicadores executivos", "Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis.")}
     <div class="kpis">
       ${tile("Disponibilidade", percentage(overview.production?.availabilityPercent), `${overview.production?.coveredMachineCount ?? 0}/${overview.production?.populationCount ?? 0} máquinas com histórico completo`, "green")}
       ${tile("MTBF programado", minutes(overview.production?.plannedMtbfMinutes), `${overview.production?.productionFailureEpisodes ?? 0} episódio(s) em produção programada`, "green")}
@@ -356,7 +356,7 @@ export function buildExecutiveReportHtml({
       ${tile("Tempo de parada", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s), inclusive fora da programação`, "red")}
       ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.callsFinished} finalizados retornaram`, "red")}
     </div>
-    <p class="context">Produção Programada é um modo registrado no ANDON, não calendário de turnos. Disponibilidade/MTBF excluem máquinas sem histórico completo. Chamados: ${k.callsOpened} abertura(s), ${k.callsFinished} finalizado(s), ${k.activeCallsNow ?? "—"} ativo(s) agora. Tempo médio de manutenção: ${minutes(k.avgMaintenanceMinutes)} (métrica distinta do MTTR físico).</p>
+
     ${sectionTitle("Síntese executiva")}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}
