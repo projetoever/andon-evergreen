@@ -53,7 +53,6 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
     "Voltar aos cards principais": "Back to main cards",
     "Última ocorrência": "Last occurrence",
     "Sem ocorrência": "No occurrence",
-    "Em falha": "Stopped",
     "Duração": "Duration",
     "Encerrada em": "Ended at",
     "Chamado aberto em": "Call opened at",
