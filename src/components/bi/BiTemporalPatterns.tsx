@@ -74,7 +74,7 @@ export function BiTemporalPatterns({
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
       <div className="grid shrink-0 grid-cols-4 gap-2">
         <SmallCard label="Novos chamados" value={String(t.callsOpened)} note="Aberturas na janela selecionada" type="amber"/>
-        <SmallCard label="Parada física" value={minutes(t.physicalDowntimeMinutes)} note="Intervalos físicos unidos por máquina" type="red"/>
+        <SmallCard label="Tempo de parada" value={minutes(t.physicalDowntimeMinutes)} note="Intervalos físicos unidos por máquina" type="red"/>
         <SmallCard label="Pico de aberturas"
           value={t.peakCallHours.length === 0 ? "—" : t.peakCallHours.length > 1 ? "Empate" : `${String(t.peakCallHour).padStart(2,"0")}h`}
           note={t.peakCallHours.length === 0 ? "Sem aberturas no período" :
@@ -103,7 +103,7 @@ export function BiTemporalPatterns({
               </button>
               <button type="button" aria-pressed={metric==="downtime"} onClick={()=>setMetric("downtime")}
                 className={`rounded px-3 py-1.5 text-xs font-bold ${metric==="downtime"?"bg-red-500/15 text-red-200":"text-muted-foreground hover:bg-muted"}`}>
-                Parada física
+                Tempo de parada
               </button>
             </div>
           </header>
