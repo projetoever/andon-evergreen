@@ -47,7 +47,7 @@ export function WorkstationsSettingsTab() {
         if (statusFilter === "inactive" && workstation.active) return false;
         if (!normalizedQuery) return true;
 
-        const haystack = `${workstationLabel(workstation)} ${workstation.id}`
+        const haystack = `${workstationLabel(workstation)} ${workstation.id} ${workstation.lastIpAddress ?? ""}`
           .toLocaleLowerCase("pt-BR")
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
@@ -108,7 +108,7 @@ export function WorkstationsSettingsTab() {
     try {
       const updated = await updateWorkstation(workstation.id, { active });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
-      toast.success(active ? "Workstation ativada." : "Workstation inativada.");
+      toast.success(active ? "Acesso à workstation liberado." : "Acesso à workstation bloqueado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
     } finally {
@@ -121,7 +121,7 @@ export function WorkstationsSettingsTab() {
       <div className="space-y-1">
         <h3 className="text-base font-bold">Workstations conhecidas</h3>
         <p className="text-sm text-muted-foreground">
-          Identidades geradas pelo ANDON para cada navegador. Não utilizam IP ou dados do Windows.
+          Cada navegador tem uma identidade própria. O IP abaixo é registrado pelo servidor no último acesso; o bloqueio impede o uso do ANDON até a reativação.
         </p>
       </div>
 
@@ -153,8 +153,8 @@ export function WorkstationsSettingsTab() {
             type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Pesquisar nome ou ID..."
-            aria-label="Pesquisar workstations por nome ou ID"
+            placeholder="Pesquisar nome, ID ou IP..."
+            aria-label="Pesquisar workstations por nome, ID ou IP"
             className="pl-9 pr-9"
           />
           {searchQuery && (
@@ -247,7 +247,7 @@ export function WorkstationsSettingsTab() {
                   <div className="flex gap-2">
                     {isCurrent && <Badge>Esta workstation</Badge>}
                     <Badge variant={workstation.active ? "secondary" : "outline"}>
-                      {workstation.active ? "Ativa" : "Inativa"}
+                      {workstation.active ? "Liberado" : "Bloqueado"}
                     </Badge>
                   </div>
                 </div>
@@ -282,6 +282,11 @@ export function WorkstationsSettingsTab() {
                   </div>
                 </div>
 
+                <div className="rounded-lg bg-muted/30 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">IP do último acesso: </span>
+                  <span className="font-mono font-semibold">{workstation.lastIpAddress ?? "Não identificado"}</span>
+                </div>
+
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground">
                     Último acesso: {formatLastSeen(workstation.lastSeenAt)}
@@ -292,7 +297,7 @@ export function WorkstationsSettingsTab() {
                       disabled={isSaving}
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
-                    {workstation.active ? "Ativa" : "Inativa"}
+                    {workstation.active ? "Liberado" : "Bloqueado"}
                   </label>
                 </div>
               </CardContent>

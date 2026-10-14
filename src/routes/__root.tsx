@@ -3,6 +3,7 @@ import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
 import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 import { Toaster } from "@/components/ui/sonner";
+import { WorkstationAccessGate } from "@/components/security/WorkstationAccessGate";
 
 import appCss from "../styles.css?url";
 
@@ -81,20 +82,22 @@ function RootComponent() {
 
   if (isBiRoute) {
     return (
-      <>
+      <WorkstationAccessGate>
         <Outlet />
         <Toaster />
-      </>
+      </WorkstationAccessGate>
     );
   }
 
   return (
-    <AndonProvider>
-      <TechnicianProvider>
-        <Outlet />
-        <VirtualKeyboard />
-        <Toaster />
-      </TechnicianProvider>
-    </AndonProvider>
+    <WorkstationAccessGate>
+      <AndonProvider>
+        <TechnicianProvider>
+          <Outlet />
+          <VirtualKeyboard />
+          <Toaster />
+        </TechnicianProvider>
+      </AndonProvider>
+    </WorkstationAccessGate>
   );
 }

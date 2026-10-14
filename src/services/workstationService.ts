@@ -26,6 +26,7 @@ function registerLocalWorkstation(id: string) {
         id,
         name: null,
         active: true,
+        lastIpAddress: null,
         lockedMachineId: null,
         lastSeenAt: now,
         createdAt: now,
