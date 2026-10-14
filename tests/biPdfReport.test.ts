@@ -134,7 +134,7 @@ test("gera documento A4 em três seções com filtros e indicadores reais", () =
   assert.equal((html.match(/<section class="page">/g) ?? []).length, 3);
   assert.match(html, /Reincidência diagnóstica/);
   assert.match(html, /Participação técnica/);
-  assert.match(html, /MTBF estimado/);
+  assert.match(html, /MTBF programado/);
   assert.match(html, /Testes marcados excluídos/);
   assert.match(html, /Página 3\/3/);
 });
@@ -157,7 +157,7 @@ test("não fabrica zeros quando a amostra é desconhecida", () => {
   const html = buildExecutiveReportHtml(data);
   assert.match(html, /Disponibilidade/);
   assert.match(html, /MTTA/);
-  assert.match(html, /MTBF estimado/);
+  assert.match(html, /MTBF programado/);
   assert.match(html, /<div class="kpi-value">—<\/div>/);
 });
 
@@ -235,6 +235,6 @@ test("sem sessões antigas não gera aviso falso de manutenção em vermelho", (
 test("relatório diferencia novos chamados de finalizados e descreve tempo de parada em português", () => {
   const html = buildExecutiveReportHtml(fixture());
   assert.match(html, /4 abertura\(s\) na janela · 1 finalizado\(s\)/);
-  assert.match(html, /Tempo médio de manutenção/);
+  assert.match(html, /MTTR restabelecimento/);
   assert.match(html, /Tempo de parada aumentou/);
 });
