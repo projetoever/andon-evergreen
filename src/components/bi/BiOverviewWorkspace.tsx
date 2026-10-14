@@ -23,6 +23,7 @@ import { BiKpiCard } from "@/components/bi/BiKpiCard";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsOverview,
+  AndonBiPeriodPreset,
 } from "@/types/analytics";
 
 function formatMinutes(value: number | null) {
@@ -43,6 +44,7 @@ export function BiOverviewWorkspace({
 }: {
   overview: AnalyticsOverview | null;
   loading: boolean;
+  period: AndonBiPeriodPreset;
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
