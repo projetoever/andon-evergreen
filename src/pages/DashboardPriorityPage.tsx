@@ -335,7 +335,7 @@ export function DashboardPriorityPage() {
         open={loginOpen}
         onOpenChange={(open) => {
           setLoginOpen(open);
-          if (!open && !authenticated) void navigate({ to: returnTo });
+          if (!open && !isDashboardPriorityAuthenticated()) void navigate({ to: returnTo });
         }}
         onSuccess={() => setAuthenticated(true)}
       />

@@ -319,6 +319,10 @@ async function run() {
   await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { allowBi: false }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
   await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowBi: true }));
 
+  const selfRecovered = await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { active: true }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  assert.equal(selfRecovered.active, true, "Admin deve conseguir reativar a própria estação inativa pela recuperação");
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { active: false }));
+
   const defaultCategories = await request("/api/andon-categories?active=true");
   assert.ok(defaultCategories.some((category) => category.id === "electrical"));
   assert.ok(defaultCategories.every((category) => /^#[0-9A-F]{6}$/i.test(category.color)));

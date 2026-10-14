@@ -110,6 +110,7 @@ export function WorkstationsSettingsTab() {
     try {
       const updated = await updateWorkstation(workstation.id, { active });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
+      await refresh();
       toast.success(active ? "Workstation ativada. Acesso liberado." : "Workstation inativada. Acesso bloqueado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
@@ -306,8 +307,9 @@ export function WorkstationsSettingsTab() {
                   </span>
                   <label className="flex items-center gap-2 font-semibold">
                     <Switch
+                      aria-label={`Ativação geral · ${workstationLabel(workstation)}`}
                       checked={workstation.active}
-                      disabled={isSaving || isCurrent}
+                      disabled={isSaving || (workstation.active && (isCurrent || Boolean(workstation.lockedMachineId)))}
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
                     {workstation.active ? "Liberado" : "Bloqueado"}
