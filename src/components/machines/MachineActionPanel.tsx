@@ -105,6 +105,7 @@ interface MachineSectorButtonProps {
   className: string;
   onOpenSubtype: (subtype: CallSubtype) => void;
   onSelectCall: (callId: string) => void;
+  translate?: (source: string) => string;
 }
 
 export function MachineSectorButton({
@@ -114,14 +115,16 @@ export function MachineSectorButton({
   className,
   onOpenSubtype,
   onSelectCall,
+  translate,
 }: MachineSectorButtonProps) {
-  const { t } = useLanguage();
+  // Keep this presentational button callable in isolated renderers and unit tests.
+  const t = translate ?? ((source: string) => source);
   const selected = activeCall?.id === selectedCallId;
   const callState = !activeCall ? "free" : selected ? "selected" : "active";
   const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
     ? selected
-      ? `${t("Selecionado")}: ${t(category.displayName)}`
+      ? `${t("Selecionado: chamado")} ${t(category.displayName)}`
       : `${t("Selecionar chamado")} ${t(category.displayName)}`
     : `${t("Abrir novo chamado")} ${t(category.displayName)}`;
 
@@ -297,6 +300,7 @@ export function MachineActionPanel({
               className={sectorActionClass}
               onOpenSubtype={onOpenSubtype}
               onSelectCall={onSelectCall}
+              translate={t}
             />
           );
         })}
