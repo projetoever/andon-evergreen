@@ -2,6 +2,7 @@ import { CheckCheck, RotateCcw, Wrench, XCircle } from "lucide-react";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import type { AndonCall, CallSubtype } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AndonCategoryConfig } from "@/types/settings";
@@ -114,14 +115,15 @@ export function MachineSectorButton({
   onOpenSubtype,
   onSelectCall,
 }: MachineSectorButtonProps) {
+  const { t } = useLanguage();
   const selected = activeCall?.id === selectedCallId;
   const callState = !activeCall ? "free" : selected ? "selected" : "active";
   const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
     ? selected
-      ? `Selecionado: chamado ${category.displayName}`
-      : `Selecionar chamado ${category.displayName}`
-    : `Abrir novo chamado ${category.displayName}`;
+      ? `${t("Selecionado")}: ${t(category.displayName)}`
+      : `${t("Selecionar chamado")} ${t(category.displayName)}`
+    : `${t("Abrir novo chamado")} ${t(category.displayName)}`;
 
   return (
     <button
@@ -179,7 +181,7 @@ export function MachineSectorButton({
             />
           )}
           <span className="min-w-0 break-words text-center [overflow-wrap:anywhere]">
-            {category.displayName}
+            {t(category.displayName)}
           </span>
         </span>
         {activeCall && (
@@ -191,7 +193,7 @@ export function MachineSectorButton({
             )}
             style={{ borderColor: selected ? accentColor : undefined }}
           >
-            {selected ? "Selecionado" : "Ativo"}
+            {selected ? t("Selecionado") : t("Ativo")}
           </span>
         )}
       </span>
@@ -200,6 +202,7 @@ export function MachineSectorButton({
 }
 
 export function ActiveCallsBadge({ count }: { count: number }) {
+  const { t } = useLanguage();
   if (count === 0) return null;
 
   return (
@@ -211,7 +214,7 @@ export function ActiveCallsBadge({ count }: { count: number }) {
         aria-hidden="true"
         className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse motion-reduce:animate-none"
       />
-      {count} {count === 1 ? "Ativo" : "Ativos"}
+      {count} {count === 1 ? t("Ativo") : t("Ativos")}
     </span>
   );
 }
@@ -234,6 +237,7 @@ export function MachineActionPanel({
   maintenanceCompletionHint = null,
   maintenanceCompletionHintTone = "warning",
 }: MachineActionPanelProps) {
+  const { t } = useLanguage();
   const hasActiveCall = activeCalls.length > 0;
   const activeTechnicianCount =
     currentCall?.technicianSessions?.filter((session) => !session.endedAt).length ?? 0;
@@ -267,14 +271,14 @@ export function MachineActionPanel({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-            Abrir novo chamado
+            {t("Abrir novo chamado")}
           </h3>
           <ActiveCallsBadge count={activeCalls.length} />
         </div>
         <p className="text-xs text-muted-foreground">
           {machine.machineStatus === "stopped" && hasActiveStopOwner
-            ? "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado."
-            : "Setor livre abre chamado; setor ativo seleciona o chamado."}
+            ? t("Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado.")
+            : t("Setor livre abre chamado; setor ativo seleciona o chamado.")}
         </p>
       </div>
 
@@ -320,7 +324,7 @@ export function MachineActionPanel({
             )}
           {currentCall.status === "open" && (
             <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
-              <Wrench className="h-4 w-4" /> Atender selecionado
+              <Wrench className="h-4 w-4" /> {t("Atender selecionado")}
             </BigButton>
           )}
           {currentCall.status === "open" &&
@@ -332,7 +336,7 @@ export function MachineActionPanel({
                 className={workflowActionClass}
                 onClick={onCancelCall}
               >
-                <XCircle className="h-4 w-4" /> Cancelar selecionado
+                <XCircle className="h-4 w-4" /> {t("Cancelar selecionado")}
               </BigButton>
             )}
           {currentCall.status === "in_progress" && currentCall.category === "maintenance" && (
@@ -343,12 +347,12 @@ export function MachineActionPanel({
               disabled={maintenanceCompletionDisabled}
               onClick={onCompleteMaintenance}
             >
-              <CheckCheck className="h-4 w-4" /> Concluir manutenção
+              <CheckCheck className="h-4 w-4" /> {t("Concluir manutenção")}
             </BigButton>
           )}
           {currentCall.status === "in_progress" && currentCall.category === "production" && (
             <BigButton tone="success" size="md" className={workflowActionClass} onClick={onFinish}>
-              <CheckCheck className="h-4 w-4" /> Finalizar
+              <CheckCheck className="h-4 w-4" /> {t("Finalizar")}
             </BigButton>
           )}
           {currentCall.status === "post_maintenance" && currentCall.category === "maintenance" && (
@@ -358,12 +362,12 @@ export function MachineActionPanel({
               className={workflowActionClass}
               onClick={onReturnToMaintenance}
             >
-              <RotateCcw className="h-4 w-4" /> Voltar à manutenção
+              <RotateCcw className="h-4 w-4" /> {t("Voltar à manutenção")}
             </BigButton>
           )}
           {currentCall.status === "post_maintenance" && (
             <BigButton tone="success" size="md" className={workflowActionClass} onClick={onFinish}>
-              <CheckCheck className="h-4 w-4" /> Finalizar chamado
+              <CheckCheck className="h-4 w-4" /> {t("Finalizar chamado")}
             </BigButton>
           )}
         </div>
