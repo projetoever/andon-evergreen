@@ -94,7 +94,7 @@ export function BiOverviewWorkspace({
         <BiKpiCard
           label="Tempo de parada"
           tooltip="Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade."
-          value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? 0)}
+          value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? null)}
           detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) registrados · todas as horas`}
           icon={TimerReset}
           tone="red"
