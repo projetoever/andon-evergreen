@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -19,36 +20,30 @@ export function ModuleNavigation() {
   const { t } = useLanguage();
   if (!access?.hubEnabled || access.workstation.lockedMachineId) return null;
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen(true)}
-        aria-label={t("Módulos")}
-      >
-        <LayoutGrid className="h-4 w-4" />
-        <span className="hidden xl:inline">{t("Módulos")}</span>
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("Módulos")}</DialogTitle>
-            <DialogDescription>{t("Selecione seu módulo de trabalho")}</DialogDescription>
-          </DialogHeader>
-          <ModuleCards
-            onNavigate={() => {
-              setOpen(false);
-              return true;
-            }}
-          />
-          <Button variant="outline" asChild>
-            <Link to="/hub" onClick={() => setOpen(false)}>
-              {t("Ir para o Hub")}
-            </Link>
-          </Button>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm" aria-label={t("Módulos")}>
+          <LayoutGrid className="h-4 w-4" />
+          <span className="hidden xl:inline">{t("Módulos")}</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90dvh] max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("Módulos")}</DialogTitle>
+          <DialogDescription>{t("Selecione seu módulo de trabalho")}</DialogDescription>
+        </DialogHeader>
+        <ModuleCards
+          onNavigate={() => {
+            setOpen(false);
+            return true;
+          }}
+        />
+        <Button variant="outline" asChild>
+          <Link to="/hub" onClick={() => setOpen(false)}>
+            {t("Ir para o Hub")}
+          </Link>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
