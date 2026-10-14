@@ -357,7 +357,7 @@ export function buildExecutiveReportHtml({
       ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.callsFinished} finalizados retornaram`, "red")}
     </div>
 
-    ${sectionTitle("Síntese executiva")}
+    ${sectionTitle("Síntese executiva", `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s) · ${k.activeCallsNow ?? "—"} ativo(s) agora`)}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}
     ${sectionTitle("Confiabilidade e completude")}
