@@ -1321,6 +1321,7 @@ async function run() {
     json("PATCH", {
       failureClassification: "quality_failure",
       failureDescription: "Não aplicável",
+      pin: "4821",
     }),
     400,
   );
@@ -1744,10 +1745,45 @@ async function run() {
     json("PATCH", {
       failureClassification: "electrical_failure",
       failureDescription: "  Revisão sem parada  ",
+      pin: "4821",
     }),
   );
   assert.equal(editedQuality.failureClassification, "electrical_failure");
   assert.equal(editedQuality.failureDescription, "Revisão sem parada");
+  const diagnosisAudit = await prisma.failureDiagnosisAudit.findFirst({
+    where: { callId: qualityCall.id },
+    orderBy: { createdAt: "desc" },
+  });
+  assert.ok(diagnosisAudit, "a edição de diagnóstico deve gerar auditoria transacional");
+  assert.equal(diagnosisAudit.technicianId, electrical.id);
+  assert.equal(diagnosisAudit.technicianName, electrical.name);
+  assert.equal(diagnosisAudit.newClassification, "electrical_failure");
+  assert.equal(diagnosisAudit.newDescription, "Revisão sem parada");
+  const missingPinEdit = await request(
+    `/api/andon-calls/${qualityCall.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Alteração sem PIN",
+    }),
+    400,
+  );
+  assert.match(missingPinEdit.message, /PIN/i);
+  const invalidPinEdit = await request(
+    `/api/andon-calls/${qualityCall.id}/failure-details`,
+    json("PATCH", {
+      failureClassification: "quality_failure",
+      failureDescription: "Alteração não autorizada",
+      pin: "9999",
+    }),
+    401,
+  );
+  assert.match(invalidPinEdit.message, /PIN/i);
+  assert.equal(
+    await prisma.failureDiagnosisAudit.count({ where: { callId: qualityCall.id } }),
+    1,
+    "tentativas rejeitadas não devem alterar nem auditar diagnóstico como edição válida",
+  );
+
   assert.equal(await prisma.failureEvent.count({ where: { callId: qualityCall.id } }), 0);
   assert.equal(await prisma.callImpactInterval.count({ where: { callId: qualityCall.id } }), 0);
   assert.equal(
@@ -1858,6 +1894,7 @@ async function run() {
     json("PATCH", {
       failureClassification: "electrical_failure",
       failureDescription: "Apoio técnico revisado",
+      pin: "4821",
     }),
   );
   assert.equal(editedLeadership.failureDescription, "Apoio técnico revisado");
@@ -2143,6 +2180,7 @@ async function run() {
     json("PATCH", {
       failureClassification: "electrical_failure",
       failureDescription: "Sensor substituído",
+      pin: "4821",
     }),
   );
   assert.equal(editedPhysical.failureClassification, "electrical_failure");
@@ -2608,6 +2646,15 @@ async function run() {
     await request(`/api/workstations/${id}`, json("PATCH", { name }));
   }
   await request(`/api/workstations/${ids.inactiveWorkstation}`, json("PATCH", { active: false }));
+  const blockedApiRequest = await request(
+    "/api/machines",
+    { headers: workstationHeaders(ids.inactiveWorkstation) },
+    403,
+  );
+  assert.match(blockedApiRequest.message, /desativada/i);
+  const stationWithIp = await request("/api/workstations");
+  assert.ok(stationWithIp.find((station) => station.id === ids.workstation)?.lastIpAddress);
+
 
   for (const [id, name] of [
     [ids.workstationMachineA, "Máquina PR 48 workstation A"],
@@ -2734,11 +2781,17 @@ async function run() {
       ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
       headers: workstationHeaders(ids.inactiveWorkstation),
     },
+    403,
+  );
+  assert.match(inactiveTraceAttendance.message, /desativada/i);
+  const untrackedTraceAttendance = await request(
+    `/api/andon-calls/${inactiveTraceCall.id}/attend`,
+    json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
   );
   assert.equal(
-    inactiveTraceAttendance.technicianSessions[0].workstationId,
+    untrackedTraceAttendance.technicianSessions[0].workstationId,
     null,
-    "regra OFF não deve gravar workstation administrativamente inativa",
+    "clientes industriais legados sem ID continuam compatíveis",
   );
   await request(
     `/api/andon-calls/${inactiveTraceCall.id}/finish-maintenance`,
@@ -2774,7 +2827,7 @@ async function run() {
       ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
       headers: workstationHeaders("ws_00000000-0000-4000-8000-00000000dead"),
     },
-    400,
+    403,
   );
   assert.match(unknownWorkstationAttendance.message, /identificar esta workstation/i);
   const inactiveWorkstationAttendance = await request(
@@ -2783,7 +2836,7 @@ async function run() {
       ...json("PATCH", { credentials: [{ method: "pin", value: "8642" }] }),
       headers: workstationHeaders(ids.inactiveWorkstation),
     },
-    400,
+    403,
   );
   assert.match(inactiveWorkstationAttendance.message, /desativada/i);
 
@@ -2805,7 +2858,7 @@ async function run() {
       ...json("POST", { credentials: [{ method: "pin", value: "8643" }] }),
       headers: workstationHeaders(ids.inactiveWorkstation),
     },
-    400,
+    403,
   );
   assert.match(inactiveWorkstationAddition.message, /desativada/i);
   const twoWorkstationAttendance = await request(
@@ -2860,7 +2913,7 @@ async function run() {
   const inactiveCompletion = await request(
     `/api/andon-calls/${restrictedCall.id}/finish-maintenance`,
     { ...json("PATCH", {}), headers: workstationHeaders(ids.workstation) },
-    400,
+    403,
   );
   assert.match(inactiveCompletion.message, /desativada/i);
   await prisma.workstation.update({
