@@ -300,7 +300,12 @@ type LanguageContextValue = {
   t: (source: string) => string;
 };
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
+// Reusable status cards can also be rendered in isolated tests and previews.
+const LanguageContext = createContext<LanguageContextValue>({
+  language: DEFAULT_LANGUAGE,
+  setLanguage: () => {},
+  t: (source) => source,
+});
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   // Start identically on server and client to avoid SSR hydration mismatch.
@@ -336,7 +341,5 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext);
-  if (!context) throw new Error("LanguageProvider ausente");
-  return context;
+  return useContext(LanguageContext);
 }
