@@ -49,10 +49,11 @@ export function WorkstationsSettingsTab() {
         if (statusFilter === "inactive" && workstation.active) return false;
         if (!normalizedQuery) return true;
 
-        const haystack = `${workstationLabel(workstation)} ${workstation.id} ${workstation.lastIpAddress ?? ""}`
-          .toLocaleLowerCase("pt-BR")
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
+        const haystack =
+          `${workstationLabel(workstation)} ${workstation.id} ${workstation.lastIpAddress ?? ""}`
+            .toLocaleLowerCase("pt-BR")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
 
         return haystack.includes(normalizedQuery);
       })
@@ -76,8 +77,7 @@ export function WorkstationsSettingsTab() {
         ),
       );
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Falha ao carregar workstations.";
+      const message = error instanceof Error ? error.message : "Falha ao carregar workstations.";
       setLoadError(message);
       toast.error(message);
     } finally {
@@ -111,7 +111,11 @@ export function WorkstationsSettingsTab() {
       const updated = await updateWorkstation(workstation.id, { active });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
       await refresh();
-      toast.success(active ? "Workstation ativada. Acesso liberado." : "Workstation inativada. Acesso bloqueado.");
+      toast.success(
+        active
+          ? "Workstation ativada. Acesso liberado."
+          : "Workstation inativada. Acesso bloqueado.",
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
     } finally {
@@ -119,15 +123,22 @@ export function WorkstationsSettingsTab() {
     }
   }
 
-  async function changeModule(workstation: Workstation, field: "allowOperational" | "allowBi", allowed: boolean) {
+  async function changeModule(
+    workstation: Workstation,
+    field: "allowOperational" | "allowBi" | "allowPriorities",
+    allowed: boolean,
+  ) {
     setSavingId(workstation.id);
     try {
       const updated = await updateWorkstation(workstation.id, { [field]: allowed });
-      setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       await refresh();
       toast.success("Permissão do módulo atualizada.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao atualizar permissão."); }
-    finally { setSavingId(null); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar permissão.");
+    } finally {
+      setSavingId(null);
+    }
   }
 
   return (
@@ -135,7 +146,8 @@ export function WorkstationsSettingsTab() {
       <div className="space-y-1">
         <h3 className="text-base font-bold">Workstations conhecidas</h3>
         <p className="text-sm text-muted-foreground">
-          Cada navegador tem uma identidade própria. O IP abaixo é registrado pelo servidor no último acesso; o bloqueio impede o uso do ANDON até a reativação.
+          Cada navegador tem uma identidade própria. O IP é registrado pelo servidor no último
+          acesso. A ativação geral e as permissões abaixo controlam os três módulos.
         </p>
       </div>
 
@@ -298,7 +310,9 @@ export function WorkstationsSettingsTab() {
 
                 <div className="rounded-lg bg-muted/30 px-3 py-2 text-sm">
                   <span className="text-muted-foreground">IP do último acesso: </span>
-                  <span className="font-mono font-semibold">{workstation.lastIpAddress ?? "Não identificado"}</span>
+                  <span className="font-mono font-semibold">
+                    {workstation.lastIpAddress ?? "Não identificado"}
+                  </span>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -309,20 +323,48 @@ export function WorkstationsSettingsTab() {
                     <Switch
                       aria-label={`Ativação geral · ${workstationLabel(workstation)}`}
                       checked={workstation.active}
-                      disabled={isSaving || (workstation.active && (isCurrent || Boolean(workstation.lockedMachineId)))}
+                      disabled={
+                        isSaving ||
+                        (workstation.active && (isCurrent || Boolean(workstation.lockedMachineId)))
+                      }
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
                     {workstation.active ? "Liberado" : "Bloqueado"}
                   </label>
                 </div>
                 <div className="space-y-3 rounded-lg border border-border p-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Módulos autorizados</p>
-                  {([ ["allowOperational", "ANDON operacional"], ["allowBi", "ANDON BI"] ] as const).map(([field, label]) => (
-                    <label key={field} className="flex items-center justify-between gap-3 text-sm font-semibold">
-                      {label}<Switch aria-label={`${label} · ${workstationLabel(workstation)}`} checked={workstation[field]} disabled={isSaving || (field === "allowOperational" && Boolean(workstation.lockedMachineId))} onCheckedChange={(allowed) => void changeModule(workstation, field, allowed)} />
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Módulos autorizados
+                  </p>
+                  {(
+                    [
+                      ["allowOperational", "ANDON operacional"],
+                      ["allowBi", "ANDON BI"],
+                      ["allowPriorities", "Prioridades de produção"],
+                    ] as const
+                  ).map(([field, label]) => (
+                    <label
+                      key={field}
+                      className="flex items-center justify-between gap-3 text-sm font-semibold"
+                    >
+                      {label}
+                      <Switch
+                        aria-label={`${label} · ${workstationLabel(workstation)}`}
+                        checked={workstation[field]}
+                        disabled={
+                          isSaving ||
+                          (field === "allowOperational" && Boolean(workstation.lockedMachineId))
+                        }
+                        onCheckedChange={(allowed) =>
+                          void changeModule(workstation, field, allowed)
+                        }
+                      />
                     </label>
                   ))}
-                  <p className="text-xs text-muted-foreground">Prioridades mantém sua credencial própria. Uma tela fixada deve ser desbloqueada antes de retirar o acesso operacional.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Módulos não autorizados ficam ocultos no Hub. Uma tela fixada deve ser
+                    desbloqueada antes de retirar o acesso operacional.
+                  </p>
                 </div>
               </CardContent>
             </Card>

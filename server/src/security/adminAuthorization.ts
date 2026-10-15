@@ -59,6 +59,9 @@ export function isAdminProtectedMutation(method: string, url: string) {
   const normalizedMethod = method.toUpperCase();
 
   if (path === "/api/modules/settings" && ["GET", "PATCH"].includes(normalizedMethod)) return true;
+  if (path === "/api/modules/credentials" && normalizedMethod === "GET") return true;
+  if (/^\/api\/modules\/[^/]+\/credentials$/.test(path) && normalizedMethod === "PUT") return true;
+  if (path === "/api/dashboard-priority/access-policy" && normalizedMethod === "PATCH") return true;
   if (normalizedMethod === "GET" && path === "/api/workstations") return true;
 
   if (normalizedMethod === "PATCH" && path === "/api/system-settings") return true;

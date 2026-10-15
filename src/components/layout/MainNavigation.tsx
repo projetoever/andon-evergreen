@@ -3,7 +3,7 @@ import { LayoutDashboard, Bell, History, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Painel", icon: LayoutDashboard, exact: true },
+  { to: "/andon", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/active-calls", label: "Chamados Ativos", icon: Bell, exact: false },
   { to: "/history", label: "Histórico", icon: History, exact: false },
   { to: "/settings", label: "Configurações", icon: Settings, exact: false },

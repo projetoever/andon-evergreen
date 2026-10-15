@@ -1386,6 +1386,21 @@ function Invoke-AndonNodePipeline {
 
 function Test-AndonApiWrite {
     $api = "http://127.0.0.1:$Global:AndonApiPort"
+    try {
+        $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
+        if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
+        if ($readiness.operationalPasswordRequired -eq $true) {
+            $result = New-AndonHealthResult `
+                -Status "SKIP" `
+                -Message "Escrita automatica pulada: ANDON exige senha de modulo. Valide pela interface autorizada."
+            Write-AndonHealthResult $result
+            return $result
+        }
+    } catch {
+        $result = New-AndonHealthResult -Status "FAIL" -Message "Nao foi possivel verificar a prontidao da API."
+        Write-AndonHealthResult $result
+        return $result
+    }
     try { $machines = Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 10 }
     catch {
         $result = New-AndonHealthResult `

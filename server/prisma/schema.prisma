@@ -42,6 +42,7 @@ model DashboardPriorityConfig {
   id                 String    @id @default("global")
   managerUsername    String?
   managerPasswordHash String?
+  passwordRequired   Boolean   @default(true)
   lastOrderUpdatedAt DateTime?
   lastOrderUpdatedBy String?
   createdAt          DateTime  @default(now())
@@ -56,6 +57,7 @@ model Workstation {
   active             Boolean             @default(true)
   allowOperational   Boolean             @default(true)
   allowBi            Boolean             @default(true)
+  allowPriorities    Boolean             @default(true)
   lastIpAddress      String?             @db.VarChar(45)
   lastSeenAt         DateTime            @default(now())
   createdAt          DateTime            @default(now())
@@ -67,6 +69,18 @@ model Workstation {
   @@index([active])
   @@index([lastSeenAt])
   @@map("workstations")
+}
+
+model ModuleCredential {
+  id                String   @id
+  username          String?
+  passwordHash      String?
+  passwordRequired  Boolean  @default(false)
+  credentialVersion Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("module_credentials")
 }
 
 model AndonCategory {

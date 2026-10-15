@@ -3,6 +3,7 @@ import {
   getAdminAuthorizationHeader,
 } from "@/services/adminSessionStorage";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
+import { clearModuleSession, getModuleAuthorizationHeaders } from "@/services/moduleSessionStorage";
 
 export interface AndonApiClientConfig {
   baseUrl: string;
@@ -115,6 +116,7 @@ export function createAndonApiClient(
             : {}),
           ...(workstationId ? { "X-Andon-Workstation-Id": workstationId } : {}),
           ...(adminAuthorization ? { Authorization: adminAuthorization } : {}),
+          ...getModuleAuthorizationHeaders(),
           ...init.headers,
         },
         signal: AbortSignal.timeout(config.timeoutMs),
@@ -146,6 +148,12 @@ export function createAndonApiClient(
     }
 
     if (!response.ok) {
+      if (response.status === 401 && payload && typeof payload === "object" &&
+          "error" in payload && payload.error === "module_auth_required" && "module" in payload &&
+          (payload.module === "operational" || payload.module === "bi")) {
+        clearModuleSession(payload.module);
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("andon:module-session-changed"));
+      }
       if (response.status === 403 && payload && typeof payload === "object" &&
           "error" in payload && payload.error === "module_forbidden" && typeof window !== "undefined") {
         window.dispatchEvent(new Event("andon:module-forbidden"));

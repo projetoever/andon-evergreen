@@ -10,6 +10,7 @@ import {
 } from "../domain/machinePriorityHistory.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
 
 const GLOBAL_PRIORITY_CONFIG_ID = "global";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -57,7 +58,16 @@ function getBearerToken(request: FastifyRequest) {
   return token || null;
 }
 
-function getPrioritySession(request: FastifyRequest, reply: FastifyReply) {
+async function getPrioritySession(request: FastifyRequest, reply: FastifyReply) {
+  const policy = await prisma.dashboardPriorityConfig.findUnique({ where: { id: GLOBAL_PRIORITY_CONFIG_ID }, select: { passwordRequired: true } });
+  if (policy?.passwordRequired === false) {
+    const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
+    if (!id) {
+      reply.status(403).send({ error: "workstation_identification_required", message: "Identifique a workstation para usar Prioridades sem senha." });
+      return null;
+    }
+    return { token: null, session: { username: `workstation:${id}`, expiresAt: Date.now() + SESSION_TTL_MS } };
+  }
   const token = getBearerToken(request);
   if (!token) {
     reply.status(401).send({
@@ -92,12 +102,26 @@ function machineOrderValue(machine: {
 }
 
 export function registerDashboardPriorityRoutes(app: FastifyInstance) {
+  app.patch<{ Body: { passwordRequired?: unknown } }>("/api/dashboard-priority/access-policy", async (request, reply) => {
+    if (typeof request.body?.passwordRequired !== "boolean") return badRequest(reply, "Informe se Prioridades exige senha.");
+    const config = await prisma.dashboardPriorityConfig.findUnique({ where: { id: GLOBAL_PRIORITY_CONFIG_ID } });
+    if (request.body.passwordRequired && (!config?.managerUsername || !config.managerPasswordHash)) return badRequest(reply, "Configure as credenciais de Prioridades antes de exigir senha.");
+    const saved = await prisma.dashboardPriorityConfig.upsert({
+      where: { id: GLOBAL_PRIORITY_CONFIG_ID },
+      create: { id: GLOBAL_PRIORITY_CONFIG_ID, passwordRequired: request.body.passwordRequired },
+      update: { passwordRequired: request.body.passwordRequired },
+      select: { passwordRequired: true },
+    });
+    sessions.clear();
+    return saved;
+  });
   app.get("/api/dashboard-priority/access-status", async () => {
     const config = await prisma.dashboardPriorityConfig.findUnique({
       where: { id: GLOBAL_PRIORITY_CONFIG_ID },
       select: {
         managerUsername: true,
         managerPasswordHash: true,
+        passwordRequired: true,
         lastOrderUpdatedAt: true,
         lastOrderUpdatedBy: true,
       },
@@ -105,6 +129,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
 
     return {
       configured: Boolean(config?.managerUsername && config?.managerPasswordHash),
+      passwordRequired: config?.passwordRequired ?? true,
       username: config?.managerUsername ?? null,
       lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
       lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
@@ -198,14 +223,14 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   );
 
   app.post("/api/dashboard-priority/logout", async (request, reply) => {
-    const auth = getPrioritySession(request, reply);
+    const auth = await getPrioritySession(request, reply);
     if (!auth) return;
-    sessions.delete(auth.token);
+    if (auth.token) sessions.delete(auth.token);
     return { ok: true };
   });
 
   app.get("/api/dashboard-priority/order", async (request, reply) => {
-    const auth = getPrioritySession(request, reply);
+    const auth = await getPrioritySession(request, reply);
     if (!auth) return;
 
     const [machines, config] = await Promise.all([
@@ -241,7 +266,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   });
 
   app.put<{ Body: OrderBody }>("/api/dashboard-priority/order", async (request, reply) => {
-    const auth = getPrioritySession(request, reply);
+    const auth = await getPrioritySession(request, reply);
     if (!auth) return;
 
     if (!Array.isArray(request.body?.machineIds)) {

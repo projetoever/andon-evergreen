@@ -38,8 +38,9 @@ Não apresente planejamento, proposta ou roadmap como funcionalidade entregue.
 - `VITE_ANDON_DATA_MODE=local` é permitido somente em desenvolvimento.
 - Não criar fallback silencioso para LocalStorage em produção.
 - A indisponibilidade da API deve ser apresentada como falha operacional clara, nunca mascarada por dados locais.
-- Textos visíveis da interface devem permanecer em português do Brasil.
+- Português do Brasil é o idioma padrão. A localização aprovada também oferece English e 繁體中文; nomes cadastrados, mensagens dos operadores e diagnósticos permanecem conforme armazenados. Não anuncie tradução completa de áreas ainda não localizadas.
 - Código, variáveis, funções, tipos e componentes devem permanecer em inglês.
+- O Hub é a entrada central na raiz; o painel operacional usa `/andon`. Estações, permissões e credenciais dos módulos pertencem ao Hub; as configurações industriais pertencem ao ANDON. Permissão de estação e autenticação de módulo devem ser verificadas pela API, além da interface.
 
 ### 3.2 Backend
 

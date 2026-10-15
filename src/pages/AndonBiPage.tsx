@@ -503,10 +503,10 @@ export function AndonBiPage() {
               {loading ? "Atualizando…" : t("Atualizar")}
             </button>
             <Link
-              to="/"
+              to="/hub"
               className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted"
             >
-              {t("ANDON operacional")}
+              {t("Ir para o Hub")}
             </Link>
           </div>
         </header>

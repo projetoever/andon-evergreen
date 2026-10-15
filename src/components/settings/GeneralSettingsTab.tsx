@@ -1,5 +1,3 @@
-import { Link } from "@tanstack/react-router";
-import { PlatformAdminLinks } from "./PlatformAdminLinks";
 import { useCallback, useEffect, useState } from "react";
 import { ListOrdered, Settings2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -56,7 +54,7 @@ export function GeneralSettingsTab() {
 
     try {
       const status = await getDashboardPriorityAccessStatus();
-      setPriorityConfigured(status.configured);
+      setPriorityConfigured(status.configured || status.passwordRequired === false);
     } catch {
       const message = "Não foi possível carregar o acesso de prioridades.";
       setPriorityAccessLoadError(message);
@@ -263,8 +261,6 @@ export function GeneralSettingsTab() {
           </CardContent>
         </Card>
 
-        <PlatformAdminLinks />
-
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -366,11 +362,9 @@ export function GeneralSettingsTab() {
                 </div>
               )}
 
-              <Button variant="outline" asChild>
-                <Link to="/hub/admin" search={{ section: "priorities" }}>
-                  Gerenciar credenciais no Hub
-                </Link>
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                O acesso ao módulo Prioridades é configurado na administração do Hub.
+              </p>
             </div>
           </CardContent>
         </Card>

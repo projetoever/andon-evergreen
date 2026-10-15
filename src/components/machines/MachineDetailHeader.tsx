@@ -30,7 +30,7 @@ export function MachineDetailHeader({
       <div className="flex min-w-0 items-center gap-2 md:gap-3">
         {!screenLocked && (
           <Link
-            to="/"
+            to="/andon"
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-accent md:h-10 md:w-10"
             aria-label={t("Voltar ao painel")}
           >

@@ -1,6 +1,7 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { Machine } from "@/types/machine";
+import { getCurrentWorkstationId } from "./workstationIdentityService";
 
 const apiClient = createAndonApiClient();
 const SESSION_KEY = "andon.dashboardPriority.session";
@@ -12,9 +13,12 @@ let localConfig: {
   lastOrderUpdatedBy?: string | null;
 } | null = null;
 let localOrderIds: string[] = [];
+let localPasswordRequired = true;
+export const localPriorityPasswordRequired = () => localPasswordRequired;
 
 export interface DashboardPriorityAccessStatus {
   configured: boolean;
+  passwordRequired: boolean;
   username: string | null;
   lastOrderUpdatedAt: string | null;
   lastOrderUpdatedBy: string | null;
@@ -115,6 +119,7 @@ export async function getDashboardPriorityAccessStatus(): Promise<DashboardPrior
     const config = readLocalConfig();
     return {
       configured: Boolean(config?.username && config?.password),
+      passwordRequired: localPasswordRequired,
       username: config?.username ?? null,
       lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
       lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
@@ -153,6 +158,14 @@ export async function configureDashboardPriorityCredentials(username: string, pa
     throw new Error("O servidor não confirmou a persistência das credenciais de prioridades.");
   }
   return saved;
+}
+
+export async function setDashboardPriorityPasswordRequired(passwordRequired: boolean) {
+  if (CONFIGURED_DATA_MODE === "local") {
+    if (passwordRequired && !localConfig?.password) throw new Error("Configure as credenciais antes de exigir senha.");
+    localPasswordRequired = passwordRequired;
+  } else await apiClient.patch("/api/dashboard-priority/access-policy", { passwordRequired });
+  clearSession();
 }
 
 export async function loginDashboardPriority(username: string, password: string) {
@@ -197,9 +210,9 @@ export async function getDashboardPriorityOrder(
   currentMachines: Machine[] = [],
 ): Promise<DashboardPriorityOrderSnapshot> {
   const session = readSession();
-  if (!session) throw new Error("Sessão de prioridades necessária.");
 
   if (CONFIGURED_DATA_MODE === "local") {
+    if (localPasswordRequired && !session) throw new Error("Sessão de prioridades necessária.");
     const orderIds = localOrderIds;
     const config = readLocalConfig();
     return {
@@ -211,15 +224,16 @@ export async function getDashboardPriorityOrder(
 
   return apiClient.request<DashboardPriorityOrderSnapshot>("/api/dashboard-priority/order", {
     method: "GET",
-    headers: { Authorization: `Bearer ${session.token}` },
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   });
 }
 
 export async function saveDashboardPriorityOrder(machineIds: string[]) {
   const session = readSession();
-  if (!session) throw new Error("Sessão de prioridades necessária.");
 
   if (CONFIGURED_DATA_MODE === "local") {
+    if (localPasswordRequired && !session) throw new Error("Sessão de prioridades necessária.");
+    const username = session?.username ?? `workstation:${getCurrentWorkstationId()}`;
     const updatedAt = new Date().toISOString();
     localOrderIds = [...machineIds];
     const config = readLocalConfig();
@@ -227,13 +241,13 @@ export async function saveDashboardPriorityOrder(machineIds: string[]) {
       localConfig = {
         ...config,
         lastOrderUpdatedAt: updatedAt,
-        lastOrderUpdatedBy: session.username,
+        lastOrderUpdatedBy: username,
       };
     }
     return {
       ok: true,
       lastOrderUpdatedAt: updatedAt,
-      lastOrderUpdatedBy: session.username,
+      lastOrderUpdatedBy: username,
     };
   }
 
@@ -246,7 +260,7 @@ export async function saveDashboardPriorityOrder(machineIds: string[]) {
     body: JSON.stringify({ machineIds }),
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session.token}`,
+      ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
     },
   });
 }

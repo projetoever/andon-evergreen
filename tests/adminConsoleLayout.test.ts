@@ -41,7 +41,7 @@ test("não cria aba de notificações sem necessidade funcional", async () => {
   assert.doesNotMatch(source, /label: "Notificações"/);
 });
 
-test("todas as áreas administrativas existentes continuam acessíveis", async () => {
+test("áreas operacionais continuam no ANDON e workstations ficam no Hub", async () => {
   const source = await readFile(
     new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
     "utf8",
@@ -57,8 +57,10 @@ test("todas as áreas administrativas existentes continuam acessíveis", async (
     "classifications",
     "assetCatalogs",
     "machines",
-    "workstations",
   ]) {
     assert.match(source, new RegExp(`id: "${tab}"`));
   }
+  assert.doesNotMatch(source, /id: "workstations"|PlatformAdminLinks/);
+  const hub = await readFile(new URL("../src/pages/HubAdminPage.tsx", import.meta.url), "utf8");
+  assert.match(hub, /WorkstationsSettingsTab/);
 });

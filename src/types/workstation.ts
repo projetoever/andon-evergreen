@@ -4,6 +4,7 @@ export interface Workstation {
   active: boolean;
   allowOperational: boolean;
   allowBi: boolean;
+  allowPriorities: boolean;
   lastIpAddress: string | null;
   lockedMachineId: string | null;
   lastSeenAt: string;
@@ -16,4 +17,5 @@ export interface WorkstationUpdate {
   active?: boolean;
   allowOperational?: boolean;
   allowBi?: boolean;
+  allowPriorities?: boolean;
 }

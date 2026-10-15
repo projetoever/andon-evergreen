@@ -1,6 +1,9 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { ModuleAccess } from "@/types/modules";
+import { localModulePolicy } from "./moduleAuthService";
+import { readModuleSession } from "./moduleSessionStorage";
+import { localPriorityPasswordRequired } from "./dashboardPriorityService";
 import {
   registerCurrentWorkstation,
   WORKSTATION_HEARTBEAT_INTERVAL_MS,
@@ -42,11 +45,15 @@ export async function loadModuleAccess(): Promise<ModuleAccess> {
           id: "operational",
           name: "ANDON operacional",
           description: "Máquinas, chamados e atendimento em tempo real.",
-          route: "/",
+          route: "/andon",
           icon: "factory",
           available: true,
           enabled: true,
           allowed: workstation.active && workstation.allowOperational,
+          passwordRequired: localModulePolicy("operational").passwordRequired,
+          authenticated:
+            !localModulePolicy("operational").passwordRequired ||
+            Boolean(readModuleSession("operational")),
         },
         {
           id: "bi",
@@ -57,6 +64,9 @@ export async function loadModuleAccess(): Promise<ModuleAccess> {
           available: true,
           enabled: true,
           allowed: workstation.active && workstation.allowBi,
+          passwordRequired: localModulePolicy("bi").passwordRequired,
+          authenticated:
+            !localModulePolicy("bi").passwordRequired || Boolean(readModuleSession("bi")),
         },
         {
           id: "priorities",
@@ -66,7 +76,9 @@ export async function loadModuleAccess(): Promise<ModuleAccess> {
           icon: "priority",
           available: true,
           enabled: true,
-          allowed: workstation.active,
+          allowed: workstation.active && workstation.allowPriorities,
+          passwordRequired: localPriorityPasswordRequired(),
+          authenticated: false,
         },
       ],
     };

@@ -14,6 +14,7 @@ import { Route as MachinePrioritiesRouteImport } from './routes/machine-prioriti
 import { Route as HubRouteImport } from './routes/hub'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as BiRouteImport } from './routes/bi'
+import { Route as AndonRouteImport } from './routes/andon'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HubIndexRouteImport } from './routes/hub.index'
@@ -45,6 +46,11 @@ const HistoryRoute = HistoryRouteImport.update({
 const BiRoute = BiRouteImport.update({
   id: '/bi',
   path: '/bi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AndonRoute = AndonRouteImport.update({
+  id: '/andon',
+  path: '/andon',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActiveCallsRoute = ActiveCallsRouteImport.update({
@@ -88,6 +94,7 @@ const MachinesMachineIdCallHistoryRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/active-calls': typeof ActiveCallsRoute
+  '/andon': typeof AndonRoute
   '/bi': typeof BiRoute
   '/history': typeof HistoryRoute
   '/hub': typeof HubRouteWithChildren
@@ -102,6 +109,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/active-calls': typeof ActiveCallsRoute
+  '/andon': typeof AndonRoute
   '/bi': typeof BiRoute
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/active-calls': typeof ActiveCallsRoute
+  '/andon': typeof AndonRoute
   '/bi': typeof BiRoute
   '/history': typeof HistoryRoute
   '/hub': typeof HubRouteWithChildren
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/active-calls'
+    | '/andon'
     | '/bi'
     | '/history'
     | '/hub'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/active-calls'
+    | '/andon'
     | '/bi'
     | '/history'
     | '/machine-priorities'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/active-calls'
+    | '/andon'
     | '/bi'
     | '/history'
     | '/hub'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActiveCallsRoute: typeof ActiveCallsRoute
+  AndonRoute: typeof AndonRoute
   BiRoute: typeof BiRoute
   HistoryRoute: typeof HistoryRoute
   HubRoute: typeof HubRouteWithChildren
@@ -219,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/bi'
       fullPath: '/bi'
       preLoaderRoute: typeof BiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/andon': {
+      id: '/andon'
+      path: '/andon'
+      fullPath: '/andon'
+      preLoaderRoute: typeof AndonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/active-calls': {
@@ -288,6 +308,7 @@ const HubRouteWithChildren = HubRoute._addFileChildren(HubRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActiveCallsRoute: ActiveCallsRoute,
+  AndonRoute: AndonRoute,
   BiRoute: BiRoute,
   HistoryRoute: HistoryRoute,
   HubRoute: HubRouteWithChildren,

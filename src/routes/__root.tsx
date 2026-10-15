@@ -85,7 +85,9 @@ function RootContent() {
   const { access, checking } = useModuleAccess();
   const navigate = useNavigate();
   const lockedMachineId = access?.workstation.lockedMachineId;
-  const mustReturnToMachine = Boolean(!checking && lockedMachineId && pathname !== "/hub/admin" && pathname !== `/machines/${encodeURIComponent(lockedMachineId)}`);
+  const isHubRoute = pathname === "/" || pathname === "/hub" || pathname.startsWith("/hub/");
+  const isIndependentModule = pathname === "/bi" || pathname.startsWith("/bi/") || pathname === "/machine-priorities";
+  const mustReturnToMachine = Boolean(!checking && lockedMachineId && !isHubRoute && !isIndependentModule && pathname !== `/machines/${encodeURIComponent(lockedMachineId)}`);
   useEffect(() => {
     if (mustReturnToMachine && lockedMachineId) void navigate({ to: "/machines/$machineId", params: { machineId: lockedMachineId }, replace: true });
   }, [mustReturnToMachine, lockedMachineId, navigate]);
@@ -96,7 +98,7 @@ function RootContent() {
   });
 
   if (mustReturnToMachine) return <div role="status" className="p-6">Retornando à tela fixada da máquina…</div>;
-  if (pathname === "/hub" || pathname.startsWith("/hub/")) return <><Outlet /><Toaster /></>;
+  if (isHubRoute) return <><Outlet /><Toaster /></>;
   if (pathname === "/machine-priorities") return <WorkstationAccessGate><Outlet /><Toaster /></WorkstationAccessGate>;
 
   if (isBiRoute) {

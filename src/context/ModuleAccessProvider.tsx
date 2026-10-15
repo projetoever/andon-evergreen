@@ -48,11 +48,13 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
     window.addEventListener("andon:module-forbidden", onPolicyChange);
     window.addEventListener("andon:workstation-inactive", onPolicyChange);
     window.addEventListener("andon:screen-lock-changed", onPolicyChange);
+    window.addEventListener("andon:module-session-changed", onPolicyChange);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("andon:module-forbidden", onPolicyChange);
       window.removeEventListener("andon:workstation-inactive", onPolicyChange);
       window.removeEventListener("andon:screen-lock-changed", onPolicyChange);
+      window.removeEventListener("andon:module-session-changed", onPolicyChange);
       revision.current += 1;
     };
   }, [pathname, refresh]);

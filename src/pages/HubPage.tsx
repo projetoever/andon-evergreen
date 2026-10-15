@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LayoutGrid, ShieldCheck } from "lucide-react";
+import { LayoutGrid, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export function HubPage() {
             <LanguageSelector />
             <Button variant="outline" asChild>
               <Link to="/hub/admin">
-                <ShieldCheck className="mr-2 h-4 w-4" />
+                <Settings className="mr-2 h-4 w-4" />
                 {t("Administração do Hub")}
               </Link>
             </Button>
@@ -53,16 +53,6 @@ export function HubPage() {
         )}
         {access && (
           <>
-            {!access.hubEnabled && (
-              <p
-                role="status"
-                className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground"
-              >
-                {t(
-                  "Hub desativado. As rotas diretas continuam disponíveis conforme as permissões da estação.",
-                )}
-              </p>
-            )}
             {!access.workstation.active && (
               <p role="alert" className="text-danger">
                 {t("Solicite ao administrador a liberação desta workstation.")}

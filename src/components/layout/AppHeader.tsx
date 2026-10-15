@@ -7,7 +7,7 @@ export function AppHeader() {
   return (
     <header className="border-b border-border bg-card/60 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-6 px-8 py-4">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/andon" className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg">
             <Activity className="h-7 w-7" strokeWidth={2.5} />
           </div>

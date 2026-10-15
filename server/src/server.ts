@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { registerCorsSupport } from "./config/cors.js";
 import { enforceAdminAuthorization } from "./security/adminAuthorization.js";
 import { enforceWorkstationAccess } from "./security/workstationAccess.js";
+import { enforceModuleAuthorization } from "./security/moduleAuthorization.js";
 import { prisma } from "./db/prisma.js";
 import {
   createPlcRuntime,
@@ -27,6 +28,7 @@ import { registerSystemSettingsRoutes } from "./routes/systemSettings.js";
 import { registerTechnicianRoutes } from "./routes/technicians.js";
 import { registerWorkstationRoutes } from "./routes/workstations.js";
 import { registerModuleRoutes } from "./routes/modules.js";
+import { registerModuleCredentialRoutes } from "./routes/moduleCredentials.js";
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = "0.0.0.0";
@@ -43,6 +45,7 @@ export function buildServer() {
   registerCorsSupport(app);
   app.addHook("preHandler", enforceWorkstationAccess);
   app.addHook("preHandler", enforceAdminAuthorization);
+  app.addHook("preHandler", enforceModuleAuthorization);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error({ error }, "Erro ao processar requisição");
@@ -84,6 +87,7 @@ export function buildServer() {
   void registerFailureClassificationRoutes(app);
   void registerWorkstationRoutes(app);
   void registerModuleRoutes(app);
+  void registerModuleCredentialRoutes(app);
 
   app.addHook("onReady", async () => {
     await plcRuntime.start();

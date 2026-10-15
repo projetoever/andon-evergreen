@@ -4,27 +4,26 @@ import {
   ArrowLeft,
   KeyRound,
   LayoutGrid,
-  ListOrdered,
+  KeySquare,
   LogOut,
   MonitorCog,
   ShieldCheck,
 } from "lucide-react";
-import { toast } from "sonner";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { HubSecuritySettings } from "@/components/settings/HubSecuritySettings";
+import { ModuleCredentialSettings } from "@/components/settings/ModuleCredentialSettings";
+import { PlatformAdminLinks } from "@/components/settings/PlatformAdminLinks";
 import { PriorityAccessSettings } from "@/components/settings/PriorityAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
-import { getHubSettings, updateHubEnabled } from "@/services/moduleService";
+import { getHubSettings } from "@/services/moduleService";
 
 const sections = [
   { id: "overview", label: "Visão geral", icon: LayoutGrid },
   { id: "workstations", label: "Estações e acessos", icon: MonitorCog },
   { id: "security", label: "Segurança", icon: KeyRound },
-  { id: "priorities", label: "Acesso de Prioridades", icon: ListOrdered },
+  { id: "modules", label: "Módulos e senhas", icon: KeySquare },
 ] as const;
 
 /** Recovery entry remains outside operational providers and workstation/module gates. */
@@ -33,10 +32,7 @@ export function HubAdminPage() {
   const section = requestedSection ?? "overview";
   const [authenticated, setAuthenticated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const { refresh } = useModuleAccess();
 
   useEffect(() => {
     const check = () => setAuthenticated(isAdminAuthenticated());
@@ -53,9 +49,8 @@ export function HubAdminPage() {
     if (!authenticated) return;
     let disposed = false;
     void getHubSettings()
-      .then((settings) => {
+      .then(() => {
         if (!disposed) {
-          setHubEnabled(settings.hubEnabled);
           setSettingsError(null);
         }
       })
@@ -69,24 +64,6 @@ export function HubAdminPage() {
       disposed = true;
     };
   }, [authenticated]);
-
-  async function changeHubEnabled(enabled: boolean) {
-    setSaving(true);
-    try {
-      const saved = await updateHubEnabled(enabled);
-      setHubEnabled(saved.hubEnabled);
-      await refresh();
-      toast.success(
-        enabled
-          ? "Navegação do Hub ativada."
-          : "Navegação do Hub desativada. Permissões preservadas.",
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao salvar configuração.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <main className="min-h-dvh bg-background p-4 text-foreground md:p-6">
@@ -158,25 +135,18 @@ export function HubAdminPage() {
             {section === "overview" && (
               <div className="space-y-6">
                 <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-                  <h2 className="text-lg font-bold">Navegação central</h2>
+                  <h2 className="text-lg font-bold">Entrada central da plataforma</h2>
                   <p className="text-sm text-muted-foreground">
-                    Ative o botão Módulos nas telas. As rotas diretas e as permissões de acesso são
-                    preservadas ao desativar esta opção.
+                    O endereço inicial abre o Hub. Cada workstation visualiza somente os módulos
+                    autorizados; a exigência de senha é configurada por módulo.
                   </p>
                   {settingsError && (
                     <p role="alert" className="text-sm text-danger">
                       {settingsError}
                     </p>
                   )}
-                  <label className="flex items-center gap-3 text-sm font-bold">
-                    <Switch
-                      checked={hubEnabled === true}
-                      disabled={hubEnabled === null || saving}
-                      onCheckedChange={(enabled) => void changeHubEnabled(enabled)}
-                    />
-                    Navegação do Hub ativa
-                  </label>
                 </section>
+                <PlatformAdminLinks />
                 <section className="space-y-3 rounded-xl border border-border bg-card p-5">
                   <h2 className="text-lg font-bold">Responsabilidade de cada módulo</h2>
                   <div className="grid gap-3 text-sm md:grid-cols-2">
@@ -212,6 +182,7 @@ export function HubAdminPage() {
             )}
             {section === "workstations" && <WorkstationsSettingsTab />}
             {section === "security" && <HubSecuritySettings />}
+            {section === "modules" && <ModuleCredentialSettings />}
             {section === "priorities" && <PriorityAccessSettings />}
           </>
         )}

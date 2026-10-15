@@ -6,7 +6,7 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 type RegisterWorkstationBody = { id?: unknown };
-type UpdateWorkstationBody = { name?: unknown; active?: unknown; allowOperational?: unknown; allowBi?: unknown };
+type UpdateWorkstationBody = { name?: unknown; active?: unknown; allowOperational?: unknown; allowBi?: unknown; allowPriorities?: unknown };
 type ScreenLockBody = { machineId?: unknown };
 type MachineSoundPreferenceBody = { enabled?: unknown };
 
@@ -18,6 +18,7 @@ const workstationSelect = {
   active: true,
   allowOperational: true,
   allowBi: true,
+  allowPriorities: true,
   lastIpAddress: true,
   lastSeenAt: true,
   createdAt: true,
@@ -203,13 +204,16 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       const hasActive = Object.prototype.hasOwnProperty.call(request.body ?? {}, "active");
       const hasOperational = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowOperational");
       const hasBi = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowBi");
-      if (!hasName && !hasActive && !hasOperational && !hasBi) return badRequest(reply, "Nenhuma alteração informada");
+      const hasPriorities = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowPriorities");
+      if (!hasName && !hasActive && !hasOperational && !hasBi && !hasPriorities) return badRequest(reply, "Nenhuma alteração informada");
       if ((hasOperational && typeof request.body.allowOperational !== "boolean") ||
-          (hasBi && typeof request.body.allowBi !== "boolean")) {
+          (hasBi && typeof request.body.allowBi !== "boolean") ||
+          (hasPriorities && typeof request.body.allowPriorities !== "boolean")) {
         return badRequest(reply, "Permissões de módulos devem ser booleanas");
       }
       const allowOperational = hasOperational ? request.body.allowOperational as boolean : undefined;
       const allowBi = hasBi ? request.body.allowBi as boolean : undefined;
+      const allowPriorities = hasPriorities ? request.body.allowPriorities as boolean : undefined;
 
       let name: string | null | undefined;
       if (hasName) {
@@ -276,6 +280,7 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
               ...(active !== undefined ? { active } : {}),
               ...(allowOperational !== undefined ? { allowOperational } : {}),
               ...(allowBi !== undefined ? { allowBi } : {}),
+              ...(allowPriorities !== undefined ? { allowPriorities } : {}),
             },
             select: workstationSelect,
           });

@@ -15,9 +15,9 @@ const links: { section: HubAdminSection; title: string; description: string }[] 
     description: "Senha global do Admin e código de recuperação.",
   },
   {
-    section: "priorities",
-    title: "Acesso de Prioridades",
-    description: "Provisionamento da credencial própria da gestão de produção.",
+    section: "modules",
+    title: "Módulos e senhas",
+    description: "Credenciais de entrada e exigência de senha dos três módulos.",
   },
 ];
 
