@@ -241,36 +241,15 @@ export function MachineActionPanel({
   maintenanceCompletionHintTone = "warning",
 }: MachineActionPanelProps) {
   const { t } = useLanguage();
-  const hasActiveCall = activeCalls.length > 0;
-  const activeTechnicianCount =
-    currentCall?.technicianSessions?.filter((session) => !session.endedAt).length ?? 0;
-  const hasDenseOperationalContent =
-    activeTechnicianCount > 0 ||
-    currentCall?.status === "post_maintenance" ||
-    Boolean(maintenanceCompletionHint);
-  const layoutStage = !hasActiveCall
-    ? "idle"
-    : hasDenseOperationalContent
-      ? "dense"
-      : currentCall?.status === "open"
-        ? "open"
-        : "active";
-  const sectorActionClass =
-    layoutStage === "idle"
-      ? "min-h-[clamp(6.75rem,12vh,8.75rem)] text-lg xl:text-xl"
-      : layoutStage === "open"
-        ? "min-h-[clamp(8rem,15.5vh,10.5rem)] text-lg xl:text-2xl"
-        : layoutStage === "active"
-          ? "min-h-[clamp(5.75rem,9.75vh,7rem)] text-base lg:text-xl"
-          : "min-h-12 text-sm";
+  // Size by the viewport, never by attendance provenance or warning text.
+  const sectorActionClass = "machine-sector-action text-base lg:text-lg";
   const workflowActionClass =
-    layoutStage === "open"
-      ? "min-h-[clamp(6.25rem,11.5vh,7.5rem)] w-full px-4 text-base sm:flex-1 sm:max-w-[46rem] md:text-lg"
-      : layoutStage === "active"
-        ? "min-h-[clamp(4.5rem,8vh,5.25rem)] w-full px-3 text-sm sm:flex-1 sm:max-w-[44rem] md:text-base"
-        : "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-[38rem] sm:text-sm";
+    "machine-workflow-action w-full px-3 text-sm sm:flex-1 sm:max-w-[46rem] md:text-base";
   return (
-    <section className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-md">
+    <section
+      data-machine-actions
+      className="shrink-0 space-y-1.5 rounded-xl border border-border bg-card p-2 shadow-md"
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
@@ -307,7 +286,7 @@ export function MachineActionPanel({
       </div>
 
       {currentCall && (
-        <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-2">
+        <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-1.5">
           {currentCall.status === "open" && (
             <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> {t("Atender selecionado")}
@@ -339,10 +318,17 @@ export function MachineActionPanel({
                 <span>{t("Concluir manutenção")}</span>
                 {maintenanceCompletionHint && (
                   <span
-                    role={maintenanceCompletionDisabled ? "alert" : "status"}
-                    className={cn("text-[10px] font-semibold normal-case leading-tight", maintenanceCompletionHintTone === "danger" ? "text-danger" : "text-warning")}
+                    role={maintenanceCompletionHintTone === "danger" ? "alert" : "status"}
+                    className={cn(
+                      "text-[10px] font-semibold normal-case leading-tight",
+                      maintenanceCompletionHintTone === "danger" ? "text-danger" : "text-warning",
+                    )}
                   >
-                    {maintenanceCompletionDisabled ? "Use a estação do atendimento" : maintenanceCompletionHintTone === "success" ? "Atendimento legado" : "Validar estação ao concluir"}
+                    {maintenanceCompletionHintTone === "danger"
+                      ? "Use a estação do atendimento"
+                      : maintenanceCompletionHintTone === "success"
+                        ? "Atendimento legado"
+                        : "Validar estação ao concluir"}
                     <span className="sr-only">: {maintenanceCompletionHint}</span>
                   </span>
                 )}
@@ -371,7 +357,6 @@ export function MachineActionPanel({
           )}
         </div>
       )}
-
     </section>
   );
 }

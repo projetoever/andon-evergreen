@@ -129,3 +129,11 @@ O cookie continua canônico; o espelho local contém apenas UUID, sem credenciai
 Readiness inclui `workstationApprovalRequired` e verifica o novo schema. O instalador informa SKIP na escrita automática quando aprovação ou senha operacional forem exigidas; não cria exceção à autorização. Antes da atualização, faça backup do banco/configuração e aplique migrations com frontend/backend compatíveis. Reverter para código anterior ignora a nova política de admissão; não remova colunas nem dados para reverter código.
 
 O BI passa a usar ícones com nomes acessíveis e dicas para Hub, PDF, atualização e ANDON direto. O atalho operacional aparece somente quando permitido; seu destino aplica a autenticação normal. O seletor nativo de idioma define cores escuras no controle e nas opções.
+
+## Responsividade e controles visuais
+
+A faixa de setores e ações usa a altura útil da janela, sem trocar de escala por mensagem de workstation, participantes ou acompanhamento. A faixa de informações deixa de reservar 26/48rem; os painéis ficam lado a lado a partir de 1024px. Em janelas baixas, os painéis informativos permitem rolagem interna para manter os comandos acessíveis. Em telas estreitas, a página preserva a rolagem vertical natural, sem ocultar conteúdo.
+
+O seletor de idioma usa o componente visual do produto, incluindo o menu, evitando a pintura nativa do Windows. Mantém identificação acessível, teclado e persistência da preferência. No BI, o horário da última atualização aparece como texto junto ao título, com timestamp semântico; o relógio decorativo saiu da barra de ações.
+
+Ajuste exclusivamente visual sobre a base `e0643306`: sem alterações de API, autorização, dados ou migrations. A validação de layout utiliza respostas de API simuladas e mede overflow, estados dos chamados, participantes e aviso de workstation; não substitui a conferência nos terminais instalados.

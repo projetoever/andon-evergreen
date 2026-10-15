@@ -108,17 +108,17 @@ export function MachineCurrentCallPanel({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-3 pb-4 shadow-md",
+        "machine-detail-call flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-border bg-card p-2 pb-3 shadow-md",
         className,
       )}
     >
-      <div className="mb-2 flex min-h-[3.25rem] min-w-0 flex-wrap items-start justify-between gap-1">
+      <div className="machine-detail-panel-heading mb-2 flex min-h-[2.5rem] min-w-0 flex-wrap items-start justify-between gap-1">
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
           {t("Chamado atual")}
         </h3>
         <CallIdLabel callId={call.id} className="text-right" />
       </div>
-      <dl className="grid min-h-0 shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 xl:min-h-[9.5rem] xl:auto-rows-fr">
+      <dl className="machine-detail-facts grid min-h-0 shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 lg:auto-rows-fr">
         <div>
           <dt className="text-xs uppercase text-muted-foreground">{t("Categoria")}</dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
@@ -162,13 +162,17 @@ export function MachineCurrentCallPanel({
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">{t("Conclusão da manutenção")}</dt>
+          <dt className="text-xs uppercase text-muted-foreground">
+            {t("Conclusão da manutenção")}
+          </dt>
           <dd className="font-mono text-sm leading-tight text-foreground">
             {formatDateTime(call.maintenanceCompletedAt)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">{t("Condição atual da máquina")}</dt>
+          <dt className="text-xs uppercase text-muted-foreground">
+            {t("Condição atual da máquina")}
+          </dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
             {t(getMachineConditionLabel(displayedMachineCondition))}
           </dd>
@@ -189,7 +193,7 @@ export function MachineCurrentCallPanel({
         )}
       </dl>
 
-      <dl className="mt-1.5 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-4">
+      <dl className="mt-1.5 grid shrink-0 grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 bg-muted/20 p-3 lg:grid-cols-4">
         <TimerMetric
           label={t("Aguardando")}
           value={formatMachinePanelDurationMinutes(waiting)}

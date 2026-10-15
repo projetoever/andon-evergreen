@@ -86,7 +86,7 @@ test("dashboard language choice is accessible and shared with machine and BI rou
   assert.match(root, /<LanguageProvider>\{children\}<\/LanguageProvider>/);
   assert.match(dashboard, /<LanguageSelector \/>/);
   assert.match(selector, /aria-label=\{t\("Idioma da interface"\)\}/);
-  assert.match(selector, /onChange=\{\(event\) => setLanguage\(/);
+  assert.match(selector, /onValueChange=\{\(value\) => setLanguage\(/);
   assert.match(badges, /t\("Atender selecionado"\)/);
   assert.match(machine, /t\("Ver Máquina"\)/);
   assert.match(bi, /t\("Exportar PDF"\)/);

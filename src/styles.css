@@ -213,3 +213,38 @@
     }
   }
 }
+
+/* Machine facts keep their intrinsic height on small screens. On a workstation,
+   the overview takes the space left by the controls, without reserving 26/48rem. */
+.machine-detail-overview {
+  flex: 1 0 auto;
+}
+
+@media (min-width: 64rem) {
+  .machine-detail-overview {
+    flex: 1 1 0;
+    min-height: 8rem;
+  }
+
+  .machine-detail-facts {
+    min-height: 8.25rem;
+  }
+}
+
+.machine-sector-action {
+  min-height: clamp(3.75rem, 9dvh, 7rem);
+}
+
+.machine-workflow-action {
+  min-height: clamp(3rem, 7dvh, 5rem);
+}
+
+@media (min-width: 64rem) and (max-height: 50rem) {
+  .machine-sector-action {
+    min-height: 3.5rem;
+  }
+
+  .machine-workflow-action {
+    min-height: 3rem;
+  }
+}
