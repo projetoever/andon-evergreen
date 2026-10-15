@@ -453,7 +453,6 @@ async function run() {
       name: "Turno fora do horário atual CI",
       startTime: `${String(offShiftStartHour).padStart(2, "0")}:00`,
       endTime: `${String(offShiftEndHour).padStart(2, "0")}:00`,
-      crossesMidnight: offShiftEndHour < offShiftStartHour,
       active: true,
     },
   });
