@@ -17,7 +17,7 @@ const ALLOWED_API_PATHS = new Set([
 ]);
 
 /** Prevent a blocked workstation from interacting with the operational API.
- * Devices that integrate without browser Origin headers remain compatible.
+ * Integrations without Origin/UUID remain compatible when mandatory approval is off.
  * Workstation UUIDs identify browsers, not immutable hardware identities.
  */
 export async function enforceWorkstationAccess(request: FastifyRequest, reply: FastifyReply) {
@@ -27,7 +27,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
 
   const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
   if (!id) {
-    if (request.headers.origin) {
+    const policy = await prisma.systemSettings.findUnique({where:{id:"global"},select:{requireWorkstationApproval:true}});
+    if (request.headers.origin || policy?.requireWorkstationApproval) {
       return reply.status(403).send({ error: "workstation_identification_required", message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE });
     }
     return;

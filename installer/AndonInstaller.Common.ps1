@@ -1389,10 +1389,10 @@ function Test-AndonApiWrite {
     try {
         $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
         if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
-        if ($readiness.operationalPasswordRequired -eq $true) {
+        if ($readiness.operationalPasswordRequired -eq $true -or $readiness.workstationApprovalRequired -eq $true) {
             $result = New-AndonHealthResult `
                 -Status "SKIP" `
-                -Message "Escrita automatica pulada: ANDON exige senha de modulo. Valide pela interface autorizada."
+                -Message "Escrita automatica pulada: ANDON exige senha de modulo ou aprovacao de workstation. Valide pela interface autorizada."
             Write-AndonHealthResult $result
             return $result
         }

@@ -10,6 +10,7 @@ datasource db {
 model SystemSettings {
   id                                                   String   @id @default("global")
   hubEnabled                                           Boolean  @default(false)
+  requireWorkstationApproval                           Boolean  @default(false)
   allowWholeSetCalls                                   Boolean  @default(true)
   virtualKeyboardEnabled                               Boolean  @default(true)
   requireWorkOrderAtOpen                               Boolean  @default(false)
@@ -54,6 +55,7 @@ model DashboardPriorityConfig {
 model Workstation {
   id                 String              @id
   name               String?
+  pendingApproval Boolean @default(false)
   active             Boolean             @default(true)
   allowOperational   Boolean             @default(true)
   allowBi            Boolean             @default(true)

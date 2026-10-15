@@ -46,7 +46,7 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
             t(
               checking
                 ? "Validando a identidade deste navegador com o servidor."
-                : "Solicite ao administrador a liberação desta workstation.",
+                : access?.workstation.pendingApproval ? "Workstation aguardando aprovação do administrador do Hub." : "Solicite ao administrador a liberação desta workstation.",
             )}
         </p>
         <p className="break-all font-mono text-xs text-muted-foreground">

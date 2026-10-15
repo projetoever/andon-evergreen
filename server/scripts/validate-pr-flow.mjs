@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { PrismaClient } from "@prisma/client";
+import { validateAttendanceIntegrity } from "./validate-attendance-integrity.mjs";
 import { validateHubEntry } from "./validate-hub-entry.mjs";
 
 const API_URL = process.env.ANDON_API_URL ?? "http://127.0.0.1:3001";
@@ -199,6 +200,7 @@ async function cleanup() {
   await prisma.machineSubsetType.deleteMany({ where: { id: ids.unusedSubsetType } });
   await prisma.machineSetType.deleteMany({ where: { id: ids.unusedSetType } });
   await prisma.machineProductionEvent.deleteMany({ where: { machineId: { in: machineIds } } });
+  await prisma.machinePriorityHistory.deleteMany({ where: { machineId: { in: machineIds } } });
   await prisma.machine.deleteMany({ where: { id: { in: machineIds } } });
   await prisma.technician.deleteMany({
     where: {
@@ -2123,6 +2125,9 @@ async function run() {
   assert.equal(transferredFailureEvent.endedAt, null);
   assert.equal(transferredFailureEvent.callId, leadershipDuringStop.id);
   assert.equal(transferredFailureEvent.classification, "other");
+  const handoffTarget = await prisma.andonCall.findUniqueOrThrow({where:{id:leadershipDuringStop.id}});
+  assert.equal(handoffTarget.failureClassification, null);
+  assert.equal(handoffTarget.failureDescription, null);
   assert.match(transferredFailureEvent.notes ?? "", /^Sensor de inspeção sem resposta/);
   assert.equal(
     transferredFailureEvent.startedAt.getTime(),
@@ -3517,6 +3522,7 @@ async function run() {
     "nenhuma TechnicianSession encerrada pode possuir duração negativa",
   );
 
+  await validateAttendanceIntegrity(request, prisma);
   console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");
 }
 

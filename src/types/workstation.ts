@@ -2,6 +2,7 @@ export interface Workstation {
   id: string;
   name: string | null;
   active: boolean;
+  pendingApproval?: boolean;
   allowOperational: boolean;
   allowBi: boolean;
   allowPriorities: boolean;

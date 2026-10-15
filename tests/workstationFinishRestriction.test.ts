@@ -67,7 +67,7 @@ function backendTransaction(params: {
     workstation: {
       findUnique: async ({ where }: { where: { id: string } }) => {
         const workstation = params.workstations?.[where.id];
-        return workstation ? { id: where.id, active: workstation.active } : null;
+        return workstation ? { id: where.id, active: workstation.active, allowOperational:true } : null;
       },
     },
     technicianSession: {
@@ -328,8 +328,9 @@ test("avaliador visual replica a compatibilidade do backend sem sessão ativa", 
     historicalSession,
     context(WS_A, true),
   );
-  assert.equal(authorization.allowed, false);
-  assert.equal(authorization.kind, "different_workstation");
+  assert.equal(authorization.allowed, true);
+  assert.equal(authorization.kind, "authorized");
+  assert.equal(evaluateMaintenanceCompletionAuthorization(historicalSession, context(WS_B, true)).allowed, false);
 });
 
 test("workstation inativa não pode concluir manutenção", () => {
@@ -530,5 +531,5 @@ test("inativação de workstation é serializada com sessões ativas", async () 
   assert.ok(reloadIndex > lockIndex);
   assert.ok(sessionIndex > reloadIndex);
   assert.ok(updateIndex > sessionIndex);
-  assert.match(updateRoute, /Não é possível desativar workstation com atendimento ativo/);
+  assert.match(updateRoute, /Não é possível desativar.*workstation com atendimento ativo/);
 });

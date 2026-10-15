@@ -31,6 +31,8 @@ import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
 import { refreshMachineSoundPreferences } from "@/services/machineSoundPreferenceService";
 import { useWorkstationAudio } from "@/hooks/useWorkstationAudio";
 
+import { SnapshotRevision } from "@/utils/snapshotRevision";
+
 const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
 const MIN_API_SYNC_INTERVAL_MS = 500;
 
@@ -129,6 +131,8 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const { audioUnlocked, audioPlaybackBlocked, setAudioUnlocked } = useWorkstationAudio();
   const [serverTimeOffsetStateMs, setServerTimeOffsetStateMs] = useState(0);
   const apiSyncInFlightRef = useRef(false);
+  const snapshotRevision = useRef(new SnapshotRevision());
+  const runRuntimeMutation = useCallback(<T,>(action: () => Promise<T>) => snapshotRevision.current.mutate(action), []);
 
   const isLocalDataMode = CONFIGURED_DATA_MODE === "local";
 
@@ -178,8 +182,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       apiSyncInFlightRef.current = true;
 
       try {
+        const revision = snapshotRevision.current.capture();
         const snapshot = await andonRepository.loadSnapshot();
-        if (!snapshot || disposed) return;
+        if (!snapshot || disposed || !snapshotRevision.current.canApply(revision)) return;
 
         setMachines(snapshot.machines.map(andonService.normalizeMachine));
         setCalls(snapshot.calls.map(andonService.normalizeAndonCall));
@@ -251,68 +256,68 @@ export function AndonProvider({ children }: { children: ReactNode }) {
 
   const openCall = useCallback(
     async (params: andonService.OpenAndonCallParams) => {
-      const result = await andonRepository.openCall(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.openCall(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
       return result.call;
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
   const openCalls = useCallback(
     async (params: andonService.OpenAndonCallParams[]) => {
-      const result = await andonRepository.openCalls(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.openCalls(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
     },
-    [machines, calls],
+    [machines, calls, runRuntimeMutation],
   );
 
   const attendCall = useCallback(
     async (params: string | andonService.StartAttendanceParams) => {
-      const result = await andonRepository.attendCall(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.attendCall(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
 
 
   const addTechnicianSessions = useCallback(
     async (params: andonService.AddTechnicianSessionsParams) => {
-      const result = await andonRepository.addTechnicianSessions(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.addTechnicianSessions(machines, calls, params));
       setCalls(result.calls);
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
   const endTechnicianSession = useCallback(
     async (params: andonService.EndTechnicianSessionParams) => {
-      const result = await andonRepository.endTechnicianSession(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.endTechnicianSession(machines, calls, params));
       setCalls(result.calls);
     },
-    [machines, calls],
+    [machines, calls, runRuntimeMutation],
   );
 
   const completeMaintenance = useCallback(
     async (params: string | andonService.CompleteMaintenanceParams) => {
-      const result = await andonRepository.completeMaintenance(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.completeMaintenance(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
       return result.call;
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
   const returnToMaintenance = useCallback(
     async (callId: string) => {
-      const result = await andonRepository.returnToMaintenance(machines, calls, callId);
+      const result = await runRuntimeMutation(() => andonRepository.returnToMaintenance(machines, calls, callId));
       setMachines(result.machines);
       setCalls(result.calls);
       return result.call;
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
   const finishCall = useCallback(
@@ -320,16 +325,16 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       params: andonService.FinishAndonCallParams,
     ) => {
       const result =
-        await andonRepository.finishCall(
+        await runRuntimeMutation(() => andonRepository.finishCall(
           machines,
           calls,
           params,
-        );
+        ));
 
       setMachines(result.machines);
       setCalls(result.calls);
     },
-    [machines, calls],
+    [machines, calls, runRuntimeMutation],
   );
 
   const updateCallFailureDetails = useCallback(
@@ -339,20 +344,20 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       failureDescription: string;
       pin?: string;
     }) => {
-      const result = await andonRepository.updateCallFailureDetails(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.updateCallFailureDetails(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
     },
-    [machines, calls],
+    [machines, calls, runRuntimeMutation],
   );
 
   const cancelCall = useCallback(
     async (params: andonService.CancelAndonCallParams) => {
-      const result = await andonRepository.cancelCall(machines, calls, params);
+      const result = await runRuntimeMutation(() => andonRepository.cancelCall(machines, calls, params));
       setMachines(result.machines);
       setCalls(result.calls);
     },
-    [machines, calls, handleRepositoryError],
+    [machines, calls, runRuntimeMutation],
   );
 
   const changeMachineStatus = useCallback(
@@ -423,18 +428,18 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       pin?: string,
     ) => {
       // Only update UI after server validates PIN and commits both edit + audit.
-      const result = await andonRepository.updateMachineStopEventDescription(
+      const result = await runRuntimeMutation(() => andonRepository.updateMachineStopEventDescription(
         machines,
         machineId,
         stopEventId,
         failureDescription,
         failureClassification,
         pin,
-      );
+      ));
       setMachines(result.machines.map(andonService.normalizeMachine));
       return result.machine;
     },
-    [machines],
+    [machines, runRuntimeMutation],
   );
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {

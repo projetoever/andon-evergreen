@@ -26,7 +26,7 @@ As permissões `allowOperational`, `allowBi` e `allowPriorities` são independen
 
 Cartões e atalhos não autorizados ficam ausentes da interface. A API também rejeita as requisições diretas com `403 module_forbidden`. A tela vazia mantém o acesso administrativo para recuperação. A política é consultada a cada navegação e a cada 30 segundos; o servidor verifica cada requisição identificada.
 
-O registro preserva a identidade UUID do navegador, o nome e o IP visto pelo servidor. Estações existentes mantêm suas permissões; o novo campo de Prioridades tem default `true`. O cadastro automático continua com os defaults compatíveis: o administrador deve restringir cada estação conforme sua função. UUID identifica navegador/perfil, não hardware inviolável.
+O registro preserva a identidade UUID do navegador, o nome e o IP visto pelo servidor. Estações existentes mantêm suas permissões; o novo campo de Prioridades tem default `true`. Com a aprovação obrigatória desligada, o cadastro automático continua ativo com os defaults compatíveis: o administrador deve restringir cada estação conforme sua função. Com a regra ligada, o novo cadastro aguarda aprovação, sem acesso aos módulos. UUID identifica navegador/perfil, não hardware inviolável.
 
 ## Autenticação dos módulos
 
@@ -64,7 +64,7 @@ A API resolve o módulo pela família da rota. Cabeçalhos `X-Andon-Operational-
 
 `/hub/admin` permanece fora dos providers/gates dos módulos. A sessão administrativa autoriza somente os endpoints de gestão/recuperação previstos, inclusive credenciais e política de Prioridades. Não libera operação ou análises restritas. Proteções contra auto inativação, revogação operacional com máquina fixada e atendimento ativo permanecem.
 
-Clientes legados sem Origin/UUID conservam a compatibilidade de autorização anterior **enquanto o módulo não exigir senha**. Ao habilitar senha de operação ou BI, as respectivas APIs passam a exigir a sessão também nesses clientes. Integrações HTTP e terminais que usem essas APIs precisam ser considerados antes da ativação dessa opção. `/health`, identificação e recuperação administrativa permanecem acessíveis conforme seus contratos existentes.
+Clientes legados sem Origin/UUID conservam a compatibilidade de autorização anterior **enquanto a senha do módulo e a aprovação obrigatória de workstations estiverem desligadas**. Ao habilitar senha de operação ou BI, as respectivas APIs passam a exigir a sessão também nesses clientes. Integrações HTTP e terminais que usem essas APIs precisam ser considerados antes da ativação dessa opção. `/health`, identificação e recuperação administrativa permanecem acessíveis conforme seus contratos existentes.
 
 ## Divisão administrativa
 
@@ -102,13 +102,30 @@ As URLs, métodos e formatos das leituras operacionais de `/api/machines`, `/api
 
 | Cliente | Exigência de senha do Andon | Resultado esperado |
 | --- | --- | --- |
-| HTTP legado, sem Origin e sem UUID | Desligada | Leituras compatíveis com o fluxo anterior |
+| HTTP legado, sem Origin e sem UUID | Desligada | Leituras compatíveis se a aprovação obrigatória também estiver desligada |
 | Estação identificada, ativa e autorizada | Desligada | Leituras permitidas |
 | Navegador com Origin sem UUID | Qualquer | HTTP 403, identificação necessária |
 | Estação identificada inativa ou sem permissão operacional | Qualquer | HTTP 403, inclusive com token |
-| Cliente sem token operacional válido | Ligada | HTTP 401 |
+| Estação autorizada sem token operacional válido | Ligada | HTTP 401 |
 | UUID autorizado e token operacional válido para esse UUID | Ligada | Leituras permitidas |
 
 Para exigir senha e manter essas integrações, registre uma identidade estável própria por cliente em `/api/workstations/register`, autorize o módulo, autentique em `POST /api/modules/operational/login` e envie `X-Andon-Workstation-Id` e `X-Andon-Operational-Token`. A sessão dura oito horas e requer novo login após expirar, reiniciar a API ou alterar a credencial. Não grave segredos no repositório, em URLs ou logs. Uma futura credencial específica para integrações não faz parte desta etapa.
 
 A confirmação do fluxo e do acionamento físico instalados depende de validar os clientes reais no ambiente da empresa; a revisão do contrato não equivale a essa homologação.
+
+
+## Integridade de atendimento e aprovação de estações — 15/10/2026
+
+Candidata posterior ao merge do PR #201 (`a3495c9`). A inspeção identificou dois caminhos reproduzíveis: eventos de parada transferidos conservam classificação/notas do responsável anterior, e a regra antiga rejeitava qualquer conclusão sem participação ativa mesmo para a estação registrada. O formulário agora obtém seu rascunho somente do chamado e é remontado por ID. A API e o avaliador visual usam o último ciclo de manutenção registrado; na ausência de participantes ativos, conservam a autoridade das participações encerradas desse ciclo. Outras estações e estações inativas continuam negadas. Os dados reais do incidente precisam de conferência no ambiente instalado para atribuição definitiva da causa.
+
+Um contador de revisões descarta snapshots iniciados antes ou durante mutações, inclusive falhas; a próxima leitura posterior volta a ser aceita. Isso evita que uma leitura antiga restaure visualmente o estado aberto depois de um atendimento concluído pela API.
+
+Migration aditiva `20261015170000_workstation_approval`: `system_settings.requireWorkstationApproval=false` e `workstations.pendingApproval=false`. Registro e mudança da política compartilham advisory lock de transação. A criação usa a política vigente; heartbeat atualiza somente os metadados. Aprovação explícita (`active=true`) limpa o marcador de pendência. O controle é administrativo no Hub, fora da configuração operacional.
+
+Com a regra ligada, requisições sem identidade são negadas mesmo sem Origin; integrações legadas precisam de UUID registrado e autorizado. Com a regra desligada, a compatibilidade anterior sem Origin/UUID é preservada, sujeita à exigência de senha do módulo. Cadastro pendente pode acessar metadados de restrição e a recuperação administrativa, sem liberar máquinas, chamados, BI ou Prioridades.
+
+O cookie continua canônico; o espelho local contém apenas UUID, sem credenciais ou dados industriais. Impossibilidade de persistir identidade produz falha explícita, evitando uma workstation volátil a cada reload. Identidade de navegador não é identificação física inviolável, nem autorização por IP.
+
+Readiness inclui `workstationApprovalRequired` e verifica o novo schema. O instalador informa SKIP na escrita automática quando aprovação ou senha operacional forem exigidas; não cria exceção à autorização. Antes da atualização, faça backup do banco/configuração e aplique migrations com frontend/backend compatíveis. Reverter para código anterior ignora a nova política de admissão; não remova colunas nem dados para reverter código.
+
+O BI passa a usar ícones com nomes acessíveis e dicas para Hub, PDF, atualização e ANDON direto. O atalho operacional aparece somente quando permitido; seu destino aplica a autenticação normal. O seletor nativo de idioma define cores escuras no controle e nas opções.

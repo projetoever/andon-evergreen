@@ -67,7 +67,9 @@ export async function resolveAttendanceWorkstationId(
   }
 
   if (!workstation.allowOperational) {
-    throw new WorkstationAuthorizationError("Módulo operacional não autorizado para esta workstation.");
+    throw new WorkstationAuthorizationError(
+      "Módulo operacional não autorizado para esta workstation.",
+    );
   }
 
   return workstation.id;
@@ -84,28 +86,28 @@ export async function assertMaintenanceCompletionWorkstation(
     select: {
       workstationId: true,
       endedAt: true,
+      phase: true,
+      cycleIndex: true,
       workstation: { select: { name: true } },
     },
   });
-  const activeSessions = sessions.filter((session) => session.endedAt === null);
-  const authorizedSessions = activeSessions.filter(
+  const maintenance = sessions.filter((session) => session.phase !== "follow_up");
+  const latestCycle = Math.max(1, ...maintenance.map((session) => session.cycleIndex ?? 1));
+  const currentCycle = maintenance.filter((session) => (session.cycleIndex ?? 1) === latestCycle);
+  const activeSessions = currentCycle.filter((session) => session.endedAt === null);
+  const relevantSessions = activeSessions.length ? activeSessions : currentCycle;
+  const authorizedSessions = relevantSessions.filter(
     (session): session is typeof session & { workstationId: string } =>
       Boolean(session.workstationId),
   );
-
-  if (authorizedSessions.length === 0) {
-    const hasKnownHistoricalWorkstation = sessions.some((session) => session.workstationId);
-    if (activeSessions.length > 0 || !hasKnownHistoricalWorkstation) {
-      return;
-    }
-    throw new WorkstationAuthorizationError(WORKSTATION_COMPLETION_RESTRICTED_MESSAGE);
-  }
+  if (authorizedSessions.length === 0) return; // Legacy cycle without station provenance.
 
   const workstationId = parseWorkstationId(params.workstationHeader);
   if (!workstationId) {
     throw new WorkstationAuthorizationError(WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE);
   }
 
+  await lockWorkstationFlow(tx, workstationId);
   const currentWorkstation = await tx.workstation.findUnique({
     where: { id: workstationId },
     select: { id: true, active: true },

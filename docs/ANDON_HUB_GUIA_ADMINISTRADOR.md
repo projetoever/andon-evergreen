@@ -55,7 +55,7 @@ Proteções existentes nesta candidata:
 - O administrador não pode desativar a própria estação atual; pode reativá-la caso já esteja inativa.
 - Não é possível desativar ou retirar o acesso operacional de uma estação com tela fixada ou atendimento ativo. Resolva o vínculo pelos fluxos normais antes de restringir a estação.
 - O acesso por URL direta aplica a mesma política do menu.
-- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior enquanto não houver exigência de senha do módulo. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
+- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior enquanto a exigência de senha do módulo e a aprovação obrigatória de workstations estiverem desligadas. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
 
 ## Áudio e atendimento por turno
 
@@ -64,6 +64,18 @@ A primeira ativação de áudio é lembrada para a workstation no mesmo perfil e
 A preferência não substitui a política de reprodução do navegador. Se uma tentativa de som receber bloqueio, a interface mostra **O navegador bloqueou o áudio. Toque para liberar.** e tenta novamente após uma interação. A ativação não toca amostras nem cria som substituto; somente os alertas configurados são reproduzidos.
 
 Ao iniciar ou adicionar mantenedores por nome, **Todos os turnos** fica visível. Se o filtro de turno estiver habilitado, o botão amplia a lista e permanece destacado; clicar novamente retorna ao filtro configurado. Sem filtro, sem turno atual ou sem mantenedor nesse turno, a lista já inclui todos os ativos. PIN e RFID identificam mantenedores ativos independentemente do horário cadastrado. Área técnica, credencial válida, exclusividade e vínculos do atendimento continuam obrigatórios.
+
+## Aprovação de novas workstations
+
+Em **Estações e acessos**, ligue **Exigir aprovação para novas workstations** para que novos navegadores entrem com status **Aguardando aprovação**, sem acesso aos módulos. Identifique o registro por nome, UUID e IP e ative a estação, escolhendo os módulos permitidos. O heartbeat não aprova uma estação; desligar a regra também não aprova cadastros pendentes. Estações já aprovadas continuam com suas permissões.
+
+A regra começa desligada para compatibilidade. Quando ligada, clientes HTTP sem UUID também recebem 403: registre e autorize uma identidade própria para Node-RED/GPIO antes de ligar a regra. A exigência de senha de cada módulo é independente.
+
+O UUID do cookie técnico é a identidade principal no mesmo host, inclusive entre portas. Um espelho local somente do UUID permite recuperar essa identidade quando cookies estiverem indisponíveis. Se nenhum armazenamento persistente funcionar, o acesso apresenta falha de identificação. Outro host, perfil ou navegador pode ser outra workstation. IP não concede autorização e não une cadastros automaticamente.
+
+Ao concluir manutenção, a API verifica as workstations das participações ativas do último ciclo registrado. Se todas já foram encerradas individualmente, usa as workstations registradas nesse ciclo. Participações de ciclos antigos não liberam um ciclo mais recente com origem conhecida. A indicação resumida fica no botão; o texto completo está disponível na dica e para leitores de tela.
+
+A classificação e a descrição da finalização vêm do próprio chamado. A transferência de responsabilidade por uma parada física não importa o diagnóstico do chamado anterior. A atualização automática também descarta respostas de sincronização que se sobreponham a uma ação de chamado.
 
 ## Senha global e recuperação
 
@@ -87,7 +99,7 @@ As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e 
 
 Ao habilitar senha, confirme também os clientes HTTP e integrações que usam as APIs daquele módulo. A exigência passa a valer para essas requisições, inclusive clientes legados sem Origin/UUID.
 
-A inicialização do kiosk e o watchdog usam uma verificação de prontidão própria (`/health/ready`), sem entrar nos módulos. Quando há senha operacional, o teste automático de escrita do instalador informa **SKIP**; faça essa validação pela interface de uma estação autorizada.
+A inicialização do kiosk e o watchdog usam uma verificação de prontidão própria (`/health/ready`), sem entrar nos módulos. Quando há senha operacional ou aprovação obrigatória de workstations, o teste automático de escrita do instalador informa **SKIP**; faça essa validação pela interface de uma estação autorizada.
 
 ## Acesso e sequência de Prioridades
 

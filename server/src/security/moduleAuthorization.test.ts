@@ -14,7 +14,8 @@ test("runtime readiness remains public with protected modules and rejects a miss
   const machine = prisma.machine.findFirst,
     workstation = prisma.workstation.findFirst,
     credential = prisma.moduleCredential.findUnique,
-    priority = prisma.dashboardPriorityConfig.findFirst;
+    priority = prisma.dashboardPriorityConfig.findFirst,
+    policy = prisma.systemSettings.findUnique;
   prisma.machine.findFirst = (async () => null) as unknown as typeof machine;
   prisma.workstation.findFirst = (async () => {
     if (!schemaReady) throw new Error("missing schema");
@@ -25,11 +26,13 @@ test("runtime readiness remains public with protected modules and rejects a miss
     credentialVersion: 1,
   })) as unknown as typeof credential;
   prisma.dashboardPriorityConfig.findFirst = (async () => null) as unknown as typeof priority;
+  prisma.systemSettings.findUnique = (async () => ({requireWorkstationApproval:true})) as unknown as typeof policy;
   t.after(() => {
     prisma.machine.findFirst = machine;
     prisma.workstation.findFirst = workstation;
     prisma.moduleCredential.findUnique = credential;
     prisma.dashboardPriorityConfig.findFirst = priority;
+    prisma.systemSettings.findUnique = policy;
   });
   const app = Fastify();
   t.after(() => app.close());
@@ -39,6 +42,7 @@ test("runtime readiness remains public with protected modules and rejects a miss
   assert.equal(ready.statusCode, 200);
   assert.equal(ready.json().ready, true);
   assert.equal(ready.json().operationalPasswordRequired, true);
+  assert.equal(ready.json().workstationApprovalRequired, true);
   assert.equal(ready.json().passwordHash, undefined);
   schemaReady = false;
   const failed = await app.inject({ url: "/health/ready" });
