@@ -23,7 +23,7 @@ test("dashboard operacional oferece entrada direta para o ANDON BI", async () =>
     "utf8",
   );
 
-  assert.match(dashboard, /title="Abrir ANDON BI"/);
+  assert.match(dashboard, /title=\{t\("Abrir ANDON BI"\)\}/);
   assert.match(dashboard, /navigate\(\{ to: "\/bi" \}\)/);
 });
 

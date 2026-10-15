@@ -8,10 +8,10 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(overview, /label="Disponibilidade"/);
-  assert.match(overview, /label="MTBF"/);
-  assert.match(overview, /label="Tempo de parada"/);
-  assert.match(overview, /label="MTTR"/);
+  assert.match(overview, /label=\{t\("Disponibilidade"\)\}/);
+  assert.match(overview, /label=\{t\("MTBF"\)\}/);
+  assert.match(overview, /label=\{t\("Tempo de parada"\)\}/);
+  assert.match(overview, /label=\{t\("MTTR"\)\}/);
   assert.match(summary, /"Tempo de parada"/);
   assert.match(shell, /testes automáticos marcados excluídos/);
   assert.match(shell, /h-dvh overflow-hidden/);
@@ -61,9 +61,9 @@ test("BI: visão executiva utiliza disponibilidade histórica, sem estimar opera
     readFile(new URL("../server/src/routes/analytics.ts", import.meta.url),"utf8"),
   ]);
   assert.match(overview,/BiDailyAvailabilityCard/);
-  assert.match(overview,/label="MTBF"/);
-  assert.match(overview,/label="MTTR"/);
-  assert.match(overview,/label="Disponibilidade"/);
+  assert.match(overview,/label=\{t\("MTBF"\)\}/);
+  assert.match(overview,/label=\{t\("MTTR"\)\}/);
+  assert.match(overview,/label=\{t\("Disponibilidade"\)\}/);
   assert.doesNotMatch(overview,/<LineChart/);
   assert.match(chart,/Disponibilidade por dia/);
   assert.match(chart,/programado sem paradas registradas/);

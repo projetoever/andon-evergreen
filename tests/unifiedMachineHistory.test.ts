@@ -83,8 +83,8 @@ test("mantém um acesso compacto ao histórico no cabeçalho e reutiliza a rota 
   ]);
 
   assert.match(header, /to="\/machines\/\$machineId\/call-history"/);
-  assert.match(header, />\s*Histórico\s*</);
-  assert.match(header, /aria-label="Voltar ao painel"/);
+  assert.match(header, />\s*\{t\("Histórico"\)\}\s*</);
+  assert.match(header, /aria-label=\{t\("Voltar ao painel"\)\}/);
   assert.doesNotMatch(actions, /Histórico de chamados/);
   assert.doesNotMatch(actions, /Voltar ao painel/);
   assert.doesNotMatch(actions, /\/machines\/\$machineId\/call-history/);
@@ -113,7 +113,7 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
   ]);
 
   assert.match(statusPanel, /text-\[clamp\(2rem,3vw,3\.25rem\)\]/);
-  assert.match(callPanel, /text-\[clamp\(1\.5rem,2\.25vw,2\.5rem\)\]/);
+  assert.match(callPanel, /text-\[clamp\(1rem,10cqw,2\.5rem\)\]/);
   assert.match(callPanel, /Aguardando/);
   assert.match(callPanel, /Em atendimento/);
   assert.match(callPanel, /Acompanhamento/);
@@ -177,8 +177,8 @@ test("ações da máquina usam altura responsiva e fluxo centralizado", async ()
   assert.match(source, /sm:max-w-\[46rem\]/);
   assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
   assert.match(source, /flex flex-wrap items-stretch justify-center/);
-  assert.match(source, /> Atender selecionado/);
-  assert.match(source, /> Cancelar selecionado/);
+  assert.match(source, /> \{t\("Atender selecionado"\)\}/);
+  assert.match(source, /> \{t\("Cancelar selecionado"\)\}/);
 });
 
 test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala", async () => {
@@ -187,7 +187,7 @@ test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala
     "utf8",
   );
 
-  const historyIndex = source.indexOf('aria-label="Histórico da máquina"');
+  const historyIndex = source.indexOf('aria-label={t("Histórico da máquina")}');
   const historyStart = source.lastIndexOf("<Link", historyIndex);
   const lockIndex = source.indexOf("onClick={onToggleScreenLock}");
   const lockStart = source.lastIndexOf("<button", lockIndex);
@@ -215,7 +215,7 @@ test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", 
 
   assert.match(source, /inline-flex shrink-0 items-center gap-1\.5/);
   const pairStart = source.indexOf('className="inline-flex shrink-0 items-center gap-1.5"');
-  const historyIndex = source.indexOf('aria-label="Histórico da máquina"', pairStart);
+  const historyIndex = source.indexOf('aria-label={t("Histórico da máquina")}', pairStart);
   const lockIndex = source.indexOf("onClick={onToggleScreenLock}", pairStart);
   assert.ok(pairStart >= 0);
   assert.ok(historyIndex > pairStart);
@@ -266,10 +266,10 @@ test("status e chamado alinham os temporizadores na zona superior", async () => 
   assert.match(statusPanel, /<dl className="mt-1\.5 shrink-0">/);
   assert.match(callPanel, /<dl className="mt-1\.5 grid shrink-0/);
   assert.match(statusPanel, /Tempo total em falha/);
-  assert.match(callPanel, /label="Aguardando"/);
-  assert.match(callPanel, /label="Em atendimento"/);
-  assert.match(callPanel, /label="Acompanhamento"/);
-  assert.match(callPanel, /label="Total"/);
+  assert.match(callPanel, /label=\{t\("Aguardando"\)\}/);
+  assert.match(callPanel, /label=\{t\("Em atendimento"\)\}/);
+  assert.match(callPanel, /label=\{t\("Acompanhamento"\)\}/);
+  assert.match(callPanel, /label=\{t\("Total"\)\}/);
 });
 
 

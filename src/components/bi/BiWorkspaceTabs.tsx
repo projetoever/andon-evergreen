@@ -5,6 +5,7 @@ import {
   ShieldAlert,
   Wrench,
 } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 export type BiWorkspaceTab =
   | "overview"
@@ -60,6 +61,7 @@ export function BiWorkspaceTabs({
   onChange: (tab: BiWorkspaceTab) => void;
   attentionCount?: number;
 }) {
+  const { t } = useLanguage();
   return (
     <nav
       className="grid shrink-0 grid-cols-5 gap-2 rounded-xl border border-border bg-card/70 p-2"
@@ -83,7 +85,7 @@ export function BiWorkspaceTabs({
             ].join(" ")}
           >
             <Icon className="h-4 w-4" />
-            <span className="hidden lg:inline">{tab.label}</span>
+            <span className="hidden lg:inline">{t(tab.label)}</span>
             {showAttention && (
               <span title="Soma de alertas por categoria; não corresponde necessariamente a ocorrências únicas" aria-label={`${attentionCount} alertas por categoria de qualidade do dado`} className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white">
                 {attentionCount}

@@ -77,9 +77,9 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(overview, /label="MTTR"/);
-  assert.match(overview, /label="MTBF"/);
-  assert.match(overview, /label="Disponibilidade"/);
+  assert.match(overview, /label=\{t\("MTTR"\)\}/);
+  assert.match(overview, /label=\{t\("MTBF"\)\}/);
+  assert.match(overview, /label=\{t\("Disponibilidade"\)\}/);
   assert.match(overview, /Tempo de parada/);
   assert.match(reliability, /MTBF estimado/);
   assert.match(reliability, /Parada média \/ episódio/);

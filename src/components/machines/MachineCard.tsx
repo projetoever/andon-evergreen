@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Bell, MessageSquareText, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ export function MachineCard({
   productionPriorityRank = null,
 }: MachineCardProps) {
   const { calls, settings } = useAndon();
+  const { t } = useLanguage();
   const [operatorNoteOpen, setOperatorNoteOpen] = useState(false);
   const currentCall = machine.currentCallId
     ? calls.find((c) => c.id === machine.currentCallId)
@@ -67,11 +69,11 @@ export function MachineCard({
       )
     : "normal";
   const callElapsedLabel = currentCall?.status === "open"
-    ? "Aguardando"
+    ? t("Aguardando")
     : currentCall?.status === "in_progress"
-      ? "Atendimento"
+      ? t("Atendimento")
       : currentCall?.status === "post_maintenance"
-        ? "Acompanhamento"
+        ? t("Acompanhamento")
         : null;
   const callElapsedMinutes = currentCall?.status === "open"
     ? waitingMin
@@ -97,20 +99,20 @@ export function MachineCard({
   const lastOccurrenceDetails = lastOccurrence
     ? [
         lastOccurrence.kind === "call"
-          ? `Chamado aberto em ${formatDateTime(lastOccurrence.occurredAt)}`
-          : `Falha iniciada em ${formatDateTime(lastOccurrence.occurredAt)}`,
+          ? `${t("Chamado aberto em")} ${formatDateTime(lastOccurrence.occurredAt)}`
+          : `${t("Falha iniciada em")} ${formatDateTime(lastOccurrence.occurredAt)}`,
         lastOccurrence.kind === "failure" &&
         typeof lastOccurrence.durationMinutes === "number" &&
         lastOccurrence.durationMinutes > 0
-          ? `Duração: ${formatDurationMinutes(lastOccurrence.durationMinutes)}`
+          ? `${t("Duração")}: ${formatDurationMinutes(lastOccurrence.durationMinutes)}`
           : null,
         lastOccurrence.kind === "failure" && lastOccurrence.endedAt
-          ? `Encerrada em ${formatDateTime(lastOccurrence.endedAt)}`
+          ? `${t("Encerrada em")} ${formatDateTime(lastOccurrence.endedAt)}`
           : null,
       ]
         .filter(Boolean)
         .join(" • ")
-    : "Nenhum chamado ou falha registrado";
+    : t("Nenhum chamado ou falha registrado");
 
   const isCritical = !isNotScheduled && (stoppedAlert === "critical" || callAlert === "critical");
   const isWarning = !isNotScheduled && (stoppedAlert === "warning" || callAlert === "warning");
@@ -147,7 +149,7 @@ export function MachineCard({
       {productionPriorityRank !== null && (
         <span
           className="absolute right-1.5 top-1.5 z-10 rounded-full border border-orange-500/55 bg-orange-500/12 px-3 py-1 text-[13px] font-black leading-none tracking-wide text-orange-400 sm:text-sm 2xl:text-[15px]"
-          title={`Prioridade de produção P${productionPriorityRank}`}
+          title={`${t("Prioridade de produção")} P${productionPriorityRank}`}
         >
           P{productionPriorityRank}
         </span>
@@ -155,7 +157,7 @@ export function MachineCard({
 
       <div className="flex shrink-0 items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">Máquina</div>
+          <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">{t("Máquina")}</div>
           <div className="text-4xl font-black leading-none tracking-tight text-foreground 2xl:text-5xl">{machine.id}</div>
         </div>
       </div>
@@ -170,22 +172,22 @@ export function MachineCard({
         {machine.machineStatus === "stopped" && !isNotScheduled && (
           <div className="flex min-w-0 items-center justify-between gap-1.5 rounded-md bg-danger/10 px-2 py-1 font-bold text-danger ring-1 ring-danger/20 shadow-sm shadow-danger/20">
             <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Em falha
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {t("Em falha")}
             </span>
             <strong className="min-w-0 truncate text-right text-foreground">{formatDurationMinutes(stoppedMin)}</strong>
           </div>
         )}
         {machine.machineStatus === "stopped" && isNotScheduled && (
           <div className="flex min-w-0 items-center gap-1 rounded-md bg-muted px-2 py-1 font-bold text-muted-foreground ring-1 ring-border/60 shadow-sm">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Fora de produção
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {t("Fora de produção")}
           </div>
         )}
         {machine.machineStatus === "running" && !currentCall && (
           <div
             className="truncate rounded-md bg-muted/35 px-2 py-1 text-center font-black text-foreground"
-            title={`Última ocorrência • ${lastOccurrenceDetails}`}
+            title={`${t("Última ocorrência")} • ${lastOccurrenceDetails}`}
           >
-            {formatElapsedSince(lastOccurrence?.occurredAt, undefined, "Sem ocorrência")}
+            {formatElapsedSince(lastOccurrence?.occurredAt, undefined, t("Sem ocorrência"))}
           </div>
         )}
 
@@ -209,7 +211,7 @@ export function MachineCard({
                 type="button"
                 onClick={() => setOperatorNoteOpen(true)}
                 className="flex min-w-0 items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-1.5 py-1 text-left text-[11px] font-bold text-warning transition hover:bg-warning/15 2xl:text-xs"
-                title="Clique para ler a informação completa do operador"
+                title={t("Clique para ler a informação completa do operador")}
               >
                 <MessageSquareText className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{operatorNoteSummary}</span>
@@ -224,19 +226,19 @@ export function MachineCard({
         params={{ machineId: machine.id }}
         className="inline-flex min-h-[34px] shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2 text-[11px] font-black uppercase tracking-wide text-foreground transition hover:bg-accent 2xl:min-h-[38px] 2xl:text-xs"
       >
-        Ver Máquina
+        {t("Ver Máquina")}
       </Link>
 
       <Dialog open={operatorNoteOpen} onOpenChange={setOperatorNoteOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Informação do operador</DialogTitle>
+            <DialogTitle>{t("Informação do operador")}</DialogTitle>
             <DialogDescription>
-              Registrada na abertura do chamado de {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
+              {t("Registrada na abertura do chamado de")} {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
             </DialogDescription>
           </DialogHeader>
           <div className="whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
-            {visibleOperatorNote ?? "Sem informação registrada."}
+            {visibleOperatorNote ?? t("Sem informação registrada.")}
           </div>
         </DialogContent>
       </Dialog>

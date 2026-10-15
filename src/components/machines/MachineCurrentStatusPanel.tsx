@@ -3,6 +3,7 @@ import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import { useTicker } from "@/hooks/useTicker";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import {
   calculateMachineStoppedMinutes,
   getActiveMachineStoppedAt,
@@ -29,6 +30,7 @@ interface InfoHintProps {
 }
 
 function InfoHint({ summary, detail }: InfoHintProps) {
+  const { t } = useLanguage();
   return (
     <TooltipProvider delayDuration={150}>
       <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
@@ -38,7 +40,7 @@ function InfoHint({ summary, detail }: InfoHintProps) {
             <button
               type="button"
               className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground transition hover:text-foreground"
-              aria-label="Mais informações"
+              aria-label={t("Mais informações")}
             >
               <HelpCircle className="h-3.5 w-3.5" />
             </button>
@@ -58,6 +60,7 @@ export function MachineCurrentStatusPanel({
   compactNormal = false,
   calls,
 }: MachineCurrentStatusPanelProps) {
+  const { t } = useLanguage();
   const isStopped = machine.machineStatus === "stopped";
   const isNotScheduled = machine.productionMode === "not_scheduled";
 
@@ -69,8 +72,8 @@ export function MachineCurrentStatusPanel({
   const lastOccurrenceDetail = lastOccurrence
     ? [
         lastOccurrence.kind === "call"
-          ? `Chamado aberto em ${formatDateTime(lastOccurrence.occurredAt)}.`
-          : `Falha iniciada em ${formatDateTime(lastOccurrence.occurredAt)}.`,
+          ? `${t("Chamado aberto em")} ${formatDateTime(lastOccurrence.occurredAt)}.`
+          : `${t("Falha iniciada em")} ${formatDateTime(lastOccurrence.occurredAt)}.`,
         lastOccurrence.kind === "failure" &&
         typeof lastOccurrence.durationMinutes === "number" &&
         lastOccurrence.durationMinutes > 0
@@ -82,7 +85,7 @@ export function MachineCurrentStatusPanel({
       ]
         .filter(Boolean)
         .join(" ")
-    : "Nenhum chamado ou falha foi registrado para esta máquina.";
+    : t("Nenhum chamado ou falha foi registrado para esta máquina.");
 
   return (
     <div
@@ -97,10 +100,10 @@ export function MachineCurrentStatusPanel({
       <div className="mb-2 flex min-h-[3.25rem] flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
-            Status atual da máquina
+            {t("Status atual da máquina")}
           </h3>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            {getProductionModeLabel(machine.productionMode)}
+            {t(getProductionModeLabel(machine.productionMode))}
           </p>
         </div>
         <span
@@ -109,7 +112,7 @@ export function MachineCurrentStatusPanel({
             isStopped ? "bg-danger text-danger-foreground" : "bg-success text-success-foreground",
           )}
         >
-          {getMachineStatusLabel(machine.machineStatus)}
+          {t(getMachineStatusLabel(machine.machineStatus))}
         </span>
       </div>
 
@@ -125,22 +128,22 @@ export function MachineCurrentStatusPanel({
             isStopped ? "border-danger/30 bg-danger/10" : "border-success/30 bg-success/10",
           )}
         >
-          <dt className="text-xs uppercase text-muted-foreground">Condição operacional</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Condição operacional")}</dt>
           <dd className={cn(compactNormal ? "mt-1 text-lg font-black" : "mt-1 text-xl font-black", isStopped ? "text-danger" : "text-success")}>
-            {isStopped ? "Máquina em falha" : "Pronta para rodar"}
+            {isStopped ? t("Máquina em falha") : t("Pronta para rodar")}
           </dd>
           <InfoHint
-            summary={isStopped ? "Tempo contado desde a parada real." : "Sem falha ativa registrada."}
+            summary={isStopped ? t("Tempo contado desde a parada real.") : t("Sem falha ativa registrada.")}
             detail={
               isStopped
-                ? "O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado."
-                : "A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status."
+                ? t("O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado.")
+                : t("A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status.")
             }
           />
         </div>
 
         <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", !compactNormal && "xl:h-full")}>
-          <dt className="text-xs uppercase text-muted-foreground">Última alteração de status</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{t("Última alteração de status")}</dt>
           <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
             {formatDateTime(machine.lastStatusChangedAt)}
           </dd>
@@ -148,7 +151,7 @@ export function MachineCurrentStatusPanel({
 
         {isStopped && activeStoppedAt && (
           <div className={cn("rounded-lg border border-warning/30 bg-warning/10 p-2.5", !compactNormal && "xl:h-full")}>
-            <dt className="text-xs uppercase text-muted-foreground">Falha iniciada em</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{t("Falha iniciada em")}</dt>
             <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
               {formatDateTime(activeStoppedAt)}
             </dd>
@@ -157,13 +160,13 @@ export function MachineCurrentStatusPanel({
 
         {!isStopped && (
           <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1 xl:h-full")}>
-            <dt className="text-xs uppercase text-muted-foreground">Última ocorrência</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{t("Última ocorrência")}</dt>
             <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
               {formatElapsedSince(lastOccurrence?.occurredAt)}
             </dd>
             {!compactNormal && (
               <InfoHint
-                summary="Tempo desde o último chamado ou falha."
+                summary={t("Tempo desde o último chamado ou falha.")}
                 detail={lastOccurrenceDetail}
               />
             )}
@@ -174,7 +177,7 @@ export function MachineCurrentStatusPanel({
       {isStopped && activeStoppedAt && (
         <dl className="mt-1.5 shrink-0">
           <div className="rounded-lg border border-danger/40 bg-danger/15 p-2.5">
-            <dt className="text-xs uppercase text-muted-foreground">Tempo total em falha</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{t("Tempo total em falha")}</dt>
             <dd className="mt-2 text-[clamp(2rem,3vw,3.25rem)] font-black leading-none text-danger">
               {formatMachineStoppedDurationMinutes(stoppedMin)}
             </dd>

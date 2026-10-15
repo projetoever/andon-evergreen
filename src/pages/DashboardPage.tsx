@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
@@ -38,6 +40,7 @@ export function DashboardPage() {
   const { machines, calls, settings, soundConfigs, audioUnlocked, setAudioUnlocked } = useAndon();
 
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
@@ -390,11 +393,11 @@ export function DashboardPage() {
           <div className="flex items-center gap-3">
             <Volume2 className="h-6 w-6" />
             <span className="text-base font-bold">
-              Toque em "Iniciar Painel" para liberar os sons dos chamados.
+              {t('Toque em "Iniciar Painel" para liberar os sons dos chamados.')}
             </span>
           </div>
           <BigButton tone="primary" size="md" onClick={handleUnlock}>
-            INICIAR PAINEL / ATIVAR SONS
+            {t("INICIAR PAINEL / ATIVAR SONS")}
           </BigButton>
         </div>
       )}
@@ -406,21 +409,22 @@ export function DashboardPage() {
       <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div className="min-w-0 justify-self-start">
           <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
-            Máquinas
+            {t("Máquinas")}
           </h2>
         </div>
         <div className="col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1">
           <ClockDisplay />
         </div>
         <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 justify-self-end md:col-start-3">
+          <LanguageSelector />
           {audioUnlocked && (
             <button
               type="button"
               title={
-                dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
+                dashboardSoundMuted ? t("Reativar som do dashboard") : t("Silenciar som do dashboard")
               }
               aria-label={
-                dashboardSoundMuted ? "Reativar som do dashboard" : "Silenciar som do dashboard"
+                dashboardSoundMuted ? t("Reativar som do dashboard") : t("Silenciar som do dashboard")
               }
               onClick={handleToggleDashboardSound}
               disabled={dashboardSoundSyncing || !dashboardSoundStateLoaded}
@@ -431,14 +435,14 @@ export function DashboardPage() {
               ) : (
                 <Volume2 className="h-4 w-4" />
               )}
-              {dashboardSoundMuted ? "Som silenciado" : "Silenciar som"}
+              <span className="hidden xl:inline">{dashboardSoundMuted ? t("Som silenciado") : t("Silenciar som")}</span>
             </button>
           )}
 
           <button
             type="button"
-            title="Abrir ANDON BI"
-            aria-label="Abrir ANDON BI"
+            title={t("Abrir ANDON BI")}
+            aria-label={t("Abrir ANDON BI")}
             onClick={() => void navigate({ to: "/bi" })}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
@@ -447,8 +451,8 @@ export function DashboardPage() {
 
           <button
             type="button"
-            title="Organizar prioridade de produção"
-            aria-label="Organizar prioridade de produção"
+            title={t("Organizar prioridade de produção")}
+            aria-label={t("Organizar prioridade de produção")}
             onClick={() => {
               if (isDashboardPriorityAuthenticated()) {
                 void navigate({ to: "/machine-priorities" });
@@ -463,8 +467,8 @@ export function DashboardPage() {
 
           <button
             type="button"
-            title="Configurar sons do ANDON"
-            aria-label="Configurar sons do ANDON"
+            title={t("Configurar sons do ANDON")}
+            aria-label={t("Configurar sons do ANDON")}
             onClick={() =>
               isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true)
             }

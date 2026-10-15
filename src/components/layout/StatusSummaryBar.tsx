@@ -1,4 +1,5 @@
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useTicker } from "@/hooks/useTicker";
 import { cn } from "@/lib/utils";
 import {
@@ -50,47 +51,48 @@ function StatCard({ label, value, subtitle, tone, icon, pulse }: StatCardProps) 
 export function StatusSummaryBar() {
   useTicker(5000); // re-render para atualizar tempos e contadores
   const summary = useDashboardSummary();
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
       <StatCard
-        label="Máquinas"
+        label={t("Máquinas")}
         value={summary.totalMachines}
         tone="neutral"
         icon={<Wrench className="h-5 w-5" />}
       />
       <StatCard
-        label="Pronta para rodar"
+        label={t("Pronta para rodar")}
         value={summary.runningMachines}
         tone="success"
         icon={<CheckCircle2 className="h-5 w-5" />}
       />
       <StatCard
-        label="Em falha"
+        label={t("Em falha")}
         value={summary.stoppedMachines}
         tone="danger"
         icon={<XCircle className="h-5 w-5" />}
       />
       <StatCard
-        label="Abertos"
+        label={t("Abertos")}
         value={summary.openCalls}
         tone="warning"
         icon={<Bell className="h-5 w-5" />}
       />
       <StatCard
-        label="Em atendimento"
+        label={t("Em atendimento")}
         value={summary.inProgressCalls}
         tone="info"
         icon={<Wrench className="h-5 w-5" />}
       />
       <StatCard
-        label="Finalizados hoje"
+        label={t("Finalizados hoje")}
         value={summary.finishedCallsToday}
         tone="success"
         icon={<CheckCheck className="h-5 w-5" />}
       />
       <StatCard
-        label="Fora de produção"
-        subtitle="Programação"
+        label={t("Fora de produção")}
+        subtitle={t("Programação")}
         value={summary.notScheduledMachines}
         tone="neutral"
         icon={<CalendarX className="h-5 w-5" />}

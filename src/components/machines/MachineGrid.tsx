@@ -5,6 +5,7 @@ import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 import { cn } from "@/lib/utils";
 import { useAndon } from "@/context/AndonProvider";
 import { EmptyState } from "@/components/common/EmptyState";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import {
   MAX_DASHBOARD_CARDS,
   compareByMachineNumber,
@@ -86,6 +87,7 @@ export function MachineGrid({
   orderMode = "default",
 }: MachineGridProps) {
   const { calls } = useAndon();
+  const { t } = useLanguage();
   const [pageIndex, setPageIndex] = useState(0);
 
   const orderedMachines = useMemo(
@@ -145,8 +147,8 @@ export function MachineGrid({
       <div className={cn("flex h-full min-h-0 items-center justify-center", className)}>
         <EmptyState
           icon={<Factory className="h-12 w-12" />}
-          title="Nenhuma máquina cadastrada"
-          description="Abra as configurações administrativas para cadastrar a primeira máquina do ANDON."
+          title={t("Nenhuma máquina cadastrada")}
+          description={t("Abra as configurações administrativas para cadastrar a primeira máquina do ANDON.")}
         />
       </div>
     );
@@ -173,12 +175,12 @@ export function MachineGrid({
         title={
           pageIndex === 0
             ? `Ver ${overflowCount} máquina(s) restante(s)`
-            : "Voltar aos cards principais"
+            : t("Voltar aos cards principais")
         }
         aria-label={
           pageIndex === 0
             ? `Ver ${overflowCount} máquina(s) restante(s)`
-            : "Voltar aos cards principais"
+            : t("Voltar aos cards principais")
         }
       >
         {pageIndex === 0 ? (

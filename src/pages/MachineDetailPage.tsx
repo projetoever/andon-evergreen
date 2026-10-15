@@ -497,7 +497,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2 xl:overflow-y-hidden">
+    <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2">
       {!audioUnlocked && (
         <div className="flex shrink-0 flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-1.5 text-warning sm:flex-row">
           <span className="text-sm font-bold">
@@ -555,7 +555,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onChange={(productionMode) => updateMachineProductionMode(machine.id, productionMode)}
       />
 
-      <div className="grid min-h-[200px] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+      <div className="grid min-h-[48rem] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:min-h-[26rem] xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
           calls={calls}

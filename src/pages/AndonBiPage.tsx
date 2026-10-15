@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, FileDown, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
 import { BiBadActorsPanel } from "@/components/bi/BiBadActorsPanel";
@@ -62,6 +63,7 @@ const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
 };
 
 export function AndonBiPage() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<BiWorkspaceTab>("overview");
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
   const [options, setOptions] = useState<AndonBiFilterOptions>(EMPTY_OPTIONS);
@@ -456,14 +458,14 @@ export function AndonBiPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               <BarChart3 className="h-3.5 w-3.5" />
-              Inteligência em Manutenção e Confiabilidade
+              {t("Inteligência em Manutenção e Confiabilidade")}
             </div>
             <div className="mt-1 flex items-baseline gap-3">
               <h1 className="text-2xl font-black tracking-tight md:text-3xl">
                 ANDON BI
               </h1>
               <span className="hidden text-xs text-muted-foreground xl:inline">
-                Visão executiva · falhas · equipe técnica
+                {t("Visão executiva · falhas · equipe técnica")}
               </span>
             </div>
           </div>
@@ -487,7 +489,7 @@ export function AndonBiPage() {
               className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
             >
               <FileDown className="h-3.5 w-3.5" />
-              {reportLoading ? "Preparando PDF…" : "Exportar PDF"}
+              {reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
             </button>
             <button
               type="button"
@@ -496,20 +498,20 @@ export function AndonBiPage() {
               className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Atualizando…" : "Atualizar"}
+              {loading ? "Atualizando…" : t("Atualizar")}
             </button>
             <Link
               to="/"
               className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted"
             >
-              ANDON operacional
+              {t("ANDON operacional")}
             </Link>
           </div>
         </header>
 
         <section className="grid shrink-0 grid-cols-4 gap-3 rounded-xl border border-border bg-card p-3">
           <label className="grid gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Período
+            {t("Período")}
             <select
               value={filters.period}
               onChange={(event) =>
@@ -522,14 +524,14 @@ export function AndonBiPage() {
             >
               {Object.entries(PERIOD_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Máquina
+            {t("Máquina")}
             <select
               value={filters.machineId}
               disabled={optionsLoading}
@@ -541,7 +543,7 @@ export function AndonBiPage() {
               }
               className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
-              <option value="">Todas as máquinas</option>
+              <option value="">{t("Todas as máquinas")}</option>
               {options.machines.map((machine) => (
                 <option key={machine.id} value={machine.id}>
                   {machine.name}
@@ -552,7 +554,7 @@ export function AndonBiPage() {
           </label>
 
           <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Setor
+            {t("Setor")}
             <select
               value={filters.subtype}
               disabled={optionsLoading}
@@ -564,7 +566,7 @@ export function AndonBiPage() {
               }
               className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
-              <option value="">Todos os setores</option>
+              <option value="">{t("Todos os setores")}</option>
               {options.sectors.map((sector) => (
                 <option key={sector.id} value={sector.id}>
                   {sector.displayName}
@@ -575,7 +577,7 @@ export function AndonBiPage() {
           </label>
 
           <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            Classificação
+            {t("Classificação")}
             <select
               value={filters.classification}
               disabled={optionsLoading}
@@ -587,7 +589,7 @@ export function AndonBiPage() {
               }
               className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
-              <option value="">Todas as classificações</option>
+              <option value="">{t("Todas as classificações")}</option>
               {options.classifications.map((classification) => (
                 <option key={classification.id} value={classification.value}>
                   {classification.label}

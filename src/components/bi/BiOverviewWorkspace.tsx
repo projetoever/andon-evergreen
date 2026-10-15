@@ -10,6 +10,7 @@ import {
 } from "recharts";
 
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
@@ -42,6 +43,7 @@ export function BiOverviewWorkspace({
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
 }) {
+  const { t } = useLanguage();
   const kpis = overview?.kpis;
   const scheduled = overview?.production;
   const displayPercent = (value: number | null | undefined) =>
@@ -52,7 +54,7 @@ export function BiOverviewWorkspace({
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
-          label="Disponibilidade"
+          label={t("Disponibilidade")}
           tooltip="Disponibilidade nas horas registradas como Produção Programada, somente nas máquinas com histórico completo. Não é OEE nem calendário de turnos."
           value={loading && !overview ? "…" : displayPercent(scheduled?.availabilityPercent)}
           detail={scheduled?.availabilityStatus === "dimension_filtered"
@@ -62,7 +64,7 @@ export function BiOverviewWorkspace({
           tone="green"
         />
         <BiKpiCard
-          label="MTBF"
+          label={t("MTBF")}
           tooltip="Tempo em produção programada sem parada / episódios de parada durante produção programada. Somente máquinas com histórico completo."
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
           detail={scheduled?.availabilityStatus === "dimension_filtered"
@@ -72,7 +74,7 @@ export function BiOverviewWorkspace({
           tone="green"
         />
         <BiKpiCard
-          label="MTTA"
+          label={t("MTTA")}
           tooltip="Tempo médio da abertura ao primeiro atendimento dos chamados atendidos no período."
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
           detail={`Até o primeiro atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
@@ -83,7 +85,7 @@ export function BiOverviewWorkspace({
           sampleSize={overview?.coverage.mttaSampleSize}
         />
         <BiKpiCard
-          label="MTTR"
+          label={t("MTTR")}
           tooltip="Tempo médio para restabelecimento físico: duração integral de episódios de parada encerrados na janela. Não confundir com tempo efetivo de manutenção."
           value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
           detail={`Paradas encerradas · ${scheduled?.resolvedEpisodes ?? 0} episódio(s)`}
@@ -92,7 +94,7 @@ export function BiOverviewWorkspace({
           sampleSize={scheduled?.resolvedEpisodes}
         />
         <BiKpiCard
-          label="Tempo de parada"
+          label={t("Tempo de parada")}
           tooltip="Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade."
           value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? null)}
           detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) registrados · todas as horas`}
@@ -102,7 +104,7 @@ export function BiOverviewWorkspace({
           trendMeaning="lowerBetter"
         />
         <BiKpiCard
-          label="Taxa de retorno"
+          label={t("Taxa de retorno")}
           tooltip="Chamados finalizados que voltaram à manutenção ao menos uma vez, divididos pelos chamados finalizados no período."
           value={loading && !overview ? "…" : displayPercent(kpis?.maintenanceReturnRatePercent)}
           detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.callsFinished ?? 0} finalizados · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
@@ -129,7 +131,7 @@ export function BiOverviewWorkspace({
 
         <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
           <div className="shrink-0">
-            <h2 className="text-xs font-black uppercase tracking-wide">Máquinas com maior parada</h2>
+            <h2 className="text-xs font-black uppercase tracking-wide">{t("Máquinas com maior parada")}</h2>
             <p className="mt-1 text-[10px] text-muted-foreground">
               Parada acumulada por máquina · clique para detalhar
             </p>

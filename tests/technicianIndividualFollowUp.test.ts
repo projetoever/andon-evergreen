@@ -547,7 +547,7 @@ test("tempos individuais ficam legíveis e acompanhamento usa verde", async () =
   assert.match(callPanel, /tone === "success" && "text-success"/);
   assert.match(
     callPanel,
-    /label="Acompanhamento"[\s\S]*tone="success"/,
+    /label=\{t\("Acompanhamento"\)\}[\s\S]*tone="success"/,
   );
 });
 

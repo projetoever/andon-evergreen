@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import type { AndonStatus } from "@/types/andon";
 import { getAndonStatusLabel } from "@/utils/statusUtils";
 
@@ -16,6 +17,7 @@ const TONE: Record<AndonStatus, string> = {
 };
 
 export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {
+  const { t } = useLanguage();
   return (
     <span
       className={cn(
@@ -24,7 +26,7 @@ export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {
         className,
       )}
     >
-      ANDON · {getAndonStatusLabel(status)}
+      ANDON · {t(getAndonStatusLabel(status))}
     </span>
   );
 }

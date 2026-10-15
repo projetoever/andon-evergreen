@@ -1,5 +1,6 @@
 import { CalendarCheck, CalendarX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import type { ProductionMode } from "@/types/machine";
 import { getProductionModeLabel } from "@/utils/statusUtils";
 
@@ -12,6 +13,7 @@ export function ProductionModeBadge({ productionMode, className }: ProductionMod
   const isScheduled = productionMode === "scheduled";
   const Icon = isScheduled ? CalendarCheck : CalendarX;
 
+  const { t } = useLanguage();
   return (
     <span
       className={cn(
@@ -21,7 +23,7 @@ export function ProductionModeBadge({ productionMode, className }: ProductionMod
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      {getProductionModeLabel(productionMode)}
+      {t(getProductionModeLabel(productionMode))}
     </span>
   );
 }
