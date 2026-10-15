@@ -1,7 +1,7 @@
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, FileDown, RefreshCw, Factory, Clock3 } from "lucide-react";
+import { BarChart3, FileDown, RefreshCw, Factory } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
@@ -463,28 +463,30 @@ export function AndonBiPage() {
               <BarChart3 className="h-3.5 w-3.5" />
               {t("Inteligência em Manutenção e Confiabilidade")}
             </div>
-            <div className="mt-1 flex items-baseline gap-3">
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h1 className="text-2xl font-black tracking-tight md:text-3xl">
                 ANDON BI
               </h1>
               <span className="hidden text-xs text-muted-foreground xl:inline">
                 {t("Visão executiva · falhas · equipe técnica")}
               </span>
+              {overview && (
+                <time
+                  dateTime={overview.meta.generatedAt}
+                  className="text-[11px] font-normal text-muted-foreground"
+                >
+                  {t("Atualizado")} {new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: overview.meta.timeZone,
+                  }).format(new Date(overview.meta.generatedAt))}
+                </time>
+              )}
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <ModuleNavigation />
-            {overview && (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground" title={`Atualizado ${new Intl.DateTimeFormat("pt-BR", {hour:"2-digit",minute:"2-digit",timeZone:overview.meta.timeZone}).format(new Date(overview.meta.generatedAt))}`}>
-                <Clock3 className="h-4 w-4" aria-hidden="true" /><span className="sr-only">Atualizado{" "}
-                {new Intl.DateTimeFormat("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: overview.meta.timeZone,
-                }).format(new Date(overview.meta.generatedAt))}</span>
-              </span>
-            )}
             <button
               type="button"
               onClick={() => void exportExecutivePdf()}

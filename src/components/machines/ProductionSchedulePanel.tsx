@@ -11,7 +11,7 @@ interface ProductionSchedulePanelProps {
 export function ProductionSchedulePanel({ machine, onChange }: ProductionSchedulePanelProps) {
   const { t } = useLanguage();
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2.5 lg:flex-nowrap">
+    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2 lg:flex-nowrap">
       <div className="min-w-[220px] shrink-0">
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
           {t("Programação de Produção")}

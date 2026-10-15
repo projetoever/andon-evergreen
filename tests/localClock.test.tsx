@@ -93,7 +93,7 @@ test("centraliza o relógio do dashboard e preserva o relógio da máquina", asy
 
   assert.match(machineHeader, /<ClockDisplay \/>[\s\S]*Som do ANDON/);
   assert.match(machineHeader, /md:grid-cols-\[minmax\(0,16rem\)_minmax\(0,1fr\)\]/);
-  assert.match(machineHeader, /lg:grid-cols-\[minmax\(0,20rem\)_minmax\(0,1fr\)\]/);
+  assert.match(machineHeader, /lg:grid-cols-\[minmax\(0,8rem\)_minmax\(0,1fr\)\]/);
   assert.match(machineHeader, /className="min-w-0 overflow-hidden"/);
   assert.match(machineHeader, /className="truncate text-3xl/);
   assert.match(machineHeader, /className="mt-0\.5 truncate text-xs/);

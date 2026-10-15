@@ -510,7 +510,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2">
+    <div className="machine-detail-page flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2">
       {!audioUnlocked && audioPlaybackBlocked && (
         <AudioPlaybackRecovery onActivate={handleMachineAudioUnlock} />
       )}
@@ -571,7 +571,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onChange={(productionMode) => updateMachineProductionMode(machine.id, productionMode)}
       />
 
-      <div className="grid min-h-[48rem] flex-1 grid-cols-1 items-stretch gap-1.5 overflow-hidden xl:min-h-[26rem] xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+      <div className="machine-detail-overview grid grid-cols-1 items-stretch gap-1.5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
         <MachineCurrentStatusPanel
           machine={machine}
           calls={calls}
@@ -586,12 +586,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
       {(currentCall?.status === "in_progress" || currentCall?.status === "post_maintenance") &&
         requiresTechnician && (
-          <section className="rounded-xl border border-border bg-card px-2.5 py-2 shadow-sm">
+          <section className="shrink-0 rounded-xl border border-border bg-card px-2.5 py-1.5 shadow-sm">
             <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="mr-auto text-xs font-bold uppercase tracking-wider text-muted-foreground md:text-sm">
                 {currentCall.status === "post_maintenance" ? "Acompanhamento" : "Atendimento"}
               </h3>
-              <div className="grid min-w-[300px] flex-1 grid-cols-2 gap-1.5 py-0.5 md:max-w-xl">
+              <div className="grid min-w-0 basis-full grid-cols-2 gap-1.5 py-0.5 sm:basis-auto sm:flex-1 md:max-w-xl">
                 <BigButton
                   tone="info"
                   size="md"
@@ -627,7 +627,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               </div>
             ) : (
               <div
-                className="mt-2 grid gap-1.5"
+                className="machine-detail-participants mt-1.5 grid gap-1.5"
                 style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
               >
                 {activeParticipationSummaries.map((summary) => {

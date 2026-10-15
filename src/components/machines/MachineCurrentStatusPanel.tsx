@@ -45,7 +45,10 @@ function InfoHint({ summary, detail }: InfoHintProps) {
               <HelpCircle className="h-3.5 w-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs border border-border bg-card text-card-foreground shadow-xl">
+          <TooltipContent
+            side="top"
+            className="max-w-xs border border-border bg-card text-card-foreground shadow-xl"
+          >
             {detail}
           </TooltipContent>
         </Tooltip>
@@ -91,13 +94,13 @@ export function MachineCurrentStatusPanel({
     <div
       className={cn(
         compactNormal
-          ? "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md"
-          : "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card p-3 shadow-md",
+          ? "machine-detail-status flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border bg-card p-2 shadow-md"
+          : "machine-detail-status flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border bg-card p-2 shadow-md",
         isStopped && !isNotScheduled ? "border-danger/60" : "border-border",
         className,
       )}
     >
-      <div className="mb-2 flex min-h-[3.25rem] flex-wrap items-start justify-between gap-2">
+      <div className="machine-detail-panel-heading mb-2 flex min-h-[2.5rem] flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground md:text-base">
             {t("Status atual da máquina")}
@@ -116,41 +119,68 @@ export function MachineCurrentStatusPanel({
         </span>
       </div>
 
-      <dl className={cn(
-        "grid min-h-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2",
-        compactNormal
-          ? "xl:grid-cols-3 xl:content-start"
-          : "xl:min-h-[9.5rem] xl:grid-cols-3 xl:grid-rows-1 xl:items-stretch",
-      )}>
+      <dl
+        className={cn(
+          "grid min-h-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2",
+          compactNormal
+            ? "lg:grid-cols-3 lg:content-start"
+            : "machine-detail-facts lg:grid-cols-3 lg:grid-rows-1 lg:items-stretch",
+        )}
+      >
         <div
           className={cn(
-            compactNormal ? "rounded-lg border p-2.5" : "rounded-lg border p-2.5 sm:col-span-2 xl:col-span-1 xl:h-full",
+            compactNormal
+              ? "rounded-lg border p-2.5"
+              : "rounded-lg border p-2.5 sm:col-span-2 lg:col-span-1 lg:h-full",
             isStopped ? "border-danger/30 bg-danger/10" : "border-success/30 bg-success/10",
           )}
         >
           <dt className="text-xs uppercase text-muted-foreground">{t("Condição operacional")}</dt>
-          <dd className={cn(compactNormal ? "mt-1 text-lg font-black" : "mt-1 text-xl font-black", isStopped ? "text-danger" : "text-success")}>
+          <dd
+            className={cn(
+              compactNormal ? "mt-1 text-lg font-black" : "mt-1 text-xl font-black",
+              isStopped ? "text-danger" : "text-success",
+            )}
+          >
             {isStopped ? t("Máquina em falha") : t("Pronta para rodar")}
           </dd>
           <InfoHint
-            summary={isStopped ? t("Tempo contado desde a parada real.") : t("Sem falha ativa registrada.")}
+            summary={
+              isStopped ? t("Tempo contado desde a parada real.") : t("Sem falha ativa registrada.")
+            }
             detail={
               isStopped
-                ? t("O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado.")
-                : t("A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status.")
+                ? t(
+                    "O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado.",
+                  )
+                : t(
+                    "A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status.",
+                  )
             }
           />
         </div>
 
-        <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", !compactNormal && "xl:h-full")}>
-          <dt className="text-xs uppercase text-muted-foreground">{t("Última alteração de status")}</dt>
+        <div
+          className={cn(
+            "rounded-lg border border-border bg-muted/20 p-2.5",
+            !compactNormal && "lg:h-full",
+          )}
+        >
+          <dt className="text-xs uppercase text-muted-foreground">
+            {t("Última alteração de status")}
+          </dt>
           <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
             {formatDateTime(machine.lastStatusChangedAt)}
           </dd>
         </div>
 
         {isStopped && activeStoppedAt && (
-          <div className={cn("rounded-lg border border-warning/30 bg-warning/10 p-2.5", !compactNormal && "xl:h-full")}>
+          <div
+            className={cn(
+              "rounded-lg border border-warning/30 bg-warning/10 p-2.5",
+              !compactNormal && "lg:h-full",
+            )}
+          >
             <dt className="text-xs uppercase text-muted-foreground">{t("Falha iniciada em")}</dt>
             <dd className="mt-1 font-mono text-sm text-foreground md:text-base">
               {formatDateTime(activeStoppedAt)}
@@ -159,9 +189,19 @@ export function MachineCurrentStatusPanel({
         )}
 
         {!isStopped && (
-          <div className={cn("rounded-lg border border-border bg-muted/20 p-2.5", compactNormal ? "" : "sm:col-span-2 xl:col-span-1 xl:h-full")}>
+          <div
+            className={cn(
+              "rounded-lg border border-border bg-muted/20 p-2.5",
+              compactNormal ? "" : "sm:col-span-2 lg:col-span-1 lg:h-full",
+            )}
+          >
             <dt className="text-xs uppercase text-muted-foreground">{t("Última ocorrência")}</dt>
-            <dd className={cn("mt-1 font-bold text-foreground", compactNormal ? "text-lg" : "text-xl")}>
+            <dd
+              className={cn(
+                "mt-1 font-bold text-foreground",
+                compactNormal ? "text-lg" : "text-xl",
+              )}
+            >
               {formatElapsedSince(lastOccurrence?.occurredAt)}
             </dd>
             {!compactNormal && (

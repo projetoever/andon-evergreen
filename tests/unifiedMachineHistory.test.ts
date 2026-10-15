@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MachineActionPanel } from "../src/components/machines/MachineActionPanel";
+import type { AndonCall } from "../src/types/andon";
+import type { Machine } from "../src/types/machine";
 
 import {
   formatMachinePanelDurationMinutes,
@@ -158,27 +163,54 @@ test("painéis da máquina usam o formato compacto nos temporizadores destacados
 });
 
 
-test("ações da máquina usam altura responsiva e fluxo centralizado", async () => {
-  const source = await readFile(
-    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
-    "utf8",
+test("aviso de workstation não muda o tamanho das ações nem libera conclusão bloqueada", () => {
+  const call = {
+    id: "mechanical",
+    status: "in_progress",
+    category: "maintenance",
+    subtype: "mechanical",
+    technicianSessions: [],
+  } as unknown as AndonCall;
+  const props = {
+    machine: { machineStatus: "stopped" } as Machine,
+    currentCall: call,
+    activeCalls: [call],
+    selectedCallId: call.id,
+    categories: [
+      {
+        id: "mechanical",
+        displayName: "Mecânica",
+        color: "#F59E0B",
+        categoryGroup: "maintenance" as const,
+        active: true,
+        displayOrder: 1,
+      },
+    ],
+    hasActiveStopOwner: true,
+    onOpenSubtype() {},
+    onSelectCall() {},
+    onAttend() {},
+    onCancelCall() {},
+    onFinish() {},
+    onCompleteMaintenance() {},
+    onReturnToMaintenance() {},
+  };
+  const allowed = renderToStaticMarkup(createElement(MachineActionPanel, props));
+  const blocked = renderToStaticMarkup(
+    createElement(MachineActionPanel, {
+      ...props,
+      maintenanceCompletionDisabled: true,
+      maintenanceCompletionHint: "Conclua na estação de origem",
+      maintenanceCompletionHintTone: "danger",
+    }),
   );
-
-  assert.match(source, /activeTechnicianCount/);
-  assert.match(source, /hasDenseOperationalContent/);
-  assert.match(source, /layoutStage === "idle"/);
-  assert.match(source, /layoutStage === "open"/);
-  assert.match(source, /layoutStage === "active"/);
-  assert.match(source, /min-h-\[clamp\(6\.75rem,12vh,8\.75rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(8rem,15\.5vh,10\.5rem\)\]/);
-  assert.match(source, /min-h-\[clamp\(5\.75rem,9\.75vh,7rem\)\]/);
-  assert.match(source, /: "min-h-12 text-sm"/);
-  assert.match(source, /min-h-\[clamp\(6\.25rem,11\.5vh,7\.5rem\)\]/);
-  assert.match(source, /sm:max-w-\[46rem\]/);
-  assert.match(source, /min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\]/);
-  assert.match(source, /flex flex-wrap items-stretch justify-center/);
-  assert.match(source, /> \{t\("Atender selecionado"\)\}/);
-  assert.match(source, /> \{t\("Cancelar selecionado"\)\}/);
+  const buttonClasses = (html: string) =>
+    Array.from(html.matchAll(/<button[^>]*class="([^"]*)"/g), (match) => match[1]);
+  assert.deepEqual(buttonClasses(blocked), buttonClasses(allowed));
+  assert.match(blocked, /<button[^>]*disabled=""/);
+  assert.doesNotMatch(allowed, /<button[^>]*disabled=""/);
+  assert.match(blocked, /Conclua na estação de origem/);
+  assert.match(blocked, /Use a estação do atendimento/);
 });
 
 test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala", async () => {
@@ -223,26 +255,6 @@ test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", 
 });
 
 
-test("chamado aberto prioriza acessibilidade com ações significativamente maiores", async () => {
-  const source = await readFile(
-    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(
-    source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(8rem,15\.5vh,10\.5rem\)\]/,
-  );
-  assert.match(
-    source,
-    /layoutStage === "open"[\s\S]*min-h-\[clamp\(6\.25rem,11\.5vh,7\.5rem\)\]/,
-  );
-  assert.match(source, /xl:text-2xl/);
-  assert.match(source, /md:text-lg/);
-  assert.match(source, /hasDenseOperationalContent/);
-});
-
-
 test("status e chamado alinham os temporizadores na zona superior", async () => {
   const [statusPanel, callPanel] = await Promise.all([
     readFile(
@@ -255,12 +267,12 @@ test("status e chamado alinham os temporizadores na zona superior", async () => 
     ),
   ]);
 
-  assert.match(statusPanel, /min-h-\[3\.25rem\]/);
-  assert.match(callPanel, /min-h-\[3\.25rem\]/);
-  assert.match(statusPanel, /xl:min-h-\[9\.5rem\]/);
-  assert.match(callPanel, /xl:min-h-\[9\.5rem\]/);
-  assert.match(statusPanel, /xl:grid-rows-1 xl:items-stretch/);
-  assert.match(callPanel, /xl:auto-rows-fr/);
+  assert.match(statusPanel, /min-h-\[2\.5rem\]/);
+  assert.match(callPanel, /min-h-\[2\.5rem\]/);
+  assert.match(statusPanel, /machine-detail-facts/);
+  assert.match(callPanel, /machine-detail-facts/);
+  assert.match(statusPanel, /lg:grid-rows-1 lg:items-stretch/);
+  assert.match(callPanel, /lg:auto-rows-fr/);
   assert.doesNotMatch(statusPanel, /grid min-h-0 flex-1 content-start/);
   assert.doesNotMatch(callPanel, /grid min-h-0 flex-1 content-start/);
   assert.match(statusPanel, /<dl className="mt-1\.5 shrink-0">/);
@@ -270,23 +282,6 @@ test("status e chamado alinham os temporizadores na zona superior", async () => 
   assert.match(callPanel, /label=\{t\("Em atendimento"\)\}/);
   assert.match(callPanel, /label=\{t\("Acompanhamento"\)\}/);
   assert.match(callPanel, /label=\{t\("Total"\)\}/);
-});
-
-
-test("conteúdo denso continua compactando as ações automaticamente", async () => {
-  const source = await readFile(
-    new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /activeTechnicianCount > 0/);
-  assert.match(source, /currentCall\?\.status === "post_maintenance"/);
-  assert.match(source, /Boolean\(maintenanceCompletionHint\)/);
-  assert.match(source, /: "min-h-12 text-sm"/);
-  assert.match(
-    source,
-    /: "min-h-11 w-full px-2 text-xs sm:flex-1 sm:max-w-\[38rem\] sm:text-sm"/,
-  );
 });
 
 
@@ -302,9 +297,9 @@ test("cartões de status preenchem a faixa informativa e contadores seguem logo 
     ),
   ]);
 
-  assert.match(statusPanel, /xl:grid-rows-1 xl:items-stretch/);
-  assert.match(statusPanel, /xl:h-full/);
-  assert.match(callPanel, /xl:auto-rows-fr/);
+  assert.match(statusPanel, /lg:grid-rows-1 lg:items-stretch/);
+  assert.match(statusPanel, /lg:h-full/);
+  assert.match(callPanel, /lg:auto-rows-fr/);
   assert.match(statusPanel, /mt-1\.5 shrink-0/);
   assert.match(callPanel, /mt-1\.5 grid shrink-0/);
 });
