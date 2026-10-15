@@ -233,10 +233,18 @@ async function loadOverviewDataset(
       call: { select: { failureResponsibility: true } } },
   }) : [];
   const causalEpisodes = buildCausalEpisodes(failureEvents, impacts.map(row => ({ ...row, failureResponsibility: row.call.failureResponsibility })));
-  const excludedCalls = await prisma.andonCall.count({ where: {
-    ...dimensionsWhere, NOT: policy.callWhere,
-    OR: [{ openedAt: { gte: start, lt: effectiveEnd } }, { finishedAt: { gte: start, lt: effectiveEnd } }],
-  } });
+  const exclusionScope: Prisma.AndonCallWhereInput = {
+    ...dimensionsWhere,
+    OR: [{ openedAt: { gte: start, lt: effectiveEnd } }, { attendedAt: { gte: start, lt: effectiveEnd } }, { finishedAt: { gte: start, lt: effectiveEnd } }],
+  };
+  // SQL NOT(nullable predicate) is not the complement of eligibility: UNKNOWN
+  // also fails a WHERE. Count both populations in one consistent snapshot.
+  const [scopedCalls, eligibleCalls] = await prisma.$transaction([
+    prisma.andonCall.count({where:exclusionScope}),
+    prisma.andonCall.count({where:{...policy.callWhere,...exclusionScope}}),
+  ], {isolationLevel:"RepeatableRead"});
+  const excludedCalls = scopedCalls-eligibleCalls;
+
   return { calls, activeCallsNow, failureEvents, reliabilityAssets, causalEpisodes, excludedCalls };
 }
 

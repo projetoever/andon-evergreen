@@ -51,7 +51,7 @@ export function BiOverviewWorkspace({
     `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(12rem,1fr)] gap-3 overflow-y-auto">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
           label={t("Disponibilidade")}
@@ -69,7 +69,7 @@ export function BiOverviewWorkspace({
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
           detail={scheduled?.availabilityStatus === "dimension_filtered"
             ? "Indisponível com filtro por setor ou classificação"
-            : `${scheduled?.productionFailureEpisodes ?? 0} falha(s) de manutenção · ${scheduled?.pendingAttributionEpisodes ?? 0} episódio(s) pendente(s)/misto(s)`}
+            : `${scheduled?.productionFailureEpisodes ?? 0} falha(s) de manutenção · ${scheduled?.pendingAttributionEpisodes ?? 0} pendente(s)/misto(s)`}
           icon={BarChart3}
           tone="green"
         />
