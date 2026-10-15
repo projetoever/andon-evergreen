@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { PrismaClient } from "@prisma/client";
+import { validateBiCausalQuality } from "./validate-bi-causal-quality.mjs";
 import { validateAttendanceIntegrity } from "./validate-attendance-integrity.mjs";
 import { validateHubEntry } from "./validate-hub-entry.mjs";
 
@@ -3523,6 +3524,7 @@ async function run() {
   );
 
   await validateAttendanceIntegrity(request, prisma);
+  await validateBiCausalQuality(request, prisma);
   console.log("Fluxo PostgreSQL/API com setores e credenciais diretas: OK");
 }
 

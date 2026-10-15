@@ -1,3 +1,4 @@
+import { hasSpecificDiagnosis, isEligible, uniqueById } from "./eligibility.js";
 export type ReliabilityMachineRecord = {
   id: string;
   name: string;
@@ -11,6 +12,7 @@ export type ReliabilityFailureEventRecord = {
   startedAt: Date;
   endedAt: Date | null;
   classification: string | null;
+  analyticsDisposition?: string | null;
   callId: string | null;
 };
 
@@ -21,6 +23,8 @@ export type ReliabilityCallRecord = {
   openedAt: Date;
   finishedAt: Date | null;
   failureClassification: string | null;
+  failureResponsibility?: string | null;
+  analyticsDisposition?: string | null;
   maintenanceReturnCount: number;
 };
 
@@ -105,7 +109,7 @@ function countRepeatDiagnoses(calls: ReliabilityCallRecord[]) {
   const counts = new Map<string, number>();
 
   for (const call of calls) {
-    if (!call.failureClassification) continue;
+    if (!hasSpecificDiagnosis(call.failureClassification)) continue;
     counts.set(
       call.failureClassification,
       (counts.get(call.failureClassification) ?? 0) + 1,
@@ -122,7 +126,7 @@ function topDiagnosis(calls: ReliabilityCallRecord[]) {
   const counts = new Map<string, number>();
 
   for (const call of calls) {
-    if (!call.failureClassification) continue;
+    if (!hasSpecificDiagnosis(call.failureClassification)) continue;
     counts.set(
       call.failureClassification,
       (counts.get(call.failureClassification) ?? 0) + 1,
@@ -147,6 +151,11 @@ export function buildAssetReliability({
   start,
   effectiveEnd,
 }: BuildAssetReliabilityParams) {
+  machines = uniqueById(machines);
+  calls = uniqueById(calls).filter(isEligible);
+  failureEvents = uniqueById(failureEvents).filter(isEligible);
+  activeCalls = activeCalls && uniqueById(activeCalls).filter(isEligible);
+  activeSessions = activeSessions && uniqueById(activeSessions);
   const effectiveEndMs = effectiveEnd.getTime();
   const intervalsByMachine = groupedIntervals(
     failureEvents,
@@ -184,7 +193,7 @@ export function buildAssetReliability({
   }
 
   const assets = machines.map((machine) => {
-    const intervals = intervalsByMachine.get(machine.id) ?? [];
+    const intervals = (intervalsByMachine.get(machine.id) ?? []).map(interval => ({...interval, startMs:Math.max(interval.startMs,machine.createdAt.getTime())})).filter(interval=>interval.endMs>interval.startMs);
     const downtimeMinutes = round2(
       intervals.reduce(
         (total, interval) => total + (interval.endMs - interval.startMs),
@@ -334,7 +343,7 @@ export function buildAssetReliability({
             ? null
             : 0,
       finishedCallsMissingClassification: finishedCalls.filter(
-        (call) => !call.failureClassification,
+        (call) => !hasSpecificDiagnosis(call.failureClassification),
       ).length,
       finishedCalls: finishedCalls.length,
       standaloneFailureEvents: failureEvents.filter(

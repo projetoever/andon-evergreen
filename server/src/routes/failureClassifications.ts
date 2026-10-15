@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
 
+import { RESPONSIBILITIES, DISPOSITIONS, RESERVED_EXCLUSIONS, reservedDisposition } from "../analytics/eligibility.js";
+
 const CLASSIFICATION_VALUE_PATTERN = /^[a-z0-9_]{2,64}$/;
 
 type FailureClassificationQuery = {
@@ -14,6 +16,8 @@ type FailureClassificationBody = {
   label?: unknown;
   value?: unknown;
   active?: unknown;
+  responsibility?: unknown;
+  analyticsDisposition?: unknown;
 };
 
 function requiredString(value: unknown) {
@@ -60,9 +64,14 @@ export async function registerFailureClassificationRoutes(app: FastifyInstance) 
         return badRequest(reply, "Status da classificação inválido");
       }
 
+      const responsibility = request.body?.responsibility === undefined ? "unassigned" : requiredString(request.body.responsibility);
+      const analyticsDisposition = reservedDisposition(value) ?? (request.body?.analyticsDisposition === undefined ? "include" : requiredString(request.body.analyticsDisposition));
+      if (!RESPONSIBILITIES.some(item => item === responsibility) || !DISPOSITIONS.some(item => item === analyticsDisposition)) {
+        return badRequest(reply, "Responsabilidade ou tratamento no BI inválido");
+      }
       try {
         const classification = await prisma.failureClassification.create({
-          data: { label, value, active },
+          data: { label, value, active, responsibility, analyticsDisposition },
         });
         return reply.status(201).send(classification);
       } catch (error) {
@@ -97,7 +106,14 @@ export async function registerFailureClassificationRoutes(app: FastifyInstance) 
       if (request.body && "active" in request.body && active === undefined) {
         return badRequest(reply, "Status da classificação inválido");
       }
-      if (label === undefined && active === undefined) {
+      const responsibility = request.body?.responsibility === undefined ? undefined : requiredString(request.body.responsibility);
+      const analyticsDisposition = request.body?.analyticsDisposition === undefined ? undefined : requiredString(request.body.analyticsDisposition);
+      if ((request.body?.responsibility !== undefined && !RESPONSIBILITIES.some(item => item === responsibility)) ||
+          (request.body?.analyticsDisposition !== undefined && !DISPOSITIONS.some(item => item === analyticsDisposition)) ||
+          (RESERVED_EXCLUSIONS.includes(current.value) && analyticsDisposition === "include")) {
+        return badRequest(reply, "Responsabilidade ou tratamento no BI inválido; identificadores de teste são sempre excluídos");
+      }
+      if (label === undefined && active === undefined && responsibility === undefined && analyticsDisposition === undefined) {
         return badRequest(reply, "Informe label ou active para atualizar a classificação");
       }
 
@@ -105,6 +121,8 @@ export async function registerFailureClassificationRoutes(app: FastifyInstance) 
         where: { id: current.id },
         data: {
           ...(label ? { label } : {}),
+          ...(responsibility ? { responsibility } : {}),
+          ...(analyticsDisposition ? { analyticsDisposition } : {}),
           ...(active !== undefined ? { active } : {}),
         },
       });

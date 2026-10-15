@@ -51,7 +51,7 @@ export function BiOverviewWorkspace({
     `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(12rem,1fr)] gap-3 overflow-y-auto">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
           label={t("Disponibilidade")}
@@ -65,11 +65,11 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTBF")}
-          tooltip="Tempo em produção programada sem parada / episódios de parada durante produção programada. Somente máquinas com histórico completo."
+          tooltip="Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível."
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
           detail={scheduled?.availabilityStatus === "dimension_filtered"
             ? "Indisponível com filtro por setor ou classificação"
-            : `${scheduled?.productionFailureEpisodes ?? 0} episódio(s) em produção · MTBF estimado por programação`}
+            : `${scheduled?.productionFailureEpisodes ?? 0} falha(s) de manutenção · ${scheduled?.pendingAttributionEpisodes ?? 0} pendente(s)/misto(s)`}
           icon={BarChart3}
           tone="green"
         />
@@ -86,9 +86,9 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTR")}
-          tooltip="Tempo médio para restabelecimento físico: duração integral de episódios de parada encerrados na janela. Não confundir com tempo efetivo de manutenção."
+          tooltip="MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente."
           value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
-          detail={`Paradas encerradas · ${scheduled?.resolvedEpisodes ?? 0} episódio(s)`}
+          detail={`Manutenção · ${scheduled?.resolvedEpisodes ?? 0} episódio(s) encerrado(s)`}
           icon={Wrench}
           tone="blue"
           sampleSize={scheduled?.resolvedEpisodes}
@@ -105,12 +105,12 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Taxa de retorno")}
-          tooltip="Chamados finalizados que voltaram à manutenção ao menos uma vez, divididos pelos chamados finalizados no período."
+          tooltip="Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado."
           value={loading && !overview ? "…" : displayPercent(kpis?.maintenanceReturnRatePercent)}
-          detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.callsFinished ?? 0} finalizados · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
+          detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.maintenanceEligibleFinishedCalls ?? 0} de manutenção · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
           icon={RotateCcw}
           tone="red"
-          sampleSize={overview?.coverage.finishedCalls}
+          sampleSize={kpis?.maintenanceEligibleFinishedCalls}
         />
       </section>
 

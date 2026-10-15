@@ -106,9 +106,9 @@ export function buildMachinePdfHtml(
   <div class="grid">
     ${metric("Downtime físico", minutes(data.kpis.downtimeMinutes), "red")}
     ${metric("Episódios físicos", String(data.kpis.physicalStopEpisodes), "red")}
-    ${metric("MTBF estimado", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
+    ${metric("Intervalo entre paradas (calendário)", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
     ${metric("MTTA", minutes(data.kpis.mttaMinutes), "amber")}
-    ${metric("Manutenção efetiva", minutes(data.kpis.avgMaintenanceMinutes), "")}
+    ${metric("Atendimento técnico médio", minutes(data.kpis.avgMaintenanceMinutes), "")}
     ${metric("Parada por episódio", minutes(data.kpis.avgDowntimePerEpisodeMinutes), "red")}
   </div>
   <div class="summary">
@@ -122,7 +122,7 @@ export function buildMachinePdfHtml(
   ${heading("Diagnósticos mais registrados")}
   ${table(["DIAGNÓSTICO", "CHAMADOS CONCLUÍDOS"], diagnostics)}
   <div class="note"><strong>Leitura executiva:</strong> downtime é a união dos intervalos físicos por máquina.
-  O MTBF é estimado por exposição calendário, não horas reais de produção. Sessões em aberto podem ampliar tempos.
+  O intervalo entre paradas usa exposição calendário e todas as causas; difere do MTBF técnico programado. Sessões em aberto podem ampliar tempos.
   Registros de ambientes de homologação podem conter testes manuais; confirme a origem antes de interpretar os tempos como perdas reais.</div>
   <div class="foot"><span>ANDON BI · Somente leitura · Gerado em ${escapeHtml(localDate(data.meta.generatedAt, zone))}</span><span>Machine 360 · Página 1/2</span></div>
 </section>

@@ -1,3 +1,5 @@
+import { buildCausalEpisodes, type CausalEpisode } from "./causality.js";
+import { isEligible, uniqueById } from "./eligibility.js";
 import {
   addOperationalDays,
   operationalDateKey,
@@ -24,6 +26,7 @@ export type PlannedProductionInput = {
   start: Date;
   effectiveEnd: Date;
   timeZone: string;
+  causalEpisodes?: CausalEpisode[];
 };
 
 type Interval = { start: number; end: number };
@@ -48,7 +51,7 @@ const isScheduled = (mode: string) => mode === "scheduled" || mode === "producti
 function physicalIntervals(events: AnalyticsFailureEventRecord[], start: number, end: number) {
   const byMachine = new Map<string, Interval[]>();
   for (const event of events) {
-    if (event.linkedCallIsSystemTest) continue;
+    if (!isEligible(event)) continue;
     const a=Math.max(start,event.startedAt.getTime());
     const b=Math.min(end,event.endedAt?.getTime()??end);
     if(b<=a)continue;
@@ -66,7 +69,7 @@ export function calculateObservedRestorationMttr(
 ) {
   const byMachine = new Map<string,Interval[]>();
   for (const event of events) {
-    if (event.linkedCallIsSystemTest) continue;
+    if (!isEligible(event)) continue;
     const entries=byMachine.get(event.machineId)??[];
     entries.push(asInterval(event.startedAt.getTime(),event.endedAt?.getTime()??Infinity));
     byMachine.set(event.machineId,entries);
@@ -119,22 +122,30 @@ function splitByLocalDay(interval: Interval, timeZone: string, callback:(date:st
 
 export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   const { assets, productionEvents, failureEvents, start, effectiveEnd, timeZone }=input;
-  const restoration=calculateObservedRestorationMttr(failureEvents,start,effectiveEnd);
+  const allCauseRestoration=calculateObservedRestorationMttr(failureEvents,start,effectiveEnd);
+  const causalEpisodes = input.causalEpisodes ?? buildCausalEpisodes(failureEvents);
+  const closedMaintenance = causalEpisodes.filter(episode => episode.responsibility === "maintenance" &&
+    Number.isFinite(episode.end) && episode.end >= start.getTime() && episode.end < effectiveEnd.getTime());
+  const restoration = {
+    mttrMinutes: closedMaintenance.length ? round2(closedMaintenance.reduce((total, episode) => total + episode.end - episode.start, 0) / MINUTE / closedMaintenance.length) : null,
+    resolvedEpisodes: closedMaintenance.length,
+  };
   const startMs=start.getTime(), endMs=effectiveEnd.getTime();
   const empty={
     availabilityPercent:null as number|null,
     plannedMtbfMinutes:null as number|null,
     scheduledMinutes:0, scheduledDowntimeMinutes:0, operatingMinutes:0,
-    productionFailureEpisodes:0, coveredMachineCount:0, uncoveredMachineCount:assets?.length??0,
+    productionFailureEpisodes:0, pendingAttributionEpisodes:0, physicalProductionEpisodes:0, coveredMachineCount:0, uncoveredMachineCount:assets?.length??0,
     populationCount:assets?.length??0,
     resolvedMttrMinutes:restoration.mttrMinutes,
     resolvedEpisodes:restoration.resolvedEpisodes,
+    allCauseRestorationMinutes:allCauseRestoration.mttrMinutes, allCauseResolvedEpisodes:allCauseRestoration.resolvedEpisodes,
     daily:[] as Array<{date:string;availabilityPercent:number|null;scheduledMinutes:number;scheduledDowntimeMinutes:number}>,
     availabilityStatus:assets===null?"dimension_filtered":"insufficient_schedule",
     methodology:{
       availability:"(Minutos programados - parada coincidente com programação) / minutos programados × 100. Apenas máquinas com histórico completo de modo de produção entram no cálculo.",
-      mtbf:"Tempo programado sem parada / episódios de parada que atingem o período programado. Sem eventos de falha, MTBF indisponível.",
-      mttr:"Média da duração integral de episódios físicos encerrados na janela; não é tempo médio de manutenção nem soma de horas de técnicos.",
+      mtbf:"Tempo programado em operação (descontadas todas as paradas reais) / inícios de episódios inteiramente atribuídos à manutenção durante a programação. Causas pendentes ou mistas impedem MTBF; parada anterior à janela não é nova falha.",
+      mttr:"MTTR de restabelecimento: duração integral dos episódios encerrados na janela e inteiramente atribuídos à manutenção / quantidade desses episódios. Outras áreas, causas mistas ou pendentes não entram na amostra; horas de técnicos são separadas.",
       caveat:"Modo Produção Programada é um registro manual da máquina, não um calendário de turnos. Se não for atualizado fielmente, a disponibilidade não representa a programação real.",
     },
   };
@@ -146,13 +157,13 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     const records=eventsByMachine.get(event.machineId)??[];
     records.push(event);eventsByMachine.set(event.machineId,records);
   }
-  let scheduledMs=0, stoppedScheduledMs=0, episodes=0, covered=0, uncovered=0;
+  let scheduledMs=0, stoppedScheduledMs=0, episodes=0, pending=0, physicalEpisodes=0, covered=0, uncovered=0;
   const dailyMap=new Map<string,{scheduledMs:number;downtimeMs:number}>();
   const addDay=(key:string,kind:"scheduledMs"|"downtimeMs",ms:number)=>{
     const d=dailyMap.get(key)??{scheduledMs:0,downtimeMs:0};
     d[kind]+=ms;dailyMap.set(key,d);
   };
-  for(const asset of assets){
+  for(const asset of uniqueById(assets.map(asset => ({...asset, id:asset.machineId})))){
     const assetStart=Math.max(startMs,asset.exposureStartedAt.getTime());
     if(assetStart>=endMs)continue;
     const scheduled=confirmedSchedule(eventsByMachine.get(asset.machineId)??[],asInterval(assetStart,endMs));
@@ -170,13 +181,18 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
           timeZone,(date,ms)=>addDay(date,"downtimeMs",ms));
       }
     }
-    episodes+=failure.filter(outage=>scheduled.some(segment=>overlap(outage,segment)>0)).length;
+    physicalEpisodes+=failure.filter(outage=>scheduled.some(segment=>overlap(outage,segment)>0)).length;
+    const relevant = causalEpisodes.filter(episode => episode.machineId === asset.machineId &&
+      scheduled.some(segment => overlap(episode,segment)>0));
+    pending += relevant.filter(episode => ["unassigned", "mixed"].includes(episode.responsibility)).length;
+    episodes += relevant.filter(episode => episode.responsibility === "maintenance" && episode.start >= assetStart &&
+      scheduled.some(segment => episode.start >= segment.start && episode.start < segment.end)).length;
   }
   const operatingMs=Math.max(0,scheduledMs-stoppedScheduledMs);
   const scheduledMinutes=round2(scheduledMs/MINUTE);
   const scheduledDowntimeMinutes=round2(stoppedScheduledMs/MINUTE);
   const availabilityPercent=scheduledMs>0?round2((operatingMs/scheduledMs)*100):null;
-  const plannedMtbfMinutes=episodes>0?round2(operatingMs/MINUTE/episodes):null;
+  const plannedMtbfMinutes=episodes>0 && pending===0?round2(operatingMs/MINUTE/episodes):null;
   if (covered>0) {
     let cursor=startMs;
     for(let guard=0;cursor<endMs && guard<40;guard++) {
@@ -198,6 +214,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     scheduledMinutes,scheduledDowntimeMinutes,
     operatingMinutes:round2(operatingMs/MINUTE),
     productionFailureEpisodes:episodes,
+    pendingAttributionEpisodes:pending, physicalProductionEpisodes:physicalEpisodes,
     coveredMachineCount:covered,uncoveredMachineCount:uncovered,
     availabilityStatus:scheduledMs>0?"available":covered===0?"insufficient_schedule":"no_programmed_minutes",
     daily,

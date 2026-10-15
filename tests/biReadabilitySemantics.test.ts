@@ -13,7 +13,7 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
   assert.match(overview, /label=\{t\("Tempo de parada"\)\}/);
   assert.match(overview, /label=\{t\("MTTR"\)\}/);
   assert.match(summary, /"Tempo de parada"/);
-  assert.match(shell, /testes automáticos marcados excluídos/);
+  assert.match(shell, /testes, falsos chamados e duplicados identificados excluídos/);
   assert.match(shell, /h-dvh overflow-hidden/);
 });
 
@@ -37,7 +37,7 @@ test("BI explicita que MTBF é estimativa e esforço técnico soma pessoas", asy
   ]);
   assert.match(reliability, /estimativa por calendário/);
   assert.match(reliability, /Máquina|máquina|população/);
-  assert.match(attendance, /Soma de horas por técnico, inclusive simultâneas/);
+  assert.match(attendance, /Soma de horas por técnico, inclusive simultâneas entre pessoas diferentes/);
   assert.match(actors, /Máquinas críticas · Bad Actors/);
   assert.match(actors, /table-fixed text-left text-xs/);
   assert.match(quality, /Qualidade dos dados · Investigação/);

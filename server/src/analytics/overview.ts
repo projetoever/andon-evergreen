@@ -1,3 +1,5 @@
+import { buildCausalEpisodes, type CausalEpisode } from "./causality.js";
+import { hasSpecificDiagnosis, isEligible, uniqueById, METRIC_VERSION } from "./eligibility.js";
 const TIME_ZONE_SUFFIX_PATTERN = /(Z|[+-]\d{2}:\d{2})$/i;
 
 export type AnalyticsOverviewFilters = {
@@ -19,6 +21,8 @@ export type AnalyticsCallRecord = {
   postMaintenanceMinutes: number | null;
   maintenanceReturnCount: number;
   failureClassification: string | null;
+  failureResponsibility?: string | null;
+  analyticsDisposition?: string | null;
   isSystemTest: boolean;
 };
 
@@ -29,6 +33,8 @@ export type AnalyticsFailureEventRecord = {
   startedAt: Date;
   endedAt: Date | null;
   classification: string | null;
+  failureResponsibility?: string | null;
+  analyticsDisposition?: string | null;
   callId: string | null;
   linkedCallIsSystemTest: boolean;
 };
@@ -40,6 +46,7 @@ export type AnalyticsReliabilityAsset = {
 
 export type BuildExecutiveOverviewParams = {
   calls: AnalyticsCallRecord[];
+  causalEpisodes?: CausalEpisode[];
   activeCallsNow: number | null;
   failureEvents: AnalyticsFailureEventRecord[];
   reliabilityAssets: AnalyticsReliabilityAsset[] | null;
@@ -178,7 +185,7 @@ function buildMergedDowntimeIntervalsByMachine(
   if (endMs <= startMs) return groups;
 
   for (const event of events) {
-    if (event.linkedCallIsSystemTest) continue;
+    if (!isEligible(event)) continue;
 
     const intervalStart = Math.max(startMs, event.startedAt.getTime());
     const rawEnd = event.endedAt?.getTime() ?? endMs;
@@ -306,16 +313,6 @@ export function calculateEstimatedMtbf(
     (total, group) => total + group.intervals.length,
     0,
   );
-  const downtimeMs = Array.from(groups.values()).reduce(
-    (total, group) =>
-      total +
-      group.intervals.reduce(
-        (machineTotal, interval) =>
-          machineTotal + (interval.endMs - interval.startMs),
-        0,
-      ),
-    0,
-  );
 
   if (!assets || assets.length === 0 || end.getTime() <= start.getTime()) {
     return {
@@ -327,19 +324,25 @@ export function calculateEstimatedMtbf(
     };
   }
 
-  const exposureMs = assets.reduce((total, asset) => {
+  const population = [...new Map(assets.map(asset => [asset.machineId, asset])).values()];
+  let exposureMs = 0, populationDowntimeMs = 0, populationEpisodes = 0;
+  for (const asset of population) {
     const assetStart = Math.max(start.getTime(), asset.exposureStartedAt.getTime());
-    return total + Math.max(0, end.getTime() - assetStart);
-  }, 0);
-  const operatingMs = Math.max(0, exposureMs - downtimeMs);
+    exposureMs += Math.max(0,end.getTime()-assetStart);
+    for (const interval of groups.get(asset.machineId)?.intervals ?? []) {
+      const duration = Math.max(0,interval.endMs-Math.max(assetStart,interval.startMs));
+      if (duration>0) { populationDowntimeMs+=duration; populationEpisodes++; }
+    }
+  }
+  const operatingMs = Math.max(0, exposureMs - populationDowntimeMs);
 
   return {
     mtbfEstimatedMinutes:
-      physicalStopEpisodes > 0
-        ? round2(operatingMs / physicalStopEpisodes / 60_000)
+      populationEpisodes > 0
+        ? round2(operatingMs / populationEpisodes / 60_000)
         : null,
     physicalStopEpisodes,
-    monitoredMachineCount: assets.length,
+    monitoredMachineCount: population.length,
     calendarExposureMinutes: round2(exposureMs / 60_000),
     operatingExposureMinutes: round2(operatingMs / 60_000),
   };
@@ -374,35 +377,35 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     reliabilityAssets,
   } = params;
 
-  const calls = params.calls.filter((call) => !call.isSystemTest);
-  const failureEvents = params.failureEvents.filter(
-    (event) => !event.linkedCallIsSystemTest,
-  );
+  const calls = uniqueById(params.calls).filter(isEligible);
+  const failureEvents = uniqueById(params.failureEvents).filter(isEligible);
 
-  const openedCalls = calls.filter((call) => isInPeriod(call.openedAt, start, end));
-  const attendedCalls = calls.filter((call) => isInPeriod(call.attendedAt, start, end));
+  const overlappingFailureEvents = failureEvents.filter(event => event.startedAt < effectiveEnd && (!event.endedAt || event.endedAt > start));
+  const openedCalls = calls.filter((call) => isInPeriod(call.openedAt, start, effectiveEnd));
+  const attendedCalls = calls.filter((call) => isInPeriod(call.attendedAt, start, effectiveEnd));
   const finishedCalls = calls.filter(
-    (call) => call.status === "finished" && isInPeriod(call.finishedAt, start, end),
+    (call) => call.status === "finished" && isInPeriod(call.finishedAt, start, effectiveEnd),
   );
 
   const mttaValues = attendedCalls
-    .filter((call) => call.attendedAt)
+    .filter((call) => call.attendedAt && call.attendedAt >= call.openedAt)
     .map((call) => diffMinutes(call.openedAt, call.attendedAt as Date));
 
   const maintenanceValues = finishedCalls
     .map((call) => call.attendanceMinutes)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0);
 
   const followUpValues = finishedCalls
     .map((call) => call.postMaintenanceMinutes)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0);
 
   const totalCallValues = finishedCalls
-    .filter((call) => call.finishedAt)
+    .filter((call) => call.finishedAt && call.finishedAt >= call.openedAt)
     .map((call) => diffMinutes(call.openedAt, call.finishedAt as Date));
 
-  const returnedCalls = finishedCalls.filter((call) => call.maintenanceReturnCount > 0);
-  const maintenanceReturnCycles = finishedCalls.reduce(
+  const maintenanceCalls = finishedCalls.filter(call => call.failureResponsibility === "maintenance");
+  const returnedCalls = maintenanceCalls.filter((call) => call.maintenanceReturnCount > 0);
+  const maintenanceReturnCycles = maintenanceCalls.reduce(
     (total, call) => total + Math.max(0, call.maintenanceReturnCount),
     0,
   );
@@ -457,11 +460,13 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
   const totalDowntimeMinutes = round2(
     downtimeByMachine.reduce((total, machine) => total + machine.downtimeMinutes, 0),
   );
-  const mttrMinutes = average(maintenanceValues);
+  const causalEpisodes = params.causalEpisodes ?? buildCausalEpisodes(failureEvents);
+  const resolvedMaintenanceEpisodes = causalEpisodes.filter(episode => episode.responsibility === "maintenance" && Number.isFinite(episode.end) && episode.end >= start.getTime() && episode.end < effectiveEnd.getTime());
+  const mttrMinutes = average(resolvedMaintenanceEpisodes.map(episode => (episode.end-episode.start)/60_000));
   const classificationCoveragePercent =
     finishedCalls.length > 0
       ? round2(
-          (finishedCalls.filter((call) => Boolean(call.failureClassification)).length /
+          (finishedCalls.filter((call) => hasSpecificDiagnosis(call.failureClassification)).length /
             finishedCalls.length) *
             100,
         )
@@ -469,7 +474,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
 
   return {
     meta: {
-      metricDefinitionVersion: "bi-mvp-4",
+      metricDefinitionVersion: METRIC_VERSION,
       generatedAt: generatedAt.toISOString(),
       timeZone,
       period: {
@@ -479,12 +484,12 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       },
       filters,
       exclusions: {
-        systemTests: true,
+        systemTests: true, testClassifications: true, falseCalls: true, duplicates: true, cancelledCalls: true,
       },
       semantics: {
         mtta: "attendedAt - openedAt para atendimentos iniciados no período",
         mttr:
-          "MTTR operacional = média de attendanceMinutes dos chamados finalizados no período",
+          "MTTR de restabelecimento = duração integral média de episódios físicos encerrados e inteiramente atribuídos à manutenção; não é attendanceMinutes nem pessoa-tempo",
         downtime:
           "downtime acumulado = união temporal de FailureEvent por máquina; soma entre máquinas",
         mtbfEstimated:
@@ -501,7 +506,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       callsFinished: finishedCalls.length,
       mttaMinutes: average(mttaValues),
       mttrMinutes,
-      avgMaintenanceMinutes: mttrMinutes,
+      avgMaintenanceMinutes: average(maintenanceValues),
       avgPostMaintenanceMinutes: average(followUpValues),
       avgTotalCallMinutes: average(totalCallValues),
       downtimeMinutes: totalDowntimeMinutes,
@@ -513,11 +518,12 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       physicalStopEpisodes: reliability.physicalStopEpisodes,
       mtbfEstimatedMinutes: reliability.mtbfEstimatedMinutes,
       mtbfEstimatedMachineCount: reliability.monitoredMachineCount,
+      maintenanceEligibleFinishedCalls: maintenanceCalls.length,
       returnedCalls: returnedCalls.length,
       maintenanceReturnCycles,
       maintenanceReturnRatePercent:
-        finishedCalls.length > 0
-          ? round2((returnedCalls.length / finishedCalls.length) * 100)
+        maintenanceCalls.length > 0
+          ? round2((returnedCalls.length / maintenanceCalls.length) * 100)
           : null,
       classificationCoveragePercent,
     },
@@ -530,22 +536,22 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     ),
     machinePareto,
     classificationPareto: countByLabel(
-      finishedCalls.map((call) => call.failureClassification),
+      finishedCalls.map((call) => hasSpecificDiagnosis(call.failureClassification) ? call.failureClassification : null),
     ),
     sectorDistribution: countByLabel(openedCalls.map((call) => call.subtype)),
     coverage: {
       mttaSampleSize: mttaValues.length,
-      mttrSampleSize: maintenanceValues.length,
+      mttrSampleSize: resolvedMaintenanceEpisodes.length,
       maintenanceTimeSampleSize: maintenanceValues.length,
       finishedCalls: finishedCalls.length,
       finishedCallsWithClassification: finishedCalls.filter(
-        (call) => Boolean(call.failureClassification),
+        (call) => hasSpecificDiagnosis(call.failureClassification),
       ).length,
-      failureEventsOverlappingPeriod: failureEvents.length,
-      failureEventsWithClassification: failureEvents.filter(
-        (event) => Boolean(event.classification),
+      failureEventsOverlappingPeriod: overlappingFailureEvents.length,
+      failureEventsWithClassification: overlappingFailureEvents.filter(
+        (event) => hasSpecificDiagnosis(event.classification),
       ).length,
-      failureEventsLinkedToCalls: failureEvents.filter((event) => Boolean(event.callId)).length,
+      failureEventsLinkedToCalls: overlappingFailureEvents.filter((event) => Boolean(event.callId)).length,
       calendarExposureMinutes: reliability.calendarExposureMinutes,
       operatingExposureMinutes: reliability.operatingExposureMinutes,
     },

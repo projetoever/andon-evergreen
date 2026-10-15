@@ -1,9 +1,11 @@
+import { hasSpecificDiagnosis, isEligible, uniqueById } from "./eligibility.js";
 const DAY = 24 * 60 * 60 * 1000;
 
 export type MachineRecurrenceCall = {
   id: string;
   subtype: string | null;
   finishedAt: Date;
+  openedAt?: Date;
   classification: string | null;
   workOrderNumber: string | null;
   description: string | null;
@@ -87,12 +89,12 @@ export function buildMachine360Recurrence({
   const startMs = start.getTime();
   const endMs = effectiveEnd.getTime();
   const lookbackMs = startMs - 30 * DAY;
-  const eligible = calls
+  const eligible = uniqueById(calls)
     .filter((c) =>
-      !c.isSystemTest &&
+      isEligible(c) &&
       c.finishedAt.getTime() >= lookbackMs &&
       c.finishedAt.getTime() < endMs &&
-      Boolean(cleaned(c.classification)),
+      hasSpecificDiagnosis(c.classification),
     )
     .sort((a, b) =>
       a.finishedAt.getTime() - b.finishedAt.getTime() || a.id.localeCompare(b.id),
@@ -112,7 +114,7 @@ export function buildMachine360Recurrence({
   let repeatedSubset30d = 0;
   let returnCycles = 0;
   const gap = (previous: MachineRecurrenceCall | undefined, current: MachineRecurrenceCall) => {
-    if (!previous || previous.id === current.id) return null;
+    if (!previous || previous.id === current.id || (current.openedAt && current.openedAt < previous.finishedAt)) return null;
     const millis = current.finishedAt.getTime() - previous.finishedAt.getTime();
     return millis > 0 && millis <= 30 * DAY ? millis : null;
   };

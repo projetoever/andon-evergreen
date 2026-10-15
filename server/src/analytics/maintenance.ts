@@ -1,3 +1,4 @@
+import { uniqueById } from "./eligibility.js";
 export type AnalyticsMaintenanceSessionRecord = {
   id: string;
   callId: string;
@@ -9,6 +10,7 @@ export type AnalyticsMaintenanceSessionRecord = {
   cycleIndex: number | null;
   startedAt: Date;
   endedAt: Date | null;
+  failureResponsibility?: string | null;
 };
 
 export type BuildMaintenanceParticipationParams = {
@@ -26,20 +28,74 @@ function clipSessionMinutes(
   start: Date,
   end: Date,
 ) {
-  const clippedStart = Math.max(start.getTime(), session.startedAt.getTime());
-  const clippedEnd = Math.min(
-    end.getTime(),
-    session.endedAt?.getTime() ?? end.getTime(),
+  return Math.max(
+    0,
+    (Math.min(end.getTime(), session.endedAt?.getTime() ?? end.getTime()) -
+      Math.max(start.getTime(), session.startedAt.getTime())) /
+      60_000,
   );
+}
 
-  return clippedEnd > clippedStart
-    ? round2((clippedEnd - clippedStart) / 60_000)
-    : 0;
+function measuredSessions(
+  sessions: AnalyticsMaintenanceSessionRecord[],
+  start: Date,
+  end: Date,
+) {
+  const groups = new Map<string, AnalyticsMaintenanceSessionRecord[]>();
+  for (const row of uniqueById(sessions)) {
+    if (
+      !Number.isFinite(clipSessionMinutes(row, start, end)) ||
+      clipSessionMinutes(row, start, end) <= 0
+    )
+      continue;
+    const key = technicianKey(row);
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  const result: AnalyticsMaintenanceSessionRecord[] = [];
+  for (const group of groups.values()) {
+    const points = [
+      ...new Set(
+        group.flatMap((row) => [
+          Math.max(start.getTime(), row.startedAt.getTime()),
+          Math.min(end.getTime(), row.endedAt?.getTime() ?? end.getTime()),
+        ]),
+      ),
+    ].sort((a, b) => a - b);
+    for (let index = 0; index < points.length - 1; index++) {
+      const a = points[index],
+        b = points[index + 1];
+      const active = group.filter(
+        (row) =>
+          row.startedAt.getTime() < b &&
+          (row.endedAt?.getTime() ?? Infinity) > a,
+      );
+      if (!active.length) continue;
+      const phases = new Set(active.map((row) => row.phase));
+      const areas = new Set(active.map((row) => row.technicalArea));
+      const responsibilities = new Set(
+        active.map((row) => row.failureResponsibility ?? "unassigned"),
+      );
+      // Stable representative is only identity/context, never a precedence for phase or cause.
+      const row = [...active].sort((x, y) => x.id.localeCompare(y.id))[0];
+      result.push({
+        ...row,
+        startedAt: new Date(a),
+        endedAt: new Date(b),
+        phase: phases.size === 1 ? row.phase : null,
+        technicalArea: areas.size === 1 ? row.technicalArea : null,
+        failureResponsibility:
+          responsibilities.size === 1 ? [...responsibilities][0] : "unassigned",
+      });
+    }
+  }
+  return result;
 }
 
 function technicianKey(session: AnalyticsMaintenanceSessionRecord) {
   if (session.technicianId) return `id:${session.technicianId}`;
-  return `legacy:${session.technicianName.trim().toLocaleLowerCase("pt-BR")}`;
+  return session.technicianName.trim() ? `legacy:${session.technicianName.trim().toLocaleLowerCase("pt-BR")}` : `unknown:${session.id}`;
 }
 
 export function buildMaintenanceParticipation({
@@ -47,6 +103,10 @@ export function buildMaintenanceParticipation({
   start,
   effectiveEnd,
 }: BuildMaintenanceParticipationParams) {
+  const rawSessions = uniqueById(sessions).filter(row => clipSessionMinutes(row, start, effectiveEnd) > 0);
+  const measured = measuredSessions(rawSessions, start, effectiveEnd);
+  const overlapMinutesRemoved = Math.max(0, rawSessions.reduce((sum,row)=>sum+clipSessionMinutes(row,start,effectiveEnd),0)-measured.reduce((sum,row)=>sum+clipSessionMinutes(row,start,effectiveEnd),0));
+  const responsibilityMinutes = new Map<string,number>();
   const technicianGroups = new Map<
     string,
     {
@@ -81,11 +141,13 @@ export function buildMaintenanceParticipation({
   let activeSessionCount = 0;
   const callIds = new Set<string>();
 
-  for (const session of sessions) {
+  for (const session of measured) {
     const minutes = clipSessionMinutes(session, start, effectiveEnd);
     if (minutes <= 0) continue;
 
     callIds.add(session.callId);
+    const domain = session.failureResponsibility ?? "unassigned";
+    responsibilityMinutes.set(domain,(responsibilityMinutes.get(domain)??0)+minutes);
 
     const isMaintenance = session.phase === "maintenance";
     const isFollowUp = session.phase === "follow_up";
@@ -151,6 +213,20 @@ export function buildMaintenanceParticipation({
     areaGroups.set(areaKey, area);
   }
 
+  phaseAwareSessions = rawSessions.filter(row => row.phase === "maintenance" || row.phase === "follow_up").length;
+  legacySessions = rawSessions.length - phaseAwareSessions;
+  activeSessionCount = rawSessions.filter(row => !row.endedAt).length;
+  callIds.clear(); rawSessions.forEach(row => callIds.add(row.callId));
+  for (const [key, technician] of technicianGroups) {
+    const raw = rawSessions.filter(row => technicianKey(row) === key);
+    technician.callIds = new Set(raw.map(row => row.callId));
+    technician.sessionCount = raw.length;
+    technician.returnCycleSessions = raw.filter(row => row.phase === "maintenance" && (row.cycleIndex??1)>1).length;
+    const active = raw.filter(row => !row.endedAt && ["maintenance","follow_up"].includes(row.phase??""))
+      .sort((a,b) => b.startedAt.getTime()-a.startedAt.getTime());
+    technician.activePhase = active[0]?.phase as "maintenance" | "follow_up" | undefined ?? null;
+  }
+  for (const area of areaGroups.values()) area.sessionCount = rawSessions.filter(row => row.technicalArea === area.technicalArea).length;
   const technicians = Array.from(technicianGroups.values())
     .map((technician) => ({
       technicianId: technician.technicianId,
@@ -194,25 +270,17 @@ export function buildMaintenanceParticipation({
         ),
     );
 
-  const maintenancePersonMinutes = round2(
-    technicians.reduce(
-      (total, technician) => total + technician.maintenanceMinutes,
-      0,
-    ),
-  );
-  const followUpPersonMinutes = round2(
-    technicians.reduce(
-      (total, technician) => total + technician.followUpMinutes,
-      0,
-    ),
-  );
+  const maintenancePersonMinutes = round2(measured.filter(row=>row.phase==="maintenance").reduce((sum,row)=>sum+clipSessionMinutes(row,start,effectiveEnd),0));
+  const followUpPersonMinutes = round2(measured.filter(row=>row.phase==="follow_up").reduce((sum,row)=>sum+clipSessionMinutes(row,start,effectiveEnd),0));
   const totalPersonMinutes = round2(
     maintenancePersonMinutes + followUpPersonMinutes,
   );
   const totalMeasuredMinutes = phaseAwareMinutes + legacyMinutes;
 
   return {
+    responsibility: [...responsibilityMinutes].map(([responsibility,personMinutes]) => ({responsibility, personMinutes:round2(personMinutes)})),
     totals: {
+      overlapMinutesRemoved:round2(overlapMinutesRemoved),
       maintenancePersonMinutes,
       followUpPersonMinutes,
       totalPersonMinutes,

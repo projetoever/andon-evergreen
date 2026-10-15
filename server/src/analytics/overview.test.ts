@@ -41,6 +41,7 @@ test("downtime físico une intervalos simultâneos da mesma máquina", () => {
       classification: "sensor",
       callId: "c1",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "f2",
@@ -51,6 +52,7 @@ test("downtime físico une intervalos simultâneos da mesma máquina", () => {
       classification: "sensor",
       callId: "c2",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "f3",
@@ -61,6 +63,7 @@ test("downtime físico une intervalos simultâneos da mesma máquina", () => {
       classification: "mechanical",
       callId: null,
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
   ];
 
@@ -96,6 +99,7 @@ test("downtime recorta evento aberto ao período e ignora teste de sistema", () 
         classification: "electrical",
         callId: "real",
         linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
       },
       {
         id: "test",
@@ -137,6 +141,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
       maintenanceReturnCount: 1,
       failureClassification: "sensor",
       isSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "c2",
@@ -152,6 +157,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
       maintenanceReturnCount: 0,
       failureClassification: "mechanical",
       isSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "system",
@@ -180,6 +186,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
       classification: "sensor",
       callId: "c1",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "f2",
@@ -190,6 +197,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
       classification: "sensor",
       callId: "c1",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "f3",
@@ -200,6 +208,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
       classification: "mechanical",
       callId: "c2",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "system-event",
@@ -231,7 +240,7 @@ test("overview calcula somente métricas suportadas pelos registros reais", () =
   assert.equal(result.kpis.activeCallsNow, 3);
   assert.equal(result.kpis.mttaMinutes, 15);
   assert.equal(result.kpis.avgMaintenanceMinutes, 35);
-  assert.equal(result.kpis.mttrMinutes, 35);
+  assert.equal(result.kpis.mttrMinutes, 30);
   assert.equal(result.kpis.avgPostMaintenanceMinutes, 15);
   assert.equal(result.kpis.avgTotalCallMinutes, 60);
   assert.equal(result.kpis.downtimeMinutes, 60);
@@ -277,6 +286,7 @@ test("downtime diário respeita meia-noite operacional e mantém união por máq
       classification: "sensor",
       callId: "c1",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "overnight-overlap",
@@ -287,6 +297,7 @@ test("downtime diário respeita meia-noite operacional e mantém união por máq
       classification: "sensor",
       callId: "c2",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
   ];
 
@@ -320,6 +331,7 @@ test("comparação executiva e destaques permanecem determinísticos", () => {
         maintenanceReturnCount: 0,
         failureClassification: "sensor",
         isSystemTest: false,
+      failureResponsibility: "maintenance",
       },
     ],
     activeCallsNow: 0,
@@ -333,6 +345,7 @@ test("comparação executiva e destaques permanecem determinísticos", () => {
         classification: "sensor",
         callId: "current",
         linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
       },
     ],
     reliabilityAssets: null,
@@ -380,6 +393,7 @@ test("MTBF estimado usa exposição calendário menos downtime e episódios fís
       classification: "sensor",
       callId: "c1",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
     {
       id: "b",
@@ -390,6 +404,7 @@ test("MTBF estimado usa exposição calendário menos downtime e episódios fís
       classification: "sensor",
       callId: "c2",
       linkedCallIsSystemTest: false,
+      failureResponsibility: "maintenance",
     },
   ];
 

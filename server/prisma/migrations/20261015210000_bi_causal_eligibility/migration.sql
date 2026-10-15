@@ -1,0 +1,8 @@
+-- Additive only: legacy responsibility remains unknown until an audited diagnosis review.
+ALTER TABLE "failure_classifications" ADD COLUMN "responsibility" TEXT NOT NULL DEFAULT 'unassigned', ADD COLUMN "analyticsDisposition" TEXT NOT NULL DEFAULT 'include';
+ALTER TABLE "andon_calls" ADD COLUMN "failureResponsibility" TEXT, ADD COLUMN "analyticsDisposition" TEXT;
+ALTER TABLE "failure_events" ADD COLUMN "failureResponsibility" TEXT, ADD COLUMN "analyticsDisposition" TEXT;
+ALTER TABLE "failure_diagnosis_audit" ADD COLUMN "previousResponsibility" TEXT, ADD COLUMN "newResponsibility" TEXT, ADD COLUMN "previousDisposition" TEXT, ADD COLUMN "newDisposition" TEXT;
+ALTER TABLE "failure_classifications" ADD CONSTRAINT "classification_responsibility_check" CHECK ("responsibility" IN ('maintenance','operations','process','quality','leadership','other','unassigned')), ADD CONSTRAINT "classification_disposition_check" CHECK ("analyticsDisposition" IN ('include','test','false_call','duplicate'));
+ALTER TABLE "andon_calls" ADD CONSTRAINT "call_responsibility_check" CHECK ("failureResponsibility" IN ('maintenance','operations','process','quality','leadership','other','unassigned')), ADD CONSTRAINT "call_disposition_check" CHECK ("analyticsDisposition" IN ('include','test','false_call','duplicate'));
+ALTER TABLE "failure_events" ADD CONSTRAINT "event_responsibility_check" CHECK ("failureResponsibility" IN ('maintenance','operations','process','quality','leadership','other','unassigned')), ADD CONSTRAINT "event_disposition_check" CHECK ("analyticsDisposition" IN ('include','test','false_call','duplicate'));

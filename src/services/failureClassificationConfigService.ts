@@ -7,11 +7,15 @@ export type CreateFailureClassificationInput = {
   label: string;
   value: string;
   active?: boolean;
+  responsibility?: FailureClassificationConfig["responsibility"];
+  analyticsDisposition?: FailureClassificationConfig["analyticsDisposition"];
 };
 
 export type UpdateFailureClassificationInput = {
   label?: string;
   active?: boolean;
+  responsibility?: FailureClassificationConfig["responsibility"];
+  analyticsDisposition?: FailureClassificationConfig["analyticsDisposition"];
 };
 
 export function getFailureClassificationConfigs(options: { activeOnly?: boolean } = {}) {

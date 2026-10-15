@@ -97,31 +97,38 @@ export function BiExecutiveSummary({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-xs font-black uppercase tracking-wide">Resumo executivo</h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="sr-only">
             Leitura determinística do período atual contra o período anterior equivalente
           </p>
         </div>
-        <span className="mt-1 text-[10px] font-semibold text-muted-foreground md:mt-0">
+        <span className="sr-only">
           Resumo automático · mesmas fórmulas dos indicadores
         </span>
       </div>
 
-      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+      {overview.responsibility && (
+        <div className="mt-1 text-[11px] leading-4 text-muted-foreground" aria-label="Responsabilidade e qualidade dos indicadores">
+          <p><strong>Parada por causa:</strong> {overview.responsibility.downtime.filter(item => item.downtimeMinutes > 0).map(item => `${({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.downtimeMinutes)}`).join(" · ") || "Sem paradas"}.</p>
+          <p title="Testes, falsos chamados, duplicados e cancelados identificados ficam fora das contagens de chamados. A parada global mantém perdas reais de todas as áreas.">Excluídos: {overview.responsibility.excludedCalls} chamado(s) · Responsabilidade pendente: {overview.responsibility.pendingFinishedCalls} finalizado(s).</p>
+        </div>
+      )}
+
+      <div className="mt-2 grid gap-2 lg:grid-cols-4">
         {items.slice(0, 4).map((item, index) => (
           <div
             key={item.text}
-            className={`flex gap-2 rounded-lg border p-3 ${TONE_CLASSES[item.tone]}`}
+            className={`flex gap-2 rounded-lg border p-2 ${TONE_CLASSES[item.tone]}`}
           >
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${NUMBER_CLASSES[item.tone]}`}
             >
               {index + 1}
             </span>
-            <p className="text-[13px] leading-5 text-foreground">{item.text}</p>
+            <p title={item.text} className="line-clamp-3 text-xs leading-4 text-foreground">{item.text}</p>
           </div>
         ))}
       </div>
