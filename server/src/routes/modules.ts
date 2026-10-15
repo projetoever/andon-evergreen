@@ -16,6 +16,7 @@ export async function registerModuleRoutes(app: FastifyInstance) {
             id: true,
             name: true,
             active: true,
+            pendingApproval: true,
             allowOperational: true,
             allowBi: true,
             allowPriorities: true,
@@ -66,19 +67,41 @@ export async function registerModuleRoutes(app: FastifyInstance) {
   app.get("/api/modules/settings", async () => {
     const settings = await prisma.systemSettings.findUnique({
       where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
-      select: { hubEnabled: true },
+      select: { hubEnabled: true, requireWorkstationApproval: true },
     });
-    return { hubEnabled: settings?.hubEnabled ?? false };
+    return {
+      hubEnabled: settings?.hubEnabled ?? false,
+      requireWorkstationApproval: settings?.requireWorkstationApproval ?? false,
+    };
   });
 
-  app.patch<{ Body: { hubEnabled?: unknown } }>("/api/modules/settings", async (request, reply) => {
-    if (typeof request.body?.hubEnabled !== "boolean")
-      return badRequest(reply, "Campo hubEnabled deve ser booleano");
-    return prisma.systemSettings.upsert({
-      where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
-      create: { id: GLOBAL_SYSTEM_SETTINGS_ID, hubEnabled: request.body.hubEnabled },
-      update: { hubEnabled: request.body.hubEnabled },
-      select: { hubEnabled: true },
-    });
-  });
+  app.patch<{ Body: { hubEnabled?: unknown; requireWorkstationApproval?: unknown } }>(
+    "/api/modules/settings",
+    async (request, reply) => {
+      const body = request.body ?? {};
+      const hasHub = Object.hasOwn(body, "hubEnabled");
+      const hasApproval = Object.hasOwn(body, "requireWorkstationApproval");
+      if (
+        (!hasHub && !hasApproval) ||
+        (hasHub && typeof body.hubEnabled !== "boolean") ||
+        (hasApproval && typeof body.requireWorkstationApproval !== "boolean")
+      )
+        return badRequest(reply, "Informe uma configuração booleana válida do Hub");
+      const patch = {
+        ...(hasHub ? { hubEnabled: body.hubEnabled as boolean } : {}),
+        ...(hasApproval
+          ? { requireWorkstationApproval: body.requireWorkstationApproval as boolean }
+          : {}),
+      };
+      return prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
+        return tx.systemSettings.upsert({
+          where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
+          create: { id: GLOBAL_SYSTEM_SETTINGS_ID, ...patch },
+          update: patch,
+          select: { hubEnabled: true, requireWorkstationApproval: true },
+        });
+      });
+    },
+  );
 }

@@ -84,7 +84,7 @@ test("Admin identifica a workstation atual e permite nome e status", async () =>
   assert.match(source, /updateWorkstation/);
 });
 
-test("identidade da workstation não usa localStorage no navegador", async () => {
+test("cookie técnico e espelho usam a mesma chave da identidade da workstation", async () => {
   const identitySource = await readFile(
     new URL("../src/services/workstationIdentityService.ts", import.meta.url),
     "utf8",
@@ -95,7 +95,7 @@ test("identidade da workstation não usa localStorage no navegador", async () =>
   );
 
   assert.match(identitySource, /document\.cookie/);
-  assert.doesNotMatch(identitySource, /localStorage/);
+  assert.match(identitySource, /localStorage/);
   assert.doesNotMatch(serviceSource, /window\.localStorage/);
   assert.match(serviceSource, /getCurrentWorkstationId\(\)/);
   assert.doesNotMatch(identitySource, /machineId|hostname|ipAddress|macAddress/i);
@@ -156,4 +156,23 @@ test("estado runtime da workstation é centralizado no PostgreSQL", async () => 
   assert.match(route, /screen-lock/);
   assert.match(lockService, /runtime-preferences/);
   assert.doesNotMatch(lockService, /localStorage/);
+});
+
+test("cookie bloqueado usa o mesmo UUID persistido no espelho após reload", async () => {
+  const {getCurrentWorkstationId,resetWorkstationIdentityCacheForTests}=await import('../src/services/workstationIdentityService');
+  const previousWindow=Object.getOwnPropertyDescriptor(globalThis,'window');
+  const previousDocument=Object.getOwnPropertyDescriptor(globalThis,'document');
+  const storage=new MemoryStorage();
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{localStorage:storage}});
+  Object.defineProperty(globalThis,'document',{configurable:true,value:{get cookie(){throw new Error('cookies blocked');},set cookie(_value:string){throw new Error('cookies blocked');}}});
+  try {
+    resetWorkstationIdentityCacheForTests();const first=getCurrentWorkstationId();assert.ok(isValidWorkstationId(first));
+    resetWorkstationIdentityCacheForTests();assert.equal(getCurrentWorkstationId(),first);
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{localStorage:{getItem(){throw new Error('blocked');},setItem(){throw new Error('blocked');}}}});
+    resetWorkstationIdentityCacheForTests();assert.equal(getCurrentWorkstationId(),null);
+  }finally{
+    resetWorkstationIdentityCacheForTests();
+    if(previousWindow)Object.defineProperty(globalThis,'window',previousWindow);else Reflect.deleteProperty(globalThis,'window');
+    if(previousDocument)Object.defineProperty(globalThis,'document',previousDocument);else Reflect.deleteProperty(globalThis,'document');
+  }
 });

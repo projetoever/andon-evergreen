@@ -14,6 +14,7 @@ import {
 } from "@/services/workstationService";
 import type { Workstation } from "@/types/workstation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
 import { toast } from "sonner";
 
 function workstationLabel(workstation: Workstation) {
@@ -143,6 +144,7 @@ export function WorkstationsSettingsTab() {
 
   return (
     <div className="space-y-4">
+      <WorkstationAdmissionSettings />
       <div className="space-y-1">
         <h3 className="text-base font-bold">Workstations conhecidas</h3>
         <p className="text-sm text-muted-foreground">
@@ -273,7 +275,7 @@ export function WorkstationsSettingsTab() {
                   <div className="flex gap-2">
                     {isCurrent && <Badge>Esta workstation</Badge>}
                     <Badge variant={workstation.active ? "secondary" : "outline"}>
-                      {workstation.active ? "Liberado" : "Bloqueado"}
+                      {workstation.pendingApproval ? "Aguardando aprovação" : workstation.active ? "Liberado" : "Bloqueado"}
                     </Badge>
                   </div>
                 </div>
@@ -329,7 +331,7 @@ export function WorkstationsSettingsTab() {
                       }
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
-                    {workstation.active ? "Liberado" : "Bloqueado"}
+                    {workstation.pendingApproval ? "Aprovar estação" : workstation.active ? "Liberado" : "Bloqueado"}
                   </label>
                 </div>
                 <div className="space-y-3 rounded-lg border border-border p-3">

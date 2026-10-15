@@ -1,7 +1,8 @@
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, FileDown, RefreshCw } from "lucide-react";
+import { BarChart3, FileDown, RefreshCw, Factory, Clock3 } from "lucide-react";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
@@ -64,6 +65,7 @@ const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
 };
 
 export function AndonBiPage() {
+  const { access } = useModuleAccess();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<BiWorkspaceTab>("overview");
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
@@ -474,40 +476,40 @@ export function AndonBiPage() {
           <div className="flex shrink-0 items-center gap-2">
             <ModuleNavigation />
             {overview && (
-              <span className="rounded-full border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
-                Atualizado{" "}
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground" title={`Atualizado ${new Intl.DateTimeFormat("pt-BR", {hour:"2-digit",minute:"2-digit",timeZone:overview.meta.timeZone}).format(new Date(overview.meta.generatedAt))}`}>
+                <Clock3 className="h-4 w-4" aria-hidden="true" /><span className="sr-only">Atualizado{" "}
                 {new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   timeZone: overview.meta.timeZone,
-                }).format(new Date(overview.meta.generatedAt))}
+                }).format(new Date(overview.meta.generatedAt))}</span>
               </span>
             )}
             <button
               type="button"
               onClick={() => void exportExecutivePdf()}
               disabled={reportLoading}
-              title="Preparar relatório A4 e selecionar Salvar como PDF no navegador"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
+              title={reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
+              aria-label={reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
             >
               <FileDown className="h-3.5 w-3.5" />
-              {reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
             </button>
             <button
               type="button"
               onClick={() => setRefreshVersion((value) => value + 1)}
               disabled={loading}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+              title={loading ? "Atualizando…" : t("Atualizar")}
+              aria-label={loading ? "Atualizando…" : t("Atualizar")}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Atualizando…" : t("Atualizar")}
             </button>
-            <Link
-              to="/hub"
-              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-bold transition hover:bg-muted"
-            >
-              {t("Ir para o Hub")}
-            </Link>
+            {access?.modules.some((module) => module.id === "operational" && module.allowed && module.enabled && module.available) && (
+              <Link to="/andon" title={t("Abrir ANDON operacional")} aria-label={t("Abrir ANDON operacional")} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground">
+                <Factory className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            )}
           </div>
         </header>
 

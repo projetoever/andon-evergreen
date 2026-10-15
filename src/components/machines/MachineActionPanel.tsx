@@ -308,24 +308,6 @@ export function MachineActionPanel({
 
       {currentCall && (
         <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-2">
-          {currentCall.status === "in_progress" &&
-            currentCall.category === "maintenance" &&
-            maintenanceCompletionHint && (
-              <p
-                role={maintenanceCompletionDisabled ? "alert" : "status"}
-                className={cn(
-                  "w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold",
-                  maintenanceCompletionHintTone === "success" &&
-                    "border-success/30 bg-success/10 text-success",
-                  maintenanceCompletionHintTone === "warning" &&
-                    "border-warning/30 bg-warning/10 text-warning",
-                  maintenanceCompletionHintTone === "danger" &&
-                    "border-danger/30 bg-danger/10 text-danger",
-                )}
-              >
-                {maintenanceCompletionHint}
-              </p>
-            )}
           {currentCall.status === "open" && (
             <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> {t("Atender selecionado")}
@@ -349,9 +331,22 @@ export function MachineActionPanel({
               size="md"
               className={workflowActionClass}
               disabled={maintenanceCompletionDisabled}
+              title={maintenanceCompletionHint ?? undefined}
               onClick={onCompleteMaintenance}
             >
-              <CheckCheck className="h-4 w-4" /> {t("Concluir manutenção")}
+              <CheckCheck className="h-4 w-4" />
+              <span className="flex min-w-0 flex-col items-center">
+                <span>{t("Concluir manutenção")}</span>
+                {maintenanceCompletionHint && (
+                  <span
+                    role={maintenanceCompletionDisabled ? "alert" : "status"}
+                    className={cn("text-[10px] font-semibold normal-case leading-tight", maintenanceCompletionHintTone === "danger" ? "text-danger" : "text-warning")}
+                  >
+                    {maintenanceCompletionDisabled ? "Use a estação do atendimento" : maintenanceCompletionHintTone === "success" ? "Atendimento legado" : "Validar estação ao concluir"}
+                    <span className="sr-only">: {maintenanceCompletionHint}</span>
+                  </span>
+                )}
+              </span>
             </BigButton>
           )}
           {currentCall.status === "in_progress" && currentCall.category === "production" && (

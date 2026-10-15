@@ -104,6 +104,7 @@ Assert-AndonTest `
 
 $script:TestReady = $true
 $script:TestPasswordRequired = $false
+$script:TestApprovalRequired = $false
 $script:ReadinessRequests = @()
 function Invoke-RestMethod {
     param(
@@ -114,7 +115,7 @@ function Invoke-RestMethod {
 
     $script:ReadinessRequests += $Uri
     if ($Uri -like "*/health/ready") {
-        return [pscustomobject]@{ status = "ok"; ready = $script:TestReady; operationalPasswordRequired = $script:TestPasswordRequired }
+        return [pscustomobject]@{ status = "ok"; ready = $script:TestReady; operationalPasswordRequired = $script:TestPasswordRequired; workstationApprovalRequired = $script:TestApprovalRequired }
     }
     if ($script:TestPasswordRequired) { throw "Endpoint operacional nao deve ser usado como health check." }
     return @()
@@ -131,6 +132,11 @@ $script:ReadinessRequests = @()
 Assert-AndonTest -Condition (Test-AndonApiBusinessReady) -Message "Senha de modulo nao pode impedir inicializacao"
 $protectedWriteResult = Test-AndonApiWrite
 Assert-AndonTest -Condition ($protectedWriteResult.Status -eq "SKIP") -Message "Health de escrita deve respeitar senha de modulo"
+$script:TestPasswordRequired = $false
+$script:TestApprovalRequired = $true
+$approvalWriteResult = Test-AndonApiWrite
+Assert-AndonTest -Condition ($approvalWriteResult.Status -eq "SKIP") -Message "Health de escrita deve respeitar aprovacao de workstation"
+$script:TestApprovalRequired = $false
 Assert-AndonTest -Condition (@($script:ReadinessRequests | Where-Object { $_ -like "*/api/machines*" }).Count -eq 0) -Message "Prontidao nao deve consultar dados protegidos"
 $script:TestReady = $false
 Assert-AndonTest -Condition (!(Test-AndonApiBusinessReady)) -Message "HTTP 200 com ready=false nao e prontidao"

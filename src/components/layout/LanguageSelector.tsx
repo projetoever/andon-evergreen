@@ -12,10 +12,12 @@ export function LanguageSelector() {
         title={t("Idioma da interface")}
         value={language}
         onChange={(event) => setLanguage(event.target.value as AndonLanguage)}
-        className="min-w-0 max-w-[94px] cursor-pointer bg-transparent text-xs font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-[110px]"
+        className="min-w-0 max-w-[94px] cursor-pointer bg-background [color-scheme:dark] text-xs font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-[110px]"
       >
         {LANGUAGE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
+          <option className="bg-background text-foreground" key={option.value} value={option.value}>
+            {option.label}
+          </option>
         ))}
       </select>
     </label>

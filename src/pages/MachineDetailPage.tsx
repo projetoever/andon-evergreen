@@ -32,6 +32,8 @@ import {
 } from "@/services/machineSoundPreferenceService";
 import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
+import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { playAndonSound, stopAndonSound, unlockAudio } from "@/services/soundService";
 import { AudioPlaybackRecovery } from "@/components/common/AudioPlaybackRecovery";
@@ -56,6 +58,7 @@ import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
+  const { access } = useModuleAccess();
   const {
     machines,
     calls,
@@ -299,12 +302,20 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       (summary) => summary.activeSession && summary.activePhase === expectedPhase,
     );
   }, [currentCall?.status, participationSummaries]);
+  useEffect(() => {
+    const onSettingsChanged = (event: Event) => {
+      const settings = (event as CustomEvent<import("@/types/systemSettings").SystemSettings>).detail;
+      setWorkstationRestrictionContext((current) => current ? {...current, restricted: settings.restrictMaintenanceCompletionToAttendanceWorkstation} : current);
+    };
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
+    return () => window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
+  }, []);
   const maintenanceCompletionAuthorization = useMemo(
-    () =>
-      workstationRestrictionContext
-        ? evaluateMaintenanceCompletionAuthorization(sessions, workstationRestrictionContext)
-        : null,
-    [sessions, workstationRestrictionContext],
+    () => workstationRestrictionContext ? evaluateMaintenanceCompletionAuthorization(sessions, {
+      ...workstationRestrictionContext,
+      ...(access ? {currentWorkstationId:access.workstation.id,currentWorkstationActive:access.workstation.active} : {}),
+    }) : null,
+    [sessions, workstationRestrictionContext, access],
   );
   const maintenanceCompletionHint = useMemo(() => {
     if (workstationAuthorizationLoadFailed) {
@@ -706,6 +717,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         successLabel="Desbloquear"
       />
       <FinishCallModal
+        key={finishCallId ?? "closed"}
         open={finishCallId !== null}
         onOpenChange={(isOpen) => !isOpen && setFinishCallId(null)}
         callId={finishCallId}

@@ -9,10 +9,13 @@ const id = "ws_00000000-0000-4000-8000-000000000037";
 
 test("module policy protects direct reads/writes and preserves priorities, recovery and legacy clients", async (t) => {
   let station = { active: true, allowOperational: true, allowBi: true, allowPriorities: true };
+  const originalPolicy = prisma.systemSettings.findUnique;
+  prisma.systemSettings.findUnique = (async () => null) as unknown as typeof originalPolicy;
   const originalLookup = prisma.workstation.findUnique;
   prisma.workstation.findUnique = (async () => station) as unknown as typeof originalLookup;
   t.after(() => {
     prisma.workstation.findUnique = originalLookup;
+    prisma.systemSettings.findUnique = originalPolicy;
   });
   const app = Fastify();
   app.addHook("preHandler", enforceWorkstationAccess);

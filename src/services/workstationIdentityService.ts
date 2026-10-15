@@ -79,19 +79,65 @@ function readCookie(key: string) {
     .split(";")
     .map((item) => item.trim())
     .find((item) => item.startsWith(prefix));
-  return part ? decodeURIComponent(part.slice(prefix.length)) : null;
+  try {
+    return part ? decodeURIComponent(part.slice(prefix.length)) : null;
+  } catch {
+    return null;
+  }
 }
 
 function writeCookie(key: string, value: string) {
   if (typeof document === "undefined") return;
-  const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
-  document.cookie =
-    `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${WORKSTATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+  const secure =
+    typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${WORKSTATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
+// Cookie is canonical across ports on the same host. A browser-local mirror
+// recovers the same UUID when cookies are unavailable; it is never exported.
 const browserCookieStorage: WorkstationIdentityStorage = {
-  getItem: readCookie,
-  setItem: writeCookie,
+  getItem(key) {
+    let cookie: string | null = null;
+    try {
+      cookie = readCookie(key);
+    } catch {
+      /* Browser may deny cookie access entirely. */
+    }
+    if (isValidWorkstationId(cookie)) {
+      try {
+        window.localStorage.setItem(key, cookie);
+      } catch {
+        /* Cookie remains canonical. */
+      }
+      return cookie;
+    }
+    try {
+      const mirror = window.localStorage.getItem(key);
+      if (isValidWorkstationId(mirror)) {
+        try {
+          writeCookie(key, mirror);
+        } catch {
+          /* The mirror remains persistent. */
+        }
+        return mirror;
+      }
+    } catch {
+      /* No persistent mirror available. */
+    }
+    return null;
+  },
+  setItem(key, value) {
+    try {
+      writeCookie(key, value);
+    } catch {
+      /* Try the independent mirror below. */
+    }
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      /* Cookie may still persist. */
+    }
+  },
 };
 
 function getBrowserStorage() {
@@ -103,7 +149,15 @@ export function getCurrentWorkstationId() {
   if (cachedWorkstationId) return cachedWorkstationId;
   const storage = getBrowserStorage();
   if (!storage) return null;
-  cachedWorkstationId = ensureWorkstationId(storage);
+  const id = ensureWorkstationId(storage);
+  // A volatile UUID would become a different station after reload. Fail clearly
+  // instead of recording attendance against an identity that cannot be reused.
+  if (
+    typeof document !== "undefined" &&
+    storage.getItem(WORKSTATION_ID_STORAGE_KEY)?.trim().toLowerCase() !== id
+  )
+    return null;
+  cachedWorkstationId = id;
   return cachedWorkstationId;
 }
 

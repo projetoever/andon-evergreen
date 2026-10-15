@@ -130,7 +130,7 @@ test("frontend exige classificação e descrição em todas as condições finai
     ),
   ]);
 
-  assert.match(modal, /findApplicableFailureEvent\(machine\.stopHistory, call\.id\)/);
+  assert.match(modal, /getFinishCallDefaults\(call\)/);
   assert.match(modal, /getFailureClassificationConfigs\(\)/);
   assert.match(modal, /activeFailureClassifications/);
   assert.match(modal, /preservesExistingInactiveClassification/);
@@ -145,10 +145,7 @@ test("frontend exige classificação e descrição em todas as condições finai
   assert.match(modal, /Descrição da falha/);
   assert.doesNotMatch(modal, /\{applicableFailureEvent && \(/);
   assert.doesNotMatch(modal, /Observações do atendimento/);
-  assert.match(
-    modal,
-    /extractFailureDescriptionForFinish\([\s\S]*call\.failureDescription \?\? applicableFailureEvent\?\.failureDescription[\s\S]*\) \|\| extractFailureDescriptionForFinish\(call\.notes\)/,
-  );
+  assert.doesNotMatch(modal, /applicableFailureEvent\?\.failureDescription/);
   assert.match(modal, /const normalizedDescription = callDescription\.trim\(\)/);
   assert.match(modal, /notes:\s*normalizedDescription \|\| null/);
   assert.match(

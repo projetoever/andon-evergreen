@@ -16,6 +16,7 @@ const workstationSelect = {
   id: true,
   name: true,
   active: true,
+  pendingApproval: true,
   allowOperational: true,
   allowBi: true,
   allowPriorities: true,
@@ -35,11 +36,16 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
 
       const now = new Date();
       const lastIpAddress = request.ip.replace(/^::ffff:/, "");
-      const workstation = await prisma.workstation.upsert({
-        where: { id },
-        create: { id, lastSeenAt: now, lastIpAddress },
-        update: { lastSeenAt: now, lastIpAddress },
-        select: workstationSelect,
+      const workstation = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
+        const policy = await tx.systemSettings.findUnique({where:{id:"global"},select:{requireWorkstationApproval:true}});
+        const pendingApproval = policy?.requireWorkstationApproval ?? false;
+        return tx.workstation.upsert({
+          where: { id },
+          create: { id, active: !pendingApproval, pendingApproval, lastSeenAt: now, lastIpAddress },
+          update: { lastSeenAt: now, lastIpAddress },
+          select: workstationSelect,
+        });
       });
 
       return reply.status(200).send(workstation);
@@ -277,7 +283,7 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             where: { id },
             data: {
               ...(hasName ? { name } : {}),
-              ...(active !== undefined ? { active } : {}),
+              ...(active !== undefined ? { active, ...(active ? {pendingApproval:false} : {}) } : {}),
               ...(allowOperational !== undefined ? { allowOperational } : {}),
               ...(allowBi !== undefined ? { allowBi } : {}),
               ...(allowPriorities !== undefined ? { allowPriorities } : {}),

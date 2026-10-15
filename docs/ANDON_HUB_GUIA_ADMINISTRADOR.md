@@ -65,6 +65,18 @@ A preferência não substitui a política de reprodução do navegador. Se uma t
 
 Ao iniciar ou adicionar mantenedores por nome, **Todos os turnos** fica visível. Se o filtro de turno estiver habilitado, o botão amplia a lista e permanece destacado; clicar novamente retorna ao filtro configurado. Sem filtro, sem turno atual ou sem mantenedor nesse turno, a lista já inclui todos os ativos. PIN e RFID identificam mantenedores ativos independentemente do horário cadastrado. Área técnica, credencial válida, exclusividade e vínculos do atendimento continuam obrigatórios.
 
+## Aprovação de novas workstations
+
+Em **Estações e acessos**, ligue **Exigir aprovação para novas workstations** para que novos navegadores entrem com status **Aguardando aprovação**, sem acesso aos módulos. Identifique o registro por nome, UUID e IP e ative a estação, escolhendo os módulos permitidos. O heartbeat não aprova uma estação; desligar a regra também não aprova cadastros pendentes. Estações já aprovadas continuam com suas permissões.
+
+A regra começa desligada para compatibilidade. Quando ligada, clientes HTTP sem UUID também recebem 403: registre e autorize uma identidade própria para Node-RED/GPIO antes de ligar a regra. A exigência de senha de cada módulo é independente.
+
+O UUID do cookie técnico é a identidade principal no mesmo host, inclusive entre portas. Um espelho local somente do UUID permite recuperar essa identidade quando cookies estiverem indisponíveis. Se nenhum armazenamento persistente funcionar, o acesso apresenta falha de identificação. Outro host, perfil ou navegador pode ser outra workstation. IP não concede autorização e não une cadastros automaticamente.
+
+Ao concluir manutenção, a API verifica as workstations das participações ativas do último ciclo registrado. Se todas já foram encerradas individualmente, usa as workstations registradas nesse ciclo. Participações de ciclos antigos não liberam um ciclo mais recente com origem conhecida. A indicação resumida fica no botão; o texto completo está disponível na dica e para leitores de tela.
+
+A classificação e a descrição da finalização vêm do próprio chamado. A transferência de responsabilidade por uma parada física não importa o diagnóstico do chamado anterior. A atualização automática também descarta respostas de sincronização que se sobreponham a uma ação de chamado.
+
 ## Senha global e recuperação
 
 Na seção **Segurança**, informe a senha atual, a nova senha e a confirmação. A credencial continua sendo validada e persistida pelo servidor. Ela vale para o Admin e para o desbloqueio das máquinas, conforme o fluxo existente.

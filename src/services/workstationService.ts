@@ -6,6 +6,8 @@ import { getCurrentWorkstationId, isValidWorkstationId } from "./workstationIden
 export const WORKSTATION_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 const apiClient = createAndonApiClient();
+import { getLocalWorkstationApproval } from "./hubEnrollmentService";
+
 let memoryWorkstations: Workstation[] = [];
 
 function readLocalWorkstations() {
@@ -25,7 +27,8 @@ function registerLocalWorkstation(id: string) {
     : {
         id,
         name: null,
-        active: true,
+        active: !getLocalWorkstationApproval(),
+        pendingApproval: getLocalWorkstationApproval(),
         allowOperational: true,
         allowBi: true,
         allowPriorities: true,
@@ -42,7 +45,7 @@ function registerLocalWorkstation(id: string) {
 
 export async function registerCurrentWorkstation() {
   const id = getCurrentWorkstationId();
-  if (!id) throw new Error("Identidade da workstation indisponível neste ambiente.");
+  if (!id) throw new Error("Não foi possível persistir a identidade da workstation. Habilite cookies ou armazenamento do site neste navegador.");
 
   if (CONFIGURED_DATA_MODE === "local") return registerLocalWorkstation(id);
   return apiClient.post<Workstation>("/api/workstations/register", { id });
@@ -76,7 +79,7 @@ export async function updateWorkstation(id: string, patch: WorkstationUpdate) {
   const updated: Workstation = {
     ...existing,
     ...(patch.name !== undefined ? { name: patch.name.trim().replace(/\s+/g, " ") || null } : {}),
-    ...(patch.active !== undefined ? { active: patch.active } : {}),
+    ...(patch.active !== undefined ? { active: patch.active, ...(patch.active ? {pendingApproval:false} : {}) } : {}),
     ...(patch.allowOperational !== undefined ? { allowOperational: patch.allowOperational } : {}),
     ...(patch.allowBi !== undefined ? { allowBi: patch.allowBi } : {}),
     ...(patch.allowPriorities !== undefined ? { allowPriorities: patch.allowPriorities } : {}),

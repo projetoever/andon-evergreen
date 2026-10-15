@@ -41,23 +41,20 @@ export function evaluateMaintenanceCompletionAuthorization(
     return { allowed: true, kind: "restriction_off", message: null };
   }
 
-  const activeSessions = sessions.filter((session) => !session.endedAt);
+  // Only the latest maintenance cycle grants completion authority. If everybody
+  // ended their individual participation, keep that cycle's recorded stations.
+  const maintenance = sessions.filter((session) => session.phase !== "follow_up");
+  const latestCycle = Math.max(1, ...maintenance.map((session) => session.cycleIndex ?? 1));
+  const currentCycle = maintenance.filter((session) => (session.cycleIndex ?? 1) === latestCycle);
+  const activeSessions = currentCycle.filter((session) => !session.endedAt);
+  const relevantSessions = activeSessions.length ? activeSessions : currentCycle;
   const authorizedIds = new Set(
-    activeSessions
+    relevantSessions
       .map((session) => session.workstationId)
       .filter((id): id is string => Boolean(id)),
   );
-
   if (authorizedIds.size === 0) {
-    const hasKnownHistoricalWorkstation = sessions.some((session) => session.workstationId);
-    if (activeSessions.length > 0 || !hasKnownHistoricalWorkstation) {
-      return { allowed: true, kind: "legacy", message: null };
-    }
-    return {
-      allowed: false,
-      kind: "different_workstation",
-      message: WORKSTATION_COMPLETION_RESTRICTED_MESSAGE,
-    };
+    return { allowed: true, kind: "legacy", message: null };
   }
 
   if (!context.currentWorkstationId || context.currentWorkstationActive === null) {

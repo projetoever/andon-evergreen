@@ -27,7 +27,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
 
   const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
   if (!id) {
-    if (request.headers.origin) {
+    const policy = await prisma.systemSettings.findUnique({where:{id:"global"},select:{requireWorkstationApproval:true}});
+    if (request.headers.origin || policy?.requireWorkstationApproval) {
       return reply.status(403).send({ error: "workstation_identification_required", message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE });
     }
     return;

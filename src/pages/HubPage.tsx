@@ -55,7 +55,7 @@ export function HubPage() {
           <>
             {!access.workstation.active && (
               <p role="alert" className="text-danger">
-                {t("Solicite ao administrador a liberação desta workstation.")}
+                {t(access.workstation.pendingApproval ? "Workstation aguardando aprovação do administrador do Hub." : "Solicite ao administrador a liberação desta workstation.")}
               </p>
             )}
             <ModuleCards />

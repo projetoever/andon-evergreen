@@ -44,10 +44,9 @@ import {
 } from "@/utils/durationUtils";
 import { useTicker } from "@/hooks/useTicker";
 import {
-  findApplicableFailureEvent,
   isSpecificFailureClassification,
 } from "@/utils/failureEventUtils";
-import { extractFailureDescriptionForFinish } from "@/utils/failureDescriptionUtils";
+import { getFinishCallDefaults } from "@/utils/finishCallDefaults";
 import {
   Check,
   CheckCircle2,
@@ -270,14 +269,6 @@ export function FinishCallModal({
     ? machines.find((item) => item.id === call.machineId) ?? null
     : null;
 
-  const applicableFailureEvent = useMemo(
-    () =>
-      call && machine
-        ? findApplicableFailureEvent(machine.stopHistory, call.id)
-        : null,
-    [call, machine],
-  );
-
   const activeFailureClassifications = useMemo(
     () =>
       failureClassifications.filter(
@@ -293,11 +284,10 @@ export function FinishCallModal({
   );
 
   const preservesExistingInactiveClassification = Boolean(
-    applicableFailureEvent &&
       selectedFailureClassification &&
       !selectedFailureClassification.active &&
       isSpecificFailureClassification(selectedFailureClassification.value) &&
-      (call?.failureClassification ?? applicableFailureEvent.failureClassification) === selectedFailureClassification.value,
+      call?.failureClassification === selectedFailureClassification.value,
   );
 
   const hasValidFailureClassification = Boolean(
@@ -352,20 +342,9 @@ export function FinishCallModal({
     initializedCallIdRef.current =
       call.id;
 
-    const existingFailureClassification =
-      call.failureClassification ?? applicableFailureEvent?.failureClassification;
-
-    setFailureClassification(
-      isSpecificFailureClassification(existingFailureClassification)
-        ? existingFailureClassification ?? ""
-        : "",
-    );
-
-    setCallDescription(
-      extractFailureDescriptionForFinish(
-        call.failureDescription ?? applicableFailureEvent?.failureDescription,
-      ) || extractFailureDescriptionForFinish(call.notes),
-    );
+    const defaults = getFinishCallDefaults(call);
+    setFailureClassification(defaults.classification);
+    setCallDescription(defaults.description);
 
     setConfirmedMachineSetId(
       call.machineSetId ?? null,
@@ -385,9 +364,6 @@ export function FinishCallModal({
     open,
     call,
     call?.id,
-    applicableFailureEvent?.id,
-    applicableFailureEvent?.failureClassification,
-    applicableFailureEvent?.failureDescription,
     call?.failureClassification,
     call?.failureDescription,
     call?.notes,
@@ -421,7 +397,7 @@ export function FinishCallModal({
             selected &&
               !selected.active &&
               isSpecificFailureClassification(selected.value) &&
-              (call?.failureClassification ?? applicableFailureEvent?.failureClassification) === selected.value,
+              call?.failureClassification === selected.value,
           );
 
           return selected &&
@@ -449,7 +425,7 @@ export function FinishCallModal({
     return () => {
       current = false;
     };
-  }, [open, callId, call?.isSystemTest, call?.failureClassification, applicableFailureEvent?.failureClassification]);
+  }, [open, callId, call?.isSystemTest, call?.failureClassification]);
 
   useEffect(() => {
     if (!open || !currentMachineId || !requiresAssetConfirmation) {

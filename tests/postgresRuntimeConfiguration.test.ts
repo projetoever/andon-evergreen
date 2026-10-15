@@ -10,7 +10,6 @@ const CENTRALIZED_SERVICES = [
   "../src/services/shiftConfigService.ts",
   "../src/services/systemSettingsService.ts",
   "../src/services/technicianShiftFilterService.ts",
-  "../src/services/workstationIdentityService.ts",
   "../src/services/workstationService.ts",
   "../src/services/localStorageService.ts",
 ];
@@ -40,7 +39,7 @@ test("PostgreSQL contém turnos, filtro global e preferências por workstation",
   assert.match(settings, /filterTechniciansByCurrentShift/);
 });
 
-test("identidade persistente da workstation usa cookie técnico, não configuração local", async () => {
+test("identidade da workstation usa cookie técnico e espelho sem dados operacionais", async () => {
   const identity = await readFile(
     new URL("../src/services/workstationIdentityService.ts", import.meta.url),
     "utf8",
@@ -48,7 +47,8 @@ test("identidade persistente da workstation usa cookie técnico, não configura�
 
   assert.match(identity, /document\.cookie/);
   assert.match(identity, /SameSite=Lax/);
-  assert.doesNotMatch(identity, /localStorage/);
+  assert.match(identity, /localStorage/);
+  assert.match(identity, /WORKSTATION_ID_STORAGE_KEY/);
 });
 
 
