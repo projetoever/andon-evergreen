@@ -248,3 +248,17 @@
     min-height: 3rem;
   }
 }
+
+@media (min-width: 64rem) {
+  .machine-detail-participants {
+    max-height: 6rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 44rem) {
+  .machine-detail-participants {
+    max-height: 2.75rem;
+  }
+}

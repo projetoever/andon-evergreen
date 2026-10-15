@@ -627,7 +627,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
               </div>
             ) : (
               <div
-                className="mt-1.5 grid gap-1.5"
+                className="machine-detail-participants mt-1.5 grid gap-1.5"
                 style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
               >
                 {activeParticipationSummaries.map((summary) => {

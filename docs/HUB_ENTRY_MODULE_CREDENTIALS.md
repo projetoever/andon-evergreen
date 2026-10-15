@@ -132,7 +132,7 @@ O BI passa a usar ícones com nomes acessíveis e dicas para Hub, PDF, atualiza�
 
 ## Responsividade e controles visuais
 
-A faixa de setores e ações usa a altura útil da janela, sem trocar de escala por mensagem de workstation, participantes ou acompanhamento. A faixa de informações deixa de reservar 26/48rem; os painéis ficam lado a lado a partir de 1024px. Em janelas baixas, os painéis informativos permitem rolagem interna para manter os comandos acessíveis. Em telas estreitas, a página preserva a rolagem vertical natural, sem ocultar conteúdo.
+A faixa de setores e ações usa a altura útil da janela, sem trocar de escala por mensagem de workstation, participantes ou acompanhamento. A faixa de informações deixa de reservar 26/48rem; os painéis ficam lado a lado a partir de 1024px. Em janelas baixas, os painéis informativos e a lista de mantenedores permitem rolagem interna para manter os comandos acessíveis. Em telas estreitas, a página preserva a rolagem vertical natural, sem ocultar conteúdo.
 
 O seletor de idioma usa o componente visual do produto, incluindo o menu, evitando a pintura nativa do Windows. Mantém identificação acessível, teclado e persistência da preferência. No BI, o horário da última atualização aparece como texto junto ao título, com timestamp semântico; o relógio decorativo saiu da barra de ações.
 
