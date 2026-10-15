@@ -1,12 +1,12 @@
 # ANDON Hub — guia do administrador
 
-Evolução candidata baseada na `main` `c041478`, para `1.0.0-pilot.3`, revisada em 15/10/2026. Este documento descreve o código da candidata, sem afirmar instalação ou homologação da fábrica.
+Hub integrado à `main` pelo PR #200 (`bad1f945`), release `1.0.0-pilot.3`. Esta revisão de 15/10/2026 inclui refinamentos candidatos de áudio, navegação e configuração; não afirma instalação ou homologação da fábrica.
 
 ## Entradas e navegação
 
 Abra `http://IP:8080/` (ou `/hub`) no endereço da instalação para escolher ANDON operacional, ANDON BI ou Prioridades de produção. O Hub usa o tema, as cores e os componentes existentes do ANDON. O painel operacional passa para `/andon`. Os endereços de BI, Prioridades e máquinas continuam disponíveis conforme as permissões e a exigência de senha.
 
-O launcher/kiosk que abre a raiz passa a apresentar o Hub. O botão **Módulos** permite alternar entre os acessos liberados. Estações com máquina fixada também começam no Hub; ao selecionar ANDON, retornam à máquina fixada e mantêm sua navegação dedicada. A entrada `/hub/admin` permanece acessível para recuperação.
+O launcher/kiosk que abre a raiz passa a apresentar o Hub. O ícone de grade **Ir para o Hub** retorna diretamente à central para escolher outro módulo, sem abrir um modal intermediário. Estações com máquina fixada também começam no Hub; ao selecionar ANDON, retornam à máquina fixada e mantêm sua navegação dedicada. A entrada `/hub/admin` permanece acessível para recuperação.
 
 Entre no Admin com a credencial administrativa já existente. Esta revisão não redefine senhas nem cria uma segunda conta administrativa.
 
@@ -44,7 +44,7 @@ Para estações **ativas**, habilite cada módulo separadamente:
 | Gestão/manutenção      | Sim   | Sim | Não         |
 | Terminal operacional   | Sim   | Não | Não         |
 
-O Hub e o seletor exibem somente os módulos liberados. Sem nenhuma permissão, a estação recebe uma orientação para solicitar liberação; o acesso administrativo permanece disponível. Uma estação **inativa** não usa os módulos. A credencial Admin permite somente sua administração/recuperação.
+O Hub exibe somente os módulos liberados. Sem nenhuma permissão, a estação recebe uma orientação para solicitar liberação; o acesso administrativo permanece disponível. Uma estação **inativa** não usa os módulos. A credencial Admin permite somente sua administração/recuperação.
 
 A exigência de senha é uma configuração separada, por módulo. Conhecer a senha não libera um módulo negado para a workstation. Os defaults preservam os acessos atuais; ajuste os três interruptores conforme a função de cada estação.
 
@@ -55,7 +55,15 @@ Proteções existentes nesta candidata:
 - O administrador não pode desativar a própria estação atual; pode reativá-la caso já esteja inativa.
 - Não é possível desativar ou retirar o acesso operacional de uma estação com tela fixada ou atendimento ativo. Resolva o vínculo pelos fluxos normais antes de restringir a estação.
 - O acesso por URL direta aplica a mesma política do menu.
-- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
+- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior enquanto não houver exigência de senha do módulo. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
+
+## Áudio e atendimento por turno
+
+A primeira ativação de áudio é lembrada para a workstation no mesmo perfil e endereço do navegador. Atualizar a página ou voltar do Hub não repete o aviso inicial. Limpar os dados do navegador, mudar o perfil/endereço ou gerar outra identidade pode exigir nova ativação. Essa preferência de interface não muda o silêncio do dashboard nem a preferência sonora de cada máquina.
+
+A preferência não substitui a política de reprodução do navegador. Se uma tentativa de som receber bloqueio, a interface mostra **O navegador bloqueou o áudio. Toque para liberar.** e tenta novamente após uma interação. A ativação não toca amostras nem cria som substituto; somente os alertas configurados são reproduzidos.
+
+Ao iniciar ou adicionar mantenedores por nome, **Todos os turnos** fica visível. Se o filtro de turno estiver habilitado, o botão amplia a lista e permanece destacado; clicar novamente retorna ao filtro configurado. Sem filtro, sem turno atual ou sem mantenedor nesse turno, a lista já inclui todos os ativos. PIN e RFID identificam mantenedores ativos independentemente do horário cadastrado. Área técnica, credencial válida, exclusividade e vínculos do atendimento continuam obrigatórios.
 
 ## Senha global e recuperação
 
@@ -75,7 +83,7 @@ Operação e BI começam sem exigência, até uma alteração explícita pelo Ad
 
 Essas credenciais são de entrada nos módulos. A senha administrativa global continua necessária para configurações administrativas, e o PIN do mantenedor continua sendo usado nos fluxos correspondentes.
 
-As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e duram oito horas. **Sair do módulo** no seletor encerra esse acesso e volta ao Hub; não encerra chamados ou atendimentos. Expiração, alteração das credenciais ou reinício do backend podem exigir novo login.
+As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e duram oito horas. O ícone **Sair do módulo**, ao lado do acesso ao Hub quando há uma sessão protegida, encerra esse acesso e volta ao Hub; não encerra chamados ou atendimentos. Expiração, alteração das credenciais ou reinício do backend podem exigir novo login.
 
 Ao habilitar senha, confirme também os clientes HTTP e integrações que usam as APIs daquele módulo. A exigência passa a valer para essas requisições, inclusive clientes legados sem Origin/UUID.
 

@@ -93,10 +93,7 @@ export function TechnicianSelector({
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      refreshShiftConfigs(),
-      refreshTechnicianShiftFilterConfig(),
-    ])
+    Promise.all([refreshShiftConfigs(), refreshTechnicianShiftFilterConfig()])
       .then(() => {
         if (!cancelled) setRuntimeConfigRevision((current) => current + 1);
       })
@@ -140,6 +137,7 @@ export function TechnicianSelector({
 
   const { list, hasShiftFallback } = useMemo(() => {
     void serverClockRevision;
+    void runtimeConfigRevision;
     const excluded = new Set(excludeNames);
 
     const allActive = uniqueByName(
@@ -162,7 +160,14 @@ export function TechnicianSelector({
     if (inShift.length > 0) return { list: inShift, hasShiftFallback: false };
 
     return { list: allActive, hasShiftFallback: true };
-  }, [visibleAreas, showAll, excludeNames, technicians, serverClockRevision, runtimeConfigRevision]);
+  }, [
+    visibleAreas,
+    showAll,
+    excludeNames,
+    technicians,
+    serverClockRevision,
+    runtimeConfigRevision,
+  ]);
 
   const filteredList = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
@@ -197,57 +202,62 @@ export function TechnicianSelector({
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/30 p-1">
-            {availableAreas.map((availableArea) => (
-              <button
-                key={availableArea}
-                type="button"
-                aria-pressed={areaFilter === availableArea}
-                onClick={() => {
-                  setAreaFilter(availableArea);
-                  setSearchTerm("");
-                }}
-                className={cn(
-                  "min-h-11 rounded-lg px-3 text-xs font-bold transition-colors",
-                  areaFilter === availableArea
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                {AREA_FILTER_LABELS[availableArea] ?? availableArea}
-              </button>
-            ))}
+          {availableAreas.length > 1 && (
+            <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/30 p-1">
+              {availableAreas.map((availableArea) => (
+                <button
+                  key={availableArea}
+                  type="button"
+                  aria-pressed={areaFilter === availableArea}
+                  onClick={() => {
+                    setAreaFilter(availableArea);
+                    setSearchTerm("");
+                  }}
+                  className={cn(
+                    "min-h-11 rounded-lg px-3 text-xs font-bold transition-colors",
+                    areaFilter === availableArea
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {AREA_FILTER_LABELS[availableArea] ?? availableArea}
+                </button>
+              ))}
 
-            {availableAreas.length > 1 && (
-              <button
-                type="button"
-                aria-pressed={areaFilter === "all"}
-                onClick={() => {
-                  setAreaFilter("all");
-                  setSearchTerm("");
-                }}
-                className={cn(
-                  "min-h-11 rounded-lg px-3 text-xs font-bold transition-colors",
-                  areaFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                Todos
-              </button>
-            )}
-          </div>
-
-          {shiftFilterEnabled && !hasShiftFallback && (
-            <button
-              type="button"
-              aria-pressed={showAll}
-              className="min-h-11 rounded-lg border border-border px-3 text-xs font-bold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              onClick={() => setShowAll((current) => !current)}
-            >
-              {showAll ? "Somente turno atual" : "Todos os turnos"}
-            </button>
+              {availableAreas.length > 1 && (
+                <button
+                  type="button"
+                  aria-pressed={areaFilter === "all"}
+                  onClick={() => {
+                    setAreaFilter("all");
+                    setSearchTerm("");
+                  }}
+                  className={cn(
+                    "min-h-11 rounded-lg px-3 text-xs font-bold transition-colors",
+                    areaFilter === "all"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  Todos
+                </button>
+              )}
+            </div>
           )}
+
+          <button
+            type="button"
+            aria-pressed={showAll || !shiftFilterEnabled || hasShiftFallback}
+            className={cn(
+              "min-h-11 rounded-lg border px-3 text-xs font-bold transition-colors",
+              showAll || !shiftFilterEnabled || hasShiftFallback
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+            onClick={() => setShowAll((current) => !current)}
+          >
+            Todos os turnos
+          </button>
         </div>
 
         {hasShiftFallback && (
@@ -366,7 +376,7 @@ export function TechnicianSelector({
             className="text-xs font-semibold text-primary underline"
             onClick={() => setShowAll(true)}
           >
-            Mostrar todos do turno/cadastro
+            Todos os turnos
           </button>
         )}
 

@@ -66,6 +66,15 @@ const customAudioUrls = new WeakMap<HTMLAudioElement, string>();
 
 let unlocked = false;
 let currentVolume = 0.8;
+export const AUDIO_PLAYBACK_BLOCKED_EVENT = "andon:audio-playback-blocked";
+
+function reportPlaybackBlocked(error: unknown): void {
+  if (!(error instanceof Error) || error.name !== "NotAllowedError") return;
+  unlocked = false;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUDIO_PLAYBACK_BLOCKED_EVENT));
+  }
+}
 
 function ensureAudio(scope: AndonSoundScope, key: SoundKey): HTMLAudioElement | null {
   const url = soundUrls[key];
@@ -173,20 +182,6 @@ async function createCustomAudio(
 
 export function unlockAudio(): void {
   unlocked = true;
-
-  for (const scope of Object.keys(playbackStates) as AndonSoundScope[]) {
-    for (const key of Object.keys(soundUrls) as SoundKey[]) {
-      const audio = ensureAudio(scope, key);
-      if (!audio) continue;
-      audio
-        .play()
-        .then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-        })
-        .catch(() => {});
-    }
-  }
 }
 
 export function setSoundVolume(volume: number): void {
@@ -287,6 +282,7 @@ export async function playAndonSound(
   } catch (err) {
     releaseCustomAudio(audio, state);
     if (playbackToken === state.playbackToken) {
+      reportPlaybackBlocked(err);
       console.warn("[sound] play failed", err);
     }
     return;
@@ -312,6 +308,7 @@ export async function playAndonSound(
       if (playbackToken !== state.playbackToken) return;
       void playAudio(audio).catch((error) => {
         if (playbackToken === state.playbackToken) {
+          reportPlaybackBlocked(error);
           console.warn("[sound] repeat failed", error);
         }
       });

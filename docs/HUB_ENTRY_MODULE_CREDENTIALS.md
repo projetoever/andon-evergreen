@@ -1,6 +1,6 @@
 # Hub: entrada, permissões e credenciais por módulo
 
-Candidata baseada na `main` `c041478`, release `1.0.0-pilot.3`, revisada em 15/10/2026. Sem merge ou implantação nesta etapa. O PR e sua CI registram o commit final validado.
+Hub integrado pelo PR #200 (`main` `bad1f945`), release `1.0.0-pilot.3`. Refinamentos candidatos de 15/10/2026 partem dessa base; o PR e sua CI registram o commit validado. Merge e implantação dos refinamentos dependem de autorização separada.
 
 ## Fluxo de entrada
 
@@ -8,7 +8,7 @@ Candidata baseada na `main` `c041478`, release `1.0.0-pilot.3`, revisada em 15/1
 
 O painel operacional passa para `/andon`. Links internos de retorno ao painel foram ajustados. `/bi`, `/machine-priorities` e `/machines/:id` são preservados. Endereços diretos continuam sujeitos à permissão e à autenticação do módulo.
 
-Uma workstation com tela fixada também começa no Hub. Ao selecionar ANDON, retorna à máquina fixada. A fixação é uma preferência operacional: não redireciona automaticamente o Hub, BI ou Prioridades. No módulo operacional fixado, o seletor continua oculto, conforme o comportamento da tela dedicada.
+Uma workstation com tela fixada também começa no Hub. Ao selecionar ANDON, retorna à máquina fixada. A fixação é uma preferência operacional: não redireciona automaticamente o Hub, BI ou Prioridades. No módulo operacional fixado, o ícone de retorno ao Hub continua oculto, conforme o comportamento da tela dedicada.
 
 O campo legado `hubEnabled` permanece no banco/API para compatibilidade com versões anteriores. A candidata não depende dele para exibir o Hub ou navegar entre módulos e retira o antigo interruptor de ativação da interface.
 
@@ -87,3 +87,28 @@ Para reversão, use o código anterior preservando as colunas aditivas. A versã
 Testes locais abrangem oito combinações de permissões, sessão por módulo/estação, expiração, troca de senha, recuperação e regressões operacionais. O navegador usa fixtures e verifica a raiz, formulários, ocultação, login, logout, navegação e layouts até 320 px. A CI aplica migrations no PostgreSQL 16 isolado e percorre a API real, incluindo credenciais persistidas e CORS.
 
 O lint global contém pendências anteriores de formatação; o resultado real é registrado no PR. Windows Server 2016, PostgreSQL 17, kiosk instalado, Máquina 37 e integrações físicas dependem de validação no ambiente correspondente. Nenhuma homologação da fábrica é inferida dos testes isolados.
+
+## Refinamentos operacionais de 15/10/2026
+
+O acesso ao Hub usa um ícone compacto com navegação direta, sem seletor em modal. Logout de módulos protegidos permanece acessível por ícone próprio; Prioridades mantém seu encerramento e a proteção de alterações não salvas. A grade de Configurações da operação usa duas colunas úteis em telas amplas e uma coluna em telas menores.
+
+A ativação sonora é uma preferência local de interface (`andon.audioActivation.v1`) vinculada ao UUID da workstation. Não armazena credencial ou dado operacional. O serviço não reproduz amostras na ativação. Rejeição `NotAllowedError` de um alerta inicial ou repetido é comunicada à interface para recuperação explícita; o consentimento salvo permanece. O navegador continua decidindo a permissão real de reprodução. Não houve mudança de schema ou migration neste refinamento.
+
+O botão Todos os turnos fica disponível tanto no início quanto na adição individual. O filtro de jornada é apenas uma preferência visual, não uma autorização de atendimento. Identificação e resolução no backend não restringem o turno: continuam exigindo técnico ativo, área compatível e disponibilidade. O teste PostgreSQL/API usa deliberadamente um turno seis horas à frente do relógio do servidor.
+
+### Compatibilidade Node-RED e GPIO
+
+As URLs, métodos e formatos das leituras operacionais de `/api/machines`, `/api/andon-calls` e `/api/dashboard-sound-state` foram preservados. A mudança de `/` para Hub é uma rota da interface na porta 8080; as leituras REST continuam na API, normalmente porta 3001. A preferência de ativação do áudio do navegador não controla o GPIO.
+
+| Cliente | Exigência de senha do Andon | Resultado esperado |
+| --- | --- | --- |
+| HTTP legado, sem Origin e sem UUID | Desligada | Leituras compatíveis com o fluxo anterior |
+| Estação identificada, ativa e autorizada | Desligada | Leituras permitidas |
+| Navegador com Origin sem UUID | Qualquer | HTTP 403, identificação necessária |
+| Estação identificada inativa ou sem permissão operacional | Qualquer | HTTP 403, inclusive com token |
+| Cliente sem token operacional válido | Ligada | HTTP 401 |
+| UUID autorizado e token operacional válido para esse UUID | Ligada | Leituras permitidas |
+
+Para exigir senha e manter essas integrações, registre uma identidade estável própria por cliente em `/api/workstations/register`, autorize o módulo, autentique em `POST /api/modules/operational/login` e envie `X-Andon-Workstation-Id` e `X-Andon-Operational-Token`. A sessão dura oito horas e requer novo login após expirar, reiniciar a API ou alterar a credencial. Não grave segredos no repositório, em URLs ou logs. Uma futura credencial específica para integrações não faz parte desta etapa.
+
+A confirmação do fluxo e do acionamento físico instalados depende de validar os clientes reais no ambiente da empresa; a revisão do contrato não equivale a essa homologação.

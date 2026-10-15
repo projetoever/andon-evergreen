@@ -171,13 +171,6 @@ export function GeneralSettingsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-bold">Configurações gerais</h3>
-        <p className="text-sm text-muted-foreground">
-          Regras de chamados, interface e preferências do Dashboard.
-        </p>
-      </div>
-
       {settingsLoadError && (
         <div
           role="alert"
@@ -198,18 +191,15 @@ export function GeneralSettingsTab() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <Card className="min-w-0">
+          <CardHeader className="p-4 pb-3">
             <CardTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-primary" />
-              Operação global
+              Regras da operação
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Regras e preferências globais aplicadas à operação do ANDON.
-            </p>
+          <CardContent className="space-y-3 p-4 pt-0">
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
                 <p className="font-bold">Habilitar teclado virtual</p>
@@ -261,24 +251,25 @@ export function GeneralSettingsTab() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="min-w-0">
+          <CardHeader className="p-4 pb-3">
             <CardTitle className="flex items-center gap-2">
               <ListOrdered className="h-5 w-5 text-primary" />
               Organização visual do Dashboard
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-3 p-4 pt-0">
             <div>
               <p className="text-sm text-muted-foreground">
                 Define somente a ordem visual dos cards de máquinas. Não altera chamados, tempos,
-                status, sons, atendimento ou qualquer regra operacional do ANDON.
+                status, sons ou regras de atendimento.
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <button
                 type="button"
+                aria-pressed={dashboardMachineOrderMode === "default"}
                 disabled={
                   isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
                 }
@@ -297,6 +288,7 @@ export function GeneralSettingsTab() {
 
               <button
                 type="button"
+                aria-pressed={dashboardMachineOrderMode === "priority"}
                 disabled={
                   isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
                 }
@@ -314,16 +306,15 @@ export function GeneralSettingsTab() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-border bg-muted/15 p-4">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="rounded-xl border border-border bg-muted/15 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" />
                     <p className="font-black">Acesso à gestão de prioridades</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Credencial independente salva no servidor e válida em todas as
-                    máquinas/workstations.
+                    Permissões e senhas administradas no Hub.
                   </p>
                 </div>
                 <span

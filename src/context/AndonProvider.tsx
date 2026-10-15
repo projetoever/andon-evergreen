@@ -29,6 +29,7 @@ import {
 } from "@/services/workstationService";
 import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
 import { refreshMachineSoundPreferences } from "@/services/machineSoundPreferenceService";
+import { useWorkstationAudio } from "@/hooks/useWorkstationAudio";
 
 const DEFAULT_API_SYNC_INTERVAL_MS = 2_000;
 const MIN_API_SYNC_INTERVAL_MS = 500;
@@ -45,6 +46,7 @@ interface AndonContextValue {
   settings: AppSettings;
   soundConfigs: SoundConfig[];
   audioUnlocked: boolean;
+  audioPlaybackBlocked: boolean;
   serverTimeOffsetMs: number;
   setAudioUnlocked: (unlocked: boolean) => void;
   openCall: (params: andonService.OpenAndonCallParams) => Promise<AndonCall>;
@@ -124,7 +126,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       ? SOUND_CONFIGS
       : loadFromStorage<SoundConfig[]>(LOCAL_STORAGE_KEYS.soundConfigs, SOUND_CONFIGS),
   );
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const { audioUnlocked, audioPlaybackBlocked, setAudioUnlocked } = useWorkstationAudio();
   const [serverTimeOffsetStateMs, setServerTimeOffsetStateMs] = useState(0);
   const apiSyncInFlightRef = useRef(false);
 
@@ -476,6 +478,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       settings,
       soundConfigs,
       audioUnlocked,
+      audioPlaybackBlocked,
       serverTimeOffsetMs: serverTimeOffsetStateMs,
       setAudioUnlocked,
       openCall,
@@ -505,7 +508,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       settings,
       soundConfigs,
       audioUnlocked,
+      audioPlaybackBlocked,
       serverTimeOffsetStateMs,
+      setAudioUnlocked,
       openCall,
       openCalls,
       attendCall,

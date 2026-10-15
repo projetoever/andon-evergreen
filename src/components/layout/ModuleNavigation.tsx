@@ -1,22 +1,14 @@
 import { useState } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutGrid } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { LayoutGrid, LogOut } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { ModuleCards } from "./ModuleCards";
 import { logoutModule } from "@/services/moduleAuthService";
 
+const iconClassName =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+
 export function ModuleNavigation() {
-  const [open, setOpen] = useState(false);
   const { access, refresh } = useModuleAccess();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
@@ -31,52 +23,40 @@ export function ModuleNavigation() {
   const { t } = useLanguage();
   if (!access || (access.workstation.lockedMachineId && currentModule === "operational"))
     return null;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" aria-label={t("Módulos")}>
-          <LayoutGrid className="h-4 w-4" />
-          <span className="hidden xl:inline">{t("Módulos")}</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] max-w-5xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("Módulos")}</DialogTitle>
-          <DialogDescription>{t("Selecione seu módulo de trabalho")}</DialogDescription>
-        </DialogHeader>
-        <ModuleCards
-          onNavigate={() => {
-            setOpen(false);
-            return true;
+    <div className="inline-flex items-center gap-2">
+      <Link
+        to="/hub"
+        title={t("Ir para o Hub")}
+        aria-label={t("Ir para o Hub")}
+        className={iconClassName}
+      >
+        <LayoutGrid aria-hidden="true" className="h-4 w-4" />
+      </Link>
+      {currentModule !== "priorities" && current?.passwordRequired && current.authenticated && (
+        <button
+          type="button"
+          title={t("Sair do módulo")}
+          aria-label={t("Sair do módulo")}
+          className={iconClassName}
+          disabled={loggingOut}
+          onClick={async () => {
+            setLoggingOut(true);
+            try {
+              await logoutModule(currentModule);
+            } catch {
+              // Local access is also cleared when the API is unavailable.
+            } finally {
+              setLoggingOut(false);
+              await refresh();
+              void navigate({ to: "/hub" });
+            }
           }}
-        />
-        <Button variant="outline" asChild>
-          <Link to="/hub" onClick={() => setOpen(false)}>
-            {t("Ir para o Hub")}
-          </Link>
-        </Button>
-        {currentModule !== "priorities" && current?.passwordRequired && current.authenticated && (
-          <Button
-            variant="outline"
-            disabled={loggingOut}
-            onClick={async () => {
-              setLoggingOut(true);
-              try {
-                await logoutModule(currentModule);
-              } catch {
-                /* Clear local access even when the service is unavailable. */
-              } finally {
-                setLoggingOut(false);
-                setOpen(false);
-                await refresh();
-                void navigate({ to: "/hub" });
-              }
-            }}
-          >
-            Sair do módulo
-          </Button>
-        )}
-      </DialogContent>
-    </Dialog>
+        >
+          <LogOut aria-hidden="true" className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }
