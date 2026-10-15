@@ -8,7 +8,7 @@ import { createAdminSession, enforceAdminAuthorization } from "./adminAuthorizat
 const id = "ws_00000000-0000-4000-8000-000000000037";
 
 test("module policy protects direct reads/writes and preserves priorities, recovery and legacy clients", async (t) => {
-  let station = { active: true, allowOperational: true, allowBi: true };
+  let station = { active: true, allowOperational: true, allowBi: true, allowPriorities: true };
   const originalLookup = prisma.workstation.findUnique;
   prisma.workstation.findUnique = (async () => station) as unknown as typeof originalLookup;
   t.after(() => {
@@ -38,28 +38,30 @@ test("module policy protects direct reads/writes and preserves priorities, recov
   }
   const headers = { origin: "http://andon.test", "x-andon-workstation-id": id };
   for (const allowOperational of [true, false])
-    for (const allowBi of [true, false]) {
-      station = { active: true, allowOperational, allowBi };
-      for (const [url, method, allowed] of [
-        ["/api/machines", "GET", allowOperational],
-        ["/api/andon-calls", "POST", allowOperational],
-        ["/api/analytics/overview", "GET", allowBi],
-        ["/api/analytics/filter-options", "GET", allowBi],
-        ["/api/dashboard-priority/order", "GET", true],
-      ] as const) {
-        const response = await app.inject({
-          url,
-          method,
-          headers: { ...headers, "x-andon-module": "priorities" },
-        });
-        assert.equal(
-          response.statusCode,
-          allowed ? 200 : 403,
-          `${allowOperational}/${allowBi} ${method} ${url}`,
-        );
-        if (!allowed) assert.equal(response.json().error, "module_forbidden");
+    for (const allowBi of [true, false])
+      for (const allowPriorities of [true, false]) {
+        station = { active: true, allowOperational, allowBi, allowPriorities };
+        for (const [url, method, allowed] of [
+          ["/api/machines", "GET", allowOperational],
+          ["/api/andon-calls", "POST", allowOperational],
+          ["/api/analytics/overview", "GET", allowBi],
+          ["/api/analytics/filter-options", "GET", allowBi],
+          ["/api/dashboard-priority/order", "GET", allowPriorities],
+        ] as const) {
+          const response = await app.inject({
+            url,
+            method,
+            headers: { ...headers, "x-andon-module": "priorities" },
+          });
+          assert.equal(
+            response.statusCode,
+            allowed ? 200 : 403,
+            `${allowOperational}/${allowBi} ${method} ${url}`,
+          );
+          if (!allowed) assert.equal(response.json().error, "module_forbidden");
+        }
       }
-    }
+  station.allowPriorities = true;
   const admin = createAdminSession("admin");
   const adminHeaders = { ...headers, authorization: `Bearer ${admin.token}` };
   assert.equal(

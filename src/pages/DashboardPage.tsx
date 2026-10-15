@@ -4,6 +4,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
@@ -42,6 +43,8 @@ export function DashboardPage() {
 
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { access } = useModuleAccess();
+  const canOpen = (id: "bi" | "priorities") => access?.modules.some(item => item.id === id && item.available && item.enabled && item.allowed);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
@@ -441,7 +444,7 @@ export function DashboardPage() {
             </button>
           )}
 
-          <button
+          {canOpen("bi") && <button
             type="button"
             title={t("Abrir ANDON BI")}
             aria-label={t("Abrir ANDON BI")}
@@ -449,14 +452,14 @@ export function DashboardPage() {
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <BarChart3 className="h-4 w-4" />
-          </button>
+          </button>}
 
-          <button
+          {canOpen("priorities") && <button
             type="button"
             title={t("Organizar prioridade de produção")}
             aria-label={t("Organizar prioridade de produção")}
             onClick={() => {
-              if (isDashboardPriorityAuthenticated()) {
+              if (access?.modules.find(item => item.id === "priorities")?.passwordRequired === false || isDashboardPriorityAuthenticated()) {
                 void navigate({ to: "/machine-priorities" });
               } else {
                 setPriorityLoginOpen(true);
@@ -465,7 +468,7 @@ export function DashboardPage() {
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <ListOrdered className="h-4 w-4" />
-          </button>
+          </button>}
 
           <button
             type="button"

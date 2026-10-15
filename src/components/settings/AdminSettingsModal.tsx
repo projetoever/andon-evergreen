@@ -6,7 +6,6 @@ import {
   Headphones,
   ListChecks,
   LogOut,
-  MonitorCog,
   Search,
   Settings2,
   ShieldCheck,
@@ -33,7 +32,6 @@ import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
-import { PlatformAdminLinks } from "./PlatformAdminLinks";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
 import { SoundsSettingsTab } from "./SoundsSettingsTab";
 
@@ -111,13 +109,6 @@ const tabs: AdminNavigationItem[] = [
     group: "Infraestrutura",
     icon: Factory,
   },
-  {
-    id: "workstations",
-    label: "Administração do Hub",
-    description: "Acesso central a estações, permissões e credenciais da plataforma.",
-    group: "Infraestrutura",
-    icon: MonitorCog,
-  },
 ];
 
 const navigationGroups: AdminNavigationGroup[] = [
@@ -157,7 +148,6 @@ export function AdminSettingsModal({
     if (tab === "classifications") return <ClassificationsTab />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
     if (tab === "machines") return <MachineAdminPanel />;
-    if (tab === "workstations") return <PlatformAdminLinks />;
     return null;
   };
 

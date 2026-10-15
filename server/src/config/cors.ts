@@ -11,6 +11,8 @@ export const CORS_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
 export const CORS_ALLOWED_HEADERS = [
   "Content-Type",
   "X-Andon-Workstation-Id",
+  "X-Andon-Operational-Token",
+  "X-Andon-Bi-Token",
   "Authorization",
 ] as const;
 

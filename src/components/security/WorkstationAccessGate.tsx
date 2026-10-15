@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { ModuleLoginPanel } from "./ModuleLoginPanel";
 
 /** The API independently enforces the same policy on every identified request. */
 export function WorkstationAccessGate({ children }: { children: ReactNode }) {
@@ -15,10 +16,15 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
       : path === "/machine-priorities"
         ? "priorities"
         : "operational";
+  const definition = access?.modules.find((item) => item.id === module);
   const allowed = access?.modules.some(
     (item) => item.id === module && item.allowed && item.enabled && item.available,
   );
-  if (!checkingRoute && access?.workstation.active && allowed) return <>{children}</>;
+  if (!checkingRoute && access?.workstation.active && allowed) {
+    if (module !== "priorities" && definition?.passwordRequired && !definition.authenticated)
+      return <ModuleLoginPanel key={module} module={module} name={definition.name} />;
+    return <>{children}</>;
+  }
   const checking = checkingRoute || (!access && !error);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">

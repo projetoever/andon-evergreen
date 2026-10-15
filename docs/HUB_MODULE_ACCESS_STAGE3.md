@@ -1,5 +1,7 @@
 # Hub e permissões por workstation — ETAPA 3
 
+> Histórico da primeira entrega (PR #199). A evolução seguinte substitui a entrada inicial, a visibilidade dos cartões, as permissões de Prioridades e a navegação descritas aqui. Para o comportamento da candidata atual, consulte [Hub: entrada e credenciais](HUB_ENTRY_MODULE_CREDENTIALS.md) e o [guia do administrador](ANDON_HUB_GUIA_ADMINISTRADOR.md).
+
 Candidata de código no PR #199, baseada em `cfa1d0d` (PR #198), release `1.0.0-pilot.3`. Revisão de 14/10/2026. Não representa implantação ou homologação do piloto. Consulte também o [guia do administrador](ANDON_HUB_GUIA_ADMINISTRADOR.md).
 
 ## Entrega nesta etapa

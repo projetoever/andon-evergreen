@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { PrismaClient } from "@prisma/client";
+import { validateHubEntry } from "./validate-hub-entry.mjs";
 
 const API_URL = process.env.ANDON_API_URL ?? "http://127.0.0.1:3001";
 const databaseUrl = new URL(process.env.DATABASE_URL ?? "");
@@ -251,25 +252,27 @@ async function run() {
 
   assert.equal(registeredWorkstation.allowOperational, true);
   assert.equal(registeredWorkstation.allowBi, true);
+  assert.equal(registeredWorkstation.allowPriorities, true);
   const moduleHeaders = { origin: "http://localhost:8080", "x-andon-workstation-id": ids.workstation, authorization: "" };
-  for (const allowOperational of [true, false]) for (const allowBi of [true, false]) {
-    await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational, allowBi }));
+  for (const allowOperational of [true, false]) for (const allowBi of [true, false]) for (const allowPriorities of [true, false]) {
+    await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational, allowBi, allowPriorities }));
     const access = await request("/api/modules/access", { headers: moduleHeaders });
     assert.equal(access.hubEnabled, false);
     assert.equal(access.modules.find((item) => item.id === "operational").allowed, allowOperational);
     assert.equal(access.modules.find((item) => item.id === "bi").allowed, allowBi);
-    assert.equal(access.modules.find((item) => item.id === "priorities").allowed, true);
+    assert.equal(access.modules.find((item) => item.id === "priorities").allowed, allowPriorities);
     await request("/api/machines", { headers: moduleHeaders }, allowOperational ? 200 : 403);
     const filterOptions = await request("/api/analytics/filter-options", { headers: moduleHeaders }, allowBi ? 200 : 403);
     if (allowBi) assert.ok(Array.isArray(filterOptions.machines));
-    await request("/api/dashboard-priority/access-status", { headers: moduleHeaders });
-    await request("/api/dashboard-priority/order", { headers: moduleHeaders }, 401);
+    await request("/api/dashboard-priority/access-status", { headers: moduleHeaders }, allowPriorities ? 200 : 403);
+    await request("/api/dashboard-priority/order", { headers: moduleHeaders }, allowPriorities ? 401 : 403);
     if (!allowOperational) {
       const denied = await request("/api/andon-calls", { ...json("POST", {}), headers: { ...moduleHeaders, "x-andon-module": "priorities" } }, 403);
       assert.equal(denied.error, "module_forbidden");
     }
   }
-  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational: true, allowBi: true }));
+  await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowOperational: true, allowBi: true, allowPriorities: true }));
+  await validateHubEntry({ request, json, prisma, ids, adminAuthorization });
   const selfBlock = await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { active: false }), headers: { "x-andon-workstation-id": ids.workstation } }, 400);
   assert.match(selfBlock.message, /própria workstation/i);
   await request("/api/modules/settings", { ...json("PATCH", { hubEnabled: true }), headers: moduleHeaders }, 401);
@@ -316,6 +319,9 @@ async function run() {
   await request("/api/machines", { headers: moduleHeaders }, 403);
   await request("/api/workstations", { headers: moduleHeaders }, 403);
   await request("/api/workstations", { headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  await request("/api/modules/credentials", { headers: { ...moduleHeaders, authorization: adminAuthorization } });
+  await request("/api/modules/operational/credentials", { ...json("PUT", { passwordRequired: "invalid" }), headers: { ...moduleHeaders, authorization: adminAuthorization } }, 400);
+  await request("/api/modules/credentials", { headers: moduleHeaders }, 403);
   await request(`/api/workstations/${ids.workstation}`, { ...json("PATCH", { allowBi: false }), headers: { ...moduleHeaders, authorization: adminAuthorization } });
   await request(`/api/workstations/${ids.workstation}`, json("PATCH", { allowBi: true }));
 

@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   configureDashboardPriorityCredentials,
   getDashboardPriorityAccessStatus,
+  setDashboardPriorityPasswordRequired,
 } from "@/services/dashboardPriorityService";
 
 export function PriorityAccessSettings() {
+  const { refresh } = useModuleAccess();
+  const [passwordRequired, setPasswordRequired] = useState(true);
+  const [savingPolicy, setSavingPolicy] = useState(false);
   const [priorityConfigured, setPriorityConfigured] = useState(false);
   const [isLoadingPriorityAccess, setIsLoadingPriorityAccess] = useState(true);
   const [priorityAccessLoadError, setPriorityAccessLoadError] = useState<string | null>(null);
@@ -26,6 +32,7 @@ export function PriorityAccessSettings() {
     try {
       const status = await getDashboardPriorityAccessStatus();
       setPriorityConfigured(status.configured);
+      setPasswordRequired(status.passwordRequired !== false);
       setPriorityUsername(status.username ?? "");
     } catch {
       const message = "Não foi possível carregar o acesso de prioridades.";
@@ -39,6 +46,22 @@ export function PriorityAccessSettings() {
   useEffect(() => {
     void loadPriorityAccess();
   }, [loadPriorityAccess]);
+
+  async function changePasswordRequired(required: boolean) {
+    setSavingPolicy(true);
+    try {
+      await setDashboardPriorityPasswordRequired(required);
+      setPasswordRequired(required);
+      await refresh();
+      toast.success("Exigência de senha de Prioridades atualizada.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar a exigência de senha.",
+      );
+    } finally {
+      setSavingPolicy(false);
+    }
+  }
 
   async function handleSavePriorityCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,6 +87,7 @@ export function PriorityAccessSettings() {
       setPriorityUsername(result.username);
       setPriorityPassword("");
       setPriorityPasswordConfirm("");
+      await refresh();
       toast.success("Credenciais da gestão de prioridades atualizadas.");
     } catch (error) {
       toast.error(
@@ -85,6 +109,24 @@ export function PriorityAccessSettings() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3 text-sm font-bold">
+          Exigir senha para abrir Prioridades
+          <Switch
+            aria-label="Exigir senha para abrir Prioridades"
+            checked={passwordRequired}
+            disabled={
+              isLoadingPriorityAccess ||
+              Boolean(priorityAccessLoadError) ||
+              savingPolicy ||
+              isSavingPriorityCredentials
+            }
+            onCheckedChange={(value) => void changePasswordRequired(value)}
+          />
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Sem exigência de senha, estações autorizadas podem organizar a sequência. O histórico
+          identifica a workstation utilizada.
+        </p>
         <p className="text-sm text-muted-foreground">
           O administrador provisiona esta credencial. A sequência de produção continua sendo
           organizada no módulo Prioridades. Atualizar a credencial encerra as sessões de Prioridades
@@ -144,6 +186,7 @@ export function PriorityAccessSettings() {
                 <Label htmlFor="priority-manager-username">Usuário</Label>
                 <Input
                   id="priority-manager-username"
+                  disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
                   required
                   minLength={3}
                   maxLength={80}
@@ -157,6 +200,7 @@ export function PriorityAccessSettings() {
                 <Label htmlFor="priority-manager-password">Nova senha</Label>
                 <Input
                   id="priority-manager-password"
+                  disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
                   required
                   minLength={6}
                   maxLength={128}
@@ -171,6 +215,7 @@ export function PriorityAccessSettings() {
                 <Label htmlFor="priority-manager-password-confirm">Confirmar senha</Label>
                 <Input
                   id="priority-manager-password-confirm"
+                  disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
                   required
                   minLength={6}
                   maxLength={128}
@@ -186,7 +231,12 @@ export function PriorityAccessSettings() {
             <div className="flex justify-end">
               <Button
                 type="submit"
-                disabled={isSavingPriorityCredentials || isLoadingPriorityAccess}
+                disabled={
+                  isSavingPriorityCredentials ||
+                  isLoadingPriorityAccess ||
+                  savingPolicy ||
+                  Boolean(priorityAccessLoadError)
+                }
               >
                 {isSavingPriorityCredentials
                   ? "Salvando..."

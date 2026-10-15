@@ -33,7 +33,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
     return;
   }
 
-  const workstation = await prisma.workstation.findUnique({ where: { id }, select: { active: true, allowOperational: true, allowBi: true } });
+  const workstation = await prisma.workstation.findUnique({ where: { id }, select: { active: true, allowOperational: true, allowBi: true, allowPriorities: true } });
   if (!workstation) {
     return reply.status(403).send({ error: "workstation_identification_required", message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE });
   }

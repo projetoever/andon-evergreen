@@ -1,29 +1,29 @@
 # ANDON Hub — guia do administrador
 
-Candidata do PR #199 para `1.0.0-pilot.3`, revisada em 14/10/2026. Este documento descreve o código da candidata, sem afirmar instalação ou homologação da fábrica.
+Evolução candidata baseada na `main` `c041478`, para `1.0.0-pilot.3`, revisada em 15/10/2026. Este documento descreve o código da candidata, sem afirmar instalação ou homologação da fábrica.
 
 ## Entradas e navegação
 
-Abra `/hub` no endereço da instalação para escolher ANDON operacional, ANDON BI ou Prioridades de produção. O Hub usa o tema, as cores e os componentes existentes do ANDON. Os endereços diretos dos módulos e das máquinas continuam disponíveis conforme as permissões da estação.
+Abra `http://IP:8080/` (ou `/hub`) no endereço da instalação para escolher ANDON operacional, ANDON BI ou Prioridades de produção. O Hub usa o tema, as cores e os componentes existentes do ANDON. O painel operacional passa para `/andon`. Os endereços de BI, Prioridades e máquinas continuam disponíveis conforme as permissões e a exigência de senha.
 
-O botão **Módulos** aparece quando a navegação central está ativada. Em uma tela fixada em máquina, a navegação continua dedicada à máquina. A entrada administrativa `/hub/admin` permanece acessível para recuperação.
+O launcher/kiosk que abre a raiz passa a apresentar o Hub. O botão **Módulos** permite alternar entre os acessos liberados. Estações com máquina fixada também começam no Hub; ao selecionar ANDON, retornam à máquina fixada e mantêm sua navegação dedicada. A entrada `/hub/admin` permanece acessível para recuperação.
 
 Entre no Admin com a credencial administrativa já existente. Esta revisão não redefine senhas nem cria uma segunda conta administrativa.
 
-| Seção do Hub          | Endereço                          | Uso                                                          |
-| --------------------- | --------------------------------- | ------------------------------------------------------------ |
-| Visão geral           | `/hub/admin`                      | Ativar a navegação central e consultar as responsabilidades  |
-| Estações e acessos    | `/hub/admin?section=workstations` | Identificar estações, ativar e ajustar permissões            |
-| Segurança             | `/hub/admin?section=security`     | Alterar a senha global e gerar código de recuperação         |
-| Acesso de Prioridades | `/hub/admin?section=priorities`   | Provisionar ou atualizar a credencial própria de Prioridades |
+| Seção do Hub       | Endereço                          | Uso                                                         |
+| ------------------ | --------------------------------- | ----------------------------------------------------------- |
+| Visão geral        | `/hub/admin`                      | Consultar entradas e responsabilidades |
+| Estações e acessos | `/hub/admin?section=workstations` | Identificar estações, ativar e ajustar permissões           |
+| Segurança          | `/hub/admin?section=security`     | Alterar a senha global e gerar código de recuperação        |
+| Módulos e senhas   | `/hub/admin?section=modules`      | Configurar os três acessos e a exigência de senha           |
 
-As entradas de administração da plataforma no painel operacional abrem essas mesmas seções. A sessão Admin é compartilhada entre as telas no mesmo navegador. **Sair do Admin** encerra essa sessão administrativa; a troca de módulo não finaliza atendimentos ou chamados.
+As configurações globais ficam somente no Hub. A sessão Admin continua compartilhada entre as telas no mesmo navegador. **Sair do Admin** encerra essa sessão administrativa; a troca de módulo não finaliza atendimentos ou chamados.
 
 ## Quem administra cada função
 
 | Área                        | Responsabilidades                                                                                                              |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Hub                         | Navegação central, estações, permissões, senha global, recuperação e provisionamento de Prioridades                            |
+| Hub                         | Navegação central, estações, permissões, senha global, recuperação e credenciais dos três módulos                            |
 | Admin do ANDON              | Máquinas, conjuntos, subconjuntos, setores, classificações, mantenedores, áreas técnicas, turnos, sons e regras de atendimento |
 | Configurações da operação   | Teclado virtual, exigência de OS, restrição de conclusão à estação de atendimento e modo padrão/prioritário do Dashboard       |
 | BI                          | Indicadores, filtros, análises, qualidade dos dados e relatórios; usa os catálogos compartilhados                              |
@@ -36,16 +36,17 @@ O Hub não substitui cadastros industriais nem fornece gestão corporativa de us
 
 Uma estação é identificada pelo UUID persistido no navegador. Outro navegador ou perfil pode gerar outra identidade. Confirme o nome e o identificador antes de restringir acesso; endereço IP é apenas uma informação auxiliar.
 
-Para estações **ativas**:
+Para estações **ativas**, habilite cada módulo separadamente:
 
-| ANDON operacional | BI        | Resultado                                                 |
-| ----------------- | --------- | --------------------------------------------------------- |
-| Permitido         | Permitido | Acesso aos dois módulos                                   |
-| Permitido         | Negado    | Operação disponível; BI restrito                          |
-| Negado            | Permitido | BI disponível; operação restrita                          |
-| Negado            | Negado    | Ambos restritos; Prioridades exige sua credencial própria |
+| Exemplo de workstation | ANDON | BI  | Prioridades |
+| ---------------------- | ----- | --- | ----------- |
+| Terminal de produção   | Não   | Não | Sim         |
+| Gestão/manutenção      | Sim   | Sim | Não         |
+| Terminal operacional   | Sim   | Não | Não         |
 
-Prioridades continua exigindo autenticação própria em todos os casos. Uma estação **inativa** não acessa os módulos, inclusive Prioridades. A credencial Admin permite somente a recuperação administrativa, sem liberar consultas ou operações negadas.
+O Hub e o seletor exibem somente os módulos liberados. Sem nenhuma permissão, a estação recebe uma orientação para solicitar liberação; o acesso administrativo permanece disponível. Uma estação **inativa** não usa os módulos. A credencial Admin permite somente sua administração/recuperação.
+
+A exigência de senha é uma configuração separada, por módulo. Conhecer a senha não libera um módulo negado para a workstation. Os defaults preservam os acessos atuais; ajuste os três interruptores conforme a função de cada estação.
 
 As permissões são verificadas pela API em cada requisição identificada. A interface também atualiza a política ao navegar e a cada 30 segundos. O heartbeat de identificação usa o intervalo existente de 15 minutos; não é o intervalo da autorização.
 
@@ -66,29 +67,42 @@ Se esquecer a senha, use **Esqueci a senha** na tela de acesso administrativo e 
 
 Sessão expirada ou invalidada exige novo login. As sessões do backend seguem o comportamento existente e não são garantidas após reinício do serviço.
 
+## Módulos e senhas
+
+Em **Módulos e senhas**, configure uma credencial própria de ANDON operacional, BI e Prioridades. A opção **Exigir senha para abrir** pode ser definida por módulo. Configure usuário e senha antes de ativar a exigência. Para ANDON/BI, deixar a nova senha em branco mantém a senha atual.
+
+Operação e BI começam sem exigência, até uma alteração explícita pelo Admin. Prioridades mantém a exigência anterior e reaproveita a credencial já cadastrada. Não há criação automática de novas senhas.
+
+Essas credenciais são de entrada nos módulos. A senha administrativa global continua necessária para configurações administrativas, e o PIN do mantenedor continua sendo usado nos fluxos correspondentes.
+
+As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e duram oito horas. **Sair do módulo** no seletor encerra esse acesso e volta ao Hub; não encerra chamados ou atendimentos. Expiração, alteração das credenciais ou reinício do backend podem exigir novo login.
+
+Ao habilitar senha, confirme também os clientes HTTP e integrações que usam as APIs daquele módulo. A exigência passa a valer para essas requisições, inclusive clientes legados sem Origin/UUID.
+
 ## Acesso e sequência de Prioridades
 
-Em **Acesso de Prioridades**, configure usuário, nova senha e confirmação. A credencial é independente da senha global do Admin e vale para os navegadores atendidos pelo mesmo servidor. Sua atualização invalida as sessões de Prioridades existentes.
+No cartão **Acesso de Prioridades**, dentro de **Módulos e senhas**, configure usuário, nova senha e confirmação. A credencial é independente da senha global do Admin e vale para os navegadores atendidos pelo mesmo servidor. Sua atualização invalida as sessões de Prioridades existentes.
 
-Abra `/machine-priorities` e entre com essa credencial para editar a sequência. O Hub provisiona o acesso; a sequência é salva no módulo Prioridades. Ao sair com alterações não salvas, confirme o descarte ou permaneça na tela para salvar.
+Abra `/machine-priorities` e entre com essa credencial quando a senha for exigida. Se o administrador dispensar a senha, somente workstations identificadas e autorizadas podem editar, e o histórico registra o identificador da estação. O Hub provisiona o acesso; a sequência é salva no módulo Prioridades. Ao sair com alterações não salvas, confirme o descarte ou permaneça na tela para salvar.
 
-Para o Dashboard consumir essa sequência, selecione a organização por prioridade nas **Configurações da operação** do ANDON. O modo padrão continua disponível. A interface exige confirmar que o acesso de Prioridades está configurado antes de ativar esse modo.
+Para o Dashboard consumir essa sequência, selecione a organização por prioridade nas **Configurações da operação** do ANDON. O modo padrão continua disponível. A interface exige confirmar que Prioridades está configurado com credenciais ou que sua senha foi explicitamente dispensada antes de ativar esse modo.
 
 ## Ativação, atualização e reversão
 
-Na candidata, `hubEnabled` inicia desativado. Em **Visão geral**, **Navegação do Hub ativa** controla a exibição da navegação central. Desativar essa opção preserva as permissões e não impede abrir `/hub/admin` para recuperação. Para restaurar acesso de um módulo, ajuste a permissão da estação.
+Nesta candidata, o Hub é a entrada padrão, independentemente do campo legado `hubEnabled`. A tela de administração não tem mais o antigo interruptor para ativar a navegação central. Para restringir um módulo, altere a permissão da estação.
 
-A implantação requer backup confirmado do PostgreSQL, configuração instalada e código, seguido da migration `20261014223000_hub_module_access` **antes** de iniciar o backend novo. Ela adiciona `allowOperational` e `allowBi` às estações, ambos com default `true`, e `hubEnabled` às configurações, com default `false`. Não executa seed, reset ou conversão de históricos.
+A implantação requer backup confirmado do PostgreSQL, configuração instalada e código. Além da migration da primeira entrega (`20261014223000_hub_module_access`), aplique `20261015123000_hub_entry_credentials` antes de iniciar a API nova. Ela adiciona a permissão de Prioridades, sua política de senha e a tabela de credenciais de ANDON/BI. Não executa seed, reset ou conversão de históricos. Atualize frontend, backend e Prisma Client em conjunto pelo procedimento de atualização da instalação.
 
 Os backups de código anteriores à candidata são:
 
+- `backup/pre-hub-entry-20261015-main-c041478` (anterior a esta evolução);
 - `backup/pre-hub-20261014-main-6fcae079`;
 - `backup/pre-hub-20261014-i18n-cfa1d0d`.
 
-O ZIP/bundle de código teve integridade e restauração verificadas. Ele não inclui o banco ou a configuração da instalação. Em uma reversão de código, as colunas aditivas podem permanecer; o código anterior não aplica as novas permissões. Não remova colunas como procedimento emergencial.
+O ZIP/bundle de código teve integridade e restauração verificadas. Ele não inclui o banco ou a configuração da instalação. Em uma reversão de código, as colunas aditivas podem permanecer; o código da primeira entrega do Hub não aplica a nova permissão de Prioridades nem as senhas de entrada de ANDON/BI. Não remova colunas como procedimento emergencial.
 
 ## Limites da validação
 
-Builds, tipagem, testes de autorização, testes de interface, navegação com fixtures e integração em PostgreSQL isolado verificam o comportamento da candidata. Os resultados finais e o commit validado estão no PR #199.
+Builds, tipagem, testes de autorização, testes de interface, navegação com fixtures e integração em PostgreSQL isolado verificam o comportamento da candidata. Os resultados finais e o commit validado estão no PR desta evolução. Consulte também [entrada e credenciais](HUB_ENTRY_MODULE_CREDENTIALS.md).
 
 A Máquina 37 e a apresentação ficam para verificação manual pelo responsável. Chrome kiosk, Windows Server 2016, PostgreSQL 17 e integrações físicas dependem de evidência do ambiente instalado. Nenhum merge, deploy, reinício de serviço ou alteração de banco produtivo é executado por esta revisão.

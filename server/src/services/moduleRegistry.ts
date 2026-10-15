@@ -3,7 +3,7 @@ export const MODULE_REGISTRY = [
     id: "operational",
     name: "ANDON operacional",
     description: "Máquinas, chamados e atendimento em tempo real.",
-    route: "/",
+    route: "/andon",
     icon: "factory",
     available: true,
     enabled: true,
@@ -46,7 +46,7 @@ export function apiModule(path: string): ModuleId | null {
 
 export function isModuleAllowed(
   module: ModuleId,
-  workstation: { allowOperational: boolean; allowBi: boolean },
+  workstation: { allowOperational: boolean; allowBi: boolean; allowPriorities: boolean },
 ) {
   const definition = MODULE_REGISTRY.find((item) => item.id === module);
   if (!definition?.available || !definition.enabled) return false;
@@ -54,12 +54,15 @@ export function isModuleAllowed(
     ? workstation.allowOperational
     : module === "bi"
       ? workstation.allowBi
-      : true;
+      : workstation.allowPriorities;
 }
 
 /** Recovery authority is limited to platform administration, never call/machine APIs. */
 export function isRecoveryRequest(method: string, path: string) {
   return (
+    (method === "GET" && path === "/api/modules/credentials") ||
+    (method === "PUT" && /^\/api\/modules\/[^/]+\/credentials$/.test(path)) ||
+    (method === "PATCH" && path === "/api/dashboard-priority/access-policy") ||
     (method === "GET" && (path === "/api/workstations" || path === "/api/modules/settings")) ||
     (method === "PATCH" &&
       (path === "/api/modules/settings" || /^\/api\/workstations\/[^/]+$/.test(path))) ||

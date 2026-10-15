@@ -22,14 +22,15 @@ A solução foi desenhada para ambientes industriais que precisam de implantaç�
 
 As funcionalidades entregues abaixo descrevem o estado da `main`. Candidatas em revisão e recursos planejados são identificados separadamente.
 
-## Hub — candidata desta revisão
+## Hub — evolução em revisão
 
-O [PR #199](https://github.com/projetoever/andon-evergreen/pull/199) adiciona o Hub com a identidade visual atual do ANDON e centraliza estações, permissões, senha administrativa, recuperação e provisionamento do acesso de Prioridades. Os cadastros e as regras industriais permanecem no ANDON; análises no BI e sequência visual no módulo Prioridades.
+O [PR #199](https://github.com/projetoever/andon-evergreen/pull/199) entregou a base do Hub na `main`. Esta evolução torna o Hub a entrada de `http://IP:8080/`, move o painel operacional para `/andon`, oculta os módulos não autorizados e adiciona três permissões independentes por estação. Senhas de entrada configuráveis por módulo e a segurança administrativa ficam no Hub; cadastros e regras industriais permanecem no ANDON.
 
-Esta candidata exige a migration aditiva documentada e validação antes de implantação. Não representa uma atualização já instalada no piloto.
+Esta candidata exige a migration aditiva `20261015123000_hub_entry_credentials` e validação antes de implantação. Não representa uma atualização já instalada no piloto. Endereços diretos de BI, Prioridades e máquinas continuam disponíveis conforme a autorização e a exigência de senha.
 
 - [Guia do administrador do Hub](docs/ANDON_HUB_GUIA_ADMINISTRADOR.md)
-- [Arquitetura, permissões e limites da revisão](docs/HUB_MODULE_ACCESS_STAGE3.md)
+- [Entrada, credenciais, compatibilidade e limites da revisão](docs/HUB_ENTRY_MODULE_CREDENTIALS.md)
+- [Histórico da primeira entrega do Hub](docs/HUB_MODULE_ACCESS_STAGE3.md)
 
 ## Por que o ANDON
 

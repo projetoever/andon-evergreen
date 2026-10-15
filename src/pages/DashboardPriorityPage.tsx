@@ -34,12 +34,13 @@ import { formatDateTime } from "@/utils/dateTimeUtils";
 export function DashboardPriorityPage() {
   const navigate = useNavigate();
   const { access } = useModuleAccess();
-  const returnTo = access?.hubEnabled || !access?.workstation.allowOperational ? "/hub" : "/";
+  const returnTo = "/hub";
+  const passwordRequired = access?.modules.find(item => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
   const [authenticated, setAuthenticated] = useState(() =>
-    isDashboardPriorityAuthenticated(),
+    !passwordRequired || isDashboardPriorityAuthenticated(),
   );
-  const [loginOpen, setLoginOpen] = useState(() => !isDashboardPriorityAuthenticated());
+  const [loginOpen, setLoginOpen] = useState(() => passwordRequired && !isDashboardPriorityAuthenticated());
   const [rows, setRows] = useState<DashboardPriorityMachine[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function DashboardPriorityPage() {
   }, [rows]);
 
   const loadOrder = useCallback(async () => {
-    if (!isDashboardPriorityAuthenticated()) {
+    if (passwordRequired && !isDashboardPriorityAuthenticated()) {
       setAuthenticated(false);
       setLoginOpen(true);
       return;
@@ -90,7 +91,13 @@ export function DashboardPriorityPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [passwordRequired]);
+
+  useEffect(() => {
+    const authenticatedNow = !passwordRequired || isDashboardPriorityAuthenticated();
+    setAuthenticated(authenticatedNow);
+    setLoginOpen(!authenticatedNow);
+  }, [passwordRequired]);
 
   useEffect(() => {
     if (authenticated) void loadOrder();
@@ -181,10 +188,10 @@ export function DashboardPriorityPage() {
                 {session.username}
               </span>
             )}
-            <Button type="button" variant="outline" onClick={() => void handleLogout()}>
+            {passwordRequired && <Button type="button" variant="outline" onClick={() => void handleLogout()}>
               <LogOut className="mr-2 h-4 w-4" />
               Sair
-            </Button>
+            </Button>}
           </div>
         </header>
 
@@ -335,7 +342,7 @@ export function DashboardPriorityPage() {
         open={loginOpen}
         onOpenChange={(open) => {
           setLoginOpen(open);
-          if (!open && !isDashboardPriorityAuthenticated()) void navigate({ to: returnTo });
+          if (!open && passwordRequired && !isDashboardPriorityAuthenticated()) void navigate({ to: returnTo });
         }}
         onSuccess={() => setAuthenticated(true)}
       />
