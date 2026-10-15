@@ -1,3 +1,6 @@
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
@@ -20,14 +23,39 @@ import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
 import { getHubSettings } from "@/services/moduleService";
 
 const sections = [
-  { id: "overview", label: "Visão geral", icon: LayoutGrid },
-  { id: "workstations", label: "Estações e acessos", icon: MonitorCog },
-  { id: "security", label: "Segurança", icon: KeyRound },
-  { id: "modules", label: "Módulos e senhas", icon: KeySquare },
+  {
+    id: "overview",
+    get label() {
+      return ui("Visão geral");
+    },
+    icon: LayoutGrid,
+  },
+  {
+    id: "workstations",
+    get label() {
+      return ui("Estações e acessos");
+    },
+    icon: MonitorCog,
+  },
+  {
+    id: "security",
+    get label() {
+      return ui("Segurança");
+    },
+    icon: KeyRound,
+  },
+  {
+    id: "modules",
+    get label() {
+      return ui("Módulos e senhas");
+    },
+    icon: KeySquare,
+  },
 ] as const;
 
 /** Recovery entry remains outside operational providers and workstation/module gates. */
 export function HubAdminPage() {
+  useInterfaceLanguage();
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
   const section = requestedSection ?? "overview";
   const [authenticated, setAuthenticated] = useState(false);
@@ -71,18 +99,19 @@ export function HubAdminPage() {
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" size="icon">
-              <Link to="/hub" aria-label="Voltar ao Hub">
+              <Link to="/hub" aria-label={ui("Voltar ao Hub")}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
             <ShieldCheck className="h-6 w-6 text-primary" />
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                ANDON EVERGREEN
+                {ui("ANDON EVERGREEN")}
               </p>
-              <h1 className="text-xl font-black">Administração do Hub</h1>
+              <h1 className="text-xl font-black">{ui("Administração do Hub")}</h1>
             </div>
           </div>
+          <LanguageSelector compact />
           {authenticated && (
             <Button
               variant="outline"
@@ -92,23 +121,24 @@ export function HubAdminPage() {
               }}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Sair do Admin
+              {ui("Sair do Admin")}
             </Button>
           )}
         </header>
         {!authenticated ? (
           <section className="space-y-4 rounded-xl border border-border bg-card p-6">
-            <h2 className="text-lg font-bold">Acesso administrativo</h2>
+            <h2 className="text-lg font-bold">{ui("Acesso administrativo")}</h2>
             <p className="text-sm text-muted-foreground">
-              Entre com a credencial administrativa existente para gerenciar estações e recuperar
-              acessos.
+              {ui(
+                "Entre com a credencial administrativa existente para gerenciar estações e recuperar acessos.",
+              )}
             </p>
-            <Button onClick={() => setLoginOpen(true)}>Entrar no Admin</Button>
+            <Button onClick={() => setLoginOpen(true)}>{ui("Entrar no Admin")}</Button>
           </section>
         ) : (
           <>
             <nav
-              aria-label="Seções administrativas do Hub"
+              aria-label={ui("Seções administrativas do Hub")}
               className="grid grid-cols-2 gap-2 md:grid-cols-4"
             >
               {sections.map((item) => {
@@ -135,47 +165,51 @@ export function HubAdminPage() {
             {section === "overview" && (
               <div className="space-y-6">
                 <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-                  <h2 className="text-lg font-bold">Entrada central da plataforma</h2>
+                  <h2 className="text-lg font-bold">{ui("Entrada central da plataforma")}</h2>
                   <p className="text-sm text-muted-foreground">
-                    O endereço inicial abre o Hub. Cada workstation visualiza somente os módulos
-                    autorizados; a exigência de senha é configurada por módulo.
+                    {ui(
+                      "O endereço inicial abre o Hub. Cada workstation visualiza somente os módulos autorizados; a exigência de senha é configurada por módulo.",
+                    )}
                   </p>
                   {settingsError && (
                     <p role="alert" className="text-sm text-danger">
-                      {settingsError}
+                      {systemMessage(settingsError)}
                     </p>
                   )}
                 </section>
                 <PlatformAdminLinks />
                 <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-                  <h2 className="text-lg font-bold">Responsabilidade de cada módulo</h2>
+                  <h2 className="text-lg font-bold">{ui("Responsabilidade de cada módulo")}</h2>
                   <div className="grid gap-3 text-sm md:grid-cols-2">
                     <p>
                       <strong className="text-primary">Hub</strong>
                       <br />
-                      Estações, permissões e navegação entre módulos. Segurança administrativa
-                      central.
+                      {ui(
+                        "Estações, permissões e navegação entre módulos. Segurança administrativa central.",
+                      )}
                     </p>
                     <p>
-                      <strong className="text-primary">ANDON operacional</strong>
+                      <strong className="text-primary">{ui("ANDON operacional")}</strong>
                       <br />
-                      Chamados, atendimento, sons, máquinas, ativos, mantenedores, turnos e regras
-                      de operação.
+                      {ui(
+                        "Chamados, atendimento, sons, máquinas, ativos, mantenedores, turnos e regras de operação.",
+                      )}
                     </p>
                     <p>
                       <strong className="text-primary">ANDON BI</strong>
                       <br />
-                      Indicadores, filtros, análises, qualidade dos dados e relatórios.
+                      {ui("Indicadores, filtros, análises, qualidade dos dados e relatórios.")}
                     </p>
                     <p>
-                      <strong className="text-primary">Prioridades</strong>
+                      <strong className="text-primary">{ui("Prioridades")}</strong>
                       <br />
-                      Credencial própria e sequência visual de produção.
+                      {ui("Credencial própria e sequência visual de produção.")}
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    O Admin do ANDON concentra cadastros e regras operacionais. Credenciais,
-                    estações e permissões são administradas no Hub.
+                    {ui(
+                      "O Admin do ANDON concentra cadastros e regras operacionais. Credenciais, estações e permissões são administradas no Hub.",
+                    )}
                   </p>
                 </section>
               </div>

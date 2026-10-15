@@ -1,18 +1,23 @@
-﻿import { useMemo, useState } from "react";
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { useMemo, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { ActiveCallList } from "@/components/calls/ActiveCallList";
 import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 
 export function ActiveCallsPage() {
+  useInterfaceLanguage();
   const { calls, attendCall, completeMaintenance, returnToMaintenance, cancelCall } = useAndon();
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [startAttendanceCallId, setStartAttendanceCallId] = useState<string | null>(null);
   const [cancelCallId, setCancelCallId] = useState<string | null>(null);
-  const [completingMaintenanceCallId, setCompletingMaintenanceCallId] = useState<string | null>(null);
+  const [completingMaintenanceCallId, setCompletingMaintenanceCallId] = useState<string | null>(
+    null,
+  );
 
   const activeCalls = useMemo(
     () =>
@@ -20,9 +25,7 @@ export function ActiveCallsPage() {
         .filter(
           (c) =>
             !c.isSystemTest &&
-            (c.status === "open" ||
-              c.status === "in_progress" ||
-              c.status === "post_maintenance"),
+            (c.status === "open" || c.status === "in_progress" || c.status === "post_maintenance"),
         )
         .sort((a, b) => a.openedAt.localeCompare(b.openedAt)),
     [calls],
@@ -52,7 +55,6 @@ export function ActiveCallsPage() {
     }
   }
 
-
   async function handleCompleteMaintenance(callId: string) {
     if (completingMaintenanceCallId) return;
     setCompletingMaintenanceCallId(callId);
@@ -73,7 +75,9 @@ export function ActiveCallsPage() {
       await cancelCall({ callId: cancelCallId, reason, cancelledBy: "operador" });
       toast.success("Chamado cancelado.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.");
+      toast.error(
+        err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.",
+      );
       throw err;
     }
   }
@@ -81,7 +85,7 @@ export function ActiveCallsPage() {
   return (
     <div className="space-y-4">
       <h2 className="text-3xl font-bold uppercase tracking-wider text-foreground">
-        Chamados ativos
+        {ui("Chamados ativos")}
       </h2>
       <ActiveCallList
         calls={activeCalls}

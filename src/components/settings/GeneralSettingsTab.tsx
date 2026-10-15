@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useState } from "react";
 import { ListOrdered, Settings2, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +12,7 @@ import { getSystemSettings, updateSystemSettings } from "@/services/systemSettin
 import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 
 export function GeneralSettingsTab() {
+  useInterfaceLanguage();
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(true);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [restrictMaintenanceCompletion, setRestrictMaintenanceCompletion] = useState(false);
@@ -40,7 +43,7 @@ export function GeneralSettingsTab() {
         settings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
       );
     } catch {
-      const message = "Não foi possível carregar as configurações gerais.";
+      const message = ui("Não foi possível carregar as configurações gerais.");
       setSettingsLoadError(message);
       toast.error(message);
     } finally {
@@ -56,7 +59,7 @@ export function GeneralSettingsTab() {
       const status = await getDashboardPriorityAccessStatus();
       setPriorityConfigured(status.configured || status.passwordRequired === false);
     } catch {
-      const message = "Não foi possível carregar o acesso de prioridades.";
+      const message = ui("Não foi possível carregar o acesso de prioridades.");
       setPriorityAccessLoadError(message);
       toast.error(message);
     } finally {
@@ -177,8 +180,8 @@ export function GeneralSettingsTab() {
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger"
         >
           <div>
-            <p className="font-black">Configurações globais indisponíveis</p>
-            <p>{settingsLoadError}</p>
+            <p className="font-black">{ui("Configurações globais indisponíveis")}</p>
+            <p>{systemMessage(settingsLoadError)}</p>
           </div>
           <Button
             type="button"
@@ -186,7 +189,7 @@ export function GeneralSettingsTab() {
             onClick={() => void loadGeneralSettings()}
             disabled={isLoadingSettings}
           >
-            Tentar novamente
+            {ui("Tentar novamente")}
           </Button>
         </div>
       )}
@@ -196,19 +199,19 @@ export function GeneralSettingsTab() {
           <CardHeader className="p-4 pb-3">
             <CardTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-primary" />
-              Regras da operação
+              {ui("Regras da operação")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 p-4 pt-0">
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
-                <p className="font-bold">Habilitar teclado virtual</p>
+                <p className="font-bold">{ui("Habilitar teclado virtual")}</p>
                 <p className="text-xs text-muted-foreground">
-                  A preferência vale para todas as telas deste sistema.
+                  {ui("A preferência vale para todas as telas deste sistema.")}
                 </p>
               </div>
               <Switch
-                aria-label="Habilitar teclado virtual"
+                aria-label={ui("Habilitar teclado virtual")}
                 checked={virtualKeyboardEnabled}
                 disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingKeyboard}
                 onCheckedChange={(checked) => void handleKeyboardChange(checked)}
@@ -217,15 +220,16 @@ export function GeneralSettingsTab() {
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
                 <p className="font-bold">
-                  Restringir conclusão da manutenção à workstation do atendimento
+                  {ui("Restringir conclusão da manutenção à workstation do atendimento")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Quando habilitado, a manutenção só poderá ser concluída em uma workstation que
-                  possua uma sessão ativa nesse atendimento.
+                  {ui(
+                    "Quando habilitado, a manutenção só poderá ser concluída em uma workstation que possua uma sessão ativa nesse atendimento.",
+                  )}
                 </p>
               </div>
               <Switch
-                aria-label="Restringir conclusão da manutenção à workstation do atendimento"
+                aria-label={ui("Restringir conclusão da manutenção à workstation do atendimento")}
                 checked={restrictMaintenanceCompletion}
                 disabled={
                   isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction
@@ -235,14 +239,15 @@ export function GeneralSettingsTab() {
             </div>
             <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
               <div>
-                <p className="font-bold">Regra global: exigir OS na abertura</p>
+                <p className="font-bold">{ui("Regra global: exigir OS na abertura")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Quando ativa, todas as máquinas exigem OS. Mesmo desativada, uma máquina pode
-                  exigir OS individualmente em Máquinas.
+                  {ui(
+                    "Quando ativa, todas as máquinas exigem OS. Mesmo desativada, uma máquina pode exigir OS individualmente em Máquinas.",
+                  )}
                 </p>
               </div>
               <Switch
-                aria-label="Exigir OS na abertura do chamado"
+                aria-label={ui("Exigir OS na abertura do chamado")}
                 checked={requireWorkOrderAtOpen}
                 disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingWorkOrder}
                 onCheckedChange={(checked) => void handleWorkOrderRequirementChange(checked)}
@@ -255,14 +260,15 @@ export function GeneralSettingsTab() {
           <CardHeader className="p-4 pb-3">
             <CardTitle className="flex items-center gap-2">
               <ListOrdered className="h-5 w-5 text-primary" />
-              Organização visual do Dashboard
+              {ui("Organização visual do Dashboard")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 p-4 pt-0">
             <div>
               <p className="text-sm text-muted-foreground">
-                Define somente a ordem visual dos cards de máquinas. Não altera chamados, tempos,
-                status, sons ou regras de atendimento.
+                {ui(
+                  "Define somente a ordem visual dos cards de máquinas. Não altera chamados, tempos, status, sons ou regras de atendimento.",
+                )}
               </p>
             </div>
 
@@ -280,9 +286,9 @@ export function GeneralSettingsTab() {
                     : "border-border hover:bg-accent/50"
                 }`}
               >
-                <p className="font-black">Padrão atual</p>
+                <p className="font-black">{ui("Padrão atual")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Mantém a organização atual dos cards do Dashboard.
+                  {ui("Mantém a organização atual dos cards do Dashboard.")}
                 </p>
               </button>
 
@@ -299,9 +305,9 @@ export function GeneralSettingsTab() {
                     : "border-border hover:bg-accent/50"
                 }`}
               >
-                <p className="font-black">Prioridade de produção</p>
+                <p className="font-black">{ui("Prioridade de produção")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Usa a sequência definida pelo responsável e destaca visualmente P1–P5.
+                  {ui("Usa a sequência definida pelo responsável e destaca visualmente P1–P5.")}
                 </p>
               </button>
             </div>
@@ -311,10 +317,10 @@ export function GeneralSettingsTab() {
                 <div>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" />
-                    <p className="font-black">Acesso à gestão de prioridades</p>
+                    <p className="font-black">{ui("Acesso à gestão de prioridades")}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Permissões e senhas administradas no Hub.
+                    {ui("Permissões e senhas administradas no Hub.")}
                   </p>
                 </div>
                 <span
@@ -327,12 +333,12 @@ export function GeneralSettingsTab() {
                   }`}
                 >
                   {isLoadingPriorityAccess
-                    ? "Carregando"
+                    ? ui("Carregando")
                     : priorityAccessLoadError
-                      ? "Indisponível"
+                      ? ui("Indisponível")
                       : priorityConfigured
-                        ? "Configurado"
-                        : "Pendente"}
+                        ? ui("Configurado")
+                        : ui("Pendente")}
                 </span>
               </div>
 
@@ -341,20 +347,20 @@ export function GeneralSettingsTab() {
                   role="alert"
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
                 >
-                  <span>{priorityAccessLoadError}</span>
+                  <span>{systemMessage(priorityAccessLoadError)}</span>
                   <button
                     type="button"
                     className="font-bold underline"
                     onClick={() => void loadPriorityAccess()}
                     disabled={isLoadingPriorityAccess}
                   >
-                    Tentar novamente
+                    {ui("Tentar novamente")}
                   </button>
                 </div>
               )}
 
               <p className="text-xs text-muted-foreground">
-                O acesso ao módulo Prioridades é configurado na administração do Hub.
+                {ui("O acesso ao módulo Prioridades é configurado na administração do Hub.")}
               </p>
             </div>
           </CardContent>

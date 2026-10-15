@@ -1,6 +1,8 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { CircleHelp, CreditCard, Hash } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import {
@@ -36,8 +38,8 @@ interface EndTechnicianSessionModalProps {
 
 function methodLabel(method: AttendanceMode) {
   if (method === "pin") return "PIN";
-  if (method === "rfid") return "tag RF";
-  return "nome";
+  if (method === "rfid") return ui("tag RF");
+  return ui("nome");
 }
 
 export function EndTechnicianSessionModal({
@@ -47,6 +49,7 @@ export function EndTechnicianSessionModal({
   sessions,
   phase,
 }: EndTechnicianSessionModalProps) {
+  useInterfaceLanguage();
   const { endTechnicianSession } = useAndon();
   const activeSessions = sessions.filter((session) => !session.endedAt);
   const isFollowUp =
@@ -201,19 +204,21 @@ export function EndTechnicianSessionModal({
             <div>
               <DialogTitle className="text-2xl sm:text-3xl">
                 {isFollowUp
-                  ? "Encerrar acompanhamento individual"
-                  : "Encerrar atendimento individual"}
+                  ? ui("Encerrar acompanhamento individual")
+                  : ui("Encerrar atendimento individual")}
               </DialogTitle>
               <DialogDescription className="mt-1 text-base">
                 {method === "name"
-                  ? `Selecione o mantenedor e encerre ${isFollowUp ? "o acompanhamento" : "o atendimento"}.`
-                  : `Digite o ${methodLabel(method)} e pressione Enter ou Encerrar.`}
+                  ? ui("Selecione o mantenedor e encerre {0}.", {
+                      0: isFollowUp ? "o acompanhamento" : "o atendimento",
+                    })
+                  : ui("Digite o {0} e pressione Enter ou Encerrar.", { 0: methodLabel(method) })}
               </DialogDescription>
             </div>
             <button
               type="button"
-              aria-label="Outras formas de identificação"
-              title="Outras formas de identificação"
+              aria-label={ui("Outras formas de identificação")}
+              title={ui("Outras formas de identificação")}
               onClick={() => setShowAlternatives((value) => !value)}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary hover:bg-accent"
             >
@@ -241,10 +246,10 @@ export function EndTechnicianSessionModal({
                 )}
               >
                 {candidate === "name"
-                  ? "Lista de nomes"
+                  ? ui("Lista de nomes")
                   : candidate === "pin"
-                    ? "Usar PIN"
-                    : "Usar tag"}
+                    ? ui("Usar PIN")
+                    : ui("Usar tag")}
               </button>
             ))}
           </div>
@@ -252,23 +257,23 @@ export function EndTechnicianSessionModal({
 
         {!settings && !loadFailed && (
           <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Carregando modo de atendimento...
+            {ui("Carregando modo de atendimento...")}
           </p>
         )}
         {loadFailed && (
           <p className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-            Não foi possível validar o modo de atendimento. Feche e abra novamente.
+            {ui("Não foi possível validar o modo de atendimento. Feche e abra novamente.")}
           </p>
         )}
         {settings && activeSessions.length === 0 && (
           <p className="rounded-xl border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
-            Não há mantenedor ativo para encerrar.
+            {ui("Não há mantenedor ativo para encerrar.")}
           </p>
         )}
 
         {settings && activeSessions.length > 0 && method === "name" && (
           <label className="block text-sm font-bold">
-            {isFollowUp ? "Mantenedor em acompanhamento" : "Mantenedor em atendimento"}
+            {isFollowUp ? ui("Mantenedor em acompanhamento") : ui("Mantenedor em atendimento")}
             <select
               autoFocus
               className="mt-1 h-12 w-full rounded-xl border border-input bg-background px-3 text-base"
@@ -286,7 +291,7 @@ export function EndTechnicianSessionModal({
 
         {settings && activeSessions.length > 0 && (method === "pin" || method === "rfid") && (
           <label className="block text-sm font-bold">
-            {method === "pin" ? "PIN do mantenedor" : "Aproxime a tag no leitor"}
+            {method === "pin" ? ui("PIN do mantenedor") : ui("Aproxime a tag no leitor")}
             <div className="mt-1 flex min-w-0 gap-2">
               <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-warning">
                 {method === "pin" ? (
@@ -317,7 +322,7 @@ export function EndTechnicianSessionModal({
                   }
                 }}
                 maxLength={method === "pin" ? 8 : 64}
-                placeholder={method === "pin" ? "4 a 8 números" : "Aguardando leitura..."}
+                placeholder={method === "pin" ? ui("4 a 8 números") : ui("Aguardando leitura...")}
               />
             </div>
           </label>
@@ -326,18 +331,20 @@ export function EndTechnicianSessionModal({
         {settings && activeSessions.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
             <label className="block text-sm font-bold">
-              Motivo
+              {ui("Motivo")}
               <select
                 className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
                 value={reason}
                 onChange={(event) => setReason(event.target.value as TechnicianSessionEndReason)}
               >
-                {isFollowUp && <option value="follow_up_finished">Acompanhamento encerrado</option>}
-                {!isFollowUp && <option value="support_finished">Apoio encerrado</option>}
-                <option value="handover">Troca de turno</option>
-                <option value="transferred">Serviço transferido</option>
-                <option value="break">Intervalo</option>
-                <option value="other">Outro</option>
+                {isFollowUp && (
+                  <option value="follow_up_finished">{ui("Acompanhamento encerrado")}</option>
+                )}
+                {!isFollowUp && <option value="support_finished">{ui("Apoio encerrado")}</option>}
+                <option value="handover">{ui("Troca de turno")}</option>
+                <option value="transferred">{ui("Serviço transferido")}</option>
+                <option value="break">{ui("Intervalo")}</option>
+                <option value="other">{ui("Outro")}</option>
               </select>
             </label>
             <button
@@ -345,20 +352,20 @@ export function EndTechnicianSessionModal({
               className="h-11 rounded-xl border border-border bg-card px-3 text-sm font-bold hover:bg-accent"
               onClick={() => setShowNotes((value) => !value)}
             >
-              {showNotes ? "Ocultar observação" : "Adicionar observação"}
+              {showNotes ? ui("Ocultar observação") : ui("Adicionar observação")}
             </button>
           </div>
         )}
 
         {showNotes && (
           <label className="block text-sm font-bold">
-            Observação (opcional)
+            {ui("Observação (opcional)")}
             <Textarea
               className="mt-1"
               rows={2}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              placeholder="Descreva a condição deixada para o próximo mantenedor."
+              placeholder={ui("Descreva a condição deixada para o próximo mantenedor.")}
             />
           </label>
         )}
@@ -370,7 +377,7 @@ export function EndTechnicianSessionModal({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            Cancelar
+            {ui("Cancelar")}
           </BigButton>
           <BigButton
             tone="warning"
@@ -385,10 +392,10 @@ export function EndTechnicianSessionModal({
             }
           >
             {isSubmitting
-              ? "Encerrando..."
+              ? ui("Encerrando...")
               : isFollowUp
-                ? "Encerrar acompanhamento"
-                : "Encerrar atendimento"}
+                ? ui("Encerrar acompanhamento")
+                : ui("Encerrar atendimento")}
           </BigButton>
         </DialogFooter>
       </DialogContent>

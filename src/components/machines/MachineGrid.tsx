@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Factory } from "lucide-react";
 import type { Machine } from "@/types/machine";
@@ -34,15 +36,12 @@ function MachinePageGrid({
   machines: Machine[];
   priorityRanks: Map<string, number>;
 }) {
-  const groupedPriorityMachines = machines.filter((machine) =>
-    priorityRanks.has(machine.id),
-  );
+  useInterfaceLanguage();
+  const groupedPriorityMachines = machines.filter((machine) => priorityRanks.has(machine.id));
   const remainingMachines = machines.filter((machine) => !priorityRanks.has(machine.id));
   const hasPriorityGroup =
     groupedPriorityMachines.length > 0 &&
-    groupedPriorityMachines.every(
-      (machine, index) => machines[index]?.id === machine.id,
-    );
+    groupedPriorityMachines.every((machine, index) => machines[index]?.id === machine.id);
 
   function renderMachineCard(machine: Machine) {
     return (
@@ -81,11 +80,7 @@ function MachinePageGrid({
   );
 }
 
-export function MachineGrid({
-  machines,
-  className,
-  orderMode = "default",
-}: MachineGridProps) {
+export function MachineGrid({ machines, className, orderMode = "default" }: MachineGridProps) {
   const { calls } = useAndon();
   const { t } = useLanguage();
   const [pageIndex, setPageIndex] = useState(0);
@@ -148,7 +143,9 @@ export function MachineGrid({
         <EmptyState
           icon={<Factory className="h-12 w-12" />}
           title={t("Nenhuma máquina cadastrada")}
-          description={t("Abra as configurações administrativas para cadastrar a primeira máquina do ANDON.")}
+          description={t(
+            "Abra as configurações administrativas para cadastrar a primeira máquina do ANDON.",
+          )}
         />
       </div>
     );
@@ -174,12 +171,12 @@ export function MachineGrid({
         className="absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-border bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
         title={
           pageIndex === 0
-            ? `Ver ${overflowCount} máquina(s) restante(s)`
+            ? ui("Ver {0} máquina(s) restante(s)", { 0: overflowCount })
             : t("Voltar aos cards principais")
         }
         aria-label={
           pageIndex === 0
-            ? `Ver ${overflowCount} máquina(s) restante(s)`
+            ? ui("Ver {0} máquina(s) restante(s)", { 0: overflowCount })
             : t("Voltar aos cards principais")
         }
       >

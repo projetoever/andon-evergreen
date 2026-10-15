@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -66,7 +68,7 @@ function getTargetLabel(target: EditableTarget) {
     target.getAttribute("aria-label") ||
     target.getAttribute("placeholder") ||
     target.getAttribute("name") ||
-    "Campo de texto"
+    ui("Campo de texto")
   );
 }
 
@@ -129,6 +131,7 @@ function KeyButton({
   onClick: () => void;
   label?: string;
 }) {
+  useInterfaceLanguage();
   return (
     <button
       type="button"
@@ -146,6 +149,7 @@ function KeyButton({
 }
 
 export function VirtualKeyboard() {
+  useInterfaceLanguage();
   const targetRef = useRef<EditableTarget | null>(null);
   const launcherHostRef = useRef<HTMLElement | null>(null);
   const launcherHostPositionRef = useRef("");
@@ -456,8 +460,8 @@ export function VirtualKeyboard() {
           <button
             type="button"
             data-virtual-keyboard-ui
-            aria-label={`Abrir teclado virtual para ${getTargetLabel(target)}`}
-            title="Abrir teclado virtual"
+            aria-label={ui("Abrir teclado virtual para {0}", { 0: getTargetLabel(target) })}
+            title={ui("Abrir teclado virtual")}
             className="absolute z-[190] flex touch-manipulation items-center justify-center rounded-lg border border-primary bg-card text-primary shadow-lg transition-transform hover:scale-105 active:scale-95"
             style={launcherPosition}
             onPointerDown={(event) => event.preventDefault()}
@@ -486,7 +490,7 @@ export function VirtualKeyboard() {
               finishKeyboardClose();
             }}
           >
-            <DialogTitle className="sr-only">Teclado virtual</DialogTitle>
+            <DialogTitle className="sr-only">{ui("Teclado virtual")}</DialogTitle>
             <header className="mb-1.5 flex items-center gap-1.5 sm:gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <Keyboard className="h-5 w-5" />
@@ -496,19 +500,19 @@ export function VirtualKeyboard() {
                   {getTargetLabel(target)}
                 </p>
                 <p className="flex h-9 min-w-0 flex-1 items-center truncate rounded-lg border border-border bg-background px-3 font-mono text-sm text-foreground">
-                  {visiblePreview || "Digite usando o teclado abaixo"}
+                  {visiblePreview || ui("Digite usando o teclado abaixo")}
                 </p>
               </div>
               <button
                 type="button"
-                aria-label="Fechar teclado virtual e voltar ao campo"
-                title="Fechar teclado e voltar ao campo"
+                aria-label={ui("Fechar teclado virtual e voltar ao campo")}
+                title={ui("Fechar teclado e voltar ao campo")}
                 className="flex h-9 shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-border bg-secondary px-2.5 text-sm font-bold text-secondary-foreground shadow-sm transition-colors hover:bg-accent active:scale-[0.98] sm:px-3"
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => handleOpenChange(false)}
               >
                 <X className="h-4 w-4" />
-                <span className="hidden sm:inline">Fechar teclado</span>
+                <span className="hidden sm:inline">{ui("Fechar teclado")}</span>
               </button>
             </header>
 
@@ -554,13 +558,13 @@ export function VirtualKeyboard() {
               {!numericOnly && (
                 <KeyButton
                   className="px-3 sm:min-w-20"
-                  label={view === "letters" ? "Exibir números e símbolos" : "Exibir letras"}
+                  label={view === "letters" ? ui("Exibir números e símbolos") : ui("Exibir letras")}
                   onClick={() => {
                     setShowAccents(false);
                     setView((current) => (current === "letters" ? "symbols" : "letters"));
                   }}
                 >
-                  {view === "letters" ? "123" : "ABC"}
+                  {view === "letters" ? "123" : ui("ABC")}
                 </KeyButton>
               )}
               {!numericOnly && view === "letters" && (
@@ -569,7 +573,7 @@ export function VirtualKeyboard() {
                     "px-3 sm:min-w-20",
                     uppercase && "bg-primary text-primary-foreground",
                   )}
-                  label="Alternar maiúsculas"
+                  label={ui("Alternar maiúsculas")}
                   onClick={() => setUppercase((current) => !current)}
                 >
                   <CaseUpper className="h-5 w-5" />
@@ -581,7 +585,7 @@ export function VirtualKeyboard() {
                     "px-2.5 sm:min-w-14",
                     showAccents && "bg-primary text-primary-foreground",
                   )}
-                  label={showAccents ? "Ocultar acentos" : "Exibir acentos"}
+                  label={showAccents ? ui("Ocultar acentos") : ui("Exibir acentos")}
                   onClick={() => setShowAccents((current) => !current)}
                 >
                   ÁÇ
@@ -589,7 +593,7 @@ export function VirtualKeyboard() {
               )}
               <KeyButton
                 className="px-3 sm:min-w-16"
-                label="Mover cursor para a esquerda"
+                label={ui("Mover cursor para a esquerda")}
                 onClick={() => moveCursor(-1)}
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -597,39 +601,41 @@ export function VirtualKeyboard() {
               {!numericOnly && (
                 <KeyButton
                   className="col-span-2 px-3 sm:col-span-1"
-                  label="Espaço"
+                  label={ui("Espaço")}
                   onClick={() => insertKey(" ")}
                 >
                   <Space className="mr-2 h-5 w-5" />
-                  Espaço
+                  {ui("Espaço")}
                 </KeyButton>
               )}
               <KeyButton
                 className="px-3 sm:min-w-16"
-                label="Mover cursor para a direita"
+                label={ui("Mover cursor para a direita")}
                 onClick={() => moveCursor(1)}
               >
                 <ArrowRight className="h-5 w-5" />
               </KeyButton>
-              <KeyButton className="px-3 sm:min-w-20" label="Apagar" onClick={backspace}>
+              <KeyButton className="px-3 sm:min-w-20" label={ui("Apagar")} onClick={backspace}>
                 <Delete className="h-5 w-5" />
               </KeyButton>
               <KeyButton
                 className="px-3 sm:min-w-20"
-                label="Avançar para o próximo campo"
+                label={ui("Avançar para o próximo campo")}
                 onClick={handleTab}
               >
-                Tab
+                {ui("Tab")}
               </KeyButton>
               <KeyButton
                 className="col-span-2 bg-primary px-3 text-primary-foreground hover:bg-primary/90 sm:col-span-1 sm:min-w-24"
                 label={
-                  target instanceof HTMLTextAreaElement ? "Quebrar linha" : "Confirmar com Enter"
+                  target instanceof HTMLTextAreaElement
+                    ? ui("Quebrar linha")
+                    : ui("Confirmar com Enter")
                 }
                 onClick={handleEnter}
               >
                 <CornerDownLeft className="mr-2 h-5 w-5" />
-                Enter
+                {ui("Enter")}
               </KeyButton>
             </div>
           </DialogContent>

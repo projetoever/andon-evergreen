@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildExecutiveReportHtml, type ExecutiveReportData } from "../src/services/andonBiPdfReport.ts";
+import {
+  buildExecutiveReportHtml,
+  type ExecutiveReportData,
+} from "../src/services/andonBiPdfReport.ts";
 
 function fixture(): ExecutiveReportData {
   const period = {
@@ -19,10 +22,10 @@ function fixture(): ExecutiveReportData {
     filters,
     options: {
       machines: [{ id: "machine9", name: "Máquina <9>", isActive: true }],
-      sectors: [{ id: "eletrica", displayName: "Elétrica", active: true, categoryGroup: "maintenance" }],
-      classifications: [
-        { id: "fault", label: "Sensor & proteção", value: "sensor", active: true },
+      sectors: [
+        { id: "eletrica", displayName: "Elétrica", active: true, categoryGroup: "maintenance" },
       ],
+      classifications: [{ id: "fault", label: "Sensor & proteção", value: "sensor", active: true }],
     },
     overview: {
       meta: {
@@ -49,33 +52,45 @@ function fixture(): ExecutiveReportData {
         downtimeMinutes: { direction: "up", deltaPercent: 10, current: 7620, previous: 6000 },
       },
       highlights: {
-        topMachine: { machineId: "machine9", machineName: "Máquina <9>", downtimeMinutes: 7620, sharePercent: 100 },
+        topMachine: {
+          machineId: "machine9",
+          machineName: "Máquina <9>",
+          downtimeMinutes: 7620,
+          sharePercent: 100,
+        },
       },
       classificationPareto: [{ label: "sensor", count: 1 }],
-      machinePareto: [{
-        machineId: "machine9",
-        machineName: "Máquina <9>",
-        downtimeMinutes: 7620,
-        occurrences: 1,
-      }],
-      downtimeTrend: [{
-        date: "2026-10-10",
-        downtimeMinutes: 3600,
-      }, {
-        date: "2026-10-11",
-        downtimeMinutes: 4020,
-      }],
+      machinePareto: [
+        {
+          machineId: "machine9",
+          machineName: "Máquina <9>",
+          downtimeMinutes: 7620,
+          occurrences: 1,
+        },
+      ],
+      downtimeTrend: [
+        {
+          date: "2026-10-10",
+          downtimeMinutes: 3600,
+        },
+        {
+          date: "2026-10-11",
+          downtimeMinutes: 4020,
+        },
+      ],
     },
     reliability: {
-      assets: [{
-        machineId: "machine9",
-        machineName: "Máquina <9>",
-        downtimeMinutes: 7620,
-        physicalStopEpisodes: 1,
-        mtbfEstimatedMinutes: 2480,
-        callsOpened: 4,
-        activeCallCount: 2,
-      }],
+      assets: [
+        {
+          machineId: "machine9",
+          machineName: "Máquina <9>",
+          downtimeMinutes: 7620,
+          physicalStopEpisodes: 1,
+          mtbfEstimatedMinutes: 2480,
+          callsOpened: 4,
+          activeCallCount: 2,
+        },
+      ],
       dataHealth: {
         activeCallsOver24h: 1,
         openFailureEventsOver24h: 1,
@@ -91,30 +106,36 @@ function fixture(): ExecutiveReportData {
         technicianCount: 2,
         activeSessionCount: 1,
       },
-      technicians: [{
-        technicianName: "Daniel <script>alert(1)</script>",
-        maintenanceMinutes: 250,
-        followUpMinutes: 30,
-        totalPersonMinutes: 280,
-        callCount: 1,
-      }],
-      technicalAreas: [{
-        technicalArea: "eletrica",
-        maintenanceMinutes: 460,
-        followUpMinutes: 30,
-        technicianCount: 2,
-      }],
+      technicians: [
+        {
+          technicianName: "Daniel <script>alert(1)</script>",
+          maintenanceMinutes: 250,
+          followUpMinutes: 30,
+          totalPersonMinutes: 280,
+          callCount: 1,
+        },
+      ],
+      technicalAreas: [
+        {
+          technicalArea: "eletrica",
+          maintenanceMinutes: 460,
+          followUpMinutes: 30,
+          technicianCount: 2,
+        },
+      ],
     },
     failures: {
       totals: { repeated24h: 1, repeated7d: 1, repeated30d: 2, maintenanceReturnCycles: 1 },
-      groups: [{
-        machineName: "Máquina <9>",
-        classification: "sensor",
-        calls: 2,
-        repeats24h: 1,
-        repeats7d: 1,
-        repeats30d: 2,
-      }],
+      groups: [
+        {
+          machineName: "Máquina <9>",
+          classification: "sensor",
+          calls: 2,
+          repeats24h: 1,
+          repeats7d: 1,
+          repeats30d: 2,
+        },
+      ],
     },
   };
   return data as unknown as ExecutiveReportData;
@@ -169,7 +190,6 @@ test("documento mostra advertência explícita de integridade em dados abertos",
   assert.match(html, /não calendário formal de turnos/);
 });
 
-
 test("o ranking impresso reflete o mesmo Pareto físico do resumo, inclusive máquinas inativas", () => {
   const data = fixture();
   data.options.machines.push({
@@ -193,7 +213,10 @@ test("o ranking impresso reflete o mesmo Pareto físico do resumo, inclusive má
   const html = buildExecutiveReportHtml(data);
   const pageTwo = html.split('<section class="page">')[2];
   assert.match(html, /45: 168h de tempo de parada/);
-  assert.match(pageTwo, /<td>45<\/td><td>Inativa<\/td><td>168h<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/);
+  assert.match(
+    pageTwo,
+    /<td>45<\/td><td>Inativa<\/td><td>168h<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/,
+  );
   const rankingRows = pageTwo.split("<tbody>")[1]?.split("</tbody>")[0] ?? "";
   assert.ok(rankingRows.indexOf("<td>45</td>") < rankingRows.indexOf("<td>Máquina &lt;9&gt;</td>"));
   assert.match(pageTwo, /não integram a população consultada pela aba Confiabilidade/);
@@ -216,7 +239,10 @@ test("paginação A4: rodapé da página 2 fica fixo na mesma folha sem criar p�
   assert.match(html, /\.page \{ position: relative; width: 210mm; height: 296mm; min-height: 0;/);
   assert.match(html, /\.footer \{ position: absolute; left: 14mm; right: 14mm; bottom: 10mm;/);
   assert.match(html, /\.page:nth-of-type\(2\) \.chart svg \{ height: 34mm; \}/);
-  assert.match(html, /\.page:nth-of-type\(2\) th, \.page:nth-of-type\(2\) td \{ padding: 5px 6px; \}/);
+  assert.match(
+    html,
+    /\.page:nth-of-type\(2\) th, \.page:nth-of-type\(2\) td \{ padding: 5px 6px; \}/,
+  );
   assert.doesNotMatch(html, /\.page \{ width: 210mm; min-height: 297mm;/);
   assert.match(html, /Página 1\/3/);
   assert.match(html, /Página 2\/3/);
@@ -237,4 +263,31 @@ test("relatório diferencia novos chamados de finalizados e descreve tempo de pa
   assert.match(html, /4 abertura\(s\) na janela · 1 finalizado\(s\)/);
   assert.match(html, /MTTR restabelecimento/);
   assert.match(html, /Tempo de parada aumentou/);
+});
+
+test("executive PDF follows interface language and keeps escaped registered text unchanged", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "document");
+  try {
+    for (const [language, heading] of [
+      ["en", "Maintenance executive report"],
+      ["zh-TW", "維修主管報告"],
+    ]) {
+      Object.defineProperty(globalThis, "document", {
+        configurable: true,
+        value: { documentElement: { lang: language } },
+      });
+      const data = fixture();
+      const before = JSON.stringify(data);
+      const html = buildExecutiveReportHtml(data);
+      assert.ok(html.includes(`<html lang="${language}">`));
+      assert.ok(html.includes(heading));
+      assert.ok(html.includes("Máquina &lt;9&gt;"));
+      assert.ok(html.includes("Sensor &amp; proteção"));
+      assert.ok(!html.includes("Relatório executivo de manutenção"));
+      assert.equal(JSON.stringify(data), before);
+    }
+  } finally {
+    if (original) Object.defineProperty(globalThis, "document", original);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
 });

@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { TechnicianConfig } from "@/types/settings";
@@ -35,9 +36,9 @@ export function buildTechnicianActiveAssignmentMap(
       const machine = machineById.get(call.machineId);
       const machineLabel = machine
         ? machine.name && machine.name !== machine.id
-          ? `Máquina ${machine.id} · ${machine.name}`
-          : `Máquina ${machine.id}`
-        : `Máquina ${call.machineId}`;
+          ? ui("Máquina {0} · {1}", { 0: machine.id, 1: machine.name })
+          : ui("Máquina {0}", { 0: machine.id })
+        : ui("Máquina {0}", { 0: call.machineId });
 
       const assignment: TechnicianActiveAssignment = {
         technicianId: session.technicianId,

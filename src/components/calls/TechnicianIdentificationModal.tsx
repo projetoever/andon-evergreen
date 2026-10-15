@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { CircleHelp, CreditCard, Hash } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import {
@@ -41,8 +43,8 @@ interface TechnicianIdentificationModalProps {
 
 function methodLabel(method: AttendanceMode) {
   if (method === "pin") return "PIN";
-  if (method === "rfid") return "tag RF";
-  return "nome";
+  if (method === "rfid") return ui("tag RF");
+  return ui("nome");
 }
 
 export function TechnicianIdentificationModal({
@@ -53,6 +55,7 @@ export function TechnicianIdentificationModal({
   excludeNames = [],
   onSuccess,
 }: TechnicianIdentificationModalProps) {
+  const { language: interfaceLanguage } = useInterfaceLanguage();
   const { calls, machines, attendCall, addTechnicianSessions } = useAndon();
   const { findTechnicianByName } = useTechnicians();
   const call = callId ? (calls.find((item) => item.id === callId) ?? null) : null;
@@ -105,10 +108,10 @@ export function TechnicianIdentificationModal({
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
     [excludeNames],
   );
-  const activeAssignments = useMemo(
-    () => buildTechnicianActiveAssignmentMap(calls, machines, call?.id),
-    [call?.id, calls, machines],
-  );
+  const activeAssignments = useMemo(() => {
+    void interfaceLanguage;
+    return buildTechnicianActiveAssignmentMap(calls, machines, call?.id);
+  }, [call?.id, calls, machines, interfaceLanguage]);
   async function registerTechnicians(
     technicians: SelectedTechnicianInput[],
     submissionAlreadyStarted = false,
@@ -135,7 +138,7 @@ export function TechnicianIdentificationModal({
       onSuccess?.();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Não foi possível registrar o atendimento";
+        error instanceof Error ? error.message : ui("Não foi possível registrar o atendimento");
       if (/atendimento ativo em outro chamado/i.test(message)) {
         setAvailabilityNotice(message);
       } else {
@@ -168,7 +171,7 @@ export function TechnicianIdentificationModal({
       const activeAssignment = getTechnicianActiveAssignment(technician, activeAssignments);
       if (activeAssignment) {
         setAvailabilityNotice(
-          `${technician.name} já está ativo em ${activeAssignment.machineLabel}.`,
+          ui("{0} já está ativo em {1}.", { 0: technician.name, 1: activeAssignment.machineLabel }),
         );
         return;
       }
@@ -188,7 +191,7 @@ export function TechnicianIdentificationModal({
         true,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Credencial não reconhecida";
+      const message = error instanceof Error ? error.message : ui("Credencial não reconhecida");
       if (/atendimento ativo em outro chamado/i.test(message)) {
         setAvailabilityNotice(message);
       } else {
@@ -254,10 +257,10 @@ export function TechnicianIdentificationModal({
     settings?.attendanceMode === "name" ? ["name", "pin", "rfid"] : ["pin", "rfid"];
   const actionLabel =
     purpose === "start"
-      ? "Iniciar atendimento"
+      ? ui("Iniciar atendimento")
       : call.status === "post_maintenance"
-        ? "Adicionar ao acompanhamento"
-        : "Adicionar mantenedor";
+        ? ui("Adicionar ao acompanhamento")
+        : ui("Adicionar mantenedor");
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
@@ -268,14 +271,17 @@ export function TechnicianIdentificationModal({
               <DialogTitle className="text-2xl sm:text-3xl">{actionLabel}</DialogTitle>
               <DialogDescription className="mt-1 text-base">
                 {method === "name"
-                  ? "Selecione o nome e confirme."
-                  : `Digite o ${methodLabel(method)} e pressione Enter ou ${actionLabel.toLocaleLowerCase("pt-BR")}.`}
+                  ? ui("Selecione o nome e confirme.")
+                  : ui("Digite o {0} e pressione Enter ou {1}.", {
+                      0: methodLabel(method),
+                      1: actionLabel.toLocaleLowerCase("pt-BR"),
+                    })}
               </DialogDescription>
             </div>
             <button
               type="button"
-              aria-label="Outras formas de identificação"
-              title="Outras formas de identificação"
+              aria-label={ui("Outras formas de identificação")}
+              title={ui("Outras formas de identificação")}
               onClick={() => setShowAlternatives((value) => !value)}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary hover:bg-accent"
             >
@@ -305,10 +311,10 @@ export function TechnicianIdentificationModal({
                 )}
               >
                 {candidate === "name"
-                  ? "Lista de nomes"
+                  ? ui("Lista de nomes")
                   : candidate === "pin"
-                    ? "Usar PIN"
-                    : "Usar tag"}
+                    ? ui("Usar PIN")
+                    : ui("Usar tag")}
               </button>
             ))}
           </div>
@@ -316,12 +322,12 @@ export function TechnicianIdentificationModal({
 
         {!settings && !loadFailed && (
           <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Carregando modo de atendimento...
+            {ui("Carregando modo de atendimento...")}
           </p>
         )}
         {loadFailed && (
           <p className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-            Não foi possível validar o modo de atendimento. Feche e abra novamente.
+            {ui("Não foi possível validar o modo de atendimento. Feche e abra novamente.")}
           </p>
         )}
 
@@ -338,7 +344,7 @@ export function TechnicianIdentificationModal({
 
         {settings && (method === "pin" || method === "rfid") && (
           <label className="block text-sm font-bold">
-            {method === "pin" ? "PIN do mantenedor" : "Aproxime a tag no leitor"}
+            {method === "pin" ? ui("PIN do mantenedor") : ui("Aproxime a tag no leitor")}
             <div className="mt-1 flex min-w-0 gap-2">
               <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-primary">
                 {method === "pin" ? (
@@ -370,7 +376,7 @@ export function TechnicianIdentificationModal({
                   }
                 }}
                 maxLength={method === "pin" ? 8 : 64}
-                placeholder={method === "pin" ? "4 a 8 números" : "Aguardando leitura..."}
+                placeholder={method === "pin" ? ui("4 a 8 números") : ui("Aguardando leitura...")}
               />
             </div>
           </label>
@@ -381,8 +387,8 @@ export function TechnicianIdentificationModal({
             role="status"
             className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
           >
-            <span className="font-bold">Mantenedor indisponível.</span>{" "}
-            <span className="text-foreground/80">{availabilityNotice}</span>
+            <span className="font-bold">{ui("Mantenedor indisponível.")}</span>{" "}
+            <span className="text-foreground/80">{systemMessage(availabilityNotice)}</span>
           </div>
         )}
 
@@ -393,7 +399,7 @@ export function TechnicianIdentificationModal({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            Cancelar
+            {ui("Cancelar")}
           </BigButton>
           <BigButton
             tone={purpose === "start" ? "success" : "info"}
@@ -406,7 +412,7 @@ export function TechnicianIdentificationModal({
               (method === "name" ? names.length === 0 : !credentialValue.trim())
             }
           >
-            {isSubmitting ? "Registrando..." : actionLabel}
+            {isSubmitting ? ui("Registrando...") : actionLabel}
           </BigButton>
         </DialogFooter>
       </DialogContent>

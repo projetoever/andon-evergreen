@@ -1,19 +1,12 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { AndonApiError } from "@/api/andonApiClient";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -57,9 +50,7 @@ function createEmptyForm(): CatalogFormState {
   };
 }
 
-function catalogToForm(
-  item: MachineAssetCatalogItem,
-): CatalogFormState {
+function catalogToForm(item: MachineAssetCatalogItem): CatalogFormState {
   return {
     code: item.code,
     name: item.name,
@@ -69,44 +60,31 @@ function catalogToForm(
   };
 }
 
-function buildCatalogPayload(
-  form: CatalogFormState,
-): MachineCatalogDraft {
+function buildCatalogPayload(form: CatalogFormState): MachineCatalogDraft {
   const name = form.name.trim();
 
   if (!name) {
     throw new Error("Informe o nome do tipo de ativo.");
   }
 
-  const displayOrderText =
-    form.displayOrder.trim();
+  const displayOrderText = form.displayOrder.trim();
 
-  const displayOrder = displayOrderText
-    ? Number(displayOrderText)
-    : 0;
+  const displayOrder = displayOrderText ? Number(displayOrderText) : 0;
 
-  if (
-    !Number.isInteger(displayOrder) ||
-    displayOrder < 0
-  ) {
-    throw new Error(
-      "A ordem deve ser um número inteiro maior ou igual a zero.",
-    );
+  if (!Number.isInteger(displayOrder) || displayOrder < 0) {
+    throw new Error("A ordem deve ser um número inteiro maior ou igual a zero.");
   }
 
   return {
     code: form.code.trim() || undefined,
     name,
-    description:
-      form.description.trim() || null,
+    description: form.description.trim() || null,
     displayOrder,
     isActive: form.isActive,
   };
 }
 
-function sortCatalogItems<
-  T extends MachineAssetCatalogItem,
->(items: T[]) {
+function sortCatalogItems<T extends MachineAssetCatalogItem>(items: T[]) {
   return [...items].sort((a, b) => {
     if (a.isActive !== b.isActive) {
       return a.isActive ? -1 : 1;
@@ -116,43 +94,30 @@ function sortCatalogItems<
       return a.displayOrder - b.displayOrder;
     }
 
-    return a.name.localeCompare(
-      b.name,
-      "pt-BR",
-      {
-        numeric: true,
-      },
-    );
+    return a.name.localeCompare(b.name, "pt-BR", {
+      numeric: true,
+    });
   });
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Erro ao processar o catálogo.";
+  return error instanceof Error ? error.message : ui("Erro ao processar o catálogo.");
 }
 
 export function MachineAssetCatalogPanel() {
-  const [catalogKind, setCatalogKind] =
-    useState<CatalogKind>("set");
+  useInterfaceLanguage();
+  const [catalogKind, setCatalogKind] = useState<CatalogKind>("set");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<"all" | "active" | "inactive">("all");
-  const [loadError, setLoadError] =
-    useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [setTypes, setSetTypes] = useState<
-    MachineSetType[]
-  >([]);
+  const [setTypes, setSetTypes] = useState<MachineSetType[]>([]);
 
-  const [subsetTypes, setSubsetTypes] =
-    useState<MachineSubsetType[]>([]);
+  const [subsetTypes, setSubsetTypes] = useState<MachineSubsetType[]>([]);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
 
@@ -160,29 +125,16 @@ export function MachineAssetCatalogPanel() {
 
   const [isSavingPolicy, setIsSavingPolicy] = useState(false);
 
-  const [newForm, setNewForm] =
-    useState<CatalogFormState>(
-      createEmptyForm,
-    );
+  const [newForm, setNewForm] = useState<CatalogFormState>(createEmptyForm);
 
-  const [editingId, setEditingId] =
-    useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [editForm, setEditForm] =
-    useState<CatalogFormState>(
-      createEmptyForm,
-    );
+  const [editForm, setEditForm] = useState<CatalogFormState>(createEmptyForm);
 
-  const [lockedCodeIds, setLockedCodeIds] =
-    useState<Set<string>>(
-      () => new Set(),
-    );
+  const [lockedCodeIds, setLockedCodeIds] = useState<Set<string>>(() => new Set());
 
   const items = useMemo(
-    () =>
-      catalogKind === "set"
-        ? sortCatalogItems(setTypes)
-        : sortCatalogItems(subsetTypes),
+    () => (catalogKind === "set" ? sortCatalogItems(setTypes) : sortCatalogItems(subsetTypes)),
     [catalogKind, setTypes, subsetTypes],
   );
 
@@ -207,25 +159,21 @@ export function MachineAssetCatalogPanel() {
     });
   }, [items, searchQuery, statusFilter]);
 
-  const catalogTitle =
-    catalogKind === "set"
-      ? "Tipos de conjunto"
-      : "Tipos de subconjunto";
+  const catalogTitle = catalogKind === "set" ? ui("Tipos de conjunto") : ui("Tipos de subconjunto");
 
   const catalogDescription =
     catalogKind === "set"
-      ? "Cadastre tipos reutilizáveis como Maker, Bagger, Filtro, Esteira e Dosador."
-      : "Cadastre tipos reutilizáveis para componentes internos, módulos e pontos específicos do conjunto.";
+      ? ui("Cadastre tipos reutilizáveis como Maker, Bagger, Filtro, Esteira e Dosador.")
+      : ui(
+          "Cadastre tipos reutilizáveis para componentes internos, módulos e pontos específicos do conjunto.",
+        );
 
   async function loadCatalogs() {
     setIsLoading(true);
     setLoadError(null);
 
     try {
-      const [
-        loadedSetTypes,
-        loadedSubsetTypes,
-      ] = await Promise.all([
+      const [loadedSetTypes, loadedSubsetTypes] = await Promise.all([
         listMachineSetTypes(true),
         listMachineSubsetTypes(true),
       ]);
@@ -233,7 +181,9 @@ export function MachineAssetCatalogPanel() {
       setSetTypes(loadedSetTypes);
       setSubsetTypes(loadedSubsetTypes);
     } catch (error) {
-      const message = `Não foi possível carregar os catálogos: ${getErrorMessage(error)}`;
+      const message = ui("Não foi possível carregar os catálogos: {0}", {
+        0: getErrorMessage(error),
+      });
       setLoadError(message);
       toast.error(message);
     } finally {
@@ -266,27 +216,21 @@ export function MachineAssetCatalogPanel() {
     setStatusFilter("all");
   }, [catalogKind]);
 
-  function updateNewForm(
-    patch: Partial<CatalogFormState>,
-  ) {
+  function updateNewForm(patch: Partial<CatalogFormState>) {
     setNewForm((current) => ({
       ...current,
       ...patch,
     }));
   }
 
-  function updateEditForm(
-    patch: Partial<CatalogFormState>,
-  ) {
+  function updateEditForm(patch: Partial<CatalogFormState>) {
     setEditForm((current) => ({
       ...current,
       ...patch,
     }));
   }
 
-  async function createCurrentCatalog(
-    draft: MachineCatalogDraft,
-  ) {
+  async function createCurrentCatalog(draft: MachineCatalogDraft) {
     if (catalogKind === "set") {
       return createMachineSetType(draft);
     }
@@ -294,26 +238,15 @@ export function MachineAssetCatalogPanel() {
     return createMachineSubsetType(draft);
   }
 
-  async function updateCurrentCatalog(
-    id: string,
-    patch: MachineCatalogPatch,
-  ) {
+  async function updateCurrentCatalog(id: string, patch: MachineCatalogPatch) {
     if (catalogKind === "set") {
-      return updateMachineSetType(
-        id,
-        patch,
-      );
+      return updateMachineSetType(id, patch);
     }
 
-    return updateMachineSubsetType(
-      id,
-      patch,
-    );
+    return updateMachineSubsetType(id, patch);
   }
 
-  async function deleteCurrentCatalog(
-    id: string,
-  ) {
+  async function deleteCurrentCatalog(id: string) {
     if (catalogKind === "set") {
       return deleteMachineSetType(id);
     }
@@ -323,8 +256,7 @@ export function MachineAssetCatalogPanel() {
 
   async function handleCreate() {
     try {
-      const payload =
-        buildCatalogPayload(newForm);
+      const payload = buildCatalogPayload(newForm);
 
       setIsSaving(true);
 
@@ -333,9 +265,7 @@ export function MachineAssetCatalogPanel() {
       setNewForm(createEmptyForm());
       await loadCatalogs();
 
-      toast.success(
-        `${catalogTitle.slice(0, -1)} criado com sucesso.`,
-      );
+      toast.success(`${catalogTitle.slice(0, -1)} criado com sucesso.`);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -343,9 +273,7 @@ export function MachineAssetCatalogPanel() {
     }
   }
 
-  function startEdit(
-    item: MachineAssetCatalogItem,
-  ) {
+  function startEdit(item: MachineAssetCatalogItem) {
     setEditingId(item.id);
     setEditForm(catalogToForm(item));
   }
@@ -355,38 +283,25 @@ export function MachineAssetCatalogPanel() {
     setEditForm(createEmptyForm());
   }
 
-  async function handleSave(
-    item: MachineAssetCatalogItem,
-  ) {
+  async function handleSave(item: MachineAssetCatalogItem) {
     try {
-      const payload =
-        buildCatalogPayload(editForm);
+      const payload = buildCatalogPayload(editForm);
 
       setIsSaving(true);
 
-      await updateCurrentCatalog(
-        item.id,
-        payload,
-      );
+      await updateCurrentCatalog(item.id, payload);
 
       cancelEdit();
       await loadCatalogs();
 
-      toast.success(
-        "Tipo de ativo atualizado.",
-      );
+      toast.success("Tipo de ativo atualizado.");
     } catch (error) {
-      if (
-        error instanceof AndonApiError &&
-        error.status === 409
-      ) {
-        setLockedCodeIds(
-          (current) => {
-            const next = new Set(current);
-            next.add(item.id);
-            return next;
-          },
-        );
+      if (error instanceof AndonApiError && error.status === 409) {
+        setLockedCodeIds((current) => {
+          const next = new Set(current);
+          next.add(item.id);
+          return next;
+        });
       }
 
       toast.error(getErrorMessage(error));
@@ -395,26 +310,17 @@ export function MachineAssetCatalogPanel() {
     }
   }
 
-  async function handleToggleActive(
-    item: MachineAssetCatalogItem,
-  ) {
+  async function handleToggleActive(item: MachineAssetCatalogItem) {
     try {
       setIsSaving(true);
 
-      await updateCurrentCatalog(
-        item.id,
-        {
-          isActive: !item.isActive,
-        },
-      );
+      await updateCurrentCatalog(item.id, {
+        isActive: !item.isActive,
+      });
 
       await loadCatalogs();
 
-      toast.success(
-        item.isActive
-          ? "Tipo de ativo inativado."
-          : "Tipo de ativo reativado.",
-      );
+      toast.success(item.isActive ? "Tipo de ativo inativado." : "Tipo de ativo reativado.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -422,11 +328,12 @@ export function MachineAssetCatalogPanel() {
     }
   }
 
-  async function handleDelete(
-    item: MachineAssetCatalogItem,
-  ) {
+  async function handleDelete(item: MachineAssetCatalogItem) {
     const confirmed = window.confirm(
-      `Excluir o tipo "${item.name}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.`,
+      ui(
+        'Excluir o tipo "{0}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.',
+        { 0: item.name },
+      ),
     );
 
     if (!confirmed) {
@@ -436,10 +343,7 @@ export function MachineAssetCatalogPanel() {
     try {
       setIsSaving(true);
 
-      const result =
-        await deleteCurrentCatalog(
-          item.id,
-        );
+      const result = await deleteCurrentCatalog(item.id);
 
       await loadCatalogs();
 
@@ -480,18 +384,19 @@ export function MachineAssetCatalogPanel() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Política de abertura de chamados</CardTitle>
+          <CardTitle>{ui("Política de abertura de chamados")}</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
               <Label htmlFor="allow-whole-set-calls" className="text-base font-black">
-                Permitir chamados no conjunto inteiro
+                {ui("Permitir chamados no conjunto inteiro")}
               </Label>
               <p className="mt-1 text-sm text-muted-foreground">
-                Quando desativada, o operador deve escolher um equipamento ou subconjunto ativo. Se
-                o conjunto não possuir nenhum, o chamado continua permitido para o conjunto inteiro.
+                {ui(
+                  "Quando desativada, o operador deve escolher um equipamento ou subconjunto ativo. Se o conjunto não possuir nenhum, o chamado continua permitido para o conjunto inteiro.",
+                )}
               </p>
             </div>
 
@@ -500,67 +405,50 @@ export function MachineAssetCatalogPanel() {
               checked={systemSettings?.allowWholeSetCalls ?? true}
               onCheckedChange={handleWholeSetPolicyChange}
               disabled={!systemSettings || isLoadingPolicy || isSavingPolicy}
-              aria-label="Permitir chamados no conjunto inteiro"
+              aria-label={ui("Permitir chamados no conjunto inteiro")}
             />
           </div>
 
           <p className="text-xs text-muted-foreground">
-            A regra é global e vale para todos os terminais conectados ao mesmo banco.
+            {ui("A regra é global e vale para todos os terminais conectados ao mesmo banco.")}
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            Catálogos de ativos
-          </CardTitle>
+          <CardTitle>{ui("Catálogos de ativos")}</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Estes tipos são globais e podem ser
-            reutilizados em diferentes máquinas.
+            {ui("Estes tipos são globais e podem ser reutilizados em diferentes máquinas.")}
           </p>
 
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant={
-                catalogKind === "set"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() =>
-                setCatalogKind("set")
-              }
+              variant={catalogKind === "set" ? "default" : "outline"}
+              onClick={() => setCatalogKind("set")}
             >
-              Tipos de conjunto
+              {ui("Tipos de conjunto")}
             </Button>
 
             <Button
               type="button"
-              variant={
-                catalogKind === "subset"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() =>
-                setCatalogKind("subset")
-              }
+              variant={catalogKind === "subset" ? "default" : "outline"}
+              onClick={() => setCatalogKind("subset")}
             >
-              Tipos de subconjunto
+              {ui("Tipos de subconjunto")}
             </Button>
 
             <Button
               type="button"
               variant="secondary"
               onClick={() => void loadCatalogs()}
-              disabled={
-                isLoading || isSaving
-              }
+              disabled={isLoading || isSaving}
             >
-              Atualizar
+              {ui("Atualizar")}
             </Button>
           </div>
 
@@ -574,14 +462,14 @@ export function MachineAssetCatalogPanel() {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Pesquisar nome, código ou descrição..."
-                aria-label="Pesquisar tipos de ativos"
+                placeholder={ui("Pesquisar nome, código ou descrição...")}
+                aria-label={ui("Pesquisar tipos de ativos")}
                 className="pl-9 pr-9"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  aria-label="Limpar pesquisa de tipos de ativos"
+                  aria-label={ui("Limpar pesquisa de tipos de ativos")}
                   onClick={() => setSearchQuery("")}
                   className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
@@ -592,13 +480,13 @@ export function MachineAssetCatalogPanel() {
 
             <div
               className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-              aria-label="Filtrar tipos de ativos por status"
+              aria-label={ui("Filtrar tipos de ativos por status")}
             >
               {(
                 [
-                  ["all", "Todos"],
-                  ["active", "Ativos"],
-                  ["inactive", "Inativos"],
+                  ["all", ui("Todos")],
+                  ["active", ui("Ativos", {}, "record")],
+                  ["inactive", ui("Inativos", {}, "record")],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -620,7 +508,10 @@ export function MachineAssetCatalogPanel() {
 
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
             <span>
-              {filteredItems.length} de {items.length} tipo(s)
+              {filteredItems.length}
+              {ui(" de ")}
+              {items.length}
+              {ui(" tipo(s)")}
             </span>
             {(searchQuery || statusFilter !== "all") && (
               <button
@@ -631,7 +522,7 @@ export function MachineAssetCatalogPanel() {
                   setStatusFilter("all");
                 }}
               >
-                Limpar filtros
+                {ui("Limpar filtros")}
               </button>
             )}
           </div>
@@ -641,18 +532,17 @@ export function MachineAssetCatalogPanel() {
       <Card>
         <CardHeader>
           <CardTitle>
-            Novo cadastro — {catalogTitle}
+            {ui("Novo cadastro — ")}
+            {catalogTitle}
           </CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {catalogDescription}
-          </p>
+          <p className="text-sm text-muted-foreground">{catalogDescription}</p>
 
           <div className="grid gap-3 md:grid-cols-[1fr_1fr_120px]">
             <div className="space-y-1">
-              <Label>Nome</Label>
+              <Label>{ui("Nome")}</Label>
               <Input
                 value={newForm.name}
                 onChange={(event) =>
@@ -660,16 +550,12 @@ export function MachineAssetCatalogPanel() {
                     name: event.target.value,
                   })
                 }
-                placeholder={
-                  catalogKind === "set"
-                    ? "Maker"
-                    : "Servo de tração"
-                }
+                placeholder={catalogKind === "set" ? ui("Maker") : ui("Servo de tração")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label>Código</Label>
+              <Label>{ui("Código")}</Label>
               <Input
                 value={newForm.code}
                 onChange={(event) =>
@@ -677,20 +563,17 @@ export function MachineAssetCatalogPanel() {
                     code: event.target.value,
                   })
                 }
-                placeholder="Gerado pelo nome quando vazio"
+                placeholder={ui("Gerado pelo nome quando vazio")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label>Ordem</Label>
+              <Label>{ui("Ordem")}</Label>
               <Input
-                value={
-                  newForm.displayOrder
-                }
+                value={newForm.displayOrder}
                 onChange={(event) =>
                   updateNewForm({
-                    displayOrder:
-                      event.target.value,
+                    displayOrder: event.target.value,
                   })
                 }
                 inputMode="numeric"
@@ -699,16 +582,15 @@ export function MachineAssetCatalogPanel() {
           </div>
 
           <div className="space-y-1">
-            <Label>Descrição</Label>
+            <Label>{ui("Descrição")}</Label>
             <Input
               value={newForm.description}
               onChange={(event) =>
                 updateNewForm({
-                  description:
-                    event.target.value,
+                  description: event.target.value,
                 })
               }
-              placeholder="Descrição opcional"
+              placeholder={ui("Descrição opcional")}
             />
           </div>
 
@@ -723,19 +605,11 @@ export function MachineAssetCatalogPanel() {
                 }
               />
 
-              <span className="text-sm font-bold">
-                Criar como ativo
-              </span>
+              <span className="text-sm font-bold">{ui("Criar como ativo")}</span>
             </div>
 
-            <Button
-              type="button"
-              onClick={handleCreate}
-              disabled={
-                isSaving || isLoading
-              }
-            >
-              Adicionar tipo
+            <Button type="button" onClick={handleCreate} disabled={isSaving || isLoading}>
+              {ui("Adicionar tipo")}
             </Button>
           </div>
         </CardContent>
@@ -744,40 +618,38 @@ export function MachineAssetCatalogPanel() {
       <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
         {isLoading ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Carregando catálogo...
+            {ui("Carregando catálogo...")}
           </div>
         ) : loadError ? (
           <div
             role="alert"
             className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/40 bg-danger/10 p-4 text-sm text-danger"
           >
-            <span>{loadError}</span>
+            <span>{systemMessage(loadError)}</span>
             <button
               type="button"
               className="font-bold underline"
               onClick={() => void loadCatalogs()}
             >
-              Tentar novamente
+              {ui("Tentar novamente")}
             </button>
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Nenhum tipo cadastrado.
+            {ui("Nenhum tipo cadastrado.")}
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-4 text-center">
-            <p className="text-sm font-bold">Nenhum tipo encontrado</p>
+            <p className="text-sm font-bold">{ui("Nenhum tipo encontrado")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Ajuste a pesquisa ou o filtro de status.
+              {ui("Ajuste a pesquisa ou o filtro de status.")}
             </p>
           </div>
         ) : (
           filteredItems.map((item) => {
-            const isEditing =
-              editingId === item.id;
+            const isEditing = editingId === item.id;
 
-            const isCodeLocked =
-              lockedCodeIds.has(item.id);
+            const isCodeLocked = lockedCodeIds.has(item.id);
 
             return (
               <Card
@@ -794,66 +666,44 @@ export function MachineAssetCatalogPanel() {
                     <div className="space-y-3">
                       <div className="grid gap-3 md:grid-cols-[1fr_1fr_120px]">
                         <div className="space-y-1">
-                          <Label>Nome</Label>
+                          <Label>{ui("Nome")}</Label>
                           <Input
-                            value={
-                              editForm.name
-                            }
-                            onChange={(
-                              event,
-                            ) =>
+                            value={editForm.name}
+                            onChange={(event) =>
                               updateEditForm({
-                                name: event
-                                  .target
-                                  .value,
+                                name: event.target.value,
                               })
                             }
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <Label>Código</Label>
+                          <Label>{ui("Código")}</Label>
                           <Input
-                            value={
-                              editForm.code
-                            }
-                            disabled={
-                              isCodeLocked
-                            }
-                            onChange={(
-                              event,
-                            ) =>
+                            value={editForm.code}
+                            disabled={isCodeLocked}
+                            onChange={(event) =>
                               updateEditForm({
-                                code: event
-                                  .target
-                                  .value,
+                                code: event.target.value,
                               })
                             }
                           />
 
                           {isCodeLocked && (
                             <p className="text-xs font-semibold text-warning">
-                              Código bloqueado
-                              porque este tipo já
-                              está em uso.
+                              {ui("Código bloqueado porque este tipo já está em uso.")}
                             </p>
                           )}
                         </div>
 
                         <div className="space-y-1">
-                          <Label>Ordem</Label>
+                          <Label>{ui("Ordem")}</Label>
                           <Input
-                            value={
-                              editForm.displayOrder
-                            }
+                            value={editForm.displayOrder}
                             inputMode="numeric"
-                            onChange={(
-                              event,
-                            ) =>
+                            onChange={(event) =>
                               updateEditForm({
-                                displayOrder:
-                                  event.target
-                                    .value,
+                                displayOrder: event.target.value,
                               })
                             }
                           />
@@ -861,16 +711,12 @@ export function MachineAssetCatalogPanel() {
                       </div>
 
                       <div className="space-y-1">
-                        <Label>Descrição</Label>
+                        <Label>{ui("Descrição")}</Label>
                         <Input
-                          value={
-                            editForm.description
-                          }
+                          value={editForm.description}
                           onChange={(event) =>
                             updateEditForm({
-                              description:
-                                event.target
-                                  .value,
+                              description: event.target.value,
                             })
                           }
                         />
@@ -879,23 +725,18 @@ export function MachineAssetCatalogPanel() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <Switch
-                            checked={
-                              editForm.isActive
-                            }
-                            onCheckedChange={(
-                              checked,
-                            ) =>
+                            checked={editForm.isActive}
+                            onCheckedChange={(checked) =>
                               updateEditForm({
-                                isActive:
-                                  checked,
+                                isActive: checked,
                               })
                             }
                           />
 
                           <span className="text-sm font-bold">
                             {editForm.isActive
-                              ? "Ativo"
-                              : "Inativo"}
+                              ? ui("Ativo", {}, "record")
+                              : ui("Inativo", {}, "record")}
                           </span>
                         </div>
 
@@ -903,24 +744,20 @@ export function MachineAssetCatalogPanel() {
                           <Button
                             type="button"
                             size="sm"
-                            onClick={() =>
-                              handleSave(item)
-                            }
+                            onClick={() => handleSave(item)}
                             disabled={isSaving}
                           >
-                            Salvar
+                            {ui("Salvar")}
                           </Button>
 
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={
-                              cancelEdit
-                            }
+                            onClick={cancelEdit}
                             disabled={isSaving}
                           >
-                            Cancelar
+                            {ui("Cancelar")}
                           </Button>
                         </div>
                       </div>
@@ -929,25 +766,20 @@ export function MachineAssetCatalogPanel() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-black text-foreground">
-                            {item.name}
-                          </span>
+                          <span className="font-black text-foreground">{item.name}</span>
 
                           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
                             {item.isActive
-                              ? "Ativo"
-                              : "Inativo"}
+                              ? ui("Ativo", {}, "record")
+                              : ui("Inativo", {}, "record")}
                           </span>
                         </div>
 
                         <div className="mt-1 text-xs text-muted-foreground">
-                          Código:{" "}
-                          <span className="font-mono font-bold text-foreground">
-                            {item.code}
-                          </span>
+                          {ui("Código:")}{" "}
+                          <span className="font-mono font-bold text-foreground">{item.code}</span>
                           {" • "}
-                          Ordem:{" "}
-                          {item.displayOrder}
+                          {ui("Ordem:")} {item.displayOrder}
                         </div>
 
                         {item.description && (
@@ -962,40 +794,30 @@ export function MachineAssetCatalogPanel() {
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            startEdit(item)
-                          }
+                          onClick={() => startEdit(item)}
                           disabled={isSaving}
                         >
-                          Editar
+                          {ui("Editar")}
                         </Button>
 
                         <Button
                           type="button"
                           size="sm"
                           variant="secondary"
-                          onClick={() =>
-                            handleToggleActive(
-                              item,
-                            )
-                          }
+                          onClick={() => handleToggleActive(item)}
                           disabled={isSaving}
                         >
-                          {item.isActive
-                            ? "Inativar"
-                            : "Reativar"}
+                          {item.isActive ? ui("Inativar") : ui("Reativar")}
                         </Button>
 
                         <Button
                           type="button"
                           size="sm"
                           variant="destructive"
-                          onClick={() =>
-                            handleDelete(item)
-                          }
+                          onClick={() => handleDelete(item)}
                           disabled={isSaving}
                         >
-                          Excluir
+                          {ui("Excluir")}
                         </Button>
                       </div>
                     </div>

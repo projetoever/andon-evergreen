@@ -1,4 +1,10 @@
-import type { MachineStatus, MachineStopEvent, ProductionMode, MachineProductionEvent } from "@/types/machine";
+import { ui } from "@/i18n/translate";
+import type {
+  MachineStatus,
+  MachineStopEvent,
+  ProductionMode,
+  MachineProductionEvent,
+} from "@/types/machine";
 
 interface BasePeriodParams {
   periodStart: string;
@@ -68,17 +74,23 @@ function overlapSeconds(startA: number, endA: number, startB: number, endB: numb
   return Math.floor(overlapMs / 1000);
 }
 
-export function calculateProductionModeBreakdownForPeriod(params: ProductionBreakdownParams): ProductionModeBreakdown {
+export function calculateProductionModeBreakdownForPeriod(
+  params: ProductionBreakdownParams,
+): ProductionModeBreakdown {
   const bounds = getPeriodBounds(params);
   if (!bounds) return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: 0 };
 
   const totalSeconds = Math.floor((bounds.end - bounds.start) / 1000);
   if (totalSeconds <= 0) return { scheduledSeconds: 0, notScheduledSeconds: 0, unknownSeconds: 0 };
 
-  const history = (params.productionHistory ?? []).filter((event) => !!toValidDate(event.startedAt));
+  const history = (params.productionHistory ?? []).filter(
+    (event) => !!toValidDate(event.startedAt),
+  );
   if (history.length === 0) {
-    if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
-    if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "scheduled")
+      return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "not_scheduled")
+      return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
     return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
   }
 
@@ -89,8 +101,13 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
   for (const event of history) {
     const eventStart = toValidDate(event.startedAt);
     if (!eventStart) continue;
-    const eventEnd = toValidDate(event.endedAt ?? null) ?? (params.now ?? new Date());
-    const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
+    const eventEnd = toValidDate(event.endedAt ?? null) ?? params.now ?? new Date();
+    const seconds = overlapSeconds(
+      bounds.start,
+      bounds.end,
+      eventStart.getTime(),
+      eventEnd.getTime(),
+    );
     if (seconds <= 0) continue;
     matchedOverlapSeconds += seconds;
     if (event.productionMode === "scheduled") scheduledSeconds += seconds;
@@ -98,8 +115,10 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
   }
 
   if (matchedOverlapSeconds === 0) {
-    if (params.fallbackProductionMode === "scheduled") return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
-    if (params.fallbackProductionMode === "not_scheduled") return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "scheduled")
+      return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackProductionMode === "not_scheduled")
+      return { scheduledSeconds: 0, notScheduledSeconds: totalSeconds, unknownSeconds: 0 };
     return { scheduledSeconds: totalSeconds, notScheduledSeconds: 0, unknownSeconds: 0 };
   }
 
@@ -125,7 +144,9 @@ export function calculateProductionModeBreakdownForPeriod(params: ProductionBrea
   };
 }
 
-export function calculateMachineConditionBreakdownForPeriod(params: ConditionBreakdownParams): MachineConditionBreakdown {
+export function calculateMachineConditionBreakdownForPeriod(
+  params: ConditionBreakdownParams,
+): MachineConditionBreakdown {
   const bounds = getPeriodBounds(params);
   if (!bounds) return { failureSeconds: 0, readySeconds: 0, unknownSeconds: 0 };
 
@@ -134,8 +155,10 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
 
   const history = params.stopHistory ?? [];
   if (history.length === 0) {
-    if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
-    if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "stopped")
+      return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "running")
+      return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
     return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
   }
 
@@ -144,21 +167,32 @@ export function calculateMachineConditionBreakdownForPeriod(params: ConditionBre
   for (const event of history) {
     const eventStart = toValidDate(event.stoppedAt);
     if (!eventStart) continue;
-    const eventEnd = toValidDate(event.resumedAt ?? null) ?? (params.now ?? new Date());
-    const seconds = overlapSeconds(bounds.start, bounds.end, eventStart.getTime(), eventEnd.getTime());
+    const eventEnd = toValidDate(event.resumedAt ?? null) ?? params.now ?? new Date();
+    const seconds = overlapSeconds(
+      bounds.start,
+      bounds.end,
+      eventStart.getTime(),
+      eventEnd.getTime(),
+    );
     if (seconds <= 0) continue;
     matchedOverlapSeconds += seconds;
     failureSeconds += seconds;
   }
 
   if (matchedOverlapSeconds === 0) {
-    if (params.fallbackMachineCondition === "stopped") return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
-    if (params.fallbackMachineCondition === "running") return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "stopped")
+      return { failureSeconds: totalSeconds, readySeconds: 0, unknownSeconds: 0 };
+    if (params.fallbackMachineCondition === "running")
+      return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
     return { failureSeconds: 0, readySeconds: totalSeconds, unknownSeconds: 0 };
   }
 
   failureSeconds = Math.min(totalSeconds, failureSeconds);
-  return { failureSeconds, readySeconds: Math.max(0, totalSeconds - failureSeconds), unknownSeconds: 0 };
+  return {
+    failureSeconds,
+    readySeconds: Math.max(0, totalSeconds - failureSeconds),
+    unknownSeconds: 0,
+  };
 }
 
 type OperationalImpactCategory =
@@ -174,7 +208,12 @@ const OPERATIONAL_IMPACT_CATEGORIES: OperationalImpactCategory[] = [
   "nonScheduledSupportSeconds",
 ];
 
-function clampBoundary(boundaries: Set<number>, value: number, periodStart: number, periodEnd: number) {
+function clampBoundary(
+  boundaries: Set<number>,
+  value: number,
+  periodStart: number,
+  periodEnd: number,
+) {
   if (value > periodStart && value < periodEnd) boundaries.add(value);
 }
 
@@ -220,7 +259,9 @@ function getMachineConditionAtTimestamp(
   });
 
   if (isInsideStopEvent) return "stopped";
-  return fallbackMachineCondition === "stopped" && relevantStopEvents.length === 0 ? "stopped" : "running";
+  return fallbackMachineCondition === "stopped" && relevantStopEvents.length === 0
+    ? "stopped"
+    : "running";
 }
 
 function getProductionModeAtTimestamp(
@@ -261,7 +302,10 @@ function finalizeOperationalImpactSeconds(
     return b.milliseconds - a.milliseconds;
   });
 
-  let classifiedSeconds = OPERATIONAL_IMPACT_CATEGORIES.reduce((total, category) => total + result[category], 0);
+  let classifiedSeconds = OPERATIONAL_IMPACT_CATEGORIES.reduce(
+    (total, category) => total + result[category],
+    0,
+  );
   let remainingSeconds = Math.max(0, totalSeconds - classifiedSeconds);
   let index = 0;
 
@@ -280,7 +324,9 @@ function finalizeOperationalImpactSeconds(
   };
 }
 
-export function calculateOperationalImpactBreakdown(params: OperationalImpactParams): OperationalImpactBreakdown {
+export function calculateOperationalImpactBreakdown(
+  params: OperationalImpactParams,
+): OperationalImpactBreakdown {
   const bounds = getPeriodBounds(params);
   if (!bounds) {
     return {
@@ -304,8 +350,18 @@ export function calculateOperationalImpactBreakdown(params: OperationalImpactPar
   }
 
   const now = params.now ?? new Date();
-  const relevantStopEvents = getRelevantStopEvents(params.stopHistory, bounds.start, bounds.end, now);
-  const relevantProductionEvents = getRelevantProductionEvents(params.productionHistory, bounds.start, bounds.end, now);
+  const relevantStopEvents = getRelevantStopEvents(
+    params.stopHistory,
+    bounds.start,
+    bounds.end,
+    now,
+  );
+  const relevantProductionEvents = getRelevantProductionEvents(
+    params.productionHistory,
+    bounds.start,
+    bounds.end,
+    now,
+  );
 
   const boundaries = new Set<number>([bounds.start, bounds.end]);
 
@@ -356,8 +412,10 @@ export function calculateOperationalImpactBreakdown(params: OperationalImpactPar
     const isScheduled = productionMode === "scheduled";
 
     if (isStopped && isScheduled) categoryMilliseconds.productiveDowntimeSeconds += segmentMs;
-    else if (isStopped && !isScheduled) categoryMilliseconds.nonScheduledDowntimeSeconds += segmentMs;
-    else if (!isStopped && isScheduled) categoryMilliseconds.productionBlockedSupportSeconds += segmentMs;
+    else if (isStopped && !isScheduled)
+      categoryMilliseconds.nonScheduledDowntimeSeconds += segmentMs;
+    else if (!isStopped && isScheduled)
+      categoryMilliseconds.productionBlockedSupportSeconds += segmentMs;
     else categoryMilliseconds.nonScheduledSupportSeconds += segmentMs;
   }
 
@@ -371,11 +429,11 @@ export function formatBreakdownDuration(seconds: number): string {
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   const secondsRemainder = safeSeconds % 60;
   if (days > 0) {
-    return `${days} d ${hours.toString().padStart(2, "0")} h ${minutes
+    return `${days} ${ui("d")}  ${hours.toString().padStart(2, "0")} ${ui("h")}  ${minutes
       .toString()
-      .padStart(2, "0")} min`;
+      .padStart(2, "0")} ${ui("min")}`;
   }
-  if (hours > 0) return `${hours} h ${minutes.toString().padStart(2, "0")} min`;
-  if (minutes === 0) return `${secondsRemainder} s`;
-  return `${minutes} min ${secondsRemainder.toString().padStart(2, "0")} s`;
+  if (hours > 0) return `${hours} ${ui("h")}  ${minutes.toString().padStart(2, "0")} ${ui("min")}`;
+  if (minutes === 0) return `${secondsRemainder} ${ui("s")}`;
+  return `${minutes} ${ui("min")}  ${secondsRemainder.toString().padStart(2, "0")} ${ui("s")}`;
 }

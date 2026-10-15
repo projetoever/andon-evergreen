@@ -33,11 +33,11 @@ test("detalhe de máquina mantém apenas configuração e estrutura", async () =
     "utf8",
   );
 
-  assert.match(source, /title="Identificação"/);
-  assert.match(source, /title="Regras operacionais"/);
-  assert.doesNotMatch(source, /title="Estado atual"/);
+  assert.match(source, /title=\{ui\("Identificação"\)\}/);
+  assert.match(source, /title=\{ui\("Regras operacionais"\)\}/);
+  assert.doesNotMatch(source, /title=\{ui\("Estado atual"\)\}/);
   assert.doesNotMatch(source, /Leitura operacional; não é editada neste painel/);
-  assert.match(source, /title="Estrutura da máquina"/);
+  assert.match(source, /title=\{ui\("Estrutura da máquina"\)\}/);
   assert.match(source, /Há chamado ativo; inativação bloqueada/);
 });
 
@@ -47,10 +47,10 @@ test("mantenedores usam ficha organizada por blocos funcionais", async () => {
     "utf8",
   );
 
-  assert.match(source, /title="Identificação"/);
-  assert.match(source, /title="Áreas técnicas"/);
-  assert.match(source, /title="Turno e status"/);
-  assert.match(source, /title="Credenciais"/);
+  assert.match(source, /title=\{ui\("Identificação"\)\}/);
+  assert.match(source, /title=\{ui\("Áreas técnicas"\)\}/);
+  assert.match(source, /title=\{ui\("Turno e status"\)\}/);
+  assert.match(source, /title=\{ui\("Credenciais"\)\}/);
   assert.match(source, /sticky bottom-0/);
 });
 
@@ -66,7 +66,6 @@ test("mantenedores usam a altura útil do Admin e rolam até o último registro"
   assert.doesNotMatch(source, /max-h-\[56vh\]/);
 });
 
-
 test("mantenedores indicam alterações pendentes e permitem cancelar edição", async () => {
   const source = await readFile(
     new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
@@ -80,7 +79,6 @@ test("mantenedores indicam alterações pendentes e permitem cancelar edição",
   assert.match(source, /Cadastro sincronizado/);
   assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges\}/);
 });
-
 
 test("classificações possuem pesquisa, filtro de status e contador", async () => {
   const source = await readFile(
@@ -112,7 +110,6 @@ test("classificações mantêm edição e ID histórico estável", async () => {
   assert.match(source, /createFailureClassification/);
 });
 
-
 test("setores possuem pesquisa, filtro de status, contador e seleção destacada", async () => {
   const source = await readFile(
     new URL("../src/components/settings/CategoriesSettingsTab.tsx", import.meta.url),
@@ -129,7 +126,6 @@ test("setores possuem pesquisa, filtro de status, contador e seleção destacada
   assert.match(source, /ring-primary\/30/);
   assert.match(source, /max-h-\[calc\(96dvh-22rem\)\]/);
 });
-
 
 test("mantenedores possuem filtros profissionais de status, setor e turno", async () => {
   const source = await readFile(
@@ -149,7 +145,6 @@ test("mantenedores possuem filtros profissionais de status, setor e turno", asyn
   assert.match(source, /setShiftFilter\("all"\)/);
 });
 
-
 test("workstations possuem busca, filtro, contador e destaque da estação atual", async () => {
   const source = await readFile(
     new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url),
@@ -166,17 +161,10 @@ test("workstations possuem busca, filtro, contador e destaque da estação atual
   assert.match(source, /Tentar novamente/);
 });
 
-
 test("máquinas deixam clara a regra global, local e efetiva de OS", async () => {
   const [machineAdmin, general] = await Promise.all([
-    readFile(
-      new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(machineAdmin, /Regra global de OS/);
@@ -190,7 +178,6 @@ test("máquinas deixam clara a regra global, local e efetiva de OS", async () =>
   assert.match(general, /Regra global: exigir OS na abertura/);
   assert.match(general, /uma máquina pode\s+exigir OS individualmente/);
 });
-
 
 test("catálogos de ativos possuem busca, status, contador e estados profissionais", async () => {
   const source = await readFile(
@@ -208,17 +195,10 @@ test("catálogos de ativos possuem busca, status, contador e estados profissiona
   assert.match(source, /Limpar filtros/);
 });
 
-
 test("turnos usam aba dedicada com catálogo profissional e sem falsa criação", async () => {
   const [source, admin] = await Promise.all([
-    readFile(
-      new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(source, /Pesquisar turnos por nome ou ID/);
@@ -228,26 +208,16 @@ test("turnos usam aba dedicada com catálogo profissional e sem falsa criação"
   assert.match(source, /Alterações não salvas/);
   assert.match(source, /Existem alterações não salvas/);
   assert.match(source, /Priorizar turno atual/);
-  assert.match(
-    source,
-    /A inclusão de novos turnos não está disponível nesta versão/,
-  );
+  assert.match(source, /A inclusão de novos turnos não está disponível nesta versão/);
   assert.doesNotMatch(source, /Adicionar turno/);
   assert.match(admin, /ShiftsSettingsTab/);
   assert.doesNotMatch(admin, /function ShiftsTab\(\)/);
 });
 
-
 test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", async () => {
   const [source, admin] = await Promise.all([
-    readFile(
-      new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(source, /Pesquisar configurações de som/);
@@ -262,11 +232,16 @@ test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", 
   assert.doesNotMatch(admin, /function SoundsTab\(/);
 });
 
-
 test("Hub deixa credenciais globais e recuperação explícitas", async () => {
   const [security, priorities] = await Promise.all([
-    readFile(new URL("../src/components/settings/HubSecuritySettings.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/components/settings/PriorityAccessSettings.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/settings/HubSecuritySettings.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/components/settings/PriorityAccessSettings.tsx", import.meta.url),
+      "utf8",
+    ),
   ]);
   const source = `${security}\n${priorities}`;
 
@@ -276,7 +251,6 @@ test("Hub deixa credenciais globais e recuperação explícitas", async () => {
   assert.match(source, /armazenado no\s+servidor apenas como hash/);
   assert.match(source, /válida em todas as\s+máquinas\/workstations/);
 });
-
 
 test("configurações gerais bloqueiam operação quando o estado global não é confiável", async () => {
   const source = await readFile(
@@ -295,7 +269,6 @@ test("configurações gerais bloqueiam operação quando o estado global não é
   assert.match(source, /Boolean\(settingsLoadError\)/);
 });
 
-
 test("modo de atendimento possui retry, alterações pendentes e cancelamento", async () => {
   const source = await readFile(
     new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url),
@@ -312,7 +285,6 @@ test("modo de atendimento possui retry, alterações pendentes e cancelamento", 
   assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges\}/);
   assert.match(source, /Informe entre 4 e 64 caracteres para a leitura RFID/);
 });
-
 
 test("listas de catálogo do Admin aproveitam a altura útil do modal", async () => {
   const paths = [
@@ -331,7 +303,6 @@ test("listas de catálogo do Admin aproveitam a altura útil do modal", async ()
     assert.doesNotMatch(source, /max-h-\[52vh\]/);
   }
 });
-
 
 test("interface padroniza o termo mantenedor", async () => {
   const paths = [
@@ -352,7 +323,6 @@ test("interface padroniza o termo mantenedor", async () => {
   assert.match(admin, /Mantenedores/);
   assert.match(admin, /mantenedor/);
 });
-
 
 test("editores do Admin mantêm ações visíveis em telas de menor altura", async () => {
   const paths = [

@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import type { AndonCall } from "@/types/andon";
 
 export type AssetLocationCall = Pick<
@@ -34,24 +35,14 @@ export interface AssetLocationSnapshot {
   subsetType: string | null;
 }
 
-function normalizedText(
-  value: string | null | undefined,
-): string | null {
+function normalizedText(value: string | null | undefined): string | null {
   const normalized = value?.trim();
 
-  return normalized
-    ? normalized
-    : null;
+  return normalized ? normalized : null;
 }
 
-function getAssetLabel(
-  name: string | null,
-  code: string | null,
-): string | null {
-  return (
-    normalizedText(name) ??
-    normalizedText(code)
-  );
+function getAssetLabel(name: string | null, code: string | null): string | null {
+  return normalizedText(name) ?? normalizedText(code);
 }
 
 function getSnapshotPartKey(
@@ -72,181 +63,94 @@ function getSnapshotPartKey(
     normalizedText(type) ?? "",
   ];
 
-  return snapshotValues.some(Boolean)
-    ? `snapshot:${snapshotValues.join("|")}`
-    : null;
+  return snapshotValues.some(Boolean) ? `snapshot:${snapshotValues.join("|")}` : null;
 }
 
-export function getOpeningAssetLocation(
-  call: AssetLocationCall,
-): AssetLocationSnapshot {
+export function getOpeningAssetLocation(call: AssetLocationCall): AssetLocationSnapshot {
   return {
     setId: normalizedText(call.machineSetId),
-    setCode: normalizedText(
-      call.machineSetCodeSnapshot,
-    ),
-    setName: normalizedText(
-      call.machineSetNameSnapshot,
-    ),
-    setType: normalizedText(
-      call.machineSetTypeSnapshot,
-    ),
+    setCode: normalizedText(call.machineSetCodeSnapshot),
+    setName: normalizedText(call.machineSetNameSnapshot),
+    setType: normalizedText(call.machineSetTypeSnapshot),
 
-    subsetId: normalizedText(
-      call.machineSubsetId,
-    ),
-    subsetCode: normalizedText(
-      call.machineSubsetCodeSnapshot,
-    ),
-    subsetName: normalizedText(
-      call.machineSubsetNameSnapshot,
-    ),
-    subsetType: normalizedText(
-      call.machineSubsetTypeSnapshot,
-    ),
+    subsetId: normalizedText(call.machineSubsetId),
+    subsetCode: normalizedText(call.machineSubsetCodeSnapshot),
+    subsetName: normalizedText(call.machineSubsetNameSnapshot),
+    subsetType: normalizedText(call.machineSubsetTypeSnapshot),
   };
 }
 
-export function hasAssetConfirmation(
-  call: AssetLocationCall,
-): boolean {
+export function hasAssetConfirmation(call: AssetLocationCall): boolean {
   return Boolean(
     normalizedText(call.assetConfirmedAt) ||
-      normalizedText(call.assetConfirmedBy) ||
-      call.assetLocationChanged === true ||
-      normalizedText(
-        call.confirmedMachineSetId,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSetCodeSnapshot,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSetNameSnapshot,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSetTypeSnapshot,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSubsetId,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSubsetCodeSnapshot,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSubsetNameSnapshot,
-      ) ||
-      normalizedText(
-        call.confirmedMachineSubsetTypeSnapshot,
-      )
+    normalizedText(call.assetConfirmedBy) ||
+    call.assetLocationChanged === true ||
+    normalizedText(call.confirmedMachineSetId) ||
+    normalizedText(call.confirmedMachineSetCodeSnapshot) ||
+    normalizedText(call.confirmedMachineSetNameSnapshot) ||
+    normalizedText(call.confirmedMachineSetTypeSnapshot) ||
+    normalizedText(call.confirmedMachineSubsetId) ||
+    normalizedText(call.confirmedMachineSubsetCodeSnapshot) ||
+    normalizedText(call.confirmedMachineSubsetNameSnapshot) ||
+    normalizedText(call.confirmedMachineSubsetTypeSnapshot),
   );
 }
 
-export function getConfirmedAssetLocation(
-  call: AssetLocationCall,
-): AssetLocationSnapshot | null {
+export function getConfirmedAssetLocation(call: AssetLocationCall): AssetLocationSnapshot | null {
   if (!hasAssetConfirmation(call)) {
     return null;
   }
 
   return {
-    setId: normalizedText(
-      call.confirmedMachineSetId,
-    ),
-    setCode: normalizedText(
-      call.confirmedMachineSetCodeSnapshot,
-    ),
-    setName: normalizedText(
-      call.confirmedMachineSetNameSnapshot,
-    ),
-    setType: normalizedText(
-      call.confirmedMachineSetTypeSnapshot,
-    ),
+    setId: normalizedText(call.confirmedMachineSetId),
+    setCode: normalizedText(call.confirmedMachineSetCodeSnapshot),
+    setName: normalizedText(call.confirmedMachineSetNameSnapshot),
+    setType: normalizedText(call.confirmedMachineSetTypeSnapshot),
 
-    subsetId: normalizedText(
-      call.confirmedMachineSubsetId,
-    ),
-    subsetCode: normalizedText(
-      call.confirmedMachineSubsetCodeSnapshot,
-    ),
-    subsetName: normalizedText(
-      call.confirmedMachineSubsetNameSnapshot,
-    ),
-    subsetType: normalizedText(
-      call.confirmedMachineSubsetTypeSnapshot,
-    ),
+    subsetId: normalizedText(call.confirmedMachineSubsetId),
+    subsetCode: normalizedText(call.confirmedMachineSubsetCodeSnapshot),
+    subsetName: normalizedText(call.confirmedMachineSubsetNameSnapshot),
+    subsetType: normalizedText(call.confirmedMachineSubsetTypeSnapshot),
   };
 }
 
-export function getEffectiveAssetLocation(
-  call: AssetLocationCall,
-): AssetLocationSnapshot {
-  return (
-    getConfirmedAssetLocation(call) ??
-    getOpeningAssetLocation(call)
-  );
+export function getEffectiveAssetLocation(call: AssetLocationCall): AssetLocationSnapshot {
+  return getConfirmedAssetLocation(call) ?? getOpeningAssetLocation(call);
 }
 
 export function formatAssetLocation(
   location: AssetLocationSnapshot,
-  emptyLabel = "Sem conjunto informado",
+  emptyLabel = ui("Sem conjunto informado"),
 ): string {
   const parts = [
-    getAssetLabel(
-      location.setName,
-      location.setCode,
-    ),
-    getAssetLabel(
-      location.subsetName,
-      location.subsetCode,
-    ),
-  ].filter(
-    (value): value is string =>
-      Boolean(value),
-  );
+    getAssetLabel(location.setName, location.setCode),
+    getAssetLabel(location.subsetName, location.subsetCode),
+  ].filter((value): value is string => Boolean(value));
 
-  return parts.length > 0
-    ? parts.join(" › ")
-    : emptyLabel;
+  return parts.length > 0 ? parts.join(" › ") : emptyLabel;
 }
 
-export function getOpeningAssetLocationLabel(
-  call: AssetLocationCall,
-  emptyLabel?: string,
-): string {
-  return formatAssetLocation(
-    getOpeningAssetLocation(call),
-    emptyLabel,
-  );
+export function getOpeningAssetLocationLabel(call: AssetLocationCall, emptyLabel?: string): string {
+  return formatAssetLocation(getOpeningAssetLocation(call), emptyLabel);
 }
 
 export function getConfirmedAssetLocationLabel(
   call: AssetLocationCall,
-  emptyLabel = "Não confirmada",
+  emptyLabel = ui("Não confirmada"),
 ): string {
-  const confirmed =
-    getConfirmedAssetLocation(call);
+  const confirmed = getConfirmedAssetLocation(call);
 
-  return confirmed
-    ? formatAssetLocation(
-        confirmed,
-        "Sem conjunto informado",
-      )
-    : emptyLabel;
+  return confirmed ? formatAssetLocation(confirmed, ui("Sem conjunto informado")) : emptyLabel;
 }
 
 export function getEffectiveAssetLocationLabel(
   call: AssetLocationCall,
   emptyLabel?: string,
 ): string {
-  return formatAssetLocation(
-    getEffectiveAssetLocation(call),
-    emptyLabel,
-  );
+  return formatAssetLocation(getEffectiveAssetLocation(call), emptyLabel);
 }
 
-export function getAssetLocationKey(
-  location: AssetLocationSnapshot,
-): string {
+export function getAssetLocationKey(location: AssetLocationSnapshot): string {
   const setKey = getSnapshotPartKey(
     location.setId,
     location.setCode,
@@ -268,8 +172,5 @@ export function areAssetLocationsEqual(
   left: AssetLocationSnapshot,
   right: AssetLocationSnapshot,
 ): boolean {
-  return (
-    getAssetLocationKey(left) ===
-    getAssetLocationKey(right)
-  );
+  return getAssetLocationKey(left) === getAssetLocationKey(right);
 }

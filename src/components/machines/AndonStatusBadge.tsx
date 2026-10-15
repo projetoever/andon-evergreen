@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { AndonStatus } from "@/types/andon";
@@ -27,7 +28,8 @@ export function AndonStatusBadge({ status, className }: AndonStatusBadgeProps) {
         className,
       )}
     >
-      ANDON · {t(getAndonStatusLabel(status))}
+      {ui("ANDON · ")}
+      {t(getAndonStatusLabel(status))}
     </span>
   );
 }

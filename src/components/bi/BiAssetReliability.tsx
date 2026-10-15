@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import {
   Activity,
   AlertTriangle,
@@ -13,12 +15,12 @@ import type { AnalyticsAssetReliability } from "@/types/analytics";
 
 function formatMinutes(value: number | null) {
   if (value === null || !Number.isFinite(value)) return "—";
-  if (value < 60) return `${Math.round(value)} min`;
+  if (value < 60) return `${Math.round(value)} ${ui("min")}`;
 
   const hours = Math.floor(value / 60);
   const minutes = Math.round(value % 60);
 
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  return minutes ? `${hours}${ui("h")} ${minutes}${ui("m")}` : `${hours}${ui("h")}`;
 }
 
 function HealthMetric({
@@ -32,6 +34,7 @@ function HealthMetric({
   detail: string;
   attention: boolean;
 }) {
+  useInterfaceLanguage();
   return (
     <div
       className={
@@ -69,6 +72,7 @@ export function BiAssetReliability({
   classificationLabels: Map<string, string>;
   onSelectMachine: (machineId: string, machineName: string) => void;
 }) {
+  useInterfaceLanguage();
   if (loading && !data) {
     return (
       <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -80,7 +84,8 @@ export function BiAssetReliability({
   if (error) {
     return (
       <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-5 text-sm text-amber-200">
-        Confiabilidade por ativo indisponível: {error}
+        {ui("Confiabilidade por ativo indisponível: ")}
+        {systemMessage(error)}
       </section>
     );
   }
@@ -105,15 +110,17 @@ export function BiAssetReliability({
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-red-400" />
             <h2 className="text-sm font-black uppercase tracking-wide">
-              Ativos prioritários · Bad Actors
+              {ui("Ativos prioritários · Bad Actors")}
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Prioridade objetiva por downtime físico unido. Sem score oculto ou ponderação subjetiva.
+            {ui(
+              "Prioridade objetiva por downtime físico unido. Sem score oculto ou ponderação subjetiva.",
+            )}
           </p>
         </div>
         <span className="text-[11px] text-muted-foreground">
-          Clique em uma máquina para abrir as ocorrências que sustentam o indicador
+          {ui("Clique em uma máquina para abrir as ocorrências que sustentam o indicador")}
         </span>
       </div>
 
@@ -122,14 +129,14 @@ export function BiAssetReliability({
           <table className="w-full min-w-[980px] text-left text-xs">
             <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Ativo</th>
-                <th className="px-3 py-3">Downtime</th>
-                <th className="px-3 py-3">Episódios</th>
-                <th className="px-3 py-3">Intervalo est.</th>
-                <th className="px-3 py-3">Diag. repetido</th>
-                <th className="px-3 py-3">Retornos</th>
-                <th className="px-3 py-3">Chamado ativo</th>
-                <th className="px-3 py-3">Diagnóstico dominante</th>
+                <th className="px-4 py-3">{ui("Ativo", {}, "asset")}</th>
+                <th className="px-3 py-3">{ui("Downtime")}</th>
+                <th className="px-3 py-3">{ui("Episódios")}</th>
+                <th className="px-3 py-3">{ui("Intervalo est.")}</th>
+                <th className="px-3 py-3">{ui("Diag. repetido")}</th>
+                <th className="px-3 py-3">{ui("Retornos")}</th>
+                <th className="px-3 py-3">{ui("Chamado ativo")}</th>
+                <th className="px-3 py-3">{ui("Diagnóstico dominante")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -156,7 +163,7 @@ export function BiAssetReliability({
                           <div className="font-black">{asset.machineName}</div>
                           {!asset.isActive && (
                             <span className="text-[9px] uppercase text-muted-foreground">
-                              inativa
+                              {ui("inativa")}
                             </span>
                           )}
                         </div>
@@ -165,9 +172,7 @@ export function BiAssetReliability({
                     <td className="px-3 py-3 font-black tabular-nums text-red-300">
                       {formatMinutes(asset.downtimeMinutes)}
                     </td>
-                    <td className="px-3 py-3 tabular-nums">
-                      {asset.physicalStopEpisodes}
-                    </td>
+                    <td className="px-3 py-3 tabular-nums">{asset.physicalStopEpisodes}</td>
                     <td className="px-3 py-3 font-semibold tabular-nums text-emerald-300">
                       {formatMinutes(asset.mtbfEstimatedMinutes)}
                     </td>
@@ -198,10 +203,12 @@ export function BiAssetReliability({
                                 : "rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-1 font-black text-sky-300"
                             }
                           >
-                            {asset.activeCallCount} ativo(s)
+                            {asset.activeCallCount}
+                            {ui(" ativo(s)")}
                           </span>
                           <div className="mt-1 text-[9px] text-muted-foreground">
-                            mais antigo: {formatMinutes(asset.oldestActiveCallMinutes)}
+                            {ui("mais antigo: ")}
+                            {formatMinutes(asset.oldestActiveCallMinutes)}
                           </div>
                         </div>
                       ) : (
@@ -210,8 +217,8 @@ export function BiAssetReliability({
                     </td>
                     <td className="max-w-56 px-3 py-3">
                       {asset.topDiagnosis
-                        ? classificationLabels.get(asset.topDiagnosis.classification) ??
-                          asset.topDiagnosis.classification
+                        ? (classificationLabels.get(asset.topDiagnosis.classification) ??
+                          asset.topDiagnosis.classification)
                         : "—"}
                     </td>
                   </tr>
@@ -222,7 +229,7 @@ export function BiAssetReliability({
 
           {!assets.length && (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              Sem ativos com atividade no período
+              {ui("Sem ativos com atividade no período")}
             </div>
           )}
         </div>
@@ -231,36 +238,43 @@ export function BiAssetReliability({
           <div className="flex items-center gap-2">
             <DatabaseZap className="h-4 w-4 text-amber-400" />
             <h3 className="text-xs font-black uppercase tracking-wide">
-              Saúde do dado operacional
+              {ui("Saúde do dado operacional")}
             </h3>
           </div>
           <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
-            Alertas para registros ainda abertos que podem inflar tempos e esconder encerramentos esquecidos.
+            {ui(
+              "Alertas para registros ainda abertos que podem inflar tempos e esconder encerramentos esquecidos.",
+            )}
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
             <HealthMetric
-              label="Chamados ativos > 24h"
+              label={ui("Chamados ativos > 24h")}
               value={String(health.activeCallsOver24h ?? 0)}
-              detail={`mais antigo: ${formatMinutes(health.oldestActiveCallMinutes)}`}
+              detail={ui("mais antigo: {0}", { 0: formatMinutes(health.oldestActiveCallMinutes) })}
               attention={(health.activeCallsOver24h ?? 0) > 0}
             />
             <HealthMetric
-              label="Eventos físicos > 24h"
+              label={ui("Eventos físicos > 24h")}
               value={String(health.openFailureEventsOver24h)}
-              detail={`${health.openFailureEvents} evento(s) aberto(s) · mais antigo: ${formatMinutes(health.oldestOpenFailureMinutes)}`}
+              detail={ui("{0} evento(s) aberto(s) · mais antigo: {1}", {
+                0: health.openFailureEvents,
+                1: formatMinutes(health.oldestOpenFailureMinutes),
+              })}
               attention={health.openFailureEventsOver24h > 0}
             />
             <HealthMetric
-              label="Sessões técnicas > 24h"
+              label={ui("Sessões técnicas > 24h")}
               value={String(health.activeSessionsOver24h ?? 0)}
-              detail={`mais antiga: ${formatMinutes(health.oldestActiveSessionMinutes)}`}
+              detail={ui("mais antiga: {0}", {
+                0: formatMinutes(health.oldestActiveSessionMinutes),
+              })}
               attention={(health.activeSessionsOver24h ?? 0) > 0}
             />
             <HealthMetric
-              label="Concluídos sem classificação"
+              label={ui("Concluídos sem classificação")}
               value={String(health.finishedCallsMissingClassification)}
-              detail={`${health.finishedCalls} chamado(s) concluído(s) no período`}
+              detail={ui("{0} chamado(s) concluído(s) no período", { 0: health.finishedCalls })}
               attention={health.finishedCallsMissingClassification > 0}
             />
           </div>
@@ -268,20 +282,25 @@ export function BiAssetReliability({
           {health.standaloneFailureEvents > 0 && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-[10px] leading-4 text-amber-100">
               <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-              {health.standaloneFailureEvents} FailureEvent(s) do período não possuem chamado vinculado.
-              Eles continuam válidos para downtime físico, mas exigem cuidado em análises por setor ou diagnóstico.
+              {health.standaloneFailureEvents}
+              {ui(
+                " FailureEvent(s) do período não possuem chamado vinculado. Eles continuam válidos para downtime físico, mas exigem cuidado em análises por setor ou diagnóstico.",
+              )}
             </div>
           )}
 
           <div className="mt-3 flex flex-wrap gap-2 text-[9px] uppercase tracking-wide text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <TimerReset className="h-3 w-3" /> downtime
+              <TimerReset className="h-3 w-3" />
+              {ui(" downtime")}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Activity className="h-3 w-3" /> atividade
+              <Activity className="h-3 w-3" />
+              {ui(" atividade")}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Clock3 className="h-3 w-3" /> aging
+              <Clock3 className="h-3 w-3" />
+              {ui(" aging")}
             </span>
           </div>
         </div>

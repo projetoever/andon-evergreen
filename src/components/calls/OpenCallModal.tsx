@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
@@ -20,7 +22,7 @@ import { BigButton } from "@/components/common/BigButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { cn } from "@/lib/utils";
 import {
   canOpenWithWorkOrder,
@@ -35,11 +37,8 @@ interface OpenCallModalProps {
   preselectedMachineId?: string | null;
 }
 
-export function OpenCallModal({
-  open,
-  onOpenChange,
-  preselectedMachineId,
-}: OpenCallModalProps) {
+export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: OpenCallModalProps) {
+  useInterfaceLanguage();
   const { machines, openCall } = useAndon();
   const [machineId, setMachineId] = useState<string | null>(preselectedMachineId ?? null);
   const [subtype, setSubtype] = useState<CallSubtype | null>(null);
@@ -171,8 +170,7 @@ export function OpenCallModal({
 
         setMachineSets(sets);
 
-        const onlySet =
-          sets.length === 1 ? sets[0] : null;
+        const onlySet = sets.length === 1 ? sets[0] : null;
 
         setMachineSetId(onlySet?.id ?? null);
         setMachineSubsetId(null);
@@ -183,9 +181,7 @@ export function OpenCallModal({
         setMachineSets([]);
         setMachineSetId(null);
         setMachineSubsetId(null);
-        toast.error(
-          "Não foi possível carregar os conjuntos e subconjuntos da máquina",
-        );
+        toast.error("Não foi possível carregar os conjuntos e subconjuntos da máquina");
       })
       .finally(() => {
         if (!isCurrent) return;
@@ -238,18 +234,13 @@ export function OpenCallModal({
   const selectedMachineSubsets = useMemo(
     () =>
       (selectedMachineSet?.subsets ?? []).filter(
-        (subset) =>
-          subset.isActive &&
-          subset.subsetType?.isActive !== false,
+        (subset) => subset.isActive && subset.subsetType?.isActive !== false,
       ),
     [selectedMachineSet],
   );
 
   const selectedMachineSubset = useMemo(
-    () =>
-      selectedMachineSubsets.find(
-        (subset) => subset.id === machineSubsetId,
-      ) ?? null,
+    () => selectedMachineSubsets.find((subset) => subset.id === machineSubsetId) ?? null,
     [selectedMachineSubsets, machineSubsetId],
   );
 
@@ -262,10 +253,10 @@ export function OpenCallModal({
 
   const hasValidAssetSelection = Boolean(
     !shouldRequireMachineSet ||
-      (selectedMachineSet &&
-        (selectedMachineSubsets.length === 0 ||
-          selectedMachineSubset ||
-          (allowWholeSetCalls && isWholeSetSelected))),
+    (selectedMachineSet &&
+      (selectedMachineSubsets.length === 0 ||
+        selectedMachineSubset ||
+        (allowWholeSetCalls && isWholeSetSelected))),
   );
 
   const canOpenCondition = canSubmitWorkOrderGate({
@@ -328,14 +319,11 @@ export function OpenCallModal({
       machineSetCodeSnapshot: selectedMachineSet?.code,
       machineSetNameSnapshot: selectedMachineSet?.name,
       machineSetTypeSnapshot:
-        selectedMachineSet?.setType?.code ??
-        selectedMachineSet?.type ??
-        undefined,
+        selectedMachineSet?.setType?.code ?? selectedMachineSet?.type ?? undefined,
       machineSubsetId: selectedMachineSubset?.id,
       machineSubsetCodeSnapshot: selectedMachineSubset?.code,
       machineSubsetNameSnapshot: selectedMachineSubset?.name,
-      machineSubsetTypeSnapshot:
-        selectedMachineSubset?.subsetType?.code,
+      machineSubsetTypeSnapshot: selectedMachineSubset?.subsetType?.code,
       category: opt.category,
       subtype,
       criticality: "medium" as const,
@@ -357,20 +345,20 @@ export function OpenCallModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-3xl">Abrir ANDON</DialogTitle>
+          <DialogTitle className="text-3xl">{ui("Abrir ANDON")}</DialogTitle>
           <DialogDescription className="text-base">
-            Selecione a máquina, o tipo de chamado e a localização da falha.
+            {ui("Selecione a máquina, o tipo de chamado e a localização da falha.")}
           </DialogDescription>
         </DialogHeader>
 
         {!preselectedMachineId && (
           <div>
             <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Máquina
+              {ui("Máquina")}
             </h4>
             {selectableMachines.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Todas as máquinas já possuem chamado ativo.
+                {ui("Todas as máquinas já possuem chamado ativo.")}
               </p>
             ) : (
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
@@ -397,7 +385,7 @@ export function OpenCallModal({
         {preselectedMachineId && (
           <div className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 px-4 py-2.5">
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Máquina selecionada
+              {ui("Máquina selecionada")}
             </span>
             <div className="text-3xl font-black leading-none text-foreground">
               {preselectedMachineId}
@@ -410,16 +398,19 @@ export function OpenCallModal({
         {machineId &&
           (isLoadingMachineSets || isLoadingSystemSettings || !hasLoadedSystemSettings ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              Carregando conjuntos, equipamentos e política de seleção...
+              {ui("Carregando conjuntos, equipamentos e política de seleção...")}
             </div>
           ) : systemSettingsLoadFailed ? (
             <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-              Não foi possível carregar as configurações de abertura. Feche e reabra o modal antes
-              de continuar.
+              {ui(
+                "Não foi possível carregar as configurações de abertura. Feche e reabra o modal antes de continuar.",
+              )}
             </div>
           ) : machineSets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              Esta máquina ainda não possui conjuntos cadastrados. O chamado será aberto sem conjunto.
+              {ui(
+                "Esta máquina ainda não possui conjuntos cadastrados. O chamado será aberto sem conjunto.",
+              )}
             </div>
           ) : (
             <MachineAssetSelector
@@ -436,20 +427,21 @@ export function OpenCallModal({
 
         {workOrderRequired && (
           <div className="space-y-1.5">
-            <Label htmlFor="open-call-work-order">Número da OS</Label>
+            <Label htmlFor="open-call-work-order">{ui("Número da OS")}</Label>
             <Input
               id="open-call-work-order"
               value={workOrderNumber}
               maxLength={100}
               onChange={(event) => setWorkOrderNumber(event.target.value)}
-              placeholder="Informe o número da OS"
+              placeholder={ui("Informe o número da OS")}
             />
           </div>
         )}
 
         <div className="space-y-1.5">
           <Label htmlFor="open-call-operator-note">
-            Informação para o mantenedor <span className="font-normal text-muted-foreground">(opcional)</span>
+            {ui("Informação para o mantenedor ")}
+            <span className="font-normal text-muted-foreground">{ui("(opcional)")}</span>
           </Label>
           <Textarea
             id="open-call-operator-note"
@@ -457,21 +449,27 @@ export function OpenCallModal({
             maxLength={500}
             rows={2}
             onChange={(event) => setOperatorNote(event.target.value)}
-            placeholder="Ex.: ruído anormal, falha intermitente, cheiro de queimado..."
+            placeholder={ui("Ex.: ruído anormal, falha intermitente, cheiro de queimado...")}
           />
-          <p className="text-right text-[11px] text-muted-foreground">
-            {operatorNote.length}/500
-          </p>
+          <p className="text-right text-[11px] text-muted-foreground">{operatorNote.length}/500</p>
         </div>
 
         <div>
           <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Condição da máquina
+            {ui("Condição da máquina")}
           </h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {[
-              { value: "stopped" as const, label: "Em falha", className: "border-danger/40 bg-danger/10 text-danger" },
-              { value: "running" as const, label: "Pronta para rodar", className: "border-success/40 bg-success/10 text-success" },
+              {
+                value: "stopped" as const,
+                label: ui("Em falha"),
+                className: "border-danger/40 bg-danger/10 text-danger",
+              },
+              {
+                value: "running" as const,
+                label: ui("Pronta para rodar"),
+                className: "border-success/40 bg-success/10 text-success",
+              },
             ].map((option) => (
               <button
                 key={option.value}
@@ -493,7 +491,7 @@ export function OpenCallModal({
 
         <DialogFooter className="gap-2">
           <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {ui("Cancelar")}
           </BigButton>
           <BigButton
             tone="warning"
@@ -501,7 +499,7 @@ export function OpenCallModal({
             onClick={() => void handleConfirm()}
             disabled={!canConfirm || isLoadingMachineSets}
           >
-            Abrir ANDON
+            {ui("Abrir ANDON")}
           </BigButton>
         </DialogFooter>
         {/* satisfaz lint não usado */}

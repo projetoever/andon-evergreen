@@ -1,22 +1,17 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useRef, useState } from "react";
-import {
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  CircleDot,
-  Users,
-  Wrench,
-} from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, CircleDot, Users, Wrench } from "lucide-react";
 
 import type { AnalyticsMaintenanceParticipation } from "@/types/analytics";
 
 function formatMinutes(value: number) {
   if (!Number.isFinite(value)) return "—";
   const rounded = Math.round(value);
-  if (rounded < 60) return `${rounded} min`;
+  if (rounded < 60) return `${rounded} ${ui("min")}`;
   const hours = Math.floor(rounded / 60);
   const minutes = rounded % 60;
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  return minutes ? `${hours}${ui("h")} ${minutes}${ui("m")}` : `${hours}${ui("h")}`;
 }
 
 /**
@@ -51,6 +46,7 @@ function SplitBar({
   maintenanceMinutes: number;
   followUpMinutes: number;
 }) {
+  useInterfaceLanguage();
   const total = maintenanceMinutes + followUpMinutes;
   const maintenanceShare = total > 0 ? (maintenanceMinutes / total) * 100 : 0;
   const followUpShare = total > 0 ? (followUpMinutes / total) * 100 : 0;
@@ -80,15 +76,22 @@ function PageControls({
   total: number;
   onChange: (next: number) => void;
 }) {
+  useInterfaceLanguage();
   return (
     <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
       <span className="tabular-nums">
-        {total === 0 ? "0 registros" : `${page * shown + 1}–${Math.min((page + 1) * shown, total)} de ${total}`}
+        {total === 0
+          ? ui("0 registros")
+          : ui("{0}–{1} de {2}", {
+              0: page * shown + 1,
+              1: Math.min((page + 1) * shown, total),
+              2: total,
+            })}
       </span>
       <div className="flex items-center gap-1">
         <button
           type="button"
-          aria-label="Página anterior"
+          aria-label={ui("Página anterior")}
           disabled={page === 0}
           onClick={() => onChange(Math.max(0, page - 1))}
           className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -100,7 +103,7 @@ function PageControls({
         </span>
         <button
           type="button"
-          aria-label="Próxima página"
+          aria-label={ui("Próxima página")}
           disabled={page >= totalPages - 1}
           onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
           className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -123,11 +126,13 @@ export function BiMaintenanceParticipation({
   error: string | null;
   areaLabels: Map<string, string>;
 }) {
+  useInterfaceLanguage();
   // Keep hooks unconditional, including while analytics are loading.
-  const { viewportRef: technicianViewport, visibleRows: technicianRows } =
-    useVisibleRows(62, Boolean(data));
-  const { viewportRef: areaViewport, visibleRows: areaRows } =
-    useVisibleRows(63, Boolean(data));
+  const { viewportRef: technicianViewport, visibleRows: technicianRows } = useVisibleRows(
+    62,
+    Boolean(data),
+  );
+  const { viewportRef: areaViewport, visibleRows: areaRows } = useVisibleRows(63, Boolean(data));
   const [technicianPage, setTechnicianPage] = useState(0);
   const [areaPage, setAreaPage] = useState(0);
 
@@ -147,7 +152,8 @@ export function BiMaintenanceParticipation({
   if (error) {
     return (
       <section className="h-full rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-3 text-sm text-amber-200">
-        Participação técnica indisponível: {error}
+        {ui("Participação técnica indisponível: ")}
+        {systemMessage(error)}
       </section>
     );
   }
@@ -163,10 +169,7 @@ export function BiMaintenanceParticipation({
     safeTechnicianPage * technicianRows,
     (safeTechnicianPage + 1) * technicianRows,
   );
-  const areas = data.technicalAreas.slice(
-    safeAreaPage * areaRows,
-    (safeAreaPage + 1) * areaRows,
-  );
+  const areas = data.technicalAreas.slice(safeAreaPage * areaRows, (safeAreaPage + 1) * areaRows);
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3 shadow-sm">
@@ -175,33 +178,45 @@ export function BiMaintenanceParticipation({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-sky-400" />
             <h2 className="text-sm font-black uppercase tracking-wide">
-              Participação técnica
+              {ui("Participação técnica")}
             </h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Soma de horas por técnico, inclusive simultâneas entre pessoas diferentes. Sobreposições da mesma pessoa contam uma vez. Não equivale a downtime nem avalia desempenho.
+            {ui(
+              "Soma de horas por técnico, inclusive simultâneas entre pessoas diferentes. Sobreposições da mesma pessoa contam uma vez. Não equivale a downtime nem avalia desempenho.",
+            )}
           </p>
         </div>
         <div className="flex shrink-0 gap-3 text-[11px] font-semibold text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-400" /> Manutenção
+            <span className="h-2 w-2 rounded-full bg-sky-400" />
+            {ui(" Manutenção")}
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" /> Acompanhamento
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            {ui(" Acompanhamento")}
           </span>
         </div>
       </header>
 
       {data.responsibility && (
         <p className="mt-1 shrink-0 text-[11px] text-muted-foreground">
-          Trabalho por causa: {data.responsibility.map(item => `${({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.personMinutes)}`).join(" · ") || "Sem sessões"}. Sobreposição removida: {formatMinutes(data.totals.overlapMinutesRemoved ?? 0)}.
+          {ui("Trabalho por causa: ")}
+          {data.responsibility
+            .map(
+              (item) =>
+                `${({ maintenance: ui("Manutenção"), operations: ui("Operação"), process: ui("Processos"), quality: ui("Qualidade"), leadership: ui("Liderança"), other: ui("Outros"), unassigned: ui("Pendente") } as Record<string, string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.personMinutes)}`,
+            )
+            .join(" · ") || ui("Sem sessões")}
+          {ui(". Sobreposição removida: ")}
+          {formatMinutes(data.totals.overlapMinutesRemoved ?? 0)}.
         </p>
       )}
       <div className="mt-2 grid shrink-0 grid-cols-4 gap-2">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-              Horas técnicas: atendimento
+              {ui("Horas técnicas: atendimento")}
             </span>
             <Wrench className="h-3.5 w-3.5" />
           </div>
@@ -213,7 +228,7 @@ export function BiMaintenanceParticipation({
         <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-emerald-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-              Horas técnicas: acompanhamento
+              {ui("Horas técnicas: acompanhamento")}
             </span>
             <Activity className="h-3.5 w-3.5" />
           </div>
@@ -225,22 +240,21 @@ export function BiMaintenanceParticipation({
         <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-              Mantenedores
+              {ui("Mantenedores")}
             </span>
             <Users className="h-3.5 w-3.5" />
           </div>
-          <div className="mt-1 text-xl font-black tabular-nums">
-            {data.totals.technicianCount}
-          </div>
+          <div className="mt-1 text-xl font-black tabular-nums">{data.totals.technicianCount}</div>
           <p className="text-[10px] text-muted-foreground">
-            {data.totals.callCount} chamado(s) com fase explícita
+            {data.totals.callCount}
+            {ui(" chamado(s) com fase explícita")}
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-background/30 px-3 py-2">
           <div className="flex items-center justify-between text-amber-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-              Sessões ativas
+              {ui("Sessões ativas")}
             </span>
             <CircleDot className="h-3.5 w-3.5" />
           </div>
@@ -248,7 +262,8 @@ export function BiMaintenanceParticipation({
             {data.totals.activeSessionCount}
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {data.totals.returnCycleSessions} sessão(ões) em ciclo de retorno
+            {data.totals.returnCycleSessions}
+            {ui(" sessão(ões) em ciclo de retorno")}
           </p>
         </div>
       </div>
@@ -257,10 +272,10 @@ export function BiMaintenanceParticipation({
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background/25 p-3">
           <div className="flex shrink-0 items-center justify-between gap-3">
             <h3 className="text-xs font-black uppercase tracking-wide">
-              Distribuição por mantenedor
+              {ui("Distribuição por mantenedor")}
             </h3>
             <span className="text-[11px] text-muted-foreground">
-              Ordenado por horas técnicas
+              {ui("Ordenado por horas técnicas")}
             </span>
           </div>
 
@@ -277,8 +292,8 @@ export function BiMaintenanceParticipation({
                       {technician.activePhase && (
                         <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
                           {technician.activePhase === "maintenance"
-                            ? "em manutenção"
-                            : "em acompanhamento"}
+                            ? ui("em manutenção")
+                            : ui("em acompanhamento")}
                         </span>
                       )}
                     </div>
@@ -290,10 +305,7 @@ export function BiMaintenanceParticipation({
                   <div
                     className="max-w-full"
                     style={{
-                      width: `${Math.max(
-                        12,
-                        (technician.totalPersonMinutes / maxMinutes) * 100,
-                      )}%`,
+                      width: `${Math.max(12, (technician.totalPersonMinutes / maxMinutes) * 100)}%`,
                     }}
                   >
                     <SplitBar
@@ -302,15 +314,16 @@ export function BiMaintenanceParticipation({
                     />
                   </div>
                   <div className="truncate text-[11px] text-muted-foreground">
-                    {technician.callCount} chamado(s) ·{" "}
-                    {formatMinutes(technician.maintenanceMinutes)} manutenção ·{" "}
-                    {formatMinutes(technician.followUpMinutes)} acompanhamento
+                    {technician.callCount}
+                    {ui(" chamado(s) ·")} {formatMinutes(technician.maintenanceMinutes)}
+                    {ui(" manutenção ·")} {formatMinutes(technician.followUpMinutes)}
+                    {ui(" acompanhamento")}
                   </div>
                 </div>
               ))
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                Sem sessões com fase explícita no período
+                {ui("Sem sessões com fase explícita no período")}
               </div>
             )}
           </div>
@@ -326,7 +339,7 @@ export function BiMaintenanceParticipation({
         <div className="flex min-h-0 flex-col gap-2">
           <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-background/25 p-3">
             <h3 className="shrink-0 text-xs font-black uppercase tracking-wide">
-              Áreas técnicas
+              {ui("Áreas técnicas")}
             </h3>
             <div ref={areaViewport} className="mt-1 min-h-0 flex-1 overflow-hidden">
               {areas.length ? (
@@ -338,8 +351,8 @@ export function BiMaintenanceParticipation({
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <span className="truncate font-bold">
                         {area.technicalArea
-                          ? areaLabels.get(area.technicalArea) ?? area.technicalArea
-                          : "Sem área registrada"}
+                          ? (areaLabels.get(area.technicalArea) ?? area.technicalArea)
+                          : ui("Sem área registrada")}
                       </span>
                       <span className="shrink-0 font-black tabular-nums">
                         {formatMinutes(area.totalPersonMinutes)}
@@ -350,13 +363,16 @@ export function BiMaintenanceParticipation({
                       followUpMinutes={area.followUpMinutes}
                     />
                     <p className="truncate text-[10px] text-muted-foreground">
-                      {area.technicianCount} mantenedor(es) · {area.sessionCount} sessão(ões)
+                      {area.technicianCount}
+                      {ui(" mantenedor(es) · ")}
+                      {area.sessionCount}
+                      {ui(" sessão(ões)")}
                     </p>
                   </div>
                 ))
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                  Sem áreas técnicas com fase explícita
+                  {ui("Sem áreas técnicas com fase explícita")}
                 </div>
               )}
             </div>
@@ -378,7 +394,7 @@ export function BiMaintenanceParticipation({
           >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-[11px] font-black uppercase tracking-wide">
-                Cobertura de fases
+                {ui("Cobertura de fases")}
               </h3>
               <span className="text-xl font-black tabular-nums">
                 {data.coverage.phaseAwareSessionPercent === null
@@ -387,9 +403,12 @@ export function BiMaintenanceParticipation({
               </span>
             </div>
             <p className="text-[11px] leading-4 text-muted-foreground">
-              {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) com fase explícita.
+              {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions}
+              {ui(" sessão(ões) com fase explícita.")}
               {data.coverage.legacyMinutes > 0 &&
-                ` ${formatMinutes(data.coverage.legacyMinutes)} sem fase comprovada (legado ou conflito de sobreposição).`}
+                ui(" {0} sem fase comprovada (legado ou conflito de sobreposição).", {
+                  0: formatMinutes(data.coverage.legacyMinutes),
+                })}
             </p>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,10 +15,7 @@ import { BiMaintenanceParticipation } from "@/components/bi/BiMaintenancePartici
 import { BiMachine360Overlay } from "@/components/bi/BiMachine360Overlay";
 import { BiOverviewWorkspace } from "@/components/bi/BiOverviewWorkspace";
 import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
-import {
-  BiWorkspaceTabs,
-  type BiWorkspaceTab,
-} from "@/components/bi/BiWorkspaceTabs";
+import { BiWorkspaceTabs, type BiWorkspaceTab } from "@/components/bi/BiWorkspaceTabs";
 import { buildExecutiveReportHtml, openReportPrintDialog } from "@/services/andonBiPdfReport";
 import {
   loadAnalyticsDrilldown,
@@ -59,9 +58,15 @@ const DEFAULT_FILTERS: AndonBiFilters = {
 };
 
 const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
-  "24h": "Últimas 24h",
-  "7d": "Últimos 7 dias",
-  "30d": "Últimos 30 dias",
+  get "24h"() {
+    return ui("Últimas 24h");
+  },
+  get "7d"() {
+    return ui("Últimos 7 dias");
+  },
+  get "30d"() {
+    return ui("Últimos 30 dias");
+  },
 };
 
 export function AndonBiPage() {
@@ -71,15 +76,14 @@ export function AndonBiPage() {
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
   const [options, setOptions] = useState<AndonBiFilterOptions>(EMPTY_OPTIONS);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
-  const [maintenance, setMaintenance] =
-    useState<AnalyticsMaintenanceParticipation | null>(null);
-  const [assetReliability, setAssetReliability] =
-    useState<AnalyticsAssetReliability | null>(null);
+  const [maintenance, setMaintenance] = useState<AnalyticsMaintenanceParticipation | null>(null);
+  const [assetReliability, setAssetReliability] = useState<AnalyticsAssetReliability | null>(null);
   const [allReliability, setAllReliability] = useState<AnalyticsAssetReliability | null>(null);
   const [allReliabilityLoading, setAllReliabilityLoading] = useState(false);
   const [allReliabilityError, setAllReliabilityError] = useState<string | null>(null);
   const [assetPopulation, setAssetPopulation] = useState<"active" | "inactive" | "all">("active");
-  const [qualityCategory, setQualityCategory] = useState<AnalyticsDataQualityCategory>("active-calls");
+  const [qualityCategory, setQualityCategory] =
+    useState<AnalyticsDataQualityCategory>("active-calls");
   const [qualityPage, setQualityPage] = useState(1);
   const [qualityDetails, setQualityDetails] = useState<AnalyticsDataQualityDetails | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
@@ -102,13 +106,13 @@ export function AndonBiPage() {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [drillSelection, setDrillSelection] =
-    useState<AnalyticsDrilldownSelection | null>(null);
+  const [drillSelection, setDrillSelection] = useState<AnalyticsDrilldownSelection | null>(null);
   const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
-  const [machineSelection, setMachineSelection] =
-    useState<{ id: string; name: string } | null>(null);
+  const [machineSelection, setMachineSelection] = useState<{ id: string; name: string } | null>(
+    null,
+  );
   const [machine360, setMachine360] = useState<AnalyticsMachine360 | null>(null);
   const [machine360Loading, setMachine360Loading] = useState(false);
   const [machine360Error, setMachine360Error] = useState<string | null>(null);
@@ -123,11 +127,7 @@ export function AndonBiPage() {
       })
       .catch((loadError) => {
         if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Falha ao carregar filtros.",
-          );
+          setError(loadError instanceof Error ? loadError.message : "Falha ao carregar filtros.");
         }
       })
       .finally(() => {
@@ -310,14 +310,17 @@ export function AndonBiPage() {
         if (active) setAllReliability(result);
       })
       .catch((reason) => {
-        if (active) setAllReliabilityError(
-          reason instanceof Error ? reason.message : "Falha ao consultar máquinas inativas.",
-        );
+        if (active)
+          setAllReliabilityError(
+            reason instanceof Error ? reason.message : "Falha ao consultar máquinas inativas.",
+          );
       })
       .finally(() => {
         if (active) setAllReliabilityLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [activeTab, assetPopulation, filters, overview]);
 
   useEffect(() => {
@@ -335,14 +338,17 @@ export function AndonBiPage() {
         if (active) setQualityDetails(result);
       })
       .catch((reason) => {
-        if (active) setQualityError(
-          reason instanceof Error ? reason.message : "Falha ao consultar detalhes de qualidade.",
-        );
+        if (active)
+          setQualityError(
+            reason instanceof Error ? reason.message : "Falha ao consultar detalhes de qualidade.",
+          );
       })
       .finally(() => {
         if (active) setQualityLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [activeTab, filters, overview, qualityCategory, qualityPage]);
 
   // Query only after the user opens the Temporal Patterns view.
@@ -354,14 +360,21 @@ export function AndonBiPage() {
     setTemporalError(null);
     setTemporalLoading(true);
     void loadTemporalPatterns(filters, overview.meta.period)
-      .then(result => { if (active) setTemporal(result); })
-      .catch(reason => {
-        if (active) setTemporalError(
-          reason instanceof Error ? reason.message : "Falha ao carregar padrões temporais.",
-        );
+      .then((result) => {
+        if (active) setTemporal(result);
       })
-      .finally(() => { if (active) setTemporalLoading(false); });
-    return () => { active = false; };
+      .catch((reason) => {
+        if (active)
+          setTemporalError(
+            reason instanceof Error ? reason.message : "Falha ao carregar padrões temporais.",
+          );
+      })
+      .finally(() => {
+        if (active) setTemporalLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [temporalRequested, activeTab, overview, filters, loading]);
 
   const closeMachine360 = useCallback(() => {
@@ -464,9 +477,7 @@ export function AndonBiPage() {
               {t("Inteligência em Manutenção e Confiabilidade")}
             </div>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h1 className="text-2xl font-black tracking-tight md:text-3xl">
-                ANDON BI
-              </h1>
+              <h1 className="text-2xl font-black tracking-tight md:text-3xl">ANDON BI</h1>
               <span className="hidden text-xs text-muted-foreground xl:inline">
                 {t("Visão executiva · falhas · equipe técnica")}
               </span>
@@ -475,7 +486,8 @@ export function AndonBiPage() {
                   dateTime={overview.meta.generatedAt}
                   className="text-[11px] font-normal text-muted-foreground"
                 >
-                  {t("Atualizado")} {new Intl.DateTimeFormat("pt-BR", {
+                  {t("Atualizado")}{" "}
+                  {new Intl.DateTimeFormat(getInterfaceLocale(), {
                     hour: "2-digit",
                     minute: "2-digit",
                     timeZone: overview.meta.timeZone,
@@ -486,13 +498,14 @@ export function AndonBiPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <LanguageSelector compact />
             <ModuleNavigation />
             <button
               type="button"
               onClick={() => void exportExecutivePdf()}
               disabled={reportLoading}
-              title={reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
-              aria-label={reportLoading ? "Preparando PDF…" : t("Exportar PDF")}
+              title={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
+              aria-label={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
             >
               <FileDown className="h-3.5 w-3.5" />
@@ -501,14 +514,22 @@ export function AndonBiPage() {
               type="button"
               onClick={() => setRefreshVersion((value) => value + 1)}
               disabled={loading}
-              title={loading ? "Atualizando…" : t("Atualizar")}
-              aria-label={loading ? "Atualizando…" : t("Atualizar")}
+              title={loading ? ui("Atualizando…") : t("Atualizar")}
+              aria-label={loading ? ui("Atualizando…") : t("Atualizar")}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
-            {access?.modules.some((module) => module.id === "operational" && module.allowed && module.enabled && module.available) && (
-              <Link to="/andon" title={t("Abrir ANDON operacional")} aria-label={t("Abrir ANDON operacional")} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground">
+            {access?.modules.some(
+              (module) =>
+                module.id === "operational" && module.allowed && module.enabled && module.available,
+            ) && (
+              <Link
+                to="/andon"
+                title={t("Abrir ANDON operacional")}
+                aria-label={t("Abrir ANDON operacional")}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
+              >
                 <Factory className="h-4 w-4" aria-hidden="true" />
               </Link>
             )}
@@ -553,7 +574,7 @@ export function AndonBiPage() {
               {options.machines.map((machine) => (
                 <option key={machine.id} value={machine.id}>
                   {machine.name}
-                  {machine.isActive === false ? " · inativa" : ""}
+                  {machine.isActive === false ? ui(" · inativa") : ""}
                 </option>
               ))}
             </select>
@@ -576,7 +597,7 @@ export function AndonBiPage() {
               {options.sectors.map((sector) => (
                 <option key={sector.id} value={sector.id}>
                   {sector.displayName}
-                  {sector.active === false ? " · inativo" : ""}
+                  {sector.active === false ? ui(" · inativo") : ""}
                 </option>
               ))}
             </select>
@@ -599,7 +620,7 @@ export function AndonBiPage() {
               {options.classifications.map((classification) => (
                 <option key={classification.id} value={classification.value}>
                   {classification.label}
-                  {classification.active === false ? " · inativa" : ""}
+                  {classification.active === false ? ui(" · inativa") : ""}
                 </option>
               ))}
             </select>
@@ -614,12 +635,16 @@ export function AndonBiPage() {
 
         {error && (
           <div className="shrink-0 rounded-lg border border-destructive/60 bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">
-            {error}
+            {systemMessage(error)}
           </div>
         )}
         {reportError && (
-          <div role="alert" className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-            Não foi possível exportar o PDF: {reportError}
+          <div
+            role="alert"
+            className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+          >
+            {ui("Não foi possível exportar o PDF: ")}
+            {systemMessage(reportError)}
           </div>
         )}
 
@@ -639,18 +664,22 @@ export function AndonBiPage() {
             <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
               <div className="flex shrink-0 items-center justify-between gap-2">
                 <span className="text-[10px] text-muted-foreground">
-                  MTBF geral: população padrão. O ranking abaixo pode incluir máquinas inativas.
+                  {ui(
+                    "MTBF geral: população padrão. O ranking abaixo pode incluir máquinas inativas.",
+                  )}
                 </span>
                 <label className="flex items-center gap-2 text-[10px] font-semibold">
-                  Máquinas no ranking
+                  {ui("Máquinas no ranking")}
                   <select
                     value={assetPopulation}
-                    onChange={(event) => setAssetPopulation(event.target.value as "active" | "inactive" | "all")}
+                    onChange={(event) =>
+                      setAssetPopulation(event.target.value as "active" | "inactive" | "all")
+                    }
                     className="h-8 rounded-md border border-border bg-card px-3 text-xs text-foreground"
                   >
-                    <option value="active">Máquinas ativas</option>
-                    <option value="inactive">Máquinas inativas</option>
-                    <option value="all">Todas as máquinas</option>
+                    <option value="active">{ui("Máquinas ativas")}</option>
+                    <option value="inactive">{ui("Máquinas inativas")}</option>
+                    <option value="all">{ui("Todas as máquinas")}</option>
                   </select>
                 </label>
               </div>
@@ -678,10 +707,10 @@ export function AndonBiPage() {
               overview={overview}
               intelligence={failureIntelligence}
               intelligenceLoading={failureLoading}
-              intelligenceError={failureError}
+              intelligenceError={systemMessage(failureError)}
               temporal={temporal}
               temporalLoading={temporalLoading}
-              temporalError={temporalError}
+              temporalError={systemMessage(temporalError)}
               onTemporalSelected={() => setTemporalRequested(true)}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
@@ -694,7 +723,7 @@ export function AndonBiPage() {
               <BiMaintenanceParticipation
                 data={maintenance}
                 loading={maintenanceLoading}
-                error={maintenanceError}
+                error={systemMessage(maintenanceError)}
                 areaLabels={sectorLabels}
               />
             </div>
@@ -704,10 +733,10 @@ export function AndonBiPage() {
             <BiDataHealthPanel
               data={assetReliability}
               loading={reliabilityLoading}
-              error={reliabilityError}
+              error={systemMessage(reliabilityError)}
               details={qualityDetails}
               detailsLoading={qualityLoading}
-              detailsError={qualityError}
+              detailsError={systemMessage(qualityError)}
               category={qualityCategory}
               page={qualityPage}
               onCategoryChange={(next) => {
@@ -725,12 +754,18 @@ export function AndonBiPage() {
 
         <footer className="flex shrink-0 items-center justify-between border-t border-border pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
           <span>
-            PostgreSQL · testes, falsos chamados e duplicados identificados excluídos · somente leitura
+            {ui(
+              "PostgreSQL · testes, falsos chamados e duplicados identificados excluídos · somente leitura",
+            )}
           </span>
           <span>
             {overview
-              ? `Fórmula ${overview.meta.metricDefinitionVersion} · ${overview.coverage.finishedCallsWithClassification}/${overview.coverage.finishedCalls} concluídos classificados`
-              : "Carregando definições analíticas"}
+              ? ui("Fórmula {0} · {1}/{2} concluídos classificados", {
+                  0: overview.meta.metricDefinitionVersion,
+                  1: overview.coverage.finishedCallsWithClassification,
+                  2: overview.coverage.finishedCalls,
+                })
+              : ui("Carregando definições analíticas")}
           </span>
         </footer>
       </div>
@@ -740,7 +775,7 @@ export function AndonBiPage() {
           machineName={machineSelection.name}
           data={machine360}
           loading={machine360Loading}
-          error={machine360Error}
+          error={systemMessage(machine360Error)}
           classificationLabels={classificationLabels}
           onClose={closeMachine360}
         />
@@ -751,7 +786,7 @@ export function AndonBiPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label={`Detalhamento de ${drillSelection.label}`}
+          aria-label={ui("Detalhamento de {0}", { 0: drillSelection.label })}
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) closeDrilldown();
           }}
@@ -761,7 +796,7 @@ export function AndonBiPage() {
               selection={drillSelection}
               result={drilldown}
               loading={drillLoading}
-              error={drillError}
+              error={systemMessage(drillError)}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
               onClose={closeDrilldown}

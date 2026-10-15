@@ -20,10 +20,7 @@ test("cliente BI continua read-only e herda identificação de workstation da AP
 test("dashboard executivo usa Analytics API real e nao placeholders", async () => {
   const [page, overview] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /loadExecutiveOverview/);
@@ -43,14 +40,10 @@ test("servico BI usa relogio autoritativo do servidor para definir o periodo", a
   assert.match(service, /buildRollingPeriod\(health\.timestamp, filters\.period\)/);
 });
 
-
 test("dashboard BI oferece resumo executivo, downtime temporal e drill-down read-only", async () => {
   const [page, overview, service, summary, drilldown] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
@@ -65,13 +58,9 @@ test("dashboard BI oferece resumo executivo, downtime temporal e drill-down read
   assert.match(drilldown, /PAGE_SIZE = 7/);
 });
 
-
 test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () => {
   const [overview, card, reliability, summary] = await Promise.all([
-    readFile(
-      new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiKpiCard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiReliabilityStrip.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiExecutiveSummary.tsx", import.meta.url), "utf8"),
@@ -89,7 +78,6 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
   assert.match(card, /border-emerald-500/);
   assert.match(summary, /amostra baixa/i);
 });
-
 
 test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", async () => {
   const [page, service, component, route] = await Promise.all([
@@ -112,7 +100,6 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
   assert.match(route, /policy\.callWhere/);
   assert.match(route, /phase maintenance\/follow_up/);
 });
-
 
 test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () => {
   const [page, service, badActors, dataHealth, route, analytics] = await Promise.all([
@@ -137,7 +124,6 @@ test("BI-MVP-6 preserva bad actors, reincidência e saúde do dado", async () =>
   assert.match(analytics, /mergeIntervals/);
 });
 
-
 test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", async () => {
   const [page, tabs, drilldown] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
@@ -161,7 +147,6 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
   assert.match(drilldown, /página/);
 });
 
-
 test("BI-UX-1.1 pagina participação pela altura e preserva cobertura de fases", async () => {
   const component = await readFile(
     new URL("../src/components/bi/BiMaintenanceParticipation.tsx", import.meta.url),
@@ -170,7 +155,7 @@ test("BI-UX-1.1 pagina participação pela altura e preserva cobertura de fases"
 
   assert.match(component, /ResizeObserver/);
   assert.match(component, /viewport\.clientHeight \/ rowHeight/);
-  assert.match(component, /useVisibleRows\(62, Boolean\(data\)\)/);
+  assert.match(component, /useVisibleRows\(\s*62,\s*Boolean\(data\),?\s*\)/);
   assert.match(component, /useVisibleRows\(63, Boolean\(data\)\)/);
   assert.match(component, /ref=\{technicianViewport\}/);
   assert.match(component, /ref=\{areaViewport\}/);
@@ -197,12 +182,14 @@ test("BI-UX-1.1 fecha modal com Esc e usa linhas de altura natural", async () =>
   assert.doesNotMatch(badActors, /<table className="h-full/);
 });
 
-
 test("BI-MVP-7 mantém Pareto e acrescenta reincidência com linha do tempo read-only", async () => {
   const [page, workspace, panel, service, route] = await Promise.all([
     readFile(new URL("../src/pages/AndonBiPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/bi/BiFailureWorkspace.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/components/bi/BiFailureIntelligencePanel.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/components/bi/BiFailureIntelligencePanel.tsx", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/services/andonBiService.ts", import.meta.url), "utf8"),
     readFile(new URL("../server/src/routes/analytics.ts", import.meta.url), "utf8"),
   ]);
@@ -222,7 +209,6 @@ test("BI-MVP-7 mantém Pareto e acrescenta reincidência com linha do tempo read
   assert.match(route, /policy\.callWhere/);
   assert.match(route, /status: "finished"/);
 });
-
 
 test("BI-MVP-8 abre Machine 360 read-only com filtros, snapshot e paginação sem rolagem", async () => {
   const [page, overlay, client, endpoint, model] = await Promise.all([

@@ -1,17 +1,13 @@
+import { ui } from "@/i18n/translate";
 import type { AndonCall } from "@/types/andon";
 import type { AppBackup } from "@/types/history";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
-import {
-  getAndonStatusLabel,
-  getCallSubtypeLabel,
-} from "@/utils/statusUtils";
+import { getAndonStatusLabel, getCallSubtypeLabel } from "@/utils/statusUtils";
 import { appBackupSchema } from "./backupSchema";
 import { ZodError } from "zod";
 
-function escapeCsv(
-  value: string | number | null | undefined,
-): string {
+function escapeCsv(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
 
   const str = String(value);
@@ -38,30 +34,26 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 function getRecordTypeLabel(call: AndonCall): string {
-  return call.isSystemTest
-    ? "Teste automático"
-    : "Chamado operacional";
+  return call.isSystemTest ? ui("Teste automático") : ui("Chamado operacional");
 }
 
-export function buildHistoryCsv(
-  calls: AndonCall[],
-): string {
+export function buildHistoryCsv(calls: AndonCall[]): string {
   const header = [
-    "Máquina",
-    "Tipo de registro",
-    "Status",
-    "Categoria",
-    "Subtipo",
-    "Localização",
-    "Motivo da correção",
-    "Conclusão da manutenção",
-    "Finalizado em",
-    "Tempo aguardando (min)",
-    "Tempo em atendimento (min)",
-    "Tempo total (min)",
-    "Tempo máquina em falha (min)",
-    "Técnico",
-    "Observações",
+    ui("Máquina"),
+    ui("Tipo de registro"),
+    ui("Status"),
+    ui("Categoria"),
+    ui("Subtipo"),
+    ui("Localização"),
+    ui("Motivo da correção"),
+    ui("Conclusão da manutenção"),
+    ui("Finalizado em"),
+    ui("Tempo aguardando (min)"),
+    ui("Tempo em atendimento (min)"),
+    ui("Tempo total (min)"),
+    ui("Tempo máquina em falha (min)"),
+    ui("Técnico"),
+    ui("Observações"),
   ];
 
   const rows = calls.map((call) => {
@@ -69,20 +61,11 @@ export function buildHistoryCsv(
       call.machineId,
       getRecordTypeLabel(call),
       getAndonStatusLabel(call.status),
-      call.category === "maintenance"
-        ? "Manutenção"
-        : "Produção",
+      call.category === "maintenance" ? ui("Manutenção") : ui("Produção"),
       getCallSubtypeLabel(call.subtype),
-      getEffectiveAssetLocationLabel(
-        call,
-        "Não informado",
-      ),
-      call.assetLocationChanged
-        ? call.assetChangeReason ?? ""
-        : "",
-      formatDateTime(
-        call.maintenanceCompletedAt,
-      ),
+      getEffectiveAssetLocationLabel(call, ui("Não informado")),
+      call.assetLocationChanged ? (call.assetChangeReason ?? "") : "",
+      formatDateTime(call.maintenanceCompletedAt),
       formatDateTime(call.finishedAt),
       call.callWaitingMinutes,
       call.attendanceMinutes,
@@ -93,75 +76,46 @@ export function buildHistoryCsv(
     ];
   });
 
-  return [header, ...rows]
-    .map((row) =>
-      row.map(escapeCsv).join(";"),
-    )
-    .join("\r\n");
+  return [header, ...rows].map((row) => row.map(escapeCsv).join(";")).join("\r\n");
 }
 
-export function exportHistoryToCsv(
-  calls: AndonCall[],
-): void {
+export function exportHistoryToCsv(calls: AndonCall[]): void {
   const csv = buildHistoryCsv(calls);
 
-  const blob = new Blob(
-    ["\uFEFF" + csv],
-    {
-      type: "text/csv;charset=utf-8",
-    },
-  );
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8",
+  });
 
-  downloadBlob(
-    blob,
-    `andon-historico-${Date.now()}.csv`,
-  );
+  downloadBlob(blob, `andon-historico-${Date.now()}.csv`);
 }
 
-export function exportBackupToJson(
-  data: AppBackup,
-): void {
-  const blob = new Blob(
-    [JSON.stringify(data, null, 2)],
-    {
-      type: "application/json",
-    },
-  );
+export function exportBackupToJson(data: AppBackup): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
 
-  downloadBlob(
-    blob,
-    `andon-backup-${Date.now()}.json`,
-  );
+  downloadBlob(blob, `andon-backup-${Date.now()}.json`);
 }
 
-export function importBackupFromJson(
-  file: File,
-): Promise<AppBackup> {
+export function importBackupFromJson(file: File): Promise<AppBackup> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
     reader.onload = () => {
       try {
-        const raw = JSON.parse(
-          String(reader.result),
-        );
+        const raw = JSON.parse(String(reader.result));
 
-        const parsed =
-          appBackupSchema.parse(raw);
+        const parsed = appBackupSchema.parse(raw);
 
         resolve(parsed satisfies AppBackup);
       } catch (error) {
         if (error instanceof ZodError) {
           const first = error.errors[0];
-          const path =
-            first?.path.join(".") || "(raiz)";
+          const path = first?.path.join(".") || "(raiz)";
 
           reject(
             new Error(
-              `Arquivo de backup inválido: ${path} — ${
-                first?.message ??
-                "estrutura inesperada"
-              }`,
+              `Arquivo de backup inválido: ${path} — ${first?.message ?? "estrutura inesperada"}`,
             ),
           );
 
@@ -169,11 +123,7 @@ export function importBackupFromJson(
         }
 
         if (error instanceof SyntaxError) {
-          reject(
-            new Error(
-              "Arquivo de backup inválido: JSON malformado",
-            ),
-          );
+          reject(new Error("Arquivo de backup inválido: JSON malformado"));
 
           return;
         }
@@ -182,8 +132,7 @@ export function importBackupFromJson(
       }
     };
 
-    reader.onerror = () =>
-      reject(reader.error);
+    reader.onerror = () => reject(reader.error);
 
     reader.readAsText(file);
   });

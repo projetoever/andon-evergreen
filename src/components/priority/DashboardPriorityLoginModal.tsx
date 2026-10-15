@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState, type FormEvent } from "react";
 import { ListOrdered } from "lucide-react";
 
@@ -25,6 +27,7 @@ export function DashboardPriorityLoginModal({
   onOpenChange,
   onSuccess,
 }: DashboardPriorityLoginModalProps) {
+  useInterfaceLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -75,20 +78,22 @@ export function DashboardPriorityLoginModal({
           <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <ListOrdered className="h-5 w-5" />
           </div>
-          <DialogTitle>Prioridade de produção</DialogTitle>
+          <DialogTitle>{ui("Prioridade de produção")}</DialogTitle>
           <DialogDescription>
-            Acesso exclusivo para organizar visualmente os cards de máquinas no Dashboard.
+            {ui("Acesso exclusivo para organizar visualmente os cards de máquinas no Dashboard.")}
           </DialogDescription>
         </DialogHeader>
 
         {configured === false ? (
           <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
-            O acesso ainda não foi configurado. Defina usuário e senha no painel administrativo.
+            {ui(
+              "O acesso ainda não foi configurado. Defina usuário e senha no painel administrativo.",
+            )}
           </div>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             <label className="block text-sm font-semibold">
-              Usuário
+              {ui("Usuário")}
               <input
                 autoFocus
                 autoComplete="username"
@@ -98,7 +103,7 @@ export function DashboardPriorityLoginModal({
               />
             </label>
             <label className="block text-sm font-semibold">
-              Senha
+              {ui("Senha")}
               <input
                 type="password"
                 autoComplete="current-password"
@@ -107,18 +112,13 @@ export function DashboardPriorityLoginModal({
                 onChange={(event) => setPassword(event.target.value)}
               />
             </label>
-            {error && <p className="text-sm text-danger">{error}</p>}
+            {error && <p className="text-sm text-danger">{systemMessage(error)}</p>}
             <div className="flex gap-2">
               <BigButton type="submit" tone="primary" size="md" disabled={isSubmitting}>
-                {isSubmitting ? "Entrando..." : "Entrar"}
+                {isSubmitting ? ui("Entrando...") : ui("Entrar")}
               </BigButton>
-              <BigButton
-                type="button"
-                tone="neutral"
-                size="md"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancelar
+              <BigButton type="button" tone="neutral" size="md" onClick={() => onOpenChange(false)}>
+                {ui("Cancelar")}
               </BigButton>
             </div>
           </form>

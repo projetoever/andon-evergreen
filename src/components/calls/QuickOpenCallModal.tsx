@@ -1,6 +1,8 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { CheckCircle2, CircleStop, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import {
@@ -39,6 +41,7 @@ export function QuickOpenCallModal({
   subtype,
   forcedMachineCondition,
 }: QuickOpenCallModalProps) {
+  useInterfaceLanguage();
   const { machines, openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -130,28 +133,32 @@ export function QuickOpenCallModal({
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
       <DialogContent className="w-[calc(100%-1rem)] max-w-2xl overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="text-2xl sm:text-3xl">A máquina está parada agora?</DialogTitle>
+          <DialogTitle className="text-2xl sm:text-3xl">
+            {ui("A máquina está parada agora?")}
+          </DialogTitle>
           <DialogDescription className="text-base">
-            Informe a condição atual para abrir o chamado de {option?.label ?? "setor"}.
+            {ui("Informe a condição atual para abrir o chamado de ")}
+            {option?.label ?? ui("setor")}.
           </DialogDescription>
         </DialogHeader>
 
         {workOrderRequired && (
           <div className="space-y-1.5">
-            <Label htmlFor="quick-open-work-order">Número da OS</Label>
+            <Label htmlFor="quick-open-work-order">{ui("Número da OS")}</Label>
             <Input
               id="quick-open-work-order"
               value={workOrderNumber}
               maxLength={100}
               onChange={(event) => setWorkOrderNumber(event.target.value)}
-              placeholder="Informe o número da OS"
+              placeholder={ui("Informe o número da OS")}
             />
           </div>
         )}
 
         <div className="space-y-1.5">
           <Label htmlFor="quick-open-operator-note">
-            Informação para o mantenedor <span className="font-normal text-muted-foreground">(opcional)</span>
+            {ui("Informação para o mantenedor ")}
+            <span className="font-normal text-muted-foreground">{ui("(opcional)")}</span>
           </Label>
           <Textarea
             id="quick-open-operator-note"
@@ -159,16 +166,16 @@ export function QuickOpenCallModal({
             maxLength={500}
             rows={2}
             onChange={(event) => setOperatorNote(event.target.value)}
-            placeholder="Ex.: ruído anormal, falha intermitente, cheiro de queimado..."
+            placeholder={ui("Ex.: ruído anormal, falha intermitente, cheiro de queimado...")}
           />
-          <p className="text-right text-[11px] text-muted-foreground">
-            {operatorNote.length}/500
-          </p>
+          <p className="text-right text-[11px] text-muted-foreground">{operatorNote.length}/500</p>
         </div>
 
         {systemSettingsLoadFailed && (
           <p className="text-sm text-danger">
-            Não foi possível carregar a regra da OS. Feche e reabra o modal para tentar novamente.
+            {ui(
+              "Não foi possível carregar a regra da OS. Feche e reabra o modal para tentar novamente.",
+            )}
           </p>
         )}
 
@@ -182,7 +189,7 @@ export function QuickOpenCallModal({
               disabled={buttonDisabled}
             >
               <CircleStop className="h-8 w-8 shrink-0" />
-              <span>Sim — está parada</span>
+              <span>{ui("Sim — está parada")}</span>
             </BigButton>
           )}
           {(!forcedMachineCondition || forcedMachineCondition === "running") && (
@@ -194,7 +201,7 @@ export function QuickOpenCallModal({
               disabled={buttonDisabled}
             >
               <CheckCircle2 className="h-8 w-8 shrink-0" />
-              <span>Não — está operando</span>
+              <span>{ui("Não — está operando")}</span>
             </BigButton>
           )}
         </div>
@@ -205,7 +212,8 @@ export function QuickOpenCallModal({
           onClick={() => onOpenChange(false)}
           disabled={isSubmitting}
         >
-          <X className="h-4 w-4" /> Cancelar
+          <X className="h-4 w-4" />
+          {ui(" Cancelar")}
         </button>
       </DialogContent>
     </Dialog>

@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -5,9 +7,10 @@ import {
   getWorkstationAdmissionPolicy,
   saveWorkstationAdmissionPolicy,
 } from "@/services/hubEnrollmentService";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 export function WorkstationAdmissionSettings() {
+  useInterfaceLanguage();
   const [required, setRequired] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -33,9 +36,9 @@ export function WorkstationAdmissionSettings() {
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-4">
       <label className="flex items-center justify-between gap-4 font-bold">
-        Exigir aprovação para novas workstations
+        {ui("Exigir aprovação para novas workstations")}
         <Switch
-          aria-label="Exigir aprovação para novas workstations"
+          aria-label={ui("Exigir aprovação para novas workstations")}
           checked={required === true}
           disabled={required === null || saving}
           onCheckedChange={async (next) => {
@@ -53,18 +56,20 @@ export function WorkstationAdmissionSettings() {
         />
       </label>
       <p className="text-xs text-muted-foreground">
-        A regra vale para novos registros. Quando ligada, aprove cada nova estação ativando seu
-        acesso abaixo. Cadastros já aprovados mantêm suas permissões.
+        {ui(
+          "A regra vale para novos registros. Quando ligada, aprove cada nova estação ativando seu acesso abaixo. Cadastros já aprovados mantêm suas permissões.",
+        )}
       </p>
       <p className="text-xs text-warning">
-        Clientes de API sem UUID, incluindo Node-RED e GPIO, precisarão de identidade registrada e
-        autorizada quando esta regra estiver ligada.
+        {ui(
+          "Clientes de API sem UUID, incluindo Node-RED e GPIO, precisarão de identidade registrada e autorizada quando esta regra estiver ligada.",
+        )}
       </p>
       {error && (
         <div role="alert" className="text-sm text-danger">
-          {error}{" "}
+          {systemMessage(error)}{" "}
           <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>
-            Tentar novamente
+            {ui("Tentar novamente")}
           </Button>
         </div>
       )}

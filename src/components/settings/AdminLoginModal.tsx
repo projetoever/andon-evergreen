@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState, type FormEvent } from "react";
 import {
   Dialog,
@@ -26,10 +28,11 @@ export function AdminLoginModal({
   open,
   onOpenChange,
   onSuccess,
-  title = "Acesso administrativo",
-  description = "Informe usuário e senha para acessar configurações.",
-  successLabel = "Entrar",
+  title = ui("Acesso administrativo"),
+  description = ui("Informe usuário e senha para acessar configurações."),
+  successLabel = ui("Entrar"),
 }: AdminLoginModalProps) {
+  useInterfaceLanguage();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -60,9 +63,7 @@ export function AdminLoginModal({
     event?.preventDefault();
 
     if (recoveryPassword.trim().length < ADMIN_PASSWORD_MIN_LENGTH) {
-      setError(
-        `A nova senha deve possuir pelo menos ${ADMIN_PASSWORD_MIN_LENGTH} caracteres.`,
-      );
+      setError(`A nova senha deve possuir pelo menos ${ADMIN_PASSWORD_MIN_LENGTH} caracteres.`);
       return;
     }
     if (recoveryPassword !== recoveryPasswordConfirm) {
@@ -100,10 +101,12 @@ export function AdminLoginModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{recoveryMode ? "Recuperar acesso administrativo" : title}</DialogTitle>
+          <DialogTitle>{recoveryMode ? ui("Recuperar acesso administrativo") : title}</DialogTitle>
           <DialogDescription>
             {recoveryMode
-              ? "Use o código de recuperação guardado anteriormente para definir uma nova senha global."
+              ? ui(
+                  "Use o código de recuperação guardado anteriormente para definir uma nova senha global.",
+                )
               : description}
           </DialogDescription>
         </DialogHeader>
@@ -111,45 +114,47 @@ export function AdminLoginModal({
         {recoveryMode ? (
           <form className="space-y-4" onSubmit={handleRecovery}>
             <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
-              O código é de uso único. Após a recuperação, gere um novo código no painel Admin.
+              {ui(
+                "O código é de uso único. Após a recuperação, gere um novo código no painel Admin.",
+              )}
             </div>
             <label className="block text-sm">
-              Código de recuperação
+              {ui("Código de recuperação")}
               <input
                 autoFocus
                 autoComplete="off"
                 className="mt-1 w-full rounded border p-2 font-mono uppercase"
                 value={recoveryCode}
                 onChange={(event) => setRecoveryCode(event.target.value)}
-                placeholder="ADM-XXXX-XXXX-XXXX"
+                placeholder={ui("ADM-XXXX-XXXX-XXXX")}
               />
             </label>
             <label className="block text-sm">
-              Nova senha
+              {ui("Nova senha")}
               <input
                 type="password"
                 autoComplete="new-password"
                 className="mt-1 w-full rounded border p-2"
                 value={recoveryPassword}
                 onChange={(event) => setRecoveryPassword(event.target.value)}
-                placeholder={`Mínimo ${ADMIN_PASSWORD_MIN_LENGTH} caracteres`}
+                placeholder={ui("Mínimo {0} caracteres", { 0: ADMIN_PASSWORD_MIN_LENGTH })}
               />
             </label>
             <label className="block text-sm">
-              Confirmar nova senha
+              {ui("Confirmar nova senha")}
               <input
                 type="password"
                 autoComplete="new-password"
                 className="mt-1 w-full rounded border p-2"
                 value={recoveryPasswordConfirm}
                 onChange={(event) => setRecoveryPasswordConfirm(event.target.value)}
-                placeholder="Repita a nova senha"
+                placeholder={ui("Repita a nova senha")}
               />
             </label>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-red-400">{systemMessage(error)}</p>}
             <div className="flex flex-wrap gap-2">
               <BigButton type="submit" tone="primary" size="md" disabled={isSubmitting}>
-                {isSubmitting ? "Recuperando..." : "Redefinir senha"}
+                {isSubmitting ? ui("Recuperando...") : ui("Redefinir senha")}
               </BigButton>
               <BigButton
                 type="button"
@@ -158,14 +163,14 @@ export function AdminLoginModal({
                 disabled={isSubmitting}
                 onClick={handleModeChange}
               >
-                Voltar ao login
+                {ui("Voltar ao login")}
               </BigButton>
             </div>
           </form>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             <label className="block text-sm">
-              Usuário
+              {ui("Usuário")}
               <input
                 autoFocus
                 autoComplete="username"
@@ -175,7 +180,7 @@ export function AdminLoginModal({
               />
             </label>
             <label className="block text-sm">
-              Senha
+              {ui("Senha")}
               <input
                 type="password"
                 autoComplete="current-password"
@@ -184,17 +189,17 @@ export function AdminLoginModal({
                 onChange={(event) => setPassword(event.target.value)}
               />
             </label>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-red-400">{systemMessage(error)}</p>}
             <button
               type="button"
               className="text-sm font-bold text-primary hover:underline"
               onClick={handleModeChange}
             >
-              Esqueci a senha
+              {ui("Esqueci a senha")}
             </button>
             <div className="flex gap-2">
               <BigButton type="submit" tone="primary" size="md" disabled={isSubmitting}>
-                {isSubmitting ? "Validando..." : successLabel}
+                {isSubmitting ? ui("Validando...") : successLabel}
               </BigButton>
               <BigButton
                 type="button"
@@ -203,7 +208,7 @@ export function AdminLoginModal({
                 disabled={isSubmitting}
                 onClick={() => onOpenChange(false)}
               >
-                Cancelar
+                {ui("Cancelar")}
               </BigButton>
             </div>
           </form>

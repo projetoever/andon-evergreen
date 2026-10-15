@@ -69,7 +69,7 @@ test("simplifica a tabela global para uma localização e timestamps terminais",
   );
 
   assert.match(table, /getEffectiveAssetLocationLabel/);
-  assert.equal(table.match(/>\s*Localização\s*</g)?.length, 1);
+  assert.equal(table.match(/\{ui\("Localização"\)\}/g)?.length, 1);
   assert.match(table, /Conclusão da manutenção/);
   assert.match(table, /Finalizado em/);
   assert.match(table, /Motivo da correção/);
@@ -97,7 +97,7 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
     "utf8",
   );
 
-  assert.equal(history.match(/Localização: \{effectiveAssetLocation\}/g)?.length, 1);
+  assert.equal(history.match(/ui\("Localização: "\)\}\s*\{effectiveAssetLocation\}/g)?.length, 1);
   assert.match(
     history,
     /new Date\(b\.finishedAt \?\? b\.openedAt\).*new Date\(a\.finishedAt \?\? a\.openedAt\)/s,
@@ -108,7 +108,7 @@ test("simplifica o histórico da máquina sem perder correção, cancelamento ou
   assert.match(history, /Início da manutenção/);
   assert.match(history, /formatDateTime\(call\.attendedAt\)/);
   assert.match(history, /Conclusão da manutenção/);
-  assert.match(history, /"Cancelado em" : "Finalizado em"/);
+  assert.match(history, /ui\("Cancelado em"\)\s*:\s*ui\("Finalizado em"\)/);
   assert.match(history, /Justificativa da correção/);
   assert.match(history, /Justificativa do cancelamento/);
   assert.match(history, /\{call\.cancelReason\}/);

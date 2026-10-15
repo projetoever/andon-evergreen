@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useMemo } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import {
@@ -9,9 +11,10 @@ import { HistoryTable } from "@/components/history/HistoryTable";
 import { BigButton } from "@/components/common/BigButton";
 import { exportHistoryToCsv } from "@/services/exportService";
 import { FileSpreadsheet } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 export function HistoryPage() {
+  useInterfaceLanguage();
   const { calls, machines } = useAndon();
   const { filter, setFilter } = useHistoryFilterState();
 
@@ -38,10 +41,11 @@ export function HistoryPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-3xl font-bold uppercase tracking-wider text-foreground">
-          Histórico
+          {ui("Histórico")}
         </h2>
         <BigButton tone="success" size="md" onClick={handleExport}>
-          <FileSpreadsheet className="h-5 w-5" /> Exportar CSV
+          <FileSpreadsheet className="h-5 w-5" />
+          {ui(" Exportar CSV")}
         </BigButton>
       </div>
       <HistoryFilters

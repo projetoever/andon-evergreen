@@ -105,7 +105,7 @@ test("seletor mantém mantenedor ocupado visível, discreto e desabilitado", asy
   assert.match(selector, /activeAssignments/);
   assert.match(selector, /disabled={unavailable}/);
   assert.match(selector, /opacity-60/);
-  assert.match(selector, /Ativo · {activeAssignment\.machineLabel}/);
+  assert.match(selector, /ui\("Ativo · "\)\}\s*\{activeAssignment\.machineLabel\}/);
 });
 
 test("modal de identificação informa bloqueio inline inclusive por credencial", async () => {
@@ -118,7 +118,10 @@ test("modal de identificação informa bloqueio inline inclusive por credencial"
   assert.match(modal, /getTechnicianActiveAssignment/);
   assert.match(modal, /availabilityNotice/);
   assert.match(modal, /Mantenedor indisponível/);
-  assert.match(modal, /já está ativo em \$\{activeAssignment\.machineLabel\}/);
+  assert.match(
+    modal,
+    /ui\("\{0\} já está ativo em \{1\}\."[\s\S]*1: activeAssignment\.machineLabel/,
+  );
   assert.match(modal, /atendimento ativo em outro chamado/i);
 });
 
@@ -138,14 +141,8 @@ test("notificações internas estão montadas globalmente e com apresentação d
 
 test("fluxos sensíveis do Admin informam sucesso e falha", async () => {
   const [sounds, shifts, workstation, soundModal] = await Promise.all([
-    readFile(
-      new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/ShiftsSettingsTab.tsx", import.meta.url), "utf8"),
     readFile(
       new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url),
       "utf8",

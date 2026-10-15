@@ -1,5 +1,7 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +13,7 @@ import {
 import { DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES } from "@/utils/dashboardSoundMuteUtils";
 
 export function DashboardSoundMuteSettings() {
+  useInterfaceLanguage();
   const [autoMuteEnabled, setAutoMuteEnabled] = useState(false);
   const [activeDurationMinutes, setActiveDurationMinutes] = useState(
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
@@ -37,7 +40,7 @@ export function DashboardSoundMuteSettings() {
       const message =
         error instanceof Error
           ? error.message
-          : "Não foi possível carregar o ciclo automático do som.";
+          : ui("Não foi possível carregar o ciclo automático do som.");
       setLoadError(message);
       toast.error(message);
     } finally {
@@ -87,11 +90,12 @@ export function DashboardSoundMuteSettings() {
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div>
         <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">
-          Ciclo automático do alarme do dashboard
+          {ui("Ciclo automático do alarme do dashboard")}
         </h4>
         <p className="text-sm text-muted-foreground">
-          Controle por quanto tempo o alarme permanece ativo e por quanto tempo fica
-          silenciado. Esta regra vale somente para o Dashboard principal.
+          {ui(
+            "Controle por quanto tempo o alarme permanece ativo e por quanto tempo fica silenciado. Esta regra vale somente para o Dashboard principal.",
+          )}
         </p>
       </div>
 
@@ -100,14 +104,14 @@ export function DashboardSoundMuteSettings() {
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
         >
-          <span>{loadError}</span>
+          <span>{systemMessage(loadError)}</span>
           <button
             type="button"
             className="font-bold underline"
             onClick={() => void loadSettings()}
             disabled={loading}
           >
-            Tentar novamente
+            {ui("Tentar novamente")}
           </button>
         </div>
       )}
@@ -116,35 +120,33 @@ export function DashboardSoundMuteSettings() {
         <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-3">
           <label className="flex items-center justify-between gap-3 text-sm font-semibold">
             <span>
-              <span className="block">Silenciar automaticamente após um período</span>
+              <span className="block">{ui("Silenciar automaticamente após um período")}</span>
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Conta o tempo enquanto o som está ativo e existe chamado aberto com alarme.
+                {ui("Conta o tempo enquanto o som está ativo e existe chamado aberto com alarme.")}
               </span>
             </span>
             <Switch
               checked={autoMuteEnabled}
               onCheckedChange={setAutoMuteEnabled}
               disabled={loading || saving || Boolean(loadError)}
-              aria-label="Silenciar automaticamente o som do dashboard"
+              aria-label={ui("Silenciar automaticamente o som do dashboard")}
             />
           </label>
 
           {autoMuteEnabled && (
             <label className="block text-sm font-semibold">
-              Tempo com som ativo
+              {ui("Tempo com som ativo")}
               <span className="mt-1 flex items-center gap-2">
                 <input
                   type="number"
                   min={1}
                   step={1}
                   value={activeDurationMinutes}
-                  onChange={(event) =>
-                    setActiveDurationMinutes(Number(event.target.value))
-                  }
+                  onChange={(event) => setActiveDurationMinutes(Number(event.target.value))}
                   disabled={loading || saving}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3"
                 />
-                <span className="text-muted-foreground">minutos</span>
+                <span className="text-muted-foreground">{ui("minutos")}</span>
               </span>
             </label>
           )}
@@ -153,22 +155,22 @@ export function DashboardSoundMuteSettings() {
         <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-3">
           <label className="flex items-center justify-between gap-3 text-sm font-semibold">
             <span>
-              <span className="block">Reativar automaticamente após um período</span>
+              <span className="block">{ui("Reativar automaticamente após um período")}</span>
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Define por quanto tempo o Dashboard permanece silenciado.
+                {ui("Define por quanto tempo o Dashboard permanece silenciado.")}
               </span>
             </span>
             <Switch
               checked={timerEnabled}
               onCheckedChange={setTimerEnabled}
               disabled={loading || saving || Boolean(loadError)}
-              aria-label="Reativar automaticamente o som do dashboard"
+              aria-label={ui("Reativar automaticamente o som do dashboard")}
             />
           </label>
 
           {timerEnabled && (
             <label className="block text-sm font-semibold">
-              Tempo de silenciamento
+              {ui("Tempo de silenciamento")}
               <span className="mt-1 flex items-center gap-2">
                 <input
                   type="number"
@@ -179,7 +181,7 @@ export function DashboardSoundMuteSettings() {
                   disabled={loading || saving}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3"
                 />
-                <span className="text-muted-foreground">minutos</span>
+                <span className="text-muted-foreground">{ui("minutos")}</span>
               </span>
             </label>
           )}
@@ -188,9 +190,19 @@ export function DashboardSoundMuteSettings() {
 
       {autoMuteEnabled && timerEnabled && (
         <div className="rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-sm text-foreground">
-          Enquanto houver chamado aberto com alarme no Dashboard, o ciclo alterna
-          automaticamente: <strong>{activeDurationMinutes} min com som</strong> →{" "}
-          <strong>{durationMinutes} min silenciado</strong> → repetir.
+          {ui(
+            "Enquanto houver chamado aberto com alarme no Dashboard, o ciclo alterna automaticamente: ",
+          )}
+          <strong>
+            {activeDurationMinutes}
+            {ui(" min com som")}
+          </strong>{" "}
+          →{" "}
+          <strong>
+            {durationMinutes}
+            {ui(" min silenciado")}
+          </strong>
+          {ui(" → repetir.")}
         </div>
       )}
 
@@ -200,7 +212,7 @@ export function DashboardSoundMuteSettings() {
         disabled={loading || saving || Boolean(loadError)}
         onClick={() => void handleSave()}
       >
-        {saving ? "Salvando..." : "Salvar ciclo do alarme"}
+        {saving ? ui("Salvando...") : ui("Salvar ciclo do alarme")}
       </BigButton>
     </section>
   );

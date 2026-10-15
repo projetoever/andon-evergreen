@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,11 +27,12 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirmar",
-  cancelLabel = "Cancelar",
+  confirmLabel = ui("Confirmar"),
+  cancelLabel = ui("Cancelar"),
   destructive = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  useInterfaceLanguage();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>

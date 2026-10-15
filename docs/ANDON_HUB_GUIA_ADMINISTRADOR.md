@@ -30,7 +30,7 @@ As configurações globais ficam somente no Hub. A sessão Admin continua compar
 | Prioridades                 | Login próprio e organização da sequência visual de produção                                                                    |
 | Administração da instalação | Banco, backup, serviços Windows, runtime, kiosk e integrações físicas                                                          |
 
-O Hub não substitui cadastros industriais nem fornece gestão corporativa de usuários. Os dados de chamados, nomes cadastrados e históricos permanecem na fonte existente. O Hub principal acompanha os três idiomas da interface; a administração central desta candidata permanece em português.
+O Hub não substitui cadastros industriais nem fornece gestão corporativa de usuários. Os dados de chamados, nomes cadastrados e históricos permanecem na fonte existente. O Hub, sua administração e os módulos acompanham os três idiomas da interface: Português, English e 繁體中文. A preferência permanece no navegador da workstation. Nomes, descrições e demais dados cadastrados continuam no idioma original; o idioma não altera permissões ou credenciais.
 
 ## Estações e permissões
 

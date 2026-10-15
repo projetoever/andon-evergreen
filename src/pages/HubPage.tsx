@@ -1,3 +1,4 @@
+import { systemMessage, ui } from "@/i18n/translate";
 import { Link } from "@tanstack/react-router";
 import { LayoutGrid, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
@@ -19,9 +20,9 @@ export function HubPage() {
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                ANDON EVERGREEN
+                {ui("ANDON EVERGREEN")}
               </p>
-              <h1 className="text-2xl font-black">HUB</h1>
+              <h1 className="text-2xl font-black">{ui("HUB")}</h1>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -47,7 +48,7 @@ export function HubPage() {
         </section>
         {!access && (
           <div role="status" className="space-y-3 rounded-xl border border-border bg-card p-6">
-            <p>{error ?? t("Verificando workstation")}</p>
+            <p>{(error ? systemMessage(error) : null) ?? t("Verificando workstation")}</p>
             {error && <Button onClick={() => void refresh()}>{t("Verificar novamente")}</Button>}
           </div>
         )}
@@ -55,7 +56,11 @@ export function HubPage() {
           <>
             {!access.workstation.active && (
               <p role="alert" className="text-danger">
-                {t(access.workstation.pendingApproval ? "Workstation aguardando aprovação do administrador do Hub." : "Solicite ao administrador a liberação desta workstation.")}
+                {t(
+                  access.workstation.pendingApproval
+                    ? "Workstation aguardando aprovação do administrador do Hub."
+                    : "Solicite ao administrador a liberação desta workstation.",
+                )}
               </p>
             )}
             <ModuleCards />

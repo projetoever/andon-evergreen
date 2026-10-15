@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Factory, Plus, Search, X } from "lucide-react";
 
@@ -17,10 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
-import {
-  getSystemSettings,
-  SYSTEM_SETTINGS_CHANGED_EVENT,
-} from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 
@@ -34,22 +33,22 @@ function sortMachines(machines: Machine[]) {
 }
 
 function productionModeLabel(mode: ProductionMode) {
-  return mode === "scheduled" ? "Programada" : "Não programada";
+  return mode === "scheduled" ? "Programada" : ui("Não programada");
 }
 
 function machineStatusLabel(machine: Machine) {
   if (!machine.isActive) return "Inativa";
-  if (machine.machineStatus === "stopped") return "Parada";
+  if (machine.machineStatus === "stopped") return ui("Parada");
   return "Rodando";
 }
 
 function workOrderRuleLabel(machine: Machine, globalRequirement: boolean | null) {
   if (globalRequirement === true && machine.requireWorkOrderAtOpen) {
-    return "OS obrigatória · global + máquina";
+    return ui("OS obrigatória · global + máquina");
   }
-  if (globalRequirement === true) return "OS obrigatória · global";
-  if (machine.requireWorkOrderAtOpen) return "OS obrigatória · máquina";
-  if (globalRequirement === null) return "OS · regra global indisponível";
+  if (globalRequirement === true) return ui("OS obrigatória · global");
+  if (machine.requireWorkOrderAtOpen) return ui("OS obrigatória · máquina");
+  if (globalRequirement === null) return ui("OS · regra global indisponível");
   return "OS opcional";
 }
 
@@ -62,6 +61,7 @@ function Section({
   description?: string;
   children: ReactNode;
 }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div>
@@ -74,6 +74,7 @@ function Section({
 }
 
 export function MachineAdminPanel() {
+  useInterfaceLanguage();
   const {
     machines,
     createMachine,
@@ -84,7 +85,9 @@ export function MachineAdminPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [workOrderFilter, setWorkOrderFilter] = useState<"all" | "required" | "optional">("all");
-  const [globalWorkOrderRequirement, setGlobalWorkOrderRequirement] = useState<boolean | null>(null);
+  const [globalWorkOrderRequirement, setGlobalWorkOrderRequirement] = useState<boolean | null>(
+    null,
+  );
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newId, setNewId] = useState("");
@@ -103,26 +106,17 @@ export function MachineAdminPanel() {
         workOrderFilter,
         globalRequiresWorkOrder,
       ),
-    [
-      globalRequiresWorkOrder,
-      searchQuery,
-      sortedMachines,
-      statusFilter,
-      workOrderFilter,
-    ],
+    [globalRequiresWorkOrder, searchQuery, sortedMachines, statusFilter, workOrderFilter],
   );
 
   const selectedMachine =
     selectedMachineId === null
       ? null
-      : machines.find((machine) => machine.id === selectedMachineId) ?? null;
+      : (machines.find((machine) => machine.id === selectedMachineId) ?? null);
   const selectedMachineRequiresWorkOrder = selectedMachine?.requireWorkOrderAtOpen === true;
   const selectedEffectiveWorkOrderRequirement =
     selectedMachine && globalWorkOrderRequirement !== null
-      ? resolveWorkOrderRequirement(
-          globalWorkOrderRequirement,
-          selectedMachineRequiresWorkOrder,
-        )
+      ? resolveWorkOrderRequirement(globalWorkOrderRequirement, selectedMachineRequiresWorkOrder)
       : selectedMachineRequiresWorkOrder
         ? true
         : null;
@@ -156,9 +150,7 @@ export function MachineAdminPanel() {
 
   useEffect(() => {
     if (creating) return;
-    const selectedVisible = filteredMachines.some(
-      (machine) => machine.id === selectedMachineId,
-    );
+    const selectedVisible = filteredMachines.some((machine) => machine.id === selectedMachineId);
     if (selectedVisible) return;
     setSelectedMachineId(filteredMachines[0]?.id ?? null);
   }, [creating, filteredMachines, selectedMachineId]);
@@ -198,14 +190,14 @@ export function MachineAdminPanel() {
         <div className="space-y-3 border-b border-border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-black">Máquinas</h3>
+              <h3 className="text-base font-black">{ui("Máquinas")}</h3>
               <p className="text-xs text-muted-foreground">
-                Localize e selecione uma máquina para editar.
+                {ui("Localize e selecione uma máquina para editar.")}
               </p>
             </div>
             <Button type="button" size="sm" onClick={handleStartCreate}>
               <Plus className="mr-1 h-4 w-4" />
-              Nova
+              {ui("Nova")}
             </Button>
           </div>
 
@@ -218,14 +210,14 @@ export function MachineAdminPanel() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="ID ou nome..."
-              aria-label="Pesquisar máquinas por ID ou nome"
+              placeholder={ui("ID ou nome...")}
+              aria-label={ui("Pesquisar máquinas por ID ou nome")}
               className="pl-9 pr-9"
             />
             {searchQuery && (
               <button
                 type="button"
-                aria-label="Limpar pesquisa de máquinas"
+                aria-label={ui("Limpar pesquisa de máquinas")}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -236,11 +228,11 @@ export function MachineAdminPanel() {
 
           <div
             className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-            aria-label="Filtrar máquinas por status"
+            aria-label={ui("Filtrar máquinas por status")}
           >
             {(
               [
-                ["all", "Todas"],
+                ["all", ui("Todas")],
                 ["active", "Ativas"],
                 ["inactive", "Inativas"],
               ] as const
@@ -265,25 +257,25 @@ export function MachineAdminPanel() {
           <Select
             value={workOrderFilter}
             disabled={globalWorkOrderRequirement === null}
-            onValueChange={(value) =>
-              setWorkOrderFilter(value as "all" | "required" | "optional")
-            }
+            onValueChange={(value) => setWorkOrderFilter(value as "all" | "required" | "optional")}
           >
-            <SelectTrigger
-              aria-label="Filtrar máquinas por exigência de OS"
-              className="h-9"
-            >
+            <SelectTrigger aria-label={ui("Filtrar máquinas por exigência de OS")} className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as regras de OS</SelectItem>
-              <SelectItem value="required">OS obrigatória</SelectItem>
-              <SelectItem value="optional">OS opcional</SelectItem>
+              <SelectItem value="all">{ui("Todas as regras de OS")}</SelectItem>
+              <SelectItem value="required">{ui("OS obrigatória")}</SelectItem>
+              <SelectItem value="optional">{ui("OS opcional")}</SelectItem>
             </SelectContent>
           </Select>
 
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
-            <span>{filteredMachines.length} de {machines.length} máquina(s)</span>
+            <span>
+              {filteredMachines.length}
+              {ui(" de ")}
+              {machines.length}
+              {ui(" máquina(s)")}
+            </span>
             {(searchQuery || statusFilter !== "all" || workOrderFilter !== "all") && (
               <button
                 type="button"
@@ -294,7 +286,7 @@ export function MachineAdminPanel() {
                   setWorkOrderFilter("all");
                 }}
               >
-                Limpar filtros
+                {ui("Limpar filtros")}
               </button>
             )}
           </div>
@@ -303,9 +295,9 @@ export function MachineAdminPanel() {
         <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
           {machines.length > 0 && filteredMachines.length === 0 && (
             <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-              <p className="text-sm font-bold">Nenhuma máquina encontrada</p>
+              <p className="text-sm font-bold">{ui("Nenhuma máquina encontrada")}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Ajuste a pesquisa ou os filtros de status e OS.
+                {ui("Ajuste a pesquisa ou os filtros de status e OS.")}
               </p>
             </div>
           )}
@@ -363,11 +355,13 @@ export function MachineAdminPanel() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                  Cadastro
+                  {ui("Cadastro")}
                 </p>
-                <h3 className="text-xl font-black">Nova máquina</h3>
+                <h3 className="text-xl font-black">{ui("Nova máquina")}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Crie a máquina com os parâmetros essenciais. A hierarquia poderá ser configurada depois.
+                  {ui(
+                    "Crie a máquina com os parâmetros essenciais. A hierarquia poderá ser configurada depois.",
+                  )}
                 </p>
               </div>
               <Button
@@ -378,11 +372,11 @@ export function MachineAdminPanel() {
                   setSelectedMachineId(filteredMachines[0]?.id ?? null);
                 }}
               >
-                Cancelar
+                {ui("Cancelar")}
               </Button>
             </div>
 
-            <Section title="Identificação">
+            <Section title={ui("Identificação")}>
               <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
                 <div className="space-y-1">
                   <Label htmlFor="machine-id">ID</Label>
@@ -394,39 +388,40 @@ export function MachineAdminPanel() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="machine-name">Nome</Label>
+                  <Label htmlFor="machine-name">{ui("Nome")}</Label>
                   <Input
                     id="machine-name"
                     value={newName}
                     onChange={(event) => setNewName(event.target.value)}
-                    placeholder="Máquina 18"
+                    placeholder={ui("Máquina 18")}
                   />
                 </div>
               </div>
             </Section>
 
             <Section
-              title="Regras operacionais"
-              description="Defina o comportamento inicial da máquina no ANDON."
+              title={ui("Regras operacionais")}
+              description={ui("Defina o comportamento inicial da máquina no ANDON.")}
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Exigir OS nesta máquina</span>
+                    <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
                     <span className="block text-xs text-muted-foreground">
                       {globalRequiresWorkOrder
-                        ? "A regra global já exige OS; esta opção registra também a exigência local."
-                        : "Quando ativa, exige OS nesta máquina mesmo com a regra global desativada."}
+                        ? ui(
+                            "A regra global já exige OS; esta opção registra também a exigência local.",
+                          )
+                        : ui(
+                            "Quando ativa, exige OS nesta máquina mesmo com a regra global desativada.",
+                          )}
                     </span>
                   </span>
-                  <Switch
-                    checked={newRequireWorkOrder}
-                    onCheckedChange={setNewRequireWorkOrder}
-                  />
+                  <Switch checked={newRequireWorkOrder} onCheckedChange={setNewRequireWorkOrder} />
                 </label>
 
                 <div className="space-y-1">
-                  <Label>Modo padrão de produção</Label>
+                  <Label>{ui("Modo padrão de produção")}</Label>
                   <Select
                     value={newProductionMode}
                     onValueChange={(value) => setNewProductionMode(value as ProductionMode)}
@@ -435,8 +430,8 @@ export function MachineAdminPanel() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="scheduled">Programada</SelectItem>
-                      <SelectItem value="not_scheduled">Não programada</SelectItem>
+                      <SelectItem value="scheduled">{ui("Programada")}</SelectItem>
+                      <SelectItem value="not_scheduled">{ui("Não programada")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -445,7 +440,7 @@ export function MachineAdminPanel() {
 
             <div className="flex justify-end">
               <Button type="button" onClick={handleCreate} disabled={!newId.trim()}>
-                Criar máquina
+                {ui("Criar máquina")}
               </Button>
             </div>
           </div>
@@ -458,11 +453,14 @@ export function MachineAdminPanel() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                    Máquina {selectedMachine.id}
+                    {ui("Máquina ")}
+                    {selectedMachine.id}
                   </p>
                   <h3 className="truncate text-xl font-black">{selectedMachine.name}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Alterações de configuração são aplicadas ao sair do campo ou alterar o controle.
+                    {ui(
+                      "Alterações de configuração são aplicadas ao sair do campo ou alterar o controle.",
+                    )}
                   </p>
                 </div>
               </div>
@@ -474,11 +472,11 @@ export function MachineAdminPanel() {
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                {selectedMachine.isActive ? "Ativa" : "Inativa"}
+                {selectedMachine.isActive ? ui("Ativa") : ui("Inativa")}
               </span>
             </div>
 
-            <Section title="Identificação">
+            <Section title={ui("Identificação")}>
               <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)]">
                 <div>
                   <Label>ID</Label>
@@ -487,7 +485,7 @@ export function MachineAdminPanel() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label>Nome</Label>
+                  <Label>{ui("Nome")}</Label>
                   <Input
                     key={selectedMachine.id}
                     defaultValue={selectedMachine.name}
@@ -503,39 +501,41 @@ export function MachineAdminPanel() {
             </Section>
 
             <Section
-              title="Regras operacionais"
-              description="Configurações que afetam a abertura e operação dos chamados."
+              title={ui("Regras operacionais")}
+              description={ui("Configurações que afetam a abertura e operação dos chamados.")}
             >
               <div className="grid gap-2 rounded-lg border border-border bg-muted/15 p-3 sm:grid-cols-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    Regra global de OS
+                    {ui("Regra global de OS")}
                   </p>
                   <p className="mt-1 text-sm font-bold text-foreground">
                     {globalWorkOrderRequirement === null
-                      ? "Não carregada"
+                      ? ui("Não carregada")
                       : globalWorkOrderRequirement
-                        ? "Obrigatória"
-                        : "Opcional"}
+                        ? ui("Obrigatória")
+                        : ui("Opcional")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Configurada em Configurações gerais.
+                    {ui("Configurada em Configurações gerais.")}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    Regra desta máquina
+                    {ui("Regra desta máquina")}
                   </p>
                   <p className="mt-1 text-sm font-bold text-foreground">
-                    {selectedMachineRequiresWorkOrder ? "Exigência ativa" : "Sem exigência adicional"}
+                    {selectedMachineRequiresWorkOrder
+                      ? ui("Exigência ativa")
+                      : ui("Sem exigência adicional")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    A máquina pode tornar a OS obrigatória mesmo com o global desligado.
+                    {ui("A máquina pode tornar a OS obrigatória mesmo com o global desligado.")}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    Resultado efetivo
+                    {ui("Resultado efetivo")}
                   </p>
                   <p
                     className={cn(
@@ -548,13 +548,13 @@ export function MachineAdminPanel() {
                     )}
                   >
                     {selectedEffectiveWorkOrderRequirement === null
-                      ? "Aguardando regra global"
+                      ? ui("Aguardando regra global")
                       : selectedEffectiveWorkOrderRequirement
-                        ? "OS OBRIGATÓRIA"
-                        : "OS OPCIONAL"}
+                        ? ui("OS OBRIGATÓRIA")
+                        : ui("OS OPCIONAL")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Regra efetiva = global OU exigência desta máquina.
+                    {ui("Regra efetiva = global OU exigência desta máquina.")}
                   </p>
                 </div>
               </div>
@@ -562,15 +562,15 @@ export function MachineAdminPanel() {
               <div className="grid gap-4 lg:grid-cols-3">
                 <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Exigir OS nesta máquina</span>
+                    <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
                     <span className="block text-xs text-muted-foreground">
                       {globalRequiresWorkOrder
                         ? selectedMachineRequiresWorkOrder
-                          ? "Exigência local ativa; a regra global também exige OS."
-                          : "Mesmo desligada aqui, a regra global mantém a OS obrigatória."
+                          ? ui("Exigência local ativa; a regra global também exige OS.")
+                          : ui("Mesmo desligada aqui, a regra global mantém a OS obrigatória.")
                         : selectedMachineRequiresWorkOrder
-                          ? "Ativa: esta máquina exige OS mesmo com o global desativado."
-                          : "Desativada: segue o global e a OS permanece opcional."}
+                          ? ui("Ativa: esta máquina exige OS mesmo com o global desativado.")
+                          : ui("Desativada: segue o global e a OS permanece opcional.")}
                     </span>
                   </span>
                   <Switch
@@ -584,49 +584,44 @@ export function MachineAdminPanel() {
                 </label>
 
                 <div className="space-y-1">
-                  <Label>Modo padrão de produção</Label>
+                  <Label>{ui("Modo padrão de produção")}</Label>
                   <Select
                     value={selectedMachine.productionMode}
                     onValueChange={(value) =>
-                      updateMachineProductionMode(
-                        selectedMachine.id,
-                        value as ProductionMode,
-                      )
+                      updateMachineProductionMode(selectedMachine.id, value as ProductionMode)
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="scheduled">Programada</SelectItem>
-                      <SelectItem value="not_scheduled">Não programada</SelectItem>
+                      <SelectItem value="scheduled">{ui("Programada")}</SelectItem>
+                      <SelectItem value="not_scheduled">{ui("Não programada")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Cadastro ativo</span>
+                    <span className="block text-sm font-bold">{ui("Cadastro ativo")}</span>
                     <span className="block text-xs text-muted-foreground">
                       {selectedMachine.currentCallId
-                        ? "Há chamado ativo; inativação bloqueada."
-                        : "Disponível para uso no ANDON."}
+                        ? ui("Há chamado ativo; inativação bloqueada.")
+                        : ui("Disponível para uso no ANDON.")}
                     </span>
                   </span>
                   <Switch
                     checked={selectedMachine.isActive}
                     disabled={Boolean(selectedMachine.currentCallId)}
-                    onCheckedChange={(checked) =>
-                      updateMachineActive(selectedMachine.id, checked)
-                    }
+                    onCheckedChange={(checked) => updateMachineActive(selectedMachine.id, checked)}
                   />
                 </label>
               </div>
             </Section>
 
             <Section
-              title="Estrutura da máquina"
-              description="Conjuntos, subconjuntos e ativos vinculados a esta máquina."
+              title={ui("Estrutura da máquina")}
+              description={ui("Conjuntos, subconjuntos e ativos vinculados a esta máquina.")}
             >
               <MachineHierarchyAdminSection machine={selectedMachine} />
             </Section>
@@ -635,9 +630,9 @@ export function MachineAdminPanel() {
           <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-border">
             <div className="max-w-sm text-center">
               <Factory className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm font-black">Nenhuma máquina selecionada</p>
+              <p className="mt-3 text-sm font-black">{ui("Nenhuma máquina selecionada")}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Selecione uma máquina na lista ou crie um novo cadastro.
+                {ui("Selecione uma máquina na lista ou crie um novo cadastro.")}
               </p>
             </div>
           </div>
