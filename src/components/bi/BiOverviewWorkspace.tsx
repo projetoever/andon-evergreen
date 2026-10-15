@@ -110,7 +110,7 @@ export function BiOverviewWorkspace({
           detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.maintenanceEligibleFinishedCalls ?? 0} de manutenção · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
           icon={RotateCcw}
           tone="red"
-          sampleSize={overview?.coverage.finishedCalls}
+          sampleSize={kpis?.maintenanceEligibleFinishedCalls}
         />
       </section>
 

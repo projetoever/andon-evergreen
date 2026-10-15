@@ -125,7 +125,7 @@ export function BiAssetReliability({
                 <th className="px-4 py-3">Ativo</th>
                 <th className="px-3 py-3">Downtime</th>
                 <th className="px-3 py-3">Episódios</th>
-                <th className="px-3 py-3">MTBF est.</th>
+                <th className="px-3 py-3">Intervalo est.</th>
                 <th className="px-3 py-3">Diag. repetido</th>
                 <th className="px-3 py-3">Retornos</th>
                 <th className="px-3 py-3">Chamado ativo</th>

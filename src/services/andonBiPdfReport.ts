@@ -256,8 +256,8 @@ export function buildExecutiveReportHtml({
 
   const periodNote = `Gerado em ${generatedAt} · fuso ${timeZone}`;
   const sourceMismatchNote = assetsOutsideReliability.length
-    ? `Atenção: ${assetsOutsideReliability.length} máquina(s) com downtime no Pareto geral não integram a população consultada pela aba Confiabilidade (${assetsOutsideReliability.map((asset) => asset.machineName).join(", ")}). Seus episódios, MTBF e chamados atuais ficam indisponíveis nesta tabela, não zerados.`
-    : "Ranking e resumo usam a mesma base de downtime físico. Episódios e MTBF seguem a população disponível da aba Confiabilidade.";
+    ? `Atenção: ${assetsOutsideReliability.length} máquina(s) com downtime no Pareto geral não integram a população consultada pela aba Confiabilidade (${assetsOutsideReliability.map((asset) => asset.machineName).join(", ")}). Seus episódios, intervalos por calendário e chamados atuais ficam indisponíveis nesta tabela, não zerados.`
+    : "Ranking e resumo usam a mesma base de downtime físico. Episódios e intervalos por calendário seguem a população disponível da aba Confiabilidade.";
   const noFinishedCallsNote = overview.coverage.finishedCalls === 0
     ? "Sem chamados finalizados no período. A ausência de reincidências ou classificações não comprova ausência de falhas."
     : `${overview.coverage.finishedCalls} chamado(s) finalizado(s); reincidência exige classificação e diagnóstico anterior no mesmo ativo.`;

@@ -211,7 +211,7 @@ export function BiMachine360Overlay({
               <PanelMetric label="Parada / episódio" value={duration(data.kpis.avgDowntimePerEpisodeMinutes)} note="Inclui eventos ainda abertos" tone="amber" />
               <PanelMetric label="Intervalo entre paradas (calendário)" value={data.machine.isActive ? duration(data.kpis.mtbfEstimatedMinutes) : "—"} note="Indisponível sem exposição fora das paradas; não equivale a horas produtivas" tone="green" />
               <PanelMetric label="MTTA" value={duration(data.kpis.mttaMinutes)} note="Abertura até primeiro atendimento" tone="blue" />
-              <PanelMetric label="Manutenção efetiva" value={duration(data.kpis.avgMaintenanceMinutes)} note="Média dos concluídos com registro" tone="blue" />
+              <PanelMetric label="Atendimento técnico médio" value={duration(data.kpis.avgMaintenanceMinutes)} note="Tempo do fluxo, incluindo apoio a outras áreas" tone="blue" />
             </div>
 
             <div className="grid shrink-0 grid-cols-5 gap-2">
