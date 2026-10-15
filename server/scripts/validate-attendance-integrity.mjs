@@ -140,6 +140,7 @@ export async function validateAttendanceIntegrity(request, prisma) {
     await prisma.failureEvent.deleteMany({ where: { machineId } });
     await prisma.andonCall.deleteMany({ where: { machineId } });
     await prisma.machineProductionEvent.deleteMany({ where: { machineId } });
+    await prisma.machinePriorityHistory.deleteMany({ where: { machineId } });
     await prisma.machine.deleteMany({ where: { id: machineId } });
     if (technicianId) await prisma.technician.deleteMany({ where: { id: technicianId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });

@@ -17,7 +17,7 @@ const ALLOWED_API_PATHS = new Set([
 ]);
 
 /** Prevent a blocked workstation from interacting with the operational API.
- * Devices that integrate without browser Origin headers remain compatible.
+ * Integrations without Origin/UUID remain compatible when mandatory approval is off.
  * Workstation UUIDs identify browsers, not immutable hardware identities.
  */
 export async function enforceWorkstationAccess(request: FastifyRequest, reply: FastifyReply) {

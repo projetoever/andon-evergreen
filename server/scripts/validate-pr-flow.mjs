@@ -200,6 +200,7 @@ async function cleanup() {
   await prisma.machineSubsetType.deleteMany({ where: { id: ids.unusedSubsetType } });
   await prisma.machineSetType.deleteMany({ where: { id: ids.unusedSetType } });
   await prisma.machineProductionEvent.deleteMany({ where: { machineId: { in: machineIds } } });
+  await prisma.machinePriorityHistory.deleteMany({ where: { machineId: { in: machineIds } } });
   await prisma.machine.deleteMany({ where: { id: { in: machineIds } } });
   await prisma.technician.deleteMany({
     where: {

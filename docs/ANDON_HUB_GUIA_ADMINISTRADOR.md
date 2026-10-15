@@ -55,7 +55,7 @@ Proteções existentes nesta candidata:
 - O administrador não pode desativar a própria estação atual; pode reativá-la caso já esteja inativa.
 - Não é possível desativar ou retirar o acesso operacional de uma estação com tela fixada ou atendimento ativo. Resolva o vínculo pelos fluxos normais antes de restringir a estação.
 - O acesso por URL direta aplica a mesma política do menu.
-- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior enquanto não houver exigência de senha do módulo. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
+- Clientes legados sem Origin e sem UUID continuam no fluxo compatível anterior enquanto a exigência de senha do módulo e a aprovação obrigatória de workstations estiverem desligadas. A identidade do navegador não deve ser tratada como autenticação inviolável do computador.
 
 ## Áudio e atendimento por turno
 
@@ -99,7 +99,7 @@ As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e 
 
 Ao habilitar senha, confirme também os clientes HTTP e integrações que usam as APIs daquele módulo. A exigência passa a valer para essas requisições, inclusive clientes legados sem Origin/UUID.
 
-A inicialização do kiosk e o watchdog usam uma verificação de prontidão própria (`/health/ready`), sem entrar nos módulos. Quando há senha operacional, o teste automático de escrita do instalador informa **SKIP**; faça essa validação pela interface de uma estação autorizada.
+A inicialização do kiosk e o watchdog usam uma verificação de prontidão própria (`/health/ready`), sem entrar nos módulos. Quando há senha operacional ou aprovação obrigatória de workstations, o teste automático de escrita do instalador informa **SKIP**; faça essa validação pela interface de uma estação autorizada.
 
 ## Acesso e sequência de Prioridades
 

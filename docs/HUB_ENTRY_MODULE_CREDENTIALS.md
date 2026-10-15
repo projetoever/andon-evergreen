@@ -26,7 +26,7 @@ As permissões `allowOperational`, `allowBi` e `allowPriorities` são independen
 
 Cartões e atalhos não autorizados ficam ausentes da interface. A API também rejeita as requisições diretas com `403 module_forbidden`. A tela vazia mantém o acesso administrativo para recuperação. A política é consultada a cada navegação e a cada 30 segundos; o servidor verifica cada requisição identificada.
 
-O registro preserva a identidade UUID do navegador, o nome e o IP visto pelo servidor. Estações existentes mantêm suas permissões; o novo campo de Prioridades tem default `true`. O cadastro automático continua com os defaults compatíveis: o administrador deve restringir cada estação conforme sua função. UUID identifica navegador/perfil, não hardware inviolável.
+O registro preserva a identidade UUID do navegador, o nome e o IP visto pelo servidor. Estações existentes mantêm suas permissões; o novo campo de Prioridades tem default `true`. Com a aprovação obrigatória desligada, o cadastro automático continua ativo com os defaults compatíveis: o administrador deve restringir cada estação conforme sua função. Com a regra ligada, o novo cadastro aguarda aprovação, sem acesso aos módulos. UUID identifica navegador/perfil, não hardware inviolável.
 
 ## Autenticação dos módulos
 
@@ -64,7 +64,7 @@ A API resolve o módulo pela família da rota. Cabeçalhos `X-Andon-Operational-
 
 `/hub/admin` permanece fora dos providers/gates dos módulos. A sessão administrativa autoriza somente os endpoints de gestão/recuperação previstos, inclusive credenciais e política de Prioridades. Não libera operação ou análises restritas. Proteções contra auto inativação, revogação operacional com máquina fixada e atendimento ativo permanecem.
 
-Clientes legados sem Origin/UUID conservam a compatibilidade de autorização anterior **enquanto o módulo não exigir senha**. Ao habilitar senha de operação ou BI, as respectivas APIs passam a exigir a sessão também nesses clientes. Integrações HTTP e terminais que usem essas APIs precisam ser considerados antes da ativação dessa opção. `/health`, identificação e recuperação administrativa permanecem acessíveis conforme seus contratos existentes.
+Clientes legados sem Origin/UUID conservam a compatibilidade de autorização anterior **enquanto a senha do módulo e a aprovação obrigatória de workstations estiverem desligadas**. Ao habilitar senha de operação ou BI, as respectivas APIs passam a exigir a sessão também nesses clientes. Integrações HTTP e terminais que usem essas APIs precisam ser considerados antes da ativação dessa opção. `/health`, identificação e recuperação administrativa permanecem acessíveis conforme seus contratos existentes.
 
 ## Divisão administrativa
 
@@ -102,11 +102,11 @@ As URLs, métodos e formatos das leituras operacionais de `/api/machines`, `/api
 
 | Cliente | Exigência de senha do Andon | Resultado esperado |
 | --- | --- | --- |
-| HTTP legado, sem Origin e sem UUID | Desligada | Leituras compatíveis com o fluxo anterior |
+| HTTP legado, sem Origin e sem UUID | Desligada | Leituras compatíveis se a aprovação obrigatória também estiver desligada |
 | Estação identificada, ativa e autorizada | Desligada | Leituras permitidas |
 | Navegador com Origin sem UUID | Qualquer | HTTP 403, identificação necessária |
 | Estação identificada inativa ou sem permissão operacional | Qualquer | HTTP 403, inclusive com token |
-| Cliente sem token operacional válido | Ligada | HTTP 401 |
+| Estação autorizada sem token operacional válido | Ligada | HTTP 401 |
 | UUID autorizado e token operacional válido para esse UUID | Ligada | Leituras permitidas |
 
 Para exigir senha e manter essas integrações, registre uma identidade estável própria por cliente em `/api/workstations/register`, autorize o módulo, autentique em `POST /api/modules/operational/login` e envie `X-Andon-Workstation-Id` e `X-Andon-Operational-Token`. A sessão dura oito horas e requer novo login após expirar, reiniciar a API ou alterar a credencial. Não grave segredos no repositório, em URLs ou logs. Uma futura credencial específica para integrações não faz parte desta etapa.
