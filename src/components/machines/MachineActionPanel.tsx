@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import { CheckCheck, RotateCcw, Wrench, XCircle } from "lucide-react";
 
 import { BigButton } from "@/components/common/BigButton";
@@ -210,7 +211,7 @@ export function ActiveCallsBadge({ count }: { count: number }) {
 
   return (
     <span
-      aria-label={`${count} ${count === 1 ? "chamado ativo" : "chamados ativos"}`}
+      aria-label={`${count} ${count === 1 ? ui("chamado ativo") : ui("chamados ativos")}`}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase leading-none tracking-wider text-amber-200"
     >
       <span
@@ -325,10 +326,10 @@ export function MachineActionPanel({
                     )}
                   >
                     {maintenanceCompletionHintTone === "danger"
-                      ? "Use a estação do atendimento"
+                      ? ui("Use a estação do atendimento")
                       : maintenanceCompletionHintTone === "success"
-                        ? "Atendimento legado"
-                        : "Validar estação ao concluir"}
+                        ? ui("Atendimento legado")
+                        : ui("Validar estação ao concluir")}
                     <span className="sr-only">: {maintenanceCompletionHint}</span>
                   </span>
                 )}

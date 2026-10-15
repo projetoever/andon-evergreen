@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ import { PriorityAccessSettings } from "./PriorityAccessSettings";
 
 const names = { operational: "ANDON operacional", bi: "ANDON BI" };
 function CredentialPanel({ initial }: { initial: CredentialSettings }) {
+  useInterfaceLanguage();
   const { refresh } = useModuleAccess();
   const [settings, setSettings] = useState(initial);
   const [username, setUsername] = useState(initial.username ?? "");
@@ -52,15 +55,16 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-primary" />
-          {names[initial.id]}
+          {ui(names[initial.id])}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={submit}>
           <label className="flex items-center justify-between gap-4 text-sm font-bold">
-            Exigir senha para abrir {names[initial.id]}
+            {ui("Exigir senha para abrir ")}
+            {ui(names[initial.id])}
             <Switch
-              aria-label={`Exigir senha para abrir ${names[initial.id]}`}
+              aria-label={ui("Exigir senha para abrir {0}", { 0: ui(names[initial.id]) })}
               checked={required}
               disabled={saving}
               onCheckedChange={setRequired}
@@ -68,19 +72,20 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
           </label>
           <p className="text-xs text-muted-foreground">
             {settings.configured
-              ? "Credencial configurada. Deixe a nova senha em branco para manter a atual."
-              : "Configure usuário e senha antes de exigir autenticação."}{" "}
-            A permissão da workstation continua obrigatória.
+              ? ui("Credencial configurada. Deixe a nova senha em branco para manter a atual.")
+              : ui("Configure usuário e senha antes de exigir autenticação.")}{" "}
+            {ui("A permissão da workstation continua obrigatória.")}
           </p>
           {initial.id === "operational" && (
             <p className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-              Exigir senha também protege a API operacional. Integrações como Node-RED e sirene por
-              GPIO precisarão autenticar e renovar a sessão para continuar lendo os dados.
+              {ui(
+                "Exigir senha também protege a API operacional. Integrações como Node-RED e sirene por GPIO precisarão autenticar e renovar a sessão para continuar lendo os dados.",
+              )}
             </p>
           )}
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="space-y-1">
-              <Label htmlFor={`${prefix}-username`}>Usuário</Label>
+              <Label htmlFor={`${prefix}-username`}>{ui("Usuário")}</Label>
               <Input
                 id={`${prefix}-username`}
                 required={required || Boolean(password)}
@@ -93,7 +98,7 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor={`${prefix}-password`}>Nova senha</Label>
+              <Label htmlFor={`${prefix}-password`}>{ui("Nova senha")}</Label>
               <Input
                 id={`${prefix}-password`}
                 required={required && !settings.configured}
@@ -107,7 +112,7 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor={`${prefix}-confirm`}>Confirmar senha</Label>
+              <Label htmlFor={`${prefix}-confirm`}>{ui("Confirmar senha")}</Label>
               <Input
                 id={`${prefix}-confirm`}
                 required={Boolean(password)}
@@ -127,7 +132,9 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
               disabled={saving}
               className="h-auto min-h-9 whitespace-normal text-center"
             >
-              {saving ? "Salvando..." : `Salvar acesso do ${names[initial.id]}`}
+              {saving
+                ? ui("Salvando...")
+                : ui("Salvar acesso do {0}", { 0: ui(names[initial.id]) })}
             </Button>
           </div>
         </form>
@@ -137,6 +144,7 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
 }
 
 export function ModuleCredentialSettings() {
+  useInterfaceLanguage();
   const [items, setItems] = useState<CredentialSettings[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -161,21 +169,22 @@ export function ModuleCredentialSettings() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-lg font-black">Módulos e senhas</h2>
+        <h2 className="text-lg font-black">{ui("Módulos e senhas")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Credenciais de entrada independentes da senha administrativa do Hub e do PIN dos
-          mantenedores.
+          {ui(
+            "Credenciais de entrada independentes da senha administrativa do Hub e do PIN dos mantenedores.",
+          )}
         </p>
       </div>
       {error ? (
         <div role="alert" className="space-y-3 rounded-xl border border-danger/40 p-4">
-          <p className="text-sm text-danger">{error}</p>
+          <p className="text-sm text-danger">{systemMessage(error)}</p>
           <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>
-            Tentar novamente
+            {ui("Tentar novamente")}
           </Button>
         </div>
       ) : !items ? (
-        <p role="status">Carregando acessos...</p>
+        <p role="status">{ui("Carregando acessos...")}</p>
       ) : (
         <>
           {items.map((item) => (

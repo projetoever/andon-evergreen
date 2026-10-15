@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
@@ -13,6 +15,7 @@ import {
 import type { AndonCategoryConfig } from "@/types/settings";
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">{title}</h4>
@@ -42,6 +45,7 @@ function categorySlug(value: string) {
 }
 
 export function CategoriesSettingsTab() {
+  useInterfaceLanguage();
   const [items, setItems] = useState<AndonCategoryConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AndonCategoryConfig>(() => emptyCategory(10));
@@ -84,7 +88,7 @@ export function CategoriesSettingsTab() {
       return list;
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Não foi possível carregar os setores";
+        error instanceof Error ? error.message : ui("Não foi possível carregar os setores");
       setLoadError(message);
       throw error;
     } finally {
@@ -164,7 +168,9 @@ export function CategoriesSettingsTab() {
   async function handleRemove() {
     if (!selectedId || isBusy) return;
     const confirmed = window.confirm(
-      `Remover o setor "${draft.displayName}"? Setores que possuem histórico deverão ser apenas inativados.`,
+      ui('Remover o setor "{0}"? Setores que possuem histórico deverão ser apenas inativados.', {
+        0: draft.displayName,
+      }),
     );
     if (!confirmed) return;
     setIsBusy(true);
@@ -182,16 +188,21 @@ export function CategoriesSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Setores / categorias</h3>
+        <h3 className="text-base font-bold">{ui("Setores / categorias")}</h3>
         <p className="text-sm text-muted-foreground">
-          Adicione, edite, ordene ou remova os setores exibidos como botões na tela da máquina.
+          {ui(
+            "Adicione, edite, ordene ou remova os setores exibidos como botões na tela da máquina.",
+          )}
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
-        <CardSection title="Setores cadastrados">
+        <CardSection title={ui("Setores cadastrados")}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold text-muted-foreground">
-              {filteredItems.length} de {items.length} setor(es)
+              {filteredItems.length}
+              {ui(" de ")}
+              {items.length}
+              {ui(" setor(es)")}
             </p>
             <BigButton
               tone="neutral"
@@ -199,7 +210,7 @@ export function CategoriesSettingsTab() {
               onClick={handleAdd}
               disabled={isBusy || isLoading || Boolean(loadError)}
             >
-              Adicionar setor
+              {ui("Adicionar setor")}
             </BigButton>
           </div>
 
@@ -212,14 +223,14 @@ export function CategoriesSettingsTab() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar nome ou ID..."
-              aria-label="Pesquisar setores por nome ou ID"
+              placeholder={ui("Pesquisar nome ou ID...")}
+              aria-label={ui("Pesquisar setores por nome ou ID")}
               className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
             />
             {searchQuery && (
               <button
                 type="button"
-                aria-label="Limpar pesquisa de setores"
+                aria-label={ui("Limpar pesquisa de setores")}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -230,13 +241,13 @@ export function CategoriesSettingsTab() {
 
           <div
             className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-            aria-label="Filtrar setores por status"
+            aria-label={ui("Filtrar setores por status")}
           >
             {(
               [
-                ["all", "Todos"],
-                ["active", "Ativos"],
-                ["inactive", "Inativos"],
+                ["all", ui("Todos")],
+                ["active", ui("Ativos", {}, "record")],
+                ["inactive", ui("Inativos", {}, "record")],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -258,7 +269,7 @@ export function CategoriesSettingsTab() {
 
           <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {isLoading && (
-              <p className="py-4 text-sm text-muted-foreground">Carregando setores...</p>
+              <p className="py-4 text-sm text-muted-foreground">{ui("Carregando setores...")}</p>
             )}
 
             {!isLoading && loadError && (
@@ -266,35 +277,32 @@ export function CategoriesSettingsTab() {
                 role="alert"
                 className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
               >
-                <p className="font-bold">Não foi possível carregar os setores.</p>
-                <p>{loadError}</p>
+                <p className="font-bold">{ui("Não foi possível carregar os setores.")}</p>
+                <p>{systemMessage(loadError)}</p>
                 <button
                   type="button"
                   className="mt-2 font-bold underline"
                   onClick={() => void refresh(selectedId).catch(() => undefined)}
                 >
-                  Tentar novamente
+                  {ui("Tentar novamente")}
                 </button>
               </div>
             )}
 
             {!isLoading && !loadError && items.length === 0 && (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhum setor cadastrado</p>
+                <p className="text-sm font-bold">{ui("Nenhum setor cadastrado")}</p>
               </div>
             )}
 
-            {!isLoading &&
-              !loadError &&
-              items.length > 0 &&
-              filteredItems.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                  <p className="text-sm font-bold">Nenhum setor encontrado</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Ajuste a pesquisa ou o filtro de status.
-                  </p>
-                </div>
-              )}
+            {!isLoading && !loadError && items.length > 0 && filteredItems.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                <p className="text-sm font-bold">{ui("Nenhum setor encontrado")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ui("Ajuste a pesquisa ou o filtro de status.")}
+                </p>
+              </div>
+            )}
 
             {filteredItems.map((item) => (
               <button
@@ -319,28 +327,28 @@ export function CategoriesSettingsTab() {
                     {item.id}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {item.categoryGroup === "maintenance" ? "Manutenção" : "Produção / apoio"}
+                    {item.categoryGroup === "maintenance"
+                      ? ui("Manutenção")
+                      : ui("Produção / apoio")}
                   </span>
                 </span>
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
-                    item.active
-                      ? "bg-success/10 text-success"
-                      : "bg-muted text-muted-foreground",
+                    item.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
                   )}
                 >
-                  {item.active ? "Ativo" : "Inativo"}
+                  {item.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
                 </span>
               </button>
             ))}
           </div>
         </CardSection>
 
-        <CardSection title={selectedId ? "Editar setor" : "Novo setor"}>
+        <CardSection title={selectedId ? ui("Editar setor") : ui("Novo setor")}>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold">
-              Nome exibido
+              {ui("Nome exibido")}
               <input
                 value={draft.displayName}
                 onChange={(event) =>
@@ -351,11 +359,11 @@ export function CategoriesSettingsTab() {
                   }))
                 }
                 className="mt-1 h-10 w-full rounded-md border bg-background px-2"
-                placeholder="Ex.: Pneumática"
+                placeholder={ui("Ex.: Pneumática")}
               />
             </label>
             <label className="text-sm font-semibold">
-              ID interno
+              {ui("ID interno")}
               <input
                 readOnly={Boolean(selectedId)}
                 value={draft.id}
@@ -364,11 +372,11 @@ export function CategoriesSettingsTab() {
                   "mt-1 h-10 w-full rounded-md border px-2",
                   selectedId ? "bg-muted text-muted-foreground" : "bg-background",
                 )}
-                placeholder="pneumatic"
+                placeholder={ui("pneumatic")}
               />
             </label>
             <label className="text-sm font-semibold">
-              Grupo
+              {ui("Grupo")}
               <select
                 className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                 value={draft.categoryGroup}
@@ -379,12 +387,12 @@ export function CategoriesSettingsTab() {
                   })
                 }
               >
-                <option value="maintenance">Manutenção</option>
-                <option value="production">Produção / apoio</option>
+                <option value="maintenance">{ui("Manutenção")}</option>
+                <option value="production">{ui("Produção / apoio")}</option>
               </select>
             </label>
             <label className="text-sm font-semibold">
-              Ordem de exibição
+              {ui("Ordem de exibição")}
               <input
                 type="number"
                 min={0}
@@ -400,7 +408,7 @@ export function CategoriesSettingsTab() {
 
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
             <label className="text-sm font-semibold">
-              Cor do botão na tela da máquina
+              {ui("Cor do botão na tela da máquina")}
               <div className="mt-1 flex h-12 items-center gap-3 rounded-md border border-border bg-background px-2">
                 <input
                   type="color"
@@ -414,12 +422,12 @@ export function CategoriesSettingsTab() {
               </div>
             </label>
             <div>
-              <span className="text-sm font-semibold">Prévia</span>
+              <span className="text-sm font-semibold">{ui("Prévia")}</span>
               <div
                 className="mt-1 flex h-12 items-center justify-center rounded-md border-2 px-2 text-sm font-black uppercase shadow"
                 style={{ backgroundColor: draft.color, borderColor: draft.color }}
               >
-                {draft.displayName || "Setor"}
+                {draft.displayName || ui("Setor")}
               </div>
             </div>
           </div>
@@ -430,19 +438,21 @@ export function CategoriesSettingsTab() {
               checked={draft.active}
               onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
             />
-            Exibir setor na tela da máquina
+            {ui("Exibir setor na tela da máquina")}
           </label>
 
           <p className="text-xs text-muted-foreground">
-            Setores com chamados históricos não são apagados; inative-os para preservar os registros.
+            {ui(
+              "Setores com chamados históricos não são apagados; inative-os para preservar os registros.",
+            )}
           </p>
 
           <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
             <BigButton tone="primary" size="md" onClick={() => void handleSave()} disabled={isBusy}>
-              {isBusy ? "Salvando..." : "Salvar setor"}
+              {isBusy ? ui("Salvando...") : ui("Salvar setor")}
             </BigButton>
             <BigButton tone="neutral" size="md" onClick={handleCancel} disabled={isBusy}>
-              Cancelar
+              {ui("Cancelar")}
             </BigButton>
             <BigButton
               tone="danger"
@@ -450,7 +460,7 @@ export function CategoriesSettingsTab() {
               onClick={() => void handleRemove()}
               disabled={!selectedId || isBusy}
             >
-              Remover setor
+              {ui("Remover setor")}
             </BigButton>
           </div>
         </CardSection>

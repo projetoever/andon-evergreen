@@ -1,13 +1,6 @@
+import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { Activity, BarChart3, Clock3, RotateCcw, TimerReset, Wrench } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -23,10 +16,10 @@ import type {
 function formatMinutes(value: number | null) {
   if (value === null || !Number.isFinite(value)) return "—";
   const rounded = Math.round(value);
-  if (rounded < 60) return `${rounded} min`;
+  if (rounded < 60) return `${rounded} ${ui("min")}`;
   const hours = Math.floor(rounded / 60);
   const minutes = rounded % 60;
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  return minutes ? `${hours}${ui("h")} ${minutes}${ui("m")}` : `${hours}${ui("h")}`;
 }
 
 export function BiOverviewWorkspace({
@@ -47,37 +40,56 @@ export function BiOverviewWorkspace({
   const kpis = overview?.kpis;
   const scheduled = overview?.production;
   const displayPercent = (value: number | null | undefined) =>
-    value === null || value === undefined ? "—" :
-    `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+    value === null || value === undefined
+      ? "—"
+      : `${value.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 })}%`;
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(12rem,1fr)] gap-3 overflow-y-auto">
       <section className="grid shrink-0 grid-cols-6 gap-3">
         <BiKpiCard
           label={t("Disponibilidade")}
-          tooltip="Disponibilidade nas horas registradas como Produção Programada, somente nas máquinas com histórico completo. Não é OEE nem calendário de turnos."
+          tooltip={ui(
+            "Disponibilidade nas horas registradas como Produção Programada, somente nas máquinas com histórico completo. Não é OEE nem calendário de turnos.",
+          )}
           value={loading && !overview ? "…" : displayPercent(scheduled?.availabilityPercent)}
-          detail={scheduled?.availabilityStatus === "dimension_filtered"
-            ? "Indisponível com filtro por setor ou classificação"
-            : `${scheduled?.coveredMachineCount ?? 0}/${scheduled?.populationCount ?? 0} máquinas com programação verificável`}
+          detail={
+            scheduled?.availabilityStatus === "dimension_filtered"
+              ? ui("Indisponível com filtro por setor ou classificação")
+              : ui("{0}/{1} máquinas com programação verificável", {
+                  0: scheduled?.coveredMachineCount ?? 0,
+                  1: scheduled?.populationCount ?? 0,
+                })
+          }
           icon={Activity}
           tone="green"
         />
         <BiKpiCard
           label={t("MTBF")}
-          tooltip="Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível."
+          tooltip={ui(
+            "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível.",
+          )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
-          detail={scheduled?.availabilityStatus === "dimension_filtered"
-            ? "Indisponível com filtro por setor ou classificação"
-            : `${scheduled?.productionFailureEpisodes ?? 0} falha(s) de manutenção · ${scheduled?.pendingAttributionEpisodes ?? 0} pendente(s)/misto(s)`}
+          detail={
+            scheduled?.availabilityStatus === "dimension_filtered"
+              ? ui("Indisponível com filtro por setor ou classificação")
+              : ui("{0} falha(s) de manutenção · {1} pendente(s)/misto(s)", {
+                  0: scheduled?.productionFailureEpisodes ?? 0,
+                  1: scheduled?.pendingAttributionEpisodes ?? 0,
+                })
+          }
           icon={BarChart3}
           tone="green"
         />
         <BiKpiCard
           label={t("MTTA")}
-          tooltip="Tempo médio da abertura ao primeiro atendimento dos chamados atendidos no período."
+          tooltip={ui(
+            "Tempo médio da abertura ao primeiro atendimento dos chamados atendidos no período.",
+          )}
           value={loading && !overview ? "…" : formatMinutes(kpis?.mttaMinutes ?? null)}
-          detail={`Até o primeiro atendimento · ${overview?.coverage.mttaSampleSize ?? 0} amostra(s)`}
+          detail={ui("Até o primeiro atendimento · {0} amostra(s)", {
+            0: overview?.coverage.mttaSampleSize ?? 0,
+          })}
           icon={Clock3}
           tone="amber"
           trend={overview?.comparison.mttaMinutes}
@@ -86,18 +98,26 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTR")}
-          tooltip="MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente."
+          tooltip={ui(
+            "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
+          )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
-          detail={`Manutenção · ${scheduled?.resolvedEpisodes ?? 0} episódio(s) encerrado(s)`}
+          detail={ui("Manutenção · {0} episódio(s) encerrado(s)", {
+            0: scheduled?.resolvedEpisodes ?? 0,
+          })}
           icon={Wrench}
           tone="blue"
           sampleSize={scheduled?.resolvedEpisodes}
         />
         <BiKpiCard
           label={t("Tempo de parada")}
-          tooltip="Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade."
+          tooltip={ui(
+            "Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade.",
+          )}
           value={loading && !overview ? "…" : formatMinutes(kpis?.downtimeMinutes ?? null)}
-          detail={`${kpis?.physicalStopEpisodes ?? 0} episódio(s) registrados · todas as horas`}
+          detail={ui("{0} episódio(s) registrados · todas as horas", {
+            0: kpis?.physicalStopEpisodes ?? 0,
+          })}
           icon={TimerReset}
           tone="red"
           trend={overview?.comparison.downtimeMinutes}
@@ -105,9 +125,15 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Taxa de retorno")}
-          tooltip="Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado."
+          tooltip={ui(
+            "Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado.",
+          )}
           value={loading && !overview ? "…" : displayPercent(kpis?.maintenanceReturnRatePercent)}
-          detail={`${kpis?.returnedCalls ?? 0} de ${kpis?.maintenanceEligibleFinishedCalls ?? 0} de manutenção · ${kpis?.maintenanceReturnCycles ?? 0} ciclo(s)`}
+          detail={ui("{0} de {1} de manutenção · {2} ciclo(s)", {
+            0: kpis?.returnedCalls ?? 0,
+            1: kpis?.maintenanceEligibleFinishedCalls ?? 0,
+            2: kpis?.maintenanceReturnCycles ?? 0,
+          })}
           icon={RotateCcw}
           tone="red"
           sampleSize={kpis?.maintenanceEligibleFinishedCalls}
@@ -131,9 +157,11 @@ export function BiOverviewWorkspace({
 
         <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
           <div className="shrink-0">
-            <h2 className="text-xs font-black uppercase tracking-wide">{t("Máquinas com maior parada")}</h2>
+            <h2 className="text-xs font-black uppercase tracking-wide">
+              {t("Máquinas com maior parada")}
+            </h2>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Parada acumulada por máquina · clique para detalhar
+              {ui("Parada acumulada por máquina · clique para detalhar")}
             </p>
           </div>
 
@@ -161,7 +189,7 @@ export function BiOverviewWorkspace({
                     tickLine={false}
                   />
                   <Tooltip
-                    formatter={(value) => [formatMinutes(Number(value)), "Tempo de parada"]}
+                    formatter={(value) => [formatMinutes(Number(value)), ui("Tempo de parada")]}
                     contentStyle={{
                       background: "var(--popover)",
                       borderColor: "var(--border)",
@@ -195,7 +223,7 @@ export function BiOverviewWorkspace({
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 items-center justify-center text-xs text-muted-foreground">
-              Sem paradas registradas no período
+              {ui("Sem paradas registradas no período")}
             </div>
           )}
         </article>

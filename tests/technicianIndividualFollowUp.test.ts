@@ -527,7 +527,6 @@ test("migration permanece aditiva e UI usa acompanhamento compacto sem modal de 
   assert.doesNotMatch(page, /followUpIntervals\.map/);
 });
 
-
 test("tempos individuais ficam legíveis e acompanhamento usa verde", async () => {
   const [page, callPanel] = await Promise.all([
     readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8"),
@@ -545,10 +544,7 @@ test("tempos individuais ficam legíveis e acompanhamento usa verde", async () =
   assert.match(page, /min-h-9 px-2\.5 text-\[11px\] shadow-none md:min-h-10/);
   assert.match(callPanel, /tone\?: "warning" \| "info" \| "success" \| "foreground"/);
   assert.match(callPanel, /tone === "success" && "text-success"/);
-  assert.match(
-    callPanel,
-    /label=\{t\("Acompanhamento"\)\}[\s\S]*tone="success"/,
-  );
+  assert.match(callPanel, /label=\{t\("Acompanhamento"\)\}[\s\S]*tone="success"/);
 });
 
 test("início do atendimento não solicita observação inicial", async () => {
@@ -563,7 +559,6 @@ test("início do atendimento não solicita observação inicial", async () => {
   assert.doesNotMatch(source, /components\/ui\/textarea/);
 });
 
-
 test("tela da máquina importa cn antes de renderizar tempos de mantenedores ativos", async () => {
   const page = await readFile(
     new URL("../src/pages/MachineDetailPage.tsx", import.meta.url),
@@ -574,7 +569,6 @@ test("tela da máquina importa cn antes de renderizar tempos de mantenedores ati
   assert.match(page, /className=\{cn\(/);
   assert.match(page, /activeParticipationSummaries\.map/);
 });
-
 
 test("contador individual retoma o acumulado correto ao voltar para manutenção", () => {
   const sessions: TechnicianAttendanceSession[] = [
@@ -632,13 +626,12 @@ test("histórico discrimina atendimento, acompanhamento e total individual sem i
 
   assert.match(history, /hasPhaseAwareSessions/);
   assert.match(history, /buildTechnicianParticipationSummaries/);
-  assert.match(history, />\s*Atendimento\s*</);
-  assert.match(history, />\s*Acompanhamento\s*</);
-  assert.match(history, />\s*Total individual\s*</);
+  assert.match(history, /\{ui\("Atendimento"\)\}/);
+  assert.match(history, /\{ui\("Acompanhamento"\)\}/);
+  assert.match(history, /\{ui\("Total individual"\)\}/);
   assert.match(history, /Tempo total legado/);
   assert.match(history, /phaseAwareRows\.length > 0 \? phaseAwareRows : legacyRows/);
 });
-
 
 test("inativação de mantenedor é serializada com criação de sessões", async () => {
   const [callsRoute, techniciansRoute, lock] = await Promise.all([
@@ -663,9 +656,7 @@ test("inativação de mantenedor é serializada com criação de sessões", asyn
   assert.ok(sessionLookupIndex > activeReloadIndex);
   assert.match(availability, /Mantenedor \$\{inactiveTechnician\.name\} está inativo/);
 
-  const updateRoute = techniciansRoute.slice(
-    techniciansRoute.indexOf('"/api/technicians/:id"'),
-  );
+  const updateRoute = techniciansRoute.slice(techniciansRoute.indexOf('"/api/technicians/:id"'));
   const updateLockIndex = updateRoute.indexOf("await lockTechnicianSessionFlow(tx, current.id)");
   const activeSessionIndex = updateRoute.indexOf("tx.technicianSession.findFirst");
   const updateIndex = updateRoute.indexOf("return tx.technician.update");

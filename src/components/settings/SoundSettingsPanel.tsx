@@ -1,12 +1,15 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useAndon } from "@/context/AndonProvider";
 import { BigButton } from "@/components/common/BigButton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { unlockAudio, testAndonSound } from "@/services/soundService";
 import { Play, Volume2, VolumeX } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 export function SoundSettingsPanel() {
+  useInterfaceLanguage();
   const {
     settings,
     updateSettings,
@@ -29,11 +32,11 @@ export function SoundSettingsPanel() {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="mb-4 text-xl font-bold uppercase tracking-wider text-foreground">
-        Sons
+        {ui("Sons")}
       </h3>
       <div className="mb-6 flex flex-col gap-4 rounded-xl bg-muted/30 p-4">
         <BigButton tone={audioUnlocked ? "neutral" : "primary"} size="lg" onClick={handleUnlock}>
-          {audioUnlocked ? "Sons já ativados" : "INICIAR PAINEL / ATIVAR SONS"}
+          {audioUnlocked ? ui("Sons já ativados") : ui("INICIAR PAINEL / ATIVAR SONS")}
         </BigButton>
         <div className="flex items-center gap-3">
           <Switch
@@ -43,18 +46,21 @@ export function SoundSettingsPanel() {
           <span className="text-sm font-bold">
             {settings.soundsEnabled ? (
               <>
-                <Volume2 className="inline h-4 w-4" /> Sons habilitados
+                <Volume2 className="inline h-4 w-4" />
+                {ui(" Sons habilitados")}
               </>
             ) : (
               <>
-                <VolumeX className="inline h-4 w-4" /> Sons desabilitados
+                <VolumeX className="inline h-4 w-4" />
+                {ui(" Sons desabilitados")}
               </>
             )}
           </span>
         </div>
         <div>
           <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Volume: {Math.round(settings.soundVolume * 100)}%
+            {ui("Volume: ")}
+            {Math.round(settings.soundVolume * 100)}%
           </label>
           <Slider
             value={[settings.soundVolume * 100]}
@@ -74,21 +80,21 @@ export function SoundSettingsPanel() {
             >
               <div>
                 <div className="text-base font-bold">{s.label}</div>
-                <div className="text-xs text-muted-foreground">
-                  {s.fileName}
-                </div>
+                <div className="text-xs text-muted-foreground">{s.fileName}</div>
               </div>
               <div className="flex items-center gap-2">
-                <Switch
-                  checked={s.enabled}
-                  onCheckedChange={(v) => toggleSoundEnabled(s.key, v)}
-                />
+                <Switch checked={s.enabled} onCheckedChange={(v) => toggleSoundEnabled(s.key, v)} />
                 <BigButton
                   tone="info"
                   size="md"
-                  onClick={() => void testAndonSound("default", s.key).then((ok) => { if (!ok) toast.error("Nenhum som configurado para esta seleção."); })}
+                  onClick={() =>
+                    void testAndonSound("default", s.key).then((ok) => {
+                      if (!ok) toast.error("Nenhum som configurado para esta seleção.");
+                    })
+                  }
                 >
-                  <Play className="h-4 w-4" /> Testar
+                  <Play className="h-4 w-4" />
+                  {ui(" Testar")}
                 </BigButton>
               </div>
             </div>

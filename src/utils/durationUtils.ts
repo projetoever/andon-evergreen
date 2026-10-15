@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import { getServerNowIso } from "./serverClock";
@@ -8,7 +9,6 @@ export function diffMinutes(a: string | null | undefined, b: string | null | und
   if (Number.isNaN(ms) || ms < 0) return 0;
   return ms / 60000;
 }
-
 
 export type MachineOccurrenceKind = "call" | "failure";
 
@@ -22,10 +22,7 @@ export interface MachineOccurrence {
 }
 
 type MachineOccurrenceMachine = Pick<Machine, "id" | "stopHistory">;
-type MachineOccurrenceCall = Pick<
-  AndonCall,
-  "id" | "machineId" | "openedAt" | "isSystemTest"
->;
+type MachineOccurrenceCall = Pick<AndonCall, "id" | "machineId" | "openedAt" | "isSystemTest">;
 
 function occurrenceTimestamp(value: string | null | undefined): number {
   if (!value) return Number.NEGATIVE_INFINITY;
@@ -87,7 +84,7 @@ export function getLastMachineOccurrence(
 export function formatElapsedSince(
   occurredAt: string | null | undefined,
   nowIso = getServerNowIso(),
-  emptyLabel = "Sem registro",
+  emptyLabel = ui("Sem registro"),
 ): string {
   if (!occurredAt) return emptyLabel;
   const start = new Date(occurredAt).getTime();
@@ -95,9 +92,9 @@ export function formatElapsedSince(
   if (Number.isNaN(start) || Number.isNaN(end)) return emptyLabel;
 
   const elapsedMinutes = Math.max(0, (end - start) / 60000);
-  if (elapsedMinutes < 1) return "há menos de 1 min";
+  if (elapsedMinutes < 1) return ui("há menos de 1 min");
 
-  return `há ${formatCompactDurationMinutes(elapsedMinutes, "menos de 1 min")}`;
+  return ui("há {0}", { 0: formatCompactDurationMinutes(elapsedMinutes, ui("menos de 1 min")) });
 }
 
 export function calculateCallWaitingMinutes(call: AndonCall, nowIso?: string): number {
@@ -177,17 +174,17 @@ export function formatDurationMinutes(minutes: number): string {
   const secs = remainingSeconds % 60;
 
   if (days > 0) {
-    return `${days} d ${hours.toString().padStart(2, "0")} h ${mins
+    return `${days} ${ui("d")} ${hours.toString().padStart(2, "0")} ${ui("h")} ${mins
       .toString()
-      .padStart(2, "0")} min`;
+      .padStart(2, "0")} ${ui("min")}`;
   }
   if (hours > 0) {
-    return `${hours} h ${mins.toString().padStart(2, "0")} min ${secs
+    return `${hours} ${ui("h")} ${mins.toString().padStart(2, "0")} ${ui("min")} ${secs
       .toString()
-      .padStart(2, "0")} s`;
+      .padStart(2, "0")} ${ui("s")}`;
   }
-  if (mins > 0) return `${mins} min ${secs.toString().padStart(2, "0")} s`;
-  return `${secs} s`;
+  if (mins > 0) return `${mins} ${ui("min")} ${secs.toString().padStart(2, "0")} ${ui("s")}`;
+  return `${secs} ${ui("s")}`;
 }
 
 export function formatMachinePanelDurationMinutes(minutes: number): string {
@@ -202,10 +199,10 @@ export function formatMachinePanelDurationMinutes(minutes: number): string {
   const mins = Math.floor((totalSeconds % 3600) / 60);
 
   if (days > 0) {
-    return `${days} d ${hours.toString().padStart(2, "0")} h`;
+    return `${days} ${ui("d")} ${hours.toString().padStart(2, "0")} ${ui("h")}`;
   }
 
-  return `${hours} h ${mins.toString().padStart(2, "0")} min`;
+  return `${hours} ${ui("h")} ${mins.toString().padStart(2, "0")} ${ui("min")}`;
 }
 
 export function formatMachineStoppedDurationMinutes(minutes: number): string {
@@ -216,33 +213,36 @@ export function formatMachineStoppedDurationMinutes(minutes: number): string {
   const secs = totalSeconds % 60;
 
   if (days > 0) {
-    return `${days} d ${hours.toString().padStart(2, "0")} h ${mins
+    return `${days} ${ui("d")} ${hours.toString().padStart(2, "0")} ${ui("h")} ${mins
       .toString()
-      .padStart(2, "0")} min`;
+      .padStart(2, "0")} ${ui("min")}`;
   }
 
   if (hours > 0) {
-    return `${hours} h ${mins.toString().padStart(2, "0")} min ${secs
+    return `${hours} ${ui("h")} ${mins.toString().padStart(2, "0")} ${ui("min")} ${secs
       .toString()
-      .padStart(2, "0")} s`;
+      .padStart(2, "0")} ${ui("s")}`;
   }
 
   return formatDurationMinutes(minutes);
 }
 
-export function formatCompactDurationMinutes(minutes: number, emptyLabel = "sem registro"): string {
+export function formatCompactDurationMinutes(
+  minutes: number,
+  emptyLabel = ui("sem registro"),
+): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return emptyLabel;
 
   const totalMinutes = Math.floor(minutes);
 
-  if (totalMinutes < 1) return "menos de 1 min";
+  if (totalMinutes < 1) return ui("menos de 1 min");
 
   const units = [
-    { minutes: 365 * 24 * 60, singular: "ano", plural: "anos" },
-    { minutes: 30 * 24 * 60, singular: "mês", plural: "meses" },
-    { minutes: 24 * 60, singular: "d", plural: "d" },
-    { minutes: 60, singular: "h", plural: "h" },
-    { minutes: 1, singular: "min", plural: "min" },
+    { minutes: 365 * 24 * 60, singular: ui("ano"), plural: ui("anos") },
+    { minutes: 30 * 24 * 60, singular: ui("mês"), plural: ui("meses") },
+    { minutes: 24 * 60, singular: ui("d"), plural: ui("d") },
+    { minutes: 60, singular: ui("h"), plural: ui("h") },
+    { minutes: 1, singular: ui("min"), plural: ui("min") },
   ];
 
   let remainingMinutes = totalMinutes;

@@ -1,5 +1,7 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,17 +89,12 @@ function setToForm(set: MachineSet): MachineSetFormState {
     name: set.name,
     typeId: set.typeId ?? "",
     description: set.description ?? "",
-    displayOrder:
-      set.displayOrder === null
-        ? ""
-        : String(set.displayOrder),
+    displayOrder: set.displayOrder === null ? "" : String(set.displayOrder),
     isActive: set.isActive,
   };
 }
 
-function subsetToForm(
-  subset: MachineSubset,
-): MachineSubsetFormState {
+function subsetToForm(subset: MachineSubset): MachineSubsetFormState {
   return {
     code: subset.code,
     name: subset.name,
@@ -106,10 +103,7 @@ function subsetToForm(
     manufacturer: subset.manufacturer ?? "",
     model: subset.model ?? "",
     assetTag: subset.assetTag ?? "",
-    displayOrder:
-      subset.displayOrder === null
-        ? ""
-        : String(subset.displayOrder),
+    displayOrder: subset.displayOrder === null ? "" : String(subset.displayOrder),
     isActive: subset.isActive,
   };
 }
@@ -121,91 +115,63 @@ function parseDisplayOrder(value: string) {
 
   const parsed = Number(value);
 
-  if (
-    !Number.isInteger(parsed) ||
-    parsed < 0
-  ) {
-    throw new Error(
-      "A ordem deve ser um número inteiro maior ou igual a zero.",
-    );
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error("A ordem deve ser um número inteiro maior ou igual a zero.");
   }
 
   return parsed;
 }
 
-function buildSetDraft(
-  form: MachineSetFormState,
-): MachineSetDraft {
+function buildSetDraft(form: MachineSetFormState): MachineSetDraft {
   const name = form.name.trim();
 
   if (!name) {
-    throw new Error(
-      "Informe o nome do conjunto.",
-    );
+    throw new Error("Informe o nome do conjunto.");
   }
 
   if (!form.typeId) {
-    throw new Error(
-      "Selecione o tipo do conjunto.",
-    );
+    throw new Error("Selecione o tipo do conjunto.");
   }
 
   return {
     code: form.code.trim() || undefined,
     name,
     typeId: form.typeId,
-    description:
-      form.description.trim() || null,
-    displayOrder: parseDisplayOrder(
-      form.displayOrder,
-    ),
+    description: form.description.trim() || null,
+    displayOrder: parseDisplayOrder(form.displayOrder),
     isActive: form.isActive,
   };
 }
 
-function buildSetPatch(
-  form: MachineSetFormState,
-): MachineSetPatch {
+function buildSetPatch(form: MachineSetFormState): MachineSetPatch {
   return buildSetDraft(form);
 }
 
-function buildSubsetDraft(
-  form: MachineSubsetFormState,
-): MachineSubsetDraft {
+function buildSubsetDraft(form: MachineSubsetFormState): MachineSubsetDraft {
   const name = form.name.trim();
 
   if (!name) {
-    throw new Error(
-      "Informe o nome do subconjunto.",
-    );
+    throw new Error("Informe o nome do subconjunto.");
   }
 
   if (!form.typeId) {
-    throw new Error(
-      "Selecione o tipo do subconjunto.",
-    );
+    throw new Error("Selecione o tipo do subconjunto.");
   }
 
   return {
     code: form.code.trim() || undefined,
     name,
     typeId: form.typeId,
-    description:
-      form.description.trim() || null,
-    manufacturer:
-      form.manufacturer.trim() || null,
+    description: form.description.trim() || null,
+    manufacturer: form.manufacturer.trim() || null,
     model: form.model.trim() || null,
     assetTag: form.assetTag.trim() || null,
-    displayOrder: parseDisplayOrder(
-      form.displayOrder,
-    ),
+    displayOrder: parseDisplayOrder(form.displayOrder),
     isActive: form.isActive,
   };
 }
 
-function buildSubsetPatch(
-  form: MachineSubsetFormState,
-): MachineSubsetPatch {
+function buildSubsetPatch(form: MachineSubsetFormState): MachineSubsetPatch {
   return buildSubsetDraft(form);
 }
 
@@ -215,52 +181,36 @@ function sortSets(sets: MachineSet[]) {
       return a.isActive ? -1 : 1;
     }
 
-    const orderA =
-      a.displayOrder ?? Number.MAX_SAFE_INTEGER;
-    const orderB =
-      b.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderA = a.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.displayOrder ?? Number.MAX_SAFE_INTEGER;
 
     if (orderA !== orderB) {
       return orderA - orderB;
     }
 
-    return a.name.localeCompare(
-      b.name,
-      "pt-BR",
-      { numeric: true },
-    );
+    return a.name.localeCompare(b.name, "pt-BR", { numeric: true });
   });
 }
 
-function sortSubsets(
-  subsets: MachineSubset[] = [],
-) {
+function sortSubsets(subsets: MachineSubset[] = []) {
   return [...subsets].sort((a, b) => {
     if (a.isActive !== b.isActive) {
       return a.isActive ? -1 : 1;
     }
 
-    const orderA =
-      a.displayOrder ?? Number.MAX_SAFE_INTEGER;
-    const orderB =
-      b.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderA = a.displayOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.displayOrder ?? Number.MAX_SAFE_INTEGER;
 
     if (orderA !== orderB) {
       return orderA - orderB;
     }
 
-    return a.name.localeCompare(
-      b.name,
-      "pt-BR",
-      { numeric: true },
-    );
+    return a.name.localeCompare(b.name, "pt-BR", { numeric: true });
   });
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Erro ao processar a operação.";
+  return error instanceof Error ? error.message : ui("Erro ao processar a operação.");
 }
 
 function typeLabel(
@@ -272,15 +222,13 @@ function typeLabel(
   }>,
   legacyType?: string | null,
 ) {
-  const type = types.find(
-    (item) => item.id === id,
-  );
+  const type = types.find((item) => item.id === id);
 
   if (type) {
     return type.name;
   }
 
-  return legacyType || "Tipo não vinculado";
+  return legacyType || ui("Tipo não vinculado");
 }
 
 function SetTypeSelect({
@@ -294,29 +242,20 @@ function SetTypeSelect({
   includeInactive: boolean;
   onValueChange: (value: string) => void;
 }) {
-  const options = types.filter(
-    (type) =>
-      type.isActive ||
-      (includeInactive && type.id === value),
-  );
+  useInterfaceLanguage();
+  const options = types.filter((type) => type.isActive || (includeInactive && type.id === value));
 
   return (
-    <Select
-      value={value || undefined}
-      onValueChange={onValueChange}
-    >
+    <Select value={value || undefined} onValueChange={onValueChange}>
       <SelectTrigger>
-        <SelectValue placeholder="Selecione o tipo" />
+        <SelectValue placeholder={ui("Selecione o tipo")} />
       </SelectTrigger>
 
       <SelectContent>
         {options.map((type) => (
-          <SelectItem
-            key={type.id}
-            value={type.id}
-          >
+          <SelectItem key={type.id} value={type.id}>
             {type.name}
-            {!type.isActive ? " — inativo" : ""}
+            {!type.isActive ? ui(" — inativo") : ""}
           </SelectItem>
         ))}
       </SelectContent>
@@ -335,29 +274,20 @@ function SubsetTypeSelect({
   includeInactive: boolean;
   onValueChange: (value: string) => void;
 }) {
-  const options = types.filter(
-    (type) =>
-      type.isActive ||
-      (includeInactive && type.id === value),
-  );
+  useInterfaceLanguage();
+  const options = types.filter((type) => type.isActive || (includeInactive && type.id === value));
 
   return (
-    <Select
-      value={value || undefined}
-      onValueChange={onValueChange}
-    >
+    <Select value={value || undefined} onValueChange={onValueChange}>
       <SelectTrigger>
-        <SelectValue placeholder="Selecione o tipo" />
+        <SelectValue placeholder={ui("Selecione o tipo")} />
       </SelectTrigger>
 
       <SelectContent>
         {options.map((type) => (
-          <SelectItem
-            key={type.id}
-            value={type.id}
-          >
+          <SelectItem key={type.id} value={type.id}>
             {type.name}
-            {!type.isActive ? " — inativo" : ""}
+            {!type.isActive ? ui(" — inativo") : ""}
           </SelectItem>
         ))}
       </SelectContent>
@@ -365,79 +295,41 @@ function SubsetTypeSelect({
   );
 }
 
-export function MachineHierarchyAdminSection({
-  machine,
-}: {
-  machine: Machine;
-}) {
-  const [isOpen, setIsOpen] =
-    useState(false);
+export function MachineHierarchyAdminSection({ machine }: { machine: Machine }) {
+  useInterfaceLanguage();
+  const [isOpen, setIsOpen] = useState(false);
 
-  const [hasLoaded, setHasLoaded] =
-    useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [sets, setSets] =
-    useState<MachineSet[]>([]);
+  const [sets, setSets] = useState<MachineSet[]>([]);
 
-  const [setTypes, setSetTypes] = useState<
-    MachineSetType[]
-  >([]);
+  const [setTypes, setSetTypes] = useState<MachineSetType[]>([]);
 
-  const [subsetTypes, setSubsetTypes] =
-    useState<MachineSubsetType[]>([]);
+  const [subsetTypes, setSubsetTypes] = useState<MachineSubsetType[]>([]);
 
-  const [newSet, setNewSet] =
-    useState<MachineSetFormState>(
-      createEmptySetForm,
-    );
+  const [newSet, setNewSet] = useState<MachineSetFormState>(createEmptySetForm);
 
-  const [editingSetId, setEditingSetId] =
-    useState<string | null>(null);
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
 
-  const [editSet, setEditSet] =
-    useState<MachineSetFormState>(
-      createEmptySetForm,
-    );
+  const [editSet, setEditSet] = useState<MachineSetFormState>(createEmptySetForm);
 
-  const [
-    expandedSetIds,
-    setExpandedSetIds,
-  ] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [expandedSetIds, setExpandedSetIds] = useState<Set<string>>(() => new Set());
 
-  const [
-    newSubsetForms,
-    setNewSubsetForms,
-  ] = useState<
-    Record<string, MachineSubsetFormState>
-  >({});
+  const [newSubsetForms, setNewSubsetForms] = useState<Record<string, MachineSubsetFormState>>({});
 
-  const [
-    editingSubsetId,
-    setEditingSubsetId,
-  ] = useState<string | null>(null);
+  const [editingSubsetId, setEditingSubsetId] = useState<string | null>(null);
 
-  const [editSubset, setEditSubset] =
-    useState<MachineSubsetFormState>(
-      createEmptySubsetForm,
-    );
+  const [editSubset, setEditSubset] = useState<MachineSubsetFormState>(createEmptySubsetForm);
 
   async function loadHierarchy() {
     setIsLoading(true);
 
     try {
-      const [
-        loadedSets,
-        loadedSetTypes,
-        loadedSubsetTypes,
-      ] = await Promise.all([
+      const [loadedSets, loadedSetTypes, loadedSubsetTypes] = await Promise.all([
         listMachineSets(machine.id, {
           includeInactive: true,
           includeSubsets: "list",
@@ -469,37 +361,25 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  function updateNewSet(
-    patch: Partial<MachineSetFormState>,
-  ) {
+  function updateNewSet(patch: Partial<MachineSetFormState>) {
     setNewSet((current) => ({
       ...current,
       ...patch,
     }));
   }
 
-  function updateEditSet(
-    patch: Partial<MachineSetFormState>,
-  ) {
+  function updateEditSet(patch: Partial<MachineSetFormState>) {
     setEditSet((current) => ({
       ...current,
       ...patch,
     }));
   }
 
-  function getNewSubsetForm(
-    setId: string,
-  ) {
-    return (
-      newSubsetForms[setId] ??
-      createEmptySubsetForm()
-    );
+  function getNewSubsetForm(setId: string) {
+    return newSubsetForms[setId] ?? createEmptySubsetForm();
   }
 
-  function updateNewSubset(
-    setId: string,
-    patch: Partial<MachineSubsetFormState>,
-  ) {
+  function updateNewSubset(setId: string, patch: Partial<MachineSubsetFormState>) {
     setNewSubsetForms((current) => ({
       ...current,
       [setId]: {
@@ -509,9 +389,7 @@ export function MachineHierarchyAdminSection({
     }));
   }
 
-  function updateEditSubset(
-    patch: Partial<MachineSubsetFormState>,
-  ) {
+  function updateEditSubset(patch: Partial<MachineSubsetFormState>) {
     setEditSubset((current) => ({
       ...current,
       ...patch,
@@ -524,10 +402,7 @@ export function MachineHierarchyAdminSection({
 
       setIsSaving(true);
 
-      await createMachineSet(
-        machine.id,
-        payload,
-      );
+      await createMachineSet(machine.id, payload);
 
       setNewSet(createEmptySetForm());
       await loadHierarchy();
@@ -550,9 +425,7 @@ export function MachineHierarchyAdminSection({
     setEditSet(createEmptySetForm());
   }
 
-  async function handleSaveSet(
-    setId: string,
-  ) {
+  async function handleSaveSet(setId: string) {
     try {
       const payload = buildSetPatch(editSet);
 
@@ -571,9 +444,7 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  async function handleToggleSet(
-    set: MachineSet,
-  ) {
+  async function handleToggleSet(set: MachineSet) {
     try {
       setIsSaving(true);
 
@@ -583,11 +454,7 @@ export function MachineHierarchyAdminSection({
 
       await loadHierarchy();
 
-      toast.success(
-        set.isActive
-          ? "Conjunto inativado."
-          : "Conjunto reativado.",
-      );
+      toast.success(set.isActive ? "Conjunto inativado." : "Conjunto reativado.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -595,11 +462,12 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  async function handleDeleteSet(
-    set: MachineSet,
-  ) {
+  async function handleDeleteSet(set: MachineSet) {
     const confirmed = window.confirm(
-      `Excluir o conjunto "${set.name}"? Os subconjuntos devem ser tratados antes. Se houver histórico, o conjunto será inativado.`,
+      ui(
+        'Excluir o conjunto "{0}"? Os subconjuntos devem ser tratados antes. Se houver histórico, o conjunto será inativado.',
+        { 0: set.name },
+      ),
     );
 
     if (!confirmed) {
@@ -609,16 +477,12 @@ export function MachineHierarchyAdminSection({
     try {
       setIsSaving(true);
 
-      const result = await deleteMachineSet(
-        set.id,
-      );
+      const result = await deleteMachineSet(set.id);
 
       await loadHierarchy();
 
       toast.success(
-        result.deleted
-          ? "Conjunto excluído."
-          : "Conjunto usado em histórico; foi inativado.",
+        result.deleted ? "Conjunto excluído." : "Conjunto usado em histórico; foi inativado.",
       );
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -641,19 +505,14 @@ export function MachineHierarchyAdminSection({
     });
   }
 
-  async function handleCreateSubset(
-    set: MachineSet,
-  ) {
+  async function handleCreateSubset(set: MachineSet) {
     try {
       const form = getNewSubsetForm(set.id);
       const payload = buildSubsetDraft(form);
 
       setIsSaving(true);
 
-      await createMachineSubset(
-        set.id,
-        payload,
-      );
+      await createMachineSubset(set.id, payload);
 
       setNewSubsetForms((current) => {
         const next = { ...current };
@@ -671,9 +530,7 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  function startEditSubset(
-    subset: MachineSubset,
-  ) {
+  function startEditSubset(subset: MachineSubset) {
     setEditingSubsetId(subset.id);
     setEditSubset(subsetToForm(subset));
   }
@@ -683,19 +540,13 @@ export function MachineHierarchyAdminSection({
     setEditSubset(createEmptySubsetForm());
   }
 
-  async function handleSaveSubset(
-    subsetId: string,
-  ) {
+  async function handleSaveSubset(subsetId: string) {
     try {
-      const payload =
-        buildSubsetPatch(editSubset);
+      const payload = buildSubsetPatch(editSubset);
 
       setIsSaving(true);
 
-      await updateMachineSubset(
-        subsetId,
-        payload,
-      );
+      await updateMachineSubset(subsetId, payload);
 
       cancelEditSubset();
       await loadHierarchy();
@@ -708,9 +559,7 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  async function handleToggleSubset(
-    subset: MachineSubset,
-  ) {
+  async function handleToggleSubset(subset: MachineSubset) {
     try {
       setIsSaving(true);
 
@@ -720,11 +569,7 @@ export function MachineHierarchyAdminSection({
 
       await loadHierarchy();
 
-      toast.success(
-        subset.isActive
-          ? "Subconjunto inativado."
-          : "Subconjunto reativado.",
-      );
+      toast.success(subset.isActive ? "Subconjunto inativado." : "Subconjunto reativado.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -732,11 +577,11 @@ export function MachineHierarchyAdminSection({
     }
   }
 
-  async function handleDeleteSubset(
-    subset: MachineSubset,
-  ) {
+  async function handleDeleteSubset(subset: MachineSubset) {
     const confirmed = window.confirm(
-      `Excluir o subconjunto "${subset.name}"? Se houver histórico, ele será apenas inativado.`,
+      ui('Excluir o subconjunto "{0}"? Se houver histórico, ele será apenas inativado.', {
+        0: subset.name,
+      }),
     );
 
     if (!confirmed) {
@@ -746,17 +591,12 @@ export function MachineHierarchyAdminSection({
     try {
       setIsSaving(true);
 
-      const result =
-        await deleteMachineSubset(
-          subset.id,
-        );
+      const result = await deleteMachineSubset(subset.id);
 
       await loadHierarchy();
 
       toast.success(
-        result.deleted
-          ? "Subconjunto excluído."
-          : "Subconjunto usado em histórico; foi inativado.",
+        result.deleted ? "Subconjunto excluído." : "Subconjunto usado em histórico; foi inativado.",
       );
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -776,16 +616,14 @@ export function MachineHierarchyAdminSection({
       >
         <div>
           <h4 className="text-sm font-black uppercase tracking-widest text-foreground">
-            Conjuntos e subconjuntos
+            {ui("Conjuntos e subconjuntos")}
           </h4>
 
-          <p className="text-xs text-muted-foreground">
-            Estrutura técnica da máquina
-          </p>
+          <p className="text-xs text-muted-foreground">{ui("Estrutura técnica da máquina")}</p>
         </div>
 
         <span className="rounded-md border border-border bg-card px-3 py-1 text-sm font-bold">
-          {isOpen ? "Recolher" : "Gerenciar"}
+          {isOpen ? ui("Recolher") : ui("Gerenciar")}
         </span>
       </button>
 
@@ -801,24 +639,22 @@ export function MachineHierarchyAdminSection({
               }}
               disabled={isLoading || isSaving}
             >
-              Atualizar hierarquia
+              {ui("Atualizar hierarquia")}
             </Button>
           </div>
 
           {isLoading && !hasLoaded ? (
             <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Carregando conjuntos e catálogos...
+              {ui("Carregando conjuntos e catálogos...")}
             </div>
           ) : (
             <>
               <div className="space-y-3 rounded-md border border-border bg-card p-3">
-                <h5 className="font-black">
-                  Novo conjunto
-                </h5>
+                <h5 className="font-black">{ui("Novo conjunto")}</h5>
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <div className="space-y-1">
-                    <Label>Nome</Label>
+                    <Label>{ui("Nome")}</Label>
                     <Input
                       value={newSet.name}
                       onChange={(event) =>
@@ -826,12 +662,12 @@ export function MachineHierarchyAdminSection({
                           name: event.target.value,
                         })
                       }
-                      placeholder="Maker"
+                      placeholder={ui("Maker")}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label>Código</Label>
+                    <Label>{ui("Código")}</Label>
                     <Input
                       value={newSet.code}
                       onChange={(event) =>
@@ -839,30 +675,27 @@ export function MachineHierarchyAdminSection({
                           code: event.target.value,
                         })
                       }
-                      placeholder="Gerado pelo nome"
+                      placeholder={ui("Gerado pelo nome")}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label>Tipo</Label>
+                    <Label>{ui("Tipo")}</Label>
                     <SetTypeSelect
                       value={newSet.typeId}
                       types={setTypes}
                       includeInactive={false}
-                      onValueChange={(typeId) =>
-                        updateNewSet({ typeId })
-                      }
+                      onValueChange={(typeId) => updateNewSet({ typeId })}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label>Ordem</Label>
+                    <Label>{ui("Ordem")}</Label>
                     <Input
                       value={newSet.displayOrder}
                       onChange={(event) =>
                         updateNewSet({
-                          displayOrder:
-                            event.target.value,
+                          displayOrder: event.target.value,
                         })
                       }
                       inputMode="numeric"
@@ -871,16 +704,15 @@ export function MachineHierarchyAdminSection({
                 </div>
 
                 <div className="space-y-1">
-                  <Label>Descrição</Label>
+                  <Label>{ui("Descrição")}</Label>
                   <Input
                     value={newSet.description}
                     onChange={(event) =>
                       updateNewSet({
-                        description:
-                          event.target.value,
+                        description: event.target.value,
                       })
                     }
-                    placeholder="Descrição opcional"
+                    placeholder={ui("Descrição opcional")}
                   />
                 </div>
 
@@ -888,14 +720,10 @@ export function MachineHierarchyAdminSection({
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={newSet.isActive}
-                      onCheckedChange={(isActive) =>
-                        updateNewSet({ isActive })
-                      }
+                      onCheckedChange={(isActive) => updateNewSet({ isActive })}
                     />
 
-                    <span className="text-sm font-bold">
-                      Criar como ativo
-                    </span>
+                    <span className="text-sm font-bold">{ui("Criar como ativo")}</span>
                   </div>
 
                   <Button
@@ -904,14 +732,10 @@ export function MachineHierarchyAdminSection({
                       void handleCreateSet();
                     }}
                     disabled={
-                      isSaving ||
-                      isLoading ||
-                      setTypes.filter(
-                        (type) => type.isActive,
-                      ).length === 0
+                      isSaving || isLoading || setTypes.filter((type) => type.isActive).length === 0
                     }
                   >
-                    Adicionar conjunto
+                    {ui("Adicionar conjunto")}
                   </Button>
                 </div>
               </div>
@@ -919,22 +743,17 @@ export function MachineHierarchyAdminSection({
               <div className="space-y-3">
                 {sets.length === 0 ? (
                   <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-                    Nenhum conjunto cadastrado.
+                    {ui("Nenhum conjunto cadastrado.")}
                   </div>
                 ) : (
                   sets.map((set) => {
-                    const isEditing =
-                      editingSetId === set.id;
+                    const isEditing = editingSetId === set.id;
 
-                    const isExpanded =
-                      expandedSetIds.has(set.id);
+                    const isExpanded = expandedSetIds.has(set.id);
 
-                    const subsets = sortSubsets(
-                      set.subsets,
-                    );
+                    const subsets = sortSubsets(set.subsets);
 
-                    const newSubset =
-                      getNewSubsetForm(set.id);
+                    const newSubset = getNewSubsetForm(set.id);
 
                     return (
                       <div
@@ -950,52 +769,36 @@ export function MachineHierarchyAdminSection({
                             <div className="space-y-3">
                               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                 <div className="space-y-1">
-                                  <Label>Nome</Label>
+                                  <Label>{ui("Nome")}</Label>
                                   <Input
-                                    value={
-                                      editSet.name
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
+                                    value={editSet.name}
+                                    onChange={(event) =>
                                       updateEditSet({
-                                        name: event
-                                          .target
-                                          .value,
+                                        name: event.target.value,
                                       })
                                     }
                                   />
                                 </div>
 
                                 <div className="space-y-1">
-                                  <Label>Código</Label>
+                                  <Label>{ui("Código")}</Label>
                                   <Input
-                                    value={
-                                      editSet.code
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
+                                    value={editSet.code}
+                                    onChange={(event) =>
                                       updateEditSet({
-                                        code: event
-                                          .target
-                                          .value,
+                                        code: event.target.value,
                                       })
                                     }
                                   />
                                 </div>
 
                                 <div className="space-y-1">
-                                  <Label>Tipo</Label>
+                                  <Label>{ui("Tipo")}</Label>
                                   <SetTypeSelect
-                                    value={
-                                      editSet.typeId
-                                    }
+                                    value={editSet.typeId}
                                     types={setTypes}
                                     includeInactive
-                                    onValueChange={(
-                                      typeId,
-                                    ) =>
+                                    onValueChange={(typeId) =>
                                       updateEditSet({
                                         typeId,
                                       })
@@ -1004,18 +807,12 @@ export function MachineHierarchyAdminSection({
                                 </div>
 
                                 <div className="space-y-1">
-                                  <Label>Ordem</Label>
+                                  <Label>{ui("Ordem")}</Label>
                                   <Input
-                                    value={
-                                      editSet.displayOrder
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
+                                    value={editSet.displayOrder}
+                                    onChange={(event) =>
                                       updateEditSet({
-                                        displayOrder:
-                                          event.target
-                                            .value,
+                                        displayOrder: event.target.value,
                                       })
                                     }
                                     inputMode="numeric"
@@ -1024,16 +821,12 @@ export function MachineHierarchyAdminSection({
                               </div>
 
                               <div className="space-y-1">
-                                <Label>Descrição</Label>
+                                <Label>{ui("Descrição")}</Label>
                                 <Input
-                                  value={
-                                    editSet.description
-                                  }
+                                  value={editSet.description}
                                   onChange={(event) =>
                                     updateEditSet({
-                                      description:
-                                        event.target
-                                          .value,
+                                      description: event.target.value,
                                     })
                                   }
                                 />
@@ -1044,25 +837,21 @@ export function MachineHierarchyAdminSection({
                                   type="button"
                                   size="sm"
                                   onClick={() => {
-                                    void handleSaveSet(
-                                      set.id,
-                                    );
+                                    void handleSaveSet(set.id);
                                   }}
                                   disabled={isSaving}
                                 >
-                                  Salvar
+                                  {ui("Salvar")}
                                 </Button>
 
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  onClick={
-                                    cancelEditSet
-                                  }
+                                  onClick={cancelEditSet}
                                   disabled={isSaving}
                                 >
-                                  Cancelar
+                                  {ui("Cancelar")}
                                 </Button>
                               </div>
                             </div>
@@ -1070,33 +859,26 @@ export function MachineHierarchyAdminSection({
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-black">
-                                    {set.name}
-                                  </span>
+                                  <span className="font-black">{set.name}</span>
 
                                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold">
                                     {set.isActive
-                                      ? "Ativo"
-                                      : "Inativo"}
+                                      ? ui("Ativo", {}, "record")
+                                      : ui("Inativo", {}, "record")}
                                   </span>
 
                                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                                    {typeLabel(
-                                      set.typeId,
-                                      setTypes,
-                                      set.type,
-                                    )}
+                                    {typeLabel(set.typeId, setTypes, set.type)}
                                   </span>
                                 </div>
 
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  Código:{" "}
+                                  {ui("Código:")}{" "}
                                   <span className="font-mono font-bold text-foreground">
                                     {set.code}
                                   </span>
                                   {" • "}
-                                  Subconjuntos:{" "}
-                                  {subsets.length}
+                                  {ui("Subconjuntos:")} {subsets.length}
                                 </div>
 
                                 {set.description && (
@@ -1111,12 +893,10 @@ export function MachineHierarchyAdminSection({
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    startEditSet(set)
-                                  }
+                                  onClick={() => startEditSet(set)}
                                   disabled={isSaving}
                                 >
-                                  Editar
+                                  {ui("Editar")}
                                 </Button>
 
                                 <Button
@@ -1124,15 +904,11 @@ export function MachineHierarchyAdminSection({
                                   size="sm"
                                   variant="secondary"
                                   onClick={() => {
-                                    void handleToggleSet(
-                                      set,
-                                    );
+                                    void handleToggleSet(set);
                                   }}
                                   disabled={isSaving}
                                 >
-                                  {set.isActive
-                                    ? "Inativar"
-                                    : "Reativar"}
+                                  {set.isActive ? ui("Inativar") : ui("Reativar")}
                                 </Button>
 
                                 <Button
@@ -1140,13 +916,11 @@ export function MachineHierarchyAdminSection({
                                   size="sm"
                                   variant="destructive"
                                   onClick={() => {
-                                    void handleDeleteSet(
-                                      set,
-                                    );
+                                    void handleDeleteSet(set);
                                   }}
                                   disabled={isSaving}
                                 >
-                                  Excluir
+                                  {ui("Excluir")}
                                 </Button>
                               </div>
                             </div>
@@ -1156,205 +930,116 @@ export function MachineHierarchyAdminSection({
                         <button
                           type="button"
                           className="flex w-full items-center justify-between border-t border-border px-3 py-2 text-left text-sm font-bold"
-                          onClick={() =>
-                            toggleSetExpansion(
-                              set.id,
-                            )
-                          }
+                          onClick={() => toggleSetExpansion(set.id)}
                         >
-                          <span>
-                            Subconjuntos do conjunto
-                          </span>
+                          <span>{ui("Subconjuntos do conjunto")}</span>
 
-                          <span>
-                            {isExpanded
-                              ? "Recolher"
-                              : "Expandir"}
-                          </span>
+                          <span>{isExpanded ? ui("Recolher") : ui("Expandir")}</span>
                         </button>
 
                         {isExpanded && (
                           <div className="space-y-3 border-t border-border bg-muted/20 p-3">
                             {set.isActive && (
                               <div className="space-y-3 rounded-md border border-border bg-card p-3">
-                                <h6 className="font-black">
-                                  Novo subconjunto
-                                </h6>
+                                <h6 className="font-black">{ui("Novo subconjunto")}</h6>
 
                                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                   <div className="space-y-1">
-                                    <Label>Nome</Label>
+                                    <Label>{ui("Nome")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.name
-                                      }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            name: event
-                                              .target
-                                              .value,
-                                          },
-                                        )
+                                      value={newSubset.name}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          name: event.target.value,
+                                        })
                                       }
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>Código</Label>
+                                    <Label>{ui("Código")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.code
+                                      value={newSubset.code}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          code: event.target.value,
+                                        })
                                       }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            code: event
-                                              .target
-                                              .value,
-                                          },
-                                        )
-                                      }
-                                      placeholder="Gerado pelo nome"
+                                      placeholder={ui("Gerado pelo nome")}
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>Tipo</Label>
+                                    <Label>{ui("Tipo")}</Label>
                                     <SubsetTypeSelect
-                                      value={
-                                        newSubset.typeId
-                                      }
-                                      types={
-                                        subsetTypes
-                                      }
-                                      includeInactive={
-                                        false
-                                      }
-                                      onValueChange={(
-                                        typeId,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          { typeId },
-                                        )
+                                      value={newSubset.typeId}
+                                      types={subsetTypes}
+                                      includeInactive={false}
+                                      onValueChange={(typeId) =>
+                                        updateNewSubset(set.id, { typeId })
                                       }
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>Ordem</Label>
+                                    <Label>{ui("Ordem")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.displayOrder
-                                      }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            displayOrder:
-                                              event
-                                                .target
-                                                .value,
-                                          },
-                                        )
+                                      value={newSubset.displayOrder}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          displayOrder: event.target.value,
+                                        })
                                       }
                                       inputMode="numeric"
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>Fabricante</Label>
+                                    <Label>{ui("Fabricante")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.manufacturer
+                                      value={newSubset.manufacturer}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          manufacturer: event.target.value,
+                                        })
                                       }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            manufacturer:
-                                              event
-                                                .target
-                                                .value,
-                                          },
-                                        )
-                                      }
-                                      placeholder="WEG"
+                                      placeholder={ui("WEG")}
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>Modelo</Label>
+                                    <Label>{ui("Modelo")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.model
-                                      }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            model: event
-                                              .target
-                                              .value,
-                                          },
-                                        )
+                                      value={newSubset.model}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          model: event.target.value,
+                                        })
                                       }
                                     />
                                   </div>
 
                                   <div className="space-y-1">
-                                    <Label>TAG</Label>
+                                    <Label>{ui("TAG")}</Label>
                                     <Input
-                                      value={
-                                        newSubset.assetTag
-                                      }
-                                      onChange={(
-                                        event,
-                                      ) =>
-                                        updateNewSubset(
-                                          set.id,
-                                          {
-                                            assetTag:
-                                              event
-                                                .target
-                                                .value,
-                                          },
-                                        )
+                                      value={newSubset.assetTag}
+                                      onChange={(event) =>
+                                        updateNewSubset(set.id, {
+                                          assetTag: event.target.value,
+                                        })
                                       }
                                     />
                                   </div>
                                 </div>
 
                                 <div className="space-y-1">
-                                  <Label>Descrição</Label>
+                                  <Label>{ui("Descrição")}</Label>
                                   <Input
-                                    value={
-                                      newSubset.description
-                                    }
-                                    onChange={(
-                                      event,
-                                    ) =>
-                                      updateNewSubset(
-                                        set.id,
-                                        {
-                                          description:
-                                            event.target
-                                              .value,
-                                        },
-                                      )
+                                    value={newSubset.description}
+                                    onChange={(event) =>
+                                      updateNewSubset(set.id, {
+                                        description: event.target.value,
+                                      })
                                     }
                                   />
                                 </div>
@@ -1364,19 +1049,14 @@ export function MachineHierarchyAdminSection({
                                     type="button"
                                     size="sm"
                                     onClick={() => {
-                                      void handleCreateSubset(
-                                        set,
-                                      );
+                                      void handleCreateSubset(set);
                                     }}
                                     disabled={
                                       isSaving ||
-                                      subsetTypes.filter(
-                                        (type) =>
-                                          type.isActive,
-                                      ).length === 0
+                                      subsetTypes.filter((type) => type.isActive).length === 0
                                     }
                                   >
-                                    Adicionar subconjunto
+                                    {ui("Adicionar subconjunto")}
                                   </Button>
                                 </div>
                               </div>
@@ -1384,13 +1064,11 @@ export function MachineHierarchyAdminSection({
 
                             {subsets.length === 0 ? (
                               <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-                                Nenhum subconjunto cadastrado.
+                                {ui("Nenhum subconjunto cadastrado.")}
                               </div>
                             ) : (
                               subsets.map((subset) => {
-                                const isSubsetEditing =
-                                  editingSubsetId ===
-                                  subset.id;
+                                const isSubsetEditing = editingSubsetId === subset.id;
 
                                 return (
                                   <div
@@ -1405,169 +1083,101 @@ export function MachineHierarchyAdminSection({
                                       <div className="space-y-3">
                                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                           <div className="space-y-1">
-                                            <Label>Nome</Label>
+                                            <Label>{ui("Nome")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.name
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    name: event
-                                                      .target
-                                                      .value,
-                                                  },
-                                                )
+                                              value={editSubset.name}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  name: event.target.value,
+                                                })
                                               }
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>Código</Label>
+                                            <Label>{ui("Código")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.code
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    code: event
-                                                      .target
-                                                      .value,
-                                                  },
-                                                )
+                                              value={editSubset.code}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  code: event.target.value,
+                                                })
                                               }
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>Tipo</Label>
+                                            <Label>{ui("Tipo")}</Label>
                                             <SubsetTypeSelect
-                                              value={
-                                                editSubset.typeId
-                                              }
-                                              types={
-                                                subsetTypes
-                                              }
+                                              value={editSubset.typeId}
+                                              types={subsetTypes}
                                               includeInactive
-                                              onValueChange={(
-                                                typeId,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    typeId,
-                                                  },
-                                                )
+                                              onValueChange={(typeId) =>
+                                                updateEditSubset({
+                                                  typeId,
+                                                })
                                               }
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>Ordem</Label>
+                                            <Label>{ui("Ordem")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.displayOrder
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    displayOrder:
-                                                      event
-                                                        .target
-                                                        .value,
-                                                  },
-                                                )
+                                              value={editSubset.displayOrder}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  displayOrder: event.target.value,
+                                                })
                                               }
                                               inputMode="numeric"
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>Fabricante</Label>
+                                            <Label>{ui("Fabricante")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.manufacturer
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    manufacturer:
-                                                      event
-                                                        .target
-                                                        .value,
-                                                  },
-                                                )
+                                              value={editSubset.manufacturer}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  manufacturer: event.target.value,
+                                                })
                                               }
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>Modelo</Label>
+                                            <Label>{ui("Modelo")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.model
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    model: event
-                                                      .target
-                                                      .value,
-                                                  },
-                                                )
+                                              value={editSubset.model}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  model: event.target.value,
+                                                })
                                               }
                                             />
                                           </div>
 
                                           <div className="space-y-1">
-                                            <Label>TAG</Label>
+                                            <Label>{ui("TAG")}</Label>
                                             <Input
-                                              value={
-                                                editSubset.assetTag
-                                              }
-                                              onChange={(
-                                                event,
-                                              ) =>
-                                                updateEditSubset(
-                                                  {
-                                                    assetTag:
-                                                      event
-                                                        .target
-                                                        .value,
-                                                  },
-                                                )
+                                              value={editSubset.assetTag}
+                                              onChange={(event) =>
+                                                updateEditSubset({
+                                                  assetTag: event.target.value,
+                                                })
                                               }
                                             />
                                           </div>
                                         </div>
 
                                         <div className="space-y-1">
-                                          <Label>Descrição</Label>
+                                          <Label>{ui("Descrição")}</Label>
                                           <Input
-                                            value={
-                                              editSubset.description
-                                            }
-                                            onChange={(
-                                              event,
-                                            ) =>
-                                              updateEditSubset(
-                                                {
-                                                  description:
-                                                    event
-                                                      .target
-                                                      .value,
-                                                },
-                                              )
+                                            value={editSubset.description}
+                                            onChange={(event) =>
+                                              updateEditSubset({
+                                                description: event.target.value,
+                                              })
                                             }
                                           />
                                         </div>
@@ -1577,29 +1187,21 @@ export function MachineHierarchyAdminSection({
                                             type="button"
                                             size="sm"
                                             onClick={() => {
-                                              void handleSaveSubset(
-                                                subset.id,
-                                              );
+                                              void handleSaveSubset(subset.id);
                                             }}
-                                            disabled={
-                                              isSaving
-                                            }
+                                            disabled={isSaving}
                                           >
-                                            Salvar
+                                            {ui("Salvar")}
                                           </Button>
 
                                           <Button
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            onClick={
-                                              cancelEditSubset
-                                            }
-                                            disabled={
-                                              isSaving
-                                            }
+                                            onClick={cancelEditSubset}
+                                            disabled={isSaving}
                                           >
-                                            Cancelar
+                                            {ui("Cancelar")}
                                           </Button>
                                         </div>
                                       </div>
@@ -1607,49 +1209,38 @@ export function MachineHierarchyAdminSection({
                                       <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <span className="font-black">
-                                              {
-                                                subset.name
-                                              }
-                                            </span>
+                                            <span className="font-black">{subset.name}</span>
 
                                             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold">
                                               {subset.isActive
-                                                ? "Ativo"
-                                                : "Inativo"}
+                                                ? ui("Ativo", {}, "record")
+                                                : ui("Inativo", {}, "record")}
                                             </span>
 
                                             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                                              {typeLabel(
-                                                subset.typeId,
-                                                subsetTypes,
-                                              )}
+                                              {typeLabel(subset.typeId, subsetTypes)}
                                             </span>
                                           </div>
 
                                           <div className="mt-1 text-xs text-muted-foreground">
-                                            Código:{" "}
+                                            {ui("Código:")}{" "}
                                             <span className="font-mono font-bold text-foreground">
-                                              {
-                                                subset.code
-                                              }
+                                              {subset.code}
                                             </span>
                                             {subset.manufacturer
-                                              ? ` • Fabricante: ${subset.manufacturer}`
+                                              ? ui(" • Fabricante: {0}", { 0: subset.manufacturer })
                                               : ""}
                                             {subset.model
-                                              ? ` • Modelo: ${subset.model}`
+                                              ? ui(" • Modelo: {0}", { 0: subset.model })
                                               : ""}
                                             {subset.assetTag
-                                              ? ` • TAG: ${subset.assetTag}`
+                                              ? ui(" • TAG: {0}", { 0: subset.assetTag })
                                               : ""}
                                           </div>
 
                                           {subset.description && (
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                              {
-                                                subset.description
-                                              }
+                                              {subset.description}
                                             </p>
                                           )}
                                         </div>
@@ -1659,16 +1250,10 @@ export function MachineHierarchyAdminSection({
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            onClick={() =>
-                                              startEditSubset(
-                                                subset,
-                                              )
-                                            }
-                                            disabled={
-                                              isSaving
-                                            }
+                                            onClick={() => startEditSubset(subset)}
+                                            disabled={isSaving}
                                           >
-                                            Editar
+                                            {ui("Editar")}
                                           </Button>
 
                                           <Button
@@ -1676,17 +1261,11 @@ export function MachineHierarchyAdminSection({
                                             size="sm"
                                             variant="secondary"
                                             onClick={() => {
-                                              void handleToggleSubset(
-                                                subset,
-                                              );
+                                              void handleToggleSubset(subset);
                                             }}
-                                            disabled={
-                                              isSaving
-                                            }
+                                            disabled={isSaving}
                                           >
-                                            {subset.isActive
-                                              ? "Inativar"
-                                              : "Reativar"}
+                                            {subset.isActive ? ui("Inativar") : ui("Reativar")}
                                           </Button>
 
                                           <Button
@@ -1694,15 +1273,11 @@ export function MachineHierarchyAdminSection({
                                             size="sm"
                                             variant="destructive"
                                             onClick={() => {
-                                              void handleDeleteSubset(
-                                                subset,
-                                              );
+                                              void handleDeleteSubset(subset);
                                             }}
-                                            disabled={
-                                              isSaving
-                                            }
+                                            disabled={isSaving}
                                           >
-                                            Excluir
+                                            {ui("Excluir")}
                                           </Button>
                                         </div>
                                       </div>

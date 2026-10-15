@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,34 +8,48 @@ import type { HubAdminSection } from "@/types/modules";
 const links: { section: HubAdminSection; title: string; description: string }[] = [
   {
     section: "workstations",
-    title: "Estações e acessos",
-    description: "Ativação de estações e permissões independentes do ANDON e BI.",
+    get title() {
+      return ui("Estações e acessos");
+    },
+    get description() {
+      return ui("Ativação de estações e permissões independentes do ANDON e BI.");
+    },
   },
   {
     section: "security",
-    title: "Segurança administrativa",
-    description: "Senha global do Admin e código de recuperação.",
+    get title() {
+      return ui("Segurança administrativa");
+    },
+    get description() {
+      return ui("Senha global do Admin e código de recuperação.");
+    },
   },
   {
     section: "modules",
-    title: "Módulos e senhas",
-    description: "Credenciais de entrada e exigência de senha dos três módulos.",
+    get title() {
+      return ui("Módulos e senhas");
+    },
+    get description() {
+      return ui("Credenciais de entrada e exigência de senha dos três módulos.");
+    },
   },
 ];
 
 export function PlatformAdminLinks() {
+  useInterfaceLanguage();
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          Administração da plataforma
+          {ui("Administração da plataforma")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Estações, permissões e credenciais são gerenciadas no Hub com a mesma sessão
-          administrativa.
+          {ui(
+            "Estações, permissões e credenciais são gerenciadas no Hub com a mesma sessão administrativa.",
+          )}
         </p>
         {links.map((item) => (
           <Link

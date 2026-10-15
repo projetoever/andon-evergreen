@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimulationPanel } from "./SimulationPanel";
 import { SoundSettingsPanel } from "./SoundSettingsPanel";
@@ -6,23 +8,24 @@ import { AlertSettingsPanel } from "./AlertSettingsPanel";
 import { MachineAdminPanel } from "./MachineAdminPanel";
 
 export function SettingsPanel() {
+  useInterfaceLanguage();
   return (
     <Tabs defaultValue="simulation" className="w-full">
       <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-muted p-2 lg:grid-cols-5">
         <TabsTrigger value="simulation" className="min-h-[56px] text-base font-bold uppercase">
-          Simulação
+          {ui("Simulação")}
         </TabsTrigger>
         <TabsTrigger value="sounds" className="min-h-[56px] text-base font-bold uppercase">
-          Sons
+          {ui("Sons")}
         </TabsTrigger>
         <TabsTrigger value="backup" className="min-h-[56px] text-base font-bold uppercase">
-          Backup
+          {ui("Backup")}
         </TabsTrigger>
         <TabsTrigger value="alerts" className="min-h-[56px] text-base font-bold uppercase">
-          Alertas
+          {ui("Alertas")}
         </TabsTrigger>
         <TabsTrigger value="machines" className="min-h-[56px] text-base font-bold uppercase">
-          Máquinas
+          {ui("Máquinas")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="simulation" className="mt-4">

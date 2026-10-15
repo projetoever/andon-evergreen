@@ -1,15 +1,39 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, Bell, History, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/andon", label: "Painel", icon: LayoutDashboard, exact: true },
-  { to: "/active-calls", label: "Chamados Ativos", icon: Bell, exact: false },
-  { to: "/history", label: "Histórico", icon: History, exact: false },
-  { to: "/settings", label: "Configurações", icon: Settings, exact: false },
+  {
+    to: "/active-calls",
+    get label() {
+      return ui("Chamados Ativos");
+    },
+    icon: Bell,
+    exact: false,
+  },
+  {
+    to: "/history",
+    get label() {
+      return ui("Histórico");
+    },
+    icon: History,
+    exact: false,
+  },
+  {
+    to: "/settings",
+    get label() {
+      return ui("Configurações");
+    },
+    icon: Settings,
+    exact: false,
+  },
 ] as const;
 
 export function MainNavigation() {
+  useInterfaceLanguage();
   return (
     <nav className="border-b border-border bg-background">
       <div className="mx-auto flex w-full max-w-[1920px] gap-2 px-8">

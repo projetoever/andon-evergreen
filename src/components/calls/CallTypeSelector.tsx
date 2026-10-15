@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import type { CallSubtype } from "@/types/andon";
 import { cn } from "@/lib/utils";
@@ -8,10 +10,11 @@ interface CallTypeSelectorProps {
 }
 
 export function CallTypeSelector({ value, onChange }: CallTypeSelectorProps) {
+  useInterfaceLanguage();
   return (
     <div>
       <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        Tipo de chamado
+        {ui("Tipo de chamado")}
       </h4>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -35,7 +38,7 @@ export function CallTypeSelector({ value, onChange }: CallTypeSelectorProps) {
               )}
             >
               <span className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">
-                {isMaintenance ? "Manutenção" : "Produção"}
+                {isMaintenance ? ui("Manutenção") : ui("Produção")}
               </span>
               <span className="mt-0.5 text-base font-black leading-tight">{opt.label}</span>
             </button>

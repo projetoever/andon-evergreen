@@ -1,3 +1,5 @@
+import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -15,18 +17,23 @@ import {
 import type { Workstation } from "@/types/workstation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 function workstationLabel(workstation: Workstation) {
-  return workstation.name || `Workstation não identificada · ${workstation.id.slice(-8)}`;
+  return (
+    workstation.name || ui("Workstation não identificada · {0}", { 0: workstation.id.slice(-8) })
+  );
 }
 
 function formatLastSeen(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Não informado" : date.toLocaleString("pt-BR");
+  return Number.isNaN(date.getTime())
+    ? ui("Não informado")
+    : date.toLocaleString(getInterfaceLocale());
 }
 
 export function WorkstationsSettingsTab() {
+  useInterfaceLanguage();
   const { refresh } = useModuleAccess();
   const currentWorkstationId = getCurrentWorkstationId();
   const [items, setItems] = useState<Workstation[]>([]);
@@ -78,7 +85,8 @@ export function WorkstationsSettingsTab() {
         ),
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao carregar workstations.";
+      const message =
+        error instanceof Error ? error.message : ui("Falha ao carregar workstations.");
       setLoadError(message);
       toast.error(message);
     } finally {
@@ -146,17 +154,21 @@ export function WorkstationsSettingsTab() {
     <div className="space-y-4">
       <WorkstationAdmissionSettings />
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Workstations conhecidas</h3>
+        <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
         <p className="text-sm text-muted-foreground">
-          Cada navegador tem uma identidade própria. O IP é registrado pelo servidor no último
-          acesso. A ativação geral e as permissões abaixo controlam os três módulos.
+          {ui(
+            "Cada navegador tem uma identidade própria. O IP é registrado pelo servidor no último acesso. A ativação geral e as permissões abaixo controlam os três módulos.",
+          )}
         </p>
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs font-semibold text-muted-foreground">
-            {filteredItems.length} de {items.length} workstation(s)
+            {filteredItems.length}
+            {ui(" de ")}
+            {items.length}
+            {ui(" workstation(s)")}
           </p>
           {(searchQuery || statusFilter !== "all") && (
             <button
@@ -167,7 +179,7 @@ export function WorkstationsSettingsTab() {
               }}
               className="text-xs font-bold text-primary hover:underline"
             >
-              Limpar filtros
+              {ui("Limpar filtros")}
             </button>
           )}
         </div>
@@ -181,14 +193,14 @@ export function WorkstationsSettingsTab() {
             type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Pesquisar nome, ID ou IP..."
-            aria-label="Pesquisar workstations por nome ou ID (inclui IP)"
+            placeholder={ui("Pesquisar nome, ID ou IP...")}
+            aria-label={ui("Pesquisar workstations por nome ou ID (inclui IP)")}
             className="pl-9 pr-9"
           />
           {searchQuery && (
             <button
               type="button"
-              aria-label="Limpar pesquisa de workstations"
+              aria-label={ui("Limpar pesquisa de workstations")}
               onClick={() => setSearchQuery("")}
               className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
             >
@@ -199,11 +211,11 @@ export function WorkstationsSettingsTab() {
 
         <div
           className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-          aria-label="Filtrar workstations por status"
+          aria-label={ui("Filtrar workstations por status")}
         >
           {(
             [
-              ["all", "Todas"],
+              ["all", ui("Todas")],
               ["active", "Ativas"],
               ["inactive", "Inativas"],
             ] as const
@@ -225,31 +237,33 @@ export function WorkstationsSettingsTab() {
         </div>
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando workstations...</p>}
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">{ui("Carregando workstations...")}</p>
+      )}
 
       {!isLoading && loadError && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
         >
-          <span>{loadError}</span>
+          <span>{systemMessage(loadError)}</span>
           <button type="button" className="font-bold underline" onClick={() => void load()}>
-            Tentar novamente
+            {ui("Tentar novamente")}
           </button>
         </div>
       )}
 
       {!isLoading && !loadError && items.length === 0 && (
         <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-          <p className="text-sm font-bold">Nenhuma workstation registrada</p>
+          <p className="text-sm font-bold">{ui("Nenhuma workstation registrada")}</p>
         </div>
       )}
 
       {!isLoading && !loadError && items.length > 0 && filteredItems.length === 0 && (
         <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-          <p className="text-sm font-bold">Nenhuma workstation encontrada</p>
+          <p className="text-sm font-bold">{ui("Nenhuma workstation encontrada")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Ajuste a pesquisa ou o filtro de status.
+            {ui("Ajuste a pesquisa ou o filtro de status.")}
           </p>
         </div>
       )}
@@ -273,9 +287,13 @@ export function WorkstationsSettingsTab() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">{workstationLabel(workstation)}</CardTitle>
                   <div className="flex gap-2">
-                    {isCurrent && <Badge>Esta workstation</Badge>}
+                    {isCurrent && <Badge>{ui("Esta workstation")}</Badge>}
                     <Badge variant={workstation.active ? "secondary" : "outline"}>
-                      {workstation.pendingApproval ? "Aguardando aprovação" : workstation.active ? "Liberado" : "Bloqueado"}
+                      {workstation.pendingApproval
+                        ? ui("Aguardando aprovação")
+                        : workstation.active
+                          ? ui("Liberado")
+                          : ui("Bloqueado")}
                     </Badge>
                   </div>
                 </div>
@@ -285,13 +303,15 @@ export function WorkstationsSettingsTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1">
-                  <Label htmlFor={`workstation-name-${workstation.id}`}>Nome amigável</Label>
+                  <Label htmlFor={`workstation-name-${workstation.id}`}>
+                    {ui("Nome amigável")}
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       id={`workstation-name-${workstation.id}`}
                       value={draftNames[workstation.id] ?? ""}
                       maxLength={120}
-                      placeholder="Ex.: PC Máquina 37"
+                      placeholder={ui("Ex.: PC Máquina 37")}
                       onChange={(event) =>
                         setDraftNames((current) => ({
                           ...current,
@@ -305,25 +325,26 @@ export function WorkstationsSettingsTab() {
                       disabled={isSaving}
                       onClick={() => void saveName(workstation)}
                     >
-                      Salvar
+                      {ui("Salvar")}
                     </Button>
                   </div>
                 </div>
 
                 <div className="rounded-lg bg-muted/30 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">IP do último acesso: </span>
+                  <span className="text-muted-foreground">{ui("IP do último acesso: ")}</span>
                   <span className="font-mono font-semibold">
-                    {workstation.lastIpAddress ?? "Não identificado"}
+                    {workstation.lastIpAddress ?? ui("Não identificado")}
                   </span>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground">
-                    Último acesso: {formatLastSeen(workstation.lastSeenAt)}
+                    {ui("Último acesso: ")}
+                    {formatLastSeen(workstation.lastSeenAt)}
                   </span>
                   <label className="flex items-center gap-2 font-semibold">
                     <Switch
-                      aria-label={`Ativação geral · ${workstationLabel(workstation)}`}
+                      aria-label={ui("Ativação geral · {0}", { 0: workstationLabel(workstation) })}
                       checked={workstation.active}
                       disabled={
                         isSaving ||
@@ -331,18 +352,22 @@ export function WorkstationsSettingsTab() {
                       }
                       onCheckedChange={(active) => void changeActive(workstation, active)}
                     />
-                    {workstation.pendingApproval ? "Aprovar estação" : workstation.active ? "Liberado" : "Bloqueado"}
+                    {workstation.pendingApproval
+                      ? ui("Aprovar estação")
+                      : workstation.active
+                        ? ui("Liberado")
+                        : ui("Bloqueado")}
                   </label>
                 </div>
                 <div className="space-y-3 rounded-lg border border-border p-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    Módulos autorizados
+                    {ui("Módulos autorizados")}
                   </p>
                   {(
                     [
                       ["allowOperational", "ANDON operacional"],
                       ["allowBi", "ANDON BI"],
-                      ["allowPriorities", "Prioridades de produção"],
+                      ["allowPriorities", ui("Prioridades de produção")],
                     ] as const
                   ).map(([field, label]) => (
                     <label
@@ -364,8 +389,9 @@ export function WorkstationsSettingsTab() {
                     </label>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Módulos não autorizados ficam ocultos no Hub. Uma tela fixada deve ser
-                    desbloqueada antes de retirar o acesso operacional.
+                    {ui(
+                      "Módulos não autorizados ficam ocultos no Hub. Uma tela fixada deve ser desbloqueada antes de retirar o acesso operacional.",
+                    )}
                   </p>
                 </div>
               </CardContent>

@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import type { AndonStatus, CallCriticality, CallSubtype } from "@/types/andon";
 import type { MachineStatus, ProductionMode } from "@/types/machine";
 import { getCallTypeOption } from "@/data/callTypes";
@@ -6,23 +7,23 @@ export type AlertLevel = "normal" | "warning" | "critical";
 export type DashboardCardAttentionTone = "danger" | "warning" | null;
 
 export function getMachineStatusLabel(status: MachineStatus): string {
-  return status === "running" ? "Pronta para rodar" : "Em falha";
+  return status === "running" ? ui("Pronta para rodar") : ui("Em falha");
 }
 
 export function getAndonStatusLabel(status: AndonStatus): string {
   switch (status) {
     case "none":
-      return "Sem chamado";
+      return ui("Sem chamado");
     case "open":
-      return "Aberto";
+      return ui("Aberto");
     case "in_progress":
-      return "Em atendimento";
+      return ui("Em atendimento");
     case "post_maintenance":
-      return "Acompanhamento";
+      return ui("Acompanhamento");
     case "finished":
-      return "Finalizado";
+      return ui("Finalizado");
     case "cancelled":
-      return "Cancelado";
+      return ui("Cancelado");
   }
 }
 
@@ -40,11 +41,11 @@ export function getCallSubtypeLabel(subtype: CallSubtype): string {
 export function getCriticalityLabel(criticality: CallCriticality | null | undefined): string {
   switch (criticality ?? "medium") {
     case "low":
-      return "Baixa";
+      return ui("Baixa");
     case "medium":
-      return "Média";
+      return ui("Média");
     case "high":
-      return "Alta";
+      return ui("Alta");
   }
 }
 
@@ -89,30 +90,29 @@ export function getAlertLevel(minutes: number, warning: number, critical: number
 }
 
 export function getProductionModeLabel(productionMode: ProductionMode): string {
-  return productionMode === "scheduled" ? "Produção Programada" : "Fora de Produção";
+  return productionMode === "scheduled" ? ui("Produção Programada") : ui("Fora de Produção");
 }
 
 export function getMachineConditionLabel(status: MachineStatus | null | undefined): string {
-  return status === "stopped" ? "Em falha" : "Pronta para rodar";
+  return status === "stopped" ? ui("Em falha") : ui("Pronta para rodar");
 }
 
 export function getTechnicianAreaLabel(area: string | null | undefined): string {
   switch (area) {
     case "electrical":
-      return "Elétrica";
+      return ui("Elétrica");
     case "mechanical":
-      return "Mecânica";
+      return ui("Mecânica");
     case "hot_melt":
-      return "Hot Melt";
+      return ui("Hot Melt");
     case "quality":
-      return "Qualidade";
+      return ui("Qualidade");
     case "leadership":
-      return "Liderança";
+      return ui("Liderança");
     default:
-      return "Não informado";
+      return ui("Não informado");
   }
 }
-
 
 export function getDashboardCardAttentionTone(
   machineStatus: MachineStatus,

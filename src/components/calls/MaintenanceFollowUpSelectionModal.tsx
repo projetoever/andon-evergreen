@@ -1,5 +1,7 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import {
@@ -25,6 +27,7 @@ export function MaintenanceFollowUpSelectionModal({
   onOpenChange,
   call,
 }: MaintenanceFollowUpSelectionModalProps) {
+  useInterfaceLanguage();
   const { completeMaintenance } = useAndon();
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,15 +67,17 @@ export function MaintenanceFollowUpSelectionModal({
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
       <DialogContent className="max-h-[92vh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Acompanhamento pós-manutenção</DialogTitle>
+          <DialogTitle className="text-2xl">{ui("Acompanhamento pós-manutenção")}</DialogTitle>
           <DialogDescription className="text-base">
-            Selecione quem continuará fisicamente acompanhando a máquina.
+            {ui("Selecione quem continuará fisicamente acompanhando a máquina.")}
           </DialogDescription>
         </DialogHeader>
 
         {activeMaintenanceSessions.length === 0 ? (
           <p className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-            Não há mantenedor ativo. A manutenção será concluída sem acompanhamento individual.
+            {ui(
+              "Não há mantenedor ativo. A manutenção será concluída sem acompanhamento individual.",
+            )}
           </p>
         ) : (
           <div className="space-y-2">
@@ -99,12 +104,12 @@ export function MaintenanceFollowUpSelectionModal({
                   <span className="min-w-0 flex-1">
                     <strong className="block truncate text-base">{session.technicianName}</strong>
                     <small className="text-muted-foreground">
-                      {session.technicalArea ?? "Área não informada"}
+                      {session.technicalArea ?? ui("Área não informada")}
                       {session.shiftName ? ` · ${formatShiftName(session.shiftName)}` : ""}
                     </small>
                   </span>
                   <span className={selected ? "font-bold text-info" : "text-muted-foreground"}>
-                    {selected ? "Continuará acompanhando" : "Encerrar participação"}
+                    {selected ? ui("Continuará acompanhando") : ui("Encerrar participação")}
                   </span>
                 </label>
               );
@@ -119,10 +124,10 @@ export function MaintenanceFollowUpSelectionModal({
             disabled={isSubmitting}
             onClick={() => onOpenChange(false)}
           >
-            Cancelar
+            {ui("Cancelar")}
           </BigButton>
           <BigButton tone="success" size="md" disabled={isSubmitting} onClick={handleConfirm}>
-            {isSubmitting ? "Concluindo..." : "Confirmar conclusão da manutenção"}
+            {isSubmitting ? ui("Concluindo...") : ui("Confirmar conclusão da manutenção")}
           </BigButton>
         </DialogFooter>
       </DialogContent>

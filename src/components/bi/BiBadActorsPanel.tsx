@@ -1,17 +1,16 @@
-import {
-  RotateCcw,
-  ShieldAlert,
-} from "lucide-react";
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { RotateCcw, ShieldAlert } from "lucide-react";
 
 import type { AnalyticsAssetReliability } from "@/types/analytics";
 
 function formatMinutes(value: number | null) {
   if (value === null || !Number.isFinite(value)) return "—";
   const rounded = Math.round(value);
-  if (rounded < 60) return `${rounded} min`;
+  if (rounded < 60) return `${rounded} ${ui("min")}`;
   const hours = Math.floor(rounded / 60);
   const minutes = rounded % 60;
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  return minutes ? `${hours}${ui("h")} ${minutes}${ui("m")}` : `${hours}${ui("h")}`;
 }
 
 export function BiBadActorsPanel({
@@ -29,6 +28,7 @@ export function BiBadActorsPanel({
   onSelectMachine: (machineId: string, machineName: string) => void;
   population?: "active" | "inactive" | "all";
 }) {
+  useInterfaceLanguage();
   if (loading && !data) {
     return (
       <section className="h-full rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -40,7 +40,8 @@ export function BiBadActorsPanel({
   if (error) {
     return (
       <section className="h-full rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-4 text-sm text-amber-200">
-        Confiabilidade por ativo indisponível: {error}
+        {ui("Confiabilidade por ativo indisponível: ")}
+        {systemMessage(error)}
       </section>
     );
   }
@@ -48,8 +49,9 @@ export function BiBadActorsPanel({
   if (!data) return null;
 
   const eligibleAssets = data.assets
-    .filter((asset) =>
-      population === "all" || (population === "active" ? asset.isActive : !asset.isActive),
+    .filter(
+      (asset) =>
+        population === "all" || (population === "active" ? asset.isActive : !asset.isActive),
     )
     .filter(
       (asset) =>
@@ -68,15 +70,22 @@ export function BiBadActorsPanel({
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-red-400" />
             <h2 className="text-sm font-black uppercase tracking-wide">
-              Máquinas críticas · Bad Actors
+              {ui("Máquinas críticas · Bad Actors")}
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Ranking por tempo de parada físico · {population === "active" ? "máquinas ativas" : population === "inactive" ? "máquinas inativas" : "todas as máquinas"} · top 8.
+            {ui("Ranking por tempo de parada físico · ")}
+            {population === "active"
+              ? ui("máquinas ativas")
+              : population === "inactive"
+                ? ui("máquinas inativas")
+                : ui("todas as máquinas")}
+            {ui(" · top 8.")}
           </p>
         </div>
         <span className="text-[11px] text-muted-foreground">
-          {eligibleAssets.length} ativo(s) · clique para Machine 360
+          {eligibleAssets.length}
+          {ui(" ativo(s) · clique para Machine 360")}
         </span>
       </div>
 
@@ -84,14 +93,21 @@ export function BiBadActorsPanel({
         <table className="w-full table-fixed text-left text-xs">
           <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="w-[22%] px-3 py-2">Ativo</th>
-              <th className="w-[12%] px-2 py-2">Parada</th>
-              <th className="w-[9%] px-2 py-2">Episódios</th>
-              <th className="w-[12%] px-2 py-2" title="Intervalo entre paradas (calendário) indisponível para máquinas inativas">Intervalo est.</th>
-              <th className="w-[11%] px-2 py-2">Diag. repet.</th>
-              <th className="w-[9%] px-2 py-2">Retornos</th>
-              <th className="w-[12%] px-2 py-2">Chamados ativos</th>
-              <th className="px-2 py-2">Diagnóstico</th>
+              <th className="w-[22%] px-3 py-2">{ui("Ativo", {}, "asset")}</th>
+              <th className="w-[12%] px-2 py-2">{ui("Parada")}</th>
+              <th className="w-[9%] px-2 py-2">{ui("Episódios")}</th>
+              <th
+                className="w-[12%] px-2 py-2"
+                title={ui(
+                  "Intervalo entre paradas (calendário) indisponível para máquinas inativas",
+                )}
+              >
+                {ui("Intervalo est.")}
+              </th>
+              <th className="w-[11%] px-2 py-2">{ui("Diag. repet.")}</th>
+              <th className="w-[9%] px-2 py-2">{ui("Retornos")}</th>
+              <th className="w-[12%] px-2 py-2">{ui("Chamados ativos")}</th>
+              <th className="px-2 py-2">{ui("Diagnóstico")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -148,8 +164,8 @@ export function BiBadActorsPanel({
                 </td>
                 <td className="truncate px-2 py-2">
                   {asset.topDiagnosis
-                    ? classificationLabels.get(asset.topDiagnosis.classification) ??
-                      asset.topDiagnosis.classification
+                    ? (classificationLabels.get(asset.topDiagnosis.classification) ??
+                      asset.topDiagnosis.classification)
                     : "—"}
                 </td>
               </tr>
@@ -159,7 +175,7 @@ export function BiBadActorsPanel({
 
         {!assets.length && (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Sem ativos com ocorrências no período
+            {ui("Sem ativos com ocorrências no período")}
           </div>
         )}
       </div>

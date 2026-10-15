@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { AndonCall, CallCategory, CallSubtype } from "@/types/andon";
@@ -9,14 +11,49 @@ export type HistoryFilter =
   | { kind: "machine"; value: string };
 
 const PRESET_BUTTONS: { label: string; filter: HistoryFilter }[] = [
-  { label: "Todos", filter: { kind: "all" } },
-  { label: "Manutenção", filter: { kind: "category", value: "maintenance" } },
-  { label: "Produção", filter: { kind: "category", value: "production" } },
-  { label: "Elétrica", filter: { kind: "subtype", value: "electrical" } },
-  { label: "Mecânica", filter: { kind: "subtype", value: "mechanical" } },
+  {
+    get label() {
+      return ui("Todos");
+    },
+    filter: { kind: "all" },
+  },
+  {
+    get label() {
+      return ui("Manutenção");
+    },
+    filter: { kind: "category", value: "maintenance" },
+  },
+  {
+    get label() {
+      return ui("Produção");
+    },
+    filter: { kind: "category", value: "production" },
+  },
+  {
+    get label() {
+      return ui("Elétrica");
+    },
+    filter: { kind: "subtype", value: "electrical" },
+  },
+  {
+    get label() {
+      return ui("Mecânica");
+    },
+    filter: { kind: "subtype", value: "mechanical" },
+  },
   { label: "Hot Melt", filter: { kind: "subtype", value: "hot_melt" } },
-  { label: "Qualidade", filter: { kind: "subtype", value: "quality" } },
-  { label: "Liderança", filter: { kind: "subtype", value: "leadership" } },
+  {
+    get label() {
+      return ui("Qualidade");
+    },
+    filter: { kind: "subtype", value: "quality" },
+  },
+  {
+    get label() {
+      return ui("Liderança");
+    },
+    filter: { kind: "subtype", value: "leadership" },
+  },
 ];
 
 interface HistoryFiltersProps {
@@ -26,10 +63,12 @@ interface HistoryFiltersProps {
 }
 
 export function HistoryFilters({ filter, onChange, availableMachines }: HistoryFiltersProps) {
+  useInterfaceLanguage();
   const isActive = (f: HistoryFilter) =>
     f.kind === filter.kind &&
     (f.kind === "all" ||
-      (f.kind === filter.kind && (f as { value: string }).value === (filter as { value: string }).value));
+      (f.kind === filter.kind &&
+        (f as { value: string }).value === (filter as { value: string }).value));
   return (
     <div className="flex flex-wrap items-center gap-2">
       {PRESET_BUTTONS.map((b) => (
@@ -50,16 +89,15 @@ export function HistoryFilters({ filter, onChange, availableMachines }: HistoryF
       <select
         value={filter.kind === "machine" ? filter.value : ""}
         onChange={(e) =>
-          onChange(
-            e.target.value ? { kind: "machine", value: e.target.value } : { kind: "all" },
-          )
+          onChange(e.target.value ? { kind: "machine", value: e.target.value } : { kind: "all" })
         }
         className="min-h-[48px] rounded-xl border-2 border-border bg-card px-4 text-sm font-bold uppercase tracking-wider text-foreground"
       >
-        <option value="">Máquina (todas)</option>
+        <option value="">{ui("Máquina (todas)")}</option>
         {availableMachines.map((m) => (
           <option key={m} value={m}>
-            Máquina {m}
+            {ui("Máquina ")}
+            {m}
           </option>
         ))}
       </select>
@@ -67,10 +105,7 @@ export function HistoryFilters({ filter, onChange, availableMachines }: HistoryF
   );
 }
 
-export function applyHistoryFilter(
-  calls: AndonCall[],
-  filter: HistoryFilter,
-): AndonCall[] {
+export function applyHistoryFilter(calls: AndonCall[], filter: HistoryFilter): AndonCall[] {
   switch (filter.kind) {
     case "all":
       return calls;

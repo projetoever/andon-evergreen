@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ListOrdered, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +16,7 @@ import {
 } from "@/services/dashboardPriorityService";
 
 export function PriorityAccessSettings() {
+  useInterfaceLanguage();
   const { refresh } = useModuleAccess();
   const [passwordRequired, setPasswordRequired] = useState(true);
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -35,7 +38,7 @@ export function PriorityAccessSettings() {
       setPasswordRequired(status.passwordRequired !== false);
       setPriorityUsername(status.username ?? "");
     } catch {
-      const message = "Não foi possível carregar o acesso de prioridades.";
+      const message = ui("Não foi possível carregar o acesso de prioridades.");
       setPriorityAccessLoadError(message);
       toast.error(message);
     } finally {
@@ -105,14 +108,14 @@ export function PriorityAccessSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ListOrdered className="h-5 w-5 text-primary" />
-          Acesso de Prioridades
+          {ui("Acesso de Prioridades")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <label className="flex items-center justify-between gap-4 rounded-lg border border-border p-3 text-sm font-bold">
-          Exigir senha para abrir Prioridades
+          {ui("Exigir senha para abrir Prioridades")}
           <Switch
-            aria-label="Exigir senha para abrir Prioridades"
+            aria-label={ui("Exigir senha para abrir Prioridades")}
             checked={passwordRequired}
             disabled={
               isLoadingPriorityAccess ||
@@ -124,24 +127,26 @@ export function PriorityAccessSettings() {
           />
         </label>
         <p className="text-xs text-muted-foreground">
-          Sem exigência de senha, estações autorizadas podem organizar a sequência. O histórico
-          identifica a workstation utilizada.
+          {ui(
+            "Sem exigência de senha, estações autorizadas podem organizar a sequência. O histórico identifica a workstation utilizada.",
+          )}
         </p>
         <p className="text-sm text-muted-foreground">
-          O administrador provisiona esta credencial. A sequência de produção continua sendo
-          organizada no módulo Prioridades. Atualizar a credencial encerra as sessões de Prioridades
-          existentes.
+          {ui(
+            "O administrador provisiona esta credencial. A sequência de produção continua sendo organizada no módulo Prioridades. Atualizar a credencial encerra as sessões de Prioridades existentes.",
+          )}
         </p>
         <div className="rounded-xl border border-border bg-muted/15 p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                <p className="font-black">Acesso à gestão de prioridades</p>
+                <p className="font-black">{ui("Acesso à gestão de prioridades")}</p>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Credencial independente salva no servidor e válida em todas as
-                máquinas/workstations.
+                {ui(
+                  "Credencial independente salva no servidor e válida em todas as máquinas/workstations.",
+                )}
               </p>
             </div>
             <span
@@ -154,12 +159,12 @@ export function PriorityAccessSettings() {
               }`}
             >
               {isLoadingPriorityAccess
-                ? "Carregando"
+                ? ui("Carregando")
                 : priorityAccessLoadError
-                  ? "Indisponível"
+                  ? ui("Indisponível")
                   : priorityConfigured
-                    ? "Configurado"
-                    : "Pendente"}
+                    ? ui("Configurado")
+                    : ui("Pendente")}
             </span>
           </div>
 
@@ -168,14 +173,14 @@ export function PriorityAccessSettings() {
               role="alert"
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
             >
-              <span>{priorityAccessLoadError}</span>
+              <span>{systemMessage(priorityAccessLoadError)}</span>
               <button
                 type="button"
                 className="font-bold underline"
                 onClick={() => void loadPriorityAccess()}
                 disabled={isLoadingPriorityAccess}
               >
-                Tentar novamente
+                {ui("Tentar novamente")}
               </button>
             </div>
           )}
@@ -183,7 +188,7 @@ export function PriorityAccessSettings() {
           <form className="space-y-3" onSubmit={handleSavePriorityCredentials}>
             <div className="grid gap-3 lg:grid-cols-3">
               <div className="space-y-1">
-                <Label htmlFor="priority-manager-username">Usuário</Label>
+                <Label htmlFor="priority-manager-username">{ui("Usuário")}</Label>
                 <Input
                   id="priority-manager-username"
                   disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
@@ -193,11 +198,11 @@ export function PriorityAccessSettings() {
                   autoComplete="off"
                   value={priorityUsername}
                   onChange={(event) => setPriorityUsername(event.target.value)}
-                  placeholder="responsavel.producao"
+                  placeholder={ui("responsavel.producao")}
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="priority-manager-password">Nova senha</Label>
+                <Label htmlFor="priority-manager-password">{ui("Nova senha")}</Label>
                 <Input
                   id="priority-manager-password"
                   disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
@@ -208,11 +213,11 @@ export function PriorityAccessSettings() {
                   autoComplete="new-password"
                   value={priorityPassword}
                   onChange={(event) => setPriorityPassword(event.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={ui("Mínimo 6 caracteres")}
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="priority-manager-password-confirm">Confirmar senha</Label>
+                <Label htmlFor="priority-manager-password-confirm">{ui("Confirmar senha")}</Label>
                 <Input
                   id="priority-manager-password-confirm"
                   disabled={isLoadingPriorityAccess || isSavingPriorityCredentials || savingPolicy}
@@ -223,7 +228,7 @@ export function PriorityAccessSettings() {
                   autoComplete="new-password"
                   value={priorityPasswordConfirm}
                   onChange={(event) => setPriorityPasswordConfirm(event.target.value)}
-                  placeholder="Repita a senha"
+                  placeholder={ui("Repita a senha")}
                 />
               </div>
             </div>
@@ -239,10 +244,10 @@ export function PriorityAccessSettings() {
                 }
               >
                 {isSavingPriorityCredentials
-                  ? "Salvando..."
+                  ? ui("Salvando...")
                   : priorityConfigured
-                    ? "Atualizar credenciais"
-                    : "Configurar acesso"}
+                    ? ui("Atualizar credenciais")
+                    : ui("Configurar acesso")}
               </Button>
             </div>
           </form>

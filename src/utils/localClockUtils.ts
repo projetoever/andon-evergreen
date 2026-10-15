@@ -1,3 +1,4 @@
+import { getInterfaceLocale } from "@/i18n/translate";
 const CLOCK_UPDATE_INTERVAL_MS = 1000;
 
 interface ClockScheduler {
@@ -11,7 +12,7 @@ const browserClockScheduler: ClockScheduler = {
 };
 
 export function formatLocalTime(date: Date, timeZone?: string | null): string {
-  return date.toLocaleTimeString("pt-BR", {
+  return date.toLocaleTimeString(getInterfaceLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     ...(timeZone ? { timeZone } : {}),

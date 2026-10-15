@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
 
 import { BigButton } from "@/components/common/BigButton";
@@ -19,6 +21,7 @@ interface CancelCallModalProps {
 }
 
 export function CancelCallModal({ open, onOpenChange, onConfirm }: CancelCallModalProps) {
+  useInterfaceLanguage();
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const normalizedReason = normalizeCancellationReason(reason);
@@ -46,21 +49,21 @@ export function CancelCallModal({ open, onOpenChange, onConfirm }: CancelCallMod
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && handleOpenChange(value)}>
       <DialogContent className="w-[calc(100%-1rem)] max-w-lg overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Cancelar chamado</DialogTitle>
+          <DialogTitle className="text-2xl">{ui("Cancelar chamado")}</DialogTitle>
           <DialogDescription className="text-base">
-            Informe por que este chamado está sendo cancelado.
+            {ui("Informe por que este chamado está sendo cancelado.")}
           </DialogDescription>
         </DialogHeader>
 
         <label className="block text-sm font-bold">
-          Justificativa do cancelamento
+          {ui("Justificativa do cancelamento")}
           <Textarea
             autoFocus
             className="mt-1 min-h-24"
             rows={3}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Digite a justificativa"
+            placeholder={ui("Digite a justificativa")}
           />
         </label>
 
@@ -71,7 +74,7 @@ export function CancelCallModal({ open, onOpenChange, onConfirm }: CancelCallMod
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
-            Voltar
+            {ui("Voltar")}
           </BigButton>
           <BigButton
             tone="danger"
@@ -79,7 +82,7 @@ export function CancelCallModal({ open, onOpenChange, onConfirm }: CancelCallMod
             onClick={() => void handleConfirm()}
             disabled={!normalizedReason || isSubmitting}
           >
-            {isSubmitting ? "Cancelando..." : "Confirmar cancelamento"}
+            {isSubmitting ? ui("Cancelando...") : ui("Confirmar cancelamento")}
           </BigButton>
         </DialogFooter>
       </DialogContent>

@@ -1,33 +1,39 @@
+import { ui, systemMessage, getInterfaceLocale, getInterfaceLanguage } from "@/i18n/translate";
 import type { AnalyticsMachine360 } from "@/types/analytics";
 
-const escapeHtml = (value: unknown) => String(value ?? "")
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+const escapeHtml = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 function minutes(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return "—";
   const total = Math.max(0, Math.round(value));
   const hours = Math.floor(total / 60);
   const remain = total % 60;
-  return hours > 0 ? `${hours}h${remain > 0 ? ` ${remain}min` : ""}` : `${remain}min`;
+  return hours > 0
+    ? `${hours}${ui("h")}${remain > 0 ? ` ${remain}${ui("min")}` : ""}`
+    : `${remain}${ui("min")}`;
 }
 
 function localDate(iso: string, zone: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", timeZone: zone,
+  return new Intl.DateTimeFormat(getInterfaceLocale(), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: zone,
   }).format(new Date(iso));
 }
 function tr(items: unknown[]): string {
-  return "<tr>" + items.map(item => `<td>${escapeHtml(item)}</td>`).join("") + "</tr>";
+  return "<tr>" + items.map((item) => `<td>${escapeHtml(item)}</td>`).join("") + "</tr>";
 }
 function table(headers: string[], rows: string[]) {
-  return `<table><thead><tr>${headers.map(item => `<th>${escapeHtml(item)}</th>`).join("")}</tr></thead><tbody>${
-    rows.length ? rows.join("") : `<tr><td colspan="${headers.length}" class="empty">Sem registros para esta seleção</td></tr>`
-  }</tbody></table>`;
+  return `<table><thead><tr>${headers.map((item) => `<th>${escapeHtml(item)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.join("") : `<tr><td colspan="${headers.length}" class="empty">${escapeHtml(ui("Sem registros para esta seleção"))}</td></tr>`}</tbody></table>`;
 }
 function metric(label: string, value: string, accent: string) {
   return `<div class="metric ${accent}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
@@ -41,29 +47,42 @@ export function buildMachinePdfHtml(
   const r = data.recurrence;
   const zone = data.meta.timeZone;
   const names = (key: string) => classificationLabels.get(key) ?? key;
-  const rows = r.groups.slice(0, 9).map(group => tr([
-    group.setName ?? "Não informado",
-    group.subsetName ?? "Não informado",
-    names(group.classification),
-    group.calls,
-    group.repeats30d,
-  ]));
-  const history = r.timeline.slice(0, 12).map(c => tr([
-    localDate(c.finishedAt, zone),
-    names(c.classification),
-    `${c.setName ?? "—"} / ${c.subsetName ?? "—"}`,
-    c.workOrderNumber ?? "—",
-    c.repeatSubset30d ? "Subconjunto" :
-      c.repeatSet30d ? "Conjunto" : c.repeat30d ? "Diagnóstico" : "Sem repetição ≤30d",
-  ]));
-  const diagnostics = data.diagnoses.slice(0, 6).map(c => tr([
-    names(c.classification), c.count,
-  ]));
+  const rows = r.groups
+    .slice(0, 9)
+    .map((group) =>
+      tr([
+        group.setName ?? ui("Não informado"),
+        group.subsetName ?? ui("Não informado"),
+        names(group.classification),
+        group.calls,
+        group.repeats30d,
+      ]),
+    );
+  const history = r.timeline
+    .slice(0, 12)
+    .map((c) =>
+      tr([
+        localDate(c.finishedAt, zone),
+        names(c.classification),
+        `${c.setName ?? "—"} / ${c.subsetName ?? "—"}`,
+        c.workOrderNumber ?? "—",
+        c.repeatSubset30d
+          ? "Subconjunto"
+          : c.repeatSet30d
+            ? "Conjunto"
+            : c.repeat30d
+              ? ui("Diagnóstico")
+              : ui("Sem repetição ≤30d"),
+      ]),
+    );
+  const diagnostics = data.diagnoses.slice(0, 6).map((c) => tr([names(c.classification), c.count]));
   const filters = [
-    `Início: ${localDate(data.meta.period.start, zone)}`,
+    ui("Início: {0}", { 0: localDate(data.meta.period.start, zone) }),
     `Fim considerado: ${localDate(data.meta.period.effectiveEnd, zone)}`,
-    `Setor: ${data.meta.filters.subtype ?? "Todos"}`,
-    `Classificação: ${data.meta.filters.classification ? names(data.meta.filters.classification) : "Todas"}`,
+    `Setor: ${data.meta.filters.subtype ?? ui("Todos")}`,
+    ui("Classificação: {0}", {
+      0: data.meta.filters.classification ? names(data.meta.filters.classification) : ui("Todas"),
+    }),
   ];
   const css = `
     @page { size: A4 portrait; margin: 0; }
@@ -97,55 +116,51 @@ export function buildMachinePdfHtml(
     @media screen { body { background: #e2e8f0; } .page { margin: 12px auto; background: white; box-shadow: 0 2px 9px #94a3b8; } }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { margin: 0; box-shadow: none; } }
   `;
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="${getInterfaceLanguage()}"><head><meta charset="utf-8">
 <title>ANDON BI - ${escapeHtml(data.machine.name)} - Machine 360</title><style>${css}</style></head><body>
 <section class="page">
-  <header><div><div class="logo">ANDON BI</div><div class="sub">MAINTENANCE &amp; RELIABILITY INTELLIGENCE</div></div><div class="sub">FICHA INDIVIDUAL · 01/02</div></header>
-  <h1>Machine 360 · ${escapeHtml(data.machine.name)}</h1>
-  <div class="filters">${filters.map(x => `<span>${escapeHtml(x)}</span>`).join("")}</div>
+  <header><div><div class="logo">ANDON BI</div><div class="sub">${escapeHtml(ui("ANÁLISE DE MANUTENÇÃO E CONFIABILIDADE"))}</div></div><div class="sub">${escapeHtml(ui("FICHA INDIVIDUAL · 01/02"))}</div></header>
+  <h1>${escapeHtml(ui("Machine 360 · "))}${escapeHtml(data.machine.name)}</h1>
+  <div class="filters">${filters.map((x) => `<span>${escapeHtml(x)}</span>`).join("")}</div>
   <div class="grid">
-    ${metric("Downtime físico", minutes(data.kpis.downtimeMinutes), "red")}
-    ${metric("Episódios físicos", String(data.kpis.physicalStopEpisodes), "red")}
-    ${metric("Intervalo entre paradas (calendário)", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
-    ${metric("MTTA", minutes(data.kpis.mttaMinutes), "amber")}
-    ${metric("Atendimento técnico médio", minutes(data.kpis.avgMaintenanceMinutes), "")}
-    ${metric("Parada por episódio", minutes(data.kpis.avgDowntimePerEpisodeMinutes), "red")}
+    ${metric(ui("Downtime físico"), minutes(data.kpis.downtimeMinutes), "red")}
+    ${metric(ui("Episódios físicos"), String(data.kpis.physicalStopEpisodes), "red")}
+    ${metric(ui("Intervalo entre paradas (calendário)"), data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
+    ${metric(ui("MTTA"), minutes(data.kpis.mttaMinutes), "amber")}
+    ${metric(ui("Atendimento técnico médio"), minutes(data.kpis.avgMaintenanceMinutes), "")}
+    ${metric(ui("Parada por episódio"), minutes(data.kpis.avgDowntimePerEpisodeMinutes), "red")}
   </div>
   <div class="summary">
-    <span>Chamados abertos<strong>${data.kpis.callsOpened}</strong></span>
-    <span>Concluídos<strong>${data.kpis.callsFinished}</strong></span>
-    <span>Ativos agora<strong>${data.kpis.callsActiveNow}</strong></span>
-    <span>Retornos registrados<strong>${data.kpis.maintenanceReturnCycles}</strong></span>
-    <span>Eventos abertos<strong>${data.dataHealth.openFailureEvents}</strong></span>
-    <span>Sessões ativas<strong>${data.kpis.activeSessionsNow}</strong></span>
+    <span>${escapeHtml(ui("Chamados abertos"))}<strong>${data.kpis.callsOpened}</strong></span>
+    <span>${escapeHtml(ui("Concluídos"))}<strong>${data.kpis.callsFinished}</strong></span>
+    <span>${escapeHtml(ui("Ativos agora"))}<strong>${data.kpis.callsActiveNow}</strong></span>
+    <span>${escapeHtml(ui("Retornos registrados"))}<strong>${data.kpis.maintenanceReturnCycles}</strong></span>
+    <span>${escapeHtml(ui("Eventos abertos"))}<strong>${data.dataHealth.openFailureEvents}</strong></span>
+    <span>${escapeHtml(ui("Sessões ativas"))}<strong>${data.kpis.activeSessionsNow}</strong></span>
   </div>
-  ${heading("Diagnósticos mais registrados")}
-  ${table(["DIAGNÓSTICO", "CHAMADOS CONCLUÍDOS"], diagnostics)}
-  <div class="note"><strong>Leitura executiva:</strong> downtime é a união dos intervalos físicos por máquina.
-  O intervalo entre paradas usa exposição calendário e todas as causas; difere do MTBF técnico programado. Sessões em aberto podem ampliar tempos.
-  Registros de ambientes de homologação podem conter testes manuais; confirme a origem antes de interpretar os tempos como perdas reais.</div>
-  <div class="foot"><span>ANDON BI · Somente leitura · Gerado em ${escapeHtml(localDate(data.meta.generatedAt, zone))}</span><span>Machine 360 · Página 1/2</span></div>
+  ${heading(ui("Diagnósticos mais registrados"))}
+  ${table([ui("DIAGNÓSTICO"), ui("CHAMADOS CONCLUÍDOS")], diagnostics)}
+  <div class="note"><strong>${escapeHtml(ui("Leitura executiva:"))}</strong>${escapeHtml(ui(" downtime é a união dos intervalos físicos por máquina.\n  O intervalo entre paradas usa exposição calendário e todas as causas; difere do MTBF técnico programado. Sessões em aberto podem ampliar tempos.\n  Registros de ambientes de homologação podem conter testes manuais; confirme a origem antes de interpretar os tempos como perdas reais."))}</div>
+  <div class="foot"><span>${escapeHtml(ui("ANDON BI · Somente leitura · Gerado em "))}${escapeHtml(localDate(data.meta.generatedAt, zone))}</span><span>${escapeHtml(ui("Machine 360 · Página 1/2"))}</span></div>
 </section>
 <section class="page">
-  <header><div><div class="logo">ANDON BI</div><div class="sub">DIAGNÓSTICOS E RECORRÊNCIA</div></div><div class="sub">FICHA INDIVIDUAL · 02/02</div></header>
-  <h1>Falhas recorrentes · ${escapeHtml(data.machine.name)}</h1>
+  <header><div><div class="logo">ANDON BI</div><div class="sub">${escapeHtml(ui("DIAGNÓSTICOS E RECORRÊNCIA"))}</div></div><div class="sub">${escapeHtml(ui("FICHA INDIVIDUAL · 02/02"))}</div></header>
+  <h1>${escapeHtml(ui("Falhas recorrentes · "))}${escapeHtml(data.machine.name)}</h1>
   <div class="summary">
-    <span>Concluídos classificados<strong>${r.totals.diagnosedFinishedCalls}</strong></span>
-    <span>Repetições ≤24h<strong>${r.totals.repeated24h}</strong></span>
-    <span>Repetições ≤7d<strong>${r.totals.repeated7d}</strong></span>
-    <span>Repetições ≤30d<strong>${r.totals.repeated30d}</strong></span>
-    <span>Mesmo conjunto ≤30d<strong>${r.totals.repeatedSet30d}</strong></span>
-    <span>Mesmo subconjunto ≤30d<strong>${r.totals.repeatedSubset30d}</strong></span>
+    <span>${escapeHtml(ui("Concluídos classificados"))}<strong>${r.totals.diagnosedFinishedCalls}</strong></span>
+    <span>${escapeHtml(ui("Repetições ≤24h"))}<strong>${r.totals.repeated24h}</strong></span>
+    <span>${escapeHtml(ui("Repetições ≤7d"))}<strong>${r.totals.repeated7d}</strong></span>
+    <span>${escapeHtml(ui("Repetições ≤30d"))}<strong>${r.totals.repeated30d}</strong></span>
+    <span>${escapeHtml(ui("Mesmo conjunto ≤30d"))}<strong>${r.totals.repeatedSet30d}</strong></span>
+    <span>${escapeHtml(ui("Mesmo subconjunto ≤30d"))}<strong>${r.totals.repeatedSubset30d}</strong></span>
   </div>
-  ${heading("Localização histórica por conjunto e subconjunto")}
-  ${table(["CONJUNTO", "SUBCONJUNTO", "DIAGNÓSTICO", "CHAMADOS", "REP. 30D"], rows)}
-  ${heading("Linha do tempo de conclusões")}
-  ${table(["CONCLUSÃO", "DIAGNÓSTICO", "LOCAL", "OS", "RECORRÊNCIA"], history)}
+  ${heading(ui("Localização histórica por conjunto e subconjunto"))}
+  ${table([ui("CONJUNTO"), ui("SUBCONJUNTO"), ui("DIAGNÓSTICO"), ui("CHAMADOS"), ui("REP. 30D")], rows)}
+  ${heading(ui("Linha do tempo de conclusões"))}
+  ${table([ui("CONCLUSÃO"), ui("DIAGNÓSTICO"), ui("LOCAL"), ui("OS"), ui("RECORRÊNCIA")], history)}
   <div class="note">
-    ${escapeHtml(r.semantics.lookback)} ${escapeHtml(r.semantics.hierarchy)}
-    ${r.groupsTruncated || r.timelineTruncated ? " Os rankings e históricos exibidos são amostras limitadas; os totais usam a coorte completa." : ""}
-    Retornos dentro do mesmo chamado são contabilizados separadamente.
-  </div>
-  <div class="foot"><span>ANDON BI · Dados históricos sem inferência de causa raiz</span><span>Machine 360 · Página 2/2</span></div>
+    ${escapeHtml(systemMessage(r.semantics.lookback))} ${escapeHtml(systemMessage(r.semantics.hierarchy))}
+    ${r.groupsTruncated || r.timelineTruncated ? ui(" Os rankings e históricos exibidos são amostras limitadas; os totais usam a coorte completa.") : ""}${escapeHtml(ui("\n    Retornos dentro do mesmo chamado são contabilizados separadamente.\n  "))}</div>
+  <div class="foot"><span>${escapeHtml(ui("ANDON BI · Dados históricos sem inferência de causa raiz"))}</span><span>${escapeHtml(ui("Machine 360 · Página 2/2"))}</span></div>
 </section></body></html>`;
 }

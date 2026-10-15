@@ -109,6 +109,12 @@ O health check pode criar um chamado técnico marcado como `isSystemTest = true`
 - permanece identificado no histórico como **Teste automático**;
 - é excluído dos indicadores operacionais comuns.
 
+### Idiomas da interface
+
+Português do Brasil é o padrão. English e 繁體中文 abrangem Hub, administração, ANDON, atendimento, históricos, prioridades, BI, mensagens conhecidas do sistema e relatórios PDF/CSV. A preferência fica salva no navegador da workstation. O seletor também está disponível no BI e em Prioridades.
+
+Nomes de máquinas, setores, mantenedores, classificações, descrições e observações cadastradas permanecem como foram gravados. Idioma altera a apresentação de datas e números, preservando o fuso operacional e os dados da API. Veja [localização da interface](docs/INTERFACE_LOCALIZATION.md).
+
 ## Arquitetura
 
 ```mermaid

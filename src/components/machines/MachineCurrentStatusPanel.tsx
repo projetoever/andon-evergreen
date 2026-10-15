@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import { HelpCircle } from "lucide-react";
 import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
@@ -80,10 +81,12 @@ export function MachineCurrentStatusPanel({
         lastOccurrence.kind === "failure" &&
         typeof lastOccurrence.durationMinutes === "number" &&
         lastOccurrence.durationMinutes > 0
-          ? `Duração da falha: ${formatDurationMinutes(lastOccurrence.durationMinutes)}.`
+          ? ui("Duração da falha: {0}.", {
+              0: formatDurationMinutes(lastOccurrence.durationMinutes),
+            })
           : null,
         lastOccurrence.kind === "failure" && lastOccurrence.endedAt
-          ? `Falha encerrada em ${formatDateTime(lastOccurrence.endedAt)}.`
+          ? ui("Falha encerrada em {0}.", { 0: formatDateTime(lastOccurrence.endedAt) })
           : null,
       ]
         .filter(Boolean)

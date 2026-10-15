@@ -1,0 +1,832 @@
+[
+  [
+    "Módulos",
+    "Modules",
+    "模組"
+  ],
+  [
+    "Abrir ANDON operacional",
+    "Open ANDON operation",
+    "開啟 ANDON 操作面板"
+  ],
+  [
+    "Workstation aguardando aprovação do administrador do Hub.",
+    "Workstation awaiting approval from the Hub administrator.",
+    "工作站正在等待中心管理員核准。"
+  ],
+  [
+    "Sair do módulo",
+    "Sign out of module",
+    "登出模組"
+  ],
+  [
+    "O navegador bloqueou o áudio. Toque para liberar.",
+    "The browser blocked audio. Tap to enable it.",
+    "瀏覽器已封鎖音效。點按以啟用。"
+  ],
+  [
+    "Central de módulos",
+    "Module hub",
+    "模組中心"
+  ],
+  [
+    "Selecione seu módulo de trabalho",
+    "Choose your workspace module",
+    "選擇工作模組"
+  ],
+  [
+    "Administração do Hub",
+    "Hub administration",
+    "中心管理"
+  ],
+  [
+    "Ir para o Hub",
+    "Go to Hub",
+    "前往中心"
+  ],
+  [
+    "Operação, indicadores e prioridades em um só lugar.",
+    "Operations, insights and priorities in one place.",
+    "集中管理作業、指標與優先順序。"
+  ],
+  [
+    "Máquinas, chamados e atendimento em tempo real.",
+    "Machines, calls and service in real time.",
+    "即時機台、呼叫與維修作業。"
+  ],
+  [
+    "Indicadores, análises e confiabilidade industrial.",
+    "Metrics, analytics and industrial reliability.",
+    "指標、分析與工業可靠性。"
+  ],
+  [
+    "Organização da sequência visual das máquinas.",
+    "Manage the visual machine sequence.",
+    "管理機台的顯示順序。"
+  ],
+  [
+    "Prioridades de produção",
+    "Production priorities",
+    "生產優先順序"
+  ],
+  [
+    "Indisponível nesta versão",
+    "Unavailable in this version",
+    "此版本無法使用"
+  ],
+  [
+    "Desativado na instalação",
+    "Disabled for this installation",
+    "此安裝已停用"
+  ],
+  [
+    "Acesso restrito nesta workstation",
+    "Restricted on this workstation",
+    "此工作站限制存取"
+  ],
+  [
+    "Entrar com credencial de prioridades",
+    "Sign in with priority credentials",
+    "使用優先順序帳號登入"
+  ],
+  [
+    "Abrir módulo",
+    "Open module",
+    "開啟模組"
+  ],
+  [
+    "Entrar com credencial do módulo",
+    "Sign in with module credentials",
+    "使用模組帳號登入"
+  ],
+  [
+    "Nenhum módulo liberado para esta workstation. Solicite a liberação ao administrador do Hub.",
+    "No modules are allowed for this workstation. Contact the Hub administrator.",
+    "此工作站尚未獲准使用任何模組，請聯絡 Hub 管理員。"
+  ],
+  [
+    "Permissões administradas pelo Hub",
+    "Access managed by the Hub",
+    "由中心管理存取權限"
+  ],
+  [
+    "Workstation",
+    "Workstation",
+    "工作站"
+  ],
+  [
+    "Verificando workstation",
+    "Checking workstation",
+    "正在檢查工作站"
+  ],
+  [
+    "Acesso indisponível",
+    "Access unavailable",
+    "目前無法存取"
+  ],
+  [
+    "Acesso ao módulo restrito",
+    "Module access restricted",
+    "模組存取受限"
+  ],
+  [
+    "Validando a identidade deste navegador com o servidor.",
+    "Verifying this browser identity with the server.",
+    "正在向伺服器驗證此瀏覽器。"
+  ],
+  [
+    "Solicite ao administrador a liberação desta workstation.",
+    "Ask an administrator to grant access to this workstation.",
+    "請管理員開放此工作站的存取權限。"
+  ],
+  [
+    "Verificar novamente",
+    "Check again",
+    "重新檢查"
+  ],
+  [
+    "Ver módulos disponíveis",
+    "View available modules",
+    "查看可用模組"
+  ],
+  [
+    "Acesso administrativo",
+    "Administrator access",
+    "管理員存取"
+  ],
+  [
+    "Hub desativado. As rotas diretas continuam disponíveis conforme as permissões da estação.",
+    "Hub navigation is disabled. Direct routes remain available according to workstation permissions.",
+    "中心導覽已停用。直接路徑仍依工作站權限開放。"
+  ],
+  [
+    "Idioma",
+    "Language",
+    "語言"
+  ],
+  [
+    "Idioma da interface",
+    "Interface language",
+    "介面語言"
+  ],
+  [
+    "Máquinas",
+    "Machines",
+    "機台"
+  ],
+  [
+    "Máquina",
+    "Machine",
+    "機台"
+  ],
+  [
+    "Pronta para rodar",
+    "Ready to run",
+    "準備運轉"
+  ],
+  [
+    "Máquina em falha",
+    "Machine stopped",
+    "機台故障"
+  ],
+  [
+    "Em falha",
+    "Stopped",
+    "故障停機"
+  ],
+  [
+    "Abertos",
+    "Open calls",
+    "待處理叫修"
+  ],
+  [
+    "Em atendimento",
+    "In service",
+    "維修處理中"
+  ],
+  [
+    "Atendimento",
+    "Service",
+    "維修處理"
+  ],
+  [
+    "Aguardando",
+    "Waiting",
+    "等待處理"
+  ],
+  [
+    "Acompanhamento",
+    "Follow-up",
+    "追蹤觀察"
+  ],
+  [
+    "Finalizados hoje",
+    "Closed today",
+    "今日已結案"
+  ],
+  [
+    "Fora de produção",
+    "Out of production",
+    "非生產時段"
+  ],
+  [
+    "Fora de Produção",
+    "Out of production",
+    "非生產時段"
+  ],
+  [
+    "Programação",
+    "Schedule",
+    "排程"
+  ],
+  [
+    "Produção Programada",
+    "Scheduled production",
+    "排定生產"
+  ],
+  [
+    "Programação de Produção",
+    "Production schedule",
+    "生產排程"
+  ],
+  [
+    "Última alteração",
+    "Last change",
+    "上次變更"
+  ],
+  [
+    "Aberto",
+    "Open",
+    "已開立"
+  ],
+  [
+    "Sem chamado",
+    "No call",
+    "無叫修"
+  ],
+  [
+    "Finalizado",
+    "Closed",
+    "已結案"
+  ],
+  [
+    "Cancelado",
+    "Cancelled",
+    "已取消"
+  ],
+  [
+    "Silenciar som",
+    "Mute sound",
+    "靜音"
+  ],
+  [
+    "Som silenciado",
+    "Sound muted",
+    "已靜音"
+  ],
+  [
+    "Reativar som do dashboard",
+    "Unmute dashboard",
+    "恢復看板音效"
+  ],
+  [
+    "Silenciar som do dashboard",
+    "Mute dashboard",
+    "關閉看板音效"
+  ],
+  [
+    "Abrir ANDON BI",
+    "Open ANDON BI",
+    "開啟 ANDON BI"
+  ],
+  [
+    "Organizar prioridade de produção",
+    "Set production priority",
+    "設定生產優先順序"
+  ],
+  [
+    "Configurar sons do ANDON",
+    "Configure ANDON sounds",
+    "設定 ANDON 音效"
+  ],
+  [
+    "INICIAR PAINEL / ATIVAR SONS",
+    "START DASHBOARD / ENABLE SOUND",
+    "啟動看板／開啟音效"
+  ],
+  [
+    "Toque em \"Iniciar Painel\" para liberar os sons dos chamados.",
+    "Select Start Dashboard to enable call alerts.",
+    "請啟動看板以啟用叫修提示音。"
+  ],
+  [
+    "Ver Máquina",
+    "View machine",
+    "查看機台"
+  ],
+  [
+    "Nenhuma máquina cadastrada",
+    "No machines registered",
+    "尚未登錄機台"
+  ],
+  [
+    "Abra as configurações administrativas para cadastrar a primeira máquina do ANDON.",
+    "Open admin settings to register the first ANDON machine.",
+    "請至管理設定新增第一台 ANDON 機台。"
+  ],
+  [
+    "Voltar aos cards principais",
+    "Back to main cards",
+    "返回主要機台卡片"
+  ],
+  [
+    "Última ocorrência",
+    "Last occurrence",
+    "最近事件"
+  ],
+  [
+    "Sem ocorrência",
+    "No occurrence",
+    "無事件"
+  ],
+  [
+    "Duração",
+    "Duration",
+    "持續時間"
+  ],
+  [
+    "Encerrada em",
+    "Ended at",
+    "結束時間"
+  ],
+  [
+    "Chamado aberto em",
+    "Call opened at",
+    "叫修建立時間"
+  ],
+  [
+    "Falha iniciada em",
+    "Failure started at",
+    "故障開始時間"
+  ],
+  [
+    "Nenhum chamado ou falha registrado",
+    "No calls or failures registered",
+    "無叫修或故障記錄"
+  ],
+  [
+    "Informação do operador",
+    "Operator message",
+    "操作員留言"
+  ],
+  [
+    "Sem informação registrada.",
+    "No message provided.",
+    "沒有留言。"
+  ],
+  [
+    "Clique para ler a informação completa do operador",
+    "Read the full operator message",
+    "查看完整操作員留言"
+  ],
+  [
+    "Registrada na abertura do chamado de",
+    "Recorded when the call was opened for",
+    "叫修建立時記錄："
+  ],
+  [
+    "Prioridade de produção",
+    "Production priority",
+    "生產優先順序"
+  ],
+  [
+    "Status atual da máquina",
+    "Current machine status",
+    "機台目前狀態"
+  ],
+  [
+    "Condição operacional",
+    "Operating condition",
+    "運轉狀態"
+  ],
+  [
+    "Última alteração de status",
+    "Last status change",
+    "最近狀態變更"
+  ],
+  [
+    "Tempo total em falha",
+    "Total downtime",
+    "停機總時間"
+  ],
+  [
+    "Sem falha ativa registrada.",
+    "No active failure recorded.",
+    "目前無故障記錄。"
+  ],
+  [
+    "Tempo contado desde a parada real.",
+    "Time counted from the physical stop.",
+    "自實際停機起算。"
+  ],
+  [
+    "Tempo desde o último chamado ou falha.",
+    "Time since the last call or failure.",
+    "距離最近叫修或故障的時間。"
+  ],
+  [
+    "Mais informações",
+    "More information",
+    "更多資訊"
+  ],
+  [
+    "O tempo usa a parada real da máquina. Ele pode ser maior que o tempo do ANDON quando a falha começou antes da abertura do chamado.",
+    "This is the actual machine downtime. It may exceed the ANDON call duration if the failure started earlier.",
+    "依機台實際停機時間計算，若故障早於叫修建立，時間可能較長。"
+  ],
+  [
+    "A máquina está sem falha ativa no momento. O painel continua monitorando chamados ANDON e mudanças de status.",
+    "No active failure is recorded. ANDON calls and machine state changes remain monitored.",
+    "目前無進行中的故障，系統仍持續監控叫修與狀態變更。"
+  ],
+  [
+    "Nenhum chamado ou falha foi registrado para esta máquina.",
+    "No call or failure has been recorded for this machine.",
+    "此機台尚無叫修或故障記錄。"
+  ],
+  [
+    "Voltar ao painel",
+    "Back to dashboard",
+    "返回看板"
+  ],
+  [
+    "Histórico da máquina",
+    "Machine history",
+    "機台歷史記錄"
+  ],
+  [
+    "Histórico",
+    "History",
+    "歷史記錄"
+  ],
+  [
+    "Tela fixada",
+    "Screen locked",
+    "畫面已鎖定"
+  ],
+  [
+    "Fixar tela",
+    "Lock screen",
+    "鎖定畫面"
+  ],
+  [
+    "Tela fixada: clique para desbloquear",
+    "Screen locked: click to unlock",
+    "畫面已鎖定：點選解鎖"
+  ],
+  [
+    "Fixar tela desta máquina",
+    "Lock screen to this machine",
+    "將畫面鎖定至此機台"
+  ],
+  [
+    "Som do ANDON: Ativo",
+    "ANDON sound: On",
+    "ANDON 音效：開啟"
+  ],
+  [
+    "Som do ANDON: Silenciado",
+    "ANDON sound: Muted",
+    "ANDON 音效：靜音"
+  ],
+  [
+    "Abrir novo chamado",
+    "Open new call",
+    "建立新叫修"
+  ],
+  [
+    "Máquina parada: setor livre abre chamado; setor ativo seleciona o chamado.",
+    "Machine stopped: select a free sector to open a call or an active sector to view its call.",
+    "機台停機：選擇未啟用部門建立叫修，或選擇進行中部門查看叫修。"
+  ],
+  [
+    "Setor livre abre chamado; setor ativo seleciona o chamado.",
+    "Select a free sector to open a call or an active sector to view its call.",
+    "選擇未啟用部門建立叫修，或選擇進行中部門查看叫修。"
+  ],
+  [
+    "Selecionado",
+    "Selected",
+    "已選取"
+  ],
+  [
+    "Selecionado: chamado",
+    "Selected call:",
+    "已選取叫修："
+  ],
+  [
+    "Selecionar chamado",
+    "Select call",
+    "選擇叫修"
+  ],
+  [
+    "Ativo",
+    "Active",
+    "處理中"
+  ],
+  [
+    "Ativos",
+    "Active",
+    "處理中"
+  ],
+  [
+    "Atender selecionado",
+    "Attend selected",
+    "開始處理"
+  ],
+  [
+    "Cancelar selecionado",
+    "Cancel selected",
+    "取消選定叫修"
+  ],
+  [
+    "Concluir manutenção",
+    "Complete maintenance",
+    "完成維修"
+  ],
+  [
+    "Finalizar",
+    "Finish",
+    "完成"
+  ],
+  [
+    "Voltar à manutenção",
+    "Return to maintenance",
+    "返回維修"
+  ],
+  [
+    "Finalizar chamado",
+    "Close call",
+    "結束叫修"
+  ],
+  [
+    "Chamado atual",
+    "Current call",
+    "目前叫修"
+  ],
+  [
+    "Categoria",
+    "Category",
+    "類別"
+  ],
+  [
+    "Manutenção",
+    "Maintenance",
+    "維修"
+  ],
+  [
+    "Produção",
+    "Production",
+    "生產"
+  ],
+  [
+    "Subtipo",
+    "Subcategory",
+    "子類別"
+  ],
+  [
+    "Status",
+    "Status",
+    "狀態"
+  ],
+  [
+    "Criticidade",
+    "Criticality",
+    "緊急程度"
+  ],
+  [
+    "Baixa",
+    "Low",
+    "低"
+  ],
+  [
+    "Média",
+    "Medium",
+    "中"
+  ],
+  [
+    "Alta",
+    "High",
+    "高"
+  ],
+  [
+    "Aberto em",
+    "Opened at",
+    "建立時間"
+  ],
+  [
+    "Atendido em",
+    "Attended at",
+    "受理時間"
+  ],
+  [
+    "Conclusão da manutenção",
+    "Maintenance completed",
+    "維修完成時間"
+  ],
+  [
+    "Condição atual da máquina",
+    "Current machine condition",
+    "機台目前狀態"
+  ],
+  [
+    "Condição ao abrir",
+    "Condition when opened",
+    "建立時狀態"
+  ],
+  [
+    "Descrição",
+    "Description",
+    "說明"
+  ],
+  [
+    "Total",
+    "Total",
+    "總計"
+  ],
+  [
+    "Sem chamado ativo",
+    "No active call",
+    "目前沒有叫修"
+  ],
+  [
+    "Selecione um dos setores abaixo para registrar um novo chamado.",
+    "Select a sector below to open a new call.",
+    "請選擇下方部門以建立新叫修。"
+  ],
+  [
+    "Elétrica",
+    "Electrical",
+    "電氣"
+  ],
+  [
+    "Mecânica",
+    "Mechanical",
+    "機械"
+  ],
+  [
+    "Qualidade",
+    "Quality",
+    "品質"
+  ],
+  [
+    "Liderança",
+    "Leadership",
+    "主管"
+  ],
+  [
+    "Não informado",
+    "Not specified",
+    "未提供"
+  ],
+  [
+    "Visão Geral",
+    "Overview",
+    "總覽"
+  ],
+  [
+    "Confiabilidade",
+    "Reliability",
+    "可靠度"
+  ],
+  [
+    "Falhas",
+    "Failures",
+    "故障分析"
+  ],
+  [
+    "Qualidade dos Dados",
+    "Data quality",
+    "資料品質"
+  ],
+  [
+    "Período",
+    "Period",
+    "期間"
+  ],
+  [
+    "Todas as máquinas",
+    "All machines",
+    "全部機台"
+  ],
+  [
+    "Todos os setores",
+    "All sectors",
+    "全部部門"
+  ],
+  [
+    "Todas as classificações",
+    "All classifications",
+    "全部分類"
+  ],
+  [
+    "Setor",
+    "Sector",
+    "部門"
+  ],
+  [
+    "Classificação",
+    "Classification",
+    "分類"
+  ],
+  [
+    "Últimas 24h",
+    "Last 24 hours",
+    "最近 24 小時"
+  ],
+  [
+    "Últimos 7 dias",
+    "Last 7 days",
+    "最近 7 天"
+  ],
+  [
+    "Últimos 30 dias",
+    "Last 30 days",
+    "最近 30 天"
+  ],
+  [
+    "Exportar PDF",
+    "Export PDF",
+    "匯出 PDF"
+  ],
+  [
+    "Atualizar",
+    "Refresh",
+    "重新整理"
+  ],
+  [
+    "ANDON operacional",
+    "Operational ANDON",
+    "ANDON 操作介面"
+  ],
+  [
+    "Visão executiva · falhas · equipe técnica",
+    "Executive view · failures · technical team",
+    "管理總覽 · 故障 · 維修團隊"
+  ],
+  [
+    "Inteligência em Manutenção e Confiabilidade",
+    "Maintenance and reliability intelligence",
+    "維修與可靠度分析"
+  ],
+  [
+    "Disponibilidade",
+    "Availability",
+    "可用率"
+  ],
+  [
+    "MTTA",
+    "MTTA",
+    "平均回應時間"
+  ],
+  [
+    "MTTR",
+    "MTTR",
+    "平均修復時間"
+  ],
+  [
+    "MTBF",
+    "MTBF",
+    "平均故障間隔"
+  ],
+  [
+    "Tempo de parada",
+    "Downtime",
+    "停機時間"
+  ],
+  [
+    "Taxa de retorno",
+    "Return rate",
+    "重返維修率"
+  ],
+  [
+    "Máquinas com maior parada",
+    "Machines with highest downtime",
+    "停機時間最長機台"
+  ],
+  [
+    "Disponibilidade por dia",
+    "Daily availability",
+    "每日可用率"
+  ],
+  [
+    "Tempo de parada por dia",
+    "Daily downtime",
+    "每日停機時間"
+  ],
+  [
+    "Resumo executivo",
+    "Executive summary",
+    "管理摘要"
+  ]
+]

@@ -1,6 +1,8 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState, type FormEvent } from "react";
 import { KeyRound } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,7 @@ import {
 } from "@/services/adminAuthService";
 
 export function HubSecuritySettings() {
+  useInterfaceLanguage();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -75,17 +78,18 @@ export function HubSecuritySettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-primary" />
-          Senha administrativa
+          {ui("Senha administrativa")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <form className="space-y-3" onSubmit={handleChangePassword}>
           <p className="text-sm text-muted-foreground">
-            Esta senha é salva no servidor e passa a valer para o Admin e desbloqueio em todas as
-            máquinas.
+            {ui(
+              "Esta senha é salva no servidor e passa a valer para o Admin e desbloqueio em todas as máquinas.",
+            )}
           </p>
           <div className="space-y-1">
-            <Label htmlFor="current-admin-password">Senha atual</Label>
+            <Label htmlFor="current-admin-password">{ui("Senha atual")}</Label>
             <Input
               id="current-admin-password"
               required
@@ -94,12 +98,12 @@ export function HubSecuritySettings() {
               autoComplete="current-password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="Senha atual"
+              placeholder={ui("Senha atual")}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="new-admin-password">Nova senha</Label>
+              <Label htmlFor="new-admin-password">{ui("Nova senha")}</Label>
               <Input
                 id="new-admin-password"
                 required
@@ -109,11 +113,11 @@ export function HubSecuritySettings() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
-                placeholder={`Mínimo ${ADMIN_PASSWORD_MIN_LENGTH} caracteres`}
+                placeholder={ui("Mínimo {0} caracteres", { 0: ADMIN_PASSWORD_MIN_LENGTH })}
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="confirm-admin-password">Confirmar senha</Label>
+              <Label htmlFor="confirm-admin-password">{ui("Confirmar senha")}</Label>
               <Input
                 id="confirm-admin-password"
                 required
@@ -123,29 +127,32 @@ export function HubSecuritySettings() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Repita a nova senha"
+                placeholder={ui("Repita a nova senha")}
               />
             </div>
           </div>
           <div className="flex justify-end">
             <Button type="submit" disabled={isSavingAdminPassword}>
-              {isSavingAdminPassword ? "Salvando..." : "Alterar senha global"}
+              {isSavingAdminPassword ? ui("Salvando...") : ui("Alterar senha global")}
             </Button>
           </div>
         </form>
 
         <div className="border-t border-border pt-4">
           <div className="space-y-1">
-            <p className="font-black">Recuperação da senha do Admin</p>
+            <p className="font-black">{ui("Recuperação da senha do Admin")}</p>
             <p className="text-xs text-muted-foreground">
-              Gere um código de recuperação e guarde-o fora do ANDON. O código é exibido somente
-              nesta geração e fica armazenado no servidor apenas como hash.
+              {ui(
+                "Gere um código de recuperação e guarde-o fora do ANDON. O código é exibido somente nesta geração e fica armazenado no servidor apenas como hash.",
+              )}
             </p>
           </div>
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1 space-y-1">
-              <Label htmlFor="admin-recovery-current-password">Senha administrativa atual</Label>
+              <Label htmlFor="admin-recovery-current-password">
+                {ui("Senha administrativa atual")}
+              </Label>
               <Input
                 id="admin-recovery-current-password"
                 required
@@ -154,7 +161,7 @@ export function HubSecuritySettings() {
                 autoComplete="current-password"
                 value={recoveryCurrentPassword}
                 onChange={(event) => setRecoveryCurrentPassword(event.target.value)}
-                placeholder="Confirme a senha atual"
+                placeholder={ui("Confirme a senha atual")}
               />
             </div>
             <Button
@@ -163,21 +170,22 @@ export function HubSecuritySettings() {
               disabled={isGeneratingRecoveryCode}
               onClick={() => void handleGenerateRecoveryCode()}
             >
-              {isGeneratingRecoveryCode ? "Gerando..." : "Gerar novo código"}
+              {isGeneratingRecoveryCode ? ui("Gerando...") : ui("Gerar novo código")}
             </Button>
           </div>
 
           {generatedRecoveryCode && (
             <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
               <p className="text-xs font-black uppercase tracking-wide text-warning">
-                Guarde este código agora
+                {ui("Guarde este código agora")}
               </p>
               <p className="mt-2 select-all font-mono text-xl font-black tracking-wider text-foreground">
                 {generatedRecoveryCode}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Em caso de esquecimento, use “Esqueci a senha” na tela de acesso administrativo.
-                Após uma recuperação, este código é invalidado e um novo deve ser gerado.
+                {ui(
+                  "Em caso de esquecimento, use “Esqueci a senha” na tela de acesso administrativo. Após uma recuperação, este código é invalidado e um novo deve ser gerado.",
+                )}
               </p>
             </div>
           )}

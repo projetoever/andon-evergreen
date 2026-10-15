@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { IS_API_DATA_MODE } from "@/config/dataMode";
@@ -14,6 +16,7 @@ interface ClockDisplayProps {
 }
 
 export function ClockDisplay({ className }: ClockDisplayProps) {
+  useInterfaceLanguage();
   const getOperationalNow = () =>
     IS_API_DATA_MODE && !isServerClockSynchronized()
       ? null
@@ -37,8 +40,8 @@ export function ClockDisplay({ className }: ClockDisplayProps) {
   return (
     <time
       dateTime={now?.toISOString()}
-      aria-label={`Hora atual: ${time}`}
-      title="Hora atual"
+      aria-label={ui("Hora atual: {0}", { 0: time })}
+      title={ui("Hora atual")}
       className={cn(
         "pointer-events-none inline-flex shrink-0 select-none items-center bg-transparent font-mono text-2xl font-bold tabular-nums leading-none text-muted-foreground md:text-3xl",
         className,

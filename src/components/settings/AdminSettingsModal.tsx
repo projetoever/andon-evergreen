@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Boxes,
@@ -16,11 +18,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BigButton } from "@/components/common/BigButton";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { logoutAdmin } from "@/services/adminAuthService";
 import type { FailureClassificationConfig, SettingsTab } from "@/types/settings";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import {
   createFailureClassification,
   getFailureClassificationConfigs,
@@ -48,64 +56,100 @@ interface AdminNavigationItem {
 const tabs: AdminNavigationItem[] = [
   {
     id: "general",
-    label: "Configurações da operação",
-    description: "Regras de chamados, interface e apresentação do dashboard.",
+    get label() {
+      return ui("Configurações da operação");
+    },
+    get description() {
+      return ui("Regras de chamados, interface e apresentação do dashboard.");
+    },
     group: "Sistema",
     icon: Settings2,
   },
   {
     id: "sounds",
-    label: "Sons do ANDON",
-    description: "Áudios, comportamento sonoro e temporizador de silêncio do dashboard.",
+    get label() {
+      return ui("Sons do ANDON");
+    },
+    get description() {
+      return ui("Áudios, comportamento sonoro e temporizador de silêncio do dashboard.");
+    },
     group: "Sistema",
     icon: Headphones,
   },
   {
     id: "attendance",
-    label: "Modo de atendimento",
-    description: "Identificação por nome, PIN ou RFID e parâmetros de credencial.",
+    get label() {
+      return ui("Modo de atendimento");
+    },
+    get description() {
+      return ui("Identificação por nome, PIN ou RFID e parâmetros de credencial.");
+    },
     group: "Operação",
     icon: UserRoundCheck,
   },
   {
     id: "technicians",
-    label: "Mantenedores",
-    description: "Cadastro, áreas técnicas, turnos e credenciais dos mantenedores.",
+    get label() {
+      return ui("Mantenedores");
+    },
+    get description() {
+      return ui("Cadastro, áreas técnicas, turnos e credenciais dos mantenedores.");
+    },
     group: "Operação",
     icon: Users,
   },
   {
     id: "shifts",
-    label: "Turnos",
-    description: "Horários dos turnos e regras de exibição por jornada.",
+    get label() {
+      return ui("Turnos");
+    },
+    get description() {
+      return ui("Horários dos turnos e regras de exibição por jornada.");
+    },
     group: "Operação",
     icon: Clock3,
   },
   {
     id: "categories",
-    label: "Setores / categorias",
-    description: "Áreas exibidas na abertura dos chamados e sua organização visual.",
+    get label() {
+      return ui("Setores / categorias");
+    },
+    get description() {
+      return ui("Áreas exibidas na abertura dos chamados e sua organização visual.");
+    },
     group: "Cadastros",
     icon: Tags,
   },
   {
     id: "classifications",
-    label: "Classificações",
-    description: "Catálogo central de classificações utilizadas no diagnóstico.",
+    get label() {
+      return ui("Classificações");
+    },
+    get description() {
+      return ui("Catálogo central de classificações utilizadas no diagnóstico.");
+    },
     group: "Cadastros",
     icon: ListChecks,
   },
   {
     id: "assetCatalogs",
-    label: "Catálogos de ativos",
-    description: "Tipos de conjuntos e subconjuntos utilizados na localização de falhas.",
+    get label() {
+      return ui("Catálogos de ativos");
+    },
+    get description() {
+      return ui("Tipos de conjuntos e subconjuntos utilizados na localização de falhas.");
+    },
     group: "Cadastros",
     icon: Boxes,
   },
   {
     id: "machines",
-    label: "Máquinas",
-    description: "Cadastro e parâmetros individuais das máquinas do ANDON.",
+    get label() {
+      return ui("Máquinas");
+    },
+    get description() {
+      return ui("Cadastro e parâmetros individuais das máquinas do ANDON.");
+    },
     group: "Infraestrutura",
     icon: Factory,
   },
@@ -119,6 +163,7 @@ const navigationGroups: AdminNavigationGroup[] = [
 ];
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">{title}</h4>
@@ -134,6 +179,7 @@ export function AdminSettingsModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
   const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
   const ActiveIcon = activeTab.icon;
@@ -164,9 +210,9 @@ export function AdminSettingsModal({
         className="h-[96dvh] max-h-[96dvh] w-[calc(100vw-1rem)] max-w-[1600px] gap-0 overflow-hidden rounded-2xl border-border/80 bg-background p-0 shadow-2xl sm:w-[96vw]"
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Painel administrativo do ANDON</DialogTitle>
+          <DialogTitle>{ui("Painel administrativo do ANDON")}</DialogTitle>
           <DialogDescription>
-            Configurações, cadastros e infraestrutura do ANDON Web Industrial.
+            {ui("Configurações, cadastros e infraestrutura do ANDON Web Industrial.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -182,12 +228,12 @@ export function AdminSettingsModal({
                     ANDON
                   </p>
                   <p className="truncate text-base font-black text-foreground">
-                    Painel administrativo
+                    {ui("Painel administrativo")}
                   </p>
                 </div>
               </div>
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                Configuração controlada do ANDON Web Industrial.
+                {ui("Configuração controlada do ANDON Web Industrial.")}
               </p>
             </div>
 
@@ -195,7 +241,7 @@ export function AdminSettingsModal({
               {navigationGroups.map((group) => (
                 <div key={group} className="space-y-1">
                   <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                    {group}
+                    {ui(group)}
                   </p>
                   {tabs
                     .filter((item) => item.group === group)
@@ -234,7 +280,7 @@ export function AdminSettingsModal({
                 className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
               >
                 <LogOut className="h-4 w-4" />
-                Sair do modo admin
+                {ui("Sair do modo admin")}
               </button>
             </div>
           </aside>
@@ -248,12 +294,12 @@ export function AdminSettingsModal({
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">
                   ANDON
                 </p>
-                <p className="truncate text-sm font-black">Painel administrativo</p>
+                <p className="truncate text-sm font-black">{ui("Painel administrativo")}</p>
               </div>
             </div>
             <button
               type="button"
-              aria-label="Fechar painel administrativo"
+              aria-label={ui("Fechar painel administrativo")}
               onClick={() => onOpenChange(false)}
               className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
             >
@@ -292,7 +338,7 @@ export function AdminSettingsModal({
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    {activeTab.group}
+                    {ui(activeTab.group)}
                   </p>
                   <h2 className="mt-0.5 text-2xl font-black tracking-tight text-foreground">
                     {activeTab.label}
@@ -304,7 +350,7 @@ export function AdminSettingsModal({
               </div>
               <button
                 type="button"
-                aria-label="Fechar painel administrativo"
+                aria-label={ui("Fechar painel administrativo")}
                 onClick={() => onOpenChange(false)}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
               >
@@ -319,7 +365,7 @@ export function AdminSettingsModal({
                 </span>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    {activeTab.group}
+                    {ui(activeTab.group)}
                   </p>
                   <h2 className="font-black text-foreground">{activeTab.label}</h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
@@ -335,10 +381,10 @@ export function AdminSettingsModal({
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
               <BigButton tone="danger" size="md" onClick={handleAdminLogout}>
-                Sair do modo admin
+                {ui("Sair do modo admin")}
               </BigButton>
               <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>
-                Fechar
+                {ui("Fechar")}
               </BigButton>
             </div>
           </main>
@@ -349,6 +395,7 @@ export function AdminSettingsModal({
 }
 
 function ClassificationsTab() {
+  useInterfaceLanguage();
   const [items, setItems] = useState<FailureClassificationConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<FailureClassificationConfig>({
@@ -393,7 +440,7 @@ function ClassificationsTab() {
       return catalog;
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Falha ao carregar classificações.";
+        error instanceof Error ? error.message : ui("Falha ao carregar classificações.");
       setLoadError(message);
       throw error;
     } finally {
@@ -452,9 +499,7 @@ function ClassificationsTab() {
       setDraft({ ...refreshed });
       toast.success("Classificação salva no catálogo central.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao salvar classificação.",
-      );
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar classificação.");
     } finally {
       setIsSaving(false);
     }
@@ -474,17 +519,11 @@ function ClassificationsTab() {
       const updated = await updateFailureClassification(selectedId, {
         active: !draft.active,
       });
-      setItems((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
+      setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       setDraft({ ...updated });
-      toast.success(
-        updated.active ? "Classificação reativada." : "Classificação inativada.",
-      );
+      toast.success(updated.active ? "Classificação reativada." : "Classificação inativada.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao atualizar classificação.",
-      );
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar classificação.");
     } finally {
       setIsSaving(false);
     }
@@ -493,9 +532,9 @@ function ClassificationsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Classificações</h3>
+        <h3 className="text-base font-bold">{ui("Classificações")}</h3>
         <p className="text-sm text-muted-foreground">
-          Gerencie o catálogo central usado na classificação da ocorrência.
+          {ui("Gerencie o catálogo central usado na classificação da ocorrência.")}
         </p>
       </div>
 
@@ -504,23 +543,26 @@ function ClassificationsTab() {
           role="alert"
           className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
         >
-          <p className="font-bold">Não foi possível carregar o catálogo central.</p>
-          <p>{loadError}</p>
+          <p className="font-bold">{ui("Não foi possível carregar o catálogo central.")}</p>
+          <p>{systemMessage(loadError)}</p>
           <button
             type="button"
             className="mt-2 font-bold underline"
             onClick={() => void loadCatalog().catch(() => undefined)}
           >
-            Tentar novamente
+            {ui("Tentar novamente")}
           </button>
         </div>
       )}
 
       <div className="grid gap-4 md:grid-cols-[minmax(300px,380px)_1fr]">
-        <CardSection title="Classificações cadastradas">
+        <CardSection title={ui("Classificações cadastradas")}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold text-muted-foreground">
-              {filteredItems.length} de {items.length} classificação(ões)
+              {filteredItems.length}
+              {ui(" de ")}
+              {items.length}
+              {ui(" classificação(ões)")}
             </p>
             <BigButton
               tone="neutral"
@@ -528,7 +570,7 @@ function ClassificationsTab() {
               onClick={handleAddClassification}
               disabled={isLoading || isSaving || Boolean(loadError)}
             >
-              Adicionar classificação
+              {ui("Adicionar classificação")}
             </BigButton>
           </div>
 
@@ -541,14 +583,14 @@ function ClassificationsTab() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar nome ou ID..."
-              aria-label="Pesquisar classificações por nome ou ID"
+              placeholder={ui("Pesquisar nome ou ID...")}
+              aria-label={ui("Pesquisar classificações por nome ou ID")}
               className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
             />
             {searchQuery && (
               <button
                 type="button"
-                aria-label="Limpar pesquisa de classificações"
+                aria-label={ui("Limpar pesquisa de classificações")}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -559,13 +601,13 @@ function ClassificationsTab() {
 
           <div
             className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-            aria-label="Filtrar classificações por status"
+            aria-label={ui("Filtrar classificações por status")}
           >
             {(
               [
-                ["all", "Todos"],
-                ["active", "Ativos"],
-                ["inactive", "Inativos"],
+                ["all", ui("Todos")],
+                ["active", ui("Ativos", {}, "record")],
+                ["inactive", ui("Inativos", {}, "record")],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -588,27 +630,24 @@ function ClassificationsTab() {
           <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {isLoading && (
               <p className="py-4 text-sm text-muted-foreground">
-                Carregando catálogo central...
+                {ui("Carregando catálogo central...")}
               </p>
             )}
 
             {!isLoading && !loadError && items.length === 0 && (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhuma classificação cadastrada</p>
+                <p className="text-sm font-bold">{ui("Nenhuma classificação cadastrada")}</p>
               </div>
             )}
 
-            {!isLoading &&
-              !loadError &&
-              items.length > 0 &&
-              filteredItems.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                  <p className="text-sm font-bold">Nenhuma classificação encontrada</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Ajuste a pesquisa ou o filtro de status.
-                  </p>
-                </div>
-              )}
+            {!isLoading && !loadError && items.length > 0 && filteredItems.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+                <p className="text-sm font-bold">{ui("Nenhuma classificação encontrada")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ui("Ajuste a pesquisa ou o filtro de status.")}
+                </p>
+              </div>
+            )}
 
             {filteredItems.map((item) => (
               <button
@@ -626,19 +665,15 @@ function ClassificationsTab() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{item.label}</p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">
-                      {item.value}
-                    </p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">{item.value}</p>
                   </div>
                   <span
                     className={cn(
                       "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
-                      item.active
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground",
+                      item.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {item.active ? "Ativa" : "Inativa"}
+                    {item.active ? ui("Ativa") : ui("Inativa")}
                   </span>
                 </div>
               </button>
@@ -646,9 +681,9 @@ function ClassificationsTab() {
           </div>
         </CardSection>
 
-        <CardSection title={selectedId ? "Editar classificação" : "Nova classificação"}>
+        <CardSection title={selectedId ? ui("Editar classificação") : ui("Nova classificação")}>
           <label className="text-sm font-semibold">
-            Nome exibido
+            {ui("Nome exibido")}
             <input
               className="mt-1 h-10 w-full rounded-md border bg-background px-2"
               value={draft.label}
@@ -658,46 +693,70 @@ function ClassificationsTab() {
           </label>
 
           <label className="text-sm font-semibold">
-            ID interno
+            {ui("ID interno")}
             <input
               className="mt-1 h-10 w-full rounded-md border bg-background px-2 disabled:opacity-60"
               value={draft.value}
               onChange={(event) => setDraft({ ...draft, value: event.target.value })}
-              placeholder="ex: pneumatic_failure"
+              placeholder={ui("ex: pneumatic_failure")}
               disabled={Boolean(selectedId) || isSaving || Boolean(loadError)}
             />
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold">
-              Responsabilidade da ocorrência
-              <select className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground" value={draft.responsibility ?? "unassigned"} onChange={event => setDraft({...draft, responsibility: event.target.value as FailureClassificationConfig["responsibility"]})} disabled={isSaving || Boolean(loadError)}>
-                <option value="unassigned">Pendente de definição</option>
-                <option value="maintenance">Manutenção</option>
-                <option value="operations">Operação</option>
-                <option value="process">Processos</option>
-                <option value="quality">Qualidade</option>
-                <option value="leadership">Liderança</option>
-                <option value="other">Outros</option>
+              {ui("Responsabilidade da ocorrência")}
+              <select
+                className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground"
+                value={draft.responsibility ?? "unassigned"}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    responsibility: event.target
+                      .value as FailureClassificationConfig["responsibility"],
+                  })
+                }
+                disabled={isSaving || Boolean(loadError)}
+              >
+                <option value="unassigned">{ui("Pendente de definição")}</option>
+                <option value="maintenance">{ui("Manutenção")}</option>
+                <option value="operations">{ui("Operação")}</option>
+                <option value="process">{ui("Processos")}</option>
+                <option value="quality">{ui("Qualidade")}</option>
+                <option value="leadership">{ui("Liderança")}</option>
+                <option value="other">{ui("Outros")}</option>
               </select>
             </label>
             <label className="text-sm font-semibold">
-              Tratamento no BI
-              <select className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground" value={draft.analyticsDisposition ?? "include"} onChange={event => setDraft({...draft, analyticsDisposition: event.target.value as FailureClassificationConfig["analyticsDisposition"]})} disabled={isSaving || Boolean(loadError)}>
-                <option value="include">Ocorrência real</option>
-                <option value="test">Teste — excluir dos indicadores</option>
-                <option value="false_call">Falso chamado — excluir</option>
-                <option value="duplicate">Duplicado — excluir</option>
+              {ui("Tratamento no BI")}
+              <select
+                className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground"
+                value={draft.analyticsDisposition ?? "include"}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    analyticsDisposition: event.target
+                      .value as FailureClassificationConfig["analyticsDisposition"],
+                  })
+                }
+                disabled={isSaving || Boolean(loadError)}
+              >
+                <option value="include">{ui("Ocorrência real")}</option>
+                <option value="test">{ui("Teste — excluir dos indicadores")}</option>
+                <option value="false_call">{ui("Falso chamado — excluir")}</option>
+                <option value="duplicate">{ui("Duplicado — excluir")}</option>
               </select>
             </label>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            A responsabilidade será registrada no diagnóstico final. Mudar o catálogo vale para novos diagnósticos; revise ocorrências anteriores pelo histórico com PIN e auditoria. Legados sem responsabilidade ficam pendentes. Testes, falsos chamados e duplicados ficam no histórico e são excluídos do BI, inclusive das horas técnicas.
+            {ui(
+              "A responsabilidade será registrada no diagnóstico final. Mudar o catálogo vale para novos diagnósticos; revise ocorrências anteriores pelo histórico com PIN e auditoria. Legados sem responsabilidade ficam pendentes. Testes, falsos chamados e duplicados ficam no histórico e são excluídos do BI, inclusive das horas técnicas.",
+            )}
           </p>
 
           {selectedId && (
             <p className="text-xs text-muted-foreground">
-              O ID interno permanece estável para preservar o histórico.
+              {ui("O ID interno permanece estável para preservar o histórico.")}
             </p>
           )}
 
@@ -708,7 +767,7 @@ function ClassificationsTab() {
               onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
               disabled={isSaving || Boolean(loadError)}
             />
-            Ativo
+            {ui("Ativo", {}, "record")}
           </label>
 
           <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
@@ -718,15 +777,10 @@ function ClassificationsTab() {
               onClick={() => void handleSave()}
               disabled={isSaving || Boolean(loadError)}
             >
-              {isSaving ? "Salvando..." : "Salvar classificação"}
+              {isSaving ? ui("Salvando...") : ui("Salvar classificação")}
             </BigButton>
-            <BigButton
-              tone="neutral"
-              size="md"
-              onClick={handleCancel}
-              disabled={isSaving}
-            >
-              Cancelar
+            <BigButton tone="neutral" size="md" onClick={handleCancel} disabled={isSaving}>
+              {ui("Cancelar")}
             </BigButton>
             <BigButton
               tone="danger"
@@ -734,7 +788,7 @@ function ClassificationsTab() {
               onClick={() => void handleToggleActive()}
               disabled={!selectedId || isSaving || Boolean(loadError)}
             >
-              {draft.active ? "Inativar" : "Reativar"}
+              {draft.active ? ui("Inativar") : ui("Reativar")}
             </BigButton>
           </div>
         </CardSection>
@@ -742,4 +796,3 @@ function ClassificationsTab() {
     </div>
   );
 }
-

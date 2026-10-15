@@ -1,7 +1,18 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, FileWarning, History, Pencil, Save, Search, SlidersHorizontal, X } from "lucide-react";
-import { toast } from "sonner";
+import {
+  ArrowLeft,
+  FileWarning,
+  History,
+  Pencil,
+  Save,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { toast } from "@/i18n/toast";
 
 import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -65,7 +76,7 @@ function getFailureClassificationLabel(
   catalogByValue: Map<string, FailureClassificationConfig>,
 ) {
   const value = classification ?? PLACEHOLDER_CLASSIFICATION;
-  return catalogByValue.get(value)?.label ?? `Classificação não cadastrada (${value})`;
+  return catalogByValue.get(value)?.label ?? ui("Classificação não cadastrada ({0})", { 0: value });
 }
 
 interface FailureEventCardProps {
@@ -109,6 +120,7 @@ function FailureEventCard({
   onCancelEditing,
   onSave,
 }: FailureEventCardProps) {
+  useInterfaceLanguage();
   const now = getServerNow();
   const periodEnd = event.resumedAt ?? now.toISOString();
   const duration = event.resumedAt
@@ -130,39 +142,41 @@ function FailureEventCard({
     <article className="rounded-lg border border-border bg-card p-3">
       <dl className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Início da falha</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{ui("Início da falha")}</dt>
           <dd className="font-mono text-sm">{formatDateTime(event.stoppedAt)}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Retorno da máquina</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{ui("Retorno da máquina")}</dt>
           <dd className="font-mono text-sm">
-            {event.resumedAt ? formatDateTime(event.resumedAt) : "Em aberto"}
+            {event.resumedAt ? formatDateTime(event.resumedAt) : ui("Em aberto")}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Duração</dt>
+          <dt className="text-xs uppercase text-muted-foreground">{ui("Duração")}</dt>
           <dd className="font-bold">{formatDurationMinutes(duration)}</dd>
         </div>
         {showFailureImpact && (
           <div>
-            <dt className="text-xs uppercase text-muted-foreground">Classificação</dt>
+            <dt className="text-xs uppercase text-muted-foreground">{ui("Classificação")}</dt>
             <dd className="font-bold">
               {getFailureClassificationLabel(event.failureClassification, catalogByValue)}
             </dd>
           </div>
         )}
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">Status</dt>
-          <dd className="font-bold">{event.resumedAt ? "Encerrada" : "Em aberto"}</dd>
+          <dt className="text-xs uppercase text-muted-foreground">{ui("Status")}</dt>
+          <dd className="font-bold">{event.resumedAt ? ui("Encerrada") : ui("Em aberto")}</dd>
         </div>
         {showFailureImpact && (
           <div className="sm:col-span-2 lg:col-span-3">
-            <dt className="text-xs uppercase text-muted-foreground">Descrição da ocorrência</dt>
+            <dt className="text-xs uppercase text-muted-foreground">
+              {ui("Descrição da ocorrência")}
+            </dt>
             <dd className="text-foreground">
               {isEditing ? (
                 <div className="mt-1 flex flex-col gap-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Classificação da ocorrência
+                    {ui("Classificação da ocorrência")}
                   </label>
                   <select
                     className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
@@ -175,17 +189,17 @@ function FailureEventCard({
                     {selectableClassifications.map((option) => (
                       <option key={option.id} value={option.value}>
                         {option.label}
-                        {option.active ? "" : " (Inativa)"}
+                        {option.active ? "" : ui(" (Inativa)")}
                       </option>
                     ))}
                   </select>
                   {editingClassification === PLACEHOLDER_CLASSIFICATION && (
                     <p className="text-xs font-bold text-amber-500">
-                      Selecione uma classificação específica para a ocorrência.
+                      {ui("Selecione uma classificação específica para a ocorrência.")}
                     </p>
                   )}
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Descrição da ocorrência
+                    {ui("Descrição da ocorrência")}
                   </label>
                   <textarea
                     className="min-h-[88px] rounded-xl border border-border bg-background p-3 text-sm"
@@ -193,15 +207,17 @@ function FailureEventCard({
                     onChange={(changeEvent) => onEditingTextChange(changeEvent.target.value)}
                   />
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    PIN do mantenedor (obrigatório)
+                    {ui("PIN do mantenedor (obrigatório)")}
                     <input
                       type="password"
                       inputMode="numeric"
                       autoComplete="off"
                       maxLength={8}
                       value={editingPin}
-                      onChange={(changeEvent) => onEditingPinChange(changeEvent.target.value.replace(/\D/g, ""))}
-                      placeholder="4 a 8 números"
+                      onChange={(changeEvent) =>
+                        onEditingPinChange(changeEvent.target.value.replace(/\D/g, ""))
+                      }
+                      placeholder={ui("4 a 8 números")}
                       disabled={isSaving}
                       className="mt-1 block h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
                     />
@@ -211,10 +227,15 @@ function FailureEventCard({
                       type="button"
                       onClick={() => onSave(event)}
                       className="inline-flex items-center gap-2 self-start rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase tracking-wider text-secondary-foreground"
-                      disabled={isSaving || catalogLoading || Boolean(catalogError) || !/^\d{4,8}$/.test(editingPin)}
+                      disabled={
+                        isSaving ||
+                        catalogLoading ||
+                        Boolean(catalogError) ||
+                        !/^\d{4,8}$/.test(editingPin)
+                      }
                     >
                       <Save className="h-4 w-4" />
-                      {isSaving ? "Salvando..." : "Salvar"}
+                      {isSaving ? ui("Salvando...") : ui("Salvar")}
                     </button>
                     <button
                       type="button"
@@ -222,14 +243,14 @@ function FailureEventCard({
                       disabled={isSaving}
                       className="inline-flex items-center gap-2 self-start rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase tracking-wider"
                     >
-                      Cancelar
+                      {ui("Cancelar")}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-start justify-between gap-3">
                   <span className="whitespace-pre-line">
-                    {event.failureDescription || "Sem descrição"}
+                    {event.failureDescription || ui("Sem descrição")}
                   </span>
                   <button
                     type="button"
@@ -238,7 +259,7 @@ function FailureEventCard({
                     disabled={catalogLoading || Boolean(catalogError)}
                   >
                     <Pencil className="h-4 w-4" />
-                    Editar
+                    {ui("Editar")}
                   </button>
                 </div>
               )}
@@ -252,17 +273,17 @@ function FailureEventCard({
       {showFailureImpact && (
         <section className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
           <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-            Impacto da falha
+            {ui("Impacto da falha")}
           </h4>
           <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
             <div className="flex items-center justify-between gap-2">
-              <dt>Impacto durante produção programada</dt>
+              <dt>{ui("Impacto durante produção programada")}</dt>
               <dd className="font-bold">
                 {formatBreakdownDuration(productionBreakdown.scheduledSeconds)}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <dt>Impacto fora de produção programada</dt>
+              <dt>{ui("Impacto fora de produção programada")}</dt>
               <dd className="font-bold">
                 {formatBreakdownDuration(productionBreakdown.notScheduledSeconds)}
               </dd>
@@ -275,6 +296,7 @@ function FailureEventCard({
 }
 
 export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProps) {
+  useInterfaceLanguage();
   const { machines, calls, updateMachineStopEventDescription, updateCallFailureDetails } =
     useAndon();
   const [expandedCallIds, setExpandedCallIds] = useState<string[]>([]);
@@ -334,8 +356,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     return (
       <EmptyState
         icon={<History className="h-10 w-10" />}
-        title="Máquina não encontrada"
-        description={`A máquina "${machineId}" não existe.`}
+        title={ui("Máquina não encontrada")}
+        description={ui('A máquina "{0}" não existe.', { 0: machineId })}
       />
     );
   }
@@ -377,26 +399,30 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   );
   const technicianFilterOptions = listCallHistoryTechnicians(machineCalls);
   const subtypeFilterOptions = Array.from(
-    new Map(
-      [
-        ...CALL_TYPE_OPTIONS.map((option) => [
-          option.id,
-          {
-            id: option.id,
-            label: option.label,
-            displayOrder: option.displayOrder,
-          },
-        ] as const),
-        ...machineCalls.map((call) => [
-          call.subtype,
-          {
-            id: call.subtype,
-            label: getCallSubtypeLabel(call.subtype),
-            displayOrder: 10_000,
-          },
-        ] as const),
-      ],
-    ).values(),
+    new Map([
+      ...CALL_TYPE_OPTIONS.map(
+        (option) =>
+          [
+            option.id,
+            {
+              id: option.id,
+              label: option.label,
+              displayOrder: option.displayOrder,
+            },
+          ] as const,
+      ),
+      ...machineCalls.map(
+        (call) =>
+          [
+            call.subtype,
+            {
+              id: call.subtype,
+              label: getCallSubtypeLabel(call.subtype),
+              displayOrder: 10_000,
+            },
+          ] as const,
+      ),
+    ]).values(),
   ).sort(
     (current, next) =>
       current.displayOrder - next.displayOrder ||
@@ -504,7 +530,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       classifications={classifications}
       catalogByValue={catalogByValue}
       catalogLoading={catalogLoading}
-      catalogError={catalogError}
+      catalogError={systemMessage(catalogError)}
       isEditing={editingId === event.id}
       editingText={editingText}
       editingPin={editingPin}
@@ -515,7 +541,9 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       onEditingPinChange={setEditingPin}
       onEditingClassificationChange={setEditingClassification}
       onCancelEditing={() => setEditingId(null)}
-      onSave={(event) => { void saveFailure(event); }}
+      onSave={(event) => {
+        void saveFailure(event);
+      }}
     />
   );
 
@@ -527,16 +555,17 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             to="/machines/$machineId"
             params={{ machineId }}
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-muted hover:bg-accent md:h-11 md:w-11"
-            aria-label="Voltar para a máquina"
+            aria-label={ui("Voltar para a máquina")}
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Máquina {machine.id}
+              {ui("Máquina ")}
+              {machine.id}
             </div>
             <h1 className="text-2xl font-black uppercase tracking-wider text-foreground md:text-3xl">
-              Histórico de Chamados
+              {ui("Histórico de Chamados")}
             </h1>
             <p className="text-sm text-muted-foreground">{machine.name}</p>
           </div>
@@ -545,7 +574,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
       {catalogLoading && (
         <p className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
-          Carregando catálogo central de classificações...
+          {ui("Carregando catálogo central de classificações...")}
         </p>
       )}
       {catalogError && (
@@ -553,8 +582,8 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
           role="alert"
           className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
         >
-          <p className="font-bold">Catálogo central de classificações indisponível.</p>
-          <p>{catalogError}</p>
+          <p className="font-bold">{ui("Catálogo central de classificações indisponível.")}</p>
+          <p>{systemMessage(catalogError)}</p>
         </div>
       )}
 
@@ -565,10 +594,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               <SlidersHorizontal className="h-5 w-5 text-primary" />
               <div>
                 <h2 className="text-sm font-black uppercase tracking-wider text-foreground">
-                  Filtro e pesquisa
+                  {ui("Filtro e pesquisa")}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {filteredMachineCalls.length} de {machineCalls.length} chamado(s)
+                  {filteredMachineCalls.length}
+                  {ui(" de ")}
+                  {machineCalls.length}
+                  {ui(" chamado(s)")}
                 </p>
               </div>
             </div>
@@ -579,14 +611,14 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
             >
               <X className="h-4 w-4" />
-              Limpar filtros
+              {ui("Limpar filtros")}
             </button>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <label className="sm:col-span-2">
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Pesquisa rápida
+                {ui("Pesquisa rápida")}
               </span>
               <span className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -594,7 +626,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   type="search"
                   value={historyFilters.query}
                   onChange={(event) => setHistoryFilter("query", event.target.value)}
-                  placeholder="OS, ID, mantenedor, descrição..."
+                  placeholder={ui("OS, ID, mantenedor, descrição...")}
                   className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
                 />
               </span>
@@ -602,14 +634,14 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Área / setor
+                {ui("Área / setor")}
               </span>
               <select
                 value={historyFilters.subtype}
                 onChange={(event) => setHistoryFilter("subtype", event.target.value)}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               >
-                <option value="all">Todas</option>
+                <option value="all">{ui("Todas")}</option>
                 {subtypeFilterOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
@@ -620,7 +652,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Período
+                {ui("Período")}
               </span>
               <select
                 value={historyFilters.period}
@@ -634,18 +666,18 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 }}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               >
-                <option value="all">Todo o histórico</option>
-                <option value="today">Hoje</option>
-                <option value="7d">Últimos 7 dias</option>
-                <option value="30d">Últimos 30 dias</option>
-                <option value="custom">Dia específico</option>
+                <option value="all">{ui("Todo o histórico")}</option>
+                <option value="today">{ui("Hoje")}</option>
+                <option value="7d">{ui("Últimos 7 dias")}</option>
+                <option value="30d">{ui("Últimos 30 dias")}</option>
+                <option value="custom">{ui("Dia específico")}</option>
               </select>
             </label>
 
             {historyFilters.period === "custom" && (
               <label>
                 <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Dia da abertura
+                  {ui("Dia da abertura")}
                 </span>
                 <input
                   type="date"
@@ -658,7 +690,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Status
+                {ui("Status")}
               </span>
               <select
                 value={historyFilters.status}
@@ -667,25 +699,25 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 }
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               >
-                <option value="all">Todos</option>
-                <option value="open">Aberto</option>
-                <option value="in_progress">Em atendimento</option>
-                <option value="post_maintenance">Acompanhamento</option>
-                <option value="finished">Finalizado</option>
-                <option value="cancelled">Cancelado</option>
+                <option value="all">{ui("Todos")}</option>
+                <option value="open">{ui("Aberto")}</option>
+                <option value="in_progress">{ui("Em atendimento")}</option>
+                <option value="post_maintenance">{ui("Acompanhamento")}</option>
+                <option value="finished">{ui("Finalizado")}</option>
+                <option value="cancelled">{ui("Cancelado")}</option>
               </select>
             </label>
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Mantenedor
+                {ui("Mantenedor")}
               </span>
               <select
                 value={historyFilters.technician}
                 onChange={(event) => setHistoryFilter("technician", event.target.value)}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               >
-                <option value="all">Todos</option>
+                <option value="all">{ui("Todos")}</option>
                 {technicianFilterOptions.map((technician) => (
                   <option key={technician} value={technician}>
                     {technician}
@@ -696,17 +728,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Classificação
+                {ui("Classificação")}
               </span>
               <select
                 value={historyFilters.failureClassification}
-                onChange={(event) =>
-                  setHistoryFilter("failureClassification", event.target.value)
-                }
+                onChange={(event) => setHistoryFilter("failureClassification", event.target.value)}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                 disabled={catalogLoading || Boolean(catalogError)}
               >
-                <option value="all">Todas</option>
+                <option value="all">{ui("Todas")}</option>
                 {classifications
                   .slice()
                   .sort((current, next) =>
@@ -715,7 +745,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                   .map((classification) => (
                     <option key={classification.id} value={classification.value}>
                       {classification.label}
-                      {classification.active ? "" : " (inativa)"}
+                      {classification.active ? "" : ui(" (inativa)")}
                     </option>
                   ))}
               </select>
@@ -723,7 +753,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
             <label>
               <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Origem
+                {ui("Origem")}
               </span>
               <select
                 value={historyFilters.origin}
@@ -732,9 +762,9 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 }
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               >
-                <option value="all">Todos</option>
-                <option value="real">Chamados reais</option>
-                <option value="system">Testes automáticos</option>
+                <option value="all">{ui("Todos")}</option>
+                <option value="real">{ui("Chamados reais")}</option>
+                <option value="system">{ui("Testes automáticos")}</option>
               </select>
             </label>
           </div>
@@ -744,14 +774,14 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
       {machineCalls.length === 0 ? (
         <EmptyState
           icon={<History className="h-12 w-12" />}
-          title="Sem chamados registrados"
-          description="Quando houver chamados para esta máquina, eles aparecerão aqui."
+          title={ui("Sem chamados registrados")}
+          description={ui("Quando houver chamados para esta máquina, eles aparecerão aqui.")}
         />
       ) : filteredMachineCalls.length === 0 ? (
         <EmptyState
           icon={<Search className="h-12 w-12" />}
-          title="Nenhum chamado encontrado"
-          description="Ajuste a pesquisa ou limpe os filtros para visualizar outros chamados."
+          title={ui("Nenhum chamado encontrado")}
+          description={ui("Ajuste a pesquisa ou limpe os filtros para visualizar outros chamados.")}
         />
       ) : (
         <div className="space-y-2">
@@ -788,9 +818,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 : call.technicianName
                   ? formatTechnicianDisplayName(call.technicianName)
                   : isMaintenance
-                    ? "Sem mantenedor apontado"
-                    : "Não aplicável";
-            const effectiveAssetLocation = getEffectiveAssetLocationLabel(call, "Não informado");
+                    ? ui("Sem mantenedor apontado")
+                    : ui("Não aplicável");
+            const effectiveAssetLocation = getEffectiveAssetLocationLabel(
+              call,
+              ui("Não informado"),
+            );
             const isExpanded = expandedCallIds.includes(call.id);
 
             const impactPeriodStart = call.openedAt;
@@ -842,42 +875,37 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                 : call.technicianName
                   ? [call.technicianName]
                   : [];
-            const finalizedAt =
-              call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString();
+            const finalizedAt = call.finishedAt ?? call.maintenanceCompletedAt ?? now.toISOString();
             const hasPhaseAwareSessions = sessions.some(
               (session) => session.phase === "maintenance" || session.phase === "follow_up",
             );
             const phaseAwareRows = hasPhaseAwareSessions
-              ? buildTechnicianParticipationSummaries(
-                  sessions,
-                  finalizedAt,
-                  call.status,
-                ).map((summary) => {
-                  const intervals = [
-                    ...summary.maintenanceIntervals,
-                    ...summary.followUpIntervals,
-                  ].sort((current, next) =>
-                    current.startedAt.localeCompare(next.startedAt),
-                  );
-                  const firstInterval = intervals[0] ?? null;
-                  const hasOpenInterval = intervals.some((interval) => !interval.endedAt);
-                  const lastEndedInterval = intervals
-                    .filter((interval) => Boolean(interval.endedAt))
-                    .sort((current, next) =>
-                      (next.endedAt ?? "").localeCompare(current.endedAt ?? ""),
-                    )[0];
+              ? buildTechnicianParticipationSummaries(sessions, finalizedAt, call.status).map(
+                  (summary) => {
+                    const intervals = [
+                      ...summary.maintenanceIntervals,
+                      ...summary.followUpIntervals,
+                    ].sort((current, next) => current.startedAt.localeCompare(next.startedAt));
+                    const firstInterval = intervals[0] ?? null;
+                    const hasOpenInterval = intervals.some((interval) => !interval.endedAt);
+                    const lastEndedInterval = intervals
+                      .filter((interval) => Boolean(interval.endedAt))
+                      .sort((current, next) =>
+                        (next.endedAt ?? "").localeCompare(current.endedAt ?? ""),
+                      )[0];
 
-                  return {
-                    id: summary.key,
-                    technicianName: formatTechnicianDisplayName(summary.technicianName),
-                    startedAt: firstInterval?.startedAt ?? null,
-                    endedAt: hasOpenInterval ? null : (lastEndedInterval?.endedAt ?? null),
-                    maintenanceMinutes: summary.maintenanceMinutes,
-                    followUpMinutes: summary.followUpMinutes,
-                    totalMinutes: getTechnicianAccumulatedMinutes(summary),
-                    phaseAware: true,
-                  };
-                })
+                    return {
+                      id: summary.key,
+                      technicianName: formatTechnicianDisplayName(summary.technicianName),
+                      startedAt: firstInterval?.startedAt ?? null,
+                      endedAt: hasOpenInterval ? null : (lastEndedInterval?.endedAt ?? null),
+                      maintenanceMinutes: summary.maintenanceMinutes,
+                      followUpMinutes: summary.followUpMinutes,
+                      totalMinutes: getTechnicianAccumulatedMinutes(summary),
+                      phaseAware: true,
+                    };
+                  },
+                )
               : [];
             const legacyAllocationRows = buildTechnicianTimeAllocations({
               call,
@@ -920,8 +948,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     },
                   ]
                 : legacyAllocationRows;
-            const technicianRows =
-              phaseAwareRows.length > 0 ? phaseAwareRows : legacyRows;
+            const technicianRows = phaseAwareRows.length > 0 ? phaseAwareRows : legacyRows;
 
             const shouldShowTechnicianSection =
               isMaintenance || sessions.length > 0 || allocations.length > 0 || hasTechnicianNames;
@@ -940,37 +967,39 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                       {formatDateTime(call.finishedAt ?? call.openedAt)}
                     </div>
                     <h2 className="truncate text-base font-black text-foreground md:text-lg">
-                      {call.category === "maintenance" ? "Manutenção" : "Produção"} •{" "}
+                      {call.category === "maintenance" ? ui("Manutenção") : ui("Produção")} •{" "}
                       {getCallSubtypeLabel(call.subtype)}
                     </h2>
                     <CallIdLabel callId={call.id} className="mt-0.5" />
                     {call.workOrderNumber && (
                       <div className="mt-1 text-sm text-muted-foreground">
-                        OS:{" "}
+                        {ui("OS:")}{" "}
                         <span className="font-bold text-foreground">{call.workOrderNumber}</span>
                       </div>
                     )}
                     {call.isSystemTest && (
                       <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">
-                        Teste automático
+                        {ui("Teste automático")}
                       </div>
                     )}
                     <div className="mt-1 w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                      Localização: {effectiveAssetLocation}
+                      {ui("Localização: ")}
+                      {effectiveAssetLocation}
                     </div>
                     {call.assetLocationChanged && (
                       <div className="mt-1 w-fit rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-warning">
-                        Corrigida na finalização
+                        {ui("Corrigida na finalização")}
                       </div>
                     )}
                     <div className="mt-1 text-sm text-muted-foreground">
-                      Tempo total:{" "}
+                      {ui("Tempo total:")}{" "}
                       <span className="font-bold text-foreground">
                         {formatDurationMinutes(totalMinutes)}
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Mantenedores: {technicianNames}
+                      {ui("Mantenedores: ")}
+                      {technicianNames}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -993,7 +1022,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         )
                       }
                     >
-                      {isExpanded ? "Ocultar detalhes" : "Mais detalhes"}
+                      {isExpanded ? ui("Ocultar detalhes") : ui("Mais detalhes")}
                     </button>
                   </div>
                 </div>
@@ -1003,7 +1032,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                          Chamado
+                          {ui("Chamado")}
                         </h3>
                         {canEditDiagnosis && editingCallId !== call.id && (
                           <button
@@ -1011,62 +1040,73 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             onClick={() => startEditingCall(call, linkedFailureEvents)}
                             disabled={catalogLoading || Boolean(catalogError)}
                             className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-bold uppercase tracking-wider"
-                            aria-label="Editar diagnóstico do chamado"
+                            aria-label={ui("Editar diagnóstico do chamado")}
                           >
-                            <Pencil className="h-4 w-4" /> Editar diagnóstico
+                            <Pencil className="h-4 w-4" />
+                            {ui(" Editar diagnóstico")}
                           </button>
                         )}
                       </div>
                       <dl className="grid grid-cols-1 gap-x-3 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
                         <div className="sm:col-span-2 lg:col-span-4">
-                          <dt className="text-xs uppercase text-muted-foreground">ID do chamado</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            {ui("ID do chamado")}
+                          </dt>
                           <dd>
                             <CallIdLabel callId={call.id} />
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs uppercase text-muted-foreground">Tipo</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">{ui("Tipo")}</dt>
                           <dd className="font-bold">
-                            {call.category === "maintenance" ? "Manutenção" : "Produção"} •{" "}
+                            {call.category === "maintenance" ? ui("Manutenção") : ui("Produção")} •{" "}
                             {getCallSubtypeLabel(call.subtype)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs uppercase text-muted-foreground">Status</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            {ui("Status")}
+                          </dt>
                           <dd className="font-bold">{getAndonStatusLabel(call.status)}</dd>
                         </div>
                         <div>
-                          <dt className="text-xs uppercase text-muted-foreground">Criticidade</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            {ui("Criticidade")}
+                          </dt>
                           <dd className="font-bold">{getCriticalityLabel(call.criticality)}</dd>
                         </div>
                         <div>
-                          <dt className="text-xs uppercase text-muted-foreground">Localização</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            {ui("Localização")}
+                          </dt>
                           <dd className="font-bold">{effectiveAssetLocation}</dd>
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            Condição ao abrir
+                            {ui("Condição ao abrir")}
                           </dt>
                           <dd className="font-bold">
                             {getMachineConditionLabel(call.machineCondition)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs uppercase text-muted-foreground">Área técnica</dt>
+                          <dt className="text-xs uppercase text-muted-foreground">
+                            {ui("Área técnica")}
+                          </dt>
                           <dd className="font-bold">
                             {getTechnicianAreaLabel(call.technicianArea)}
                           </dd>
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            Início do chamado
+                            {ui("Início do chamado")}
                           </dt>
                           <dd className="font-mono">{formatDateTime(call.openedAt)}</dd>
                         </div>
                         {call.operatorNote && (
                           <div className="sm:col-span-2 lg:col-span-4">
                             <dt className="text-xs uppercase text-muted-foreground">
-                              Informação do operador na abertura
+                              {ui("Informação do operador na abertura")}
                             </dt>
                             <dd className="whitespace-pre-line font-semibold">
                               {call.operatorNote}
@@ -1075,13 +1115,13 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         )}
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            Início da manutenção
+                            {ui("Início da manutenção")}
                           </dt>
                           <dd className="font-mono">{formatDateTime(call.attendedAt)}</dd>
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            Conclusão da manutenção
+                            {ui("Conclusão da manutenção")}
                           </dt>
                           <dd className="font-mono">
                             {formatDateTime(call.maintenanceCompletedAt)}
@@ -1089,27 +1129,31 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            {call.status === "cancelled" ? "Cancelado em" : "Finalizado em"}
+                            {call.status === "cancelled" ? ui("Cancelado em") : ui("Finalizado em")}
                           </dt>
                           <dd className="font-mono">{formatDateTime(call.finishedAt)}</dd>
                         </div>
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">
-                            Retornos à manutenção
+                            {ui("Retornos à manutenção")}
                           </dt>
                           <dd className="font-bold">{call.maintenanceReturnCount}</dd>
                         </div>
                         {!callFailureDetails.description && (
                           <div className="sm:col-span-2 lg:col-span-4">
-                            <dt className="text-xs uppercase text-muted-foreground">Descrição</dt>
-                            <dd className="whitespace-pre-line">{call.notes || "Sem descrição"}</dd>
+                            <dt className="text-xs uppercase text-muted-foreground">
+                              {ui("Descrição")}
+                            </dt>
+                            <dd className="whitespace-pre-line">
+                              {call.notes || ui("Sem descrição")}
+                            </dd>
                           </div>
                         )}
                         {showFailureDiagnosis && (
                           <>
                             <div className="sm:col-span-2 lg:col-span-4">
                               <dt className="text-xs uppercase text-muted-foreground">
-                                Classificação da falha
+                                {ui("Classificação da falha")}
                               </dt>
                               <dd className="font-bold">
                                 {callFailureDetails.classification
@@ -1117,15 +1161,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                       callFailureDetails.classification,
                                       catalogByValue,
                                     )
-                                  : "Não registrado"}
+                                  : ui("Não registrado")}
                               </dd>
                             </div>
                             <div className="sm:col-span-2 lg:col-span-4">
                               <dt className="text-xs uppercase text-muted-foreground">
-                                Descrição da falha
+                                {ui("Descrição da falha")}
                               </dt>
                               <dd className="whitespace-pre-line">
-                                {callFailureDetails.description ?? "Não registrado"}
+                                {callFailureDetails.description ?? ui("Não registrado")}
                               </dd>
                             </div>
                           </>
@@ -1133,7 +1177,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         {callFailureDetails.description && supplementalNotes && (
                           <div className="sm:col-span-2 lg:col-span-4">
                             <dt className="text-xs uppercase text-muted-foreground">
-                              Observações do chamado
+                              {ui("Observações do chamado")}
                             </dt>
                             <dd className="whitespace-pre-line">{supplementalNotes}</dd>
                           </div>
@@ -1141,7 +1185,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         {call.assetLocationChanged && call.assetChangeReason && (
                           <div className="sm:col-span-2 lg:col-span-4">
                             <dt className="text-xs uppercase text-muted-foreground">
-                              Justificativa da correção
+                              {ui("Justificativa da correção")}
                             </dt>
                             <dd className="whitespace-pre-line font-semibold text-warning">
                               {call.assetChangeReason}
@@ -1151,7 +1195,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         {call.status === "cancelled" && call.cancelReason && (
                           <div className="sm:col-span-2 lg:col-span-4">
                             <dt className="text-xs uppercase text-muted-foreground">
-                              Justificativa do cancelamento
+                              {ui("Justificativa do cancelamento")}
                             </dt>
                             <dd className="whitespace-pre-line font-semibold">
                               {call.cancelReason}
@@ -1165,7 +1209,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             htmlFor={`classification-${call.id}`}
                             className="text-xs font-bold uppercase text-muted-foreground"
                           >
-                            Classificação da falha
+                            {ui("Classificação da falha")}
                           </label>
                           <select
                             id={`classification-${call.id}`}
@@ -1176,7 +1220,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           >
                             {!catalogByValue.has(editingClassification) && (
                               <option value={editingClassification}>
-                                Selecione uma classificação
+                                {ui("Selecione uma classificação")}
                               </option>
                             )}
                             {classifications
@@ -1186,7 +1230,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                               .map((entry) => (
                                 <option key={entry.id} value={entry.value}>
                                   {entry.label}
-                                  {entry.active ? "" : " (Inativa)"}
+                                  {entry.active ? "" : ui(" (Inativa)")}
                                 </option>
                               ))}
                           </select>
@@ -1194,7 +1238,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             htmlFor={`description-${call.id}`}
                             className="text-xs font-bold uppercase text-muted-foreground"
                           >
-                            Descrição da falha
+                            {ui("Descrição da falha")}
                           </label>
                           <textarea
                             id={`description-${call.id}`}
@@ -1204,15 +1248,17 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                             disabled={savingCallDetails}
                           />
                           <label className="text-xs font-bold uppercase text-muted-foreground">
-                            PIN do mantenedor (obrigatório)
+                            {ui("PIN do mantenedor (obrigatório)")}
                             <input
                               type="password"
                               inputMode="numeric"
                               autoComplete="off"
                               maxLength={8}
                               value={editingPin}
-                              onChange={(event) => setEditingPin(event.target.value.replace(/\D/g, ""))}
-                              placeholder="4 a 8 números"
+                              onChange={(event) =>
+                                setEditingPin(event.target.value.replace(/\D/g, ""))
+                              }
+                              placeholder={ui("4 a 8 números")}
                               disabled={savingCallDetails}
                               className="mt-1 block h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
                             />
@@ -1222,11 +1268,15 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                               type="button"
                               onClick={() => void saveCallDetails(call, linkedFailureEvents)}
                               disabled={
-                                savingCallDetails || catalogLoading || Boolean(catalogError) || !/^\d{4,8}$/.test(editingPin)
+                                savingCallDetails ||
+                                catalogLoading ||
+                                Boolean(catalogError) ||
+                                !/^\d{4,8}$/.test(editingPin)
                               }
                               className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold uppercase text-secondary-foreground"
                             >
-                              <Save className="h-4 w-4" /> {savingCallDetails ? "Salvando..." : "Salvar"}
+                              <Save className="h-4 w-4" />{" "}
+                              {savingCallDetails ? ui("Salvando...") : ui("Salvar")}
                             </button>
                             <button
                               type="button"
@@ -1234,7 +1284,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                               disabled={savingCallDetails}
                               className="rounded-xl border border-border px-3 py-2 text-xs font-bold uppercase"
                             >
-                              Cancelar
+                              {ui("Cancelar")}
                             </button>
                           </div>
                         </div>
@@ -1244,7 +1294,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
                       <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        Falha
+                        {ui("Falha")}
                       </h3>
                       {linkedFailureEvents.length > 0 ? (
                         <div className="space-y-2">
@@ -1252,36 +1302,36 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Nenhuma ocorrência de falha vinculada a este chamado.
+                          {ui("Nenhuma ocorrência de falha vinculada a este chamado.")}
                         </p>
                       )}
                     </section>
 
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
                       <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        Tempos
+                        {ui("Tempos")}
                       </h3>
                       <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
                         <div>
-                          <dt>Tempo de ANDON</dt>
+                          <dt>{ui("Tempo de ANDON")}</dt>
                           <dd className="font-bold text-warning">
                             {formatDurationMinutes(waitingMinutes)}
                           </dd>
                         </div>
                         <div>
-                          <dt>Tempo de atendimento</dt>
+                          <dt>{ui("Tempo de atendimento")}</dt>
                           <dd className="font-bold text-info">
                             {formatDurationMinutes(attendanceMinutes)}
                           </dd>
                         </div>
                         <div>
-                          <dt>Tempo de acompanhamento</dt>
+                          <dt>{ui("Tempo de acompanhamento")}</dt>
                           <dd className="font-bold text-info">
                             {formatDurationMinutes(postMaintenanceMinutes)}
                           </dd>
                         </div>
                         <div>
-                          <dt>Tempo total</dt>
+                          <dt>{ui("Tempo total")}</dt>
                           <dd className="font-bold">{formatDurationMinutes(totalMinutes)}</dd>
                         </div>
                       </dl>
@@ -1290,7 +1340,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                     {shouldShowTechnicianSection && (
                       <section className="rounded-lg border border-border bg-muted/20 p-3">
                         <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                          Atendimento técnico
+                          {ui("Atendimento técnico")}
                         </h3>
                         <div className="space-y-2">
                           {technicianRows.length > 0 ? (
@@ -1304,7 +1354,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                   <dl className="mt-2 grid gap-2 sm:grid-cols-3">
                                     <div className="rounded-md border border-info/25 bg-info/10 p-2">
                                       <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                        Atendimento
+                                        {ui("Atendimento")}
                                       </dt>
                                       <dd className="mt-0.5 font-mono font-black text-info">
                                         {formatDurationMinutes(row.maintenanceMinutes)}
@@ -1312,7 +1362,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                     </div>
                                     <div className="rounded-md border border-success/25 bg-success/10 p-2">
                                       <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                        Acompanhamento
+                                        {ui("Acompanhamento")}
                                       </dt>
                                       <dd className="mt-0.5 font-mono font-black text-success">
                                         {formatDurationMinutes(row.followUpMinutes)}
@@ -1320,7 +1370,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                     </div>
                                     <div className="rounded-md border border-border bg-muted/20 p-2">
                                       <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                        Total individual
+                                        {ui("Total individual")}
                                       </dt>
                                       <dd className="mt-0.5 font-mono font-black text-foreground">
                                         {formatDurationMinutes(row.totalMinutes)}
@@ -1330,7 +1380,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                 ) : (
                                   <div className="mt-2 rounded-md border border-border bg-muted/20 p-2">
                                     <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                      Tempo total legado
+                                      {ui("Tempo total legado")}
                                     </div>
                                     <div className="mt-0.5 font-mono font-black text-foreground">
                                       {row.totalMinutes > 0
@@ -1340,14 +1390,20 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                                   </div>
                                 )}
                                 <div className="mt-2 grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-2">
-                                  <div>Primeiro início: {formatDateTime(row.startedAt)}</div>
-                                  <div>Último fim: {formatDateTime(row.endedAt)}</div>
+                                  <div>
+                                    {ui("Primeiro início: ")}
+                                    {formatDateTime(row.startedAt)}
+                                  </div>
+                                  <div>
+                                    {ui("Último fim: ")}
+                                    {formatDateTime(row.endedAt)}
+                                  </div>
                                 </div>
                               </div>
                             ))
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Sem mantenedor apontado
+                              {ui("Sem mantenedor apontado")}
                             </div>
                           )}
                         </div>
@@ -1356,23 +1412,23 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
                     <section className="rounded-lg border border-border bg-muted/30 p-3">
                       <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        Impacto operacional
+                        {ui("Impacto operacional")}
                       </h3>
                       <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
                         <div className="flex items-center justify-between gap-2">
-                          <dt>Parada produtiva</dt>
+                          <dt>{ui("Parada produtiva")}</dt>
                           <dd className="font-bold">
                             {formatBreakdownDuration(impactBreakdown.productiveDowntimeSeconds)}
                           </dd>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <dt>Em falha sem produção programada</dt>
+                          <dt>{ui("Em falha sem produção programada")}</dt>
                           <dd className="font-bold">
                             {formatBreakdownDuration(impactBreakdown.nonScheduledDowntimeSeconds)}
                           </dd>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <dt>Atendimento sem impacto produtivo</dt>
+                          <dt>{ui("Atendimento sem impacto produtivo")}</dt>
                           <dd className="font-bold">
                             {formatBreakdownDuration(
                               impactBreakdown.productionBlockedSupportSeconds,
@@ -1380,7 +1436,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                           </dd>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <dt>Atendimento fora de produção</dt>
+                          <dt>{ui("Atendimento fora de produção")}</dt>
                           <dd className="font-bold">
                             {formatBreakdownDuration(impactBreakdown.nonScheduledSupportSeconds)}
                           </dd>
@@ -1401,11 +1457,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             <FileWarning className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
             <div>
               <h2 className="font-black uppercase tracking-wider text-foreground">
-                Ocorrências de falha sem chamado vinculado
+                {ui("Ocorrências de falha sem chamado vinculado")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Registros legados ou sem vínculo disponível permanecem acessíveis para consulta e
-                edição.
+                {ui(
+                  "Registros legados ou sem vínculo disponível permanecem acessíveis para consulta e edição.",
+                )}
               </p>
             </div>
           </div>

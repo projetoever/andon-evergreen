@@ -64,7 +64,7 @@ test("falhas órfãs mantêm apresentação e edição próprias", async () => {
   );
 
   assert.match(history, /function FailureEventCard\(/);
-  assert.match(history, /event\.failureDescription \|\| "Sem descrição"/);
+  assert.match(history, /event\.failureDescription \|\| ui\("Sem descrição"\)/);
   assert.match(
     history,
     /orphanFailureEvents\.map\(\(event\) => renderFailureEvent\(event, true\)\)/,

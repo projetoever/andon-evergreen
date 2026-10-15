@@ -1,7 +1,9 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -58,6 +60,7 @@ import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
+  const { language: interfaceLanguage } = useInterfaceLanguage();
   const { access } = useModuleAccess();
   const {
     machines,
@@ -304,31 +307,50 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }, [currentCall?.status, participationSummaries]);
   useEffect(() => {
     const onSettingsChanged = (event: Event) => {
-      const settings = (event as CustomEvent<import("@/types/systemSettings").SystemSettings>).detail;
-      setWorkstationRestrictionContext((current) => current ? {...current, restricted: settings.restrictMaintenanceCompletionToAttendanceWorkstation} : current);
+      const settings = (event as CustomEvent<import("@/types/systemSettings").SystemSettings>)
+        .detail;
+      setWorkstationRestrictionContext((current) =>
+        current
+          ? {
+              ...current,
+              restricted: settings.restrictMaintenanceCompletionToAttendanceWorkstation,
+            }
+          : current,
+      );
     };
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
   }, []);
   const maintenanceCompletionAuthorization = useMemo(
-    () => workstationRestrictionContext ? evaluateMaintenanceCompletionAuthorization(sessions, {
-      ...workstationRestrictionContext,
-      ...(access ? {currentWorkstationId:access.workstation.id,currentWorkstationActive:access.workstation.active} : {}),
-    }) : null,
+    () =>
+      workstationRestrictionContext
+        ? evaluateMaintenanceCompletionAuthorization(sessions, {
+            ...workstationRestrictionContext,
+            ...(access
+              ? {
+                  currentWorkstationId: access.workstation.id,
+                  currentWorkstationActive: access.workstation.active,
+                }
+              : {}),
+          })
+        : null,
     [sessions, workstationRestrictionContext, access],
   );
   const maintenanceCompletionHint = useMemo(() => {
+    void interfaceLanguage;
     if (workstationAuthorizationLoadFailed) {
-      return "Não foi possível verificar a autorização desta workstation. A validação será feita ao concluir.";
+      return ui(
+        "Não foi possível verificar a autorização desta workstation. A validação será feita ao concluir.",
+      );
     }
     if (!maintenanceCompletionAuthorization) return null;
     if (!maintenanceCompletionAuthorization.allowed)
-      return maintenanceCompletionAuthorization.message;
+      return systemMessage(maintenanceCompletionAuthorization.message);
     if (maintenanceCompletionAuthorization.kind === "legacy") {
-      return "Atendimento legado: conclusão permitida.";
+      return ui("Atendimento legado: conclusão permitida.");
     }
     return null;
-  }, [maintenanceCompletionAuthorization, workstationAuthorizationLoadFailed]);
+  }, [maintenanceCompletionAuthorization, workstationAuthorizationLoadFailed, interfaceLanguage]);
   const maintenanceCompletionHintTone = workstationAuthorizationLoadFailed
     ? "warning"
     : maintenanceCompletionAuthorization?.allowed
@@ -373,9 +395,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       setScreenLock(lock);
       toast.success(`Tela da máquina ${machine.id} fixada`);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível fixar a tela.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível fixar a tela.");
     }
   }
 
@@ -385,9 +405,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       setScreenLock(null);
       toast.success("Tela desbloqueada. Navegação liberada.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível desbloquear a tela.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível desbloquear a tela.");
     }
   }
 
@@ -432,7 +450,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       toast.error(error instanceof Error ? error.message : "Erro ao retornar à manutenção");
     }
   }
-
 
   async function handleCompleteMaintenance() {
     if (!currentCall || isCompletingMaintenance) return;
@@ -503,8 +520,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     return (
       <EmptyState
         icon={<AlertCircle className="h-10 w-10" />}
-        title="Máquina não encontrada"
-        description={`A máquina "${machineId}" não existe.`}
+        title={ui("Máquina não encontrada")}
+        description={ui('A máquina "{0}" não existe.', { 0: machineId })}
       />
     );
   }
@@ -517,10 +534,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       {!audioUnlocked && !audioPlaybackBlocked && (
         <div className="flex shrink-0 flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-1.5 text-warning sm:flex-row">
           <span className="text-sm font-bold">
-            Ative o áudio desta workstation para receber os alertas sonoros desta máquina.
+            {ui("Ative o áudio desta workstation para receber os alertas sonoros desta máquina.")}
           </span>
           <BigButton tone="primary" size="md" onClick={handleMachineAudioUnlock}>
-            ATIVAR SOM DA MÁQUINA
+            {ui("ATIVAR SOM DA MÁQUINA")}
           </BigButton>
         </div>
       )}
@@ -589,7 +606,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           <section className="shrink-0 rounded-xl border border-border bg-card px-2.5 py-1.5 shadow-sm">
             <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="mr-auto text-xs font-bold uppercase tracking-wider text-muted-foreground md:text-sm">
-                {currentCall.status === "post_maintenance" ? "Acompanhamento" : "Atendimento"}
+                {currentCall.status === "post_maintenance"
+                  ? ui("Acompanhamento")
+                  : ui("Atendimento")}
               </h3>
               <div className="grid min-w-0 basis-full grid-cols-2 gap-1.5 py-0.5 sm:basis-auto sm:flex-1 md:max-w-xl">
                 <BigButton
@@ -599,8 +618,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                   onClick={() => setAddOpen(true)}
                 >
                   {currentCall.status === "post_maintenance"
-                    ? "Adicionar acompanhamento"
-                    : "Adicionar mantenedor"}
+                    ? ui("Adicionar acompanhamento")
+                    : ui("Adicionar mantenedor")}
                 </BigButton>
                 <BigButton
                   tone="warning"
@@ -610,15 +629,15 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
                   onClick={() => setEndOpen(true)}
                 >
                   {currentCall.status === "post_maintenance"
-                    ? "Encerrar acompanhamento"
-                    : "Encerrar atendimento"}
+                    ? ui("Encerrar acompanhamento")
+                    : ui("Encerrar atendimento")}
                 </BigButton>
               </div>
             </div>
 
             {activeParticipationSummaries.length === 0 ? (
               <div className="mt-1.5 flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-xs text-muted-foreground">
-                <span>Nenhum mantenedor ativo.</span>
+                <span>{ui("Nenhum mantenedor ativo.")}</span>
                 {currentCall.status === "in_progress" && (
                   <strong className="whitespace-nowrap text-warning">
                     {formatDurationMinutes(timeWithoutTechnicianMinutes)}
@@ -712,9 +731,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         open={unlockLoginOpen}
         onOpenChange={setUnlockLoginOpen}
         onSuccess={() => void handleUnlockSuccess()}
-        title="Desbloquear tela fixada"
-        description="Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel."
-        successLabel="Desbloquear"
+        title={ui("Desbloquear tela fixada")}
+        description={ui(
+          "Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel.",
+        )}
+        successLabel={ui("Desbloquear")}
       />
       <FinishCallModal
         key={finishCallId ?? "closed"}

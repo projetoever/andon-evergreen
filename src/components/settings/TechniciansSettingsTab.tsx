@@ -1,6 +1,8 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { BigButton } from "@/components/common/BigButton";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
@@ -39,9 +41,12 @@ function CardSection({
   children: ReactNode;
   className?: string;
 }) {
+  useInterfaceLanguage();
   return (
     <section className={cn("space-y-3 rounded-xl border border-border bg-card p-4", className)}>
-      <h4 className="shrink-0 text-sm font-bold uppercase tracking-wide text-foreground">{title}</h4>
+      <h4 className="shrink-0 text-sm font-bold uppercase tracking-wide text-foreground">
+        {title}
+      </h4>
       {children}
     </section>
   );
@@ -56,6 +61,7 @@ function DetailSection({
   description?: string;
   children: ReactNode;
 }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div>
@@ -68,6 +74,7 @@ function DetailSection({
 }
 
 export function TechniciansSettingsTab() {
+  useInterfaceLanguage();
   const { technicians, isLoading, error, createTechnician, updateTechnician, refreshTechnicians } =
     useTechnicians();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -137,13 +144,7 @@ export function TechniciansSettingsTab() {
 
   const filteredTechnicians = useMemo(
     () =>
-      filterTechniciansForAdmin(
-        technicians,
-        searchQuery,
-        areaFilter,
-        statusFilter,
-        shiftFilter,
-      ),
+      filterTechniciansForAdmin(technicians, searchQuery, areaFilter, statusFilter, shiftFilter),
     [areaFilter, searchQuery, shiftFilter, statusFilter, technicians],
   );
 
@@ -156,17 +157,17 @@ export function TechniciansSettingsTab() {
   const selectedAreas = draft.areas?.length ? draft.areas : [draft.area];
   const availableAreaOptions = areaOptions.filter((area) => !selectedAreas.includes(area.id));
   const persistedTechnician = selectedId
-    ? technicians.find((technician) => technician.id === selectedId) ?? null
+    ? (technicians.find((technician) => technician.id === selectedId) ?? null)
     : null;
 
   const hasUnsavedChanges = useMemo(() => {
     if (!persistedTechnician) {
       return Boolean(
         draft.name.trim() ||
-          (draft.employeeId ?? "").trim() ||
-          draft.shiftId ||
-          (draft.pin ?? "").trim() ||
-          (draft.tag ?? "").trim(),
+        (draft.employeeId ?? "").trim() ||
+        draft.shiftId ||
+        (draft.pin ?? "").trim() ||
+        (draft.tag ?? "").trim(),
       );
     }
 
@@ -313,29 +314,30 @@ export function TechniciansSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Mantenedores</h3>
+        <h3 className="text-base font-bold">{ui("Mantenedores")}</h3>
         <p className="text-sm text-muted-foreground">
-          Cadastre, edite e inative mantenedores por área e turno. Os registros são armazenados no
-          banco de dados do ANDON.
+          {ui(
+            "Cadastre, edite e inative mantenedores por área e turno. Os registros são armazenados no banco de dados do ANDON.",
+          )}
         </p>
       </div>
 
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
-          <span>{error}</span>
+          <span>{systemMessage(error)}</span>
           <button
             type="button"
             className="font-bold underline"
             onClick={() => void refreshTechnicians()}
           >
-            Tentar novamente
+            {ui("Tentar novamente")}
           </button>
         </div>
       )}
 
       <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
         <CardSection
-          title="Mantenedores cadastrados"
+          title={ui("Mantenedores cadastrados")}
           className="md:flex md:h-[calc(96dvh-13rem)] md:min-h-0 md:flex-col"
         >
           <div className="shrink-0 space-y-2">
@@ -348,14 +350,14 @@ export function TechniciansSettingsTab() {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Pesquisar por nome ou ID..."
-                aria-label="Pesquisar mantenedores por nome ou ID"
+                placeholder={ui("Pesquisar por nome ou ID...")}
+                aria-label={ui("Pesquisar mantenedores por nome ou ID")}
                 className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  aria-label="Limpar pesquisa de mantenedores"
+                  aria-label={ui("Limpar pesquisa de mantenedores")}
                   onClick={() => setSearchQuery("")}
                   className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
@@ -366,13 +368,13 @@ export function TechniciansSettingsTab() {
 
             <div
               className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-              aria-label="Filtrar mantenedores por status"
+              aria-label={ui("Filtrar mantenedores por status")}
             >
               {(
                 [
-                  ["all", "Todos"],
-                  ["active", "Ativos"],
-                  ["inactive", "Inativos"],
+                  ["all", ui("Todos")],
+                  ["active", ui("Ativos", {}, "record")],
+                  ["inactive", ui("Inativos", {}, "record")],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -394,20 +396,18 @@ export function TechniciansSettingsTab() {
 
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-                Área técnica
+                {ui("Área técnica")}
                 <select
-                  aria-label="Filtrar mantenedores por setor"
+                  aria-label={ui("Filtrar mantenedores por setor")}
                   value={areaFilter}
                   onChange={(event) =>
                     setAreaFilter(
-                      event.target.value === "all"
-                        ? "all"
-                        : (event.target.value as CallSubtype),
+                      event.target.value === "all" ? "all" : (event.target.value as CallSubtype),
                     )
                   }
                   className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
                 >
-                  <option value="all">Todos os setores</option>
+                  <option value="all">{ui("Todos os setores")}</option>
                   {filterAreaOptions.map((area) => (
                     <option key={area.id} value={area.id}>
                       {area.label}
@@ -417,27 +417,30 @@ export function TechniciansSettingsTab() {
               </label>
 
               <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-                Turno
+                {ui("Turno")}
                 <select
-                  aria-label="Filtrar mantenedores por turno"
+                  aria-label={ui("Filtrar mantenedores por turno")}
                   value={shiftFilter}
                   onChange={(event) => setShiftFilter(event.target.value)}
                   className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
                 >
-                  <option value="all">Todos os turnos</option>
+                  <option value="all">{ui("Todos os turnos")}</option>
                   {shifts.map((shift) => (
                     <option key={shift.id} value={shift.id}>
                       {shift.name}
                     </option>
                   ))}
-                  <option value="__none__">Sem turno</option>
+                  <option value="__none__">{ui("Sem turno")}</option>
                 </select>
               </label>
             </div>
 
             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
-                {filteredTechnicians.length} de {technicians.length} mantenedor(es)
+                {filteredTechnicians.length}
+                {ui(" de ")}
+                {technicians.length}
+                {ui(" mantenedor(es)")}
               </span>
               {hasActiveFilters && (
                 <button
@@ -450,7 +453,7 @@ export function TechniciansSettingsTab() {
                   }}
                   className="font-bold text-primary hover:underline"
                 >
-                  Limpar filtros
+                  {ui("Limpar filtros")}
                 </button>
               )}
             </div>
@@ -462,21 +465,23 @@ export function TechniciansSettingsTab() {
             onClick={handleAddTechnician}
             disabled={isLoading || Boolean(error)}
           >
-            Adicionar mantenedor
+            {ui("Adicionar mantenedor")}
           </BigButton>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {isLoading && (
-              <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
+              <p className="text-sm text-muted-foreground">{ui("Carregando mantenedores...")}</p>
             )}
             {!isLoading && !error && technicians.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum item cadastrado.</p>
+              <p className="text-sm text-muted-foreground">{ui("Nenhum item cadastrado.")}</p>
             )}
             {!isLoading && !error && technicians.length > 0 && filteredTechnicians.length === 0 && (
               <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center">
-                <p className="text-sm font-bold text-foreground">Nenhum mantenedor encontrado</p>
+                <p className="text-sm font-bold text-foreground">
+                  {ui("Nenhum mantenedor encontrado")}
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Ajuste a pesquisa ou os filtros de status, setor e turno.
+                  {ui("Ajuste a pesquisa ou os filtros de status, setor e turno.")}
                 </p>
               </div>
             )}
@@ -498,26 +503,26 @@ export function TechniciansSettingsTab() {
                   <span
                     className={cn(
                       "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                      item.active
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground",
+                      item.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {item.active ? "Ativo" : "Inativo"}
+                    {item.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ID: {item.employeeId?.trim() || "pendente"}
+                  {ui("ID: ")}
+                  {item.employeeId?.trim() || ui("pendente")}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {(item.areas?.length ? item.areas : [item.area])
                     .map((area) => categoryById.get(area)?.displayName ?? area)
                     .join(", ")}{" "}
-                  · {item.shiftId ? shiftNameById[item.shiftId] : "Sem turno"}
+                  · {item.shiftId ? shiftNameById[item.shiftId] : ui("Sem turno")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  PIN: {item.hasPin ? "configurado" : "pendente"} · Tag:{" "}
-                  {item.hasTag ? "configurada" : "não cadastrada"}
+                  {ui("PIN: ")}
+                  {item.hasPin ? ui("configurado") : ui("pendente")}
+                  {ui(" · Tag:")} {item.hasTag ? ui("configurada") : ui("não cadastrada")}
                 </p>
               </button>
             ))}
@@ -528,13 +533,13 @@ export function TechniciansSettingsTab() {
           <div className="flex flex-wrap items-start justify-between gap-3 px-1">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                {selectedId ? "Cadastro de mantenedor" : "Novo cadastro"}
+                {selectedId ? ui("Cadastro de mantenedor") : ui("Novo cadastro")}
               </p>
               <h3 className="text-xl font-black">
-                {selectedId ? draft.name || "Mantenedor" : "Novo mantenedor"}
+                {selectedId ? draft.name || ui("Mantenedor") : ui("Novo mantenedor")}
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Organize identificação, áreas, turno e credenciais em um único cadastro.
+                {ui("Organize identificação, áreas, turno e credenciais em um único cadastro.")}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -542,29 +547,27 @@ export function TechniciansSettingsTab() {
                 <span
                   className={cn(
                     "rounded-full px-3 py-1 text-xs font-black uppercase",
-                    draft.active
-                      ? "bg-success/10 text-success"
-                      : "bg-muted text-muted-foreground",
+                    draft.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
                   )}
                 >
-                  {draft.active ? "Ativo" : "Inativo"}
+                  {draft.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
                 </span>
               )}
               {hasUnsavedChanges && (
                 <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-bold text-warning">
-                  Alterações não salvas
+                  {ui("Alterações não salvas")}
                 </span>
               )}
             </div>
           </div>
 
           <DetailSection
-            title="Identificação"
-            description="Dados básicos usados para localizar e identificar o colaborador."
+            title={ui("Identificação")}
+            description={ui("Dados básicos usados para localizar e identificar o colaborador.")}
           >
             <div className="grid gap-3 lg:grid-cols-2">
               <label className="text-sm font-semibold">
-                Nome do mantenedor
+                {ui("Nome do mantenedor")}
                 <input
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   value={draft.name}
@@ -572,22 +575,22 @@ export function TechniciansSettingsTab() {
                 />
               </label>
               <label className="text-sm font-semibold">
-                ID do colaborador
+                {ui("ID do colaborador")}
                 <input
                   autoComplete="off"
                   maxLength={80}
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
                   value={draft.employeeId ?? ""}
                   onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}
-                  placeholder="Registro do colaborador"
+                  placeholder={ui("Registro do colaborador")}
                 />
               </label>
             </div>
           </DetailSection>
 
           <DetailSection
-            title="Áreas técnicas"
-            description="Defina todos os setores em que este mantenedor pode atuar."
+            title={ui("Áreas técnicas")}
+            description={ui("Defina todos os setores em que este mantenedor pode atuar.")}
           >
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {selectedAreas.map((area) => {
@@ -599,14 +602,14 @@ export function TechniciansSettingsTab() {
                   >
                     <span className="min-w-0 truncate text-sm font-semibold">
                       {category?.displayName ?? area}
-                      {category && !category.active ? " (inativa)" : ""}
+                      {category && !category.active ? ui(" (inativa)") : ""}
                     </span>
                     <button
                       type="button"
                       className="shrink-0 text-xs font-bold text-danger hover:underline"
                       onClick={() => handleRemoveArea(area)}
                     >
-                      Remover
+                      {ui("Remover")}
                     </button>
                   </div>
                 );
@@ -616,12 +619,12 @@ export function TechniciansSettingsTab() {
             {availableAreaOptions.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 <select
-                  aria-label="Nova área técnica"
+                  aria-label={ui("Nova área técnica")}
                   className="h-10 min-w-48 flex-1 rounded-md border bg-background px-2"
                   value={areaToAdd}
                   onChange={(event) => setAreaToAdd(event.target.value)}
                 >
-                  <option value="">Selecione uma área</option>
+                  <option value="">{ui("Selecione uma área")}</option>
                   {availableAreaOptions.map((area) => (
                     <option key={area.id} value={area.id}>
                       {area.label}
@@ -634,25 +637,27 @@ export function TechniciansSettingsTab() {
                   disabled={!areaToAdd}
                   onClick={handleAddArea}
                 >
-                  + Adicionar área técnica
+                  {ui("+ Adicionar área técnica")}
                 </button>
               </div>
             )}
           </DetailSection>
 
           <DetailSection
-            title="Turno e status"
-            description="Vincule o colaborador ao turno e controle sua disponibilidade no sistema."
+            title={ui("Turno e status")}
+            description={ui(
+              "Vincule o colaborador ao turno e controle sua disponibilidade no sistema.",
+            )}
           >
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
               <label className="text-sm font-semibold">
-                Turno do mantenedor
+                {ui("Turno do mantenedor")}
                 <select
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   value={draft.shiftId}
                   onChange={(event) => setDraft({ ...draft, shiftId: event.target.value })}
                 >
-                  <option value="">Selecione um turno</option>
+                  <option value="">{ui("Selecione um turno")}</option>
                   {shifts.map((shift) => (
                     <option key={shift.id} value={shift.id}>
                       {shift.name}
@@ -663,9 +668,9 @@ export function TechniciansSettingsTab() {
 
               <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
                 <span>
-                  <span className="block text-sm font-bold">Cadastro ativo</span>
+                  <span className="block text-sm font-bold">{ui("Cadastro ativo")}</span>
                   <span className="block text-xs text-muted-foreground">
-                    Disponível para identificação e atendimento.
+                    {ui("Disponível para identificação e atendimento.")}
                   </span>
                 </span>
                 <input
@@ -679,12 +684,14 @@ export function TechniciansSettingsTab() {
           </DetailSection>
 
           <DetailSection
-            title="Credenciais"
-            description="PIN é obrigatório. RFID permanece opcional e pode ser cadastrado depois."
+            title={ui("Credenciais")}
+            description={ui(
+              "PIN é obrigatório. RFID permanece opcional e pode ser cadastrado depois.",
+            )}
           >
             <div className="grid gap-3 lg:grid-cols-2">
               <label className="text-sm font-semibold">
-                PIN obrigatório
+                {ui("PIN obrigatório")}
                 <input
                   type="password"
                   inputMode="numeric"
@@ -696,16 +703,18 @@ export function TechniciansSettingsTab() {
                     setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })
                   }
                   placeholder={
-                    draft.hasPin ? "Deixe em branco para manter o PIN atual" : "4 a 8 números"
+                    draft.hasPin
+                      ? ui("Deixe em branco para manter o PIN atual")
+                      : ui("4 a 8 números")
                   }
                 />
                 <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                  {draft.hasPin ? "PIN atual configurado." : "PIN ainda não configurado."}
+                  {draft.hasPin ? ui("PIN atual configurado.") : ui("PIN ainda não configurado.")}
                 </span>
               </label>
 
               <label className="text-sm font-semibold">
-                Tag RFID (opcional)
+                {ui("Tag RFID (opcional)")}
                 <input
                   autoComplete="off"
                   maxLength={64}
@@ -714,29 +723,29 @@ export function TechniciansSettingsTab() {
                   onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
                   placeholder={
                     draft.hasTag
-                      ? "Deixe em branco para manter a tag atual"
-                      : "Aproxime a tag ou digite o código"
+                      ? ui("Deixe em branco para manter a tag atual")
+                      : ui("Aproxime a tag ou digite o código")
                   }
                 />
                 <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                  {draft.hasTag ? "Tag atual configurada." : "Nenhuma tag cadastrada."}
+                  {draft.hasTag ? ui("Tag atual configurada.") : ui("Nenhuma tag cadastrada.")}
                 </span>
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
-              As credenciais são protegidas no banco e nunca são exibidas novamente.
+              {ui("As credenciais são protegidas no banco e nunca são exibidas novamente.")}
             </p>
           </DetailSection>
 
           <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
             <div className="text-xs text-muted-foreground">
               {isSaving
-                ? "Salvando alterações..."
+                ? ui("Salvando alterações...")
                 : hasUnsavedChanges
-                  ? "Existem alterações pendentes."
+                  ? ui("Existem alterações pendentes.")
                   : selectedId
-                    ? "Cadastro sincronizado."
-                    : "Preencha os dados para criar o mantenedor."}
+                    ? ui("Cadastro sincronizado.")
+                    : ui("Preencha os dados para criar o mantenedor.")}
             </div>
             <div className="flex flex-wrap gap-2">
               {selectedId && (
@@ -746,16 +755,11 @@ export function TechniciansSettingsTab() {
                   onClick={() => void handleToggleActive()}
                   disabled={isSaving || Boolean(error)}
                 >
-                  {draft.active ? "Inativar" : "Reativar"}
+                  {draft.active ? ui("Inativar") : ui("Reativar")}
                 </BigButton>
               )}
-              <BigButton
-                tone="neutral"
-                size="md"
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-              >
-                Cancelar
+              <BigButton tone="neutral" size="md" onClick={handleCancelEdit} disabled={isSaving}>
+                {ui("Cancelar")}
               </BigButton>
               <BigButton
                 tone="primary"
@@ -763,7 +767,11 @@ export function TechniciansSettingsTab() {
                 onClick={() => void handleSave()}
                 disabled={isSaving || Boolean(error) || !hasUnsavedChanges}
               >
-                {isSaving ? "Salvando..." : selectedId ? "Salvar alterações" : "Criar mantenedor"}
+                {isSaving
+                  ? ui("Salvando...")
+                  : selectedId
+                    ? ui("Salvar alterações")
+                    : ui("Criar mantenedor")}
               </BigButton>
             </div>
           </div>

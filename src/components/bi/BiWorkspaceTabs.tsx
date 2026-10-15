@@ -1,10 +1,5 @@
-import {
-  DatabaseZap,
-  Gauge,
-  LayoutDashboard,
-  ShieldAlert,
-  Wrench,
-} from "lucide-react";
+import { ui } from "@/i18n/translate";
+import { DatabaseZap, Gauge, LayoutDashboard, ShieldAlert, Wrench } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
 export type BiWorkspaceTab =
@@ -22,7 +17,9 @@ const TABS: Array<{
 }> = [
   {
     id: "overview",
-    label: "Visão Geral",
+    get label() {
+      return ui("Visão Geral");
+    },
     icon: LayoutDashboard,
     activeClass: "border-amber-400/60 bg-amber-500/10 text-amber-200",
   },
@@ -40,13 +37,17 @@ const TABS: Array<{
   },
   {
     id: "maintenance",
-    label: "Manutenção",
+    get label() {
+      return ui("Manutenção");
+    },
     icon: Wrench,
     activeClass: "border-sky-400/60 bg-sky-500/10 text-sky-200",
   },
   {
     id: "data-quality",
-    label: "Qualidade dos Dados",
+    get label() {
+      return ui("Qualidade dos Dados");
+    },
     icon: DatabaseZap,
     activeClass: "border-amber-400/60 bg-amber-500/10 text-amber-200",
   },
@@ -65,7 +66,7 @@ export function BiWorkspaceTabs({
   return (
     <nav
       className="grid shrink-0 grid-cols-5 gap-2 rounded-xl border border-border bg-card/70 p-2"
-      aria-label="Áreas do ANDON BI"
+      aria-label={ui("Áreas do ANDON BI")}
     >
       {TABS.map((tab) => {
         const Icon = tab.icon;
@@ -87,7 +88,15 @@ export function BiWorkspaceTabs({
             <Icon className="h-4 w-4" />
             <span className="hidden lg:inline">{t(tab.label)}</span>
             {showAttention && (
-              <span title="Soma de alertas por categoria; não corresponde necessariamente a ocorrências únicas" aria-label={`${attentionCount} alertas por categoria de qualidade do dado`} className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white">
+              <span
+                title={ui(
+                  "Soma de alertas por categoria; não corresponde necessariamente a ocorrências únicas",
+                )}
+                aria-label={ui("{0} alertas por categoria de qualidade do dado", {
+                  0: attentionCount,
+                })}
+                className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white"
+              >
                 {attentionCount}
               </span>
             )}

@@ -1,14 +1,13 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import {
-  refreshShiftConfigs,
-  saveShiftConfig,
-} from "@/services/shiftConfigService";
+import { refreshShiftConfigs, saveShiftConfig } from "@/services/shiftConfigService";
 import {
   refreshTechnicianShiftFilterConfig,
   saveTechnicianShiftFilterConfig,
@@ -24,13 +23,12 @@ function Section({
   description?: string;
   children: ReactNode;
 }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div>
         <h4 className="text-sm font-black text-foreground">{title}</h4>
-        {description && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>
       {children}
     </section>
@@ -46,22 +44,19 @@ function normalizeSearch(value: string) {
 }
 
 export function ShiftsSettingsTab() {
+  useInterfaceLanguage();
   const [items, setItems] = useState<ShiftConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ShiftConfig | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [filterByCurrentShift, setFilterByCurrentShift] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([
-      refreshShiftConfigs(),
-      refreshTechnicianShiftFilterConfig(),
-    ])
+    Promise.all([refreshShiftConfigs(), refreshTechnicianShiftFilterConfig()])
       .then(([list, filterConfig]) => {
         if (cancelled) return;
         setItems(list);
@@ -97,24 +92,22 @@ export function ShiftsSettingsTab() {
     });
   }, [items, searchQuery, statusFilter]);
 
-  const original = selectedId
-    ? items.find((item) => item.id === selectedId) ?? null
-    : null;
+  const original = selectedId ? (items.find((item) => item.id === selectedId) ?? null) : null;
 
   const hasUnsavedChanges = Boolean(
     draft &&
-      original &&
-      (draft.name !== original.name ||
-        draft.startTime !== original.startTime ||
-        draft.endTime !== original.endTime ||
-        draft.active !== original.active ||
-        draft.crossesMidnight !== original.crossesMidnight),
+    original &&
+    (draft.name !== original.name ||
+      draft.startTime !== original.startTime ||
+      draft.endTime !== original.endTime ||
+      draft.active !== original.active ||
+      draft.crossesMidnight !== original.crossesMidnight),
   );
 
   function handleSelect(item: ShiftConfig) {
     if (
       hasUnsavedChanges &&
-      !window.confirm("Existem alterações não salvas. Deseja descartá-las?")
+      !window.confirm(ui("Existem alterações não salvas. Deseja descartá-las?"))
     ) {
       return;
     }
@@ -143,15 +136,11 @@ export function ShiftsSettingsTab() {
     setIsSaving(true);
     try {
       const saved = await saveShiftConfig(normalized);
-      setItems((current) =>
-        current.map((item) => (item.id === saved.id ? saved : item)),
-      );
+      setItems((current) => current.map((item) => (item.id === saved.id ? saved : item)));
       setDraft(saved);
       toast.success("Turno salvo no servidor.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível salvar o turno.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o turno.");
     } finally {
       setIsSaving(false);
     }
@@ -171,16 +160,12 @@ export function ShiftsSettingsTab() {
         updatedAt: new Date().toISOString(),
       });
       toast.success(
-        enabled
-          ? "Filtro por turno atual habilitado."
-          : "Filtro por turno atual desabilitado.",
+        enabled ? "Filtro por turno atual habilitado." : "Filtro por turno atual desabilitado.",
       );
     } catch (error) {
       setFilterByCurrentShift(previous);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar a configuração de turno.",
+        error instanceof Error ? error.message : "Não foi possível salvar a configuração de turno.",
       );
     }
   }
@@ -190,16 +175,18 @@ export function ShiftsSettingsTab() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Turnos</h3>
+        <h3 className="text-base font-bold">{ui("Turnos")}</h3>
         <p className="text-sm text-muted-foreground">
-          Ajuste horários, status e regras de exibição por jornada.
+          {ui("Ajuste horários, status e regras de exibição por jornada.")}
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[minmax(300px,380px)_1fr]">
         <Section
-          title="Turnos configurados"
-          description="Edite os turnos existentes. A inclusão de novos turnos não está disponível nesta versão."
+          title={ui("Turnos configurados")}
+          description={ui(
+            "Edite os turnos existentes. A inclusão de novos turnos não está disponível nesta versão.",
+          )}
         >
           <div className="relative">
             <Search
@@ -210,14 +197,14 @@ export function ShiftsSettingsTab() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar nome ou ID..."
-              aria-label="Pesquisar turnos por nome ou ID"
+              placeholder={ui("Pesquisar nome ou ID...")}
+              aria-label={ui("Pesquisar turnos por nome ou ID")}
               className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
             />
             {searchQuery && (
               <button
                 type="button"
-                aria-label="Limpar pesquisa de turnos"
+                aria-label={ui("Limpar pesquisa de turnos")}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -228,13 +215,13 @@ export function ShiftsSettingsTab() {
 
           <div
             className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-            aria-label="Filtrar turnos por status"
+            aria-label={ui("Filtrar turnos por status")}
           >
             {(
               [
-                ["all", "Todos"],
-                ["active", "Ativos"],
-                ["inactive", "Inativos"],
+                ["all", ui("Todos")],
+                ["active", ui("Ativos", {}, "record")],
+                ["inactive", ui("Inativos", {}, "record")],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -255,7 +242,12 @@ export function ShiftsSettingsTab() {
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
-            <span>{filteredItems.length} de {items.length} turno(s)</span>
+            <span>
+              {filteredItems.length}
+              {ui(" de ")}
+              {items.length}
+              {ui(" turno(s)")}
+            </span>
             {(searchQuery || statusFilter !== "all") && (
               <button
                 type="button"
@@ -265,7 +257,7 @@ export function ShiftsSettingsTab() {
                   setStatusFilter("all");
                 }}
               >
-                Limpar filtros
+                {ui("Limpar filtros")}
               </button>
             )}
           </div>
@@ -273,13 +265,13 @@ export function ShiftsSettingsTab() {
           <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhum turno configurado</p>
+                <p className="text-sm font-bold">{ui("Nenhum turno configurado")}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhum turno encontrado</p>
+                <p className="text-sm font-bold">{ui("Nenhum turno encontrado")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Ajuste a pesquisa ou o filtro de status.
+                  {ui("Ajuste a pesquisa ou o filtro de status.")}
                 </p>
               </div>
             ) : (
@@ -301,9 +293,7 @@ export function ShiftsSettingsTab() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-black">{item.name}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {item.id}
-                        </p>
+                        <p className="font-mono text-xs text-muted-foreground">{item.id}</p>
                       </div>
                       <span
                         className={cn(
@@ -313,12 +303,14 @@ export function ShiftsSettingsTab() {
                             : "bg-muted text-muted-foreground",
                         )}
                       >
-                        {item.active ? "Ativo" : "Inativo"}
+                        {item.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
                       </span>
                     </div>
                     <p className="mt-1.5 text-xs text-muted-foreground">
-                      {item.startTime} às {item.endTime}
-                      {item.crossesMidnight ? " · cruza meia-noite" : ""}
+                      {item.startTime}
+                      {ui(" às ")}
+                      {item.endTime}
+                      {item.crossesMidnight ? ui(" · cruza meia-noite") : ""}
                     </p>
                   </button>
                 );
@@ -329,25 +321,23 @@ export function ShiftsSettingsTab() {
 
         <div className="space-y-4">
           <Section
-            title={draft ? "Editar turno" : "Turno"}
-            description="As alterações deste cadastro são aplicadas ao salvar."
+            title={draft ? ui("Editar turno") : ui("Turno")}
+            description={ui("As alterações deste cadastro são aplicadas ao salvar.")}
           >
             {draft ? (
               <>
                 <label className="text-sm font-semibold">
-                  Nome do turno
+                  {ui("Nome do turno")}
                   <input
                     value={draft.name}
-                    onChange={(event) =>
-                      setDraft({ ...draft, name: event.target.value })
-                    }
+                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                     className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   />
                 </label>
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="text-sm font-semibold">
-                    Horário início
+                    {ui("Horário início")}
                     <input
                       type="time"
                       value={draft.startTime}
@@ -363,7 +353,7 @@ export function ShiftsSettingsTab() {
                   </label>
 
                   <label className="text-sm font-semibold">
-                    Horário fim
+                    {ui("Horário fim")}
                     <input
                       type="time"
                       value={draft.endTime}
@@ -381,29 +371,29 @@ export function ShiftsSettingsTab() {
 
                 <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
-                    <span className="block text-sm font-bold">Turno ativo</span>
+                    <span className="block text-sm font-bold">{ui("Turno ativo")}</span>
                     <span className="block text-xs text-muted-foreground">
-                      Turnos inativos permanecem cadastrados, mas deixam de ser considerados na operação.
+                      {ui(
+                        "Turnos inativos permanecem cadastrados, mas deixam de ser considerados na operação.",
+                      )}
                     </span>
                   </span>
                   <Switch
                     checked={draft.active}
-                    onCheckedChange={(checked) =>
-                      setDraft({ ...draft, active: checked })
-                    }
+                    onCheckedChange={(checked) => setDraft({ ...draft, active: checked })}
                   />
                 </label>
 
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-                  Cruza meia-noite:{" "}
+                  {ui("Cruza meia-noite:")}{" "}
                   <span className="font-black">
-                    {draft.crossesMidnight ? "Sim" : "Não"}
+                    {draft.crossesMidnight ? ui("Sim") : ui("Não")}
                   </span>
                 </div>
 
                 <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
                   <p className="text-xs font-bold text-warning">
-                    {hasUnsavedChanges ? "Alterações não salvas" : "Cadastro sincronizado"}
+                    {hasUnsavedChanges ? ui("Alterações não salvas") : ui("Cadastro sincronizado")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <BigButton
@@ -412,7 +402,7 @@ export function ShiftsSettingsTab() {
                       onClick={() => void handleSave()}
                       disabled={!hasUnsavedChanges || isSaving}
                     >
-                      Salvar turno
+                      {ui("Salvar turno")}
                     </BigButton>
                     <BigButton
                       tone="neutral"
@@ -420,42 +410,42 @@ export function ShiftsSettingsTab() {
                       onClick={handleCancel}
                       disabled={!hasUnsavedChanges}
                     >
-                      Cancelar
+                      {ui("Cancelar")}
                     </BigButton>
                   </div>
                 </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Selecione um turno para editar.
+                {ui("Selecione um turno para editar.")}
               </p>
             )}
           </Section>
 
           <Section
-            title="Exibição de mantenedores"
-            description="Controla a preferência de exibição de mantenedores durante a operação."
+            title={ui("Exibição de mantenedores")}
+            description={ui(
+              "Controla a preferência de exibição de mantenedores durante a operação.",
+            )}
           >
             <label className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-3 py-2">
               <span>
-                <span className="block text-sm font-bold">
-                  Priorizar turno atual
-                </span>
+                <span className="block text-sm font-bold">{ui("Priorizar turno atual")}</span>
                 <span className="block text-xs text-muted-foreground">
-                  Quando ativo, a seleção apresenta primeiro os mantenedores do turno atual.
+                  {ui("Quando ativo, a seleção apresenta primeiro os mantenedores do turno atual.")}
                 </span>
               </span>
               <Switch
                 checked={filterByCurrentShift}
                 onCheckedChange={(checked) => void handleSaveFilter(checked)}
-                aria-label="Priorizar mantenedores do turno atual"
+                aria-label={ui("Priorizar mantenedores do turno atual")}
               />
             </label>
 
             <p className="text-xs text-muted-foreground">
-              Estado atual:{" "}
+              {ui("Estado atual:")}{" "}
               <span className="font-bold text-foreground">
-                {filterByCurrentShift ? "Ativo" : "Inativo"}
+                {filterByCurrentShift ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
               </span>
             </p>
           </Section>

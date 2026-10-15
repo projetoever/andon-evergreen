@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAndon } from "@/context/AndonProvider";
@@ -18,7 +19,7 @@ import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPrio
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { isDashboardPriorityAuthenticated } from "@/services/dashboardPriorityService";
 import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import {
@@ -41,13 +42,22 @@ import {
 
 export function DashboardPage() {
   const {
-    machines, calls, settings, soundConfigs, audioUnlocked, audioPlaybackBlocked, setAudioUnlocked,
+    machines,
+    calls,
+    settings,
+    soundConfigs,
+    audioUnlocked,
+    audioPlaybackBlocked,
+    setAudioUnlocked,
   } = useAndon();
 
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { access } = useModuleAccess();
-  const canOpen = (id: "bi" | "priorities") => access?.modules.some(item => item.id === id && item.available && item.enabled && item.allowed);
+  const canOpen = (id: "bi" | "priorities") =>
+    access?.modules.some(
+      (item) => item.id === id && item.available && item.enabled && item.allowed,
+    );
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
@@ -74,9 +84,7 @@ export function DashboardPage() {
   currentCallsRef.current = calls;
 
   const hasDashboardAlertCall = useMemo(
-    () =>
-      settings.soundsEnabled &&
-      hasDashboardAlertingCall(calls, machines, soundConfigs),
+    () => settings.soundsEnabled && hasDashboardAlertingCall(calls, machines, soundConfigs),
     [calls, machines, settings.soundsEnabled, soundConfigs],
   );
 
@@ -85,8 +93,7 @@ export function DashboardPage() {
     machines,
     settings,
     soundConfigs,
-    audioUnlocked:
-      audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted,
+    audioUnlocked: audioUnlocked && dashboardSoundStateLoaded && !dashboardSoundMuted,
     soundScope: "dashboard",
   });
 
@@ -165,17 +172,14 @@ export function DashboardPage() {
 
       dashboardMutedAtRef.current = synced.mutedAt;
       dashboardMuteReasonRef.current = synced.reason ?? reason;
-      muteTimerCancelRef.current = startDashboardSoundMuteDeadlineTimer(
-        synced.mutedUntil,
-        () => {
-          muteTimerCancelRef.current = null;
-          void reactivateDashboardSound(
-            reason === "auto"
-              ? "Tempo de silêncio encerrado — ciclo do alarme reativado"
-              : "Tempo de silêncio encerrado — som do dashboard reativado",
-          );
-        },
-      );
+      muteTimerCancelRef.current = startDashboardSoundMuteDeadlineTimer(synced.mutedUntil, () => {
+        muteTimerCancelRef.current = null;
+        void reactivateDashboardSound(
+          reason === "auto"
+            ? ui("Tempo de silêncio encerrado — ciclo do alarme reativado")
+            : ui("Tempo de silêncio encerrado — som do dashboard reativado"),
+        );
+      });
 
       if (message) toast.success(message);
       return true;
@@ -230,8 +234,8 @@ export function DashboardPage() {
               muteTimerCancelRef.current = null;
               void reactivateDashboardSound(
                 soundState.reason === "auto"
-                  ? "Tempo de silêncio encerrado — ciclo do alarme reativado"
-                  : "Tempo de silêncio encerrado — som do dashboard reativado",
+                  ? ui("Tempo de silêncio encerrado — ciclo do alarme reativado")
+                  : ui("Tempo de silêncio encerrado — som do dashboard reativado"),
               );
             },
           );
@@ -263,12 +267,12 @@ export function DashboardPage() {
   useEffect(() => {
     if (!dashboardSoundStateLoaded || !dashboardSoundMuted || dashboardSoundSyncing) return;
 
-    const newCallId = knownCallsAtMuteRef.current !== null &&
-      hasNewRealCall(knownCallsAtMuteRef.current, calls);
+    const newCallId =
+      knownCallsAtMuteRef.current !== null && hasNewRealCall(knownCallsAtMuteRef.current, calls);
     const openedAfterMute = hasRealCallOpenedAfter(calls, dashboardMutedAtRef.current);
     if (!newCallId && !openedAfterMute) return;
 
-    void reactivateDashboardSound("Novo chamado recebido — som do dashboard reativado");
+    void reactivateDashboardSound(ui("Novo chamado recebido — som do dashboard reativado"));
   }, [
     calls,
     dashboardSoundMuted,
@@ -276,7 +280,6 @@ export function DashboardPage() {
     dashboardSoundSyncing,
     reactivateDashboardSound,
   ]);
-
 
   useEffect(() => {
     cancelDashboardActiveTimer();
@@ -299,8 +302,10 @@ export function DashboardPage() {
         void muteDashboardSound(
           "auto",
           dashboardMuteTimerEnabled
-            ? `Tempo com som encerrado — dashboard silenciado por ${dashboardMuteDurationMinutes} minuto(s)`
-            : "Tempo com som encerrado — dashboard silenciado",
+            ? ui("Tempo com som encerrado — dashboard silenciado por {0} minuto(s)", {
+                0: dashboardMuteDurationMinutes,
+              })
+            : ui("Tempo com som encerrado — dashboard silenciado"),
         );
       },
     );
@@ -373,22 +378,24 @@ export function DashboardPage() {
     if (dashboardSoundSyncing) return;
 
     if (dashboardSoundMuted) {
-      void reactivateDashboardSound("Som do dashboard reativado");
+      void reactivateDashboardSound(ui("Som do dashboard reativado"));
       return;
     }
 
     void muteDashboardSound(
       "manual",
       dashboardMuteTimerEnabled
-        ? `Som do dashboard silenciado por ${dashboardMuteDurationMinutes} minuto(s)`
-        : "Som do dashboard silenciado",
+        ? ui("Som do dashboard silenciado por {0} minuto(s)", { 0: dashboardMuteDurationMinutes })
+        : ui("Som do dashboard silenciado"),
     );
   }
 
   if (lockedMachineId) {
     return (
       <div className="flex h-dvh min-h-0 items-center justify-center bg-background p-4 text-center text-sm font-bold uppercase tracking-wide text-muted-foreground">
-        Tela fixada na máquina {lockedMachineId}. Redirecionando...
+        {ui("Tela fixada na máquina ")}
+        {lockedMachineId}
+        {ui(". Redirecionando...")}
       </div>
     );
   }
@@ -432,10 +439,14 @@ export function DashboardPage() {
             <button
               type="button"
               title={
-                dashboardSoundMuted ? t("Reativar som do dashboard") : t("Silenciar som do dashboard")
+                dashboardSoundMuted
+                  ? t("Reativar som do dashboard")
+                  : t("Silenciar som do dashboard")
               }
               aria-label={
-                dashboardSoundMuted ? t("Reativar som do dashboard") : t("Silenciar som do dashboard")
+                dashboardSoundMuted
+                  ? t("Reativar som do dashboard")
+                  : t("Silenciar som do dashboard")
               }
               onClick={handleToggleDashboardSound}
               disabled={dashboardSoundSyncing || !dashboardSoundStateLoaded}
@@ -446,35 +457,45 @@ export function DashboardPage() {
               ) : (
                 <Volume2 className="h-4 w-4" />
               )}
-              <span className="hidden xl:inline">{dashboardSoundMuted ? t("Som silenciado") : t("Silenciar som")}</span>
+              <span className="hidden xl:inline">
+                {dashboardSoundMuted ? t("Som silenciado") : t("Silenciar som")}
+              </span>
             </button>
           )}
 
-          {canOpen("bi") && <button
-            type="button"
-            title={t("Abrir ANDON BI")}
-            aria-label={t("Abrir ANDON BI")}
-            onClick={() => void navigate({ to: "/bi" })}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-          >
-            <BarChart3 className="h-4 w-4" />
-          </button>}
+          {canOpen("bi") && (
+            <button
+              type="button"
+              title={t("Abrir ANDON BI")}
+              aria-label={t("Abrir ANDON BI")}
+              onClick={() => void navigate({ to: "/bi" })}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </button>
+          )}
 
-          {canOpen("priorities") && <button
-            type="button"
-            title={t("Organizar prioridade de produção")}
-            aria-label={t("Organizar prioridade de produção")}
-            onClick={() => {
-              if (access?.modules.find(item => item.id === "priorities")?.passwordRequired === false || isDashboardPriorityAuthenticated()) {
-                void navigate({ to: "/machine-priorities" });
-              } else {
-                setPriorityLoginOpen(true);
-              }
-            }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </button>}
+          {canOpen("priorities") && (
+            <button
+              type="button"
+              title={t("Organizar prioridade de produção")}
+              aria-label={t("Organizar prioridade de produção")}
+              onClick={() => {
+                if (
+                  access?.modules.find((item) => item.id === "priorities")?.passwordRequired ===
+                    false ||
+                  isDashboardPriorityAuthenticated()
+                ) {
+                  void navigate({ to: "/machine-priorities" });
+                } else {
+                  setPriorityLoginOpen(true);
+                }
+              }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ListOrdered className="h-4 w-4" />
+            </button>
+          )}
 
           <button
             type="button"

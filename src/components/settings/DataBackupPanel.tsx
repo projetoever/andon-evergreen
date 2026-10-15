@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useRef, useState } from "react";
 import { useAndon } from "@/context/AndonProvider";
 import { BigButton } from "@/components/common/BigButton";
@@ -9,20 +11,16 @@ import {
 } from "@/services/exportService";
 import { APP_VERSION } from "@/constants/appConstants";
 import { Download, Upload, FileSpreadsheet, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 export function DataBackupPanel() {
-  const { machines, calls, settings, soundConfigs, importBackup, resetAllLocalData } =
-    useAndon();
+  useInterfaceLanguage();
+  const { machines, calls, settings, soundConfigs, importBackup, resetAllLocalData } = useAndon();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [confirmImport, setConfirmImport] = useState<File | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const exportableCalls = calls.filter(
-    (call) =>
-      call.status === "finished" ||
-      call.isSystemTest,
-  );
+  const exportableCalls = calls.filter((call) => call.status === "finished" || call.isSystemTest);
 
   function handleExportCsv() {
     if (exportableCalls.length === 0) {
@@ -67,17 +65,20 @@ export function DataBackupPanel() {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="mb-4 text-xl font-bold uppercase tracking-wider text-foreground">
-        Backup de dados
+        {ui("Backup de dados")}
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <BigButton tone="success" size="md" onClick={handleExportCsv}>
-          <FileSpreadsheet className="h-5 w-5" /> Exportar CSV
+          <FileSpreadsheet className="h-5 w-5" />
+          {ui(" Exportar CSV")}
         </BigButton>
         <BigButton tone="info" size="md" onClick={handleExportJson}>
-          <Download className="h-5 w-5" /> Exportar Backup JSON
+          <Download className="h-5 w-5" />
+          {ui(" Exportar Backup JSON")}
         </BigButton>
         <BigButton tone="warning" size="md" onClick={() => fileInputRef.current?.click()}>
-          <Upload className="h-5 w-5" /> Importar Backup JSON
+          <Upload className="h-5 w-5" />
+          {ui(" Importar Backup JSON")}
         </BigButton>
         <input
           ref={fileInputRef}
@@ -87,23 +88,26 @@ export function DataBackupPanel() {
           onChange={handleFileChosen}
         />
         <BigButton tone="danger" size="md" onClick={() => setConfirmReset(true)}>
-          <Trash2 className="h-5 w-5" /> Limpar dados locais
+          <Trash2 className="h-5 w-5" />
+          {ui(" Limpar dados locais")}
         </BigButton>
       </div>
       <ConfirmDialog
         open={!!confirmImport}
         onOpenChange={(o) => !o && setConfirmImport(null)}
-        title="Importar backup?"
-        description="Os dados atuais serão substituídos pelos dados do arquivo selecionado."
-        confirmLabel="Sim, importar"
+        title={ui("Importar backup?")}
+        description={ui("Os dados atuais serão substituídos pelos dados do arquivo selecionado.")}
+        confirmLabel={ui("Sim, importar")}
         onConfirm={applyImport}
       />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="Limpar todos os dados locais?"
-        description="Esta ação apaga máquinas, chamados, histórico e configurações deste navegador."
-        confirmLabel="Sim, limpar"
+        title={ui("Limpar todos os dados locais?")}
+        description={ui(
+          "Esta ação apaga máquinas, chamados, histórico e configurações deste navegador.",
+        )}
+        confirmLabel={ui("Sim, limpar")}
         destructive
         onConfirm={() => {
           resetAllLocalData();

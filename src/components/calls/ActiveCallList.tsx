@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link } from "@tanstack/react-router";
 import type { AndonCall } from "@/types/andon";
 import { useTicker } from "@/hooks/useTicker";
@@ -14,9 +16,7 @@ import {
   getCriticalityColorClass,
   getCriticalityLabel,
 } from "@/utils/statusUtils";
-import {
-  getEffectiveAssetLocationLabel,
-} from "@/utils/assetLocationUtils";
+import { getEffectiveAssetLocationLabel } from "@/utils/assetLocationUtils";
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Inbox } from "lucide-react";
@@ -38,13 +38,14 @@ export function ActiveCallList({
   onCompleteMaintenance,
   onReturnToMaintenance,
 }: ActiveCallListProps) {
+  useInterfaceLanguage();
   useTicker(1000);
   if (calls.length === 0) {
     return (
       <EmptyState
         icon={<Inbox className="h-12 w-12" />}
-        title="Nenhum chamado ativo"
-        description="Quando um operador abrir um ANDON, ele aparecerá aqui."
+        title={ui("Nenhum chamado ativo")}
+        description={ui("Quando um operador abrir um ANDON, ele aparecerá aqui.")}
       />
     );
   }
@@ -55,11 +56,7 @@ export function ActiveCallList({
         const attending = calculateAttendanceMinutes(c);
         const postMaintenance = calculatePostMaintenanceMinutes(c);
 
-        const assetLocation =
-          getEffectiveAssetLocationLabel(
-            c,
-            "Sem conjunto informado",
-          );
+        const assetLocation = getEffectiveAssetLocationLabel(c, ui("Sem conjunto informado"));
 
         return (
           <div
@@ -67,13 +64,13 @@ export function ActiveCallList({
             className="grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-5 lg:grid-cols-[120px_1fr_auto] lg:items-center"
           >
             <div>
-              <div className="text-xs uppercase text-muted-foreground">Máquina</div>
+              <div className="text-xs uppercase text-muted-foreground">{ui("Máquina")}</div>
               <div className="text-5xl font-black text-foreground">{c.machineId}</div>
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap items-center gap-2 text-base">
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-bold uppercase">
-                  {c.category === "maintenance" ? "Manutenção" : "Produção"}
+                  {c.category === "maintenance" ? ui("Manutenção") : ui("Produção")}
                 </span>
                 <span className="text-lg font-bold">{getCallSubtypeLabel(c.subtype)}</span>
                 <span
@@ -86,14 +83,16 @@ export function ActiveCallList({
                 </span>
               </div>
               <div className="text-sm text-muted-foreground">
-                Aberto em <span className="font-mono">{formatDateTime(c.openedAt)}</span>
+                {ui("Aberto em ")}
+                <span className="font-mono">{formatDateTime(c.openedAt)}</span>
               </div>
 
               <div
                 className="w-fit max-w-full truncate rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-bold text-primary"
-                title={`Localização: ${assetLocation}`}
+                title={ui("Localização: {0}", { 0: assetLocation })}
               >
-                Localização: {assetLocation}
+                {ui("Localização: ")}
+                {assetLocation}
               </div>
               <div
                 className={
@@ -101,20 +100,23 @@ export function ActiveCallList({
                   getCriticalityColorClass(c.criticality)
                 }
               >
-                Criticidade: {getCriticalityLabel(c.criticality)}
+                {ui("Criticidade: ")}
+                {getCriticalityLabel(c.criticality)}
               </div>
               <div className="text-sm">
-                Aguardando:{" "}
+                {ui("Aguardando:")}{" "}
                 <strong className="text-warning">{formatDurationMinutes(waiting)}</strong>
                 {c.attendedAt && (
                   <>
-                    {" · "}Em atendimento:{" "}
+                    {" · "}
+                    {ui("Em atendimento:")}{" "}
                     <strong className="text-info">{formatDurationMinutes(attending)}</strong>
                   </>
                 )}
                 {c.status === "post_maintenance" && (
                   <>
-                    {" · "}Acompanhamento:{" "}
+                    {" · "}
+                    {ui("Acompanhamento:")}{" "}
                     <strong className="text-info">{formatDurationMinutes(postMaintenance)}</strong>
                   </>
                 )}
@@ -123,32 +125,32 @@ export function ActiveCallList({
             <div className="flex flex-wrap gap-2">
               {c.status === "open" && (
                 <BigButton tone="info" size="md" onClick={() => onAttend(c.id)}>
-                  Atender
+                  {ui("Atender")}
                 </BigButton>
               )}
               {c.status === "open" && !c.attendedAt && !(c.technicianSessions ?? []).length && (
                 <BigButton tone="danger" size="md" onClick={() => onCancel(c.id)}>
-                  Cancelar chamado
+                  {ui("Cancelar chamado")}
                 </BigButton>
               )}
               {c.status === "in_progress" && c.category === "maintenance" && (
                 <BigButton tone="info" size="md" onClick={() => onCompleteMaintenance(c.id)}>
-                  Concluir Manutenção
+                  {ui("Concluir Manutenção")}
                 </BigButton>
               )}
               {c.status === "in_progress" && c.category === "production" && (
                 <BigButton tone="success" size="md" onClick={() => onFinish(c.id)}>
-                  Finalizar
+                  {ui("Finalizar")}
                 </BigButton>
               )}
               {c.status === "post_maintenance" && c.category === "maintenance" && (
                 <BigButton tone="info" size="md" onClick={() => onReturnToMaintenance(c.id)}>
-                  Voltar à Manutenção
+                  {ui("Voltar à Manutenção")}
                 </BigButton>
               )}
               {c.status === "post_maintenance" && (
                 <BigButton tone="success" size="md" onClick={() => onFinish(c.id)}>
-                  Finalizar Chamado
+                  {ui("Finalizar Chamado")}
                 </BigButton>
               )}
               <Link
@@ -156,7 +158,7 @@ export function ActiveCallList({
                 params={{ machineId: c.machineId }}
                 className="inline-flex min-h-[56px] items-center justify-center rounded-xl border border-border bg-background px-6 text-base font-bold uppercase tracking-wider text-foreground hover:bg-accent"
               >
-                Ver Máquina
+                {ui("Ver Máquina")}
               </Link>
             </div>
           </div>

@@ -1,13 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
@@ -37,13 +32,12 @@ function Section({
   description?: string;
   children: ReactNode;
 }) {
+  useInterfaceLanguage();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div>
         <h4 className="text-sm font-black text-foreground">{title}</h4>
-        {description && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>
       {children}
     </section>
@@ -58,26 +52,17 @@ function normalizeSearch(value: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function SoundsSettingsTab({
-  isOpen,
-  isActive,
-}: {
-  isOpen: boolean;
-  isActive: boolean;
-}) {
+export function SoundsSettingsTab({ isOpen, isActive }: { isOpen: boolean; isActive: boolean }) {
+  const { language: interfaceLanguage } = useInterfaceLanguage();
   const { machines } = useAndon();
   const [items, setItems] = useState<AndonSoundConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [machineId, setMachineId] = useState<SoundMachineId>(
-    DEFAULT_SOUND_MACHINE_ID,
-  );
+  const [machineId, setMachineId] = useState<SoundMachineId>(DEFAULT_SOUND_MACHINE_ID);
   const [subtype, setSubtype] = useState<CallSubtype>(CALL_TYPE_OPTIONS[0].id);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [currentConfig, setCurrentConfig] =
-    useState<AndonSoundConfig | null>(null);
+  const [currentConfig, setCurrentConfig] = useState<AndonSoundConfig | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [scopeFilter, setScopeFilter] =
-    useState<"all" | "default" | "machine">("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "default" | "machine">("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -94,6 +79,7 @@ export function SoundsSettingsTab({
   );
 
   const filteredItems = useMemo(() => {
+    void interfaceLanguage;
     const query = normalizeSearch(searchQuery);
 
     return items.filter((item) => {
@@ -103,17 +89,17 @@ export function SoundsSettingsTab({
       if (!query) return true;
 
       const machineLabel = isDefault
-        ? "Padrão para todas"
-        : `Máquina ${item.machineId} ${machineLabelById.get(item.machineId) ?? ""}`;
+        ? ui("Padrão para todas")
+        : ui("Máquina {0} {1}", {
+            0: item.machineId,
+            1: machineLabelById.get(item.machineId) ?? "",
+          });
       const subtypeLabel =
-        CALL_TYPE_OPTIONS.find((option) => option.id === item.subtype)?.label ??
-        item.subtype;
+        CALL_TYPE_OPTIONS.find((option) => option.id === item.subtype)?.label ?? item.subtype;
 
-      return normalizeSearch(
-        `${machineLabel} ${subtypeLabel} ${item.fileName}`,
-      ).includes(query);
+      return normalizeSearch(`${machineLabel} ${subtypeLabel} ${item.fileName}`).includes(query);
     });
-  }, [items, machineLabelById, scopeFilter, searchQuery]);
+  }, [items, machineLabelById, scopeFilter, searchQuery, interfaceLanguage]);
 
   function stopPreview() {
     if (previewAudioRef.current) {
@@ -146,9 +132,7 @@ export function SoundsSettingsTab({
       setCurrentConfig(config);
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar os sons.";
+        error instanceof Error ? error.message : ui("Não foi possível carregar os sons.");
       setLoadError(message);
       throw error;
     } finally {
@@ -158,11 +142,7 @@ export function SoundsSettingsTab({
 
   useEffect(() => {
     void refresh().catch((error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar os sons.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar os sons.");
     });
   }, [refresh]);
 
@@ -210,9 +190,7 @@ export function SoundsSettingsTab({
       await refresh();
       toast.success("Som salvo com sucesso.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível salvar o som.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o som.");
     } finally {
       setIsSaving(false);
     }
@@ -229,9 +207,7 @@ export function SoundsSettingsTab({
       await refresh();
       toast.success("Som removido.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível remover o som.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível remover o som.");
     } finally {
       setIsSaving(false);
     }
@@ -268,30 +244,27 @@ export function SoundsSettingsTab({
       setIsPreviewPlaying(true);
     } catch (error) {
       stopPreview();
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível reproduzir o som.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível reproduzir o som.");
     }
   }
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-bold">Sons do ANDON</h3>
+        <h3 className="text-base font-bold">{ui("Sons do ANDON")}</h3>
         <p className="text-sm text-muted-foreground">
-          Gerencie arquivos por máquina e tipo de chamado.
+          {ui("Gerencie arquivos por máquina e tipo de chamado.")}
         </p>
       </div>
 
       <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
         <p className="text-sm font-black text-foreground">
-          Armazenamento local deste terminal
+          {ui("Armazenamento local deste terminal")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Os arquivos de áudio desta tela ficam no navegador/terminal atual.
-          Configurações feitas aqui não são distribuídas automaticamente para outras workstations.
+          {ui(
+            "Os arquivos de áudio desta tela ficam no navegador/terminal atual. Configurações feitas aqui não são distribuídas automaticamente para outras workstations.",
+          )}
         </p>
       </div>
 
@@ -299,16 +272,11 @@ export function SoundsSettingsTab({
 
       <div className="grid gap-4 md:grid-cols-[minmax(300px,380px)_1fr]">
         <Section
-          title="Configurações salvas"
-          description="Localize sons padrão ou específicos de uma máquina."
+          title={ui("Configurações salvas")}
+          description={ui("Localize sons padrão ou específicos de uma máquina.")}
         >
-          <BigButton
-            tone="neutral"
-            size="md"
-            onClick={handleAddSoundConfig}
-            disabled={isSaving}
-          >
-            Nova configuração de som
+          <BigButton tone="neutral" size="md" onClick={handleAddSoundConfig} disabled={isSaving}>
+            {ui("Nova configuração de som")}
           </BigButton>
 
           <div className="relative">
@@ -320,14 +288,14 @@ export function SoundsSettingsTab({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar máquina, chamado ou arquivo..."
-              aria-label="Pesquisar configurações de som"
+              placeholder={ui("Pesquisar máquina, chamado ou arquivo...")}
+              aria-label={ui("Pesquisar configurações de som")}
               className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary"
             />
             {searchQuery && (
               <button
                 type="button"
-                aria-label="Limpar pesquisa de sons"
+                aria-label={ui("Limpar pesquisa de sons")}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -338,13 +306,13 @@ export function SoundsSettingsTab({
 
           <div
             className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-            aria-label="Filtrar configurações de som por escopo"
+            aria-label={ui("Filtrar configurações de som por escopo")}
           >
             {(
               [
-                ["all", "Todos"],
-                ["default", "Padrão"],
-                ["machine", "Máquina"],
+                ["all", ui("Todos")],
+                ["default", ui("Padrão")],
+                ["machine", ui("Máquina")],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -365,7 +333,12 @@ export function SoundsSettingsTab({
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
-            <span>{filteredItems.length} de {items.length} configuração(ões)</span>
+            <span>
+              {filteredItems.length}
+              {ui(" de ")}
+              {items.length}
+              {ui(" configuração(ões)")}
+            </span>
             {(searchQuery || scopeFilter !== "all") && (
               <button
                 type="button"
@@ -375,39 +348,37 @@ export function SoundsSettingsTab({
                   setScopeFilter("all");
                 }}
               >
-                Limpar filtros
+                {ui("Limpar filtros")}
               </button>
             )}
           </div>
 
           <div className="min-h-[12rem] max-h-[calc(96dvh-22rem)] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
             {isLoading ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                Carregando sons...
-              </p>
+              <p className="py-4 text-sm text-muted-foreground">{ui("Carregando sons...")}</p>
             ) : loadError ? (
               <div
                 role="alert"
                 className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
               >
-                <p>{loadError}</p>
+                <p>{systemMessage(loadError)}</p>
                 <button
                   type="button"
                   className="mt-2 font-bold underline"
                   onClick={() => void refresh()}
                 >
-                  Tentar novamente
+                  {ui("Tentar novamente")}
                 </button>
               </div>
             ) : items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhum som configurado</p>
+                <p className="text-sm font-bold">{ui("Nenhum som configurado")}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-sm font-bold">Nenhum som encontrado</p>
+                <p className="text-sm font-bold">{ui("Nenhum som encontrado")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Ajuste a pesquisa ou o filtro de escopo.
+                  {ui("Ajuste a pesquisa ou o filtro de escopo.")}
                 </p>
               </div>
             ) : (
@@ -415,11 +386,11 @@ export function SoundsSettingsTab({
                 const selected = selectedId === cfg.id;
                 const machineLabel =
                   cfg.machineId === DEFAULT_SOUND_MACHINE_ID
-                    ? "Padrão para todas"
-                    : `Máquina ${cfg.machineId}`;
+                    ? ui("Padrão para todas")
+                    : ui("Máquina {0}", { 0: cfg.machineId });
                 const subtypeLabel =
-                  CALL_TYPE_OPTIONS.find((option) => option.id === cfg.subtype)
-                    ?.label ?? cfg.subtype;
+                  CALL_TYPE_OPTIONS.find((option) => option.id === cfg.subtype)?.label ??
+                  cfg.subtype;
 
                 return (
                   <button
@@ -438,7 +409,8 @@ export function SoundsSettingsTab({
                       {subtypeLabel} · {cfg.fileName}
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Atualizado: {new Date(cfg.updatedAt).toLocaleString("pt-BR")}
+                      {ui("Atualizado: ")}
+                      {new Date(cfg.updatedAt).toLocaleString(getInterfaceLocale())}
                     </p>
                   </button>
                 );
@@ -448,12 +420,14 @@ export function SoundsSettingsTab({
         </Section>
 
         <Section
-          title={selectedId ? "Editar configuração de som" : "Nova configuração de som"}
-          description="O teste usa o som padrão como fallback quando uma máquina não possui arquivo específico."
+          title={selectedId ? ui("Editar configuração de som") : ui("Nova configuração de som")}
+          description={ui(
+            "O teste usa o som padrão como fallback quando uma máquina não possui arquivo específico.",
+          )}
         >
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-sm font-semibold">
-              Máquina
+              {ui("Máquina")}
               <select
                 className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                 value={machineId}
@@ -463,7 +437,7 @@ export function SoundsSettingsTab({
                   setSelectedFile(null);
                 }}
               >
-                <option value={DEFAULT_SOUND_MACHINE_ID}>Padrão para todas</option>
+                <option value={DEFAULT_SOUND_MACHINE_ID}>{ui("Padrão para todas")}</option>
                 {machines.map((machine) => (
                   <option key={machine.id} value={machine.id}>
                     {machine.name}
@@ -473,7 +447,7 @@ export function SoundsSettingsTab({
             </label>
 
             <label className="text-sm font-semibold">
-              Tipo de chamado
+              {ui("Tipo de chamado")}
               <select
                 className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                 value={subtype}
@@ -493,33 +467,31 @@ export function SoundsSettingsTab({
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-semibold">Arquivo de áudio</p>
+            <p className="text-sm font-semibold">{ui("Arquivo de áudio")}</p>
             <input
               id="andon-audio-file-input"
               type="file"
               accept=".mp3,.wav,.ogg"
               className="hidden"
-              onChange={(event) =>
-                setSelectedFile(event.target.files?.[0] ?? null)
-              }
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
             />
             <label
               htmlFor="andon-audio-file-input"
               className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-md border border-border bg-muted px-4 text-base font-black hover:bg-accent"
             >
-              Escolher áudio
+              {ui("Escolher áudio")}
             </label>
             <p className="text-sm text-muted-foreground">
-              {selectedFile ? selectedFile.name : "Nenhum arquivo novo selecionado"}
+              {selectedFile ? selectedFile.name : ui("Nenhum arquivo novo selecionado")}
             </p>
           </div>
 
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Arquivo atual
+              {ui("Arquivo atual")}
             </p>
             <p className="mt-1 text-sm font-black text-foreground">
-              {currentConfig?.fileName ?? "Nenhum som específico configurado"}
+              {currentConfig?.fileName ?? ui("Nenhum som específico configurado")}
             </p>
           </div>
 
@@ -530,7 +502,7 @@ export function SoundsSettingsTab({
               onClick={() => void handleSaveSound()}
               disabled={isSaving || !selectedFile}
             >
-              {isSaving ? "Salvando..." : "Salvar som"}
+              {isSaving ? ui("Salvando...") : ui("Salvar som")}
             </BigButton>
             <BigButton
               tone="info"
@@ -539,16 +511,11 @@ export function SoundsSettingsTab({
               disabled={isSaving}
             >
               {isPreviewPlaying && previewSoundId === currentPreviewId
-                ? "Parar teste"
-                : "Testar som"}
+                ? ui("Parar teste")
+                : ui("Testar som")}
             </BigButton>
-            <BigButton
-              tone="neutral"
-              size="md"
-              onClick={handleAddSoundConfig}
-              disabled={isSaving}
-            >
-              Cancelar
+            <BigButton tone="neutral" size="md" onClick={handleAddSoundConfig} disabled={isSaving}>
+              {ui("Cancelar")}
             </BigButton>
             <BigButton
               tone="danger"
@@ -556,7 +523,7 @@ export function SoundsSettingsTab({
               onClick={() => void handleRemoveSound()}
               disabled={isSaving || !currentConfig}
             >
-              Remover som
+              {ui("Remover som")}
             </BigButton>
           </div>
         </Section>

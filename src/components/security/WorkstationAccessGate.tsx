@@ -1,3 +1,4 @@
+import { systemMessage } from "@/i18n/translate";
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -42,11 +43,13 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
           )}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {error ??
+          {(error ? systemMessage(error) : null) ??
             t(
               checking
                 ? "Validando a identidade deste navegador com o servidor."
-                : access?.workstation.pendingApproval ? "Workstation aguardando aprovação do administrador do Hub." : "Solicite ao administrador a liberação desta workstation.",
+                : access?.workstation.pendingApproval
+                  ? "Workstation aguardando aprovação do administrador do Hub."
+                  : "Solicite ao administrador a liberação desta workstation.",
             )}
         </p>
         <p className="break-all font-mono text-xs text-muted-foreground">

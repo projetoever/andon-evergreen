@@ -1,3 +1,4 @@
+import { ui, systemMessage, getInterfaceLocale, getInterfaceLanguage } from "@/i18n/translate";
 import type {
   AnalyticsAssetReliability,
   AnalyticsFailureIntelligence,
@@ -29,17 +30,19 @@ function minutes(value: number | null | undefined): string {
   const total = Math.max(0, Math.round(value));
   const hours = Math.floor(total / 60);
   const remainder = total % 60;
-  return hours ? `${hours}h${remainder ? ` ${remainder}min` : ""}` : `${remainder}min`;
+  return hours
+    ? `${hours}${ui("h")}${remainder ? ` ${remainder}${ui("min")}` : ""}`
+    : `${remainder}${ui("min")}`;
 }
 
 function percentage(value: number | null | undefined): string {
   return value === null || value === undefined || !Number.isFinite(value)
     ? "—"
-    : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+    : `${value.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 })}%`;
 }
 
 function timestamp(value: string, zone: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat(getInterfaceLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -52,7 +55,7 @@ function timestamp(value: string, zone: string) {
 function tableRows(rows: string[], cells: number): string {
   return rows.length
     ? rows.join("")
-    : `<tr><td colspan="${cells}" class="empty">Sem registros para os filtros selecionados.</td></tr>`;
+    : `<tr><td colspan="${cells}" class="empty">${esc(ui("Sem registros para os filtros selecionados."))}</td></tr>`;
 }
 
 function row(cells: unknown[]): string {
@@ -79,27 +82,28 @@ function reportTable(headers: string[], rows: string[]) {
  * Embedded SVG is vector-safe in Chrome/Edge print. Values are generated from
  * the same overview dataset as the executive KPIs; do not infer OEE or shifts.
  */
-function dailyDowntimeGraph(
-  data: Array<{ date: string; downtimeMinutes: number }>,
-) {
+function dailyDowntimeGraph(data: Array<{ date: string; downtimeMinutes: number }>) {
   const visible = data.slice(-12);
-  if (!visible.length) return '<p class="chart-empty">Sem downtime diário na janela selecionada.</p>';
+  if (!visible.length)
+    return `<p class="chart-empty">${esc(ui("Sem downtime diário na janela selecionada."))}</p>`;
   const max = Math.max(...visible.map((p) => Math.max(0, p.downtimeMinutes)), 1);
   const chartWidth = 534;
   const step = chartWidth / visible.length;
   const width = Math.min(28, step * 0.61);
-  const bars = visible.map((p, i) => {
-    const value = Math.max(0, p.downtimeMinutes);
-    const height = (value / max) * 88;
-    const x = 50 + i * step + (step - width) / 2;
-    const y = 119 - height;
-    const label = p.date.slice(8, 10) + "/" + p.date.slice(5, 7);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${width.toFixed(1)}" height="${Math.max(0.8, height).toFixed(1)}" rx="3" fill="#dc2626"/>
+  const bars = visible
+    .map((p, i) => {
+      const value = Math.max(0, p.downtimeMinutes);
+      const height = (value / max) * 88;
+      const x = 50 + i * step + (step - width) / 2;
+      const y = 119 - height;
+      const label = p.date.slice(8, 10) + "/" + p.date.slice(5, 7);
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${width.toFixed(1)}" height="${Math.max(0.8, height).toFixed(1)}" rx="3" fill="#dc2626"/>
       ${visible.length <= 7 || i % 2 === 0 ? `<text x="${(x + width / 2).toFixed(1)}" y="139" text-anchor="middle" fill="#475569" font-size="10">${esc(label)}</text>` : ""}`;
-  }).join("");
+    })
+    .join("");
   return `<div class="chart">
-    <div class="chart-title">Evolução do downtime físico por dia <span>últimos ${visible.length} dia(s) exibidos da janela</span></div>
-    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Downtime físico diário, em horas" viewBox="0 0 610 150">
+    <div class="chart-title">${esc(ui("Evolução do downtime físico por dia "))}<span>${esc(ui("últimos "))}${visible.length}${esc(ui(" dia(s) exibidos da janela"))}</span></div>
+    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(ui("Downtime físico diário, em horas"))}" viewBox="0 0 610 150">
       <line x1="49" y1="30" x2="590" y2="30" stroke="#e2e8f0" stroke-dasharray="3 3"/>
       <line x1="49" y1="74" x2="590" y2="74" stroke="#e2e8f0" stroke-dasharray="3 3"/>
       <line x1="49" y1="119" x2="590" y2="119" stroke="#94a3b8"/>
@@ -108,34 +112,36 @@ function dailyDowntimeGraph(
       <text x="43" y="123" text-anchor="end" fill="#64748b" font-size="9">0</text>
       ${bars}
     </svg>
-    <p class="chart-footnote">Cada barra representa a parcela de parada física daquele dia operacional. Eventos em aberto continuam acumulando tempo.</p>
+    <p class="chart-footnote">${esc(ui("Cada barra representa a parcela de parada física daquele dia operacional. Eventos em aberto continuam acumulando tempo."))}</p>
   </div>`;
 }
 
 function paretoGraph(data: Array<{ machineName: string; downtimeMinutes: number }>) {
   const entries = data.slice(0, 6);
-  if (!entries.length) return '<p class="chart-empty">Sem perdas físicas registradas no período.</p>';
+  if (!entries.length)
+    return `<p class="chart-empty">${esc(ui("Sem perdas físicas registradas no período."))}</p>`;
   const max = Math.max(...entries.map((v) => Math.max(0, v.downtimeMinutes)), 1);
-  const rows = entries.map((value, index) => {
-    const y = 22 + index * 25;
-    const w = (Math.max(0, value.downtimeMinutes) / max) * 305;
-    const trimmedName = value.machineName.length > 21
-      ? value.machineName.slice(0, 20) + "…"
-      : value.machineName;
-    return `<text x="5" y="${y + 11}" fill="#334155" font-size="11" font-weight="700">${esc(trimmedName)}</text>
+  const rows = entries
+    .map((value, index) => {
+      const y = 22 + index * 25;
+      const w = (Math.max(0, value.downtimeMinutes) / max) * 305;
+      const trimmedName =
+        value.machineName.length > 21 ? value.machineName.slice(0, 20) + "…" : value.machineName;
+      return `<text x="5" y="${y + 11}" fill="#334155" font-size="11" font-weight="700">${esc(trimmedName)}</text>
       <rect x="164" y="${y}" width="310" height="16" fill="#f1f5f9" rx="3"/>
       <rect x="164" y="${y}" width="${w.toFixed(1)}" height="16" fill="#dc2626" rx="3"/>
       <text x="486" y="${y + 11}" fill="#475569" font-size="10">${esc(minutes(value.downtimeMinutes))}</text>`;
-  }).join("");
+    })
+    .join("");
   return `<div class="chart">
-    <div class="chart-title">Pareto de downtime por máquina <span>mesma população do resumo executivo</span></div>
-    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Máquinas ordenadas por downtime físico" viewBox="0 0 610 182">${rows}</svg>
+    <div class="chart-title">${esc(ui("Pareto de downtime por máquina "))}<span>${esc(ui("mesma população do resumo executivo"))}</span></div>
+    <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(ui("Máquinas ordenadas por downtime físico"))}" viewBox="0 0 610 182">${rows}</svg>
   </div>`;
 }
 
 function pageHeader(number: string, heading: string, stamp: string) {
   return `<div class="page-heading"><div>
-    <div class="brand"><span class="brand-square"></span> ANDON BI <span class="brand-sub">MAINTENANCE &amp; RELIABILITY INTELLIGENCE</span></div>
+    <div class="brand"><span class="brand-square"></span> ANDON BI <span class="brand-sub">${esc(ui("ANÁLISE DE MANUTENÇÃO E CONFIABILIDADE"))}</span></div>
     <h1>${esc(heading)}</h1>
   </div><div class="page-number">${esc(number)}<small>${esc(stamp)}</small></div></div>`;
 }
@@ -158,66 +164,98 @@ export function buildExecutiveReportHtml({
   }[filters.period];
   const machineName =
     options.machines.find((machine) => machine.id === filters.machineId)?.name ??
-    (filters.machineId || "Todas as máquinas");
+    (filters.machineId || ui("Todas as máquinas"));
   const sectorName =
     options.sectors.find((sector) => sector.id === filters.subtype)?.displayName ??
-    (filters.subtype || "Todos os setores");
+    (filters.subtype || ui("Todos os setores"));
   const className =
-    options.classifications.find((classification) => classification.value === filters.classification)?.label ??
-    (filters.classification || "Todas as classificações");
+    options.classifications.find(
+      (classification) => classification.value === filters.classification,
+    )?.label ??
+    (filters.classification || ui("Todas as classificações"));
   const classificationLabel = (id: string) =>
     options.classifications.find((item) => item.value === id)?.label ?? id;
   const areaLabel = (id: string | null) =>
-    options.sectors.find((item) => item.id === id)?.displayName ?? id ?? "Não informada";
+    options.sectors.find((item) => item.id === id)?.displayName ?? id ?? ui("Não informada");
   const k = overview.kpis;
   const h = reliability.dataHealth;
-  const warn = (h.activeCallsOver24h ?? 0) +
+  const warn =
+    (h.activeCallsOver24h ?? 0) +
     h.openFailureEventsOver24h +
     (h.activeSessionsOver24h ?? 0) +
     h.finishedCallsMissingClassification;
 
   const meta = `<div class="filters">
-    <div><strong>PERÍODO</strong><span>${esc(periodLabel)}</span></div>
-    <div><strong>INÍCIO</strong><span>${esc(timestamp(period.start, timeZone))}</span></div>
-    <div><strong>FIM CONSIDERADO</strong><span>${esc(timestamp(period.effectiveEnd, timeZone))}</span></div>
-    <div><strong>MÁQUINA</strong><span>${esc(machineName)}</span></div>
-    <div><strong>SETOR</strong><span>${esc(sectorName)}</span></div>
-    <div><strong>CLASSIFICAÇÃO</strong><span>${esc(className)}</span></div>
+    <div><strong>${esc(ui("PERÍODO"))}</strong><span>${esc(periodLabel)}</span></div>
+    <div><strong>${esc(ui("INÍCIO"))}</strong><span>${esc(timestamp(period.start, timeZone))}</span></div>
+    <div><strong>${esc(ui("FIM CONSIDERADO"))}</strong><span>${esc(timestamp(period.effectiveEnd, timeZone))}</span></div>
+    <div><strong>${esc(ui("MÁQUINA"))}</strong><span>${esc(machineName)}</span></div>
+    <div><strong>${esc(ui("SETOR"))}</strong><span>${esc(sectorName)}</span></div>
+    <div><strong>${esc(ui("CLASSIFICAÇÃO"))}</strong><span>${esc(className)}</span></div>
   </div>`;
 
   const highlights: string[] = [];
   const downCompare = overview.comparison.downtimeMinutes;
   if (downCompare.direction === "up" || downCompare.direction === "down") {
-    highlights.push(`Tempo de parada ${downCompare.direction === "up" ? "aumentou" : "reduziu"} ${percentage(Math.abs(downCompare.deltaPercent ?? 0))} em relação ao período anterior equivalente.`);
+    highlights.push(
+      ui("Tempo de parada {0} {1} em relação ao período anterior equivalente.", {
+        0: downCompare.direction === "up" ? ui("aumentou") : ui("reduziu"),
+        1: percentage(Math.abs(downCompare.deltaPercent ?? 0)),
+      }),
+    );
   } else {
-    highlights.push("Comparação de downtime indisponível ou sem variação relevante na janela equivalente.");
+    highlights.push(
+      ui("Comparação de downtime indisponível ou sem variação relevante na janela equivalente."),
+    );
   }
   if (overview.highlights.topMachine) {
     const top = overview.highlights.topMachine;
-    highlights.push(`${top.machineName}: ${minutes(top.downtimeMinutes)} de tempo de parada, equivalentes a ${percentage(top.sharePercent)} do total filtrado.`);
+    highlights.push(
+      ui("{0}: {1} de tempo de parada, equivalentes a {2} do total filtrado.", {
+        0: top.machineName,
+        1: minutes(top.downtimeMinutes),
+        2: percentage(top.sharePercent),
+      }),
+    );
   }
   if (warn > 0) {
-    highlights.push(`Atenção à integridade: ${h.activeCallsOver24h ?? 0} chamados, ${h.openFailureEventsOver24h} eventos físicos e ${h.activeSessionsOver24h ?? 0} sessões técnicas ultrapassam 24 horas em aberto.`);
+    highlights.push(
+      ui(
+        "Atenção à integridade: {0} chamados, {1} eventos físicos e {2} sessões técnicas ultrapassam 24 horas em aberto.",
+        {
+          0: h.activeCallsOver24h ?? 0,
+          1: h.openFailureEventsOver24h,
+          2: h.activeSessionsOver24h ?? 0,
+        },
+      ),
+    );
   } else {
-    highlights.push("Nenhum registro ultrapassou o limiar de 24 horas entre os alertas atualmente monitorados.");
+    highlights.push(
+      ui(
+        "Nenhum registro ultrapassou o limiar de 24 horas entre os alertas atualmente monitorados.",
+      ),
+    );
   }
 
   // Single physical source of truth shared with the executive top-machine
   // highlight. Reliability.assets may intentionally contain only active machines;
   // missing per-asset MTBF/call counts must remain unavailable, not become zero.
   const reliabilityById = new Map(reliability.assets.map((asset) => [asset.machineId, asset]));
-  const machineStatusById = new Map(options.machines.map((machine) => [machine.id, machine.isActive]));
+  const machineStatusById = new Map(
+    options.machines.map((machine) => [machine.id, machine.isActive]),
+  );
   const topMachines = overview.machinePareto
     .filter((asset) => asset.downtimeMinutes > 0)
     .slice(0, 6);
   const topMachineRows = topMachines.map((asset, index) => {
     const reliabilityAsset = reliabilityById.get(asset.machineId);
     const machineActive = machineStatusById.get(asset.machineId);
-    const registration = machineActive === false
-      ? "Inativa"
-      : machineActive === true
-        ? "Ativa"
-        : "Não informado";
+    const registration =
+      machineActive === false
+        ? ui("Inativa")
+        : machineActive === true
+          ? ui("Ativa")
+          : ui("Não informado");
     return row([
       index + 1,
       asset.machineName,
@@ -228,42 +266,73 @@ export function buildExecutiveReportHtml({
       reliabilityAsset?.activeCallCount ?? "—",
     ]);
   });
-  const assetsOutsideReliability = topMachines.filter((asset) => !reliabilityById.has(asset.machineId));
-
-  const topFailures = failures.groups.slice(0, 5).map((group) => row([
-    group.machineName,
-    classificationLabel(group.classification),
-    group.calls, group.repeats24h, group.repeats7d, group.repeats30d,
-  ]));
-
-  const classRows = overview.classificationPareto.slice(0, 4).map((item) =>
-    row([classificationLabel(item.label), item.count]),
+  const assetsOutsideReliability = topMachines.filter(
+    (asset) => !reliabilityById.has(asset.machineId),
   );
 
-  const techRows = maintenance.technicians.slice(0, 6).map((tech) => row([
-    tech.technicianName,
-    minutes(tech.maintenanceMinutes),
-    minutes(tech.followUpMinutes),
-    minutes(tech.totalPersonMinutes),
-    tech.callCount,
-  ]));
-  const areaRows = maintenance.technicalAreas.slice(0, 4).map((area) => row([
-    areaLabel(area.technicalArea),
-    minutes(area.maintenanceMinutes),
-    minutes(area.followUpMinutes),
-    area.technicianCount,
-  ]));
+  const topFailures = failures.groups
+    .slice(0, 5)
+    .map((group) =>
+      row([
+        group.machineName,
+        classificationLabel(group.classification),
+        group.calls,
+        group.repeats24h,
+        group.repeats7d,
+        group.repeats30d,
+      ]),
+    );
 
-  const periodNote = `Gerado em ${generatedAt} · fuso ${timeZone}`;
+  const classRows = overview.classificationPareto
+    .slice(0, 4)
+    .map((item) => row([classificationLabel(item.label), item.count]));
+
+  const techRows = maintenance.technicians
+    .slice(0, 6)
+    .map((tech) =>
+      row([
+        tech.technicianName,
+        minutes(tech.maintenanceMinutes),
+        minutes(tech.followUpMinutes),
+        minutes(tech.totalPersonMinutes),
+        tech.callCount,
+      ]),
+    );
+  const areaRows = maintenance.technicalAreas
+    .slice(0, 4)
+    .map((area) =>
+      row([
+        areaLabel(area.technicalArea),
+        minutes(area.maintenanceMinutes),
+        minutes(area.followUpMinutes),
+        area.technicianCount,
+      ]),
+    );
+
+  const periodNote = ui("Gerado em {0} · fuso {1}", { 0: generatedAt, 1: timeZone });
   const sourceMismatchNote = assetsOutsideReliability.length
-    ? `Atenção: ${assetsOutsideReliability.length} máquina(s) com downtime no Pareto geral não integram a população consultada pela aba Confiabilidade (${assetsOutsideReliability.map((asset) => asset.machineName).join(", ")}). Seus episódios, intervalos por calendário e chamados atuais ficam indisponíveis nesta tabela, não zerados.`
-    : "Ranking e resumo usam a mesma base de downtime físico. Episódios e intervalos por calendário seguem a população disponível da aba Confiabilidade.";
-  const noFinishedCallsNote = overview.coverage.finishedCalls === 0
-    ? "Sem chamados finalizados no período. A ausência de reincidências ou classificações não comprova ausência de falhas."
-    : `${overview.coverage.finishedCalls} chamado(s) finalizado(s); reincidência exige classificação e diagnóstico anterior no mesmo ativo.`;
+    ? ui(
+        "Atenção: {0} máquina(s) com downtime no Pareto geral não integram a população consultada pela aba Confiabilidade ({1}). Seus episódios, intervalos por calendário e chamados atuais ficam indisponíveis nesta tabela, não zerados.",
+        {
+          0: assetsOutsideReliability.length,
+          1: assetsOutsideReliability.map((asset) => asset.machineName).join(", "),
+        },
+      )
+    : ui(
+        "Ranking e resumo usam a mesma base de downtime físico. Episódios e intervalos por calendário seguem a população disponível da aba Confiabilidade.",
+      );
+  const noFinishedCallsNote =
+    overview.coverage.finishedCalls === 0
+      ? ui(
+          "Sem chamados finalizados no período. A ausência de reincidências ou classificações não comprova ausência de falhas.",
+        )
+      : ui(
+          "{0} chamado(s) finalizado(s); reincidência exige classificação e diagnóstico anterior no mesmo ativo.",
+          { 0: overview.coverage.finishedCalls },
+        );
   const footer = (page: number) => `<div class="footer">
-    <span>ANDON BI · Ambiente consultado · Testes marcados excluídos</span>
-    <span>Relatório R9.1 · Fórmulas ${esc(overview.meta.metricDefinitionVersion)} · Página ${page}/3</span>
+    <span>${esc(ui("ANDON BI · Ambiente consultado · Testes marcados excluídos"))}</span>
+    <span>${esc(ui("Relatório R9.1 · Fórmulas "))}${esc(overview.meta.metricDefinitionVersion)}${esc(ui(" · Página "))}${page}/3</span>
   </div>`;
 
   const css = `
@@ -337,70 +406,82 @@ export function buildExecutiveReportHtml({
   `;
 
   return `<!doctype html>
-<html lang="pt-BR">
+<html lang="${getInterfaceLanguage()}">
 <head>
   <meta charset="utf-8">
-  <title>ANDON BI - Relatório Executivo - ${esc(periodLabel)}</title>
+  <title>${esc(ui("ANDON BI - Relatório Executivo - "))}${esc(periodLabel)}</title>
   <style>${css}</style>
 </head>
 <body>
   <section class="page">
-    ${pageHeader("01", "Relatório executivo de manutenção", periodNote)}
+    ${pageHeader("01", ui("Relatório executivo de manutenção"), periodNote)}
     ${meta}
-    ${sectionTitle("Indicadores executivos", "Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis.")}
+    ${sectionTitle(ui("Indicadores executivos"), ui("Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis."))}
     <div class="kpis">
-      ${tile("Disponibilidade", percentage(overview.production?.availabilityPercent), `${overview.production?.coveredMachineCount ?? 0}/${overview.production?.populationCount ?? 0} máquinas com histórico completo`, "green")}
-      ${tile("MTBF programado", minutes(overview.production?.plannedMtbfMinutes), `${overview.production?.productionFailureEpisodes ?? 0} falha(s) de manutenção na programação`, "green")}
-      ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("MTTR restabelecimento", minutes(overview.production?.resolvedMttrMinutes), `${overview.production?.resolvedEpisodes ?? 0} episódio(s) de manutenção encerrado(s)`, "blue")}
-      ${tile("Tempo de parada", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s), inclusive fora da programação`, "red")}
-      ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.maintenanceEligibleFinishedCalls ?? 0} finalizados de manutenção retornaram`, "red")}
+      ${tile(ui("Disponibilidade"), percentage(overview.production?.availabilityPercent), ui("{0}/{1} máquinas com histórico completo", { 0: overview.production?.coveredMachineCount ?? 0, 1: overview.production?.populationCount ?? 0 }), "green")}
+      ${tile(ui("MTBF programado"), minutes(overview.production?.plannedMtbfMinutes), ui("{0} falha(s) de manutenção na programação", { 0: overview.production?.productionFailureEpisodes ?? 0 }), "green")}
+      ${tile(ui("MTTA"), minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
+      ${tile(ui("MTTR restabelecimento"), minutes(overview.production?.resolvedMttrMinutes), ui("{0} episódio(s) de manutenção encerrado(s)", { 0: overview.production?.resolvedEpisodes ?? 0 }), "blue")}
+      ${tile(ui("Tempo de parada"), minutes(k.downtimeMinutes), ui("{0} episódio(s) unido(s), inclusive fora da programação", { 0: k.physicalStopEpisodes }), "red")}
+      ${tile(ui("Taxa de retorno"), percentage(k.maintenanceReturnRatePercent), ui("{0} de {1} finalizados de manutenção retornaram", { 0: k.returnedCalls, 1: k.maintenanceEligibleFinishedCalls ?? 0 }), "red")}
     </div>
 
-    ${overview.responsibility ? `<p class="legal"><strong>Parada por responsabilidade:</strong> ${overview.responsibility.downtime.filter(item => item.downtimeMinutes > 0).map(item => `${esc(({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility)}: ${minutes(item.downtimeMinutes)}`).join(" · ") || "Sem paradas"}. ${overview.responsibility.excludedCalls} chamado(s) excluído(s); ${overview.responsibility.pendingFinishedCalls} diagnóstico(s) com responsabilidade pendente.</p>` : ""}
-    ${sectionTitle("Síntese executiva", `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s) · ${k.activeCallsNow ?? "—"} ativo(s) agora`)}
+    ${
+      overview.responsibility
+        ? `<p class="legal"><strong>${esc(ui("Parada por responsabilidade:"))}</strong> ${
+            overview.responsibility.downtime
+              .filter((item) => item.downtimeMinutes > 0)
+              .map(
+                (item) =>
+                  `${esc(({ maintenance: ui("Manutenção"), operations: ui("Operação"), process: ui("Processos"), quality: ui("Qualidade"), leadership: ui("Liderança"), other: ui("Outros"), unassigned: ui("Pendente") } as Record<string, string>)[item.responsibility] ?? item.responsibility)}: ${minutes(item.downtimeMinutes)}`,
+              )
+              .join(" · ") || ui("Sem paradas")
+          }. ${overview.responsibility.excludedCalls}${esc(ui(" chamado(s) excluído(s); "))}${overview.responsibility.pendingFinishedCalls}${esc(ui(" diagnóstico(s) com responsabilidade pendente."))}</p>`
+        : ""
+    }
+    ${sectionTitle(ui("Síntese executiva"), `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s) · ${k.activeCallsNow ?? "—"} ativo(s) agora`)}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}
-    ${sectionTitle("Confiabilidade e completude")}
+    ${sectionTitle(ui("Confiabilidade e completude"))}
     <div class="mini-grid">
-      <div class="mini"><strong>${esc(String(k.physicalStopEpisodes))}</strong><span>Episódios físicos</span></div>
-      <div class="mini"><strong>${esc(minutes(k.avgDowntimePerEpisodeMinutes))}</strong><span>Downtime / episódio</span></div>
-      <div class="mini"><strong>${esc(percentage(k.maintenanceReturnRatePercent))}</strong><span>Chamados com retorno</span></div>
-      <div class="mini"><strong>${esc(percentage(k.classificationCoveragePercent))}</strong><span>Cobertura diagnóstica</span></div>
+      <div class="mini"><strong>${esc(String(k.physicalStopEpisodes))}</strong><span>${esc(ui("Episódios físicos"))}</span></div>
+      <div class="mini"><strong>${esc(minutes(k.avgDowntimePerEpisodeMinutes))}</strong><span>${esc(ui("Downtime / episódio"))}</span></div>
+      <div class="mini"><strong>${esc(percentage(k.maintenanceReturnRatePercent))}</strong><span>${esc(ui("Chamados com retorno"))}</span></div>
+      <div class="mini"><strong>${esc(percentage(k.classificationCoveragePercent))}</strong><span>${esc(ui("Cobertura diagnóstica"))}</span></div>
     </div>
     <div class="note ${warn ? "red" : "good"}">
-      <strong>${warn ? "Atenção à qualidade do dado" : "Sem alertas de duração prolongada"}</strong><br>
-      ${esc(`${warn} ocorrências de alerta somadas por tipo de registro, não necessariamente incidentes operacionais únicos. Eventos e sessões em aberto podem ampliar os tempos medidos; revisar encerramentos antes de decisões. Nenhum dado foi alterado ou encerrado pelo BI.`)}
+      <strong>${warn ? ui("Atenção à qualidade do dado") : ui("Sem alertas de duração prolongada")}</strong><br>
+      ${esc(ui("{0} ocorrências de alerta somadas por tipo de registro, não necessariamente incidentes operacionais únicos. Eventos e sessões em aberto podem ampliar os tempos medidos; revisar encerramentos antes de decisões. Nenhum dado foi alterado ou encerrado pelo BI.", { 0: warn }))}
     </div>
     ${footer(1)}
   </section>
 
   <section class="page">
-    ${pageHeader("02", "Ativos críticos e reincidências", periodNote)}
-    ${sectionTitle("Máquinas com maior parada", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
+    ${pageHeader("02", ui("Ativos críticos e reincidências"), periodNote)}
+    ${sectionTitle(ui("Máquinas com maior parada"), ui("Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física."))}
     ${paretoGraph(topMachines)}
-    ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "INTERVALO EST.", "ATIVOS"], topMachineRows)}
+    ${reportTable([ui("#"), ui("MÁQUINA"), ui("CADASTRO"), ui("DOWNTIME"), ui("EPISÓDIOS"), ui("INTERVALO EST."), ui("ATIVOS")], topMachineRows)}
     <div class="note subtle">${esc(sourceMismatchNote)}</div>
-    ${sectionTitle("Reincidência diagnóstica", "Mesmo diagnóstico em novo chamado finalizado da mesma máquina; não equivale a causa raiz.")}
+    ${sectionTitle(ui("Reincidência diagnóstica"), ui("Mesmo diagnóstico em novo chamado finalizado da mesma máquina; não equivale a causa raiz."))}
     <p class="context emphasis">${esc(noFinishedCallsNote)}</p>
     <div class="mini-grid">
-      <div class="mini"><strong>${esc(String(failures.totals.repeated24h))}</strong><span>Até 24 horas</span></div>
-      <div class="mini"><strong>${esc(String(failures.totals.repeated7d))}</strong><span>Até 7 dias</span></div>
-      <div class="mini"><strong>${esc(String(failures.totals.repeated30d))}</strong><span>Até 30 dias</span></div>
-      <div class="mini"><strong>${esc(String(failures.totals.maintenanceReturnCycles))}</strong><span>Retornos no chamado</span></div>
+      <div class="mini"><strong>${esc(String(failures.totals.repeated24h))}</strong><span>${esc(ui("Até 24 horas"))}</span></div>
+      <div class="mini"><strong>${esc(String(failures.totals.repeated7d))}</strong><span>${esc(ui("Até 7 dias"))}</span></div>
+      <div class="mini"><strong>${esc(String(failures.totals.repeated30d))}</strong><span>${esc(ui("Até 30 dias"))}</span></div>
+      <div class="mini"><strong>${esc(String(failures.totals.maintenanceReturnCycles))}</strong><span>${esc(ui("Retornos no chamado"))}</span></div>
     </div>
-    ${reportTable(["MÁQUINA", "DIAGNÓSTICO", "CONCLUÍDOS", "24H", "7D", "30D"], topFailures)}
+    ${reportTable([ui("MÁQUINA"), ui("DIAGNÓSTICO"), ui("CONCLUÍDOS"), ui("24H"), ui("7D"), ui("30D")], topFailures)}
     <div class="two-col">
       <div>
-        ${sectionTitle("Classificações mais registradas")}
-        ${reportTable(["CLASSIFICAÇÃO", "QUANTIDADE"], classRows)}
+        ${sectionTitle(ui("Classificações mais registradas"))}
+        ${reportTable([ui("CLASSIFICAÇÃO"), ui("QUANTIDADE")], classRows)}
       </div>
       <div>
-        ${sectionTitle("Notas de interpretação")}
+        ${sectionTitle(ui("Notas de interpretação"))}
         <div class="legal">
-          <p>As janelas de 24h, 7d e 30d são cumulativas e incluem antecedentes de até 30 dias antes do início do período.</p>
-          <p>Retornos à manutenção são ciclos no próprio chamado; reincidências são novos chamados com diagnóstico repetido.</p>
-          <p>Eventos físicos sem chamado podem contribuir para downtime, mas não recebem setor ou diagnóstico de chamado presumidos.</p>
+          <p>${esc(ui("As janelas de 24h, 7d e 30d são cumulativas e incluem antecedentes de até 30 dias antes do início do período."))}</p>
+          <p>${esc(ui("Retornos à manutenção são ciclos no próprio chamado; reincidências são novos chamados com diagnóstico repetido."))}</p>
+          <p>${esc(ui("Eventos físicos sem chamado podem contribuir para downtime, mas não recebem setor ou diagnóstico de chamado presumidos."))}</p>
         </div>
       </div>
     </div>
@@ -408,46 +489,48 @@ export function buildExecutiveReportHtml({
   </section>
 
   <section class="page">
-    ${pageHeader("03", "Equipe, integridade e metodologia", periodNote)}
-    ${sectionTitle("Participação técnica", "Pessoa-minutos registrados, não horas produtivas auditadas nem ranking de desempenho.")}
+    ${pageHeader("03", ui("Equipe, integridade e metodologia"), periodNote)}
+    ${sectionTitle(ui("Participação técnica"), ui("Pessoa-minutos registrados, não horas produtivas auditadas nem ranking de desempenho."))}
     <div class="note ${(h.activeSessionsOver24h ?? 0) > 0 ? "red" : "good"}">
-      <strong>${(h.activeSessionsOver24h ?? 0) > 0
-        ? `Atenção: ${esc(String(h.activeSessionsOver24h))} sessão(ões) técnicas abertas há mais de 24h.`
-        : "Sem sessões técnicas abertas há mais de 24h."}</strong>
-      Horas técnicas representam soma de participações simultâneas, não tempo de máquina parada. Verifique encerramentos antes de concluir a análise.
-    </div>
+      <strong>${
+        (h.activeSessionsOver24h ?? 0) > 0
+          ? ui("Atenção: {0} sessão(ões) técnicas abertas há mais de 24h.", {
+              0: esc(String(h.activeSessionsOver24h)),
+            })
+          : ui("Sem sessões técnicas abertas há mais de 24h.")
+      }</strong>${esc(ui("\n      Horas técnicas representam soma de participações simultâneas, não tempo de máquina parada. Verifique encerramentos antes de concluir a análise.\n    "))}</div>
     <div class="mini-grid">
-      <div class="mini"><strong>${esc(minutes(maintenance.totals.maintenancePersonMinutes))}</strong><span>Manutenção</span></div>
-      <div class="mini"><strong>${esc(minutes(maintenance.totals.followUpPersonMinutes))}</strong><span>Acompanhamento</span></div>
-      <div class="mini"><strong>${esc(String(maintenance.totals.technicianCount))}</strong><span>Mantenedores</span></div>
-      <div class="mini"><strong>${esc(String(maintenance.totals.activeSessionCount))}</strong><span>Sessões ativas</span></div>
+      <div class="mini"><strong>${esc(minutes(maintenance.totals.maintenancePersonMinutes))}</strong><span>${esc(ui("Manutenção"))}</span></div>
+      <div class="mini"><strong>${esc(minutes(maintenance.totals.followUpPersonMinutes))}</strong><span>${esc(ui("Acompanhamento"))}</span></div>
+      <div class="mini"><strong>${esc(String(maintenance.totals.technicianCount))}</strong><span>${esc(ui("Mantenedores"))}</span></div>
+      <div class="mini"><strong>${esc(String(maintenance.totals.activeSessionCount))}</strong><span>${esc(ui("Sessões ativas"))}</span></div>
     </div>
-    ${reportTable(["MANTENEDOR", "MANUTENÇÃO", "ACOMPANHAMENTO", "TOTAL PESSOA", "CHAMADOS"], techRows)}
-    <p class="context">Pessoa-minutos somam participações simultâneas. Diferenças residuais de 1 minuto podem ocorrer por arredondamento independente das colunas.</p>
+    ${reportTable([ui("MANTENEDOR"), ui("MANUTENÇÃO"), ui("ACOMPANHAMENTO"), ui("TOTAL PESSOA"), ui("CHAMADOS")], techRows)}
+    <p class="context">${esc(ui("Pessoa-minutos somam participações simultâneas. Diferenças residuais de 1 minuto podem ocorrer por arredondamento independente das colunas."))}</p>
     <div class="two-col">
       <div>
-        ${sectionTitle("Distribuição por área técnica")}
-        ${reportTable(["ÁREA", "MANUT.", "ACOMP.", "TÉCNICOS"], areaRows)}
+        ${sectionTitle(ui("Distribuição por área técnica"))}
+        ${reportTable([ui("ÁREA"), ui("MANUT."), ui("ACOMP."), ui("TÉCNICOS")], areaRows)}
       </div>
       <div>
-        ${sectionTitle("Saúde dos registros")}
+        ${sectionTitle(ui("Saúde dos registros"))}
         <div class="mini-grid" style="grid-template-columns: repeat(2,1fr); margin-top:4px">
-          <div class="mini"><strong>${esc(String(h.activeCallsOver24h ?? "—"))}</strong><span>Chamados abertos &gt;24h</span></div>
-          <div class="mini"><strong>${esc(String(h.openFailureEventsOver24h))}</strong><span>Eventos físicos &gt;24h</span></div>
-          <div class="mini"><strong>${esc(String(h.activeSessionsOver24h ?? "—"))}</strong><span>Sessões técnicas &gt;24h</span></div>
-          <div class="mini"><strong>${esc(String(h.standaloneFailureEvents))}</strong><span>Eventos sem chamado</span></div>
+          <div class="mini"><strong>${esc(String(h.activeCallsOver24h ?? "—"))}</strong><span>${esc(ui("Chamados abertos >24h"))}</span></div>
+          <div class="mini"><strong>${esc(String(h.openFailureEventsOver24h))}</strong><span>${esc(ui("Eventos físicos >24h"))}</span></div>
+          <div class="mini"><strong>${esc(String(h.activeSessionsOver24h ?? "—"))}</strong><span>${esc(ui("Sessões técnicas >24h"))}</span></div>
+          <div class="mini"><strong>${esc(String(h.standaloneFailureEvents))}</strong><span>${esc(ui("Eventos sem chamado"))}</span></div>
         </div>
       </div>
     </div>
-    ${sectionTitle("Metodologia e limites")}
+    ${sectionTitle(ui("Metodologia e limites"))}
     <div class="legal">
-      <p><strong>Recorte temporal:</strong> aberturas por openedAt; conclusões por finishedAt; MTTA por attendedAt; ativos são snapshot do momento de extração.</p>
-      <p><strong>Downtime físico:</strong> união de intervalos de FailureEvent por máquina, sem dupla contagem na mesma máquina. Em várias máquinas o downtime é acumulado entre os ativos.</p>
-      <p><strong>Confiabilidade:</strong> MTBF programado usa tempo em operação (descontando todas as paradas reais) / inícios de falhas de manutenção na programação verificável; causas pendentes ou mistas impedem o cálculo. MTTR mede restabelecimento integral somente de episódios encerrados e inteiramente atribuídos à manutenção. O intervalo por calendário nas tabelas mede paradas de todas as causas.</p>
-      <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Testes manuais não identificados podem aparecer; testes de sistema e classificações marcadas como teste, falso chamado ou duplicado são excluídos em todas as visões; verifique se a fonte é homologação ou produção.</p>
-      <p><strong>Filtros:</strong> setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores indisponíveis são exibidos com travessão.</p>
-      <p><strong>Rastreabilidade:</strong> geração a partir das APIs read-only do ANDON BI. Cada conjunto de métricas utiliza a mesma janela de período escolhida; os dados podem evoluir com novos registros.</p>
-      <p><strong>Populações analíticas:</strong> o Pareto físico inclui máquinas com perdas mesmo quando inativas; os indicadores específicos de confiabilidade podem ter população reduzida. Ausência de dado não equivale a zero.</p>
+      <p><strong>${esc(ui("Recorte temporal:"))}</strong>${esc(ui(" aberturas por openedAt; conclusões por finishedAt; MTTA por attendedAt; ativos são snapshot do momento de extração."))}</p>
+      <p><strong>${esc(ui("Downtime físico:"))}</strong>${esc(ui(" união de intervalos de FailureEvent por máquina, sem dupla contagem na mesma máquina. Em várias máquinas o downtime é acumulado entre os ativos."))}</p>
+      <p><strong>${esc(ui("Confiabilidade:"))}</strong>${esc(ui(" MTBF programado usa tempo em operação (descontando todas as paradas reais) / inícios de falhas de manutenção na programação verificável; causas pendentes ou mistas impedem o cálculo. MTTR mede restabelecimento integral somente de episódios encerrados e inteiramente atribuídos à manutenção. O intervalo por calendário nas tabelas mede paradas de todas as causas."))}</p>
+      <p><strong>${esc(ui("Qualidade:"))}</strong>${esc(ui(" alertas de registros abertos podem inflar tempos até sua apuração operacional. Testes manuais não identificados podem aparecer; testes de sistema e classificações marcadas como teste, falso chamado ou duplicado são excluídos em todas as visões; verifique se a fonte é homologação ou produção."))}</p>
+      <p><strong>${esc(ui("Filtros:"))}</strong>${esc(ui(" setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores indisponíveis são exibidos com travessão."))}</p>
+      <p><strong>${esc(ui("Rastreabilidade:"))}</strong>${esc(ui(" geração a partir das APIs read-only do ANDON BI. Cada conjunto de métricas utiliza a mesma janela de período escolhida; os dados podem evoluir com novos registros."))}</p>
+      <p><strong>${esc(ui("Populações analíticas:"))}</strong>${esc(ui(" o Pareto físico inclui máquinas com perdas mesmo quando inativas; os indicadores específicos de confiabilidade podem ter população reduzida. Ausência de dado não equivale a zero."))}</p>
     </div>
     ${footer(3)}
   </section>
@@ -459,7 +542,7 @@ export function buildExecutiveReportHtml({
 export function openReportPrintDialog(html: string): void {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
-  frame.setAttribute("title", "Relatório executivo para exportação em PDF");
+  frame.setAttribute("title", ui("Relatório executivo para exportação em PDF"));
   frame.style.position = "fixed";
   frame.style.left = "-10000px";
   frame.style.top = "0";

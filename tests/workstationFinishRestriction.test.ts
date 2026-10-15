@@ -67,7 +67,9 @@ function backendTransaction(params: {
     workstation: {
       findUnique: async ({ where }: { where: { id: string } }) => {
         const workstation = params.workstations?.[where.id];
-        return workstation ? { id: where.id, active: workstation.active, allowOperational:true } : null;
+        return workstation
+          ? { id: where.id, active: workstation.active, allowOperational: true }
+          : null;
       },
     },
     technicianSession: {
@@ -108,7 +110,6 @@ test("backend registra workstation válida com regra OFF sem tornar o header obr
     null,
   );
 });
-
 
 test("backend ignora workstation inativa com regra OFF sem bloquear a operação", async () => {
   const tx = backendTransaction({
@@ -330,7 +331,10 @@ test("avaliador visual replica a compatibilidade do backend sem sessão ativa", 
   );
   assert.equal(authorization.allowed, true);
   assert.equal(authorization.kind, "authorized");
-  assert.equal(evaluateMaintenanceCompletionAuthorization(historicalSession, context(WS_B, true)).allowed, false);
+  assert.equal(
+    evaluateMaintenanceCompletionAuthorization(historicalSession, context(WS_B, true)).allowed,
+    false,
+  );
 });
 
 test("workstation inativa não pode concluir manutenção", () => {
@@ -502,16 +506,18 @@ test("página não bloqueia por incerteza de carregamento e mantém erro do back
   assert.match(page, /isCompletingMaintenance/);
   assert.doesNotMatch(page, /Workstation autorizada para concluir esta manutenção/);
   assert.match(page, /A validação será feita ao concluir/);
-  assert.match(page, /return maintenanceCompletionAuthorization\.message/);
+  assert.match(page, /return systemMessage\(maintenanceCompletionAuthorization\.message\)/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
   assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
 });
 
-
 test("inativação de workstation é serializada com sessões ativas", async () => {
   const [route, authorization, lock] = await Promise.all([
     readFile(new URL("../server/src/routes/workstations.ts", import.meta.url), "utf8"),
-    readFile(new URL("../server/src/services/workstationAuthorization.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../server/src/services/workstationAuthorization.ts", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../server/src/db/workstationFlowLock.ts", import.meta.url), "utf8"),
   ]);
 
@@ -523,7 +529,9 @@ test("inativação de workstation é serializada com sessões ativas", async () 
 
   const updateRoute = route.slice(route.indexOf('"/api/workstations/:id"'));
   const lockIndex = updateRoute.indexOf("await lockWorkstationFlow(tx, id)");
-  const reloadIndex = updateRoute.indexOf("const lockedWorkstation = await tx.workstation.findUnique");
+  const reloadIndex = updateRoute.indexOf(
+    "const lockedWorkstation = await tx.workstation.findUnique",
+  );
   const sessionIndex = updateRoute.indexOf("tx.technicianSession.findFirst");
   const updateIndex = updateRoute.indexOf("return tx.workstation.update");
 

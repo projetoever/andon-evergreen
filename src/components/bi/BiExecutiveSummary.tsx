@@ -1,14 +1,13 @@
-import type {
-  AnalyticsMetricComparison,
-  AnalyticsOverview,
-} from "@/types/analytics";
+import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import type { AnalyticsMetricComparison, AnalyticsOverview } from "@/types/analytics";
 
 function formatMinutes(value: number | null) {
   if (value === null || !Number.isFinite(value)) return "—";
-  if (value < 60) return `${Math.round(value)} min`;
+  if (value < 60) return `${Math.round(value)} ${ui("min")}`;
   const hours = Math.floor(value / 60);
   const minutes = Math.round(value % 60);
-  return minutes ? `${hours}h ${minutes}min` : `${hours}h`;
+  return minutes ? `${hours}${ui("h")} ${minutes}${ui("min")}` : `${hours}${ui("h")}`;
 }
 
 function comparisonSentence(
@@ -17,17 +16,31 @@ function comparisonSentence(
   formatter: (value: number | null) => string = (value) => String(value ?? "—"),
 ) {
   if (metric.direction === "unavailable") {
-    return `${label}: comparação indisponível por falta de amostra equivalente.`;
+    return ui("{0}: comparação indisponível por falta de amostra equivalente.", { 0: label });
   }
   if (metric.direction === "new") {
-    return `${label}: o período anterior estava em zero; o atual registra ${formatter(metric.current)}.`;
+    return ui("{0}: o período anterior estava em zero; o atual registra {1}.", {
+      0: label,
+      1: formatter(metric.current),
+    });
   }
   if (metric.direction === "flat") {
-    return `${label}: estável em ${formatter(metric.current)} frente ao período anterior.`;
+    return ui("{0}: estável em {1} frente ao período anterior.", {
+      0: label,
+      1: formatter(metric.current),
+    });
   }
 
-  const verb = metric.direction === "up" ? "subiu" : "caiu";
-  return `${label}: ${verb} ${Math.abs(metric.deltaPercent ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% frente ao período anterior (${formatter(metric.previous)} → ${formatter(metric.current)}).`;
+  const verb = metric.direction === "up" ? ui("subiu") : ui("caiu");
+  return ui("{0}: {1} {2}% frente ao período anterior ({3} → {4}).", {
+    0: label,
+    1: verb,
+    2: Math.abs(metric.deltaPercent ?? 0).toLocaleString(getInterfaceLocale(), {
+      maximumFractionDigits: 2,
+    }),
+    3: formatter(metric.previous),
+    4: formatter(metric.current),
+  });
 }
 
 type SummaryTone = "red" | "amber" | "green" | "blue";
@@ -55,18 +68,18 @@ export function BiExecutiveSummary({
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
 }) {
+  useInterfaceLanguage();
   const items: Array<{ text: string; tone: SummaryTone }> = [
     {
       text: comparisonSentence(
-        "Tempo de parada",
+        ui("Tempo de parada"),
         overview.comparison.downtimeMinutes,
         formatMinutes,
       ),
-      tone:
-        overview.comparison.downtimeMinutes.direction === "down" ? "green" : "red",
+      tone: overview.comparison.downtimeMinutes.direction === "down" ? "green" : "red",
     },
     {
-      text: comparisonSentence("Novos chamados", overview.comparison.callsOpened),
+      text: comparisonSentence(ui("Novos chamados"), overview.comparison.callsOpened),
       tone: "amber",
     },
   ];
@@ -74,7 +87,11 @@ export function BiExecutiveSummary({
   if (overview.highlights.topMachine) {
     const machine = overview.highlights.topMachine;
     items.push({
-      text: `A máquina ${machine.machineName} concentrou ${machine.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do tempo de parada do período (${formatMinutes(machine.downtimeMinutes)}).`,
+      text: ui("A máquina {0} concentrou {1}% do tempo de parada do período ({2}).", {
+        0: machine.machineName,
+        1: machine.sharePercent.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 }),
+        2: formatMinutes(machine.downtimeMinutes),
+      }),
       tone: "red",
     });
   }
@@ -85,13 +102,33 @@ export function BiExecutiveSummary({
       overview.coverage.finishedCallsWithClassification > 0 &&
       overview.coverage.finishedCallsWithClassification < 5;
     items.push({
-      text: `${classificationLabels.get(classification.classification) ?? classification.classification} foi o diagnóstico mais registrado entre os chamados finalizados: ${classification.count} ocorrência(s), ${classification.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% dos classificados.${lowSample ? ` Atenção: amostra baixa (${overview.coverage.finishedCallsWithClassification} chamado(s) classificado(s)).` : ""}`,
+      text: ui(
+        "{0} foi o diagnóstico mais registrado entre os chamados finalizados: {1} ocorrência(s), {2}% dos classificados.{3}",
+        {
+          0:
+            classificationLabels.get(classification.classification) ??
+            classification.classification,
+          1: classification.count,
+          2: classification.sharePercent.toLocaleString(getInterfaceLocale(), {
+            maximumFractionDigits: 2,
+          }),
+          3: lowSample
+            ? ui(" Atenção: amostra baixa ({0} chamado(s) classificado(s)).", {
+                0: overview.coverage.finishedCallsWithClassification,
+              })
+            : "",
+        },
+      ),
       tone: lowSample ? "amber" : "blue",
     });
   } else if (overview.highlights.topSector) {
     const sector = overview.highlights.topSector;
     items.push({
-      text: `${sectorLabels.get(sector.subtype) ?? sector.subtype} concentrou ${sector.count} chamado(s), correspondentes a ${sector.sharePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% das aberturas do período.`,
+      text: ui("{0} concentrou {1} chamado(s), correspondentes a {2}% das aberturas do período.", {
+        0: sectorLabels.get(sector.subtype) ?? sector.subtype,
+        1: sector.count,
+        2: sector.sharePercent.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 }),
+      }),
       tone: "blue",
     });
   }
@@ -100,20 +137,41 @@ export function BiExecutiveSummary({
     <section className="rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-xs font-black uppercase tracking-wide">Resumo executivo</h2>
+          <h2 className="text-xs font-black uppercase tracking-wide">{ui("Resumo executivo")}</h2>
           <p className="sr-only">
-            Leitura determinística do período atual contra o período anterior equivalente
+            {ui("Leitura determinística do período atual contra o período anterior equivalente")}
           </p>
         </div>
-        <span className="sr-only">
-          Resumo automático · mesmas fórmulas dos indicadores
-        </span>
+        <span className="sr-only">{ui("Resumo automático · mesmas fórmulas dos indicadores")}</span>
       </div>
 
       {overview.responsibility && (
-        <div className="mt-1 text-[11px] leading-4 text-muted-foreground" aria-label="Responsabilidade e qualidade dos indicadores">
-          <p><strong>Parada por causa:</strong> {overview.responsibility.downtime.filter(item => item.downtimeMinutes > 0).map(item => `${({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.downtimeMinutes)}`).join(" · ") || "Sem paradas"}.</p>
-          <p title="Testes, falsos chamados, duplicados e cancelados identificados ficam fora das contagens de chamados. A parada global mantém perdas reais de todas as áreas.">Excluídos: {overview.responsibility.excludedCalls} chamado(s) · Responsabilidade pendente: {overview.responsibility.pendingFinishedCalls} finalizado(s).</p>
+        <div
+          className="mt-1 text-[11px] leading-4 text-muted-foreground"
+          aria-label={ui("Responsabilidade e qualidade dos indicadores")}
+        >
+          <p>
+            <strong>{ui("Parada por causa:")}</strong>{" "}
+            {overview.responsibility.downtime
+              .filter((item) => item.downtimeMinutes > 0)
+              .map(
+                (item) =>
+                  `${({ maintenance: ui("Manutenção"), operations: ui("Operação"), process: ui("Processos"), quality: ui("Qualidade"), leadership: ui("Liderança"), other: ui("Outros"), unassigned: ui("Pendente") } as Record<string, string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.downtimeMinutes)}`,
+              )
+              .join(" · ") || ui("Sem paradas")}
+            .
+          </p>
+          <p
+            title={ui(
+              "Testes, falsos chamados, duplicados e cancelados identificados ficam fora das contagens de chamados. A parada global mantém perdas reais de todas as áreas.",
+            )}
+          >
+            {ui("Excluídos: ")}
+            {overview.responsibility.excludedCalls}
+            {ui(" chamado(s) · Responsabilidade pendente: ")}
+            {overview.responsibility.pendingFinishedCalls}
+            {ui(" finalizado(s).")}
+          </p>
         </div>
       )}
 
@@ -128,7 +186,9 @@ export function BiExecutiveSummary({
             >
               {index + 1}
             </span>
-            <p title={item.text} className="line-clamp-3 text-xs leading-4 text-foreground">{item.text}</p>
+            <p title={item.text} className="line-clamp-3 text-xs leading-4 text-foreground">
+              {item.text}
+            </p>
           </div>
         ))}
       </div>

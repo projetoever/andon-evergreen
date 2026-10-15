@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, Search } from "lucide-react";
 import { useTechnicians } from "@/hooks/useTechnicians";
@@ -24,21 +26,39 @@ interface TechnicianSelectorProps {
 }
 
 const AREA_LABELS: Partial<Record<TechnicianArea, string>> = {
-  electrical: "eletricistas",
-  mechanical: "mecânicos",
-  hot_melt: "hot melt",
+  get electrical() {
+    return ui("eletricistas");
+  },
+  get mechanical() {
+    return ui("mecânicos");
+  },
+  get hot_melt() {
+    return ui("hot melt");
+  },
 };
 
 const AREA_FILTER_LABELS: Partial<Record<TechnicianArea, string>> = {
-  electrical: "Elétrica",
-  mechanical: "Mecânica",
-  hot_melt: "Hot Melt",
+  get electrical() {
+    return ui("Elétrica");
+  },
+  get mechanical() {
+    return ui("Mecânica");
+  },
+  get hot_melt() {
+    return ui("Hot Melt");
+  },
 };
 
 const AREA_ROLE_LABELS: Partial<Record<TechnicianArea, string>> = {
-  electrical: "Eletricista",
-  mechanical: "Mecânico",
-  hot_melt: "Hot Melt",
+  get electrical() {
+    return ui("Eletricista");
+  },
+  get mechanical() {
+    return ui("Mecânico");
+  },
+  get hot_melt() {
+    return ui("Hot Melt");
+  },
 };
 
 function uniqueByName(technicians: TechnicianConfig[]): TechnicianConfig[] {
@@ -81,6 +101,7 @@ export function TechnicianSelector({
   variant = "default",
   activeAssignments = new Map(),
 }: TechnicianSelectorProps) {
+  useInterfaceLanguage();
   const { technicians, isLoading, error, refreshTechnicians } = useTechnicians();
   const [showAll, setShowAll] = useState(false);
   const [visibleOptionalAreas, setVisibleOptionalAreas] = useState<TechnicianArea[]>([]);
@@ -193,7 +214,7 @@ export function TechnicianSelector({
 
   function getShiftName(shiftId: string): string {
     const shift = getShiftConfigs().find((item) => item.id === shiftId);
-    return shift?.name ?? (variant === "compact" ? "Turno não informado" : "Não informado");
+    return shift?.name ?? (variant === "compact" ? ui("Turno não informado") : ui("Não informado"));
   }
 
   if (variant === "compact") {
@@ -239,7 +260,7 @@ export function TechnicianSelector({
                       : "text-muted-foreground hover:bg-accent hover:text-foreground",
                   )}
                 >
-                  Todos
+                  {ui("Todos")}
                 </button>
               )}
             </div>
@@ -256,13 +277,13 @@ export function TechnicianSelector({
             )}
             onClick={() => setShowAll((current) => !current)}
           >
-            Todos os turnos
+            {ui("Todos os turnos")}
           </button>
         </div>
 
         {hasShiftFallback && (
           <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-            Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.
+            {ui("Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.")}
           </p>
         )}
 
@@ -271,10 +292,10 @@ export function TechnicianSelector({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
-              aria-label="Buscar mantenedor"
+              aria-label={ui("Buscar mantenedor")}
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar mantenedor"
+              placeholder={ui("Buscar mantenedor")}
               className="min-h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/40"
             />
           </label>
@@ -282,24 +303,24 @@ export function TechnicianSelector({
 
         {error ? (
           <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-            <p>{error}</p>
+            <p>{systemMessage(error)}</p>
             <button
               type="button"
               className="font-bold underline"
               onClick={() => void refreshTechnicians()}
             >
-              Tentar novamente
+              {ui("Tentar novamente")}
             </button>
           </div>
         ) : isLoading ? (
           <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Carregando mantenedores...
+            {ui("Carregando mantenedores...")}
           </p>
         ) : filteredList.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
             {searchTerm
-              ? "Nenhum mantenedor encontrado para esta busca."
-              : "Nenhum mantenedor cadastrado para esta seleção."}
+              ? ui("Nenhum mantenedor encontrado para esta busca.")
+              : ui("Nenhum mantenedor cadastrado para esta seleção.")}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -339,7 +360,8 @@ export function TechnicianSelector({
                   </div>
                   {activeAssignment ? (
                     <div className="mt-1 truncate text-[11px] font-bold text-warning">
-                      Ativo · {activeAssignment.machineLabel}
+                      {ui("Ativo · ")}
+                      {activeAssignment.machineLabel}
                     </div>
                   ) : (
                     <div className="truncate text-xs text-muted-foreground">
@@ -354,7 +376,8 @@ export function TechnicianSelector({
 
         {value.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            <span className="font-bold text-foreground">Selecionados:</span> {value.join(", ")}
+            <span className="font-bold text-foreground">{ui("Selecionados:")}</span>{" "}
+            {value.join(", ")}
           </p>
         )}
       </div>
@@ -366,7 +389,7 @@ export function TechnicianSelector({
       <div className="flex flex-wrap items-center gap-3">
         {hasShiftFallback && (
           <p className="text-xs text-muted-foreground">
-            Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.
+            {ui("Nenhum mantenedor ativo no turno atual. Exibindo todos os ativos.")}
           </p>
         )}
 
@@ -376,7 +399,7 @@ export function TechnicianSelector({
             className="text-xs font-semibold text-primary underline"
             onClick={() => setShowAll(true)}
           >
-            Todos os turnos
+            {ui("Todos os turnos")}
           </button>
         )}
 
@@ -387,27 +410,28 @@ export function TechnicianSelector({
             className="text-xs font-semibold text-primary underline"
             onClick={() => showOptionalArea(optionalArea)}
           >
-            Mostrar {AREA_LABELS[optionalArea] ?? optionalArea}
+            {ui("Mostrar ")}
+            {AREA_LABELS[optionalArea] ?? optionalArea}
           </button>
         ))}
       </div>
 
       {error ? (
         <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
-          <p>{error}</p>
+          <p>{systemMessage(error)}</p>
           <button
             type="button"
             className="font-bold underline"
             onClick={() => void refreshTechnicians()}
           >
-            Tentar novamente
+            {ui("Tentar novamente")}
           </button>
         </div>
       ) : isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando mantenedores...</p>
+        <p className="text-sm text-muted-foreground">{ui("Carregando mantenedores...")}</p>
       ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhum mantenedor cadastrado para esta seleção.
+          {ui("Nenhum mantenedor cadastrado para esta seleção.")}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

@@ -1,3 +1,6 @@
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
@@ -10,7 +13,7 @@ import {
   Save,
   Undo2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/i18n/toast";
 
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { Button } from "@/components/ui/button";
@@ -32,15 +35,19 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 
 export function DashboardPriorityPage() {
+  useInterfaceLanguage();
   const navigate = useNavigate();
   const { access } = useModuleAccess();
   const returnTo = "/hub";
-  const passwordRequired = access?.modules.find(item => item.id === "priorities")?.passwordRequired !== false;
+  const passwordRequired =
+    access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
-  const [authenticated, setAuthenticated] = useState(() =>
-    !passwordRequired || isDashboardPriorityAuthenticated(),
+  const [authenticated, setAuthenticated] = useState(
+    () => !passwordRequired || isDashboardPriorityAuthenticated(),
   );
-  const [loginOpen, setLoginOpen] = useState(() => passwordRequired && !isDashboardPriorityAuthenticated());
+  const [loginOpen, setLoginOpen] = useState(
+    () => passwordRequired && !isDashboardPriorityAuthenticated(),
+  );
   const [rows, setRows] = useState<DashboardPriorityMachine[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -52,7 +59,10 @@ export function DashboardPriorityPage() {
   const currentIds = rows.map((row) => row.id);
   const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
   useBlocker({
-    shouldBlockFn: () => hasUnsavedChanges && !leavingAfterLogout.current && !window.confirm("Descartar as alterações de prioridade ainda não salvas?"),
+    shouldBlockFn: () =>
+      hasUnsavedChanges &&
+      !leavingAfterLogout.current &&
+      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")),
     enableBeforeUnload: hasUnsavedChanges,
   });
 
@@ -74,7 +84,10 @@ export function DashboardPriorityPage() {
 
     setIsLoading(true);
     try {
-      const localMachines = CONFIGURED_DATA_MODE === "local" ? loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, []) : [];
+      const localMachines =
+        CONFIGURED_DATA_MODE === "local"
+          ? loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, [])
+          : [];
       const snapshot = await getDashboardPriorityOrder(localMachines);
       setRows(snapshot.machines);
       setSavedIds(snapshot.machines.map((machine) => machine.id));
@@ -139,16 +152,18 @@ export function DashboardPriorityPage() {
       setLastOrderUpdatedBy(result.lastOrderUpdatedBy);
       toast.success("Sequência visual de prioridades salva.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível salvar a sequência.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a sequência.");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleLogout() {
-    if (hasUnsavedChanges && !window.confirm("Descartar as alterações de prioridade ainda não salvas?")) return;
+    if (
+      hasUnsavedChanges &&
+      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?"))
+    )
+      return;
     leavingAfterLogout.current = true;
     await logoutDashboardPriority();
     setAuthenticated(false);
@@ -164,7 +179,13 @@ export function DashboardPriorityPage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 items-start gap-3">
-            <Button type="button" variant="outline" size="icon" aria-label="Voltar" onClick={() => void navigate({ to: returnTo })}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={ui("Voltar")}
+              onClick={() => void navigate({ to: returnTo })}
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -172,46 +193,55 @@ export function DashboardPriorityPage() {
             </span>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                Organização visual
+                {ui("Organização visual")}
               </p>
-              <h1 className="text-xl font-black">Prioridade de produção</h1>
+              <h1 className="text-xl font-black">{ui("Prioridade de produção")}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.
+                {ui(
+                  "Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.",
+                )}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <LanguageSelector compact />
             <ModuleNavigation />
             {session?.username && (
               <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">
                 {session.username}
               </span>
             )}
-            {passwordRequired && <Button type="button" variant="outline" onClick={() => void handleLogout()}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </Button>}
+            {passwordRequired && (
+              <Button type="button" variant="outline" onClick={() => void handleLogout()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                {ui("Sair")}
+              </Button>
+            )}
           </div>
         </header>
 
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
           <span>
-            {rows.length} máquina(s) na sequência · {rows.filter((row) => row.isActive).length} ativa(s)
+            {rows.length}
+            {ui(" máquina(s) na sequência · ")}
+            {rows.filter((row) => row.isActive).length}
+            {ui(" ativa(s)")}
           </span>
           <span>
             {lastOrderUpdatedAt
-              ? `Última atualização: ${formatDateTime(lastOrderUpdatedAt)}${
-                  lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : ""
-                }`
-              : "Sequência ainda não salva manualmente"}
+              ? ui("Última atualização: {0}{1}", {
+                  0: formatDateTime(lastOrderUpdatedAt),
+                  1: lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : "",
+                })
+              : ui("Sequência ainda não salva manualmente")}
           </span>
         </div>
 
         <section className="overflow-hidden rounded-xl border border-border bg-card">
           {isLoading ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Carregando sequência...
+              {ui("Carregando sequência...")}
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -223,8 +253,7 @@ export function DashboardPriorityPage() {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => {
                       event.preventDefault();
-                      const sourceId =
-                        draggedId || event.dataTransfer.getData("text/plain");
+                      const sourceId = draggedId || event.dataTransfer.getData("text/plain");
                       if (sourceId) moveById(sourceId, row.id);
                       setDraggedId(null);
                     }}
@@ -248,8 +277,8 @@ export function DashboardPriorityPage() {
                         event.dataTransfer.setData("text/plain", row.id);
                       }}
                       onDragEnd={() => setDraggedId(null)}
-                      title="Arrastar para reorganizar"
-                      aria-label={`Arrastar ${row.name}`}
+                      title={ui("Arrastar para reorganizar")}
+                      aria-label={ui("Arrastar {0}", { 0: row.name })}
                       className="inline-flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
                     >
                       <GripVertical className="h-4 w-4" />
@@ -263,12 +292,13 @@ export function DashboardPriorityPage() {
                         </span>
                         {activeRank !== null && (
                           <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
-                            P{activeRank}
+                            {ui("P")}
+                            {activeRank}
                           </span>
                         )}
                         {!row.isActive && (
                           <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black text-muted-foreground">
-                            INATIVA
+                            {ui("INATIVA")}
                           </span>
                         )}
                       </div>
@@ -281,7 +311,7 @@ export function DashboardPriorityPage() {
                         size="icon"
                         disabled={index === 0}
                         onClick={() => moveRow(index, index - 1)}
-                        aria-label={`Mover ${row.name} para cima`}
+                        aria-label={ui("Mover {0} para cima", { 0: row.name })}
                       >
                         <ArrowUp className="h-4 w-4" />
                       </Button>
@@ -291,7 +321,7 @@ export function DashboardPriorityPage() {
                         size="icon"
                         disabled={index === rows.length - 1}
                         onClick={() => moveRow(index, index + 1)}
-                        aria-label={`Mover ${row.name} para baixo`}
+                        aria-label={ui("Mover {0} para baixo", { 0: row.name })}
                       >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
@@ -306,8 +336,8 @@ export function DashboardPriorityPage() {
         <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
           <p className="text-xs text-muted-foreground">
             {hasUnsavedChanges
-              ? "Alterações não salvas. O Dashboard ainda usa a sequência anterior."
-              : "Sequência sincronizada."}
+              ? ui("Alterações não salvas. O Dashboard ainda usa a sequência anterior.")
+              : ui("Sequência sincronizada.")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -324,7 +354,7 @@ export function DashboardPriorityPage() {
               }}
             >
               <Undo2 className="mr-2 h-4 w-4" />
-              Descartar
+              {ui("Descartar")}
             </Button>
             <Button
               type="button"
@@ -332,7 +362,7 @@ export function DashboardPriorityPage() {
               onClick={() => void handleSave()}
             >
               <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Salvando..." : "Salvar sequência"}
+              {isSaving ? ui("Salvando...") : ui("Salvar sequência")}
             </Button>
           </div>
         </div>
@@ -342,7 +372,8 @@ export function DashboardPriorityPage() {
         open={loginOpen}
         onOpenChange={(open) => {
           setLoginOpen(open);
-          if (!open && passwordRequired && !isDashboardPriorityAuthenticated()) void navigate({ to: returnTo });
+          if (!open && passwordRequired && !isDashboardPriorityAuthenticated())
+            void navigate({ to: returnTo });
         }}
         onSuccess={() => setAuthenticated(true)}
       />

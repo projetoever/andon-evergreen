@@ -1,3 +1,5 @@
+import { ui, systemMessage } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { KeyRound } from "lucide-react";
@@ -9,6 +11,7 @@ import { loginModule } from "@/services/moduleAuthService";
 import type { PasswordModule } from "@/types/modules";
 
 export function ModuleLoginPanel({ module, name }: { module: PasswordModule; name: string }) {
+  useInterfaceLanguage();
   const { refresh } = useModuleAccess();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -34,14 +37,17 @@ export function ModuleLoginPanel({ module, name }: { module: PasswordModule; nam
       <section className="w-full max-w-md space-y-5 rounded-xl border border-border bg-card p-6">
         <div className="flex items-center gap-3">
           <KeyRound className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-black">Acesso ao {name}</h1>
+          <h1 className="text-xl font-black">
+            {ui("Acesso ao ")}
+            {ui(name)}
+          </h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Entre com a credencial deste módulo, configurada pelo administrador no Hub.
+          {ui("Entre com a credencial deste módulo, configurada pelo administrador no Hub.")}
         </p>
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-1">
-            <Label htmlFor="module-username">Usuário</Label>
+            <Label htmlFor="module-username">{ui("Usuário")}</Label>
             <Input
               id="module-username"
               autoComplete="username"
@@ -52,7 +58,7 @@ export function ModuleLoginPanel({ module, name }: { module: PasswordModule; nam
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="module-password">Senha</Label>
+            <Label htmlFor="module-password">{ui("Senha")}</Label>
             <Input
               id="module-password"
               type="password"
@@ -65,19 +71,19 @@ export function ModuleLoginPanel({ module, name }: { module: PasswordModule; nam
           </div>
           {error && (
             <p role="alert" className="text-sm text-danger">
-              {error}
+              {systemMessage(error)}
             </p>
           )}
           <Button className="w-full" disabled={submitting} type="submit">
-            {submitting ? "Entrando..." : "Entrar"}
+            {submitting ? ui("Entrando...") : ui("Entrar")}
           </Button>
         </form>
         <div className="flex flex-wrap justify-between gap-3 text-sm">
           <Link to="/hub" className="font-bold text-primary underline">
-            Voltar ao Hub
+            {ui("Voltar ao Hub")}
           </Link>
           <Link to="/hub/admin" className="text-muted-foreground underline">
-            Acesso administrativo
+            {ui("Acesso administrativo")}
           </Link>
         </div>
       </section>

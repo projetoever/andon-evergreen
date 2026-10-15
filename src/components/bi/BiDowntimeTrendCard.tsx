@@ -1,23 +1,19 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 function formatMinutes(value: number) {
   if (!Number.isFinite(value)) return "—";
   const total = Math.max(0, Math.round(value));
   const h = Math.floor(total / 60);
-  return h > 0 ? `${h}h${total % 60 ? ` ${total % 60}min` : ""}` : `${total}min`;
+  return h > 0
+    ? `${h}${ui("h")}${total % 60 ? ` ${total % 60}${ui("min")}` : ""}`
+    : `${total}${ui("min")}`;
 }
 
 function formatDateLabel(value: string) {
   const date = new Date(`${value}T12:00:00Z`);
-  return new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat(getInterfaceLocale(), {
     day: "2-digit",
     month: "2-digit",
     timeZone: "UTC",
@@ -34,14 +30,19 @@ export function BiDowntimeTrendCard({
 }: {
   data: Array<{ date: string; downtimeMinutes: number }>;
 }) {
+  useInterfaceLanguage();
   return (
     <article className="flex h-full min-h-0 flex-col rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-3 xl:p-4 shadow-sm">
       <h2 className="text-xs xl:text-sm font-black uppercase tracking-wide">
-        Tempo de parada por dia
+        {ui("Tempo de parada por dia")}
       </h2>
-      <p className="mt-1 text-[10px] xl:text-[11px] leading-4 text-muted-foreground"
-        title="São parcelas do downtime por data operacional; o primeiro e o último dia podem estar incompletos. Uma barra menor não indica melhora da máquina.">
-        Horas de parada em cada data · dias parciais no período móvel
+      <p
+        className="mt-1 text-[10px] xl:text-[11px] leading-4 text-muted-foreground"
+        title={ui(
+          "São parcelas do downtime por data operacional; o primeiro e o último dia podem estar incompletos. Uma barra menor não indica melhora da máquina.",
+        )}
+      >
+        {ui("Horas de parada em cada data · dias parciais no período móvel")}
       </p>
 
       {data.length ? (
@@ -57,7 +58,7 @@ export function BiDowntimeTrendCard({
                 tickLine={false}
               />
               <YAxis
-                tickFormatter={(value) => `${Math.round(Number(value) / 60)}h`}
+                tickFormatter={(value) => `${Math.round(Number(value) / 60)}${ui("h")}`}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 width={35}
                 axisLine={false}
@@ -65,7 +66,7 @@ export function BiDowntimeTrendCard({
               />
               <Tooltip
                 labelFormatter={(value) => formatDateLabel(String(value))}
-                formatter={(value) => [formatMinutes(Number(value)), "Parada no dia"]}
+                formatter={(value) => [formatMinutes(Number(value)), ui("Parada no dia")]}
                 contentStyle={{
                   background: "var(--popover)",
                   borderColor: "var(--border)",
@@ -73,7 +74,7 @@ export function BiDowntimeTrendCard({
                 }}
               />
               <Bar
-                name="Parada no dia"
+                name={ui("Parada no dia")}
                 dataKey="downtimeMinutes"
                 fill="#ef4444"
                 fillOpacity={0.9}
@@ -85,7 +86,7 @@ export function BiDowntimeTrendCard({
         </div>
       ) : (
         <div className="mt-2 flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-          Sem parada física registrada no período
+          {ui("Sem parada física registrada no período")}
         </div>
       )}
     </article>

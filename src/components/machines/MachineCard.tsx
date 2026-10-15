@@ -1,3 +1,4 @@
+import { ui } from "@/i18n/translate";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Bell, MessageSquareText, Wrench } from "lucide-react";
@@ -37,10 +38,7 @@ interface MachineCardProps {
   productionPriorityRank?: number | null;
 }
 
-export function MachineCard({
-  machine,
-  productionPriorityRank = null,
-}: MachineCardProps) {
+export function MachineCard({ machine, productionPriorityRank = null }: MachineCardProps) {
   const { calls, settings } = useAndon();
   const { t } = useLanguage();
   const [operatorNoteOpen, setOperatorNoteOpen] = useState(false);
@@ -68,20 +66,22 @@ export function MachineCard({
         settings.alertRules.callOpenCriticalMinutes,
       )
     : "normal";
-  const callElapsedLabel = currentCall?.status === "open"
-    ? t("Aguardando")
-    : currentCall?.status === "in_progress"
-      ? t("Atendimento")
-      : currentCall?.status === "post_maintenance"
-        ? t("Acompanhamento")
-        : null;
-  const callElapsedMinutes = currentCall?.status === "open"
-    ? waitingMin
-    : currentCall?.status === "in_progress"
-      ? attendingMin
-      : currentCall?.status === "post_maintenance"
-        ? postMaintenanceMin
-        : null;
+  const callElapsedLabel =
+    currentCall?.status === "open"
+      ? t("Aguardando")
+      : currentCall?.status === "in_progress"
+        ? t("Atendimento")
+        : currentCall?.status === "post_maintenance"
+          ? t("Acompanhamento")
+          : null;
+  const callElapsedMinutes =
+    currentCall?.status === "open"
+      ? waitingMin
+      : currentCall?.status === "in_progress"
+        ? attendingMin
+        : currentCall?.status === "post_maintenance"
+          ? postMaintenanceMin
+          : null;
   const visibleOperatorNote =
     currentCall?.status === "open" ? currentCall.operatorNote?.trim() || null : null;
   const operatorNoteSummary =
@@ -121,13 +121,16 @@ export function MachineCard({
     machine.productionMode,
     currentCall?.status ?? machine.andonStatus,
   );
-  const compactBadgeClass = "min-w-fit shrink-0 whitespace-nowrap gap-1 px-1.5 py-0.5 text-[9px] leading-none tracking-normal sm:text-[10px] 2xl:text-[11px]";
+  const compactBadgeClass =
+    "min-w-fit shrink-0 whitespace-nowrap gap-1 px-1.5 py-0.5 text-[9px] leading-none tracking-normal sm:text-[10px] 2xl:text-[11px]";
 
   return (
     <div
       className={cn(
         "relative flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
-        machine.machineStatus === "stopped" && !isNotScheduled ? "border-danger/60" : "border-border",
+        machine.machineStatus === "stopped" && !isNotScheduled
+          ? "border-danger/60"
+          : "border-border",
         isNotScheduled && "opacity-60 grayscale-[0.35]",
         isCritical && "ring-2 ring-danger",
         isWarning && !isCritical && "ring-2 ring-warning",
@@ -149,7 +152,7 @@ export function MachineCard({
       {productionPriorityRank !== null && (
         <span
           className="absolute right-1.5 top-1.5 z-10 rounded-full border border-orange-500/55 bg-orange-500/12 px-3 py-1 text-[13px] font-black leading-none tracking-wide text-orange-400 sm:text-sm 2xl:text-[15px]"
-          title={`${t("Prioridade de produção")} P${productionPriorityRank}`}
+          title={ui("{0} P{1}", { 0: t("Prioridade de produção"), 1: productionPriorityRank })}
         >
           P{productionPriorityRank}
         </span>
@@ -157,15 +160,22 @@ export function MachineCard({
 
       <div className="flex shrink-0 items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">{t("Máquina")}</div>
-          <div className="text-4xl font-black leading-none tracking-tight text-foreground 2xl:text-5xl">{machine.id}</div>
+          <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">
+            {t("Máquina")}
+          </div>
+          <div className="text-4xl font-black leading-none tracking-tight text-foreground 2xl:text-5xl">
+            {machine.id}
+          </div>
         </div>
       </div>
 
       <div className="-m-1.5 flex shrink-0 flex-wrap gap-1 overflow-visible p-1.5">
         <MachineStatusBadge status={machine.machineStatus} className={compactBadgeClass} />
         <AndonStatusBadge status={machine.andonStatus} className={compactBadgeClass} />
-        <ProductionModeBadge productionMode={machine.productionMode} className={compactBadgeClass} />
+        <ProductionModeBadge
+          productionMode={machine.productionMode}
+          className={compactBadgeClass}
+        />
       </div>
 
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-visible px-1 text-xs leading-tight text-muted-foreground 2xl:text-sm">
@@ -174,7 +184,9 @@ export function MachineCard({
             <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {t("Em falha")}
             </span>
-            <strong className="min-w-0 truncate text-right text-foreground">{formatDurationMinutes(stoppedMin)}</strong>
+            <strong className="min-w-0 truncate text-right text-foreground">
+              {formatDurationMinutes(stoppedMin)}
+            </strong>
           </div>
         )}
         {machine.machineStatus === "stopped" && isNotScheduled && (
@@ -203,7 +215,10 @@ export function MachineCard({
             </div>
             {callElapsedLabel && callElapsedMinutes !== null && (
               <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
-                {callElapsedLabel}: <strong className="text-foreground">{formatDurationMinutes(callElapsedMinutes)}</strong>
+                {callElapsedLabel}:{" "}
+                <strong className="text-foreground">
+                  {formatDurationMinutes(callElapsedMinutes)}
+                </strong>
               </div>
             )}
             {visibleOperatorNote && (
@@ -234,7 +249,8 @@ export function MachineCard({
           <DialogHeader>
             <DialogTitle>{t("Informação do operador")}</DialogTitle>
             <DialogDescription>
-              {t("Registrada na abertura do chamado de")} {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
+              {t("Registrada na abertura do chamado de")}{" "}
+              {currentCall ? getCallSubtypeLabel(currentCall.subtype) : "ANDON"}.
             </DialogDescription>
           </DialogHeader>
           <div className="whitespace-pre-wrap rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">

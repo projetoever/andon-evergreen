@@ -63,8 +63,8 @@ test("remove Apuração somente da interface e preserva os tempos técnicos", as
   assert.doesNotMatch(history, /formatTimeAllocationSource/);
   assert.match(history, /buildTechnicianTimeAllocations/);
   assert.match(history, /buildTechnicianParticipationSummaries/);
-  assert.match(history, /Primeiro início: \{formatDateTime\(row\.startedAt\)\}/);
-  assert.match(history, /Último fim: \{formatDateTime\(row\.endedAt\)\}/);
+  assert.match(history, /ui\("Primeiro início: "\)\}\s*\{formatDateTime\(row\.startedAt\)\}/);
+  assert.match(history, /ui\("Último fim: "\)\}\s*\{formatDateTime\(row\.endedAt\)\}/);
   assert.match(history, /Total individual/);
   assert.match(history, /Tempo total legado/);
   assert.match(types, /source: TechnicianTimeAllocationSource/);
@@ -111,10 +111,7 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
       new URL("../src/components/machines/MachineCurrentCallPanel.tsx", import.meta.url),
       "utf8",
     ),
-    readFile(
-      new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/components/machines/MachineActionPanel.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(statusPanel, /text-\[clamp\(2rem,3vw,3\.25rem\)\]/);
@@ -126,7 +123,6 @@ test("tela da máquina destaca os temporizadores sem recriar navegação inferio
   assert.doesNotMatch(actions, /secondaryActionClass/);
 });
 
-
 test("temporizadores de chamado exibem no máximo duas unidades", () => {
   assert.equal(formatMachinePanelDurationMinutes(45 / 60), "45 s");
   assert.equal(formatMachinePanelDurationMinutes(22 + 15 / 60), "22 min 15 s");
@@ -137,10 +133,7 @@ test("temporizadores de chamado exibem no máximo duas unidades", () => {
 test("temporizador de parada mantém até três unidades", () => {
   assert.equal(formatMachineStoppedDurationMinutes(59 + 59 / 60), "59 min 59 s");
   assert.equal(formatMachineStoppedDurationMinutes(89 + 18 / 60), "1 h 29 min 18 s");
-  assert.equal(
-    formatMachineStoppedDurationMinutes(24 * 60 + 3 * 60 + 12),
-    "1 d 03 h 12 min",
-  );
+  assert.equal(formatMachineStoppedDurationMinutes(24 * 60 + 3 * 60 + 12), "1 d 03 h 12 min");
 });
 
 test("painéis da máquina usam o formato compacto nos temporizadores destacados", async () => {
@@ -161,7 +154,6 @@ test("painéis da máquina usam o formato compacto nos temporizadores destacados
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(postMaintenance\)/);
   assert.match(callPanel, /formatMachinePanelDurationMinutes\(total\)/);
 });
-
 
 test("aviso de workstation não muda o tamanho das ações nem libera conclusão bloqueada", () => {
   const call = {
@@ -228,16 +220,9 @@ test("histórico fica imediatamente à esquerda de fixar tela com a mesma escala
   assert.ok(historyIndex > historyStart);
   assert.ok(lockStart > historyIndex);
   assert.ok(lockIndex > lockStart);
-  assert.match(
-    source.slice(historyStart, lockStart),
-    /h-9.*text-\[11px\].*md:h-10/s,
-  );
-  assert.match(
-    source.slice(lockStart),
-    /h-9.*text-\[11px\].*md:h-10/s,
-  );
+  assert.match(source.slice(historyStart, lockStart), /h-9.*text-\[11px\].*md:h-10/s);
+  assert.match(source.slice(lockStart), /h-9.*text-\[11px\].*md:h-10/s);
 });
-
 
 test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", async () => {
   const source = await readFile(
@@ -253,7 +238,6 @@ test("histórico e fixar tela permanecem juntos em qualquer quebra responsiva", 
   assert.ok(historyIndex > pairStart);
   assert.ok(lockIndex > historyIndex);
 });
-
 
 test("status e chamado alinham os temporizadores na zona superior", async () => {
   const [statusPanel, callPanel] = await Promise.all([
@@ -283,7 +267,6 @@ test("status e chamado alinham os temporizadores na zona superior", async () => 
   assert.match(callPanel, /label=\{t\("Acompanhamento"\)\}/);
   assert.match(callPanel, /label=\{t\("Total"\)\}/);
 });
-
 
 test("cartões de status preenchem a faixa informativa e contadores seguem logo abaixo", async () => {
   const [statusPanel, callPanel] = await Promise.all([

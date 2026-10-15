@@ -1,3 +1,5 @@
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import type { LucideIcon } from "lucide-react";
 
 import type { AnalyticsMetricComparison } from "@/types/analytics";
@@ -8,10 +10,8 @@ type TrendMeaning = "neutral" | "lowerBetter" | "higherBetter";
 const TONE_CLASSES: Record<KpiTone, string> = {
   amber:
     "border-amber-500/30 border-t-2 border-t-amber-400 bg-gradient-to-br from-amber-500/[0.07] to-card",
-  blue:
-    "border-sky-500/30 border-t-2 border-t-sky-400 bg-gradient-to-br from-sky-500/[0.07] to-card",
-  red:
-    "border-red-500/30 border-t-2 border-t-red-500 bg-gradient-to-br from-red-500/[0.08] to-card",
+  blue: "border-sky-500/30 border-t-2 border-t-sky-400 bg-gradient-to-br from-sky-500/[0.07] to-card",
+  red: "border-red-500/30 border-t-2 border-t-red-500 bg-gradient-to-br from-red-500/[0.08] to-card",
   green:
     "border-emerald-500/30 border-t-2 border-t-emerald-400 bg-gradient-to-br from-emerald-500/[0.07] to-card",
   neutral: "border-border border-t-2 border-t-muted-foreground/40 bg-card",
@@ -25,10 +25,7 @@ const ICON_CLASSES: Record<KpiTone, string> = {
   neutral: "text-muted-foreground",
 };
 
-function trendClasses(
-  metric: AnalyticsMetricComparison,
-  meaning: TrendMeaning,
-) {
+function trendClasses(metric: AnalyticsMetricComparison, meaning: TrendMeaning) {
   if (metric.direction === "flat" || metric.direction === "unavailable") {
     return "border-border bg-muted/40 text-muted-foreground";
   }
@@ -39,8 +36,7 @@ function trendClasses(
 
   const upIsGood = meaning === "higherBetter";
   const isGood =
-    (metric.direction === "up" && upIsGood) ||
-    (metric.direction === "down" && !upIsGood);
+    (metric.direction === "up" && upIsGood) || (metric.direction === "down" && !upIsGood);
 
   return isGood
     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
@@ -49,8 +45,8 @@ function trendClasses(
 
 function trendLabel(metric: AnalyticsMetricComparison) {
   if (metric.direction === "unavailable") return null;
-  if (metric.direction === "new") return "novo vs anterior";
-  if (metric.direction === "flat") return "estável";
+  if (metric.direction === "new") return ui("novo vs anterior");
+  if (metric.direction === "flat") return ui("estável");
   if (metric.deltaPercent === null) return null;
 
   const arrow = metric.direction === "up" ? "▲" : "▼";
@@ -78,15 +74,12 @@ export function BiKpiCard({
   sampleSize?: number;
   tooltip?: string;
 }) {
+  useInterfaceLanguage();
   const comparisonLabel = trend ? trendLabel(trend) : null;
-  const lowSample =
-    typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5;
+  const lowSample = typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5;
 
   return (
-    <article
-      className={`rounded-xl border p-4 shadow-sm ${TONE_CLASSES[tone]}`}
-      title={tooltip}
-    >
+    <article className={`rounded-xl border p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={tooltip}>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">
           {label}
@@ -112,7 +105,7 @@ export function BiKpiCard({
 
       {lowSample && (
         <span className="mt-2 inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
-          Baixa amostra
+          {ui("Baixa amostra")}
         </span>
       )}
     </article>

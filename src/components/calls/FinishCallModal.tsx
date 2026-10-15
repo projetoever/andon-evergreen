@@ -1,9 +1,6 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,43 +20,21 @@ import { BigButton } from "@/components/common/BigButton";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
-import {
-  listMachineSets,
-} from "@/services/machineAssetService";
+import { listMachineSets } from "@/services/machineAssetService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
-import type {
-  MachineSet,
-} from "@/types/machineSet";
+import type { MachineSet } from "@/types/machineSet";
 import type { FailureClassificationConfig } from "@/types/settings";
-import {
-  requiresMaintenanceTechnician,
-} from "@/utils/callTypeUtils";
-import {
-  getCallSubtypeLabel,
-} from "@/utils/statusUtils";
-import {
-  calculateAttendanceMinutes,
-  formatCompactDurationMinutes,
-} from "@/utils/durationUtils";
+import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { getCallSubtypeLabel } from "@/utils/statusUtils";
+import { calculateAttendanceMinutes, formatCompactDurationMinutes } from "@/utils/durationUtils";
 import { useTicker } from "@/hooks/useTicker";
-import {
-  isSpecificFailureClassification,
-} from "@/utils/failureEventUtils";
+import { isSpecificFailureClassification } from "@/utils/failureEventUtils";
 import { getFinishCallDefaults } from "@/utils/finishCallDefaults";
-import {
-  Check,
-  CheckCircle2,
-  CircleStop,
-  MapPin,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Check, CheckCircle2, CircleStop, MapPin } from "lucide-react";
+import { toast } from "@/i18n/toast";
 
-const ACTIVE_CALL_STATUSES = new Set([
-  "open",
-  "in_progress",
-  "post_maintenance",
-]);
+const ACTIVE_CALL_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
 interface FinishCallModalProps {
   open: boolean;
@@ -77,184 +52,94 @@ function assetKey(
     return `id:${id}`;
   }
 
-  const values = [
-    code?.trim() ?? "",
-    name?.trim() ?? "",
-    type?.trim() ?? "",
-  ];
+  const values = [code?.trim() ?? "", name?.trim() ?? "", type?.trim() ?? ""];
 
-  return values.some(Boolean)
-    ? `snapshot:${values.join("|")}`
-    : null;
+  return values.some(Boolean) ? `snapshot:${values.join("|")}` : null;
 }
 
 function formatAssetLocation(
   setName: string | null | undefined,
   subsetName: string | null | undefined,
 ) {
-  const values = [
-    setName?.trim(),
-    subsetName?.trim(),
-  ].filter(
-    (value): value is string =>
-      Boolean(value),
+  const values = [setName?.trim(), subsetName?.trim()].filter((value): value is string =>
+    Boolean(value),
   );
 
-  return values.length
-    ? values.join(" › ")
-    : "Sem conjunto informado";
+  return values.length ? values.join(" › ") : ui("Sem conjunto informado");
 }
 
-export function FinishCallModal({
-  open,
-  onOpenChange,
-  callId,
-}: FinishCallModalProps) {
-  const {
-    calls,
-    finishCall,
-    machines,
-  } = useAndon();
+export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalProps) {
+  useInterfaceLanguage();
+  const { calls, finishCall, machines } = useAndon();
 
   useTicker(60_000);
 
-  const call = callId
-    ? calls.find(
-        (item) => item.id === callId,
-      ) ?? null
-    : null;
+  const call = callId ? (calls.find((item) => item.id === callId) ?? null) : null;
 
-  const [callDescription, setCallDescription] =
-    useState("");
+  const [callDescription, setCallDescription] = useState("");
 
-  const [failureClassification, setFailureClassification] =
-    useState("");
+  const [failureClassification, setFailureClassification] = useState("");
 
-  const [failureClassifications, setFailureClassifications] =
-    useState<FailureClassificationConfig[]>([]);
+  const [failureClassifications, setFailureClassifications] = useState<
+    FailureClassificationConfig[]
+  >([]);
 
-  const [isLoadingFailureClassifications, setIsLoadingFailureClassifications] =
-    useState(false);
+  const [isLoadingFailureClassifications, setIsLoadingFailureClassifications] = useState(false);
 
-  const [failureClassificationsLoadFailed, setFailureClassificationsLoadFailed] =
-    useState(false);
+  const [failureClassificationsLoadFailed, setFailureClassificationsLoadFailed] = useState(false);
 
-  const [
-    machineSets,
-    setMachineSets,
-  ] = useState<MachineSet[]>([]);
+  const [machineSets, setMachineSets] = useState<MachineSet[]>([]);
 
-  const [
-    confirmedMachineSetId,
-    setConfirmedMachineSetId,
-  ] = useState<string | null>(null);
+  const [confirmedMachineSetId, setConfirmedMachineSetId] = useState<string | null>(null);
 
-  const [
-    confirmedMachineSubsetId,
-    setConfirmedMachineSubsetId,
-  ] = useState<string | null>(null);
+  const [confirmedMachineSubsetId, setConfirmedMachineSubsetId] = useState<string | null>(null);
 
+  const [assetChangeReason, setAssetChangeReason] = useState("");
 
-  const [
-    assetChangeReason,
-    setAssetChangeReason,
-  ] = useState("");
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
 
-  const [
-    isLoadingAssets,
-    setIsLoadingAssets,
-  ] = useState(false);
+  const [assetLoadFailed, setAssetLoadFailed] = useState(false);
 
-  const [
-    assetLoadFailed,
-    setAssetLoadFailed,
-  ] = useState(false);
+  const [allowWholeSetCalls, setAllowWholeSetCalls] = useState(false);
 
-  const [
-    allowWholeSetCalls,
-    setAllowWholeSetCalls,
-  ] = useState(false);
+  const [isLoadingSystemSettings, setIsLoadingSystemSettings] = useState(false);
 
-  const [
-    isLoadingSystemSettings,
-    setIsLoadingSystemSettings,
-  ] = useState(false);
+  const [systemSettingsLoadFailed, setSystemSettingsLoadFailed] = useState(false);
 
-  const [
-    systemSettingsLoadFailed,
-    setSystemSettingsLoadFailed,
-  ] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [
-    isSubmitting,
-    setIsSubmitting,
-  ] = useState(false);
+  const [conditionConfirmationOpen, setConditionConfirmationOpen] = useState(false);
 
-  const [
-    conditionConfirmationOpen,
-    setConditionConfirmationOpen,
-  ] = useState(false);
+  const [machineContinuesStopped, setMachineContinuesStopped] = useState(false);
 
-  const [
-    machineContinuesStopped,
-    setMachineContinuesStopped,
-  ] = useState(false);
+  const [selectedImpactCallIds, setSelectedImpactCallIds] = useState<string[]>([]);
 
-  const [
-    selectedImpactCallIds,
-    setSelectedImpactCallIds,
-  ] = useState<string[]>([]);
+  const initializedCallIdRef = useRef<string | null>(null);
 
-  const initializedCallIdRef =
-    useRef<string | null>(null);
+  const option = call ? getCallTypeOption(call.subtype) : null;
 
-  const option = call
-    ? getCallTypeOption(call.subtype)
-    : null;
+  const requiresTechnician = call ? requiresMaintenanceTechnician(call) : false;
 
-  const requiresTechnician = call
-    ? requiresMaintenanceTechnician(call)
-    : false;
-
-  const requiresAssetConfirmation =
-    call?.category === "maintenance";
+  const requiresAssetConfirmation = call?.category === "maintenance";
 
   const currentMachineId = call?.machineId;
 
-  const activeSessionNames =
-    useMemo(
-      () =>
-        Array.from(
-          new Set(
-            (
-              call?.technicianSessions ??
-              []
-            )
-              .filter(
-                (session) =>
-                  !session.endedAt,
-              )
-              .map(
-                (session) =>
-                  session.technicianName,
-              ),
-          ),
+  const activeSessionNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (call?.technicianSessions ?? [])
+            .filter((session) => !session.endedAt)
+            .map((session) => session.technicianName),
         ),
-      [call?.technicianSessions],
-    );
+      ),
+    [call?.technicianSessions],
+  );
 
   const allSessionNames = useMemo(
     () =>
       Array.from(
-        new Set(
-          (
-            call?.technicianSessions ??
-            []
-          ).map(
-            (session) =>
-              session.technicianName,
-          ),
-        ),
+        new Set((call?.technicianSessions ?? []).map((session) => session.technicianName)),
       ),
     [call?.technicianSessions],
   );
@@ -263,18 +148,17 @@ export function FinishCallModal({
     ? activeSessionNames
     : allSessionNames.length
       ? allSessionNames
-      : Array.from(new Set([...(call?.technicianNames ?? []), call?.technicianName].filter(Boolean))) as string[];
+      : (Array.from(
+          new Set([...(call?.technicianNames ?? []), call?.technicianName].filter(Boolean)),
+        ) as string[]);
 
-  const machine = call
-    ? machines.find((item) => item.id === call.machineId) ?? null
-    : null;
+  const machine = call ? (machines.find((item) => item.id === call.machineId) ?? null) : null;
 
   const activeFailureClassifications = useMemo(
     () =>
       failureClassifications.filter(
         (classification) =>
-          classification.active &&
-          isSpecificFailureClassification(classification.value),
+          classification.active && isSpecificFailureClassification(classification.value),
       ),
     [failureClassifications],
   );
@@ -284,16 +168,16 @@ export function FinishCallModal({
   );
 
   const preservesExistingInactiveClassification = Boolean(
-      selectedFailureClassification &&
-      !selectedFailureClassification.active &&
-      isSpecificFailureClassification(selectedFailureClassification.value) &&
-      call?.failureClassification === selectedFailureClassification.value,
+    selectedFailureClassification &&
+    !selectedFailureClassification.active &&
+    isSpecificFailureClassification(selectedFailureClassification.value) &&
+    call?.failureClassification === selectedFailureClassification.value,
   );
 
   const hasValidFailureClassification = Boolean(
     selectedFailureClassification &&
-      isSpecificFailureClassification(selectedFailureClassification.value) &&
-      (selectedFailureClassification.active || preservesExistingInactiveClassification),
+    isSpecificFailureClassification(selectedFailureClassification.value) &&
+    (selectedFailureClassification.active || preservesExistingInactiveClassification),
   );
 
   const remainingActiveCalls = call
@@ -310,14 +194,11 @@ export function FinishCallModal({
 
   const ownsCurrentStop = Boolean(
     call &&
-      machine?.machineStatus === "stopped" &&
-      machine.stopHistory.some(
-        (event) => !event.resumedAt && event.callId === call.id,
-      ),
+    machine?.machineStatus === "stopped" &&
+    machine.stopHistory.some((event) => !event.resumedAt && event.callId === call.id),
   );
 
-  const requiresConditionConfirmation =
-    ownsCurrentStop && remainingActiveCalls.length > 0;
+  const requiresConditionConfirmation = ownsCurrentStop && remainingActiveCalls.length > 0;
 
   const remainingCallLabels = Array.from(
     new Set(remainingActiveCalls.map((item) => getCallSubtypeLabel(item.subtype))),
@@ -325,49 +206,31 @@ export function FinishCallModal({
 
   useEffect(() => {
     if (!open) {
-      initializedCallIdRef.current =
-        null;
+      initializedCallIdRef.current = null;
 
       return;
     }
 
-    if (
-      !call ||
-      initializedCallIdRef.current ===
-        call.id
-    ) {
+    if (!call || initializedCallIdRef.current === call.id) {
       return;
     }
 
-    initializedCallIdRef.current =
-      call.id;
+    initializedCallIdRef.current = call.id;
 
     const defaults = getFinishCallDefaults(call);
     setFailureClassification(defaults.classification);
     setCallDescription(defaults.description);
 
-    setConfirmedMachineSetId(
-      call.machineSetId ?? null,
-    );
+    setConfirmedMachineSetId(call.machineSetId ?? null);
 
-    setConfirmedMachineSubsetId(
-      call.machineSubsetId ?? null,
-    );
-
+    setConfirmedMachineSubsetId(call.machineSubsetId ?? null);
 
     setAssetChangeReason("");
     setIsSubmitting(false);
     setConditionConfirmationOpen(false);
     setMachineContinuesStopped(false);
     setSelectedImpactCallIds([]);
-  }, [
-    open,
-    call,
-    call?.id,
-    call?.failureClassification,
-    call?.failureDescription,
-    call?.notes,
-  ]);
+  }, [open, call, call?.id, call?.failureClassification, call?.failureDescription, call?.notes]);
 
   useEffect(() => {
     if (!open || !callId || call?.isSystemTest) {
@@ -395,9 +258,9 @@ export function FinishCallModal({
           );
           const mayPreserveInactive = Boolean(
             selected &&
-              !selected.active &&
-              isSpecificFailureClassification(selected.value) &&
-              call?.failureClassification === selected.value,
+            !selected.active &&
+            isSpecificFailureClassification(selected.value) &&
+            call?.failureClassification === selected.value,
           );
 
           return selected &&
@@ -458,9 +321,7 @@ export function FinishCallModal({
         setMachineSets([]);
         setAssetLoadFailed(true);
 
-        toast.error(
-          "Não foi possível carregar os conjuntos da máquina",
-        );
+        toast.error("Não foi possível carregar os conjuntos da máquina");
       })
       .finally(() => {
         if (current) {
@@ -471,12 +332,7 @@ export function FinishCallModal({
     return () => {
       current = false;
     };
-  }, [
-    open,
-    callId,
-    currentMachineId,
-    requiresAssetConfirmation,
-  ]);
+  }, [open, callId, currentMachineId, requiresAssetConfirmation]);
 
   useEffect(() => {
     if (!open || !requiresAssetConfirmation) {
@@ -507,9 +363,7 @@ export function FinishCallModal({
         setAllowWholeSetCalls(false);
         setSystemSettingsLoadFailed(true);
 
-        toast.error(
-          "Não foi possível carregar a política de seleção de ativos",
-        );
+        toast.error("Não foi possível carregar a política de seleção de ativos");
       })
       .finally(() => {
         if (current) {
@@ -522,212 +376,134 @@ export function FinishCallModal({
     };
   }, [open, requiresAssetConfirmation]);
 
-  const selectableMachineSets =
-    useMemo(
-      () =>
-        machineSets.filter(
-          (machineSet) =>
-            machineSet.isActive ||
-            machineSet.id ===
-              call?.machineSetId,
-        ),
-      [
-        machineSets,
-        call?.machineSetId,
-      ],
-    );
+  const selectableMachineSets = useMemo(
+    () =>
+      machineSets.filter(
+        (machineSet) => machineSet.isActive || machineSet.id === call?.machineSetId,
+      ),
+    [machineSets, call?.machineSetId],
+  );
 
   const selectedMachineSet = useMemo(
     () =>
-      selectableMachineSets.find(
-        (machineSet) =>
-          machineSet.id ===
-          confirmedMachineSetId,
-      ) ?? null,
-    [
-      selectableMachineSets,
-      confirmedMachineSetId,
-    ],
+      selectableMachineSets.find((machineSet) => machineSet.id === confirmedMachineSetId) ?? null,
+    [selectableMachineSets, confirmedMachineSetId],
   );
 
-  const selectableMachineSubsets =
-    useMemo(
-      () =>
-        (
-          selectedMachineSet?.subsets ??
-          []
-        ).filter(
-          (subset) =>
-            (
-              subset.isActive &&
-              subset.subsetType
-                ?.isActive !== false
-            ) ||
-            subset.id ===
-              call?.machineSubsetId,
-        ),
-      [
-        selectedMachineSet,
-        call?.machineSubsetId,
-      ],
-    );
+  const selectableMachineSubsets = useMemo(
+    () =>
+      (selectedMachineSet?.subsets ?? []).filter(
+        (subset) =>
+          (subset.isActive && subset.subsetType?.isActive !== false) ||
+          subset.id === call?.machineSubsetId,
+      ),
+    [selectedMachineSet, call?.machineSubsetId],
+  );
 
-  const selectedMachineSubset =
-    useMemo(
-      () =>
-        selectableMachineSubsets.find(
-          (subset) =>
-            subset.id ===
-            confirmedMachineSubsetId,
-        ) ?? null,
-      [
-        selectableMachineSubsets,
-        confirmedMachineSubsetId,
-      ],
-    );
+  const selectedMachineSubset = useMemo(
+    () => selectableMachineSubsets.find((subset) => subset.id === confirmedMachineSubsetId) ?? null,
+    [selectableMachineSubsets, confirmedMachineSubsetId],
+  );
 
-  const hasActiveSets =
-    selectableMachineSets.some(
-      (machineSet) =>
-        machineSet.isActive,
-    );
+  const hasActiveSets = selectableMachineSets.some((machineSet) => machineSet.isActive);
 
   const hasValidAssetSelection = Boolean(
     !requiresAssetConfirmation ||
-      (!hasActiveSets && !selectedMachineSet) ||
-      (selectedMachineSet &&
-        (selectableMachineSubsets.length === 0 ||
-          selectedMachineSubset ||
-          (allowWholeSetCalls &&
-            !isLoadingSystemSettings &&
-            !systemSettingsLoadFailed))),
+    (!hasActiveSets && !selectedMachineSet) ||
+    (selectedMachineSet &&
+      (selectableMachineSubsets.length === 0 ||
+        selectedMachineSubset ||
+        (allowWholeSetCalls && !isLoadingSystemSettings && !systemSettingsLoadFailed))),
   );
 
   const preserveLegacySetSnapshot =
-    requiresAssetConfirmation &&
-    !hasActiveSets &&
-    !selectedMachineSet;
+    requiresAssetConfirmation && !hasActiveSets && !selectedMachineSet;
 
-  const finalMachineSetId =
-    selectedMachineSet?.id ?? null;
+  const finalMachineSetId = selectedMachineSet?.id ?? null;
 
   const finalMachineSetCode =
     selectedMachineSet?.code ??
-    (preserveLegacySetSnapshot
-      ? call?.machineSetCodeSnapshot ??
-        null
-      : null);
+    (preserveLegacySetSnapshot ? (call?.machineSetCodeSnapshot ?? null) : null);
 
   const finalMachineSetName =
     selectedMachineSet?.name ??
-    (preserveLegacySetSnapshot
-      ? call?.machineSetNameSnapshot ??
-        null
-      : null);
+    (preserveLegacySetSnapshot ? (call?.machineSetNameSnapshot ?? null) : null);
 
   const finalMachineSetType =
     selectedMachineSet?.setType?.code ??
     selectedMachineSet?.type ??
-    (preserveLegacySetSnapshot
-      ? call?.machineSetTypeSnapshot ??
-        null
-      : null);
+    (preserveLegacySetSnapshot ? (call?.machineSetTypeSnapshot ?? null) : null);
 
-  const preserveLegacySubsetSnapshot =
-    preserveLegacySetSnapshot &&
-    !selectedMachineSubset;
+  const preserveLegacySubsetSnapshot = preserveLegacySetSnapshot && !selectedMachineSubset;
 
-  const finalMachineSubsetId =
-    selectedMachineSubset?.id ?? null;
+  const finalMachineSubsetId = selectedMachineSubset?.id ?? null;
 
   const finalMachineSubsetCode =
     selectedMachineSubset?.code ??
-    (preserveLegacySubsetSnapshot
-      ? call
-          ?.machineSubsetCodeSnapshot ??
-        null
-      : null);
+    (preserveLegacySubsetSnapshot ? (call?.machineSubsetCodeSnapshot ?? null) : null);
 
   const finalMachineSubsetName =
     selectedMachineSubset?.name ??
-    (preserveLegacySubsetSnapshot
-      ? call
-          ?.machineSubsetNameSnapshot ??
-        null
-      : null);
+    (preserveLegacySubsetSnapshot ? (call?.machineSubsetNameSnapshot ?? null) : null);
 
   const finalMachineSubsetType =
-    selectedMachineSubset
-      ?.subsetType?.code ??
-    (selectedMachineSubset?.id === call?.machineSubsetId ||
-    preserveLegacySubsetSnapshot
-      ? call?.machineSubsetTypeSnapshot ?? null
+    selectedMachineSubset?.subsetType?.code ??
+    (selectedMachineSubset?.id === call?.machineSubsetId || preserveLegacySubsetSnapshot
+      ? (call?.machineSubsetTypeSnapshot ?? null)
       : null);
 
   const openingLocationExists = Boolean(
     requiresAssetConfirmation &&
-      call &&
-      (assetKey(
-        call.machineSetId,
-        call.machineSetCodeSnapshot,
-        call.machineSetNameSnapshot,
-        call.machineSetTypeSnapshot,
-      ) ||
-        assetKey(
-          call.machineSubsetId,
-          call.machineSubsetCodeSnapshot,
-          call.machineSubsetNameSnapshot,
-          call.machineSubsetTypeSnapshot,
-        )),
+    call &&
+    (assetKey(
+      call.machineSetId,
+      call.machineSetCodeSnapshot,
+      call.machineSetNameSnapshot,
+      call.machineSetTypeSnapshot,
+    ) ||
+      assetKey(
+        call.machineSubsetId,
+        call.machineSubsetCodeSnapshot,
+        call.machineSubsetNameSnapshot,
+        call.machineSubsetTypeSnapshot,
+      )),
   );
 
   const locationChanged = Boolean(
     call &&
-      openingLocationExists &&
-      (
+    openingLocationExists &&
+    (assetKey(
+      call.machineSetId,
+      call.machineSetCodeSnapshot,
+      call.machineSetNameSnapshot,
+      call.machineSetTypeSnapshot,
+    ) !==
+      assetKey(finalMachineSetId, finalMachineSetCode, finalMachineSetName, finalMachineSetType) ||
+      assetKey(
+        call.machineSubsetId,
+        call.machineSubsetCodeSnapshot,
+        call.machineSubsetNameSnapshot,
+        call.machineSubsetTypeSnapshot,
+      ) !==
         assetKey(
-          call.machineSetId,
-          call.machineSetCodeSnapshot,
-          call.machineSetNameSnapshot,
-          call.machineSetTypeSnapshot,
-        ) !==
-          assetKey(
-            finalMachineSetId,
-            finalMachineSetCode,
-            finalMachineSetName,
-            finalMachineSetType,
-          ) ||
-        assetKey(
-          call.machineSubsetId,
-          call.machineSubsetCodeSnapshot,
-          call.machineSubsetNameSnapshot,
-          call.machineSubsetTypeSnapshot,
-        ) !==
-          assetKey(
-            finalMachineSubsetId,
-            finalMachineSubsetCode,
-            finalMachineSubsetName,
-            finalMachineSubsetType,
-          )
-      ),
+          finalMachineSubsetId,
+          finalMachineSubsetCode,
+          finalMachineSubsetName,
+          finalMachineSubsetType,
+        )),
   );
 
   const canFinish = Boolean(
     call &&
-      (!requiresAssetConfirmation ||
-        (!isLoadingAssets &&
-          !assetLoadFailed)) &&
-      !isSubmitting &&
-      hasValidAssetSelection &&
-      (call.isSystemTest ||
-        (!isLoadingFailureClassifications &&
-          !failureClassificationsLoadFailed &&
-          hasValidFailureClassification &&
-          callDescription.trim().length > 0)) &&
-      (
-        !requiresTechnician ||
-        technicianNames.length > 0
-      ),
+    (!requiresAssetConfirmation || (!isLoadingAssets && !assetLoadFailed)) &&
+    !isSubmitting &&
+    hasValidAssetSelection &&
+    (call.isSystemTest ||
+      (!isLoadingFailureClassifications &&
+        !failureClassificationsLoadFailed &&
+        hasValidFailureClassification &&
+        callDescription.trim().length > 0)) &&
+    (!requiresTechnician || technicianNames.length > 0),
   );
 
   if (!call) {
@@ -736,91 +512,54 @@ export function FinishCallModal({
 
   const currentCall = call;
 
-  const openingLocationLabel =
-    formatAssetLocation(
-      currentCall
-        .machineSetNameSnapshot,
-      currentCall
-        .machineSubsetNameSnapshot,
-    );
+  const openingLocationLabel = formatAssetLocation(
+    currentCall.machineSetNameSnapshot,
+    currentCall.machineSubsetNameSnapshot,
+  );
 
-  const confirmedLocationLabel =
-    formatAssetLocation(
-      finalMachineSetName,
-      finalMachineSubsetName,
-    );
+  const confirmedLocationLabel = formatAssetLocation(finalMachineSetName, finalMachineSubsetName);
 
-  const attendanceDurationLabel =
-    formatCompactDurationMinutes(
-      calculateAttendanceMinutes(
-        currentCall,
-      ),
-      "menos de 1 min",
-    );
+  const attendanceDurationLabel = formatCompactDurationMinutes(
+    calculateAttendanceMinutes(currentCall),
+    ui("menos de 1 min"),
+  );
 
   const technicianSummary =
     technicianNames.length > 0
       ? technicianNames.join(", ")
       : requiresTechnician
-        ? "Mantenedor não selecionado"
-        : "Sem mantenedor obrigatório";
+        ? ui("Mantenedor não selecionado")
+        : ui("Sem mantenedor obrigatório");
 
   function resolveSelectedTechnicians() {
-    return technicianNames.map(
-      (name) => {
-        const activeSession = (
-          currentCall
-            .technicianSessions ??
-          []
-        ).find(
-          (session) =>
-            !session.endedAt &&
-            session.technicianName ===
-              name,
-        );
+    return technicianNames.map((name) => {
+      const activeSession = (currentCall.technicianSessions ?? []).find(
+        (session) => !session.endedAt && session.technicianName === name,
+      );
 
-        const anySession = (
-          currentCall
-            .technicianSessions ??
-          []
-        ).find(
-          (session) =>
-            session.technicianName ===
-            name,
-        );
+      const anySession = (currentCall.technicianSessions ?? []).find(
+        (session) => session.technicianName === name,
+      );
 
-        return {
-          name,
+      return {
+        name,
 
-          id:
-            activeSession
-              ?.technicianId ??
-            anySession?.technicianId,
+        id: activeSession?.technicianId ?? anySession?.technicianId,
 
-          shiftId:
-            activeSession?.shiftId ??
-            anySession?.shiftId,
+        shiftId: activeSession?.shiftId ?? anySession?.shiftId,
 
-          shiftName:
-            activeSession?.shiftName ??
-            anySession?.shiftName,
+        shiftName: activeSession?.shiftName ?? anySession?.shiftName,
 
-          technicalArea:
-            activeSession
-              ?.technicalArea ??
-            anySession
-              ?.technicalArea ??
-            option?.technicianArea ??
-            undefined,
-        };
-      },
-    );
+        technicalArea:
+          activeSession?.technicalArea ??
+          anySession?.technicalArea ??
+          option?.technicianArea ??
+          undefined,
+      };
+    });
   }
 
-  async function submitFinish(
-    machineStatus?: "running" | "stopped",
-    impactCallIds: string[] = [],
-  ) {
+  async function submitFinish(machineStatus?: "running" | "stopped", impactCallIds: string[] = []) {
     if (!canFinish) {
       return;
     }
@@ -829,8 +568,7 @@ export function FinishCallModal({
 
     try {
       const normalizedDescription = callDescription.trim();
-      const selectedTechnicians =
-        resolveSelectedTechnicians();
+      const selectedTechnicians = resolveSelectedTechnicians();
 
       await finishCall({
         callId: currentCall.id,
@@ -839,79 +577,54 @@ export function FinishCallModal({
 
         impactCallIds,
 
-        technicianName:
-          technicianNames[0] ?? null,
+        technicianName: technicianNames[0] ?? null,
 
         technicianNames,
 
-        technicianArea:
-          selectedTechnicians[0]
-            ?.technicalArea ??
-          option?.technicianArea ??
-          null,
+        technicianArea: selectedTechnicians[0]?.technicalArea ?? option?.technicianArea ?? null,
 
         selectedTechnicians,
 
-        notes:
-          normalizedDescription || null,
+        notes: normalizedDescription || null,
 
-        failureClassification: currentCall.isSystemTest ? null : failureClassification.trim() || null,
+        failureClassification: currentCall.isSystemTest
+          ? null
+          : failureClassification.trim() || null,
 
         failureDescription: currentCall.isSystemTest ? null : normalizedDescription || null,
 
-        confirmedMachineSetId:
-          finalMachineSetId,
+        confirmedMachineSetId: finalMachineSetId,
 
-        confirmedMachineSetCodeSnapshot:
-          finalMachineSetCode,
+        confirmedMachineSetCodeSnapshot: finalMachineSetCode,
 
-        confirmedMachineSetNameSnapshot:
-          finalMachineSetName,
+        confirmedMachineSetNameSnapshot: finalMachineSetName,
 
-        confirmedMachineSetTypeSnapshot:
-          finalMachineSetType,
+        confirmedMachineSetTypeSnapshot: finalMachineSetType,
 
-        confirmedMachineSubsetId:
-          finalMachineSubsetId,
+        confirmedMachineSubsetId: finalMachineSubsetId,
 
-        confirmedMachineSubsetCodeSnapshot:
-          finalMachineSubsetCode,
+        confirmedMachineSubsetCodeSnapshot: finalMachineSubsetCode,
 
-        confirmedMachineSubsetNameSnapshot:
-          finalMachineSubsetName,
+        confirmedMachineSubsetNameSnapshot: finalMachineSubsetName,
 
-        confirmedMachineSubsetTypeSnapshot:
-          finalMachineSubsetType,
+        confirmedMachineSubsetTypeSnapshot: finalMachineSubsetType,
 
-
-        assetChangeReason:
-          locationChanged
-            ? assetChangeReason.trim() || null
-            : null,
+        assetChangeReason: locationChanged ? assetChangeReason.trim() || null : null,
       });
 
-      toast.success(
-        `Chamado da Máquina ${currentCall.machineId} finalizado`,
-      );
+      toast.success(`Chamado da Máquina ${currentCall.machineId} finalizado`);
 
       setConditionConfirmationOpen(false);
       onOpenChange(false);
-    }
-    catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao finalizar chamado";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ui("Erro ao finalizar chamado");
 
       if (message.includes("máquina continua em falha")) {
         setConditionConfirmationOpen(true);
       }
 
-      toast.error(
-        message,
-      );
-    }
-    finally {
+      toast.error(message);
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -947,20 +660,19 @@ export function FinishCallModal({
       <DialogContent
         className={cn(
           "grid max-h-[96dvh] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0",
-          requiresAssetConfirmation
-            ? "max-w-5xl"
-            : "max-w-2xl",
+          requiresAssetConfirmation ? "max-w-5xl" : "max-w-2xl",
         )}
       >
         <DialogHeader className="border-b border-border px-4 py-3 pr-11 sm:px-5">
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
             <DialogTitle className="shrink-0 text-2xl sm:text-3xl">
-              Finalizar chamado
+              {ui("Finalizar chamado")}
             </DialogTitle>
 
             <DialogDescription className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm sm:ml-2">
               <span className="rounded-lg bg-muted px-2.5 py-1 font-black text-foreground">
-                Máquina {currentCall.machineId}
+                {ui("Máquina ")}
+                {currentCall.machineId}
               </span>
 
               <span className="rounded-lg border border-border px-2.5 py-1 font-bold text-foreground">
@@ -968,7 +680,8 @@ export function FinishCallModal({
               </span>
 
               <span className="rounded-lg border border-info/30 bg-info/10 px-2.5 py-1 font-bold text-info">
-                Atendimento: {attendanceDurationLabel}
+                {ui("Atendimento: ")}
+                {attendanceDurationLabel}
               </span>
             </DialogDescription>
           </div>
@@ -976,184 +689,91 @@ export function FinishCallModal({
           {requiresTechnician && option?.technicianArea && (
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-left text-xs">
               <span className="font-bold uppercase tracking-wide text-muted-foreground">
-                Mantenedor
+                {ui("Mantenedor")}
               </span>
-              <span className="truncate text-sm font-bold text-foreground" title={technicianSummary}>
-                {technicianNames.length ? technicianNames.join(", ") : "Nenhum registrado"}
+              <span
+                className="truncate text-sm font-bold text-foreground"
+                title={technicianSummary}
+              >
+                {technicianNames.length ? technicianNames.join(", ") : ui("Nenhum registrado")}
               </span>
-              <span className="text-muted-foreground">Sessões registradas no atendimento</span>
+              <span className="text-muted-foreground">
+                {ui("Sessões registradas no atendimento")}
+              </span>
             </div>
           )}
         </DialogHeader>
 
         <div className="min-h-0 space-y-3 overflow-y-auto p-3 sm:p-4">
           {requiresAssetConfirmation && (
-          <section className="rounded-xl border border-border bg-muted/10 p-3">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div>
+            <section className="rounded-xl border border-border bg-muted/10 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
                   <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Localização técnica final
+                    {ui("Localização técnica final")}
                   </h4>
                   <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                    Selecione o conjunto e o equipamento identificados durante o atendimento.
-                  </p>
-                </div>
-            </div>
-
-            {openingLocationExists && (
-            <div className="rounded-xl border border-border bg-card px-3 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <MapPin className="h-4 w-4" />
-                </span>
-
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    Informada na abertura
-                  </p>
-                  <p className="truncate text-base font-black" title={openingLocationLabel}>
-                    {openingLocationLabel}
+                    {ui(
+                      "Selecione o conjunto e o equipamento identificados durante o atendimento.",
+                    )}
                   </p>
                 </div>
               </div>
-            </div>
-            )}
 
-            <div className="mt-3 grid gap-3 lg:grid-cols-2 lg:items-start">
-            <div className={cn("min-w-0", !selectedMachineSet && "lg:col-span-2")}>
-              <div className="mb-1.5 flex min-h-8 items-center">
-                <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Conjunto
-                </h5>
-              </div>
+              {openingLocationExists && (
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <MapPin className="h-4 w-4" />
+                    </span>
 
-              {isLoadingAssets ? (
-                <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  Carregando conjuntos...
-                </div>
-              ) : assetLoadFailed ? (
-                <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-                  Não foi possível carregar os conjuntos. Feche e abra novamente.
-                </div>
-              ) : selectableMachineSets.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  Esta máquina não possui conjuntos cadastrados. A localização histórica será
-                  preservada.
-                </div>
-              ) : (
-                <div className="grid max-h-[160px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
-                  {selectableMachineSets.map((machineSet) => {
-                    const selected = confirmedMachineSetId === machineSet.id;
-
-                    return (
-                      <button
-                        key={machineSet.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => {
-                          setConfirmedMachineSetId(machineSet.id);
-                          setConfirmedMachineSubsetId(null);
-                        }}
-                        className={cn(
-                          "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
-                          selected
-                            ? "border-primary bg-primary/10 text-foreground"
-                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                        )}
-                      >
-                        {selected && (
-                          <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-
-                        <div className="truncate pr-6 text-base font-black">{machineSet.name}</div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {machineSet.code}
-                          {!machineSet.isActive ? " • Inativo — abertura" : ""}
-                        </div>
-                      </button>
-                    );
-                  })}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {ui("Informada na abertura")}
+                      </p>
+                      <p className="truncate text-base font-black" title={openingLocationLabel}>
+                        {openingLocationLabel}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
 
-            {selectedMachineSet && (
-              <div className="min-w-0">
-                <div className="mb-1.5 flex min-h-8 flex-wrap items-center justify-between gap-2">
-                  <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Equipamento ou subconjunto
-                  </h5>
-
-                  {selectableMachineSubsets.length > 0 &&
-                    (isLoadingSystemSettings ? (
-                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
-                        Verificando política
-                      </span>
-                    ) : !allowWholeSetCalls || systemSettingsLoadFailed ? (
-                      <span className="rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-bold text-warning">
-                        Equipamento obrigatório
-                      </span>
-                    ) : null)}
-                </div>
-
-                {selectableMachineSubsets.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
-                    Este conjunto não possui equipamento cadastrado. A localização será confirmada
-                    no próprio conjunto.
+              <div className="mt-3 grid gap-3 lg:grid-cols-2 lg:items-start">
+                <div className={cn("min-w-0", !selectedMachineSet && "lg:col-span-2")}>
+                  <div className="mb-1.5 flex min-h-8 items-center">
+                    <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      {ui("Conjunto")}
+                    </h5>
                   </div>
-                ) : (
-                  <>
-                    {systemSettingsLoadFailed && (
-                      <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                        Não foi possível validar a opção de conjunto inteiro. Selecione um
-                        equipamento específico ou reabra o modal.
-                      </p>
-                    )}
 
+                  {isLoadingAssets ? (
+                    <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      {ui("Carregando conjuntos...")}
+                    </div>
+                  ) : assetLoadFailed ? (
+                    <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+                      {ui("Não foi possível carregar os conjuntos. Feche e abra novamente.")}
+                    </div>
+                  ) : selectableMachineSets.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      {ui(
+                        "Esta máquina não possui conjuntos cadastrados. A localização histórica será preservada.",
+                      )}
+                    </div>
+                  ) : (
                     <div className="grid max-h-[160px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
-                      {allowWholeSetCalls &&
-                        !isLoadingSystemSettings &&
-                        !systemSettingsLoadFailed && (
-                          <button
-                            type="button"
-                            aria-pressed={confirmedMachineSubsetId === null}
-                            onClick={() => {
-                              setConfirmedMachineSubsetId(null);
-                            }}
-                            className={cn(
-                              "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
-                              confirmedMachineSubsetId === null
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                            )}
-                          >
-                            {confirmedMachineSubsetId === null && (
-                              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                <Check className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-
-                            <div className="truncate pr-6 text-base font-black">
-                              Conjunto inteiro
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              Sem equipamento específico
-                            </div>
-                          </button>
-                        )}
-
-                      {selectableMachineSubsets.map((subset) => {
-                        const selected = confirmedMachineSubsetId === subset.id;
+                      {selectableMachineSets.map((machineSet) => {
+                        const selected = confirmedMachineSetId === machineSet.id;
 
                         return (
                           <button
-                            key={subset.id}
+                            key={machineSet.id}
                             type="button"
                             aria-pressed={selected}
                             onClick={() => {
-                              setConfirmedMachineSubsetId(subset.id);
+                              setConfirmedMachineSetId(machineSet.id);
+                              setConfirmedMachineSubsetId(null);
                             }}
                             className={cn(
                               "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
@@ -1168,69 +788,179 @@ export function FinishCallModal({
                               </span>
                             )}
 
-                            <div className="truncate pr-6 text-base font-black">{subset.name}</div>
+                            <div className="truncate pr-6 text-base font-black">
+                              {machineSet.name}
+                            </div>
                             <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {subset.code}
-                              {!subset.isActive ? " • Inativo — abertura" : ""}
+                              {machineSet.code}
+                              {!machineSet.isActive ? ui(" • Inativo — abertura") : ""}
                             </div>
                           </button>
                         );
                       })}
                     </div>
-                  </>
+                  )}
+                </div>
+
+                {selectedMachineSet && (
+                  <div className="min-w-0">
+                    <div className="mb-1.5 flex min-h-8 flex-wrap items-center justify-between gap-2">
+                      <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        {ui("Equipamento ou subconjunto")}
+                      </h5>
+
+                      {selectableMachineSubsets.length > 0 &&
+                        (isLoadingSystemSettings ? (
+                          <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                            {ui("Verificando política")}
+                          </span>
+                        ) : !allowWholeSetCalls || systemSettingsLoadFailed ? (
+                          <span className="rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-bold text-warning">
+                            {ui("Equipamento obrigatório")}
+                          </span>
+                        ) : null)}
+                    </div>
+
+                    {selectableMachineSubsets.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
+                        {ui(
+                          "Este conjunto não possui equipamento cadastrado. A localização será confirmada no próprio conjunto.",
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {systemSettingsLoadFailed && (
+                          <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                            {ui(
+                              "Não foi possível validar a opção de conjunto inteiro. Selecione um equipamento específico ou reabra o modal.",
+                            )}
+                          </p>
+                        )}
+
+                        <div className="grid max-h-[160px] grid-cols-2 gap-2 overflow-y-auto pr-1 md:grid-cols-3">
+                          {allowWholeSetCalls &&
+                            !isLoadingSystemSettings &&
+                            !systemSettingsLoadFailed && (
+                              <button
+                                type="button"
+                                aria-pressed={confirmedMachineSubsetId === null}
+                                onClick={() => {
+                                  setConfirmedMachineSubsetId(null);
+                                }}
+                                className={cn(
+                                  "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
+                                  confirmedMachineSubsetId === null
+                                    ? "border-primary bg-primary/10 text-foreground"
+                                    : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                                )}
+                              >
+                                {confirmedMachineSubsetId === null && (
+                                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                    <Check className="h-3.5 w-3.5" />
+                                  </span>
+                                )}
+
+                                <div className="truncate pr-6 text-base font-black">
+                                  {ui("Conjunto inteiro")}
+                                </div>
+                                <div className="mt-0.5 text-xs text-muted-foreground">
+                                  {ui("Sem equipamento específico")}
+                                </div>
+                              </button>
+                            )}
+
+                          {selectableMachineSubsets.map((subset) => {
+                            const selected = confirmedMachineSubsetId === subset.id;
+
+                            return (
+                              <button
+                                key={subset.id}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => {
+                                  setConfirmedMachineSubsetId(subset.id);
+                                }}
+                                className={cn(
+                                  "relative min-h-[52px] rounded-xl border-2 px-3 py-2 text-left transition-colors",
+                                  selected
+                                    ? "border-primary bg-primary/10 text-foreground"
+                                    : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                                )}
+                              >
+                                {selected && (
+                                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                    <Check className="h-3.5 w-3.5" />
+                                  </span>
+                                )}
+
+                                <div className="truncate pr-6 text-base font-black">
+                                  {subset.name}
+                                </div>
+                                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {subset.code}
+                                  {!subset.isActive ? ui(" • Inativo — abertura") : ""}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-            </div>
 
-            <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2">
-              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Localização selecionada
-                </p>
-                <p className="truncate text-base font-black" title={confirmedLocationLabel}>
-                  {confirmedLocationLabel}
-                </p>
-                {locationChanged && (
-                  <p className="basis-full truncate text-xs font-semibold text-warning">
-                    {openingLocationLabel} → {confirmedLocationLabel}
+              <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    {ui("Localização selecionada")}
                   </p>
-                )}
+                  <p className="truncate text-base font-black" title={confirmedLocationLabel}>
+                    {confirmedLocationLabel}
+                  </p>
+                  {locationChanged && (
+                    <p className="basis-full truncate text-xs font-semibold text-warning">
+                      {openingLocationLabel} → {confirmedLocationLabel}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {locationChanged && (
-              <div className="mt-4">
-                <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Justificativa da correção (opcional)
-                </h5>
+              {locationChanged && (
+                <div className="mt-4">
+                  <h5 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    {ui("Justificativa da correção (opcional)")}
+                  </h5>
 
-                <Textarea
-                  value={assetChangeReason}
-                  onChange={(event) => setAssetChangeReason(event.target.value)}
-                  rows={2}
-                  placeholder="Explique a correção, se necessário. Em branco será registrado como Não justificado."
-                />
-              </div>
-            )}
-
-          </section>
+                  <Textarea
+                    value={assetChangeReason}
+                    onChange={(event) => setAssetChangeReason(event.target.value)}
+                    rows={2}
+                    placeholder={ui(
+                      "Explique a correção, se necessário. Em branco será registrado como Não justificado.",
+                    )}
+                  />
+                </div>
+              )}
+            </section>
           )}
 
           {!currentCall.isSystemTest && (
-          <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
+            <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
               <div className="mb-3">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Detalhes da falha
+                  {ui("Detalhes da falha")}
                 </h4>
                 <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                  Classifique a ocorrência e descreva a falha para finalizar.
+                  {ui("Classifique a ocorrência e descreva a falha para finalizar.")}
                 </p>
               </div>
 
               {failureClassificationsLoadFailed ? (
                 <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                  Não foi possível carregar o catálogo central. Reabra o modal para tentar novamente.
+                  {ui(
+                    "Não foi possível carregar o catálogo central. Reabra o modal para tentar novamente.",
+                  )}
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1239,8 +969,10 @@ export function FinishCallModal({
                       htmlFor="failure-classification"
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
-                      Classificação da falha
-                      <span className="ml-1 text-danger" aria-hidden="true">*</span>
+                      {ui("Classificação da falha")}
+                      <span className="ml-1 text-danger" aria-hidden="true">
+                        *
+                      </span>
                     </label>
                     <Select
                       value={failureClassification}
@@ -1251,19 +983,17 @@ export function FinishCallModal({
                         <SelectValue
                           placeholder={
                             isLoadingFailureClassifications
-                              ? "Carregando catálogo..."
-                              : "Selecione uma classificação"
+                              ? ui("Carregando catálogo...")
+                              : ui("Selecione uma classificação")
                           }
                         />
                       </SelectTrigger>
                       <SelectContent>
                         {preservesExistingInactiveClassification &&
                           selectedFailureClassification && (
-                            <SelectItem
-                              value={selectedFailureClassification.value}
-                              disabled
-                            >
-                              {selectedFailureClassification.label} — inativa (histórico)
+                            <SelectItem value={selectedFailureClassification.value} disabled>
+                              {selectedFailureClassification.label}
+                              {ui(" — inativa (histórico)")}
                             </SelectItem>
                           )}
                         {activeFailureClassifications.map((classification) => (
@@ -1280,8 +1010,10 @@ export function FinishCallModal({
                       htmlFor="call-description"
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
-                      Descrição da falha
-                      <span className="ml-1 text-danger" aria-hidden="true">*</span>
+                      {ui("Descrição da falha")}
+                      <span className="ml-1 text-danger" aria-hidden="true">
+                        *
+                      </span>
                     </label>
                     <Textarea
                       id="call-description"
@@ -1289,20 +1021,19 @@ export function FinishCallModal({
                       onChange={(event) => setCallDescription(event.target.value)}
                       aria-required="true"
                       rows={3}
-                      placeholder="Descreva a ocorrência identificada."
+                      placeholder={ui("Descreva a ocorrência identificada.")}
                     />
                   </div>
                 </div>
               )}
-          </section>
+            </section>
           )}
-
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border bg-background px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0 text-left">
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Resumo da finalização
+              {ui("Resumo da finalização")}
             </p>
             <p
               className="truncate text-sm font-bold text-foreground"
@@ -1310,15 +1041,15 @@ export function FinishCallModal({
                 requiresAssetConfirmation
                   ? `${technicianSummary} · ${confirmedLocationLabel}`
                   : currentCall.isSystemTest
-                    ? "Teste do sistema"
-                    : "Produção / apoio · diagnóstico obrigatório"
+                    ? ui("Teste do sistema")
+                    : ui("Produção / apoio · diagnóstico obrigatório")
               }
             >
               {requiresAssetConfirmation
                 ? `${technicianSummary} · ${confirmedLocationLabel}`
                 : currentCall.isSystemTest
-                  ? "Teste do sistema"
-                  : "Produção / apoio · diagnóstico obrigatório"}
+                  ? ui("Teste do sistema")
+                  : ui("Produção / apoio · diagnóstico obrigatório")}
             </p>
           </div>
 
@@ -1330,7 +1061,7 @@ export function FinishCallModal({
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
-              Cancelar
+              {ui("Cancelar")}
             </BigButton>
 
             <BigButton
@@ -1342,7 +1073,7 @@ export function FinishCallModal({
               }}
               disabled={!canFinish}
             >
-              {isSubmitting ? "Finalizando..." : "Finalizar chamado"}
+              {isSubmitting ? ui("Finalizando...") : ui("Finalizar chamado")}
             </BigButton>
           </div>
         </div>
@@ -1363,11 +1094,12 @@ export function FinishCallModal({
         <DialogContent className="w-[calc(100%-1rem)] max-w-2xl overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-2xl sm:text-3xl">
-              A máquina continua em falha?
+              {ui("A máquina continua em falha?")}
             </DialogTitle>
             <DialogDescription className="text-base">
-              Este chamado originou a parada, mas {remainingCallLabels || "outro chamado"} ainda
-              permanece ativo. Confirme a condição atual antes de concluir.
+              {ui("Este chamado originou a parada, mas ")}
+              {remainingCallLabels || ui("outro chamado")}
+              {ui(" ainda permanece ativo. Confirme a condição atual antes de concluir.")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1380,7 +1112,7 @@ export function FinishCallModal({
               disabled={isSubmitting}
             >
               <CircleStop className="h-8 w-8 shrink-0" />
-              <span>Sim — continua parada</span>
+              <span>{ui("Sim — continua parada")}</span>
             </BigButton>
 
             <BigButton
@@ -1391,7 +1123,7 @@ export function FinishCallModal({
               disabled={isSubmitting}
             >
               <CheckCircle2 className="h-8 w-8 shrink-0" />
-              <span>Não — pronta para rodar</span>
+              <span>{ui("Não — pronta para rodar")}</span>
             </BigButton>
           </div>
 
@@ -1399,11 +1131,12 @@ export function FinishCallModal({
             <div className="space-y-3 rounded-xl border border-danger/35 bg-danger/5 p-3 sm:p-4">
               <div>
                 <h4 className="font-black text-foreground">
-                  Quais chamados passam a responder pela parada?
+                  {ui("Quais chamados passam a responder pela parada?")}
                 </h4>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Selecione um ou mais. O impacto produtivo começa agora somente nos chamados
-                  marcados, sem alterar os tempos anteriores.
+                  {ui(
+                    "Selecione um ou mais. O impacto produtivo começa agora somente nos chamados marcados, sem alterar os tempos anteriores.",
+                  )}
                 </p>
               </div>
 
@@ -1435,10 +1168,10 @@ export function FinishCallModal({
                         </span>
                         <span className="block text-xs text-muted-foreground">
                           {item.status === "in_progress"
-                            ? "Em atendimento"
+                            ? ui("Em atendimento")
                             : item.status === "post_maintenance"
-                              ? "Em acompanhamento"
-                              : "Aberto"}
+                              ? ui("Em acompanhamento")
+                              : ui("Aberto")}
                         </span>
                       </span>
                       <span
@@ -1463,7 +1196,7 @@ export function FinishCallModal({
                 onClick={() => void submitFinish("stopped", selectedImpactCallIds)}
                 disabled={isSubmitting || selectedImpactCallIds.length === 0}
               >
-                Confirmar continuidade da falha
+                {ui("Confirmar continuidade da falha")}
               </BigButton>
             </div>
           )}
@@ -1475,7 +1208,7 @@ export function FinishCallModal({
             onClick={() => setConditionConfirmationOpen(false)}
             disabled={isSubmitting}
           >
-            Voltar à finalização
+            {ui("Voltar à finalização")}
           </BigButton>
         </DialogContent>
       </Dialog>

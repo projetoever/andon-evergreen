@@ -1,7 +1,18 @@
+import { LanguageProvider, useLanguage } from "@/i18n/LanguageProvider";
+import { systemMessage } from "@/i18n/translate";
 import { createRouter, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <LanguageProvider>
+      <ErrorContent error={error} reset={reset} />
+    </LanguageProvider>
+  );
+}
+
+function ErrorContent({ error, reset }: { error: Error; reset: () => void }) {
+  const { t } = useLanguage();
   const router = useRouter();
 
   return (
@@ -23,13 +34,15 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Something went wrong</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          {t("Ocorreu um erro")}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          An unexpected error occurred. Please try again.
+          {t("Ocorreu um erro inesperado. Tente novamente.")}
         </p>
         {import.meta.env.DEV && error.message && (
           <pre className="mt-4 max-h-40 overflow-auto rounded-md bg-muted p-3 text-left font-mono text-xs text-destructive">
-            {error.message}
+            {systemMessage(error.message)}
           </pre>
         )}
         <div className="mt-6 flex items-center justify-center gap-3">
@@ -40,13 +53,13 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            {t("Tentar novamente")}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            {t("Ir para o início")}
           </a>
         </div>
       </div>
