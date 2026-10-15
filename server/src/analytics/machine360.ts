@@ -1,3 +1,4 @@
+import { hasSpecificDiagnosis, isEligible, uniqueById } from "./eligibility.js";
 import { buildAssetReliability } from "./reliability.js";
 
 export type Machine360Machine = {
@@ -19,6 +20,7 @@ export type Machine360Call = {
   finishedAt: Date | null;
   attendanceMinutes: number | null;
   failureClassification: string | null;
+  analyticsDisposition?: string | null;
   failureDescription: string | null;
   workOrderNumber: string | null;
   maintenanceReturnCount: number;
@@ -36,6 +38,7 @@ export type Machine360Failure = {
   startedAt: Date;
   endedAt: Date | null;
   classification: string | null;
+  analyticsDisposition?: string | null;
   notes: string | null;
   callId: string | null;
   linkedCallIsSystemTest: boolean;
@@ -66,12 +69,12 @@ function snapshot(confirmed: string | null, opening: string | null) {
 
 export function buildMachine360(input: Machine360Input) {
   const { machine, start, effectiveEnd } = input;
-  const calls = input.calls.filter((c) => !c.isSystemTest && c.machineId === machine.id);
-  const events = input.events.filter(
-    (e) => !e.linkedCallIsSystemTest && e.machineId === machine.id,
+  const calls = uniqueById(input.calls).filter((c) => isEligible(c) && c.machineId === machine.id);
+  const events = uniqueById(input.events).filter(
+    (e) => isEligible(e) && e.machineId === machine.id,
   );
-  const activeCalls = input.activeCalls.filter(
-    (c) => !c.isSystemTest && c.machineId === machine.id,
+  const activeCalls = uniqueById(input.activeCalls).filter(
+    (c) => isEligible(c) && c.machineId === machine.id,
   );
   const ended = calls.filter(
     (c) => c.status === "finished" && inWindow(c.finishedAt, start, effectiveEnd),
@@ -125,7 +128,7 @@ export function buildMachine360(input: Machine360Input) {
   const assets = new Map<string, { setName: string | null; subsetName: string | null; calls: number }>();
   for (const call of ended) {
     const classification = label(call.failureClassification);
-    if (classification) diagnoses.set(classification, (diagnoses.get(classification) ?? 0) + 1);
+    if (hasSpecificDiagnosis(classification)) diagnoses.set(classification, (diagnoses.get(classification) ?? 0) + 1);
     const setName = snapshot(call.confirmedMachineSetNameSnapshot, call.machineSetNameSnapshot);
     const subsetName = snapshot(call.confirmedMachineSubsetNameSnapshot, call.machineSubsetNameSnapshot);
     const key = JSON.stringify([setName, subsetName]);
@@ -202,12 +205,12 @@ export function buildMachine360(input: Machine360Input) {
       callsFinished: ended.length,
       callsActiveNow: activeCalls.length,
       activeSessionsNow: input.activeSessions.length,
-      mttaMinutes: mean(attended.filter(c => c.attendedAt).map(c =>
+      mttaMinutes: mean(attended.filter(c => c.attendedAt && c.attendedAt >= c.openedAt).map(c =>
         (c.attendedAt!.getTime() - c.openedAt.getTime()) / 60_000,
       )),
       avgMaintenanceMinutes: mean(ended
         .map(c => c.attendanceMinutes)
-        .filter((v): v is number => v !== null && v >= 0)),
+        .filter((v): v is number => v !== null && Number.isFinite(v) && v >= 0)),
       downtimeMinutes: reliability.downtimeMinutes,
       physicalStopEpisodes: reliability.physicalStopEpisodes,
       avgDowntimePerEpisodeMinutes: reliability.avgDowntimePerEpisodeMinutes,

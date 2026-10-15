@@ -350,13 +350,14 @@ export function buildExecutiveReportHtml({
     ${sectionTitle("Indicadores executivos", "Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis.")}
     <div class="kpis">
       ${tile("Disponibilidade", percentage(overview.production?.availabilityPercent), `${overview.production?.coveredMachineCount ?? 0}/${overview.production?.populationCount ?? 0} máquinas com histórico completo`, "green")}
-      ${tile("MTBF programado", minutes(overview.production?.plannedMtbfMinutes), `${overview.production?.productionFailureEpisodes ?? 0} episódio(s) em produção programada`, "green")}
+      ${tile("MTBF programado", minutes(overview.production?.plannedMtbfMinutes), `${overview.production?.productionFailureEpisodes ?? 0} falha(s) de manutenção na programação`, "green")}
       ${tile("MTTA", minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
-      ${tile("MTTR restabelecimento", minutes(overview.production?.resolvedMttrMinutes), `${overview.production?.resolvedEpisodes ?? 0} episódio(s) encerrado(s)`, "blue")}
+      ${tile("MTTR restabelecimento", minutes(overview.production?.resolvedMttrMinutes), `${overview.production?.resolvedEpisodes ?? 0} episódio(s) de manutenção encerrado(s)`, "blue")}
       ${tile("Tempo de parada", minutes(k.downtimeMinutes), `${k.physicalStopEpisodes} episódio(s) unido(s), inclusive fora da programação`, "red")}
-      ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.callsFinished} finalizados retornaram`, "red")}
+      ${tile("Taxa de retorno", percentage(k.maintenanceReturnRatePercent), `${k.returnedCalls} de ${k.maintenanceEligibleFinishedCalls ?? 0} finalizados de manutenção retornaram`, "red")}
     </div>
 
+    ${overview.responsibility ? `<p class="legal"><strong>Parada por responsabilidade:</strong> ${overview.responsibility.downtime.filter(item => item.downtimeMinutes > 0).map(item => `${esc(({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility)}: ${minutes(item.downtimeMinutes)}`).join(" · ") || "Sem paradas"}. ${overview.responsibility.excludedCalls} chamado(s) excluído(s); ${overview.responsibility.pendingFinishedCalls} diagnóstico(s) com responsabilidade pendente.</p>` : ""}
     ${sectionTitle("Síntese executiva", `${k.callsOpened} abertura(s) na janela · ${k.callsFinished} finalizado(s) · ${k.activeCallsNow ?? "—"} ativo(s) agora`)}
     <ol class="insights">${highlights.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
     ${dailyDowntimeGraph(overview.downtimeTrend)}
@@ -378,7 +379,7 @@ export function buildExecutiveReportHtml({
     ${pageHeader("02", "Ativos críticos e reincidências", periodNote)}
     ${sectionTitle("Máquinas com maior parada", "Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física.")}
     ${paretoGraph(topMachines)}
-    ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "MTBF EST.", "ATIVOS"], topMachineRows)}
+    ${reportTable(["#", "MÁQUINA", "CADASTRO", "DOWNTIME", "EPISÓDIOS", "INTERVALO EST.", "ATIVOS"], topMachineRows)}
     <div class="note subtle">${esc(sourceMismatchNote)}</div>
     ${sectionTitle("Reincidência diagnóstica", "Mesmo diagnóstico em novo chamado finalizado da mesma máquina; não equivale a causa raiz.")}
     <p class="context emphasis">${esc(noFinishedCallsNote)}</p>
@@ -442,8 +443,8 @@ export function buildExecutiveReportHtml({
     <div class="legal">
       <p><strong>Recorte temporal:</strong> aberturas por openedAt; conclusões por finishedAt; MTTA por attendedAt; ativos são snapshot do momento de extração.</p>
       <p><strong>Downtime físico:</strong> união de intervalos de FailureEvent por máquina, sem dupla contagem na mesma máquina. Em várias máquinas o downtime é acumulado entre os ativos.</p>
-      <p><strong>MTBF:</strong> estimado a partir de exposição calendário menos downtime. Não substitui MTBF calculado por horas reais em operação.</p>
-      <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Testes manuais não identificados como testes de sistema podem aparecer; verifique se a fonte é homologação ou produção.</p>
+      <p><strong>Confiabilidade:</strong> MTBF programado usa tempo em operação (descontando todas as paradas reais) / inícios de falhas de manutenção na programação verificável; causas pendentes ou mistas impedem o cálculo. MTTR mede restabelecimento integral somente de episódios encerrados e inteiramente atribuídos à manutenção. O intervalo por calendário nas tabelas mede paradas de todas as causas.</p>
+      <p><strong>Qualidade:</strong> alertas de registros abertos podem inflar tempos até sua apuração operacional. Testes manuais não identificados podem aparecer; testes de sistema e classificações marcadas como teste, falso chamado ou duplicado são excluídos em todas as visões; verifique se a fonte é homologação ou produção.</p>
       <p><strong>Filtros:</strong> setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores indisponíveis são exibidos com travessão.</p>
       <p><strong>Rastreabilidade:</strong> geração a partir das APIs read-only do ANDON BI. Cada conjunto de métricas utiliza a mesma janela de período escolhida; os dados podem evoluir com novos registros.</p>
       <p><strong>Populações analíticas:</strong> o Pareto físico inclui máquinas com perdas mesmo quando inativas; os indicadores específicos de confiabilidade podem ter população reduzida. Ausência de dado não equivale a zero.</p>

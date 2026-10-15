@@ -81,7 +81,7 @@ test("dashboard BI mantém confiabilidade e semântica visual ANDON", async () =
   assert.match(overview, /label=\{t\("MTBF"\)\}/);
   assert.match(overview, /label=\{t\("Disponibilidade"\)\}/);
   assert.match(overview, /Tempo de parada/);
-  assert.match(reliability, /MTBF estimado/);
+  assert.match(reliability, /Intervalo entre paradas \(calendário\)/);
   assert.match(reliability, /Parada média \/ episódio/);
   assert.match(card, /Baixa amostra/);
   assert.match(card, /border-red-500/);
@@ -107,9 +107,9 @@ test("BI-MVP-5 mede participação técnica em pessoa-minutos sem ranking", asyn
   assert.match(component, /Soma de horas por técnico/);
   assert.match(component, /Não equivale a downtime nem avalia desempenho/);
   assert.match(component, /Cobertura de fases/);
-  assert.match(component, /sessão\(ões\) legada\(s\)/);
+  assert.match(component, /sem fase comprovada/);
   assert.match(route, /technicianSession\.findMany/);
-  assert.match(route, /isSystemTest: false/);
+  assert.match(route, /policy\.callWhere/);
   assert.match(route, /phase maintenance\/follow_up/);
 });
 
@@ -219,7 +219,7 @@ test("BI-MVP-7 mantém Pareto e acrescenta reincidência com linha do tempo read
   assert.match(panel, /Página anterior/);
   assert.match(service, /\/api\/analytics\/failure-intelligence/);
   assert.match(route, /buildFailureIntelligence/);
-  assert.match(route, /isSystemTest: false/);
+  assert.match(route, /policy\.callWhere/);
   assert.match(route, /status: "finished"/);
 });
 
@@ -243,7 +243,7 @@ test("BI-MVP-8 abre Machine 360 read-only com filtros, snapshot e paginação se
   assert.match(overlay, /role="dialog"/);
   assert.match(overlay, /Linha do tempo/);
   assert.match(endpoint, /"\/api\/analytics\/machine-360"/);
-  assert.match(endpoint, /isSystemTest: false/);
+  assert.match(endpoint, /policy\.callWhere/);
   assert.match(model, /buildAssetReliability/);
   assert.match(model, /timeline:/);
 });

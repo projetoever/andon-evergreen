@@ -435,11 +435,15 @@ function ClassificationsTab() {
         ? await updateFailureClassification(selectedId, {
             label: draft.label.trim(),
             active: draft.active,
+            responsibility: draft.responsibility ?? "unassigned",
+            analyticsDisposition: draft.analyticsDisposition ?? "include",
           })
         : await createFailureClassification({
             label: draft.label.trim(),
             value,
             active: draft.active,
+            responsibility: draft.responsibility ?? "unassigned",
+            analyticsDisposition: draft.analyticsDisposition ?? "include",
           });
 
       const catalog = await loadCatalog();
@@ -663,6 +667,33 @@ function ClassificationsTab() {
               disabled={Boolean(selectedId) || isSaving || Boolean(loadError)}
             />
           </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-semibold">
+              Responsabilidade da ocorrência
+              <select className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground" value={draft.responsibility ?? "unassigned"} onChange={event => setDraft({...draft, responsibility: event.target.value as FailureClassificationConfig["responsibility"]})} disabled={isSaving || Boolean(loadError)}>
+                <option value="unassigned">Pendente de definição</option>
+                <option value="maintenance">Manutenção</option>
+                <option value="operations">Operação</option>
+                <option value="process">Processos</option>
+                <option value="quality">Qualidade</option>
+                <option value="leadership">Liderança</option>
+                <option value="other">Outros</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold">
+              Tratamento no BI
+              <select className="mt-1 h-10 w-full rounded-md border bg-background px-2 text-foreground" value={draft.analyticsDisposition ?? "include"} onChange={event => setDraft({...draft, analyticsDisposition: event.target.value as FailureClassificationConfig["analyticsDisposition"]})} disabled={isSaving || Boolean(loadError)}>
+                <option value="include">Ocorrência real</option>
+                <option value="test">Teste — excluir dos indicadores</option>
+                <option value="false_call">Falso chamado — excluir</option>
+                <option value="duplicate">Duplicado — excluir</option>
+              </select>
+            </label>
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            A responsabilidade será registrada no diagnóstico final. Mudar o catálogo vale para novos diagnósticos; revise ocorrências anteriores pelo histórico com PIN e auditoria. Legados sem responsabilidade ficam pendentes. Testes, falsos chamados e duplicados ficam no histórico e são excluídos do BI, inclusive das horas técnicas.
+          </p>
 
           {selectedId && (
             <p className="text-xs text-muted-foreground">

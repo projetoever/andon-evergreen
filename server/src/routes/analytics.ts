@@ -1,3 +1,6 @@
+import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
+import { buildCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
+import { METRIC_VERSION, GENERIC_DIAGNOSES } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
@@ -68,6 +71,28 @@ function callDimensionsWhere(filters: AnalyticsOverviewFilters): Prisma.AndonCal
   };
 }
 
+const analyticsEventSelect = {
+  id: true,
+  machineId: true,
+  startedAt: true,
+  endedAt: true,
+  classification: true,
+  failureResponsibility: true,
+  analyticsDisposition: true,
+  callId: true,
+  machine: {
+    select: {
+      name: true,
+    },
+  },
+  call: {
+    select: {
+      isSystemTest: true,
+      subtype: true,
+    },
+  },
+} satisfies Prisma.FailureEventSelect;
+
 async function loadOverviewDataset(
   start: Date,
   end: Date,
@@ -75,18 +100,19 @@ async function loadOverviewDataset(
   filters: AnalyticsOverviewFilters,
   includeActiveCalls: boolean,
 ) {
+  const policy = await loadAnalyticsEligibility();
   const dimensionsWhere = callDimensionsWhere(filters);
   const reliabilityEnabled = !filters.subtype && !filters.classification;
 
   const [calls, activeCallsNow, rawReliabilityAssets] = await Promise.all([
     prisma.andonCall.findMany({
       where: {
-        isSystemTest: false,
+        ...policy.callWhere,
         ...dimensionsWhere,
         OR: [
-          { openedAt: { gte: start, lt: end } },
-          { attendedAt: { gte: start, lt: end } },
-          { finishedAt: { gte: start, lt: end } },
+          { openedAt: { gte: start, lt: effectiveEnd } },
+          { attendedAt: { gte: start, lt: effectiveEnd } },
+          { finishedAt: { gte: start, lt: effectiveEnd } },
         ],
       },
       select: {
@@ -102,13 +128,14 @@ async function loadOverviewDataset(
         postMaintenanceMinutes: true,
         maintenanceReturnCount: true,
         failureClassification: true,
+        failureResponsibility: true, analyticsDisposition: true,
         isSystemTest: true,
       },
     }),
     includeActiveCalls && !filters.classification
       ? prisma.andonCall.count({
           where: {
-            isSystemTest: false,
+            ...policy.callWhere,
             status: { in: ACTIVE_CALL_STATUSES },
             ...(filters.machineId ? { machineId: filters.machineId } : {}),
             ...(filters.subtype ? { subtype: filters.subtype } : {}),
@@ -139,8 +166,9 @@ async function loadOverviewDataset(
   let failureEvents: AnalyticsFailureEventRecord[] = [];
 
   if (effectiveEnd.getTime() > start.getTime()) {
-    const rawFailureEvents = await prisma.failureEvent.findMany({
+    let rawFailureEvents = await prisma.failureEvent.findMany({
       where: {
+        ...policy.eventWhere,
         ...(filters.machineId ? { machineId: filters.machineId } : {}),
         ...(filters.classification
           ? { classification: filters.classification }
@@ -148,26 +176,30 @@ async function loadOverviewDataset(
         startedAt: { lt: effectiveEnd },
         OR: [{ endedAt: null }, { endedAt: { gt: start } }],
       },
-      select: {
-        id: true,
-        machineId: true,
-        startedAt: true,
-        endedAt: true,
-        classification: true,
-        callId: true,
-        machine: {
-          select: {
-            name: true,
-          },
-        },
-        call: {
-          select: {
-            isSystemTest: true,
-            subtype: true,
-          },
-        },
-      },
+      select: analyticsEventSelect,
     });
+
+    // Restore the complete union episode when legacy overlapping records
+    // connect to an interval that began before the report window.
+    for (let round=0; rawFailureEvents.length; round++) {
+      const earliest = new Map<string, Date>();
+      for (const event of rawFailureEvents) {
+        const previous = earliest.get(event.machineId);
+        if (!previous || event.startedAt < previous) earliest.set(event.machineId,event.startedAt);
+      }
+      const earlier = await prisma.failureEvent.findMany({
+        where: {
+          ...policy.eventWhere,
+          ...(filters.classification ? { classification:filters.classification } : {}),
+          ...(filters.subtype ? { call:{is:{subtype:filters.subtype}} } : {}),
+          OR:[...earliest].map(([machineId,boundary]) => ({machineId,startedAt:{lt:boundary},OR:[{endedAt:null},{endedAt:{gte:boundary}}]})),
+        },
+        select: analyticsEventSelect,
+      });
+      if (!earlier.length) break;
+      if (round>=127) throw new Error("Histórico físico excessivamente fragmentado; revise os eventos antes de calcular o MTTR.");
+      rawFailureEvents = [...new Map([...rawFailureEvents,...earlier].map(row => [row.id,row])).values()];
+    }
 
     failureEvents = rawFailureEvents
       .filter((event) => event.call?.isSystemTest !== true)
@@ -183,12 +215,29 @@ async function loadOverviewDataset(
         startedAt: event.startedAt,
         endedAt: event.endedAt,
         classification: event.classification,
+        failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition,
         callId: event.callId,
         linkedCallIsSystemTest: event.call?.isSystemTest === true,
       }));
   }
 
-  return { calls, activeCallsNow, failureEvents, reliabilityAssets };
+  const impactStart = new Date(failureEvents.reduce((earliest,event)=>Math.min(earliest,event.startedAt.getTime()),start.getTime()));
+  const impacts = failureEvents.length && effectiveEnd > impactStart ? await prisma.callImpactInterval.findMany({
+    where: {
+      machineId: {in:[...new Set(failureEvents.map(event=>event.machineId))]},
+      startedAt: { lt: effectiveEnd },
+      OR: [{ endedAt: null }, { endedAt: { gt: impactStart } }],
+      call: policy.callWhere,
+    },
+    select: { id: true, machineId: true, startedAt: true, endedAt: true,
+      call: { select: { failureResponsibility: true } } },
+  }) : [];
+  const causalEpisodes = buildCausalEpisodes(failureEvents, impacts.map(row => ({ ...row, failureResponsibility: row.call.failureResponsibility })));
+  const excludedCalls = await prisma.andonCall.count({ where: {
+    ...dimensionsWhere, NOT: policy.callWhere,
+    OR: [{ openedAt: { gte: start, lt: effectiveEnd } }, { finishedAt: { gte: start, lt: effectiveEnd } }],
+  } });
+  return { calls, activeCallsNow, failureEvents, reliabilityAssets, causalEpisodes, excludedCalls };
 }
 
 function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Date) {
@@ -229,7 +278,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
-      const durationMs = period.end.getTime() - period.start.getTime();
+      const durationMs = Math.max(0, effectiveEnd.getTime() - period.start.getTime());
       const previousEnd = period.start;
       const previousStart = new Date(previousEnd.getTime() - durationMs);
 
@@ -272,6 +321,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         assets,
         productionEvents,
         failureEvents: currentData.failureEvents,
+        causalEpisodes: currentData.causalEpisodes,
         start: period.start,
         effectiveEnd,
         timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
@@ -299,6 +349,11 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       return {
         ...currentOverview,
         production,
+        responsibility: {
+          downtime: summarizeCausalDowntime(currentData.causalEpisodes, period.start, effectiveEnd),
+          excludedCalls: currentData.excludedCalls,
+          pendingFinishedCalls: currentData.calls.filter(call => call.status === "finished" && call.finishedAt && call.finishedAt >= period.start && call.finishedAt < effectiveEnd && (!call.failureResponsibility || call.failureResponsibility === "unassigned")).length,
+        },
         comparison: {
           period: {
             start: previousStart.toISOString(),
@@ -322,6 +377,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       if (period.end.getTime() - period.start.getTime() > 31 * 24 * 60 * 60 * 1000) {
         return badRequest(reply, "O limite desta visualização temporal é de 31 dias");
       }
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd = new Date(Math.min(generatedAt.getTime(), period.end.getTime()));
       const filters: AnalyticsOverviewFilters = {
@@ -342,7 +398,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             effectiveEnd: effectiveEnd.toISOString(),
           },
           filters,
-          exclusions: { systemTests: true },
+          exclusions: { systemTests: true, testClassifications: true, falseCalls: true, duplicates: true, cancelledCalls: true },
         },
         ...buildTemporalPatterns({
           calls: data.calls,
@@ -364,6 +420,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         return badRequest(reply, "machineId, startDate e endDate válidos são obrigatórios");
       }
 
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd = new Date(
         Math.min(period.end.getTime(), generatedAt.getTime()),
@@ -388,7 +445,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 
       const callDimensions: Prisma.AndonCallWhereInput = {
         machineId,
-        isSystemTest: false,
+        ...policy.callWhere,
         ...(subtype ? { subtype } : {}),
         ...(classification ? { failureClassification: classification } : {}),
       };
@@ -412,6 +469,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             finishedAt: true,
             attendanceMinutes: true,
             failureClassification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             failureDescription: true,
             workOrderNumber: true,
             maintenanceReturnCount: true,
@@ -426,7 +484,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         prisma.andonCall.findMany({
           where: {
             machineId,
-            isSystemTest: false,
+            ...policy.callWhere,
             status: { in: ACTIVE_CALL_STATUSES },
             ...(subtype ? { subtype } : {}),
             // Classification is a finalized diagnosis, not a current-state dimension.
@@ -441,6 +499,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             finishedAt: true,
             attendanceMinutes: true,
             failureClassification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             failureDescription: true,
             workOrderNumber: true,
             maintenanceReturnCount: true,
@@ -455,6 +514,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         effectiveEnd.getTime() > period.start.getTime()
           ? prisma.failureEvent.findMany({
               where: {
+                ...policy.eventWhere,
                 machineId,
                 ...(classification ? { classification } : {}),
                 startedAt: { lt: effectiveEnd },
@@ -467,6 +527,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 startedAt: true,
                 endedAt: true,
                 classification: true,
+                failureResponsibility: true, analyticsDisposition: true,
                 notes: true,
                 call: { select: { isSystemTest: true, subtype: true } },
               },
@@ -477,7 +538,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             machineId,
             endedAt: null,
             call: {
-              isSystemTest: false,
+              ...policy.callWhere,
               ...(subtype ? { subtype } : {}),
             },
           },
@@ -497,6 +558,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           startedAt: event.startedAt,
           endedAt: event.endedAt,
           classification: event.classification,
+          failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition,
           notes: event.notes,
           linkedCallIsSystemTest: false,
         }));
@@ -508,14 +570,15 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         ? await prisma.andonCall.findMany({
             where: {
               machineId,
-              isSystemTest: false,
+              ...policy.callWhere,
               status: "finished",
               finishedAt: { gte: historyStart, lt: effectiveEnd },
               failureClassification: { not: null },
             },
             select: {
-              id: true, subtype: true, finishedAt: true,
-              failureClassification: true, workOrderNumber: true,
+              id: true, subtype: true, finishedAt: true, openedAt: true,
+              failureClassification: true,
+              failureResponsibility: true, analyticsDisposition: true, workOrderNumber: true,
               failureDescription: true, maintenanceReturnCount: true,
               isSystemTest: true,
               machineSetId: true, machineSetNameSnapshot: true,
@@ -532,6 +595,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             id: call.id,
             subtype: call.subtype,
             finishedAt: call.finishedAt,
+            openedAt: call.openedAt,
             classification: call.failureClassification,
             workOrderNumber: call.workOrderNumber,
             description: call.failureDescription,
@@ -601,6 +665,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd =
         period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
@@ -616,7 +681,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       const history = effectiveEnd.getTime() > period.start.getTime()
         ? await prisma.andonCall.findMany({
             where: {
-              isSystemTest: false,
+              ...policy.callWhere,
               status: "finished",
               finishedAt: { gte: historyStart, lt: effectiveEnd },
               failureClassification: filters.classification
@@ -632,6 +697,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
               openedAt: true,
               finishedAt: true,
               failureClassification: true,
+              failureResponsibility: true, analyticsDisposition: true,
               failureDescription: true,
               workOrderNumber: true,
               maintenanceReturnCount: true,
@@ -682,7 +748,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 
       return {
         meta: {
-          metricDefinitionVersion: "bi-mvp-7",
+          metricDefinitionVersion: METRIC_VERSION,
           generatedAt: generatedAt.toISOString(),
           timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
           period: {
@@ -721,6 +787,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd =
         period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
@@ -738,7 +805,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 startedAt: { lt: effectiveEnd },
                 OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
                 call: {
-                  isSystemTest: false,
+                  ...policy.callWhere,
                   ...(filters.subtype ? { subtype: filters.subtype } : {}),
                   ...(filters.classification
                     ? { failureClassification: filters.classification }
@@ -750,6 +817,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 callId: true,
                 machineId: true,
                 technicianId: true,
+                call: { select: { failureResponsibility: true } },
                 technicianName: true,
                 technicalArea: true,
                 phase: true,
@@ -772,7 +840,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           filters,
           semantics: {
             personMinutes:
-              "soma do tempo individual das sessões; múltiplos mantenedores simultâneos somam pessoa-minutos e não tempo de máquina",
+              "união temporal por técnico, recortada ao período; técnicos diferentes simultâneos somam pessoa-minutos; sobreposição do mesmo técnico não duplica horas; conflitos de fase ficam não classificados",
             phases:
               "somente sessões com phase maintenance/follow_up são atribuídas às fases; legado sem phase permanece não classificado",
             interpretation:
@@ -780,7 +848,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           },
         },
         ...buildMaintenanceParticipation({
-          sessions,
+          sessions: sessions.map(session => ({ ...session, failureResponsibility: session.call.failureResponsibility })),
           start: period.start,
           effectiveEnd,
         }),
@@ -800,6 +868,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd =
         period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
@@ -818,7 +887,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           };
 
       const callScopeWhere: Prisma.AndonCallWhereInput = {
-        isSystemTest: false,
+        ...policy.callWhere,
         ...(filters.machineId ? { machineId: filters.machineId } : {}),
         ...(filters.subtype ? { subtype: filters.subtype } : {}),
       };
@@ -859,12 +928,14 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             openedAt: true,
             finishedAt: true,
             failureClassification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             maintenanceReturnCount: true,
           },
         }),
         effectiveEnd.getTime() > period.start.getTime()
           ? prisma.failureEvent.findMany({
               where: {
+                ...policy.eventWhere,
                 ...(filters.machineId ? { machineId: filters.machineId } : {}),
                 ...(filters.classification
                   ? { classification: filters.classification }
@@ -878,6 +949,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 startedAt: true,
                 endedAt: true,
                 classification: true,
+                failureResponsibility: true, analyticsDisposition: true,
                 callId: true,
                 call: {
                   select: {
@@ -900,6 +972,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             openedAt: true,
             finishedAt: true,
             failureClassification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             maintenanceReturnCount: true,
           },
         }),
@@ -908,7 +981,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             endedAt: null,
             ...(filters.machineId ? { machineId: filters.machineId } : {}),
             call: {
-              isSystemTest: false,
+              ...policy.callWhere,
               ...(filters.subtype ? { subtype: filters.subtype } : {}),
             },
           },
@@ -920,6 +993,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
         prisma.failureEvent.findMany({
           where: {
+            ...policy.eventWhere,
             endedAt: null,
             ...(filters.machineId ? { machineId: filters.machineId } : {}),
           },
@@ -929,6 +1003,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             startedAt: true,
             endedAt: true,
             classification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             callId: true,
             call: {
               select: {
@@ -943,7 +1018,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             ...callScopeWhere,
             status: "finished",
             finishedAt: { gte: period.start, lt: effectiveEnd },
-            failureClassification: null,
+            OR:[{failureClassification:null},{failureClassification:{in:GENERIC_DIAGNOSES}}],
           },
         }),
       ]);
@@ -961,6 +1036,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           startedAt: event.startedAt,
           endedAt: event.endedAt,
           classification: event.classification,
+          failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition,
           callId: event.callId,
         }));
 
@@ -1062,6 +1138,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       }
       if (!value) return badRequest(reply, "Valor do detalhamento é obrigatório");
 
+      const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd =
         period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
@@ -1075,6 +1152,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       if (dimension === "machine") {
         const events = await prisma.failureEvent.findMany({
           where: {
+            ...policy.eventWhere,
             machineId: value,
             ...(filters.classification
               ? { classification: filters.classification }
@@ -1089,6 +1167,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             startedAt: true,
             endedAt: true,
             classification: true,
+            failureResponsibility: true, analyticsDisposition: true,
             notes: true,
             source: true,
             machine: { select: { name: true } },
@@ -1123,6 +1202,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             machineName: event.machine.name,
             subtype: event.call?.subtype ?? null,
             classification: event.classification,
+            failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition,
             occurredAt: event.startedAt.toISOString(),
             endedAt: event.endedAt?.toISOString() ?? null,
             durationMinutes: clipMinutes(
@@ -1157,17 +1237,17 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       const callWhere: Prisma.AndonCallWhereInput =
         dimension === "classification"
           ? {
-              isSystemTest: false,
+              ...policy.callWhere,
               status: "finished",
               failureClassification: value,
-              finishedAt: { gte: period.start, lt: period.end },
+              finishedAt: { gte: period.start, lt: effectiveEnd },
               ...(filters.machineId ? { machineId: filters.machineId } : {}),
               ...(filters.subtype ? { subtype: filters.subtype } : {}),
             }
           : {
-              isSystemTest: false,
+              ...policy.callWhere,
               subtype: value,
-              openedAt: { gte: period.start, lt: period.end },
+              openedAt: { gte: period.start, lt: effectiveEnd },
               ...(filters.machineId ? { machineId: filters.machineId } : {}),
               ...(filters.classification
                 ? { failureClassification: filters.classification }
@@ -1185,6 +1265,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           finishedAt: true,
           totalCallMinutes: true,
           failureClassification: true,
+          failureResponsibility: true, analyticsDisposition: true,
           failureDescription: true,
           workOrderNumber: true,
           technicianNames: true,

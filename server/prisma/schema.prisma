@@ -305,6 +305,8 @@ model AndonCall {
   notes                       String?
   failureClassification       String?
   failureDescription          String?
+  failureResponsibility       String?
+  analyticsDisposition        String?
   createdBy                   String?
   origin                      String                      @default("kiosk")
   isSystemTest                Boolean                     @default(false)
@@ -397,6 +399,8 @@ model FailureEvent {
   endedAt         DateTime?
   durationSeconds Int?
   classification  String?
+  failureResponsibility String?
+  analyticsDisposition String?
   source          String
   productionMode  String?
   machineStatus   String?
@@ -499,6 +503,8 @@ model FailureClassification {
   label     String
   value     String   @unique
   active    Boolean  @default(true)
+  responsibility String @default("unassigned")
+  analyticsDisposition String @default("include")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -532,6 +538,10 @@ model FailureDiagnosisAudit {
   ipAddress              String?  @db.VarChar(45)
   previousClassification String?
   newClassification      String?
+  previousResponsibility String?
+  newResponsibility String?
+  previousDisposition String?
+  newDisposition String?
   previousDescription    String?
   newDescription         String?
   createdAt              DateTime @default(now())

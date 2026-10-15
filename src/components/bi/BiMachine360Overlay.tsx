@@ -209,7 +209,7 @@ export function BiMachine360Overlay({
               <PanelMetric label="Downtime físico" value={duration(data.kpis.downtimeMinutes)} note="União dos eventos de parada" tone="red" />
               <PanelMetric label="Episódios" value={String(data.kpis.physicalStopEpisodes)} note="Episódios físicos unidos" tone="red" />
               <PanelMetric label="Parada / episódio" value={duration(data.kpis.avgDowntimePerEpisodeMinutes)} note="Inclui eventos ainda abertos" tone="amber" />
-              <PanelMetric label="MTBF estimado" value={data.machine.isActive ? duration(data.kpis.mtbfEstimatedMinutes) : "—"} note="Indisponível sem exposição fora das paradas; não equivale a horas produtivas" tone="green" />
+              <PanelMetric label="Intervalo entre paradas (calendário)" value={data.machine.isActive ? duration(data.kpis.mtbfEstimatedMinutes) : "—"} note="Indisponível sem exposição fora das paradas; não equivale a horas produtivas" tone="green" />
               <PanelMetric label="MTTA" value={duration(data.kpis.mttaMinutes)} note="Abertura até primeiro atendimento" tone="blue" />
               <PanelMetric label="Manutenção efetiva" value={duration(data.kpis.avgMaintenanceMinutes)} note="Média dos concluídos com registro" tone="blue" />
             </div>

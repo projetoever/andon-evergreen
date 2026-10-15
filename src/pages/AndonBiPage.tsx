@@ -725,7 +725,7 @@ export function AndonBiPage() {
 
         <footer className="flex shrink-0 items-center justify-between border-t border-border pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
           <span>
-            PostgreSQL · testes automáticos marcados excluídos · somente leitura
+            PostgreSQL · testes, falsos chamados e duplicados identificados excluídos · somente leitura
           </span>
           <span>
             {overview

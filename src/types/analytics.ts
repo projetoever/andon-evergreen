@@ -56,6 +56,10 @@ export type AnalyticsProductionMetrics = {
   scheduledDowntimeMinutes: number;
   operatingMinutes: number;
   productionFailureEpisodes: number;
+  pendingAttributionEpisodes?: number;
+  physicalProductionEpisodes?: number;
+  allCauseRestorationMinutes?: number | null;
+  allCauseResolvedEpisodes?: number;
   coveredMachineCount: number;
   uncoveredMachineCount: number;
   populationCount: number;
@@ -77,6 +81,7 @@ export type AnalyticsProductionMetrics = {
 };
 
 export type AnalyticsOverview = {
+  responsibility?: { downtime: Array<{responsibility: string; downtimeMinutes: number}>; excludedCalls: number; pendingFinishedCalls: number };
   production?: AnalyticsProductionMetrics;
   meta: {
     metricDefinitionVersion: string;
@@ -118,6 +123,7 @@ export type AnalyticsOverview = {
     physicalStopEpisodes: number;
     mtbfEstimatedMinutes: number | null;
     mtbfEstimatedMachineCount: number | null;
+    maintenanceEligibleFinishedCalls?: number;
     returnedCalls: number;
     maintenanceReturnCycles: number;
     maintenanceReturnRatePercent: number | null;
@@ -264,6 +270,7 @@ export type AndonBiFilterOptions = {
 
 
 export type AnalyticsMaintenanceParticipation = {
+  responsibility?: Array<{responsibility:string;personMinutes:number}>;
   meta: {
     generatedAt: string;
     timeZone: string;
@@ -284,6 +291,7 @@ export type AnalyticsMaintenanceParticipation = {
     };
   };
   totals: {
+    overlapMinutesRemoved?: number;
     maintenancePersonMinutes: number;
     followUpPersonMinutes: number;
     totalPersonMinutes: number;

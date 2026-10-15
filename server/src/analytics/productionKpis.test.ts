@@ -11,7 +11,7 @@ const production=(machineId:string,mode:string,a:string,b:string|null)=>({
 });
 const failure=(id:string,machineId:string,a:string,b:string|null,test=false):AnalyticsFailureEventRecord=>({
   id,machineId,machineName:machineId,startedAt:D(a),endedAt:b?D(b):null,
-  linkedCallIsSystemTest:test,classification:null,callId:null,
+  failureResponsibility:"maintenance",linkedCallIsSystemTest:test,classification:null,callId:null,
 });
 const build=(data:Partial<Parameters<typeof buildPlannedProductionKpis>[0]>)=>
   buildPlannedProductionKpis({

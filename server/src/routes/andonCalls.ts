@@ -1,3 +1,4 @@
+import { diagnosisSnapshot, type DiagnosisSnapshot } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { normalizePin } from "../security/technicianCredentials.js";
@@ -2443,6 +2444,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const resolvedFailureDescription =
             optionalString(body.failureDescription) ?? optionalString(body.notes);
 
+          let snapshot: DiagnosisSnapshot = { failureResponsibility: null, analyticsDisposition: null };
           if (!call.isSystemTest) {
             if (!failureClassification) {
               throw new FinishCallValidationError("Classificação da falha é obrigatória");
@@ -2468,11 +2470,13 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               throw new FinishCallValidationError("Classificação da falha está inativa");
             }
 
+            snapshot = diagnosisSnapshot(catalogClassification);
             if (applicableFailureEvent) {
               await tx.failureEvent.update({
                 where: { id: applicableFailureEvent.id },
                 data: {
                   classification: catalogClassification.value,
+                  ...snapshot,
                   notes: resolvedFailureDescription,
                 },
               });
@@ -2657,6 +2661,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               finishedAt: now,
               notes: mergeFinalDescription(call.notes, finalDescription),
               failureClassification: call.isSystemTest ? null : failureClassification,
+              ...snapshot,
               failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
               attendanceMinutes:
@@ -2788,13 +2793,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           return { error: "Classificação da falha inválida ou inativa", status: 400 } as const;
         }
 
-        if (call.failureClassification === classification && call.failureDescription === description) {
+        const snapshot = diagnosisSnapshot(catalogClassification);
+        if (call.failureClassification === classification && call.failureDescription === description && call.failureResponsibility === snapshot.failureResponsibility && call.analyticsDisposition === snapshot.analyticsDisposition) {
           return { call: await findCallWithSessions(tx, call.id) };
         }
 
         await tx.andonCall.update({
           where: { id: call.id },
-          data: { failureClassification: classification, failureDescription: description },
+          data: { failureClassification: classification, failureDescription: description, ...snapshot },
         });
         await tx.failureDiagnosisAudit.create({
           data: {
@@ -2806,6 +2812,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
               ? request.headers["x-andon-workstation-id"] : null,
             ipAddress: request.ip.replace(/^::ffff:/, ""),
+            previousResponsibility: call.failureResponsibility,
+            newResponsibility: snapshot.failureResponsibility,
+            previousDisposition: call.analyticsDisposition,
+            newDisposition: snapshot.analyticsDisposition,
             previousClassification: call.failureClassification,
             newClassification: classification,
             previousDescription: call.failureDescription,
@@ -2815,7 +2825,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         if (linkedEvent) {
           await tx.failureEvent.update({
             where: { id: linkedEvent.id },
-            data: { classification, notes: description },
+            data: { classification, notes: description, ...snapshot },
           });
         }
         return { call: await findCallWithSessions(tx, call.id) };

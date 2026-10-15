@@ -15,7 +15,7 @@ test("BI-10 registra endpoint de investigação só leitura com paginação e ex
   assert.match(route, /"active-sessions"/);
   assert.match(route, /"unclassified-calls"/);
   assert.match(route, /"unlinked-events"/);
-  assert.match(route, /isSystemTest: false/);
+  assert.match(route, /policy\.callWhere/);
   assert.match(route, /callId: null/);
   assert.match(route, /cannotAttribute/);
   assert.match(route, /take: PAGE_SIZE/);

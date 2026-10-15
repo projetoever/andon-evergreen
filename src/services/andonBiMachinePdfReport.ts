@@ -106,7 +106,7 @@ export function buildMachinePdfHtml(
   <div class="grid">
     ${metric("Downtime físico", minutes(data.kpis.downtimeMinutes), "red")}
     ${metric("Episódios físicos", String(data.kpis.physicalStopEpisodes), "red")}
-    ${metric("MTBF estimado", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
+    ${metric("Intervalo entre paradas (calendário)", data.machine.isActive ? minutes(data.kpis.mtbfEstimatedMinutes) : "—", "green")}
     ${metric("MTTA", minutes(data.kpis.mttaMinutes), "amber")}
     ${metric("Manutenção efetiva", minutes(data.kpis.avgMaintenanceMinutes), "")}
     ${metric("Parada por episódio", minutes(data.kpis.avgDowntimePerEpisodeMinutes), "red")}

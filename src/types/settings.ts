@@ -97,6 +97,8 @@ export interface TechnicianCategory {
 }
 
 export interface FailureClassificationConfig {
+  responsibility?: "maintenance" | "operations" | "process" | "quality" | "leadership" | "other" | "unassigned";
+  analyticsDisposition?: "include" | "test" | "false_call" | "duplicate";
   id: string;
   value: string;
   label: string;

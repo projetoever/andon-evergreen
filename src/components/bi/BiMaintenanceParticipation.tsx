@@ -179,7 +179,7 @@ export function BiMaintenanceParticipation({
             </h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Soma de horas por técnico, inclusive simultâneas. Não equivale a downtime nem avalia desempenho.
+            Soma de horas por técnico, inclusive simultâneas entre pessoas diferentes. Sobreposições da mesma pessoa contam uma vez. Não equivale a downtime nem avalia desempenho.
           </p>
         </div>
         <div className="flex shrink-0 gap-3 text-[11px] font-semibold text-muted-foreground">
@@ -192,11 +192,16 @@ export function BiMaintenanceParticipation({
         </div>
       </header>
 
+      {data.responsibility && (
+        <p className="mt-1 shrink-0 text-[11px] text-muted-foreground">
+          Trabalho por causa: {data.responsibility.map(item => `${({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.personMinutes)}`).join(" · ") || "Sem sessões"}. Sobreposição removida: {formatMinutes(data.totals.overlapMinutesRemoved ?? 0)}.
+        </p>
+      )}
       <div className="mt-2 grid shrink-0 grid-cols-4 gap-2">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-              Horas técnicas: manutenção
+              Horas técnicas: atendimento
             </span>
             <Wrench className="h-3.5 w-3.5" />
           </div>
@@ -366,7 +371,7 @@ export function BiMaintenanceParticipation({
 
           <div
             className={
-              data.coverage.legacySessions > 0
+              data.coverage.legacyMinutes > 0
                 ? "shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/[0.05] px-3 py-2"
                 : "shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] px-3 py-2"
             }
@@ -383,8 +388,8 @@ export function BiMaintenanceParticipation({
             </div>
             <p className="text-[11px] leading-4 text-muted-foreground">
               {data.coverage.phaseAwareSessions}/{data.coverage.totalSessions} sessão(ões) com fase explícita.
-              {data.coverage.legacySessions > 0 &&
-                ` ${data.coverage.legacySessions} sessão(ões) legada(s) · ${formatMinutes(data.coverage.legacyMinutes)} sem fase.`}
+              {data.coverage.legacyMinutes > 0 &&
+                ` ${formatMinutes(data.coverage.legacyMinutes)} sem fase comprovada (legado ou conflito de sobreposição).`}
             </p>
           </div>
         </div>

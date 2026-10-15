@@ -1,3 +1,5 @@
+import { GENERIC_DIAGNOSES } from "../analytics/eligibility.js";
+import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
@@ -76,6 +78,7 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       return badRequest(reply, "Informe category válida, page positiva e datas com fuso (startDate < endDate).");
     }
 
+    const policy = await loadAnalyticsEligibility();
     const now = new Date();
     const effectiveEnd = new Date(Math.min(now.getTime(), end.getTime()));
     const cutoff = new Date(now.getTime() - OVER_24H_MS);
@@ -94,7 +97,7 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
 
     if (itemType === "active-calls") {
       const where: Prisma.AndonCallWhereInput = {
-        isSystemTest: false,
+        ...policy.callWhere,
         ...scope,
         status: { in: ACTIVE_STATUSES },
         openedAt: { lte: cutoff },
@@ -122,14 +125,15 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       }));
     } else if (itemType === "open-events" || itemType === "unlinked-events") {
       const sharedWhere: Prisma.FailureEventWhereInput = {
+        ...policy.eventWhere,
         ...machineFilter,
         ...(itemType === "open-events"
           ? {
               endedAt: null,
               startedAt: { lte: cutoff },
               ...(subtype
-                ? { call: { is: { isSystemTest: false, subtype } } }
-                : { OR: [{ callId: null }, { call: { is: { isSystemTest: false } } }] }),
+                ? { call: { is: { ...policy.callWhere, subtype } } }
+                : { OR: [{ callId: null }, { call: { is: { ...policy.callWhere } } }] }),
             }
           : {
               callId: null,
@@ -172,7 +176,7 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
         endedAt: null,
         startedAt: { lte: cutoff },
         call: {
-          isSystemTest: false,
+          ...policy.callWhere,
           ...(subtype ? { subtype } : {}),
         },
       };
@@ -200,10 +204,10 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       }));
     } else {
       const where: Prisma.AndonCallWhereInput = {
-        isSystemTest: false, ...scope,
+        ...policy.callWhere, ...scope,
         status: "finished",
         finishedAt: { gte: start, lt: effectiveEnd },
-        failureClassification: null,
+        OR:[{failureClassification:null},{failureClassification:{in:GENERIC_DIAGNOSES}}],
       };
       if (effectiveEnd > start) {
         const [total, rows] = await Promise.all([

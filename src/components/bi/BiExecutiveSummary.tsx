@@ -110,6 +110,13 @@ export function BiExecutiveSummary({
         </span>
       </div>
 
+      {overview.responsibility && (
+        <div className="mt-2 text-[11px] leading-5 text-muted-foreground" aria-label="Responsabilidade e qualidade dos indicadores">
+          <p><strong>Parada por causa:</strong> {overview.responsibility.downtime.filter(item => item.downtimeMinutes > 0).map(item => `${({maintenance:"Manutenção",operations:"Operação",process:"Processos",quality:"Qualidade",leadership:"Liderança",other:"Outros",unassigned:"Pendente"} as Record<string,string>)[item.responsibility] ?? item.responsibility}: ${formatMinutes(item.downtimeMinutes)}`).join(" · ") || "Sem paradas"}.</p>
+          <p>{overview.responsibility.excludedCalls} chamado(s) excluído(s) por teste, falso chamado, duplicidade ou cancelamento · {overview.responsibility.pendingFinishedCalls} finalizado(s) com responsabilidade pendente. A parada global mantém as perdas reais de todas as áreas.</p>
+        </div>
+      )}
+
       <div className="mt-3 grid gap-2 lg:grid-cols-2">
         {items.slice(0, 4).map((item, index) => (
           <div

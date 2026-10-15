@@ -14,7 +14,7 @@ test("BI-12 possui endpoint temporal read-only com filtros coerentes com overvie
   assert.match(route, /loadOverviewDataset\(period\.start, period\.end, effectiveEnd, filters, false\)/);
   assert.match(route, /31 \* 24 \* 60 \* 60 \* 1000/);
   assert.match(analytics, /mergedPhysicalIntervals/);
-  assert.match(analytics, /linkedCallIsSystemTest/);
+  assert.match(analytics, /isEligible/);
   assert.match(analytics, /timeZone/);
   assert.match(analytics, /localPosition/);
   assert.match(analytics, /openedAt/);

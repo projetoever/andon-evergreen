@@ -1,3 +1,4 @@
+import { hasSpecificDiagnosis, isEligible, uniqueById } from "./eligibility.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOWS = {
   "24h": DAY_MS,
@@ -82,13 +83,13 @@ export function buildFailureIntelligence({
   const startMs = start.getTime();
   const endMs = effectiveEnd.getTime();
   const historyStartMs = startMs - WINDOWS["30d"];
-  const history = calls
+  const history = uniqueById(calls)
     .filter(
       (call) =>
-        !call.isSystemTest &&
+        isEligible(call) &&
         call.finishedAt.getTime() >= historyStartMs &&
         call.finishedAt.getTime() < endMs &&
-        Boolean(validLabel(call.classification)),
+        hasSpecificDiagnosis(call.classification),
     )
     .sort(
       (a, b) =>
@@ -139,7 +140,7 @@ export function buildFailureIntelligence({
     const key = JSON.stringify([call.machineId, diagnosis]);
     const previous = lastByDiagnosis.get(key);
     const gapMs =
-      previous && previous.id !== call.id
+      previous && previous.id !== call.id && call.openedAt >= previous.finishedAt
         ? call.finishedAt.getTime() - previous.finishedAt.getTime()
         : null;
     const gapInWindow = gapMs !== null && gapMs > 0 && gapMs <= WINDOWS["30d"];

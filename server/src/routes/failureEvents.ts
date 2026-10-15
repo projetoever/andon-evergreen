@@ -1,3 +1,4 @@
+import { diagnosisSnapshot } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
@@ -127,12 +128,14 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
         }
       }
 
+      const catalog = await tx.failureClassification.findUnique({ where: { value: classification } });
       const event = await tx.failureEvent.create({
         data: {
           machineId,
           callId,
           startedAt: now,
           classification,
+          ...diagnosisSnapshot(catalog),
           source,
           productionMode: productionMode ?? machine.productionMode,
           machineStatus,
@@ -172,11 +175,14 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
         if (!event) return null;
         const nextClassification = classification ?? event.classification;
         const nextNotes = notes ?? event.notes;
-        if (nextClassification !== event.classification || nextNotes !== event.notes) {
+        const catalog = classification ? await tx.failureClassification.findUnique({ where: { value: classification } }) : null;
+        const snapshot = classification ? diagnosisSnapshot(catalog) : { failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition };
+        if (nextClassification !== event.classification || nextNotes !== event.notes || snapshot.failureResponsibility !== event.failureResponsibility || snapshot.analyticsDisposition !== event.analyticsDisposition) {
           await tx.failureEvent.update({
             where: { id: event.id },
             data: {
               ...(classification ? { classification } : {}),
+              ...snapshot,
               ...(notes !== undefined ? { notes } : {}),
             },
           });
@@ -190,6 +196,10 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
               workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
                 ? request.headers["x-andon-workstation-id"] : null,
               ipAddress: request.ip.replace(/^::ffff:/, ""),
+              previousResponsibility: event.failureResponsibility,
+              newResponsibility: snapshot.failureResponsibility,
+              previousDisposition: event.analyticsDisposition,
+              newDisposition: snapshot.analyticsDisposition,
               previousClassification: event.classification,
               newClassification: nextClassification,
               previousDescription: event.notes,

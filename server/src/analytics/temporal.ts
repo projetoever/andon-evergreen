@@ -1,3 +1,4 @@
+import { isEligible, uniqueById } from "./eligibility.js";
 import type { AnalyticsFailureEventRecord } from "./overview.js";
 
 type TemporalCall = {
@@ -33,7 +34,7 @@ function localPosition(value: Date, formatter: Intl.DateTimeFormat) {
 function mergedPhysicalIntervals(events: AnalyticsFailureEventRecord[], start: number, end: number) {
   const byMachine = new Map<string, Interval[]>();
   for (const event of events) {
-    if (event.linkedCallIsSystemTest) continue;
+    if (!isEligible(event)) continue;
     const from = Math.max(start, event.startedAt.getTime());
     const to = Math.min(end, event.endedAt?.getTime() ?? end);
     if (to <= from) continue;
@@ -74,9 +75,9 @@ export function buildTemporalPatterns(input: TemporalInput) {
   });
 
   let callsCount = 0;
-  for (const call of calls) {
+  for (const call of uniqueById(calls)) {
     const opened = call.openedAt.getTime();
-    if (call.isSystemTest || opened < from || opened >= end) continue;
+    if (!isEligible(call) || opened < from || opened >= end) continue;
     const { weekday, hour } = localPosition(call.openedAt, local);
     callMatrix[weekday][hour]++;
     callsCount++;
