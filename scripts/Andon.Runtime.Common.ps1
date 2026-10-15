@@ -255,25 +255,15 @@ function Test-AndonRuntimeApiBusinessReady {
     $context = Get-AndonRuntimeContext
 
     try {
-        Invoke-RestMethod `
-            -Uri "$($context.ApiBaseUrl)/health" `
-            -TimeoutSec 5 |
-            Out-Null
+        $readiness = Invoke-RestMethod `
+            -Uri "$($context.ApiBaseUrl)/health/ready" `
+            -TimeoutSec 10
 
-        Invoke-RestMethod `
-            -Uri "$($context.ApiBaseUrl)/health/db" `
-            -TimeoutSec 5 |
-            Out-Null
-
-        Invoke-RestMethod `
-            -Uri (
-                "$($context.ApiBaseUrl)" +
-                "/api/machines?includeInactive=true"
-            ) `
-            -TimeoutSec 10 |
-            Out-Null
-
-        return $true
+        return (
+            $readiness.status -eq "ok" -and
+            $readiness.ready -is [bool] -and
+            $readiness.ready
+        )
     } catch {
         return $false
     }

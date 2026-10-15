@@ -79,6 +79,8 @@ As sessões de ANDON/BI são independentes, vinculadas ao navegador/estação e 
 
 Ao habilitar senha, confirme também os clientes HTTP e integrações que usam as APIs daquele módulo. A exigência passa a valer para essas requisições, inclusive clientes legados sem Origin/UUID.
 
+A inicialização do kiosk e o watchdog usam uma verificação de prontidão própria (`/health/ready`), sem entrar nos módulos. Quando há senha operacional, o teste automático de escrita do instalador informa **SKIP**; faça essa validação pela interface de uma estação autorizada.
+
 ## Acesso e sequência de Prioridades
 
 No cartão **Acesso de Prioridades**, dentro de **Módulos e senhas**, configure usuário, nova senha e confirmação. A credencial é independente da senha global do Admin e vale para os navegadores atendidos pelo mesmo servidor. Sua atualização invalida as sessões de Prioridades existentes.

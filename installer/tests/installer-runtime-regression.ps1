@@ -102,6 +102,9 @@ Assert-AndonTest `
     -Condition ($secretPreview -match "POSTGRES_PASSWORD=\*\*\*") `
     -Message "Sanitizacao deve mascarar POSTGRES_PASSWORD"
 
+$script:TestReady = $true
+$script:TestPasswordRequired = $false
+$script:ReadinessRequests = @()
 function Invoke-RestMethod {
     param(
         [Parameter(Position = 0)]
@@ -109,6 +112,11 @@ function Invoke-RestMethod {
         [int]$TimeoutSec
     )
 
+    $script:ReadinessRequests += $Uri
+    if ($Uri -like "*/health/ready") {
+        return [pscustomobject]@{ status = "ok"; ready = $script:TestReady; operationalPasswordRequired = $script:TestPasswordRequired }
+    }
+    if ($script:TestPasswordRequired) { throw "Endpoint operacional nao deve ser usado como health check." }
     return @()
 }
 
@@ -117,6 +125,22 @@ $emptyWriteResult = Test-AndonApiWrite
 Assert-AndonTest `
     -Condition ($emptyWriteResult.Status -eq "SKIP") `
     -Message "Perfil empty sem maquinas deve retornar SKIP"
+
+$script:TestPasswordRequired = $true
+$script:ReadinessRequests = @()
+Assert-AndonTest -Condition (Test-AndonApiBusinessReady) -Message "Senha de modulo nao pode impedir inicializacao"
+$protectedWriteResult = Test-AndonApiWrite
+Assert-AndonTest -Condition ($protectedWriteResult.Status -eq "SKIP") -Message "Health de escrita deve respeitar senha de modulo"
+Assert-AndonTest -Condition (@($script:ReadinessRequests | Where-Object { $_ -like "*/api/machines*" }).Count -eq 0) -Message "Prontidao nao deve consultar dados protegidos"
+$script:TestReady = $false
+Assert-AndonTest -Condition (!(Test-AndonApiBusinessReady)) -Message "HTTP 200 com ready=false nao e prontidao"
+
+. (Join-Path $repositoryRoot "scripts\Andon.Runtime.Common.ps1")
+$script:AndonRuntimeContext = [pscustomobject]@{ ApiBaseUrl = "http://127.0.0.1:3001" }
+Assert-AndonTest -Condition (!(Test-AndonRuntimeApiBusinessReady)) -Message "Watchdog rejeita schema indisponivel"
+$script:TestReady = $true
+Assert-AndonTest -Condition (Test-AndonRuntimeApiBusinessReady) -Message "Watchdog aceita API protegida com schema pronto"
+$script:AndonRuntimeContext = $null
 
 Remove-Item Function:\Invoke-RestMethod
 

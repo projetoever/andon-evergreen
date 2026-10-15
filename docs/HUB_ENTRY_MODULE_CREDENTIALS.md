@@ -12,6 +12,8 @@ Uma workstation com tela fixada também começa no Hub. Ao selecionar ANDON, ret
 
 O campo legado `hubEnabled` permanece no banco/API para compatibilidade com versões anteriores. A candidata não depende dele para exibir o Hub ou navegar entre módulos e retira o antigo interruptor de ativação da interface.
 
+Instalador, watchdog e abertura do kiosk verificam `/health/ready`, independente da senha operacional. Esse endpoint faz somente leituras de prontidão do banco/schema e não retorna máquinas, credenciais ou dados de chamados. Falha de banco/schema retorna HTTP 503. O teste automático de escrita do instalador retorna **SKIP**, explicitamente, quando o ANDON exige senha; a escrita deve então ser validada pela interface autorizada. Não existe bypass de senha para health checks.
+
 ## Permissão e visibilidade
 
 As permissões `allowOperational`, `allowBi` e `allowPriorities` são independentes e administradas no Hub. A ativação geral da estação prevalece sobre as três.

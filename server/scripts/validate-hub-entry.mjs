@@ -45,6 +45,9 @@ export async function validateHubEntry({ request, json, prisma, ids, adminAuthor
         /^scrypt\$/,
       );
       await request(path, { headers }, 401);
+      const ready = await request("/health/ready", { headers: { authorization: "" } });
+      assert.equal(ready.ready, true, "runtime readiness must not require a module password");
+      if (module === "operational") assert.equal(ready.operationalPasswordRequired, true);
       await request(path, { headers: { authorization: adminAuthorization } }, 401);
       await request(
         `/api/modules/${module}/login`,

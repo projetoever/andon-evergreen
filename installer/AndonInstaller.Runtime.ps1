@@ -37,10 +37,8 @@ function Test-AndonKioskVisible {
 function Test-AndonApiBusinessReady {
     $api = "http://127.0.0.1:$Global:AndonApiPort"
     try {
-        Invoke-RestMethod "$api/health" -TimeoutSec 5 | Out-Null
-        Invoke-RestMethod "$api/health/db" -TimeoutSec 5 | Out-Null
-        Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 10 | Out-Null
-        return $true
+        $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
+        return ($readiness.status -eq "ok" -and $readiness.ready -is [bool] -and $readiness.ready)
     } catch {
         return $false
     }
@@ -51,7 +49,7 @@ function Wait-AndonApiBusinessReady {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         if (Test-AndonApiBusinessReady) {
-            Write-AndonOk "API operacional: /health + /health/db + /api/machines."
+            Write-AndonOk "API e schema prontos: /health/ready."
             return $true
         }
         Start-Sleep -Seconds 3
@@ -491,9 +489,11 @@ function Invoke-AndonHealthCheck {
     }
 
     $api = "http://127.0.0.1:$($config.apiPort)"
-    foreach ($url in @("$api/health", "$api/health/db", "$api/api/machines?includeInactive=true")) {
+    foreach ($url in @("$api/health", "$api/health/db", "$api/health/ready")) {
         try {
-            Invoke-RestMethod $url -TimeoutSec 10 | Out-Null
+            $health = Invoke-RestMethod $url -TimeoutSec 10
+            if ($url -like "*/health/db" -and $health.connected -ne $true) { throw "Banco desconectado." }
+            if ($url -like "*/health/ready" -and ($health.status -ne "ok" -or $health.ready -ne $true)) { throw "Schema indisponivel." }
             Write-AndonOk $url
         } catch {
             Write-AndonFail $url

@@ -121,10 +121,22 @@ Write-Host ""
 Write-Host "2. Banco via API /health/db"
 
 try {
-    Invoke-RestMethod "http://localhost:$ApiPort/health/db" -TimeoutSec 5 | Out-Null
+    $databaseHealth = Invoke-RestMethod "http://localhost:$ApiPort/health/db" -TimeoutSec 5
+    if ($databaseHealth.connected -ne $true) { throw "Banco desconectado." }
     Write-Host "[OK] Banco respondeu via API" -ForegroundColor Green
 } catch {
     Write-Host "[FALHA] Banco/API nao respondeu em http://localhost:$ApiPort/health/db" -ForegroundColor Red
+    $hasError = $true
+}
+
+Write-Host ""
+Write-Host "2b. Prontidao do schema /health/ready"
+try {
+    $readiness = Invoke-RestMethod "http://localhost:$ApiPort/health/ready" -TimeoutSec 10
+    if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "Schema indisponivel." }
+    Write-Host "[OK] API e schema prontos" -ForegroundColor Green
+} catch {
+    Write-Host "[FALHA] API/schema indisponivel" -ForegroundColor Red
     $hasError = $true
 }
 

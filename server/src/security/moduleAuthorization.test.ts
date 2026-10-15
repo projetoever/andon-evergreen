@@ -6,8 +6,45 @@ import { createAdminSession, enforceAdminAuthorization } from "./adminAuthorizat
 import { enforceWorkstationAccess } from "./workstationAccess.js";
 import { createModuleSession, enforceModuleAuthorization } from "./moduleAuthorization.js";
 import { registerModuleCredentialRoutes } from "../routes/moduleCredentials.js";
+import { registerHealthDbRoute } from "../routes/healthDb.js";
 
 const id = "ws_00000000-0000-4000-8000-000000000037";
+test("runtime readiness remains public with protected modules and rejects a missing schema", async (t) => {
+  let schemaReady = true;
+  const machine = prisma.machine.findFirst,
+    workstation = prisma.workstation.findFirst,
+    credential = prisma.moduleCredential.findUnique,
+    priority = prisma.dashboardPriorityConfig.findFirst;
+  prisma.machine.findFirst = (async () => null) as unknown as typeof machine;
+  prisma.workstation.findFirst = (async () => {
+    if (!schemaReady) throw new Error("missing schema");
+    return null;
+  }) as unknown as typeof workstation;
+  prisma.moduleCredential.findUnique = (async () => ({
+    passwordRequired: true,
+    credentialVersion: 1,
+  })) as unknown as typeof credential;
+  prisma.dashboardPriorityConfig.findFirst = (async () => null) as unknown as typeof priority;
+  t.after(() => {
+    prisma.machine.findFirst = machine;
+    prisma.workstation.findFirst = workstation;
+    prisma.moduleCredential.findUnique = credential;
+    prisma.dashboardPriorityConfig.findFirst = priority;
+  });
+  const app = Fastify();
+  t.after(() => app.close());
+  app.addHook("preHandler", enforceModuleAuthorization);
+  await registerHealthDbRoute(app);
+  const ready = await app.inject({ url: "/health/ready" });
+  assert.equal(ready.statusCode, 200);
+  assert.equal(ready.json().ready, true);
+  assert.equal(ready.json().operationalPasswordRequired, true);
+  assert.equal(ready.json().passwordHash, undefined);
+  schemaReady = false;
+  const failed = await app.inject({ url: "/health/ready" });
+  assert.equal(failed.statusCode, 503);
+  assert.equal(failed.json().ready, false);
+});
 test("module tokens are scoped to station, API family, expiry and credential version", async (t) => {
   let version = 1;
   const lookup = prisma.moduleCredential.findUnique;
