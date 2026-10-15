@@ -16,6 +16,8 @@ export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: AndonLanguage; label: stri
 const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, string>> = {
   en: {
     "Módulos": "Modules",
+    "Sair do módulo": "Sign out of module",
+    "O navegador bloqueou o áudio. Toque para liberar.": "The browser blocked audio. Tap to enable it.",
     "Central de módulos": "Module hub",
     "Selecione seu módulo de trabalho": "Choose your workspace module",
     "Administração do Hub": "Hub administration",
@@ -180,6 +182,8 @@ const translations: Record<Exclude<AndonLanguage, "pt-BR">, Record<string, strin
   },
   "zh-TW": {
     "Módulos": "模組",
+    "Sair do módulo": "登出模組",
+    "O navegador bloqueou o áudio. Toque para liberar.": "瀏覽器已封鎖音效。點按以啟用。",
     "Central de módulos": "模組中心",
     "Selecione seu módulo de trabalho": "選擇工作模組",
     "Administração do Hub": "中心管理",

@@ -437,15 +437,27 @@ async function run() {
   assert.equal(historicalClassification?.label, "Falha dinâmica renomeada");
   assert.equal(historicalClassification?.active, false);
 
+  // All attendance fixtures deliberately belong to a shift six hours ahead.
+  // This makes name, PIN, RFID and support flows exercise off-shift admission.
+  const clock = await request("/health");
+  const hourPart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: clock.timeZone,
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(clock.timestamp)).find((part) => part.type === "hour");
+  const offShiftStartHour = (Number(hourPart.value) + 6) % 24;
+  const offShiftEndHour = (offShiftStartHour + 1) % 24;
   await prisma.shift.create({
     data: {
       id: ids.shift,
-      name: "Turno de integração",
-      startTime: "06:00",
-      endTime: "14:00",
+      name: "Turno fora do horário atual CI",
+      startTime: `${String(offShiftStartHour).padStart(2, "0")}:00`,
+      endTime: `${String(offShiftEndHour).padStart(2, "0")}:00`,
+      crossesMidnight: offShiftEndHour < offShiftStartHour,
       active: true,
     },
   });
+  await request("/api/system-settings", json("PATCH", { filterTechniciansByCurrentShift: true }));
 
   await request(
     "/api/machines",
@@ -1536,6 +1548,7 @@ async function run() {
     json("POST", { method: "pin", value: "4821" }),
   );
   assert.equal(identifiedByPin.id, electrical.id, "PIN deve continuar disponível como alternativa");
+  assert.equal(identifiedByPin.shiftId, ids.shift, "PIN aceita mantenedor fora do horário do turno");
   const identifiedByRfid = await request(
     "/api/technicians/identify",
     json("POST", { method: "rfid", value: "TAG-ELECTRICAL-47" }),
@@ -1545,6 +1558,7 @@ async function run() {
     electrical.id,
     "RFID deve continuar disponível como alternativa",
   );
+  assert.equal(identifiedByRfid.shiftId, ids.shift, "RFID aceita mantenedor fora do horário do turno");
   await request("/api/technicians/identify", json("POST", { method: "pin", value: "0000" }), 404);
 
   const openedCalls = await request(
@@ -1609,10 +1623,11 @@ async function run() {
   );
   const attended = await request(
     `/api/andon-calls/${electricalCall.id}/attend`,
-    json("PATCH", { credentials: [{ method: "pin", value: "4821" }] }),
+    json("PATCH", { credentials: [{ method: "rfid", value: "TAG-ELECTRICAL-47" }] }),
   );
   assert.equal(attended.status, "in_progress");
   assert.equal(attended.technicianSessions.length, 1);
+  assert.equal(attended.technicianSessions[0].shiftId, ids.shift);
 
   await request(
     `/api/andon-calls/${electricalCall.id}/technicians`,
@@ -1637,6 +1652,7 @@ async function run() {
     201,
   );
   assert.equal(withElectricalSupport.technicianSessions.length, 2);
+  assert.ok(withElectricalSupport.technicianSessions.every((session) => session.shiftId === ids.shift));
   await request("/api/system-settings", json("PATCH", { attendanceMode: "rfid" }));
 
   const endedByCredential = await request(

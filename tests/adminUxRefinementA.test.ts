@@ -284,7 +284,7 @@ test("configurações gerais bloqueiam operação quando o estado global não é
     "utf8",
   );
 
-  assert.match(source, /Operação global/);
+  assert.match(source, /Regras da operação/);
   assert.match(source, /settingsLoadError/);
   assert.match(source, /Configurações globais indisponíveis/);
   assert.match(source, /loadGeneralSettings/);

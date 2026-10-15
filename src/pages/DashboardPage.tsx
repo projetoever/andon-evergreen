@@ -4,6 +4,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
+import { AudioPlaybackRecovery } from "@/components/common/AudioPlaybackRecovery";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { MachineGrid } from "@/components/machines/MachineGrid";
@@ -39,7 +40,9 @@ import {
 } from "@/utils/dashboardSoundMuteUtils";
 
 export function DashboardPage() {
-  const { machines, calls, settings, soundConfigs, audioUnlocked, setAudioUnlocked } = useAndon();
+  const {
+    machines, calls, settings, soundConfigs, audioUnlocked, audioPlaybackBlocked, setAudioUnlocked,
+  } = useAndon();
 
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -392,7 +395,10 @@ export function DashboardPage() {
 
   return (
     <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-hidden p-2 md:p-3">
-      {!audioUnlocked && (
+      {!audioUnlocked && audioPlaybackBlocked && (
+        <AudioPlaybackRecovery onActivate={handleUnlock} />
+      )}
+      {!audioUnlocked && !audioPlaybackBlocked && (
         <div className="flex shrink-0 flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-1.5 text-warning sm:flex-row">
           <div className="flex items-center gap-3">
             <Volume2 className="h-6 w-6" />

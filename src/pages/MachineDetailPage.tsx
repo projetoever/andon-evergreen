@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { playAndonSound, stopAndonSound, unlockAudio } from "@/services/soundService";
+import { AudioPlaybackRecovery } from "@/components/common/AudioPlaybackRecovery";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import type { CallSubtype } from "@/types/andon";
@@ -67,6 +68,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     soundConfigs,
     settings,
     audioUnlocked,
+    audioPlaybackBlocked,
     setAudioUnlocked,
   } = useAndon();
 
@@ -498,7 +500,10 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   return (
     <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto p-2">
-      {!audioUnlocked && (
+      {!audioUnlocked && audioPlaybackBlocked && (
+        <AudioPlaybackRecovery onActivate={handleMachineAudioUnlock} />
+      )}
+      {!audioUnlocked && !audioPlaybackBlocked && (
         <div className="flex shrink-0 flex-col items-center justify-between gap-2 rounded-xl border-2 border-warning bg-warning/10 px-3 py-1.5 text-warning sm:flex-row">
           <span className="text-sm font-bold">
             Ative o áudio desta workstation para receber os alertas sonoros desta máquina.

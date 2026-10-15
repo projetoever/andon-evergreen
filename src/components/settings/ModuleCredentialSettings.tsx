@@ -72,6 +72,12 @@ function CredentialPanel({ initial }: { initial: CredentialSettings }) {
               : "Configure usuário e senha antes de exigir autenticação."}{" "}
             A permissão da workstation continua obrigatória.
           </p>
+          {initial.id === "operational" && (
+            <p className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+              Exigir senha também protege a API operacional. Integrações como Node-RED e sirene por
+              GPIO precisarão autenticar e renovar a sessão para continuar lendo os dados.
+            </p>
+          )}
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="space-y-1">
               <Label htmlFor={`${prefix}-username`}>Usuário</Label>
