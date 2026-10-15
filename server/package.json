@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test:auth": "node --import tsx --test src/security/technicianCredentials.test.ts src/security/adminAuthorization.test.ts",
+    "test:auth": "node --import tsx --test src/security/technicianCredentials.test.ts src/security/adminAuthorization.test.ts src/security/workstationAccess.test.ts",
     "test:analytics": "node --import tsx --test src/analytics/overview.test.ts src/analytics/maintenance.test.ts src/analytics/reliability.test.ts src/analytics/failureIntelligence.test.ts src/analytics/machine360.test.ts src/analytics/machine360Recurrence.test.ts src/analytics/temporal.test.ts src/analytics/productionKpis.test.ts",
     "test:dashboard": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/dashboardPriority.test.ts ../tests/callDurationFreeze.test.ts ../tests/dashboardSoundMuteTimer.test.ts ../tests/dashboardCardAttention.test.ts",
     "test:impact": "TSX_TSCONFIG_PATH=../tsconfig.json node --import tsx --test ../tests/callImpactAttribution.test.ts ../tests/failureDescriptionUtils.test.ts",

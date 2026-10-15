@@ -198,6 +198,15 @@ function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Da
 }
 
 export async function registerAnalyticsRoutes(app: FastifyInstance) {
+  // BI-only workstations receive filter metadata without access to operational snapshots.
+  app.get("/api/analytics/filter-options", async () => {
+    const [machines, sectors, classifications] = await Promise.all([
+      prisma.machine.findMany({ select: { id: true, name: true, isActive: true } }),
+      prisma.andonCategory.findMany({ select: { id: true, displayName: true, active: true, categoryGroup: true } }),
+      prisma.failureClassification.findMany({ select: { id: true, label: true, value: true, active: true } }),
+    ]);
+    return { machines, sectors, classifications };
+  });
   await registerAnalyticsDataQualityRoutes(app);
 
   app.get<{ Querystring: AnalyticsOverviewQuery }>(

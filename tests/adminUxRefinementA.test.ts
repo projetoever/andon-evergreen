@@ -263,17 +263,18 @@ test("sons usam aba dedicada com busca, escopo e aviso de armazenamento local", 
 });
 
 
-test("configurações gerais deixam credenciais globais e recuperação explícitas", async () => {
-  const source = await readFile(
-    new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url),
-    "utf8",
-  );
+test("Hub deixa credenciais globais e recuperação explícitas", async () => {
+  const [security, priorities] = await Promise.all([
+    readFile(new URL("../src/components/settings/HubSecuritySettings.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/PriorityAccessSettings.tsx", import.meta.url), "utf8"),
+  ]);
+  const source = `${security}\n${priorities}`;
 
-  assert.match(source, /todas as máquinas/);
+  assert.match(source, /todas as\s+máquinas/);
   assert.match(source, /Gerar novo código/);
   assert.match(source, /Esqueci a senha/);
-  assert.match(source, /armazenado no servidor apenas como hash/);
-  assert.match(source, /válida em todas as máquinas\/workstations/);
+  assert.match(source, /armazenado no\s+servidor apenas como hash/);
+  assert.match(source, /válida em todas as\s+máquinas\/workstations/);
 });
 
 

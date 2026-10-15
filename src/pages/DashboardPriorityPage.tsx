@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowLeft,
@@ -14,7 +14,8 @@ import { toast } from "sonner";
 
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { Button } from "@/components/ui/button";
-import { useAndon } from "@/context/AndonProvider";
+import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   getDashboardPriorityOrder,
   getStoredDashboardPrioritySession,
@@ -23,12 +24,18 @@ import {
   saveDashboardPriorityOrder,
   type DashboardPriorityMachine,
 } from "@/services/dashboardPriorityService";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
+import { LOCAL_STORAGE_KEYS } from "@/constants/localStorageKeys";
+import { loadFromStorage } from "@/services/localStorageService";
+import type { Machine } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 
 export function DashboardPriorityPage() {
   const navigate = useNavigate();
-  const { machines } = useAndon();
+  const { access } = useModuleAccess();
+  const returnTo = access?.hubEnabled || !access?.workstation.allowOperational ? "/hub" : "/";
+  const leavingAfterLogout = useRef(false);
   const [authenticated, setAuthenticated] = useState(() =>
     isDashboardPriorityAuthenticated(),
   );
@@ -43,6 +50,10 @@ export function DashboardPriorityPage() {
 
   const currentIds = rows.map((row) => row.id);
   const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
+  useBlocker({
+    shouldBlockFn: () => hasUnsavedChanges && !leavingAfterLogout.current && !window.confirm("Descartar as alterações de prioridade ainda não salvas?"),
+    enableBeforeUnload: hasUnsavedChanges,
+  });
 
   const activePriorityRanks = useMemo(() => {
     const ranks = new Map<string, number>();
@@ -53,7 +64,7 @@ export function DashboardPriorityPage() {
     return ranks;
   }, [rows]);
 
-  async function loadOrder() {
+  const loadOrder = useCallback(async () => {
     if (!isDashboardPriorityAuthenticated()) {
       setAuthenticated(false);
       setLoginOpen(true);
@@ -62,7 +73,8 @@ export function DashboardPriorityPage() {
 
     setIsLoading(true);
     try {
-      const snapshot = await getDashboardPriorityOrder(machines);
+      const localMachines = CONFIGURED_DATA_MODE === "local" ? loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, []) : [];
+      const snapshot = await getDashboardPriorityOrder(localMachines);
       setRows(snapshot.machines);
       setSavedIds(snapshot.machines.map((machine) => machine.id));
       setLastOrderUpdatedAt(snapshot.lastOrderUpdatedAt);
@@ -78,11 +90,11 @@ export function DashboardPriorityPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (authenticated) void loadOrder();
-  }, [authenticated]);
+  }, [authenticated, loadOrder]);
 
   function moveRow(sourceIndex: number, targetIndex: number) {
     if (
@@ -129,11 +141,13 @@ export function DashboardPriorityPage() {
   }
 
   async function handleLogout() {
+    if (hasUnsavedChanges && !window.confirm("Descartar as alterações de prioridade ainda não salvas?")) return;
+    leavingAfterLogout.current = true;
     await logoutDashboardPriority();
     setAuthenticated(false);
     setRows([]);
     setSavedIds([]);
-    void navigate({ to: "/" });
+    void navigate({ to: returnTo });
   }
 
   const session = getStoredDashboardPrioritySession();
@@ -143,7 +157,7 @@ export function DashboardPriorityPage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 items-start gap-3">
-            <Button type="button" variant="outline" size="icon" onClick={() => void navigate({ to: "/" })}>
+            <Button type="button" variant="outline" size="icon" aria-label="Voltar" onClick={() => void navigate({ to: returnTo })}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -161,6 +175,7 @@ export function DashboardPriorityPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ModuleNavigation />
             {session?.username && (
               <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">
                 {session.username}
@@ -320,7 +335,7 @@ export function DashboardPriorityPage() {
         open={loginOpen}
         onOpenChange={(open) => {
           setLoginOpen(open);
-          if (!open && !authenticated) void navigate({ to: "/" });
+          if (!open && !isDashboardPriorityAuthenticated()) void navigate({ to: returnTo });
         }}
         onSuccess={() => setAuthenticated(true)}
       />

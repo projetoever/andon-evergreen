@@ -1,21 +1,13 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { KeyRound, ListOrdered, Settings2, ShieldCheck } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { PlatformAdminLinks } from "./PlatformAdminLinks";
+import { useCallback, useEffect, useState } from "react";
+import { ListOrdered, Settings2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  ADMIN_PASSWORD_MIN_LENGTH,
-  changeAdminPassword,
-  generateAdminRecoveryCode,
-} from "@/services/adminAuthService";
-import {
-  configureDashboardPriorityCredentials,
-  getDashboardPriorityAccessStatus,
-} from "@/services/dashboardPriorityService";
+import { getDashboardPriorityAccessStatus } from "@/services/dashboardPriorityService";
 import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
 import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 
@@ -28,23 +20,12 @@ export function GeneralSettingsTab() {
   const [isSavingKeyboard, setIsSavingKeyboard] = useState(false);
   const [isSavingWorkOrder, setIsSavingWorkOrder] = useState(false);
   const [isSavingMaintenanceRestriction, setIsSavingMaintenanceRestriction] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isSavingAdminPassword, setIsSavingAdminPassword] = useState(false);
-  const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
-  const [generatedRecoveryCode, setGeneratedRecoveryCode] = useState("");
-  const [isGeneratingRecoveryCode, setIsGeneratingRecoveryCode] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
   const [isSavingDashboardOrderMode, setIsSavingDashboardOrderMode] = useState(false);
   const [priorityConfigured, setPriorityConfigured] = useState(false);
   const [isLoadingPriorityAccess, setIsLoadingPriorityAccess] = useState(true);
   const [priorityAccessLoadError, setPriorityAccessLoadError] = useState<string | null>(null);
-  const [priorityUsername, setPriorityUsername] = useState("");
-  const [priorityPassword, setPriorityPassword] = useState("");
-  const [priorityPasswordConfirm, setPriorityPasswordConfirm] = useState("");
-  const [isSavingPriorityCredentials, setIsSavingPriorityCredentials] = useState(false);
 
   const loadGeneralSettings = useCallback(async () => {
     setIsLoadingSettings(true);
@@ -76,7 +57,6 @@ export function GeneralSettingsTab() {
     try {
       const status = await getDashboardPriorityAccessStatus();
       setPriorityConfigured(status.configured);
-      setPriorityUsername(status.username ?? "");
     } catch {
       const message = "Não foi possível carregar o acesso de prioridades.";
       setPriorityAccessLoadError(message);
@@ -92,11 +72,7 @@ export function GeneralSettingsTab() {
   }, [loadGeneralSettings, loadPriorityAccess]);
 
   async function handleDashboardOrderModeChange(mode: DashboardMachineOrderMode) {
-    if (
-      mode === dashboardMachineOrderMode ||
-      isSavingDashboardOrderMode ||
-      settingsLoadError
-    ) {
+    if (mode === dashboardMachineOrderMode || isSavingDashboardOrderMode || settingsLoadError) {
       return;
     }
     if (mode === "priority" && priorityAccessLoadError) {
@@ -125,42 +101,6 @@ export function GeneralSettingsTab() {
       toast.error("Não foi possível alterar a organização do Dashboard.");
     } finally {
       setIsSavingDashboardOrderMode(false);
-    }
-  }
-
-  async function handleSavePriorityCredentials(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const username = priorityUsername.trim();
-    if (username.length < 3) {
-      toast.error("O usuário de prioridades deve possuir pelo menos 3 caracteres.");
-      return;
-    }
-    if (priorityPassword.trim().length < 6) {
-      toast.error("A senha de prioridades deve possuir pelo menos 6 caracteres.");
-      return;
-    }
-    if (priorityPassword !== priorityPasswordConfirm) {
-      toast.error("A confirmação da senha de prioridades não confere.");
-      return;
-    }
-
-    setIsSavingPriorityCredentials(true);
-    try {
-      const result = await configureDashboardPriorityCredentials(username, priorityPassword);
-      setPriorityConfigured(result.configured);
-      setPriorityUsername(result.username);
-      setPriorityPassword("");
-      setPriorityPasswordConfirm("");
-      toast.success("Credenciais da gestão de prioridades atualizadas.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar as credenciais de prioridades.",
-      );
-    } finally {
-      setIsSavingPriorityCredentials(false);
     }
   }
 
@@ -231,62 +171,12 @@ export function GeneralSettingsTab() {
     }
   }
 
-  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (newPassword.trim() !== confirmPassword.trim()) {
-      toast.error("A confirmação não confere com a nova senha.");
-      return;
-    }
-
-    setIsSavingAdminPassword(true);
-    try {
-      const result = await changeAdminPassword(currentPassword, newPassword);
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      toast.success(result.message);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível alterar a senha administrativa.",
-      );
-    } finally {
-      setIsSavingAdminPassword(false);
-    }
-  }
-
-  async function handleGenerateRecoveryCode() {
-    if (!recoveryCurrentPassword.trim()) {
-      toast.error("Informe a senha administrativa atual para gerar o código de recuperação.");
-      return;
-    }
-
-    setIsGeneratingRecoveryCode(true);
-    try {
-      const result = await generateAdminRecoveryCode(recoveryCurrentPassword);
-      setGeneratedRecoveryCode(result.recoveryCode);
-      setRecoveryCurrentPassword("");
-      toast.success("Novo código de recuperação gerado.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível gerar o código de recuperação.",
-      );
-    } finally {
-      setIsGeneratingRecoveryCode(false);
-    }
-  }
-
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <h3 className="text-base font-bold">Configurações gerais</h3>
         <p className="text-sm text-muted-foreground">
-          Preferências globais da interface e credenciais administrativas.
+          Regras de chamados, interface e preferências do Dashboard.
         </p>
       </div>
 
@@ -349,7 +239,9 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label="Restringir conclusão da manutenção à workstation do atendimento"
                 checked={restrictMaintenanceCompletion}
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction}
+                disabled={
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction
+                }
                 onCheckedChange={(checked) => void handleMaintenanceRestrictionChange(checked)}
               />
             </div>
@@ -371,108 +263,7 @@ export function GeneralSettingsTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-primary" />
-              Senha administrativa
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <form className="space-y-3" onSubmit={handleChangePassword}>
-              <p className="text-sm text-muted-foreground">
-                Esta senha é salva no servidor e passa a valer para o Admin e desbloqueio em todas as máquinas.
-              </p>
-              <div className="space-y-1">
-                <Label htmlFor="current-admin-password">Senha atual</Label>
-                <Input
-                  id="current-admin-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  placeholder="Senha atual"
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="new-admin-password">Nova senha</Label>
-                  <Input
-                    id="new-admin-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    placeholder={`Mínimo ${ADMIN_PASSWORD_MIN_LENGTH} caracteres`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="confirm-admin-password">Confirmar senha</Label>
-                  <Input
-                    id="confirm-admin-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Repita a nova senha"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSavingAdminPassword}>
-                  {isSavingAdminPassword ? "Salvando..." : "Alterar senha global"}
-                </Button>
-              </div>
-            </form>
-
-            <div className="border-t border-border pt-4">
-              <div className="space-y-1">
-                <p className="font-black">Recuperação da senha do Admin</p>
-                <p className="text-xs text-muted-foreground">
-                  Gere um código de recuperação e guarde-o fora do ANDON. O código é exibido somente
-                  nesta geração e fica armazenado no servidor apenas como hash.
-                </p>
-              </div>
-
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <Label htmlFor="admin-recovery-current-password">Senha administrativa atual</Label>
-                  <Input
-                    id="admin-recovery-current-password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={recoveryCurrentPassword}
-                    onChange={(event) => setRecoveryCurrentPassword(event.target.value)}
-                    placeholder="Confirme a senha atual"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isGeneratingRecoveryCode}
-                  onClick={() => void handleGenerateRecoveryCode()}
-                >
-                  {isGeneratingRecoveryCode ? "Gerando..." : "Gerar novo código"}
-                </Button>
-              </div>
-
-              {generatedRecoveryCode && (
-                <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-warning">
-                    Guarde este código agora
-                  </p>
-                  <p className="mt-2 select-all font-mono text-xl font-black tracking-wider text-foreground">
-                    {generatedRecoveryCode}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Em caso de esquecimento, use “Esqueci a senha” na tela de acesso administrativo.
-                    Após uma recuperação, este código é invalidado e um novo deve ser gerado.
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <PlatformAdminLinks />
 
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -492,7 +283,9 @@ export function GeneralSettingsTab() {
             <div className="grid gap-3 md:grid-cols-2">
               <button
                 type="button"
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode}
+                disabled={
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
+                }
                 onClick={() => void handleDashboardOrderModeChange("default")}
                 className={`rounded-xl border p-4 text-left transition ${
                   dashboardMachineOrderMode === "default"
@@ -508,7 +301,9 @@ export function GeneralSettingsTab() {
 
               <button
                 type="button"
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode}
+                disabled={
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
+                }
                 onClick={() => void handleDashboardOrderModeChange("priority")}
                 className={`rounded-xl border p-4 text-left transition ${
                   dashboardMachineOrderMode === "priority"
@@ -531,7 +326,8 @@ export function GeneralSettingsTab() {
                     <p className="font-black">Acesso à gestão de prioridades</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Credencial independente salva no servidor e válida em todas as máquinas/workstations.
+                    Credencial independente salva no servidor e válida em todas as
+                    máquinas/workstations.
                   </p>
                 </div>
                 <span
@@ -570,55 +366,11 @@ export function GeneralSettingsTab() {
                 </div>
               )}
 
-              <form className="space-y-3" onSubmit={handleSavePriorityCredentials}>
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="priority-manager-username">Usuário</Label>
-                    <Input
-                      id="priority-manager-username"
-                      autoComplete="off"
-                      value={priorityUsername}
-                      onChange={(event) => setPriorityUsername(event.target.value)}
-                      placeholder="responsavel.producao"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="priority-manager-password">Nova senha</Label>
-                    <Input
-                      id="priority-manager-password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={priorityPassword}
-                      onChange={(event) => setPriorityPassword(event.target.value)}
-                      placeholder="Mínimo 6 caracteres"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="priority-manager-password-confirm">Confirmar senha</Label>
-                    <Input
-                      id="priority-manager-password-confirm"
-                      type="password"
-                      autoComplete="new-password"
-                      value={priorityPasswordConfirm}
-                      onChange={(event) => setPriorityPasswordConfirm(event.target.value)}
-                      placeholder="Repita a senha"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    disabled={isSavingPriorityCredentials || isLoadingPriorityAccess}
-                  >
-                    {isSavingPriorityCredentials
-                      ? "Salvando..."
-                      : priorityConfigured
-                        ? "Atualizar credenciais"
-                        : "Configurar acesso"}
-                  </Button>
-                </div>
-              </form>
+              <Button variant="outline" asChild>
+                <Link to="/hub/admin" search={{ section: "priorities" }}>
+                  Gerenciar credenciais no Hub
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

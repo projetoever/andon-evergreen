@@ -46,7 +46,8 @@ type ApiProductionEvent = {
   durationSeconds?: number | null;
 };
 
-type ApiMachine = Partial<Machine> & {
+type ApiMachine = Omit<Partial<Machine>, "andonStatus"> & {
+  andonStatus?: Machine["andonStatus"] | "normal";
   id: string;
   name: string;
   isActive?: boolean;

@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useAndon } from "@/context/AndonProvider";
 import { StatusSummaryBar } from "@/components/layout/StatusSummaryBar";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { MachineGrid } from "@/components/machines/MachineGrid";
 import { BigButton } from "@/components/common/BigButton";
@@ -417,6 +418,7 @@ export function DashboardPage() {
         </div>
         <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 justify-self-end md:col-start-3">
           <LanguageSelector />
+          <ModuleNavigation />
           {audioUnlocked && (
             <button
               type="button"

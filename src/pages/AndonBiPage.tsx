@@ -1,3 +1,4 @@
+import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, FileDown, RefreshCw } from "lucide-react";
@@ -471,6 +472,7 @@ export function AndonBiPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <ModuleNavigation />
             {overview && (
               <span className="rounded-full border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
                 Atualizado{" "}

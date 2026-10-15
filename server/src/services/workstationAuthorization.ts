@@ -49,7 +49,7 @@ export async function resolveAttendanceWorkstationId(
 
   const workstation = await tx.workstation.findUnique({
     where: { id: workstationId },
-    select: { id: true, active: true },
+    select: { id: true, active: true, allowOperational: true },
   });
 
   if (!workstation) {
@@ -64,6 +64,10 @@ export async function resolveAttendanceWorkstationId(
       throw new WorkstationAuthorizationError(WORKSTATION_INACTIVE_MESSAGE);
     }
     return null;
+  }
+
+  if (!workstation.allowOperational) {
+    throw new WorkstationAuthorizationError("Módulo operacional não autorizado para esta workstation.");
   }
 
   return workstation.id;

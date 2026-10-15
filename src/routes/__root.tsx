@@ -1,10 +1,12 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
 import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 import { Toaster } from "@/components/ui/sonner";
 import { WorkstationAccessGate } from "@/components/security/WorkstationAccessGate";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
+import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
 
 import appCss from "../styles.css?url";
 
@@ -75,11 +77,27 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  return <ModuleAccessProvider><RootContent /></ModuleAccessProvider>;
+}
+
+function RootContent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { access, checking } = useModuleAccess();
+  const navigate = useNavigate();
+  const lockedMachineId = access?.workstation.lockedMachineId;
+  const mustReturnToMachine = Boolean(!checking && lockedMachineId && pathname !== "/hub/admin" && pathname !== `/machines/${encodeURIComponent(lockedMachineId)}`);
+  useEffect(() => {
+    if (mustReturnToMachine && lockedMachineId) void navigate({ to: "/machines/$machineId", params: { machineId: lockedMachineId }, replace: true });
+  }, [mustReturnToMachine, lockedMachineId, navigate]);
   const isBiRoute = useRouterState({
     select: (state) =>
       state.location.pathname === "/bi" ||
       state.location.pathname.startsWith("/bi/"),
   });
+
+  if (mustReturnToMachine) return <div role="status" className="p-6">Retornando à tela fixada da máquina…</div>;
+  if (pathname === "/hub" || pathname.startsWith("/hub/")) return <><Outlet /><Toaster /></>;
+  if (pathname === "/machine-priorities") return <WorkstationAccessGate><Outlet /><Toaster /></WorkstationAccessGate>;
 
   if (isBiRoute) {
     return (

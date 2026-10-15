@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/dashboard-i18n-pt-en-zh-tw-20261014
 
 permissions:
   contents: read
@@ -92,7 +93,9 @@ jobs:
           }
 
       - name: Validar frontend e SSR
-        run: npm run build
+        run: |
+          npm run typecheck
+          npm run build
 
       - name: Garantir build sem alterar route tree versionado
         run: |

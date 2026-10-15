@@ -10,12 +10,9 @@ import type {
   AnalyticsMachine360,
   AnalyticsOverview,
   AnalyticsTemporalPatterns,
-  AndonBiClassificationOption,
   AndonBiFilterOptions,
   AndonBiFilters,
-  AndonBiMachineOption,
   AndonBiPeriodPreset,
-  AndonBiSectorOption,
 } from "@/types/analytics";
 
 type ApiHealth = {
@@ -51,11 +48,7 @@ function applyDimensionFilters(query: URLSearchParams, filters: AndonBiFilters) 
 }
 
 export async function loadAndonBiFilterOptions(): Promise<AndonBiFilterOptions> {
-  const [machines, sectors, classifications] = await Promise.all([
-    andonBiApiClient.get<AndonBiMachineOption[]>("/api/machines?includeInactive=true"),
-    andonBiApiClient.get<AndonBiSectorOption[]>("/api/andon-categories"),
-    andonBiApiClient.get<AndonBiClassificationOption[]>("/api/failure-classifications"),
-  ]);
+  const { machines, sectors, classifications } = await andonBiApiClient.get<AndonBiFilterOptions>("/api/analytics/filter-options");
 
   return {
     machines: [...machines].sort((a, b) =>

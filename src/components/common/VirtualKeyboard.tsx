@@ -228,9 +228,10 @@ export function VirtualKeyboard() {
         const candidate = focusRequest?.target;
         if (!candidate?.isConnected) return;
         candidate.focus({ preventScroll: true });
-        if (!focusRequest.selection) return;
+        const selection = focusRequest?.selection;
+        if (!selection) return;
         try {
-          candidate.setSelectionRange(focusRequest.selection.start, focusRequest.selection.end);
+          candidate.setSelectionRange(selection.start, selection.end);
         } catch {
           // Campos numéricos mantêm o foco, mas não oferecem seleção programática.
         }
