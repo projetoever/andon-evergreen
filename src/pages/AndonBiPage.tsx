@@ -4,7 +4,7 @@ import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, FileDown, RefreshCw, Factory } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -110,6 +110,12 @@ export function AndonBiPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [drillSelection, setDrillSelection] = useState<AnalyticsDrilldownSelection | null>(null);
+  const drillReturnFocus = useRef<HTMLElement | null>(null);
+  const openDrilldown = useCallback((selection: AnalyticsDrilldownSelection) => {
+    drillReturnFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDrillSelection(selection);
+  }, []);
   const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
@@ -453,7 +459,7 @@ export function AndonBiPage() {
   useEffect(() => {
     if (!drillSelection) return;
 
-    const previousFocus = document.activeElement;
+    const previousFocus = drillReturnFocus.current ?? document.activeElement;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
@@ -661,7 +667,7 @@ export function AndonBiPage() {
               period={filters.period}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
-              onDrilldown={setDrillSelection}
+              onDrilldown={openDrilldown}
               onExpandTopic={setDetailTopic}
             />
           )}
@@ -720,7 +726,7 @@ export function AndonBiPage() {
               onTemporalSelected={() => setTemporalRequested(true)}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
-              onDrilldown={setDrillSelection}
+              onDrilldown={openDrilldown}
               onExpandTopic={setDetailTopic}
             />
           )}
@@ -803,7 +809,7 @@ export function AndonBiPage() {
           classificationLabels={classificationLabels}
           sectorLabels={sectorLabels}
           onClose={() => setDetailTopic(null)}
-          onDrilldown={setDrillSelection}
+          onDrilldown={openDrilldown}
         />
       )}
 

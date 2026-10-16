@@ -42,6 +42,7 @@ export function BiTopicDialog({
   );
   const [page, setPage] = useState(0);
   const previousFocus = useRef<HTMLElement | null>(null);
+  const pendingSelection = useRef<AnalyticsDrilldownSelection | null>(null);
   const pages = Math.max(1, Math.ceil(detail.rows.length / PAGE_SIZE));
   const date = (value: string) =>
     new Intl.DateTimeFormat(getInterfaceLocale(), {
@@ -64,6 +65,11 @@ export function BiTopicDialog({
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (previousFocus.current?.isConnected) previousFocus.current.focus();
+          // Open the next dialog only after Radix restores focus. Otherwise its
+          // delayed close callback could steal focus from the investigation.
+          const selection = pendingSelection.current;
+          pendingSelection.current = null;
+          if (selection) onDrilldown(selection);
         }}
         className="flex h-[min(800px,calc(100dvh-24px))] w-[calc(100vw-24px)] max-w-6xl min-w-0 flex-col gap-3 overflow-hidden rounded-xl border-primary/30 bg-card p-4 sm:p-6"
       >
@@ -223,8 +229,8 @@ export function BiTopicDialog({
                             <button
                               type="button"
                               onClick={() => {
+                                pendingSelection.current = row.selection ?? null;
                                 onClose();
-                                onDrilldown(row.selection!);
                               }}
                               className="text-left font-bold text-primary underline-offset-4 hover:underline"
                               title={ui("Abrir registros de {0}", { 0: cell })}
