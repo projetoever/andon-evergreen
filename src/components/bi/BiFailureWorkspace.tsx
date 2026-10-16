@@ -1,3 +1,5 @@
+import { BiExpandButton } from "./BiExpandButton";
+import type { BiDetailTopic } from "@/utils/biTopicDetails";
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
@@ -22,6 +24,7 @@ export function BiFailureWorkspace({
   classificationLabels,
   sectorLabels,
   onDrilldown,
+  onExpandTopic,
 }: {
   overview: AnalyticsOverview | null;
   intelligence: AnalyticsFailureIntelligence | null;
@@ -34,6 +37,7 @@ export function BiFailureWorkspace({
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
+  onExpandTopic: (topic: BiDetailTopic) => void;
 }) {
   useInterfaceLanguage();
   const [mode, setMode] = useState<"recurrence" | "distribution" | "temporal">("recurrence");
@@ -116,7 +120,15 @@ export function BiFailureWorkspace({
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
           <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
-            <div className="shrink-0">
+            <div className="relative shrink-0 pr-8">
+              {overview && (
+                <div className="absolute right-0 top-0">
+                  <BiExpandButton
+                    label={ui("Pareto de classificações")}
+                    onClick={() => onExpandTopic("classifications")}
+                  />
+                </div>
+              )}
               <h2 className="text-sm font-black uppercase tracking-wide">
                 {ui("Pareto de classificações")}
               </h2>
@@ -172,7 +184,15 @@ export function BiFailureWorkspace({
           </section>
 
           <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
-            <div className="shrink-0">
+            <div className="relative shrink-0 pr-8">
+              {overview && (
+                <div className="absolute right-0 top-0">
+                  <BiExpandButton
+                    label={ui("Demanda por setor")}
+                    onClick={() => onExpandTopic("sectors")}
+                  />
+                </div>
+              )}
               <h2 className="text-sm font-black uppercase tracking-wide">
                 {ui("Demanda por setor")}
               </h2>

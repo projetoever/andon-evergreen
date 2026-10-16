@@ -1,3 +1,5 @@
+import { BiExpandButton } from "./BiExpandButton";
+import type { BiDetailTopic } from "@/utils/biTopicDetails";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { Activity, BarChart3, Clock3, RotateCcw, TimerReset, Wrench } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -28,6 +30,7 @@ export function BiOverviewWorkspace({
   classificationLabels,
   sectorLabels,
   onDrilldown,
+  onExpandTopic,
 }: {
   overview: AnalyticsOverview | null;
   loading: boolean;
@@ -35,6 +38,7 @@ export function BiOverviewWorkspace({
   classificationLabels: Map<string, string>;
   sectorLabels: Map<string, string>;
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
+  onExpandTopic: (topic: BiDetailTopic) => void;
 }) {
   const { t } = useLanguage();
   const kpis = overview?.kpis;
@@ -46,9 +50,10 @@ export function BiOverviewWorkspace({
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(12rem,1fr)] gap-3 overflow-y-auto">
-      <section className="grid shrink-0 grid-cols-6 gap-3">
+      <section className="grid shrink-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <BiKpiCard
           label={t("Disponibilidade")}
+          onExpand={overview ? () => onExpandTopic("availability") : undefined}
           tooltip={ui(
             "Disponibilidade nas horas registradas como Produção Programada, somente nas máquinas com histórico completo. Não é OEE nem calendário de turnos.",
           )}
@@ -66,6 +71,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTBF")}
+          onExpand={overview ? () => onExpandTopic("mtbf") : undefined}
           tooltip={ui(
             "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível.",
           )}
@@ -83,6 +89,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTA")}
+          onExpand={overview ? () => onExpandTopic("mtta") : undefined}
           tooltip={ui(
             "Tempo médio da abertura ao primeiro atendimento dos chamados atendidos no período.",
           )}
@@ -98,6 +105,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTR")}
+          onExpand={overview ? () => onExpandTopic("mttr") : undefined}
           tooltip={ui(
             "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
           )}
@@ -111,6 +119,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Tempo de parada")}
+          onExpand={overview ? () => onExpandTopic("downtime") : undefined}
           tooltip={ui(
             "Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade.",
           )}
@@ -125,6 +134,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Taxa de retorno")}
+          onExpand={overview ? () => onExpandTopic("return-rate") : undefined}
           tooltip={ui(
             "Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado.",
           )}
@@ -150,13 +160,27 @@ export function BiOverviewWorkspace({
         <div className="h-32 animate-pulse rounded-xl border border-border bg-muted/20" />
       )}
 
-      <section className="grid min-h-0 grid-cols-3 gap-3">
-        <BiDailyAvailabilityCard data={scheduled} />
+      <section className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-3">
+        <BiDailyAvailabilityCard
+          data={scheduled}
+          onExpand={overview ? () => onExpandTopic("availability-daily") : undefined}
+        />
 
-        <BiDowntimeTrendCard data={overview?.downtimeTrend ?? []} />
+        <BiDowntimeTrendCard
+          data={overview?.downtimeTrend ?? []}
+          onExpand={overview ? () => onExpandTopic("downtime-daily") : undefined}
+        />
 
         <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
-          <div className="shrink-0">
+          <div className="relative shrink-0 pr-8">
+            {overview && (
+              <div className="absolute right-0 top-0">
+                <BiExpandButton
+                  label={ui("Máquinas com maior parada")}
+                  onClick={() => onExpandTopic("machines")}
+                />
+              </div>
+            )}
             <h2 className="text-xs font-black uppercase tracking-wide">
               {t("Máquinas com maior parada")}
             </h2>

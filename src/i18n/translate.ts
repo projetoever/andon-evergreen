@@ -2,13 +2,15 @@ import { contextMessages, type MessageContext } from "./contextMessages";
 export type { MessageContext } from "./contextMessages";
 import baseMessages from "./baseMessages.json";
 import { messages } from "./messages";
+import { biTopicMessages } from "./biTopicMessages";
 import { getInterfaceLanguage, type AndonLanguage } from "./language";
 export { getInterfaceLanguage, getInterfaceLocale } from "./language";
 
 export type MessageParams = Readonly<Record<string, string | number | null | undefined>>;
 const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
 const catalog = new Map<string, readonly string[]>();
-for (const row of [...baseMessages, ...messages]) catalog.set(normalize(row[0]), row);
+for (const row of [...baseMessages, ...messages, ...biTopicMessages])
+  catalog.set(normalize(row[0]), row);
 export const interfaceMessages: ReadonlyMap<string, readonly string[]> = catalog;
 const contextCatalog = new Map<string, readonly string[]>();
 for (const [context, rows] of Object.entries(contextMessages))

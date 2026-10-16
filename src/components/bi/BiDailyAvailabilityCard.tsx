@@ -1,3 +1,4 @@
+import { BiExpandButton } from "./BiExpandButton";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -19,7 +20,9 @@ function minutes(value: number) {
 }
 export function BiDailyAvailabilityCard({
   data,
+  onExpand,
 }: {
+  onExpand?: () => void;
   data: AnalyticsProductionMetrics | null | undefined;
 }) {
   useInterfaceLanguage();
@@ -27,9 +30,12 @@ export function BiDailyAvailabilityCard({
     data?.availabilityStatus === "available" && data.daily.some((d) => d.scheduledMinutes > 0);
   return (
     <article className="flex min-h-0 flex-col rounded-xl border border-emerald-500/20 bg-card p-3 xl:p-4 shadow-sm">
-      <h2 className="text-xs font-black uppercase tracking-wide">
-        {ui("Disponibilidade por dia")}
-      </h2>
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <h2 className="text-xs font-black uppercase tracking-wide">
+          {ui("Disponibilidade por dia")}
+        </h2>
+        {onExpand && <BiExpandButton label={ui("Disponibilidade por dia")} onClick={onExpand} />}
+      </div>
       <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
         {ui("Tempo programado sem paradas registradas · percentual")}
       </p>

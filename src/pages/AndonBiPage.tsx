@@ -1,8 +1,10 @@
+import { BiTopicDialog } from "@/components/bi/BiTopicDialog";
+import type { BiDetailTopic } from "@/utils/biTopicDetails";
 import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, FileDown, RefreshCw, Factory } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -72,6 +74,7 @@ const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
 export function AndonBiPage() {
   const { access } = useModuleAccess();
   const { t } = useLanguage();
+  const [detailTopic, setDetailTopic] = useState<BiDetailTopic | null>(null);
   const [activeTab, setActiveTab] = useState<BiWorkspaceTab>("overview");
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
   const [options, setOptions] = useState<AndonBiFilterOptions>(EMPTY_OPTIONS);
@@ -107,6 +110,12 @@ export function AndonBiPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [drillSelection, setDrillSelection] = useState<AnalyticsDrilldownSelection | null>(null);
+  const drillReturnFocus = useRef<HTMLElement | null>(null);
+  const openDrilldown = useCallback((selection: AnalyticsDrilldownSelection) => {
+    drillReturnFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDrillSelection(selection);
+  }, []);
   const [drilldown, setDrilldown] = useState<AnalyticsDrilldownResult | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillError, setDrillError] = useState<string | null>(null);
@@ -146,6 +155,7 @@ export function AndonBiPage() {
     // Never show cards for a previous period beneath newly selected filters.
     // Keep the same authoritative snapshot across all BI modules.
     setOverview(null);
+    setDetailTopic(null);
     setDrillSelection(null);
     setDrilldown(null);
     setMachineSelection(null);
@@ -240,6 +250,7 @@ export function AndonBiPage() {
     setMachineSelection(null);
     setMachine360(null);
     setMachine360Error(null);
+    setDetailTopic(null);
   }, [filters, activeTab]);
 
   useEffect(() => {
@@ -448,7 +459,7 @@ export function AndonBiPage() {
   useEffect(() => {
     if (!drillSelection) return;
 
-    const previousFocus = document.activeElement;
+    const previousFocus = drillReturnFocus.current ?? document.activeElement;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
@@ -536,7 +547,7 @@ export function AndonBiPage() {
           </div>
         </header>
 
-        <section className="grid shrink-0 grid-cols-4 gap-3 rounded-xl border border-border bg-card p-3">
+        <section className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4 rounded-xl border border-border bg-card p-3">
           <label className="grid gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("Período")}
             <select
@@ -656,7 +667,8 @@ export function AndonBiPage() {
               period={filters.period}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
-              onDrilldown={setDrillSelection}
+              onDrilldown={openDrilldown}
+              onExpandTopic={setDetailTopic}
             />
           )}
 
@@ -684,7 +696,7 @@ export function AndonBiPage() {
                 </label>
               </div>
               {overview ? (
-                <BiReliabilityStrip overview={overview} />
+                <BiReliabilityStrip overview={overview} onExpandTopic={setDetailTopic} />
               ) : (
                 <div className="h-32 animate-pulse rounded-xl border border-border bg-muted/20" />
               )}
@@ -714,7 +726,8 @@ export function AndonBiPage() {
               onTemporalSelected={() => setTemporalRequested(true)}
               classificationLabels={classificationLabels}
               sectorLabels={sectorLabels}
-              onDrilldown={setDrillSelection}
+              onDrilldown={openDrilldown}
+              onExpandTopic={setDetailTopic}
             />
           )}
 
@@ -778,6 +791,25 @@ export function AndonBiPage() {
           error={systemMessage(machine360Error)}
           classificationLabels={classificationLabels}
           onClose={closeMachine360}
+        />
+      )}
+
+      {detailTopic && overview && (
+        <BiTopicDialog
+          key={detailTopic}
+          topic={detailTopic}
+          overview={overview}
+          filterSummary={[
+            options.machines.find((m) => m.id === filters.machineId)?.name ??
+              (filters.machineId || t("Todas as máquinas")),
+            sectorLabels.get(filters.subtype) ?? (filters.subtype || t("Todos os setores")),
+            classificationLabels.get(filters.classification) ??
+              (filters.classification || t("Todas as classificações")),
+          ].join(" · ")}
+          classificationLabels={classificationLabels}
+          sectorLabels={sectorLabels}
+          onClose={() => setDetailTopic(null)}
+          onDrilldown={openDrilldown}
         />
       )}
 
