@@ -1,3 +1,4 @@
+import { BiExpandButton } from "./BiExpandButton";
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import type { LucideIcon } from "lucide-react";
@@ -63,6 +64,7 @@ export function BiKpiCard({
   trendMeaning = "neutral",
   sampleSize,
   tooltip,
+  onExpand,
 }: {
   label: string;
   value: string;
@@ -73,18 +75,25 @@ export function BiKpiCard({
   trendMeaning?: TrendMeaning;
   sampleSize?: number;
   tooltip?: string;
+  onExpand?: () => void;
 }) {
   useInterfaceLanguage();
   const comparisonLabel = trend ? trendLabel(trend) : null;
   const lowSample = typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5;
 
   return (
-    <article className={`rounded-xl border p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={tooltip}>
+    <article
+      className={`min-w-0 rounded-xl border p-4 shadow-sm ${TONE_CLASSES[tone]}`}
+      title={tooltip}
+    >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+        <span className="min-w-0 break-words text-xs font-black uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
-        <Icon className={`h-4 w-4 ${ICON_CLASSES[tone]}`} />
+        <div className="flex items-center gap-1">
+          <Icon className={`h-4 w-4 ${ICON_CLASSES[tone]}`} />
+          {onExpand && <BiExpandButton label={label} onClick={onExpand} />}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">

@@ -1,3 +1,4 @@
+import { BiExpandButton } from "./BiExpandButton";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -27,15 +28,20 @@ function formatDateLabel(value: string) {
  */
 export function BiDowntimeTrendCard({
   data,
+  onExpand,
 }: {
+  onExpand?: () => void;
   data: Array<{ date: string; downtimeMinutes: number }>;
 }) {
   useInterfaceLanguage();
   return (
     <article className="flex h-full min-h-0 flex-col rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-3 xl:p-4 shadow-sm">
-      <h2 className="text-xs xl:text-sm font-black uppercase tracking-wide">
-        {ui("Tempo de parada por dia")}
-      </h2>
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <h2 className="text-xs xl:text-sm font-black uppercase tracking-wide">
+          {ui("Tempo de parada por dia")}
+        </h2>
+        {onExpand && <BiExpandButton label={ui("Tempo de parada por dia")} onClick={onExpand} />}
+      </div>
       <p
         className="mt-1 text-[10px] xl:text-[11px] leading-4 text-muted-foreground"
         title={ui(

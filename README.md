@@ -365,3 +365,5 @@ O ANDON Web Industrial combina implantação local, interface voltada ao chão d
 **ANDON Web Industrial** — visibilidade para agir, histórico para melhorar.
 
 A metodologia atual do BI, referências e regras de exclusão estão em [BI — metodologia e qualidade](docs/BI_METODOLOGIA_E_QUALIDADE.md).
+
+As janelas de detalhamento dos indicadores e gráficos, seus limites e a sequência planejada para relatórios agendados, recursos de gestão e entrega estão em [BI — evolução e gestão](docs/BI_EVOLUCAO_GESTAO.md). Nesta revisão, a expansão é a etapa implementada; agendas e notificações ainda são planejadas.

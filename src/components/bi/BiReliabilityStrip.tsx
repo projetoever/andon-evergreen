@@ -1,3 +1,5 @@
+import { BiExpandButton } from "./BiExpandButton";
+import type { BiDetailTopic } from "@/utils/biTopicDetails";
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { CheckCircle2, Gauge, Layers3, ShieldAlert, Timer, TimerReset } from "lucide-react";
@@ -18,12 +20,14 @@ function MiniMetric({
   detail,
   icon: Icon,
   accent,
+  onExpand,
 }: {
   label: string;
   value: string;
   detail: string;
   icon: typeof Gauge;
   accent: "red" | "amber" | "green" | "blue";
+  onExpand: () => void;
 }) {
   useInterfaceLanguage();
   const accentClass = {
@@ -35,13 +39,16 @@ function MiniMetric({
 
   return (
     <article
-      className={`rounded-lg border border-border border-l-2 bg-card px-3 py-2 ${accentClass}`}
+      className={`min-w-0 rounded-lg border border-border border-l-2 bg-card px-3 py-2 ${accentClass}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
-        <Icon className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <Icon className="h-4 w-4" />
+          <BiExpandButton label={label} onClick={onExpand} />
+        </div>
       </div>
       <div className="mt-1 text-lg font-black tabular-nums text-foreground">{value}</div>
       <div className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</div>
@@ -49,7 +56,13 @@ function MiniMetric({
   );
 }
 
-export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }) {
+export function BiReliabilityStrip({
+  overview,
+  onExpandTopic,
+}: {
+  overview: AnalyticsOverview;
+  onExpandTopic: (topic: BiDetailTopic) => void;
+}) {
   useInterfaceLanguage();
   const { kpis, coverage } = overview;
   const mtbfAvailable = kpis.mtbfEstimatedMinutes !== null;
@@ -72,9 +85,10 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         </span>
       </div>
 
-      <div className="grid grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <MiniMetric
           label={ui("Intervalo entre paradas (calendário)")}
+          onExpand={() => onExpandTopic("calendar-interval")}
           value={formatMinutes(kpis.mtbfEstimatedMinutes)}
           detail={
             mtbfAvailable
@@ -86,6 +100,7 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         />
         <MiniMetric
           label={ui("Episódios físicos")}
+          onExpand={() => onExpandTopic("physical-episodes")}
           value={String(kpis.physicalStopEpisodes)}
           detail={ui(
             "{0} evento(s) físicos iniciados na janela; episódios podem ter começado antes",
@@ -96,6 +111,7 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         />
         <MiniMetric
           label={ui("Parada média / episódio")}
+          onExpand={() => onExpandTopic("avg-downtime")}
           value={formatMinutes(kpis.avgDowntimePerEpisodeMinutes)}
           detail={ui("Tempo físico médio por episódio, inclusive paradas abertas")}
           icon={TimerReset}
@@ -103,6 +119,7 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         />
         <MiniMetric
           label={ui("Duração média do chamado")}
+          onExpand={() => onExpandTopic("avg-call")}
           value={formatMinutes(kpis.avgTotalCallMinutes)}
           detail={ui("Da abertura ao encerramento dos chamados finalizados")}
           icon={Timer}
@@ -110,6 +127,7 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         />
         <MiniMetric
           label={ui("Chamados finalizados")}
+          onExpand={() => onExpandTopic("finished-calls")}
           value={String(kpis.callsFinished)}
           detail={ui("{0} abertura(s) na janela", { 0: kpis.callsOpened })}
           icon={CheckCircle2}
@@ -117,6 +135,7 @@ export function BiReliabilityStrip({ overview }: { overview: AnalyticsOverview }
         />
         <MiniMetric
           label={ui("Diagnósticos preenchidos")}
+          onExpand={() => onExpandTopic("classification-coverage")}
           value={
             kpis.classificationCoveragePercent === null
               ? "—"
