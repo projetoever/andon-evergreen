@@ -4955,4 +4955,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ],
   ["Ativas", "Active", "啟用"],
   ["Inativas", "Inactive", "停用"],
+  ["UUID:", "UUID:", "UUID:"],
 ];

@@ -348,7 +348,7 @@ export function WorkstationsSettingsTab() {
                 <CollapsibleContent>
                   <CardContent className="space-y-4 border-t border-border p-4">
                     <p className="break-all font-mono text-xs text-muted-foreground">
-                      UUID: {workstation.id}
+                      {ui("UUID:")} {workstation.id}
                     </p>
                     {workstation.lockedMachineId && (
                       <p className="text-xs text-muted-foreground">
