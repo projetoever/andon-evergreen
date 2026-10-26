@@ -468,9 +468,9 @@ export function AndonBiPage() {
   }, [drillSelection]);
 
   return (
-    <main className="h-dvh overflow-hidden bg-background text-foreground">
-      <div className="mx-auto flex h-full w-full max-w-[1920px] flex-col gap-3 px-4 py-3 md:px-6">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border pb-3">
+    <main className="bi-page min-h-dvh bg-background lg:h-dvh lg:overflow-hidden text-foreground">
+      <div className="mx-auto flex w-full max-w-[1920px] lg:h-full flex-col gap-3 px-4 py-3 md:px-6">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               <BarChart3 className="h-3.5 w-3.5" />
@@ -497,7 +497,7 @@ export function AndonBiPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <LanguageSelector compact />
             <ModuleNavigation />
             <button
@@ -536,8 +536,8 @@ export function AndonBiPage() {
           </div>
         </header>
 
-        <section className="grid shrink-0 grid-cols-4 gap-3 rounded-xl border border-border bg-card p-3">
-          <label className="grid gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        <section className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 rounded-xl border border-border bg-card p-3">
+          <label className="grid min-w-0 gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("Período")}
             <select
               value={filters.period}
@@ -547,7 +547,7 @@ export function AndonBiPage() {
                   period: event.target.value as AndonBiPeriodPreset,
                 }))
               }
-              className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring"
             >
               {Object.entries(PERIOD_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -557,7 +557,7 @@ export function AndonBiPage() {
             </select>
           </label>
 
-          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("Máquina")}
             <select
               value={filters.machineId}
@@ -568,7 +568,7 @@ export function AndonBiPage() {
                   machineId: event.target.value,
                 }))
               }
-              className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
               <option value="">{t("Todas as máquinas")}</option>
               {options.machines.map((machine) => (
@@ -580,7 +580,7 @@ export function AndonBiPage() {
             </select>
           </label>
 
-          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("Setor")}
             <select
               value={filters.subtype}
@@ -591,7 +591,7 @@ export function AndonBiPage() {
                   subtype: event.target.value,
                 }))
               }
-              className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
               <option value="">{t("Todos os setores")}</option>
               {options.sectors.map((sector) => (
@@ -603,7 +603,7 @@ export function AndonBiPage() {
             </select>
           </label>
 
-          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <label className="grid min-w-0 gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("Classificação")}
             <select
               value={filters.classification}
@@ -614,7 +614,7 @@ export function AndonBiPage() {
                   classification: event.target.value,
                 }))
               }
-              className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-3 text-xs font-semibold normal-case text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
             >
               <option value="">{t("Todas as classificações")}</option>
               {options.classifications.map((classification) => (
@@ -648,7 +648,7 @@ export function AndonBiPage() {
           </div>
         )}
 
-        <section className="min-h-0 flex-1 overflow-hidden">
+        <section className="min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           {activeTab === "overview" && (
             <BiOverviewWorkspace
               overview={overview}
@@ -661,8 +661,8 @@ export function AndonBiPage() {
           )}
 
           {activeTab === "reliability" && (
-            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
-              <div className="flex shrink-0 items-center justify-between gap-2">
+            <div className="grid gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-muted-foreground">
                   {ui(
                     "MTBF geral: população padrão. O ranking abaixo pode incluir máquinas inativas.",
@@ -719,7 +719,7 @@ export function AndonBiPage() {
           )}
 
           {activeTab === "maintenance" && (
-            <div className="h-full min-h-0 overflow-hidden">
+            <div className="min-w-0 lg:h-full lg:min-h-0 lg:overflow-hidden">
               <BiMaintenanceParticipation
                 data={maintenance}
                 loading={maintenanceLoading}
@@ -752,7 +752,7 @@ export function AndonBiPage() {
           )}
         </section>
 
-        <footer className="flex shrink-0 items-center justify-between border-t border-border pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
           <span>
             {ui(
               "PostgreSQL · testes, falsos chamados e duplicados identificados excluídos · somente leitura",
@@ -783,7 +783,7 @@ export function AndonBiPage() {
 
       {drillSelection && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-6 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-label={ui("Detalhamento de {0}", { 0: drillSelection.label })}
@@ -791,7 +791,7 @@ export function AndonBiPage() {
             if (event.currentTarget === event.target) closeDrilldown();
           }}
         >
-          <div className="h-[min(760px,calc(100dvh-48px))] w-[min(1500px,calc(100vw-48px))]">
+          <div className="h-[calc(100dvh-16px)] w-full min-w-0 sm:h-[min(760px,calc(100dvh-48px))] sm:w-[min(1500px,calc(100vw-48px))]">
             <BiAnalyticsDrillDown
               selection={drillSelection}
               result={drilldown}

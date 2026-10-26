@@ -113,8 +113,8 @@ export function BiMachineRecurrence({
     }).format(new Date(iso));
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-      <div className="grid grid-cols-6 gap-2">
+    <div className="grid min-w-0 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {[
           [ui("Concluídos classificados"), stats.diagnosedFinishedCalls],
           [ui("Repetições ≤24h"), stats.repeated24h],
@@ -139,7 +139,7 @@ export function BiMachineRecurrence({
           </div>
         ))}
       </div>
-      <div className="grid min-h-0 grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] gap-3">
+      <div className="grid min-w-0 lg:min-h-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] gap-3">
         <section className="flex min-h-0 flex-col rounded-lg border border-border bg-card p-3">
           <div className="flex shrink-0 items-center gap-2">
             <Layers3 className="h-4 w-4 text-sky-400" />
@@ -150,7 +150,7 @@ export function BiMachineRecurrence({
               "Selecione para filtrar ocorrências · repetição exige diagnóstico e localização idênticos",
             )}
           </p>
-          <div ref={groupViewport} className="mt-2 min-h-0 flex-1 overflow-hidden">
+          <div ref={groupViewport} className="mt-2 h-72 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {info.groups
               .slice(safeGroupPage * groupRows, (safeGroupPage + 1) * groupRows)
               .map((group) => (
@@ -228,7 +228,7 @@ export function BiMachineRecurrence({
           <p className="mt-1 text-[10px] text-muted-foreground">
             {ui("Chamados finalizados · diagnóstico não significa causa raiz nem parada física")}
           </p>
-          <div ref={timelineViewport} className="mt-2 min-h-0 flex-1 overflow-hidden">
+          <div ref={timelineViewport} className="mt-2 h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {timeline
               .slice(safeHistoryPage * timelineRows, (safeHistoryPage + 1) * timelineRows)
               .map((c) => (

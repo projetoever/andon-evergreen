@@ -84,11 +84,11 @@ test("centraliza o relógio do dashboard e preserva o relógio da máquina", asy
   );
   assert.match(
     dashboard,
-    /col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1[\s\S]*<ClockDisplay \/>/,
+    /row-start-3 justify-self-center sm:col-span-2 sm:row-start-2 md:col-span-1 md:col-start-2 md:row-start-1[\s\S]*<ClockDisplay \/>/,
   );
   assert.match(
     dashboard,
-    /col-start-2 row-start-1 flex items-center justify-end gap-2 justify-self-end md:col-start-3/,
+    /row-start-2 flex max-w-full flex-wrap items-center justify-start gap-2 sm:col-start-2 sm:row-start-1 sm:justify-end sm:justify-self-end md:col-start-3/,
   );
 
   assert.match(machineHeader, /<ClockDisplay \/>[\s\S]*Som do ANDON/);

@@ -45,8 +45,8 @@ export function BiOverviewWorkspace({
       : `${value.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 })}%`;
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(12rem,1fr)] gap-3 overflow-y-auto">
-      <section className="grid shrink-0 grid-cols-6 gap-3">
+    <div className="grid min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(12rem,1fr)] lg:overflow-y-auto">
+      <section className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <BiKpiCard
           label={t("Disponibilidade")}
           tooltip={ui(
@@ -150,12 +150,12 @@ export function BiOverviewWorkspace({
         <div className="h-32 animate-pulse rounded-xl border border-border bg-muted/20" />
       )}
 
-      <section className="grid min-h-0 grid-cols-3 gap-3">
+      <section className="grid min-w-0 gap-3 lg:min-h-0 lg:grid-cols-3">
         <BiDailyAvailabilityCard data={scheduled} />
 
         <BiDowntimeTrendCard data={overview?.downtimeTrend ?? []} />
 
-        <article className="flex min-h-0 flex-col rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
+        <article className="flex min-w-0 flex-col rounded-xl lg:min-h-0 border border-red-500/20 bg-card p-4 shadow-sm">
           <div className="shrink-0">
             <h2 className="text-xs font-black uppercase tracking-wide">
               {t("Máquinas com maior parada")}
@@ -166,7 +166,7 @@ export function BiOverviewWorkspace({
           </div>
 
           {overview?.machinePareto.length ? (
-            <div className="mt-2 min-h-0 flex-1">
+            <div className="mt-2 h-60 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={overview.machinePareto.slice(0, 6)}

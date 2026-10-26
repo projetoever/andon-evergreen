@@ -186,7 +186,7 @@ export function BiExecutiveSummary({
             >
               {index + 1}
             </span>
-            <p title={item.text} className="line-clamp-3 text-xs leading-4 text-foreground">
+            <p title={item.text} className="lg:line-clamp-3 text-xs leading-4 text-foreground">
               {item.text}
             </p>
           </div>

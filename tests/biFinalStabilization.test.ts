@@ -53,7 +53,7 @@ test("BI-13: stabilization stays within current five-tab UI and does not change 
     readFile(new URL("../src/components/bi/BiWorkspaceTabs.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/package.json", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /h-dvh overflow-hidden/);
+  assert.match(page, /lg:h-dvh lg:overflow-hidden/);
   assert.equal((tabs.match(/id: "(overview|reliability|failures|maintenance|data-quality)"/g) ?? []).length, 5);
   assert.match(JSON.parse(uiScript).scripts["test:ui"], /biFinalStabilization\.test\.ts/);
 });

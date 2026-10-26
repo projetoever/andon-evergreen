@@ -6,7 +6,7 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import { logoutModule } from "@/services/moduleAuthService";
 
 const iconClassName =
-  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+  "inline-flex h-11 w-11 lg:h-9 lg:w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
 export function ModuleNavigation() {
   const { access, refresh } = useModuleAccess();

@@ -50,12 +50,12 @@ export function BiFailureWorkspace({
   }));
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex shrink-0 items-center justify-between gap-3">
+    <div className="flex min-w-0 flex-col gap-3 lg:h-full lg:min-h-0">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="text-xs font-black uppercase tracking-wide">
           {ui("Inteligência de falhas")}
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
           <button
             type="button"
             onClick={() => setMode("recurrence")}
@@ -114,7 +114,7 @@ export function BiFailureWorkspace({
           />
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
+        <div className="grid min-w-0 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
           <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
             <div className="shrink-0">
               <h2 className="text-sm font-black uppercase tracking-wide">
@@ -181,7 +181,7 @@ export function BiFailureWorkspace({
               </p>
             </div>
 
-            <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start gap-3">
+            <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 content-start gap-3">
               {sectorData.length ? (
                 sectorData.map((item) => (
                   <button
@@ -201,7 +201,7 @@ export function BiFailureWorkspace({
                   </button>
                 ))
               ) : (
-                <div className="col-span-2 flex h-full items-center justify-center text-sm text-muted-foreground">
+                <div className="sm:col-span-2 flex h-full items-center justify-center text-sm text-muted-foreground">
                   {ui("Sem chamados no período")}
                 </div>
               )}

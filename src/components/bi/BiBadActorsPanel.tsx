@@ -64,8 +64,8 @@ export function BiBadActorsPanel({
   const assets = eligibleAssets.slice(0, 8);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex shrink-0 items-end justify-between gap-4">
+    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-red-400" />
@@ -89,8 +89,8 @@ export function BiBadActorsPanel({
         </span>
       </div>
 
-      <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background/25">
-        <table className="w-full table-fixed text-left text-xs">
+      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border bg-background/25">
+        <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
           <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="w-[22%] px-3 py-2">{ui("Ativo", {}, "asset")}</th>

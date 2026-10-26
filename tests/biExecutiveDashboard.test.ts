@@ -131,8 +131,8 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
     readFile(new URL("../src/components/bi/BiAnalyticsDrillDown.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /h-dvh overflow-hidden/);
-  assert.match(page, /min-h-0 flex-1 overflow-hidden/);
+  assert.match(page, /lg:h-dvh lg:overflow-hidden/);
+  assert.match(page, /lg:min-h-0 lg:flex-1 lg:overflow-hidden/);
   assert.match(page, /activeTab === "overview"/);
   assert.match(page, /activeTab === "reliability"/);
   assert.match(page, /activeTab === "failures"/);

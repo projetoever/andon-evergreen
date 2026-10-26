@@ -46,7 +46,7 @@ export function BiDowntimeTrendCard({
       </p>
 
       {data.length ? (
-        <div className="mt-2 min-h-0 flex-1">
+        <div className="mt-2 h-60 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ left: 1, right: 2 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />

@@ -109,8 +109,8 @@ export function BiTemporalPatterns({
     : null;
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
-      <div className="grid shrink-0 grid-cols-4 gap-2">
+    <div className="grid min-w-0 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] gap-2">
+      <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         <SmallCard
           label={ui("Novos chamados")}
           value={String(t.callsOpened)}
@@ -165,7 +165,7 @@ export function BiTemporalPatterns({
 
       <div className="grid min-h-0 gap-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(330px,0.65fr)]">
         <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-3">
-          <header className="flex shrink-0 items-center justify-between gap-2">
+          <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
                 <CalendarDays className="h-4 w-4 text-sky-300" />
@@ -199,7 +199,8 @@ export function BiTemporalPatterns({
             </div>
           </header>
 
-          <div className="mt-3 grid shrink-0 grid-cols-[42px_minmax(0,1fr)] items-end gap-1">
+          <div className="min-w-0 overflow-x-auto lg:contents">
+          <div className="mt-3 grid shrink-0 min-w-[74rem] lg:min-w-0 grid-cols-[42px_minmax(0,1fr)] items-end gap-1">
             <span />
             <div
               className="grid grid-cols-24 gap-0.5 text-center text-[10px] text-muted-foreground"
@@ -211,7 +212,7 @@ export function BiTemporalPatterns({
             </div>
           </div>
 
-          <div className="mt-1 grid min-h-0 flex-1 grid-rows-7 gap-1">
+          <div className="mt-1 grid min-h-[22rem] min-w-[74rem] lg:min-w-0 lg:min-h-0 lg:flex-1 grid-rows-7 gap-1">
             {rows.map((dayCells, weekday) => (
               <div
                 key={weekday}
@@ -250,7 +251,8 @@ export function BiTemporalPatterns({
               </div>
             ))}
           </div>
-          <div className="mt-3 flex shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          </div>
+          <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <span>
               {selection
                 ? ui("{0} {1}h · {2}", {
@@ -271,13 +273,13 @@ export function BiTemporalPatterns({
           </div>
         </section>
 
-        <aside className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,0.85fr)_auto] gap-2">
+        <aside className="grid min-w-0 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,0.85fr)_auto] gap-2">
           <article className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-3">
             <h3 className="flex shrink-0 items-center gap-2 text-xs font-black uppercase">
               <Clock3 className="h-4 w-4 text-amber-300" />
               {ui(" Distribuição por horário")}
             </h3>
-            <div className="mt-2 min-h-0 flex-1">
+            <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byHour} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -319,7 +321,7 @@ export function BiTemporalPatterns({
               <Activity className="h-4 w-4 text-sky-300" />
               {ui(" Distribuição por dia da semana")}
             </h3>
-            <div className="mt-2 min-h-0 flex-1">
+            <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byWeekday} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />

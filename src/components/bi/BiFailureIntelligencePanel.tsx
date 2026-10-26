@@ -162,8 +162,8 @@ export function BiFailureIntelligencePanel({
   const numbers = data.totals;
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-      <div className="grid shrink-0 grid-cols-4 gap-3">
+    <div className="grid min-w-0 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] gap-3">
+      <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <Stat
           title={ui("Repetições até 24h")}
           value={String(numbers.repeated24h)}
@@ -210,7 +210,7 @@ export function BiFailureIntelligencePanel({
             </p>
           </div>
 
-          <div ref={groupViewport} className="mt-2 min-h-0 flex-1 overflow-hidden">
+          <div ref={groupViewport} className="mt-2 h-72 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {pageGroups.map((group) => {
               const active = selected && selectKey(selected) === selectKey(group);
               return (
@@ -282,7 +282,7 @@ export function BiFailureIntelligencePanel({
             </p>
           </div>
 
-          <div ref={caseViewport} className="mt-2 min-h-0 flex-1 overflow-hidden">
+          <div ref={caseViewport} className="mt-2 h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {pageCases.map((item: FailureCase) => (
               <div
                 key={item.callId}

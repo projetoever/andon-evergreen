@@ -239,7 +239,7 @@ export function MachineCard({ machine, productionPriorityRank = null }: MachineC
       <Link
         to="/machines/$machineId"
         params={{ machineId: machine.id }}
-        className="inline-flex min-h-[34px] shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2 text-[11px] font-black uppercase tracking-wide text-foreground transition hover:bg-accent 2xl:min-h-[38px] 2xl:text-xs"
+        className="inline-flex min-h-11 lg:min-h-[34px] shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2 text-[11px] font-black uppercase tracking-wide text-foreground transition hover:bg-accent 2xl:min-h-[38px] 2xl:text-xs"
       >
         {t("Ver Máquina")}
       </Link>
