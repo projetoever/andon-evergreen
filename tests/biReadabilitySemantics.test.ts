@@ -14,7 +14,7 @@ test("BI de leitura: distingue aberturas no período de chamados ativos no snaps
   assert.match(overview, /label=\{t\("MTTR"\)\}/);
   assert.match(summary, /"Tempo de parada"/);
   assert.match(shell, /testes, falsos chamados e duplicados identificados excluídos/);
-  assert.match(shell, /h-dvh overflow-hidden/);
+  assert.match(shell, /lg:h-dvh lg:overflow-hidden/);
 });
 
 test("Parada diária usa barras e parcelas por data, sem simular uma tendência de recuperação", async () => {

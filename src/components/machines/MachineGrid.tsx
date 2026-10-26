@@ -21,7 +21,7 @@ import { MachineCard } from "./MachineCard";
 
 const AUTO_RETURN_MS = 30_000;
 const GRID_CLASS =
-  "grid h-full min-h-0 grid-cols-2 grid-rows-[repeat(7,minmax(0,1fr))] items-stretch gap-1.5 overflow-visible p-2 sm:grid-cols-3 sm:grid-rows-[repeat(5,minmax(0,1fr))] md:grid-cols-4 md:grid-rows-[repeat(4,minmax(0,1fr))] lg:grid-cols-5 lg:grid-rows-[repeat(3,minmax(0,1fr))] xl:grid-cols-7 xl:grid-rows-2 2xl:gap-2";
+  "grid h-full min-h-0 grid-cols-1 items-stretch gap-3 overflow-visible p-2 sm:grid-cols-2 md:grid-cols-3 lg:gap-1.5 lg:grid-cols-5 lg:grid-rows-[repeat(3,minmax(0,1fr))] xl:grid-cols-7 xl:grid-rows-2 2xl:gap-2";
 
 interface MachineGridProps {
   machines: Machine[];
@@ -168,7 +168,7 @@ export function MachineGrid({ machines, className, orderMode = "default" }: Mach
       <button
         type="button"
         onClick={handleSlideClick}
-        className="absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-border bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
+        className="relative ml-auto z-20 mb-2 flex lg:absolute lg:right-0 lg:top-1/2 lg:mb-0 lg:-translate-y-1/2 items-center justify-center rounded-lg border border-border lg:rounded-l-lg lg:rounded-r-none lg:border-r-0 bg-card/95 px-1.5 py-3 text-muted-foreground opacity-70 shadow-lg backdrop-blur transition hover:opacity-100 hover:text-foreground"
         title={
           pageIndex === 0
             ? ui("Ver {0} máquina(s) restante(s)", { 0: overflowCount })
@@ -189,11 +189,11 @@ export function MachineGrid({ machines, className, orderMode = "default" }: Mach
 
       <div className="h-full min-h-0 w-full overflow-hidden">
         <div
-          className="flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"
+          className="flex h-full min-h-0 w-full items-start lg:items-stretch transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(-${pageIndex * 100}%)` }}
         >
           {pages.map((page, index) => (
-            <div key={index} className="h-full min-h-0 w-full min-w-full shrink-0">
+            <div key={index} className={cn("min-h-0 w-full min-w-full shrink-0 lg:h-full", index !== pageIndex && "max-lg:h-0 max-lg:overflow-hidden")}>
               <MachinePageGrid machines={page} priorityRanks={priorityRanks} />
             </div>
           ))}

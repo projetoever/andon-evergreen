@@ -88,8 +88,8 @@ export function BiAnalyticsDrillDown({
         result &&
         (result.items.length ? (
           <>
-            <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-              <table className="w-full table-fixed text-left text-xs">
+            <div className="mt-4 min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border">
+              <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
                 <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="w-[12%] px-3 py-2">{ui("Ocorrência")}</th>
@@ -156,7 +156,7 @@ export function BiAnalyticsDrillDown({
               </table>
             </div>
 
-            <div className="mt-3 flex shrink-0 items-center justify-between text-xs text-muted-foreground">
+            <div className="mt-3 flex shrink-0 flex-wrap gap-2 items-center justify-between text-xs text-muted-foreground">
               <span>
                 {result.items.length}
                 {ui(" registro(s) · página ")}

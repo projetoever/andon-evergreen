@@ -79,7 +79,7 @@ export function BiKpiCard({
   const lowSample = typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5;
 
   return (
-    <article className={`rounded-xl border p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={tooltip}>
+    <article className={`min-w-0 rounded-xl border p-3 lg:p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={tooltip}>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">
           {label}
@@ -88,7 +88,7 @@ export function BiKpiCard({
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="text-3xl font-black tabular-nums">{value}</div>
+        <div className="break-words text-2xl lg:text-3xl font-black tabular-nums">{value}</div>
         {comparisonLabel && trend && (
           <span
             className={`mb-1 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${trendClasses(

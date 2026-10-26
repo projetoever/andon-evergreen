@@ -88,7 +88,7 @@ export function BiDataHealthPanel({
     }).format(new Date(iso));
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3 rounded-xl border border-border bg-card p-4">
+    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 gap-3 rounded-xl border border-border bg-card p-4">
       <header className="flex shrink-0 items-start justify-between gap-2">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wide">
@@ -104,7 +104,7 @@ export function BiDataHealthPanel({
           {ui("Dados do ambiente conectado · somente leitura")}
         </span>
       </header>
-      <div className="grid shrink-0 grid-cols-5 gap-2">
+      <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {categories.map((type) => (
           <button
             key={type}
@@ -139,7 +139,7 @@ export function BiDataHealthPanel({
                 : String(details?.total ?? 0) + ui(" registro(s)")}
             </span>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border">
             {detailsLoading ? (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 {ui("Carregando ocorrências...")}
@@ -149,7 +149,7 @@ export function BiDataHealthPanel({
                 {systemMessage(detailsError)}
               </div>
             ) : details?.items.length ? (
-              <table className="w-full table-fixed text-left text-xs">
+              <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
                 <thead className="border-b border-border bg-background/40 text-[10px] uppercase text-muted-foreground">
                   <tr>
                     <th className="w-[21%] px-2 py-2">{ui("Máquina")}</th>
@@ -222,7 +222,7 @@ export function BiDataHealthPanel({
               </div>
             )}
           </div>
-          <footer className="mt-2 flex h-7 shrink-0 items-center justify-between text-[11px] text-muted-foreground">
+          <footer className="mt-2 flex min-h-7 shrink-0 flex-wrap gap-2 items-center justify-between text-[11px] text-muted-foreground">
             <span>
               {details
                 ? ui("Página ") +

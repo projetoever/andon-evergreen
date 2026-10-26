@@ -15,7 +15,7 @@ function formatMinutes(value: number) {
 }
 
 /**
- * The BI page has no document scroll. Measure only the available list viewport,
+ * Desktop uses a fixed workspace; mobile uses bounded list viewports. Measure
  * then paginate rather than clipping technician and technical-area records.
  */
 function useVisibleRows(rowHeight: number, enabled: boolean) {
@@ -78,7 +78,7 @@ function PageControls({
 }) {
   useInterfaceLanguage();
   return (
-    <div className="flex h-7 shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
+    <div className="flex min-h-7 flex-wrap shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
       <span className="tabular-nums">
         {total === 0
           ? ui("0 registros")
@@ -143,7 +143,7 @@ export function BiMaintenanceParticipation({
 
   if (loading && !data) {
     return (
-      <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3 shadow-sm">
+      <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 border border-border bg-card p-3 shadow-sm">
         <div className="h-full animate-pulse rounded-lg bg-muted/40" />
       </section>
     );
@@ -172,8 +172,8 @@ export function BiMaintenanceParticipation({
   const areas = data.technicalAreas.slice(safeAreaPage * areaRows, (safeAreaPage + 1) * areaRows);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-3 shadow-sm">
-      <header className="flex shrink-0 items-center justify-between gap-3">
+    <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 border border-border bg-card p-3 shadow-sm">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-sky-400" />
@@ -212,7 +212,7 @@ export function BiMaintenanceParticipation({
           {formatMinutes(data.totals.overlapMinutesRemoved ?? 0)}.
         </p>
       )}
-      <div className="mt-2 grid shrink-0 grid-cols-4 gap-2">
+      <div className="mt-2 grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
         <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
           <div className="flex items-center justify-between text-sky-300">
             <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
@@ -268,9 +268,9 @@ export function BiMaintenanceParticipation({
         </div>
       </div>
 
-      <div className="mt-2 grid min-h-0 flex-1 gap-2 md:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.65fr)]">
+      <div className="mt-2 grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.65fr)]">
         <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background/25 p-3">
-          <div className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <h3 className="text-xs font-black uppercase tracking-wide">
               {ui("Distribuição por mantenedor")}
             </h3>
@@ -279,7 +279,7 @@ export function BiMaintenanceParticipation({
             </span>
           </div>
 
-          <div ref={technicianViewport} className="mt-1 min-h-0 flex-1 overflow-hidden">
+          <div ref={technicianViewport} className="mt-1 h-64 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
             {technicians.length ? (
               technicians.map((technician) => (
                 <div
@@ -341,7 +341,7 @@ export function BiMaintenanceParticipation({
             <h3 className="shrink-0 text-xs font-black uppercase tracking-wide">
               {ui("Áreas técnicas")}
             </h3>
-            <div ref={areaViewport} className="mt-1 min-h-0 flex-1 overflow-hidden">
+            <div ref={areaViewport} className="mt-1 h-52 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
               {areas.length ? (
                 areas.map((area) => (
                   <div

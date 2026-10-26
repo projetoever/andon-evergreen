@@ -65,7 +65,7 @@ export function BiWorkspaceTabs({
   const { t } = useLanguage();
   return (
     <nav
-      className="grid shrink-0 grid-cols-5 gap-2 rounded-xl border border-border bg-card/70 p-2"
+      className="flex shrink-0 gap-2 overflow-x-auto lg:grid lg:grid-cols-5 lg:overflow-visible rounded-xl border border-border bg-card/70 p-2"
       aria-label={ui("Áreas do ANDON BI")}
     >
       {TABS.map((tab) => {
@@ -78,15 +78,17 @@ export function BiWorkspaceTabs({
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
+            aria-label={t(tab.label)}
+            aria-pressed={active}
             className={[
-              "relative inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs xl:text-[13px] font-black uppercase tracking-wide transition",
+              "relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border px-3 text-xs xl:text-[13px] font-black uppercase tracking-wide transition",
               active
                 ? tab.activeClass
                 : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground",
             ].join(" ")}
           >
             <Icon className="h-4 w-4" />
-            <span className="hidden lg:inline">{t(tab.label)}</span>
+            <span className="whitespace-nowrap">{t(tab.label)}</span>
             {showAttention && (
               <span
                 title={ui(
@@ -95,7 +97,7 @@ export function BiWorkspaceTabs({
                 aria-label={ui("{0} alertas por categoria de qualidade do dado", {
                   0: attentionCount,
                 })}
-                className="absolute right-2 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white"
+                className="max-lg:static lg:absolute lg:right-2 lg:top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white"
               >
                 {attentionCount}
               </span>

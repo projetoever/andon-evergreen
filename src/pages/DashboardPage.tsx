@@ -401,7 +401,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-1.5 overflow-hidden p-2 md:p-3">
+    <div className="flex min-h-dvh flex-col gap-1.5 p-2 md:p-3 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       {!audioUnlocked && audioPlaybackBlocked && (
         <AudioPlaybackRecovery onActivate={handleUnlock} />
       )}
@@ -423,16 +423,16 @@ export function DashboardPage() {
         <StatusSummaryBar />
       </div>
 
-      <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="grid shrink-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div className="min-w-0 justify-self-start">
           <h2 className="text-lg font-bold uppercase tracking-wide text-foreground md:text-xl">
             {t("Máquinas")}
           </h2>
         </div>
-        <div className="col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1">
+        <div className="row-start-3 justify-self-center sm:col-span-2 sm:row-start-2 md:col-span-1 md:col-start-2 md:row-start-1">
           <ClockDisplay />
         </div>
-        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 justify-self-end md:col-start-3">
+        <div className="row-start-2 flex max-w-full flex-wrap items-center justify-start gap-2 sm:col-start-2 sm:row-start-1 sm:justify-end sm:justify-self-end md:col-start-3">
           <LanguageSelector />
           <ModuleNavigation />
           {audioUnlocked && (
@@ -524,7 +524,7 @@ export function DashboardPage() {
       />
 
       <MachineGrid
-        className="min-h-0 flex-1"
+        className="min-w-0 lg:min-h-0 lg:flex-1"
         orderMode={dashboardMachineOrderMode}
         machines={[...machines]
           .filter((machine) => machine.isActive)

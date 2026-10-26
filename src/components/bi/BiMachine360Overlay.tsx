@@ -182,8 +182,8 @@ export function BiMachine360Overlay({
         if (event.currentTarget === event.target) onClose();
       }}
     >
-      <section className="flex h-[calc(100dvh-24px)] w-full max-w-[1620px] min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-emerald-500/30 bg-background p-4 shadow-2xl">
-        <header className="flex shrink-0 items-center justify-between border-b border-border pb-3">
+      <section className="flex h-[calc(100dvh-24px)] w-full max-w-[1620px] min-h-0 flex-col gap-3 overflow-y-auto lg:overflow-hidden rounded-xl border border-emerald-500/30 bg-background p-4 shadow-2xl">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.17em] text-emerald-300">
               <Activity className="h-4 w-4" />
@@ -242,7 +242,7 @@ export function BiMachine360Overlay({
         )}
         {!loading && !error && data && (
           <>
-            <div className="grid shrink-0 grid-cols-6 gap-2">
+            <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <PanelMetric
                 label={ui("Downtime físico")}
                 value={duration(data.kpis.downtimeMinutes)}
@@ -283,7 +283,7 @@ export function BiMachine360Overlay({
               />
             </div>
 
-            <div className="grid shrink-0 grid-cols-5 gap-2">
+            <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs">
                 <span className="text-muted-foreground">{ui("Chamados abertos")}</span>
                 <strong className="ml-2 tabular-nums">{data.kpis.callsOpened}</strong>
@@ -328,8 +328,8 @@ export function BiMachine360Overlay({
               </button>
             </nav>
             {activeView === "overview" ? (
-              <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] gap-3">
-                <div className="grid min-h-0 grid-rows-3 gap-3">
+              <div className="grid min-w-0 shrink-0 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] gap-3">
+                <div className="grid min-w-0 lg:min-h-0 lg:grid-rows-3 gap-3">
                   <article className="min-h-0 overflow-hidden rounded-lg border border-border bg-card p-3">
                     <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide">
                       <ShieldAlert className="h-4 w-4 text-amber-400" />
@@ -416,7 +416,7 @@ export function BiMachine360Overlay({
                     <TimerReset className="h-4 w-4 text-red-400" />
                   </div>
 
-                  <div ref={viewportRef} className="mt-2 min-h-0 flex-1 overflow-hidden">
+                  <div ref={viewportRef} className="mt-2 h-80 overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1">
                     {pageItems.map((item) => (
                       <div
                         key={`${item.kind}-${item.id}`}
@@ -472,7 +472,7 @@ export function BiMachine360Overlay({
                 </article>
               </div>
             ) : (
-              <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="shrink-0 min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
                 <BiMachineRecurrence data={data} classificationLabels={classificationLabels} />
               </div>
             )}

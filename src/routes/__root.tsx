@@ -10,6 +10,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
 import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
@@ -49,7 +50,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, interactive-widget=resizes-content" },
       { title: "Andon Evergreen" },
       {
         name: "description",
@@ -117,6 +118,7 @@ function RootComponent() {
 
 function RootContent() {
   useInterfaceLanguage();
+  useVisualViewport();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { access, checking } = useModuleAccess();
   const navigate = useNavigate();

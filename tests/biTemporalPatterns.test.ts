@@ -35,7 +35,7 @@ test("BI-12 mantém cinco áreas, com modo temporal somente dentro de Falhas", a
   assert.match(shell, /activeTab !== "failures"/);
   assert.match(shell, /loadTemporalPatterns/);
   assert.match(shell, /onTemporalSelected/);
-  assert.match(shell, /h-dvh overflow-hidden/);
+  assert.match(shell, /lg:h-dvh lg:overflow-hidden/);
   assert.match(workspace, /Padrões temporais/);
   assert.match(workspace, /mode === "temporal"/);
   assert.match(workspace, /BiTemporalPatterns/);

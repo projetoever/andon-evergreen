@@ -30,7 +30,7 @@ export const BigButton = forwardRef<HTMLButtonElement, BigButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-3 rounded-xl font-bold uppercase tracking-wider shadow-lg transition-all",
+          "inline-flex min-w-0 max-w-full items-center justify-center gap-3 rounded-xl max-lg:whitespace-normal max-lg:break-words max-lg:px-3 font-bold uppercase tracking-wider shadow-lg transition-all",
           "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40",
           "disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.98]",
           toneClasses[tone],
