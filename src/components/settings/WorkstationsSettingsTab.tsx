@@ -1,10 +1,11 @@
 import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -37,6 +38,7 @@ export function WorkstationsSettingsTab() {
   const { refresh } = useModuleAccess();
   const currentWorkstationId = getCurrentWorkstationId();
   const [items, setItems] = useState<Workstation[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -99,10 +101,12 @@ export function WorkstationsSettingsTab() {
   }, [load]);
 
   async function saveName(workstation: Workstation) {
+    const name = (draftNames[workstation.id] ?? "").trim().replace(/\s+/g, " ");
+    if (savingId || name.length > 120 || name === (workstation.name ?? "")) return;
     setSavingId(workstation.id);
     try {
       const updated = await updateWorkstation(workstation.id, {
-        name: draftNames[workstation.id] ?? "",
+        name,
       });
       setItems((current) => current.map((item) => (item.id === workstation.id ? updated : item)));
       setDraftNames((current) => ({ ...current, [updated.id]: updated.name ?? "" }));
@@ -216,8 +220,8 @@ export function WorkstationsSettingsTab() {
           {(
             [
               ["all", ui("Todas")],
-              ["active", "Ativas"],
-              ["inactive", "Inativas"],
+              ["active", ui("Ativas")],
+              ["inactive", ui("Inativas")],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -268,134 +272,179 @@ export function WorkstationsSettingsTab() {
         </div>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="space-y-2">
         {filteredItems.map((workstation) => {
           const isCurrent = workstation.id === currentWorkstationId;
-          const isSaving = workstation.id === savingId;
+          const isSaving = savingId !== null;
+          const expanded = expandedIds[workstation.id] ?? false;
+          const normalizedName = (draftNames[workstation.id] ?? "").trim().replace(/\s+/g, " ");
+          const canSaveName =
+            normalizedName.length <= 120 && normalizedName !== (workstation.name ?? "");
 
           return (
-            <Card
+            <Collapsible
               key={workstation.id}
-              className={[
-                isCurrent ? "border-primary ring-1 ring-primary/30" : "",
-                !workstation.active ? "opacity-70" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+              open={expanded}
+              onOpenChange={(open) =>
+                setExpandedIds((current) => ({ ...current, [workstation.id]: open }))
+              }
+              asChild
             >
-              <CardHeader className="space-y-2 pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base">{workstationLabel(workstation)}</CardTitle>
-                  <div className="flex gap-2">
-                    {isCurrent && <Badge>{ui("Esta workstation")}</Badge>}
-                    <Badge variant={workstation.active ? "secondary" : "outline"}>
-                      {workstation.pendingApproval
-                        ? ui("Aguardando aprovação")
-                        : workstation.active
-                          ? ui("Liberado")
-                          : ui("Bloqueado")}
-                    </Badge>
-                  </div>
-                </div>
-                <p className="break-all font-mono text-xs text-muted-foreground">
-                  {workstation.id}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor={`workstation-name-${workstation.id}`}>
-                    {ui("Nome amigável")}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`workstation-name-${workstation.id}`}
-                      value={draftNames[workstation.id] ?? ""}
-                      maxLength={120}
-                      placeholder={ui("Ex.: PC Máquina 37")}
-                      onChange={(event) =>
-                        setDraftNames((current) => ({
-                          ...current,
-                          [workstation.id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={isSaving}
-                      onClick={() => void saveName(workstation)}
-                    >
-                      {ui("Salvar")}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-muted/30 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">{ui("IP do último acesso: ")}</span>
-                  <span className="font-mono font-semibold">
-                    {workstation.lastIpAddress ?? ui("Não identificado")}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">
-                    {ui("Último acesso: ")}
-                    {formatLastSeen(workstation.lastSeenAt)}
-                  </span>
-                  <label className="flex items-center gap-2 font-semibold">
-                    <Switch
-                      aria-label={ui("Ativação geral · {0}", { 0: workstationLabel(workstation) })}
-                      checked={workstation.active}
-                      disabled={
-                        isSaving ||
-                        (workstation.active && (isCurrent || Boolean(workstation.lockedMachineId)))
-                      }
-                      onCheckedChange={(active) => void changeActive(workstation, active)}
-                    />
-                    {workstation.pendingApproval
-                      ? ui("Aprovar estação")
-                      : workstation.active
-                        ? ui("Liberado")
-                        : ui("Bloqueado")}
-                  </label>
-                </div>
-                <div className="space-y-3 rounded-lg border border-border p-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    {ui("Módulos autorizados")}
-                  </p>
-                  {(
-                    [
-                      ["allowOperational", "ANDON operacional"],
-                      ["allowBi", "ANDON BI"],
-                      ["allowPriorities", ui("Prioridades de produção")],
-                    ] as const
-                  ).map(([field, label]) => (
-                    <label
-                      key={field}
-                      className="flex items-center justify-between gap-3 text-sm font-semibold"
-                    >
-                      {label}
-                      <Switch
-                        aria-label={`${label} · ${workstationLabel(workstation)}`}
-                        checked={workstation[field]}
-                        disabled={
-                          isSaving ||
-                          (field === "allowOperational" && Boolean(workstation.lockedMachineId))
-                        }
-                        onCheckedChange={(allowed) =>
-                          void changeModule(workstation, field, allowed)
-                        }
+              <Card
+                className={[
+                  "min-w-0 overflow-hidden",
+                  isCurrent ? "border-primary/50 ring-1 ring-primary/30" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="grid w-full min-w-0 grid-cols-2 gap-3 p-4 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] lg:items-center"
+                  >
+                    <span className="col-span-2 min-w-0 space-y-1 lg:col-span-1">
+                      <span className="block break-words text-sm font-bold [overflow-wrap:anywhere]">
+                        {workstationLabel(workstation)}
+                      </span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {isCurrent && (
+                          <Badge variant="outline" className="border-primary/40 text-primary">
+                            {ui("Esta workstation")}
+                          </Badge>
+                        )}
+                        <Badge variant={workstation.active ? "secondary" : "outline"}>
+                          {workstation.pendingApproval
+                            ? ui("Aguardando aprovação")
+                            : workstation.active
+                              ? ui("Liberado")
+                              : ui("Bloqueado")}
+                        </Badge>
+                      </span>
+                    </span>
+                    <span className="min-w-0 text-xs">
+                      <span className="block text-muted-foreground">
+                        {ui("IP do último acesso: ")}
+                      </span>
+                      <span className="block break-all font-mono font-semibold">
+                        {workstation.lastIpAddress ?? ui("Não identificado")}
+                      </span>
+                    </span>
+                    <span className="min-w-0 text-xs">
+                      <span className="block text-muted-foreground">{ui("Último acesso: ")}</span>
+                      <span className="block break-words">
+                        {formatLastSeen(workstation.lastSeenAt)}
+                      </span>
+                    </span>
+                    <span className="col-span-2 flex items-center gap-2 text-xs font-semibold text-primary lg:col-span-1">
+                      {expanded ? ui("Recolher") : ui("Expandir")}
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`h-4 w-4 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
                       />
-                    </label>
-                  ))}
-                  <p className="text-xs text-muted-foreground">
-                    {ui(
-                      "Módulos não autorizados ficam ocultos no Hub. Uma tela fixada deve ser desbloqueada antes de retirar o acesso operacional.",
+                    </span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-4 border-t border-border p-4">
+                    <p className="break-all font-mono text-xs text-muted-foreground">
+                      {ui("UUID:")} {workstation.id}
+                    </p>
+                    {workstation.lockedMachineId && (
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Tela fixada na máquina")}: {workstation.lockedMachineId}
+                      </p>
                     )}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="space-y-1">
+                      <Label htmlFor={`workstation-name-${workstation.id}`}>
+                        {ui("Nome amigável")}
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id={`workstation-name-${workstation.id}`}
+                          value={draftNames[workstation.id] ?? ""}
+                          className="min-w-0"
+                          disabled={isSaving}
+                          maxLength={120}
+                          placeholder={ui("Ex.: PC Máquina 37")}
+                          onChange={(event) =>
+                            setDraftNames((current) => ({
+                              ...current,
+                              [workstation.id]: event.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={isSaving || !canSaveName}
+                          onClick={() => void saveName(workstation)}
+                        >
+                          {ui("Salvar")}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                      <label className="flex min-h-11 items-center gap-2 font-semibold">
+                        <Switch
+                          aria-label={ui("Ativação geral · {0}", {
+                            0: workstationLabel(workstation),
+                          })}
+                          checked={workstation.active}
+                          disabled={
+                            isSaving ||
+                            (workstation.active &&
+                              (isCurrent || Boolean(workstation.lockedMachineId)))
+                          }
+                          onCheckedChange={(active) => void changeActive(workstation, active)}
+                        />
+                        {workstation.pendingApproval
+                          ? ui("Aprovar estação")
+                          : workstation.active
+                            ? ui("Liberado")
+                            : ui("Bloqueado")}
+                      </label>
+                    </div>
+                    <div className="space-y-3 rounded-lg border border-border p-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {ui("Módulos autorizados")}
+                      </p>
+                      {(
+                        [
+                          ["allowOperational", ui("ANDON operacional")],
+                          ["allowBi", "ANDON BI"],
+                          ["allowPriorities", ui("Prioridades de produção")],
+                        ] as const
+                      ).map(([field, label]) => (
+                        <label
+                          key={field}
+                          className="flex min-h-11 items-center justify-between gap-3 text-sm font-semibold"
+                        >
+                          {label}
+                          <Switch
+                            aria-label={`${label} · ${workstationLabel(workstation)}`}
+                            checked={workstation[field]}
+                            disabled={
+                              isSaving ||
+                              (field === "allowOperational" && Boolean(workstation.lockedMachineId))
+                            }
+                            onCheckedChange={(allowed) =>
+                              void changeModule(workstation, field, allowed)
+                            }
+                          />
+                        </label>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        {ui(
+                          "Módulos não autorizados ficam ocultos no Hub. Uma tela fixada deve ser desbloqueada antes de retirar o acesso operacional.",
+                        )}
+                      </p>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           );
         })}
       </div>
