@@ -75,6 +75,7 @@ jobs:
         run: |
           npm run build --prefix server
           npm run test:auth --prefix server
+          npm run test:access --prefix server
           npm run test:analytics --prefix server
           npm run test:dashboard --prefix server
           npm run test:impact --prefix server
@@ -91,6 +92,9 @@ jobs:
             cat /tmp/andon-api.log
             exit 1
           }
+
+      - name: Validar fundação de acessos no PostgreSQL
+        run: ANDON_INTEGRATION_TEST=1 npm run test:access:integration --prefix server
 
       - name: Validar frontend e SSR
         run: |
