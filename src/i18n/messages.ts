@@ -4953,4 +4953,6 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
     'Complete this service on workstation "{0}".',
     "請在工作站「{0}」完成此處理。",
   ],
+  ["Ativas", "Active", "啟用"],
+  ["Inativas", "Inactive", "停用"],
 ];

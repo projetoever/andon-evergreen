@@ -1,0 +1,179 @@
+{
+  "fixture": "stateful isolated API; no production database",
+  "report": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "result": "PASS",
+      "checks": [
+        "initial collapse",
+        "individual toggles",
+        "search/IP/empty",
+        "active/inactive filters",
+        "normalized save",
+        "name after reload",
+        "module patch",
+        "403 preserves state",
+        "current/fixed safeguards",
+        "approval",
+        "no horizontal overflow/control clipping"
+      ],
+      "writes": [
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000001",
+          "patch": {
+            "name": "Notebook Administração"
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "active": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowBi": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowOperational": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowPriorities": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000004",
+          "patch": {
+            "active": true
+          }
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": "PASS",
+      "checks": [
+        "initial collapse",
+        "individual toggles",
+        "search/IP/empty",
+        "active/inactive filters",
+        "normalized save",
+        "name after reload",
+        "module patch",
+        "403 preserves state",
+        "current/fixed safeguards",
+        "approval",
+        "no horizontal overflow/control clipping"
+      ],
+      "writes": [
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000001",
+          "patch": {
+            "name": "Notebook Administração"
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "active": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowBi": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowOperational": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowPriorities": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000004",
+          "patch": {
+            "active": true
+          }
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "result": "PASS",
+      "checks": [
+        "initial collapse",
+        "individual toggles",
+        "search/IP/empty",
+        "active/inactive filters",
+        "normalized save",
+        "name after reload",
+        "module patch",
+        "403 preserves state",
+        "current/fixed safeguards",
+        "approval",
+        "no horizontal overflow/control clipping"
+      ],
+      "writes": [
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000001",
+          "patch": {
+            "name": "Notebook Administração"
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "active": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowBi": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowOperational": false
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000002",
+          "patch": {
+            "allowPriorities": true
+          }
+        },
+        {
+          "id": "ws_00000000-0000-4000-8000-000000000004",
+          "patch": {
+            "active": true
+          }
+        }
+      ]
+    }
+  ]
+}
