@@ -64,6 +64,7 @@ model Workstation {
   lastSeenAt         DateTime            @default(now())
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  accessSessions     AccessSession[]
   technicianSessions TechnicianSession[]
   soundPreferences   WorkstationMachineSoundPreference[]
   lockedMachineId    String?
@@ -123,6 +124,7 @@ model Machine {
   callImpactIntervals CallImpactInterval[]
   productionEvents    MachineProductionEvent[]
   priorityHistory     MachinePriorityHistory[]
+  accessUsers         AccessMachine[]
   kioskDevices        KioskDevice[]
   workstationSoundPreferences WorkstationMachineSoundPreference[]
 
@@ -550,4 +552,97 @@ model FailureDiagnosisAudit {
   @@index([failureEventId, createdAt])
   @@index([machineId, createdAt])
   @@map("failure_diagnosis_audit")
+}
+
+// Central access foundation. Provisioning/activation UI is delivered separately.
+model AccessUser {
+  id                      String   @id @default(cuid())
+  login                   String   @unique
+  displayName             String
+  roleLabel               String
+  accountType             String   @default("person")
+  active                  Boolean  @default(true)
+  isPrimaryAdmin          Boolean  @default(false)
+  machineScope            String   @default("selected")
+  passwordHash            String
+  mustChangePassword      Boolean  @default(true)
+  temporaryExpiresAt      DateTime?
+  temporaryConsumedAt     DateTime?
+  authorizationVersion    Int      @default(1)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  permissions             AccessPermission[]
+  machines                AccessMachine[]
+  sessions                AccessSession[]
+
+  @@map("access_users")
+}
+
+model AccessPermission {
+  userId String
+  key    String
+  user   AccessUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([userId, key])
+  @@map("access_permissions")
+}
+
+model AccessMachine {
+  userId    String
+  machineId String
+  user      AccessUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+  machine   Machine @relation(fields: [machineId], references: [id], onDelete: Restrict)
+
+  @@id([userId, machineId])
+  @@index([machineId])
+  @@map("access_machines")
+}
+
+model AccessSession {
+  id                   String @id @default(cuid())
+  tokenHash            String @unique
+  userId               String
+  workstationId        String
+  purpose              String
+  authorizationVersion Int
+  createdAt            DateTime @default(now())
+  lastInteractionAt    DateTime @default(now())
+  expiresAt            DateTime
+  revokedAt            DateTime?
+  user                 AccessUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+  workstation          Workstation @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([workstationId, revokedAt])
+  @@index([expiresAt])
+  @@map("access_sessions")
+}
+
+model AuditEvent {
+  id              String @id @default(cuid())
+  occurredAt      DateTime @default(now())
+  actorType       String
+  actorUserId     String?
+  actorLogin      String?
+  actorName       String?
+  actorRole       String?
+  workstationId   String?
+  sessionId       String?
+  ipAddress       String? @db.VarChar(45)
+  requestId       String?
+  action          String
+  resourceType    String
+  resourceId      String?
+  machineId       String?
+  result          String
+  reason          String?
+  before          Json?
+  after           Json?
+  schemaVersion   Int @default(1)
+
+  @@index([occurredAt, id])
+  @@index([actorUserId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+  @@index([machineId, occurredAt])
+  @@map("audit_events")
 }
