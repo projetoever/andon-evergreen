@@ -19,7 +19,7 @@ Base funcional: `main` após PR #208 (`0e6fd1d`). Esta entrega adiciona serviço
 - Testes de autenticação existentes: 9/9 aprovados.
 - Testes unitários da fundação: 5/5 aprovados.
 - Lint geral: mesmos 2.551 erros e 19 avisos da base; arquivos novos formatados individualmente.
-- Integração PostgreSQL adicionada ao CI: concorrência no uso único da provisória, sessão em outro client/processo, escopo, conta/estação bloqueadas, expiração/inatividade, reset/revogação, rollback da mutação quando auditoria falha e proteção dos eventos. Resultado do CI será registrado após a execução.
+- Integração PostgreSQL adicionada ao CI: concorrência no uso único da provisória, sessão em outro cliente PostgreSQL, escopo, conta/estação bloqueadas, expiração/inatividade, reset/revogação, rollback da mutação quando auditoria falha e proteção dos eventos. Aprovado no [CI #292](https://github.com/projetoever/andon-evergreen/actions/runs/40361362310), commit de código `2af28edddfccf9a5eee2d193134ecb897401cb51`. Também aprovados os fluxos operacionais/API, suítes existentes, frontend/SSR e instalador Windows.
 
 O ambiente local não permite instalar PostgreSQL por apt (restrição de troca de UID do contêiner). A validação real de migrations e integração é executada pelo serviço PostgreSQL isolado do CI; nenhum banco da empresa foi acessado. As fixtures têm trava para banco `andon_test` e não executam seed de produção.
 
