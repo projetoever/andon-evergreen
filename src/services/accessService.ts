@@ -1,5 +1,6 @@
 import { DEFAULT_ANDON_API_CLIENT_CONFIG } from "@/api/andonApiClient";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
+import type { Workstation } from "@/types/workstation";
 export interface AccessUser {
   id: string;
   login: string;
@@ -31,6 +32,9 @@ export interface AccessPrincipal {
   displayName: string;
   isPrimaryAdmin: boolean;
   purpose: string;
+  permissions?: string[];
+  machineScope?: string;
+  machineIds?: string[];
 }
 export interface AccessState {
   csrf: string;
@@ -41,6 +45,35 @@ export interface AccessCatalog {
   permissions: string[];
   roles: string[];
   machines: { id: string; name: string; isActive: boolean }[];
+}
+export interface ManagedWorkstation extends Workstation {
+  admission: {
+    status: "pending" | "approved" | "rejected";
+    requestedAt: string;
+    requestedName: string | null;
+    requestReason: string | null;
+    requestIpAddress: string | null;
+    decidedAt: string | null;
+    decisionReason: string | null;
+    requester: AccessAccount;
+    decidedBy: AccessAccount | null;
+  } | null;
+  linkedAccount: AccessAccount | null;
+  authenticatedAccount: AccessAccount | null;
+  lastLogin: {
+    account: AccessAccount;
+    createdAt: string;
+    lastInteractionAt: string;
+    expiresAt: string;
+    purpose: string;
+    state: "valid" | "revoked" | "expired" | "user_inactive" | "workstation_blocked";
+  } | null;
+}
+export interface AccessAccount {
+  id: string;
+  login: string;
+  displayName: string;
+  roleLabel: string;
 }
 let csrf = ""; // Memory only; the session secret is held exclusively in an HttpOnly cookie.
 export async function accessRequest<T>(path: string, method = "GET", body?: unknown): Promise<T> {

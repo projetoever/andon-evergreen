@@ -6,7 +6,13 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 
 type RegisterWorkstationBody = { id?: unknown };
-type UpdateWorkstationBody = { name?: unknown; active?: unknown; allowOperational?: unknown; allowBi?: unknown; allowPriorities?: unknown };
+type UpdateWorkstationBody = {
+  name?: unknown;
+  active?: unknown;
+  allowOperational?: unknown;
+  allowBi?: unknown;
+  allowPriorities?: unknown;
+};
 type ScreenLockBody = { machineId?: unknown };
 type MachineSoundPreferenceBody = { enabled?: unknown };
 
@@ -38,11 +44,26 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       const lastIpAddress = request.ip.replace(/^::ffff:/, "");
       const workstation = await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
-        const policy = await tx.systemSettings.findUnique({where:{id:"global"},select:{requireWorkstationApproval:true}});
+        const policy = await tx.systemSettings.findUnique({
+          where: { id: "global" },
+          select: { requireWorkstationApproval: true },
+        });
         const pendingApproval = policy?.requireWorkstationApproval ?? false;
         return tx.workstation.upsert({
           where: { id },
-          create: { id, active: !pendingApproval, pendingApproval, lastSeenAt: now, lastIpAddress },
+          create: {
+            id,
+            active: !pendingApproval,
+            pendingApproval,
+            // Preserve the legacy module defaults. A pending workstation is still
+            // denied by `active`/`pendingApproval`; central approval replaces
+            // these defaults with the administrator's explicit module choices.
+            allowOperational: true,
+            allowBi: true,
+            allowPriorities: true,
+            lastSeenAt: now,
+            lastIpAddress,
+          },
           update: { lastSeenAt: now, lastIpAddress },
           select: workstationSelect,
         });
@@ -208,18 +229,29 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
 
       const hasName = Object.prototype.hasOwnProperty.call(request.body ?? {}, "name");
       const hasActive = Object.prototype.hasOwnProperty.call(request.body ?? {}, "active");
-      const hasOperational = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowOperational");
+      const hasOperational = Object.prototype.hasOwnProperty.call(
+        request.body ?? {},
+        "allowOperational",
+      );
       const hasBi = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowBi");
-      const hasPriorities = Object.prototype.hasOwnProperty.call(request.body ?? {}, "allowPriorities");
-      if (!hasName && !hasActive && !hasOperational && !hasBi && !hasPriorities) return badRequest(reply, "Nenhuma alteração informada");
-      if ((hasOperational && typeof request.body.allowOperational !== "boolean") ||
-          (hasBi && typeof request.body.allowBi !== "boolean") ||
-          (hasPriorities && typeof request.body.allowPriorities !== "boolean")) {
+      const hasPriorities = Object.prototype.hasOwnProperty.call(
+        request.body ?? {},
+        "allowPriorities",
+      );
+      if (!hasName && !hasActive && !hasOperational && !hasBi && !hasPriorities)
+        return badRequest(reply, "Nenhuma alteração informada");
+      if (
+        (hasOperational && typeof request.body.allowOperational !== "boolean") ||
+        (hasBi && typeof request.body.allowBi !== "boolean") ||
+        (hasPriorities && typeof request.body.allowPriorities !== "boolean")
+      ) {
         return badRequest(reply, "Permissões de módulos devem ser booleanas");
       }
-      const allowOperational = hasOperational ? request.body.allowOperational as boolean : undefined;
-      const allowBi = hasBi ? request.body.allowBi as boolean : undefined;
-      const allowPriorities = hasPriorities ? request.body.allowPriorities as boolean : undefined;
+      const allowOperational = hasOperational
+        ? (request.body.allowOperational as boolean)
+        : undefined;
+      const allowBi = hasBi ? (request.body.allowBi as boolean) : undefined;
+      const allowPriorities = hasPriorities ? (request.body.allowPriorities as boolean) : undefined;
 
       let name: string | null | undefined;
       if (hasName) {
@@ -237,7 +269,10 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
       if (hasActive && active === undefined) {
         return badRequest(reply, "Campo active deve ser booleano");
       }
-      if (active === false && parseWorkstationId(request.headers["x-andon-workstation-id"]) === id) {
+      if (
+        active === false &&
+        parseWorkstationId(request.headers["x-andon-workstation-id"]) === id
+      ) {
         return badRequest(reply, "Não é possível desativar a própria workstation administrativa.");
       }
 
@@ -256,8 +291,13 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             throw new WorkstationUpdateValidationError("Workstation não encontrada");
           }
 
-          if ((allowOperational === false || active === false) && lockedWorkstation.lockedMachineId) {
-            throw new WorkstationUpdateValidationError("Desbloqueie a tela da máquina antes de retirar o acesso operacional.");
+          if (
+            (allowOperational === false || active === false) &&
+            lockedWorkstation.lockedMachineId
+          ) {
+            throw new WorkstationUpdateValidationError(
+              "Desbloqueie a tela da máquina antes de retirar o acesso operacional.",
+            );
           }
 
           if ((active === false && lockedWorkstation.active) || allowOperational === false) {
@@ -283,7 +323,9 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             where: { id },
             data: {
               ...(hasName ? { name } : {}),
-              ...(active !== undefined ? { active, ...(active ? {pendingApproval:false} : {}) } : {}),
+              ...(active !== undefined
+                ? { active, ...(active ? { pendingApproval: false } : {}) }
+                : {}),
               ...(allowOperational !== undefined ? { allowOperational } : {}),
               ...(allowBi !== undefined ? { allowBi } : {}),
               ...(allowPriorities !== undefined ? { allowPriorities } : {}),

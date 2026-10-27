@@ -141,3 +141,93 @@ test("module policy protects direct reads/writes and preserves priorities, recov
   );
   await app.close();
 });
+
+test("central access has no legacy bypass and fails closed for actions and selected machine scope", async (t) => {
+  const previousFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const previousOrigin = process.env.ANDON_ACCESS_ORIGIN;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  process.env.ANDON_ACCESS_ORIGIN = "https://andon.test";
+  const originalStation = prisma.workstation.findUnique;
+  const originalSession = prisma.accessSession.findUnique;
+  let machineScope = "all";
+  let sessionWorkstationId = id;
+  prisma.workstation.findUnique = (async () => ({
+    active: true,
+    allowOperational: true,
+    allowBi: true,
+    allowPriorities: true,
+  })) as unknown as typeof originalStation;
+  prisma.accessSession.findUnique = (async () => ({
+    id: "session-central",
+    workstationId: sessionWorkstationId,
+    purpose: "normal",
+    authorizationVersion: 1,
+    revokedAt: null,
+    createdAt: new Date(),
+    lastInteractionAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+    workstation: { active: true, pendingApproval: false },
+    user: {
+      id: "user-central",
+      login: "central.user",
+      displayName: "Central User",
+      roleLabel: "Gestor",
+      accountType: "person",
+      isPrimaryAdmin: false,
+      active: true,
+      mustChangePassword: false,
+      authorizationVersion: 1,
+      machineScope,
+      permissions: [{ key: "andon.read" }],
+      machines: [{ machineId: "37" }],
+    },
+  })) as unknown as typeof originalSession;
+  t.after(() => {
+    prisma.workstation.findUnique = originalStation;
+    prisma.accessSession.findUnique = originalSession;
+    if (previousFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousFlag;
+    if (previousOrigin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
+    else process.env.ANDON_ACCESS_ORIGIN = previousOrigin;
+  });
+
+  const app = Fastify();
+  t.after(() => app.close());
+  app.addHook("onRequest", async (request) => {
+    Object.defineProperty(request.raw.socket, "encrypted", { value: true, configurable: true });
+  });
+  app.addHook("preHandler", enforceWorkstationAccess);
+  app.route({
+    url: "/api/machines",
+    method: ["GET", "PATCH"],
+    handler: async () => ({ ok: true }),
+  });
+  app.get("/api/modules/settings", async () => ({ ok: true }));
+  const token = "a".repeat(64);
+  const headers = {
+    origin: "https://andon.test",
+    "x-andon-workstation-id": id,
+    cookie: `__Host-andon-access=${token}`,
+  };
+
+  assert.equal(
+    (await app.inject({ url: "/api/machines", headers: { origin: headers.origin } })).statusCode,
+    403,
+    "central mode never inherits the no-UUID legacy bypass",
+  );
+  assert.equal((await app.inject({ url: "/api/machines", headers })).statusCode, 200);
+  const mutation = await app.inject({ url: "/api/machines", method: "PATCH", headers });
+  assert.equal(mutation.statusCode, 403);
+  assert.equal(mutation.json().error, "central_action_not_supported");
+  machineScope = "selected";
+  const scoped = await app.inject({ url: "/api/machines", headers });
+  assert.equal(scoped.statusCode, 403);
+  assert.equal(scoped.json().error, "scoped_query_required");
+  machineScope = "all";
+  sessionWorkstationId = id.replace(/37$/, "38");
+  assert.equal((await app.inject({ url: "/api/machines", headers })).statusCode, 401);
+  sessionWorkstationId = id;
+  const unsupported = await app.inject({ url: "/api/modules/settings", headers });
+  assert.equal(unsupported.statusCode, 403);
+  assert.equal(unsupported.json().error, "central_route_not_supported");
+});
