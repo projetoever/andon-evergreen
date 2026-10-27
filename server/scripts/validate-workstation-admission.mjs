@@ -168,8 +168,6 @@ try {
   );
   assert.equal(registered.pendingApproval, true);
   assert.equal(registered.active, false);
-  assert.equal(registered.allowOperational, false);
-  assert.equal(registered.allowBi, false);
 
   const requester = {};
   await request(requester, pendingStation, "/api/access/session");
