@@ -17,6 +17,13 @@ CREATE TABLE "workstation_admissions" (
     CONSTRAINT "workstation_admissions_status_check" CHECK ("status" IN ('pending', 'approved', 'rejected'))
 );
 
+ALTER TABLE "access_sessions"
+DROP CONSTRAINT "access_session_purpose";
+
+ALTER TABLE "access_sessions"
+ADD CONSTRAINT "access_session_purpose"
+CHECK ("purpose" IN ('normal', 'password_change', 'workstation_admission'));
+
 CREATE UNIQUE INDEX "workstation_admissions_workstationId_key"
 ON "workstation_admissions"("workstationId");
 
