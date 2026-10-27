@@ -65,6 +65,7 @@ model Workstation {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   accessSessions     AccessSession[]
+  admission          WorkstationAdmission?
   technicianSessions TechnicianSession[]
   soundPreferences   WorkstationMachineSoundPreference[]
   lockedMachineId    String?
@@ -574,8 +575,34 @@ model AccessUser {
   permissions             AccessPermission[]
   machines                AccessMachine[]
   sessions                AccessSession[]
+  admissionRequests       WorkstationAdmission[] @relation("WorkstationAdmissionRequester")
+  admissionDecisions      WorkstationAdmission[] @relation("WorkstationAdmissionDecider")
 
   @@map("access_users")
+}
+
+model WorkstationAdmission {
+  id                String   @id @default(cuid())
+  workstationId     String   @unique
+  workstation       Workstation @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  requesterUserId   String
+  requester         AccessUser @relation("WorkstationAdmissionRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)
+  requestedName     String?
+  requestReason     String?
+  requestIpAddress  String? @db.VarChar(45)
+  status            String @default("pending")
+  requestedAt       DateTime @default(now())
+  decidedAt         DateTime?
+  decidedByUserId   String?
+  decidedBy         AccessUser? @relation("WorkstationAdmissionDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  decisionReason    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status, requestedAt])
+  @@index([requesterUserId, requestedAt])
+  @@index([decidedByUserId, decidedAt])
+  @@map("workstation_admissions")
 }
 
 model AccessPermission {

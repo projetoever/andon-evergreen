@@ -19,6 +19,7 @@ export async function resolveSession(
   db: Reader,
   request: AccessRequest,
   now = new Date(),
+  allowAdmission = false,
 ): Promise<Principal> {
   if (!/^[a-f0-9]{64}$/.test(request.token)) throw new AccessError("authentication_required", 401);
   const row = await db.accessSession.findUnique({
@@ -35,8 +36,13 @@ export async function resolveSession(
     row.lastInteractionAt.getTime() + IDLE <= now.getTime()
   )
     throw new AccessError("authentication_required", 401);
-  if (!row.workstation.active || row.workstation.pendingApproval)
+  const admissionSession = row.purpose === "workstation_admission";
+  if (
+    (!row.workstation.active || row.workstation.pendingApproval) &&
+    !(allowAdmission && admissionSession)
+  )
     throw new AccessError("workstation_denied");
+  if (admissionSession && !allowAdmission) throw new AccessError("workstation_denied");
   if (row.user.mustChangePassword && row.purpose !== "password_change")
     throw new AccessError("password_change_required");
   return {
@@ -62,7 +68,7 @@ export async function issueSession(
   tx: Prisma.TransactionClient,
   user: { id: string; authorizationVersion: number },
   workstationId: string,
-  purpose: "normal" | "password_change",
+  purpose: "normal" | "password_change" | "workstation_admission",
   now: Date,
 ) {
   const token = randomBytes(32).toString("hex");
@@ -114,19 +120,24 @@ export async function login(
   const result = await db.$transaction(async (tx) => {
     await lockUser(tx, user.id);
     const current = await tx.accessUser.findUniqueOrThrow({ where: { id: user.id } });
-    const station = await tx.workstation.findUnique({ where: { id: input.workstationId } });
+    const station = await tx.workstation.findUnique({
+      where: { id: input.workstationId },
+      include: { admission: { select: { status: true } } },
+    });
     const now = new Date();
     if (
       !current.active ||
       current.passwordHash !== user.passwordHash ||
-      !station?.active ||
-      station.pendingApproval ||
+      !station ||
       (current.mustChangePassword &&
         (!current.temporaryExpiresAt ||
           current.temporaryExpiresAt <= now ||
           current.temporaryConsumedAt))
     )
       return null;
+    const admission = station.pendingApproval || station.admission?.status === "rejected";
+    if (!station.active && !admission) return null;
+    if (admission && current.mustChangePassword) return null;
     const effective = current.mustChangePassword
       ? await tx.accessUser.update({
           where: { id: current.id },
@@ -137,7 +148,11 @@ export async function login(
       tx,
       effective,
       station.id,
-      current.mustChangePassword ? "password_change" : "normal",
+      admission
+        ? "workstation_admission"
+        : current.mustChangePassword
+          ? "password_change"
+          : "normal",
       now,
     );
     await appendAudit(

@@ -8,6 +8,10 @@ import {
   WORKSTATION_INACTIVE_MESSAGE,
   WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE,
 } from "../services/workstationAuthorization.js";
+import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { resolveSession } from "../access/sessions.js";
+import { AccessError, assertModule } from "../access/policy.js";
+import type { TLSSocket } from "node:tls";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -23,29 +27,71 @@ const ALLOWED_API_PATHS = new Set([
 export async function enforceWorkstationAccess(request: FastifyRequest, reply: FastifyReply) {
   if (request.method === "OPTIONS") return;
   const path = request.url.split("?", 1)[0] ?? "";
-  if (!path.startsWith("/api/") || ALLOWED_API_PATHS.has(path) || path.startsWith("/api/health")) return;
+  if (!path.startsWith("/api/") || ALLOWED_API_PATHS.has(path) || path.startsWith("/api/health"))
+    return;
+  // The access subsystem performs its own stricter HTTPS, origin, CSRF and workstation checks.
+  if (path.startsWith("/api/access/")) return;
 
   const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
   if (!id) {
-    const policy = await prisma.systemSettings.findUnique({where:{id:"global"},select:{requireWorkstationApproval:true}});
+    const policy = await prisma.systemSettings.findUnique({
+      where: { id: "global" },
+      select: { requireWorkstationApproval: true },
+    });
     if (request.headers.origin || policy?.requireWorkstationApproval) {
-      return reply.status(403).send({ error: "workstation_identification_required", message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE });
+      return reply.status(403).send({
+        error: "workstation_identification_required",
+        message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE,
+      });
     }
     return;
   }
 
-  const workstation = await prisma.workstation.findUnique({ where: { id }, select: { active: true, allowOperational: true, allowBi: true, allowPriorities: true } });
+  const workstation = await prisma.workstation.findUnique({
+    where: { id },
+    select: { active: true, allowOperational: true, allowBi: true, allowPriorities: true },
+  });
   if (!workstation) {
-    return reply.status(403).send({ error: "workstation_identification_required", message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE });
+    return reply.status(403).send({
+      error: "workstation_identification_required",
+      message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE,
+    });
   }
   // Metadata remains available to explain restrictions. Admin recovery is narrowly scoped.
   if (path === "/api/modules/access" && request.method === "GET") return;
   if (isRecoveryRequest(request.method, path) && readAdminSession(request)) return;
   if (!workstation.active) {
-    return reply.status(403).send({ error: "workstation_inactive", message: WORKSTATION_INACTIVE_MESSAGE });
+    return reply
+      .status(403)
+      .send({ error: "workstation_inactive", message: WORKSTATION_INACTIVE_MESSAGE });
   }
   const module = apiModule(path);
   if (module && !isModuleAllowed(module, workstation)) {
-    return reply.status(403).send({ error: "module_forbidden", module, message: "Módulo não autorizado para esta workstation." });
+    return reply.status(403).send({
+      error: "module_forbidden",
+      module,
+      message: "Módulo não autorizado para esta workstation.",
+    });
+  }
+  if (module && centralAccessEnabled()) {
+    const origin = process.env.ANDON_ACCESS_ORIGIN ?? "";
+    if (!(request.raw.socket as TLSSocket).encrypted || !origin.startsWith("https://"))
+      return reply.status(426).send({ error: "https_required" });
+    if (request.headers.origin !== origin)
+      return reply.status(403).send({ error: "origin_denied" });
+    try {
+      const principal = await resolveSession(prisma, {
+        token: readSecureCookie(request, ACCESS_COOKIE),
+        workstationId: id,
+      });
+      if (principal.machineScope !== "all" && principal.machineIds.length === 0)
+        throw new AccessError("machine_scope_denied");
+      assertModule(principal, workstation, module);
+    } catch (error) {
+      const accessError = error instanceof AccessError ? error : null;
+      return reply
+        .status(accessError?.statusCode ?? 403)
+        .send({ error: accessError?.code ?? "permission_denied" });
+    }
   }
 }

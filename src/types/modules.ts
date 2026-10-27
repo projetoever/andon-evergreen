@@ -24,6 +24,16 @@ export interface ModuleDefinition {
 
 export interface ModuleAccess {
   hubEnabled: boolean;
+  centralAccessEnabled?: boolean;
+  principal?: {
+    userId: string;
+    login: string;
+    displayName: string;
+    roleLabel: string;
+    purpose: string;
+    machineScope: string;
+    machineIds: string[];
+  } | null;
   workstation: {
     id: string;
     name: string | null;
@@ -33,6 +43,11 @@ export interface ModuleAccess {
     allowBi: boolean;
     allowPriorities: boolean;
     lockedMachineId: string | null;
+    admission?: {
+      status: "pending" | "approved" | "rejected";
+      requestedAt: string;
+      decisionReason: string | null;
+    } | null;
   };
   modules: ModuleDefinition[];
 }

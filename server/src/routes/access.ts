@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { appendAudit, actorFromPrincipal, type AuditActor } from "../access/audit.js";
-import { AccessError, PERMISSIONS } from "../access/policy.js";
+import { AccessError, PERMISSIONS, assertPermission } from "../access/policy.js";
 import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
 import {
   login,
@@ -23,17 +23,9 @@ import {
   type UserInput,
 } from "../access/users.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
+import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 const PREFIX = "/api/access";
-const COOKIE = "__Host-andon-access";
-const PREAUTH = "__Host-andon-preauth";
-function cookie(request: FastifyRequest, name: string) {
-  const values = (request.headers.cookie ?? "")
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.startsWith(`${name}=`));
-  const value = values.length === 1 ? values[0].slice(name.length + 1) : "";
-  return /^[a-f0-9]{64}$/.test(value) ? value : "";
-}
 function setCookie(reply: FastifyReply, name: string, value: string, maxAge: number) {
   reply.header(
     "Set-Cookie",
@@ -77,7 +69,7 @@ export function registerAccessRoutes(
       if (bucket.count > limit) throw new AccessError("rate_limited", 429);
     };
     const requestAccess = (req: FastifyRequest) => ({
-      token: cookie(req, COOKIE),
+      token: readSecureCookie(req, ACCESS_COOKIE),
       workstationId: parseWorkstationId(req.headers["x-andon-workstation-id"]) ?? "",
     });
     app.addHook("onRequest", async (req, reply) => {
@@ -87,7 +79,7 @@ export function registerAccessRoutes(
       if (req.headers.origin !== origin) throw new AccessError("origin_denied");
       limited(`ip:${req.ip}`, 300, 60000);
       if (!["GET", "HEAD"].includes(req.method)) {
-        const token = cookie(req, COOKIE) || cookie(req, PREAUTH);
+        const token = readSecureCookie(req, ACCESS_COOKIE) || readSecureCookie(req, PREAUTH_COOKIE);
         if (!token || !checkCsrf(token, req.headers["x-andon-csrf"]))
           throw new AccessError("csrf_denied");
       }
@@ -105,10 +97,16 @@ export function registerAccessRoutes(
         throw new AccessError("invalid_input", 400);
     });
     app.addHook("preHandler", async (req) => {
+      const route = req.routeOptions.url ?? "";
       const station = await db.workstation.findUnique({
         where: { id: requestAccess(req).workstationId },
       });
-      if (!station?.active || station.pendingApproval) throw new AccessError("workstation_denied");
+      const admissionRoute =
+        route === `${PREFIX}/session` ||
+        route === `${PREFIX}/login` ||
+        route === `${PREFIX}/admission/request`;
+      if (!station || ((!station.active || station.pendingApproval) && !admissionRoute))
+        throw new AccessError("workstation_denied");
       if (
         req.method === "POST" &&
         /\/(login|initialize|password|reset)$/.test(req.routeOptions.url ?? "")
@@ -146,7 +144,7 @@ export function registerAccessRoutes(
         };
         try {
           actor = {
-            ...actorFromPrincipal(await resolveSession(db, requestAccess(req))),
+            ...actorFromPrincipal(await resolveSession(db, requestAccess(req), new Date(), true)),
             ipAddress: req.ip,
             requestId: req.id,
           };
@@ -172,7 +170,7 @@ export function registerAccessRoutes(
     ) => {
       setCookie(
         reply,
-        COOKIE,
+        ACCESS_COOKIE,
         session.token,
         Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
       );
@@ -181,14 +179,14 @@ export function registerAccessRoutes(
     app.get(`${PREFIX}/session`, async (req, reply) => {
       let principal = null;
       try {
-        principal = await resolveSession(db, requestAccess(req));
+        principal = await resolveSession(db, requestAccess(req), new Date(), true);
       } catch (e) {
         if (!(e instanceof AccessError)) throw e;
       }
-      let token = cookie(req, COOKIE) || cookie(req, PREAUTH);
+      let token = readSecureCookie(req, ACCESS_COOKIE) || readSecureCookie(req, PREAUTH_COOKIE);
       if (!token) {
         token = randomBytes(32).toString("hex");
-        setCookie(reply, PREAUTH, token, 600);
+        setCookie(reply, PREAUTH_COOKIE, token, 600);
       }
       return {
         principal,
@@ -243,7 +241,7 @@ export function registerAccessRoutes(
     );
     app.post(`${PREFIX}/logout`, async (req, reply) => {
       await logout(db, requestAccess(req));
-      setCookie(reply, COOKIE, "", 0);
+      setCookie(reply, ACCESS_COOKIE, "", 0);
       return { ok: true };
     });
     app.post(`${PREFIX}/interaction`, async (req) => {
@@ -317,6 +315,341 @@ export function registerAccessRoutes(
         });
         if (!user || user.accountType !== "person") throw new AccessError("invalid_user", 400);
         return resetPassword(db, requestAccess(req), req.params.id, req.body.reason);
+      },
+    );
+    app.post<{ Body: { requestedName: string; reason?: string } }>(
+      `${PREFIX}/admission/request`,
+      {
+        schema: schema({ requestedName: string(120), reason: string(500) }, ["requestedName"]),
+      },
+      async (req) => {
+        const principal = await resolveSession(db, requestAccess(req), new Date(), true);
+        if (principal.purpose !== "workstation_admission")
+          throw new AccessError("admission_not_required", 409);
+        const requestedName = req.body.requestedName.trim().replace(/\s+/g, " ");
+        const reason = req.body.reason?.trim().replace(/\s+/g, " ") || null;
+        if (!requestedName) throw new AccessError("invalid_input", 400);
+        return db.$transaction(async (tx) => {
+          await lockWorkstationFlow(tx, principal.workstationId);
+          const current = await resolveSession(tx, requestAccess(req), new Date(), true);
+          if (current.purpose !== "workstation_admission")
+            throw new AccessError("admission_not_required", 409);
+          const station = await tx.workstation.findUniqueOrThrow({
+            where: { id: current.workstationId },
+          });
+          if (station.active && !station.pendingApproval)
+            throw new AccessError("admission_not_required", 409);
+          const now = new Date();
+          const admission = await tx.workstationAdmission.upsert({
+            where: { workstationId: station.id },
+            create: {
+              workstationId: station.id,
+              requesterUserId: current.userId,
+              requestedName,
+              requestReason: reason,
+              requestIpAddress: req.ip.replace(/^::ffff:/, ""),
+              status: "pending",
+              requestedAt: now,
+            },
+            update: {
+              requesterUserId: current.userId,
+              requestedName,
+              requestReason: reason,
+              requestIpAddress: req.ip.replace(/^::ffff:/, ""),
+              status: "pending",
+              requestedAt: now,
+              decidedAt: null,
+              decidedByUserId: null,
+              decisionReason: null,
+            },
+          });
+          await tx.workstation.update({
+            where: { id: station.id },
+            data: {
+              active: false,
+              pendingApproval: true,
+              allowOperational: false,
+              allowBi: false,
+              allowPriorities: false,
+            },
+          });
+          await appendAudit(tx, actorFromPrincipal(current), {
+            action: "workstation.admission.requested",
+            resourceType: "workstation",
+            resourceId: station.id,
+            after: {
+              admissionId: admission.id,
+              requestedName,
+              status: "pending",
+            },
+          });
+          return { status: admission.status, requestedAt: admission.requestedAt };
+        });
+      },
+    );
+
+    app.get(`${PREFIX}/workstations`, async (req) => {
+      const principal = await resolveSession(db, requestAccess(req));
+      assertPermission(principal, "workstations.read");
+      const now = new Date();
+      const rows = await db.workstation.findMany({
+        include: {
+          admission: {
+            include: {
+              requester: { select: { id: true, login: true, displayName: true, roleLabel: true } },
+              decidedBy: { select: { id: true, login: true, displayName: true, roleLabel: true } },
+            },
+          },
+          accessSessions: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  login: true,
+                  displayName: true,
+                  roleLabel: true,
+                  active: true,
+                  authorizationVersion: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: [{ pendingApproval: "desc" }, { active: "desc" }, { lastSeenAt: "desc" }],
+      });
+      return rows.map(({ accessSessions, ...station }) => {
+        const latest = accessSessions[0] ?? null;
+        const valid = Boolean(
+          latest &&
+          !latest.revokedAt &&
+          latest.expiresAt > now &&
+          latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime() &&
+          latest.user.active &&
+          latest.authorizationVersion === latest.user.authorizationVersion &&
+          station.active &&
+          !station.pendingApproval &&
+          latest.purpose === "normal",
+        );
+        const sessionState = !latest
+          ? "none"
+          : valid
+            ? "valid"
+            : latest.revokedAt
+              ? "revoked"
+              : latest.expiresAt <= now ||
+                  latest.lastInteractionAt.getTime() + 30 * 60 * 1000 <= now.getTime()
+                ? "expired"
+                : !latest.user.active
+                  ? "user_inactive"
+                  : "workstation_blocked";
+        return {
+          ...station,
+          linkedAccount: station.admission?.requester ?? null,
+          authenticatedAccount: valid ? latest?.user : null,
+          lastLogin: latest
+            ? {
+                account: latest.user,
+                createdAt: latest.createdAt,
+                lastInteractionAt: latest.lastInteractionAt,
+                expiresAt: latest.expiresAt,
+                purpose: latest.purpose,
+                state: sessionState,
+              }
+            : null,
+        };
+      });
+    });
+
+    app.patch<{
+      Params: { id: string };
+      Body: {
+        name?: string;
+        active?: boolean;
+        allowOperational?: boolean;
+        allowBi?: boolean;
+        allowPriorities?: boolean;
+      };
+    }>(
+      `${PREFIX}/workstations/:id`,
+      {
+        schema: schema(
+          {
+            name: { type: "string", maxLength: 120 },
+            active: { type: "boolean" },
+            allowOperational: { type: "boolean" },
+            allowBi: { type: "boolean" },
+            allowPriorities: { type: "boolean" },
+          },
+          [],
+        ),
+      },
+      async (req) => {
+        const initial = await resolveSession(db, requestAccess(req));
+        assertPermission(initial, "workstations.manage");
+        const id = parseWorkstationId(req.params.id);
+        if (!id || Object.keys(req.body).length === 0) throw new AccessError("invalid_input", 400);
+        if (req.body.active === false && id === initial.workstationId)
+          throw new AccessError("current_workstation_protected", 400);
+        return db.$transaction(async (tx) => {
+          await lockWorkstationFlow(tx, id);
+          const principal = await resolveSession(tx, requestAccess(req));
+          assertPermission(principal, "workstations.manage");
+          const station = await tx.workstation.findUnique({
+            where: { id },
+            include: { admission: true },
+          });
+          if (!station) throw new AccessError("workstation_not_found", 404);
+          if (
+            station.pendingApproval ||
+            (req.body.active === true && station.admission?.status === "rejected")
+          )
+            throw new AccessError("admission_decision_required", 409);
+          if (
+            (req.body.active === false || req.body.allowOperational === false) &&
+            station.lockedMachineId
+          )
+            throw new AccessError("workstation_screen_locked", 409);
+          if (req.body.active === false || req.body.allowOperational === false) {
+            const activeAttendance = await tx.technicianSession.findFirst({
+              where: { workstationId: id, endedAt: null },
+              select: { id: true },
+            });
+            if (activeAttendance) throw new AccessError("workstation_attendance_active", 409);
+          }
+          const name =
+            req.body.name === undefined
+              ? undefined
+              : req.body.name.trim().replace(/\s+/g, " ") || null;
+          const before = {
+            name: station.name,
+            active: station.active,
+            allowOperational: station.allowOperational,
+            allowBi: station.allowBi,
+            allowPriorities: station.allowPriorities,
+          };
+          const updated = await tx.workstation.update({
+            where: { id },
+            data: {
+              ...(req.body.name === undefined ? {} : { name }),
+              ...(req.body.active === undefined ? {} : { active: req.body.active }),
+              ...(req.body.allowOperational === undefined
+                ? {}
+                : { allowOperational: req.body.allowOperational }),
+              ...(req.body.allowBi === undefined ? {} : { allowBi: req.body.allowBi }),
+              ...(req.body.allowPriorities === undefined
+                ? {}
+                : { allowPriorities: req.body.allowPriorities }),
+            },
+          });
+          if (req.body.active === false)
+            await tx.accessSession.updateMany({
+              where: { workstationId: id, revokedAt: null },
+              data: { revokedAt: new Date() },
+            });
+          await appendAudit(tx, actorFromPrincipal(principal), {
+            action: "workstation.access.updated",
+            resourceType: "workstation",
+            resourceId: id,
+            before,
+            after: {
+              name: updated.name,
+              active: updated.active,
+              allowOperational: updated.allowOperational,
+              allowBi: updated.allowBi,
+              allowPriorities: updated.allowPriorities,
+            },
+          });
+          return { ok: true };
+        });
+      },
+    );
+
+    app.post<{
+      Params: { id: string };
+      Body: {
+        decision: "approve" | "reject";
+        reason: string;
+        allowOperational: boolean;
+        allowBi: boolean;
+        allowPriorities: boolean;
+      };
+    }>(
+      `${PREFIX}/workstations/:id/decision`,
+      {
+        schema: schema({
+          decision: { enum: ["approve", "reject"] },
+          reason: string(500),
+          allowOperational: { type: "boolean" },
+          allowBi: { type: "boolean" },
+          allowPriorities: { type: "boolean" },
+        }),
+      },
+      async (req) => {
+        const initial = await resolveSession(db, requestAccess(req));
+        assertPermission(initial, "workstations.manage");
+        const reason = req.body.reason.trim().replace(/\s+/g, " ");
+        if (!reason) throw new AccessError("reason_required", 400);
+        const id = parseWorkstationId(req.params.id);
+        if (!id) throw new AccessError("invalid_input", 400);
+        return db.$transaction(async (tx) => {
+          await lockWorkstationFlow(tx, id);
+          const principal = await resolveSession(tx, requestAccess(req));
+          assertPermission(principal, "workstations.manage");
+          const station = await tx.workstation.findUnique({
+            where: { id },
+            include: { admission: true },
+          });
+          if (!station?.admission || station.admission.status !== "pending")
+            throw new AccessError("admission_not_pending", 409);
+          const approved = req.body.decision === "approve";
+          const now = new Date();
+          const updated = await tx.workstation.update({
+            where: { id },
+            data: {
+              name: station.name || station.admission.requestedName,
+              active: approved,
+              pendingApproval: false,
+              allowOperational: approved && req.body.allowOperational,
+              allowBi: approved && req.body.allowBi,
+              allowPriorities: approved && req.body.allowPriorities,
+            },
+          });
+          await tx.workstationAdmission.update({
+            where: { workstationId: id },
+            data: {
+              status: approved ? "approved" : "rejected",
+              decidedAt: now,
+              decidedByUserId: principal.userId,
+              decisionReason: reason,
+            },
+          });
+          await tx.accessSession.updateMany({
+            where: { workstationId: id, revokedAt: null },
+            data: { revokedAt: now },
+          });
+          await appendAudit(tx, actorFromPrincipal(principal), {
+            action: approved ? "workstation.admission.approved" : "workstation.admission.rejected",
+            resourceType: "workstation",
+            resourceId: id,
+            reason,
+            before: {
+              active: station.active,
+              pendingApproval: station.pendingApproval,
+              admissionStatus: station.admission.status,
+            },
+            after: {
+              active: updated.active,
+              pendingApproval: updated.pendingApproval,
+              allowOperational: updated.allowOperational,
+              allowBi: updated.allowBi,
+              allowPriorities: updated.allowPriorities,
+              admissionStatus: approved ? "approved" : "rejected",
+            },
+          });
+          return { ok: true };
+        });
       },
     );
   });

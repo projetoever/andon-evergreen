@@ -6,6 +6,7 @@ import { ModuleCards } from "@/components/layout/ModuleCards";
 import { Button } from "@/components/ui/button";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
 
 export function HubPage() {
   const { access, error, refresh } = useModuleAccess();
@@ -54,7 +55,7 @@ export function HubPage() {
         )}
         {access && (
           <>
-            {!access.workstation.active && (
+            {!access.centralAccessEnabled && !access.workstation.active && (
               <p role="alert" className="text-danger">
                 {t(
                   access.workstation.pendingApproval
@@ -63,12 +64,24 @@ export function HubPage() {
                 )}
               </p>
             )}
-            <ModuleCards />
+            {access.centralAccessEnabled &&
+            (!access.workstation.active ||
+              !access.principal ||
+              access.principal.purpose !== "normal") ? (
+              <HubIdentityPanel access={access} onChanged={refresh} />
+            ) : (
+              <ModuleCards />
+            )}
             <footer className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-xs text-muted-foreground">
               <span>
                 {t("Workstation")}: {access.workstation.name || access.workstation.id.slice(-8)}
               </span>
               <span>{t("Permissões administradas pelo Hub")}</span>
+              {access.principal && (
+                <span>
+                  {t("Acesso")}: {access.principal.roleLabel} · {access.principal.displayName}
+                </span>
+              )}
             </footer>
           </>
         )}

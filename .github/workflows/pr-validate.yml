@@ -99,10 +99,43 @@ jobs:
       - name: Validar usuários por HTTPS e PostgreSQL
         run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-access-http.mjs
 
+      - name: Validar admissão segura de workstations
+        run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-workstation-admission.mjs
+
       - name: Validar frontend e SSR
         run: |
           npm run typecheck
           npm run build
+
+      - name: Validar interface de admissão em desktop e mobile
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/andon-admission-browser
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/andon-admission-browser/key.pem \
+            -out /tmp/andon-admission-browser/cert.pem \
+            -days 1 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+          npm run preview -- --host 127.0.0.1 --port 4187 > /tmp/andon-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            curl -fsS http://127.0.0.1:4187/hub >/dev/null && break
+            sleep 1
+          done
+          ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
+          ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
+          node tests/browser/workstationAdmission.mjs
+
+      - name: Publicar capturas da admissão
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workstation-admission-visual-evidence
+          path: docs/validation/workstation-admission-20261027
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Garantir build sem alterar route tree versionado
         run: |

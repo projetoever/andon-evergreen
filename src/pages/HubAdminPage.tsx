@@ -125,6 +125,11 @@ export function HubAdminPage() {
               {ui("Usuários e Acessos")}
             </Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link to="/hub/admin" search={{ section: "workstations" }}>
+              {ui("Estações e acessos")}
+            </Link>
+          </Button>
           {authenticated && (
             <Button
               variant="outline"
@@ -140,6 +145,8 @@ export function HubAdminPage() {
         </header>
         {section === "users" ? (
           <UsersAccessSettings />
+        ) : section === "workstations" ? (
+          <WorkstationsSettingsTab />
         ) : !authenticated ? (
           <section className="space-y-4 rounded-xl border border-border bg-card p-6">
             <h2 className="text-lg font-bold">{ui("Acesso administrativo")}</h2>
@@ -229,7 +236,6 @@ export function HubAdminPage() {
                 </section>
               </div>
             )}
-            {section === "workstations" && <WorkstationsSettingsTab />}
             {section === "security" && <HubSecuritySettings />}
             {section === "modules" && <ModuleCredentialSettings />}
             {section === "priorities" && <PriorityAccessSettings />}
