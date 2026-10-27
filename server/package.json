@@ -26,7 +26,8 @@
     "db:reset": "prisma migrate reset",
     "test:access": "node --import tsx --test src/access/foundation.test.ts src/access/industrialServices.test.ts",
     "test:access:integration": "node scripts/validate-access-foundation.mjs",
-    "test:service:integration": "node scripts/validate-industrial-service.mjs"
+    "test:service:integration": "node scripts/validate-industrial-service.mjs",
+    "test:https:integration": "node scripts/validate-https-homologation.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

@@ -67,6 +67,7 @@ app.get("/api/dashboard-priority/admission-fixture", async () => ({ ok: true }))
 const suffix = Date.now().toString(36);
 const adminStation = `ws_${crypto.randomUUID()}`;
 const pendingStation = `ws_${crypto.randomUUID()}`;
+const rejectedStation = `ws_${crypto.randomUUID()}`;
 const copiedStation = `ws_${crypto.randomUUID()}`;
 const adminLogin = `admission.admin.${suffix}`;
 const requesterLogin = `admission.requester.${suffix}`;
@@ -205,6 +206,48 @@ try {
     login: adminLogin,
     password: adminPassword,
   });
+
+  const rejectedRequester = {};
+  await request(rejectedRequester, rejectedStation, "/api/workstations/register", "POST", {
+    id: rejectedStation,
+  });
+  await request(rejectedRequester, rejectedStation, "/api/access/session");
+  await request(rejectedRequester, rejectedStation, "/api/access/login", "POST", {
+    login: requesterLogin,
+    password: requesterPassword,
+  });
+  await request(rejectedRequester, rejectedStation, "/api/access/admission/request", "POST", {
+    requestedName: "Rejected isolated kiosk",
+    reason: "Rejection validation",
+  });
+  await request(
+    admin,
+    adminStation,
+    `/api/access/workstations/${rejectedStation}/decision`,
+    "POST",
+    {
+      decision: "reject",
+      reason: "Rejected in isolated validation",
+      allowOperational: false,
+      allowBi: false,
+      allowPriorities: false,
+    },
+  );
+  const rejected = await db.workstation.findUniqueOrThrow({
+    where: { id: rejectedStation },
+    include: { admission: true },
+  });
+  assert.equal(rejected.admission?.status, "rejected");
+  assert.equal(rejected.active, false);
+  await request(
+    rejectedRequester,
+    rejectedStation,
+    "/api/access/login",
+    "POST",
+    { login: requesterLogin, password: requesterPassword },
+    401,
+  );
+
   const managed = await request(admin, adminStation, "/api/access/workstations");
   const listed = managed.find((item) => item.id === pendingStation);
   assert.equal(listed.linkedAccount.login, requesterLogin);
@@ -243,12 +286,11 @@ try {
     where: { id: requesterUser.id },
     data: { machineScope: "selected" },
   });
-  const scopedModuleAccess = await request(
-    requester,
-    pendingStation,
-    "/api/modules/access",
+  const scopedModuleAccess = await request(requester, pendingStation, "/api/modules/access");
+  assert.equal(
+    scopedModuleAccess.modules.some((item) => item.allowed),
+    false,
   );
-  assert.equal(scopedModuleAccess.modules.some((item) => item.allowed), false);
   await request(
     requester,
     pendingStation,
@@ -350,10 +392,14 @@ try {
   if (adminUser)
     await db.accessUser.update({ where: { id: adminUser.id }, data: { isPrimaryAdmin: false } });
   await db.workstationAdmission.deleteMany({
-    where: { workstationId: { in: [pendingStation, adminStation, copiedStation] } },
+    where: {
+      workstationId: { in: [pendingStation, rejectedStation, adminStation, copiedStation] },
+    },
   });
   await db.accessSession.deleteMany({
-    where: { workstationId: { in: [pendingStation, adminStation, copiedStation] } },
+    where: {
+      workstationId: { in: [pendingStation, rejectedStation, adminStation, copiedStation] },
+    },
   });
   await db.accessPermission.deleteMany({
     where: { userId: { in: [adminUser?.id, requesterUser?.id].filter(Boolean) } },
@@ -364,7 +410,7 @@ try {
   if (requesterUser) await db.accessUser.delete({ where: { id: requesterUser.id } });
   if (adminUser) await db.accessUser.delete({ where: { id: adminUser.id } });
   await db.workstation.deleteMany({
-    where: { id: { in: [pendingStation, adminStation, copiedStation] } },
+    where: { id: { in: [pendingStation, rejectedStation, adminStation, copiedStation] } },
   });
   if (machine) await db.machine.delete({ where: { id: machine.id } });
   if (previous)
