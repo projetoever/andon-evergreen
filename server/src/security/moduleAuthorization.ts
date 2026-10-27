@@ -69,6 +69,7 @@ export function revokeModuleSession(request: FastifyRequest, module: PasswordMod
 /** Password protection also applies to unidentified/legacy requests when explicitly enabled. */
 export async function enforceModuleAuthorization(request: FastifyRequest, reply: FastifyReply) {
   if (request.method === "OPTIONS") return;
+  if (request.industrialService) return;
   const path = request.url.split("?", 1)[0] ?? "";
   if (
     !path.startsWith("/api/") ||

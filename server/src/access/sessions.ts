@@ -276,7 +276,7 @@ export async function recordInteraction(db: PrismaClient, request: AccessRequest
     data: { lastInteractionAt: new Date() },
   });
 }
-function assertRecentAdmin(principal: Principal) {
+export function assertRecentAdmin(principal: Principal) {
   if (!principal.isPrimaryAdmin || principal.purpose !== "normal")
     throw new AccessError("admin_required");
   if (Date.now() - principal.authenticatedAt.getTime() > 5 * 60 * 1000)

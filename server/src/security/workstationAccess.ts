@@ -12,12 +12,14 @@ import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access
 import { resolveSession } from "../access/sessions.js";
 import { AccessError, assertModule } from "../access/policy.js";
 import type { TLSSocket } from "node:tls";
+import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
   "/api/admin-auth/login",
   "/api/admin-auth/recover",
   "/api/admin-auth/status",
+  "/api/service-auth/token",
 ]);
 
 /** Prevent a blocked workstation from interacting with the operational API.
@@ -32,6 +34,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
   // The access subsystem performs its own stricter HTTPS, origin, CSRF and workstation checks.
   if (path.startsWith("/api/access/")) return;
   const central = centralAccessEnabled();
+  if (central && (await authorizeIndustrialService(request, reply))) return;
+  if (request.industrialService) return;
 
   const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
   if (!id) {
