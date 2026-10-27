@@ -320,9 +320,8 @@ try {
     `Workstation admission integration PASS: ${checks} HTTPS assertions; pending, approval, module intersection, UUID binding, expiry, blocking and audit.`,
   );
 } finally {
-  await db.auditEvent.deleteMany({
-    where: { OR: [{ actorUserId: adminUser?.id }, { actorUserId: requesterUser?.id }] },
-  });
+  // Audit is intentionally append-only, including in the isolated test schema.
+  // Unique test identities keep retained evidence from colliding with later runs.
   if (adminUser)
     await db.accessUser.update({ where: { id: adminUser.id }, data: { isPrimaryAdmin: false } });
   await db.workstationAdmission.deleteMany({
