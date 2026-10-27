@@ -109,7 +109,7 @@ jobs:
 
       - name: Validar interface de admissão em desktop e mobile
         run: |
-          npm install --no-save --package-lock=false playwright@1.56.1
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.56.1
           npx playwright install --with-deps chromium
           mkdir -p /tmp/andon-admission-browser
           openssl req -x509 -newkey rsa:2048 -nodes \
