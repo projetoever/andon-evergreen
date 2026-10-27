@@ -25,6 +25,13 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import {
+  INDUSTRIAL_SERVICE_SCOPES,
+  createIndustrialService,
+  listIndustrialServices,
+  revokeIndustrialService,
+  rotateIndustrialServiceSecret,
+} from "../access/industrialServices.js";
 const PREFIX = "/api/access";
 function setCookie(reply: FastifyReply, name: string, value: string, maxAge: number) {
   reply.header(
@@ -50,6 +57,13 @@ const userProperties = {
     items: { enum: [...PERMISSIONS] },
   },
   machineIds: { type: "array", maxItems: 1000, uniqueItems: true, items: string(120) },
+};
+const serviceScopes = {
+  type: "array",
+  minItems: 1,
+  maxItems: INDUSTRIAL_SERVICE_SCOPES.length,
+  uniqueItems: true,
+  items: { enum: [...INDUSTRIAL_SERVICE_SCOPES] },
 };
 export function registerAccessRoutes(
   root: FastifyInstance,
@@ -259,6 +273,41 @@ export function registerAccessRoutes(
         }),
       };
     });
+    app.get(`${PREFIX}/service-identities`, (req) =>
+      listIndustrialServices(db, requestAccess(req)),
+    );
+    app.post<{
+      Body: { name: string; scopes: string[]; credentialTtlDays: number; reason: string };
+    }>(
+      `${PREFIX}/service-identities`,
+      {
+        schema: schema({
+          name: string(120),
+          scopes: serviceScopes,
+          credentialTtlDays: { type: "integer", minimum: 1, maximum: 365 },
+          reason: string(500),
+        }),
+      },
+      (req) => createIndustrialService(db, requestAccess(req), req.body),
+    );
+    app.post<{
+      Params: { id: string };
+      Body: { credentialTtlDays: number; reason: string };
+    }>(
+      `${PREFIX}/service-identities/:id/rotate`,
+      {
+        schema: schema({
+          credentialTtlDays: { type: "integer", minimum: 1, maximum: 365 },
+          reason: string(500),
+        }),
+      },
+      (req) => rotateIndustrialServiceSecret(db, requestAccess(req), req.params.id, req.body),
+    );
+    app.post<{ Params: { id: string }; Body: { reason: string } }>(
+      `${PREFIX}/service-identities/:id/revoke`,
+      { schema: schema({ reason: string(500) }) },
+      (req) => revokeIndustrialService(db, requestAccess(req), req.params.id, req.body.reason),
+    );
     app.get<{ Querystring: { q?: string; page?: number } }>(
       `${PREFIX}/users`,
       {

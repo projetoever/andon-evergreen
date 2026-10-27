@@ -102,6 +102,9 @@ jobs:
       - name: Validar admissão segura de workstations
         run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-workstation-admission.mjs
 
+      - name: Validar identidades de serviços industriais
+        run: ANDON_INTEGRATION_TEST=1 npm run test:service:integration --prefix server
+
       - name: Validar frontend e SSR
         run: |
           npm run typecheck
