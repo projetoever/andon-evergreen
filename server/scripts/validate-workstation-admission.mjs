@@ -239,13 +239,21 @@ try {
   });
   assert.equal(rejected.admission?.status, "rejected");
   assert.equal(rejected.active, false);
-  await request(
+  const rejectedLogin = await request(
     rejectedRequester,
     rejectedStation,
     "/api/access/login",
     "POST",
     { login: requesterLogin, password: requesterPassword },
-    401,
+  );
+  assert.equal(rejectedLogin.purpose, "workstation_admission");
+  await request(
+    rejectedRequester,
+    rejectedStation,
+    "/api/admission-operational-fixture",
+    "GET",
+    undefined,
+    403,
   );
 
   const managed = await request(admin, adminStation, "/api/access/workstations");
