@@ -71,6 +71,8 @@ export async function enforceModuleAuthorization(request: FastifyRequest, reply:
   if (request.method === "OPTIONS") return;
   if (request.industrialService) return;
   const path = request.url.split("?", 1)[0] ?? "";
+  // This endpoint performs its own HTTPS, no-Origin, rate-limit and service-secret checks.
+  if (request.method === "POST" && path === "/api/service-auth/token") return;
   if (
     !path.startsWith("/api/") ||
     path === "/api/workstations/register" ||

@@ -74,6 +74,7 @@ const machineId = `service-${suffix}`;
 let adminUser;
 let serviceId;
 let previousSettings;
+let previousOperationalCredential;
 let address;
 let checks = 0;
 
@@ -123,6 +124,9 @@ async function request(
 
 try {
   previousSettings = await db.systemSettings.findUnique({ where: { id: "global" } });
+  previousOperationalCredential = await db.moduleCredential.findUnique({
+    where: { id: "operational" },
+  });
   await db.systemSettings.upsert({
     where: { id: "global" },
     create: { id: "global", hubEnabled: true, requireWorkstationApproval: false },
@@ -179,12 +183,23 @@ try {
   assert.equal(listed[0].secretHash, undefined);
   assert.equal(listed[0].clientSecret, undefined);
 
+  await db.moduleCredential.upsert({
+    where: { id: "operational" },
+    create: { id: "operational", passwordRequired: true, credentialVersion: 1 },
+    update: { passwordRequired: true },
+  });
+
   const service = {};
   const issued = await request(service, "/api/service-auth/token", {
     method: "POST",
     body: { clientId: serviceId, clientSecret: created.clientSecret },
   });
   assert.match(issued.accessToken, /^andon-service-v1\./);
+  await request(service, "/api/service-auth/token", {
+    method: "POST",
+    body: { clientId: serviceId, clientSecret: `${created.clientSecret}-invalid` },
+    expected: 401,
+  });
   const firstToken = issued.accessToken;
   const machines = await request(service, "/api/machines", { serviceToken: firstToken });
   assert(machines.some((machine) => machine.id === machineId));
@@ -206,7 +221,11 @@ try {
   });
   await request(service, "/api/machines", { expected: 403 });
 
-  await request(admin, "/api/machines", { browser: true });
+  const blockedOperational = await request(admin, "/api/machines", {
+    browser: true,
+    expected: 401,
+  });
+  assert.equal(blockedOperational.error, "module_auth_required");
 
   const session = await db.industrialServiceSession.findUniqueOrThrow({
     where: { tokenHash: (await import("../dist/access/credentials.js")).tokenHash(firstToken) },
@@ -221,6 +240,11 @@ try {
     body: { clientId: serviceId, clientSecret: created.clientSecret },
   });
   await request(service, "/api/machines", { serviceToken: renewed.accessToken });
+  await db.moduleCredential.update({
+    where: { id: "operational" },
+    data: { passwordRequired: false },
+  });
+  await request(admin, "/api/machines", { browser: true });
   await db.industrialServiceIdentity.update({
     where: { id: serviceId },
     data: { secretExpiresAt: new Date(Date.now() - 1) },
@@ -311,6 +335,17 @@ try {
         requireWorkstationApproval: previousSettings.requireWorkstationApproval,
       },
     });
+  if (previousOperationalCredential)
+    await db.moduleCredential.update({
+      where: { id: "operational" },
+      data: {
+        username: previousOperationalCredential.username,
+        passwordHash: previousOperationalCredential.passwordHash,
+        passwordRequired: previousOperationalCredential.passwordRequired,
+        credentialVersion: previousOperationalCredential.credentialVersion,
+      },
+    });
+  else await db.moduleCredential.deleteMany({ where: { id: "operational" } });
   await app.close();
   await db.$disconnect();
   rmSync(temp, { recursive: true, force: true });
