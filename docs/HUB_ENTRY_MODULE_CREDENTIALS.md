@@ -109,7 +109,10 @@ As URLs, métodos e formatos das leituras operacionais de `/api/machines`, `/api
 | Estação autorizada sem token operacional válido | Ligada | HTTP 401 |
 | UUID autorizado e token operacional válido para esse UUID | Ligada | Leituras permitidas |
 
-Para exigir senha e manter essas integrações, registre uma identidade estável própria por cliente em `/api/workstations/register`, autorize o módulo, autentique em `POST /api/modules/operational/login` e envie `X-Andon-Workstation-Id` e `X-Andon-Operational-Token`. A sessão dura oito horas e requer novo login após expirar, reiniciar a API ou alterar a credencial. Não grave segredos no repositório, em URLs ou logs. Uma futura credencial específica para integrações não faz parte desta etapa.
+O fluxo legado por workstation continua documentando a release em que foi criado. A infraestrutura
+específica e separada para Node-RED/mini PC foi adicionada posteriormente na Etapa 3C.1; consulte
+[`INDUSTRIAL_SERVICE_IDENTITY.md`](./INDUSTRIAL_SERVICE_IDENTITY.md). Nenhuma credencial deve ser
+gravada no repositório, em URLs ou logs, e a adoção física depende de homologação posterior.
 
 A confirmação do fluxo e do acionamento físico instalados depende de validar os clientes reais no ambiente da empresa; a revisão do contrato não equivale a essa homologação.
 
