@@ -55,9 +55,12 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             id,
             active: !pendingApproval,
             pendingApproval,
-            allowOperational: !pendingApproval,
-            allowBi: !pendingApproval,
-            allowPriorities: !pendingApproval,
+            // Preserve the legacy module defaults. A pending workstation is still
+            // denied by `active`/`pendingApproval`; central approval replaces
+            // these defaults with the administrator's explicit module choices.
+            allowOperational: true,
+            allowBi: true,
+            allowPriorities: true,
             lastSeenAt: now,
             lastIpAddress,
           },
