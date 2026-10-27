@@ -23,6 +23,10 @@ jobs:
         shell: powershell
         run: .\installer\tests\installer-runtime-regression.ps1
 
+      - name: Validar scripts HTTPS de homologação
+        shell: powershell
+        run: .\homologation\https\Test-AndonHttpsHomologation.ps1
+
   validate:
     name: Build, PostgreSQL e fluxos críticos
     runs-on: ubuntu-latest
@@ -105,6 +109,9 @@ jobs:
       - name: Validar identidades de serviços industriais
         run: ANDON_INTEGRATION_TEST=1 npm run test:service:integration --prefix server
 
+      - name: Validar runtime HTTPS de homologação
+        run: ANDON_INTEGRATION_TEST=1 npm run test:https:integration --prefix server
+
       - name: Validar frontend e SSR
         run: |
           npm run typecheck
@@ -136,6 +143,10 @@ jobs:
           ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
           ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
           node tests/browser/hubAdminNavigation.mjs
+          ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
+          ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
+          ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
+          node tests/browser/hubUsers.mjs
 
       - name: Publicar capturas da admissão
         if: always()
@@ -152,6 +163,15 @@ jobs:
         with:
           name: hub-admin-navigation-visual-evidence
           path: docs/validation/hub-admin-navigation-20261027
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publicar capturas de usuários e acessos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-users-https-visual-evidence
+          path: docs/validation/hub-users-20261026
           if-no-files-found: warn
           retention-days: 30
 
