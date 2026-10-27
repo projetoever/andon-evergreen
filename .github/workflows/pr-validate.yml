@@ -109,8 +109,9 @@ jobs:
 
       - name: Validar interface de admissão em desktop e mobile
         run: |
-          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.56.1
-          npx playwright install --with-deps chromium
+          mkdir -p /tmp/andon-playwright
+          npm install --prefix /tmp/andon-playwright --no-save --package-lock=false playwright@1.56.1
+          /tmp/andon-playwright/node_modules/.bin/playwright install --with-deps chromium
           mkdir -p /tmp/andon-admission-browser
           openssl req -x509 -newkey rsa:2048 -nodes \
             -keyout /tmp/andon-admission-browser/key.pem \
@@ -126,6 +127,7 @@ jobs:
           done
           ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
           ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
+          ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
           node tests/browser/workstationAdmission.mjs
 
       - name: Publicar capturas da admissão
