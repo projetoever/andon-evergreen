@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,7 @@ export function UsersAccessSettings() {
   useLanguage();
   const [session, setSession] = useState<AccessState | null>(null);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [catalog, setCatalog] = useState<AccessCatalog | null>(null);
@@ -66,6 +68,7 @@ export function UsersAccessSettings() {
   const admin = principal?.isPrimaryAdmin && principal.purpose === "normal";
   const report = useCallback((e: unknown) => {
     const code = e instanceof Error ? e.message : "";
+    setErrorCode(code);
     setError(errorLabels[code] ?? "Não foi possível concluir. Atualize e tente novamente.");
     if (code === "authentication_required") {
       setSession((s) => (s ? { ...s, principal: null } : null));
@@ -80,6 +83,7 @@ export function UsersAccessSettings() {
     async (action: () => Promise<void>) => {
       setBusy(true);
       setError("");
+      setErrorCode("");
       try {
         await action();
       } catch (e) {
@@ -175,35 +179,56 @@ export function UsersAccessSettings() {
         <div>
           <h2 className="text-xl font-bold">{ui("Usuários e Acessos")}</h2>
           <p className="text-sm text-muted-foreground">
-            {ui("As permissões cadastradas serão aplicadas aos módulos em uma etapa posterior.")}
+            {ui("Cadastros, permissões e credenciais da gestão central.")}
           </p>
         </div>
         {principal && (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                await accessRequest("/logout", "POST", {});
-                setSecret(null);
-                setDraft(null);
-                setUsers([]);
-                setResetTarget(null);
-                setReauth(false);
-                await refreshSession();
-              })
-            }
-          >
-            {ui("Sair desta sessão")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold">
+              {ui("Sessão central: {0} · {1}", {
+                0: principal.displayName,
+                1: principal.login,
+              })}
+            </span>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await accessRequest("/logout", "POST", {});
+                  setSecret(null);
+                  setDraft(null);
+                  setUsers([]);
+                  setResetTarget(null);
+                  setReauth(false);
+                  await refreshSession();
+                })
+              }
+            >
+              {ui("Sair desta sessão")}
+            </Button>
+          </div>
         )}
       </div>
-      {error && (
+      {error && errorCode !== "https_required" && (
         <p role="alert" className="rounded-lg border border-danger p-3 text-sm text-danger">
           {ui(error)}
         </p>
       )}
-      {!session && (
+      {!session && errorCode === "https_required" && (
+        <Card className="flex items-start gap-3 border-warning/40 p-4" role="status">
+          <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+          <div className="space-y-1">
+            <h3 className="font-bold">{ui("Acesso HTTPS necessário")}</h3>
+            <p className="text-sm text-muted-foreground">
+              {ui(
+                "Gestão de usuários indisponível neste endereço. É necessário configurar acesso HTTPS seguro.",
+              )}
+            </p>
+          </div>
+        </Card>
+      )}
+      {!session && errorCode !== "https_required" && (
         <Button disabled={busy} onClick={() => void run(refreshSession)}>
           {ui("Tentar novamente")}
         </Button>

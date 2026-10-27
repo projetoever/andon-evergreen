@@ -16,21 +16,13 @@ import {
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { HubSecuritySettings } from "@/components/settings/HubSecuritySettings";
 import { ModuleCredentialSettings } from "@/components/settings/ModuleCredentialSettings";
-import { PlatformAdminLinks } from "@/components/settings/PlatformAdminLinks";
-import { PriorityAccessSettings } from "@/components/settings/PriorityAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
 import { getHubSettings } from "@/services/moduleService";
 
 const sections = [
-  {
-    id: "users",
-    get label() {
-      return ui("Usuários e Acessos");
-    },
-    icon: ShieldCheck,
-  },
   {
     id: "overview",
     get label() {
@@ -39,9 +31,16 @@ const sections = [
     icon: LayoutGrid,
   },
   {
+    id: "users",
+    get label() {
+      return ui("Usuários e Acessos");
+    },
+    icon: ShieldCheck,
+  },
+  {
     id: "workstations",
     get label() {
-      return ui("Estações e acessos");
+      return ui("Workstations");
     },
     icon: MonitorCog,
   },
@@ -69,6 +68,7 @@ export function HubAdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     const check = () => setAuthenticated(isAdminAuthenticated());
@@ -85,16 +85,19 @@ export function HubAdminPage() {
     if (!authenticated) return;
     let disposed = false;
     void getHubSettings()
-      .then(() => {
+      .then((settings) => {
         if (!disposed) {
+          setHubEnabled(settings.hubEnabled);
           setSettingsError(null);
         }
       })
       .catch((error) => {
-        if (!disposed)
+        if (!disposed) {
+          setHubEnabled(null);
           setSettingsError(
             error instanceof Error ? error.message : "Falha ao carregar configuração do Hub.",
           );
+        }
       });
     return () => {
       disposed = true;
@@ -103,8 +106,8 @@ export function HubAdminPage() {
 
   return (
     <main className="min-h-dvh bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 md:p-4">
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" size="icon">
               <Link to="/hub" aria-label={ui("Voltar ao Hub")}>
@@ -119,30 +122,53 @@ export function HubAdminPage() {
               <h1 className="text-xl font-black">{ui("Administração do Hub")}</h1>
             </div>
           </div>
-          <LanguageSelector compact />
-          <Button asChild variant="outline">
-            <Link to="/hub/admin" search={{ section: "users" }}>
-              {ui("Usuários e Acessos")}
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/hub/admin" search={{ section: "workstations" }}>
-              {ui("Estações e acessos")}
-            </Link>
-          </Button>
-          {authenticated && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                logoutAdmin();
-                setAuthenticated(false);
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {ui("Sair do Admin")}
-            </Button>
-          )}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {authenticated && (
+              <Badge variant="outline">
+                <span className="sm:hidden">{ui("Admin legado")}</span>
+                <span className="hidden sm:inline">{ui("Sessão Admin legado ativa")}</span>
+              </Badge>
+            )}
+            <LanguageSelector compact />
+            {authenticated && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  logoutAdmin();
+                  setAuthenticated(false);
+                }}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {ui("Sair do Admin")}
+              </Button>
+            )}
+          </div>
         </header>
+        <nav
+          aria-label={ui("Seções administrativas do Hub")}
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-3 lg:grid-cols-5"
+        >
+          {sections.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant={section === item.id ? "default" : "ghost"}
+                className="h-auto min-h-11 whitespace-normal px-3 py-2 text-center"
+                asChild
+              >
+                <Link
+                  to="/hub/admin"
+                  search={{ section: item.id }}
+                  aria-current={section === item.id ? "page" : undefined}
+                >
+                  <Icon className="mr-2 h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              </Button>
+            );
+          })}
+        </nav>
         {section === "users" ? (
           <UsersAccessSettings />
         ) : section === "workstations" ? (
@@ -159,86 +185,53 @@ export function HubAdminPage() {
           </section>
         ) : (
           <>
-            <nav
-              aria-label={ui("Seções administrativas do Hub")}
-              className="grid grid-cols-2 gap-2 md:grid-cols-4"
-            >
-              {sections.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    key={item.id}
-                    variant={section === item.id ? "default" : "outline"}
-                    className="h-auto min-h-11 whitespace-normal py-3"
-                    asChild
-                  >
-                    <Link
-                      to="/hub/admin"
-                      search={{ section: item.id }}
-                      aria-current={section === item.id ? "page" : undefined}
-                    >
-                      <Icon className="mr-2 h-4 w-4 shrink-0" />
-                      {item.label}
-                    </Link>
-                  </Button>
-                );
-              })}
-            </nav>
             {section === "overview" && (
-              <div className="space-y-6">
-                <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-                  <h2 className="text-lg font-bold">{ui("Entrada central da plataforma")}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {ui(
-                      "O endereço inicial abre o Hub. Cada workstation visualiza somente os módulos autorizados; a exigência de senha é configurada por módulo.",
-                    )}
-                  </p>
+              <div className="space-y-4">
+                <section className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
+                  <div>
+                    <h2 className="text-lg font-bold">{ui("Resumo administrativo")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {ui("Estado atual dos controles disponíveis neste endereço.")}
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border p-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {ui("Entrada do Hub")}
+                      </p>
+                      <p className="mt-1 font-bold">
+                        {hubEnabled === null
+                          ? ui("Indisponível")
+                          : hubEnabled
+                            ? ui("Ativa")
+                            : ui("Inativa")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border p-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {ui("Admin legado")}
+                      </p>
+                      <p className="mt-1 font-bold">
+                        {authenticated ? ui("Sessão ativa") : ui("Não autenticado")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border p-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {ui("Usuários e Acessos")}
+                      </p>
+                      <p className="mt-1 font-bold">{ui("Sessão central independente")}</p>
+                    </div>
+                  </div>
                   {settingsError && (
                     <p role="alert" className="text-sm text-danger">
                       {systemMessage(settingsError)}
                     </p>
                   )}
                 </section>
-                <PlatformAdminLinks />
-                <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-                  <h2 className="text-lg font-bold">{ui("Responsabilidade de cada módulo")}</h2>
-                  <div className="grid gap-3 text-sm md:grid-cols-2">
-                    <p>
-                      <strong className="text-primary">Hub</strong>
-                      <br />
-                      {ui(
-                        "Estações, permissões e navegação entre módulos. Segurança administrativa central.",
-                      )}
-                    </p>
-                    <p>
-                      <strong className="text-primary">{ui("ANDON operacional")}</strong>
-                      <br />
-                      {ui(
-                        "Chamados, atendimento, sons, máquinas, ativos, mantenedores, turnos e regras de operação.",
-                      )}
-                    </p>
-                    <p>
-                      <strong className="text-primary">ANDON BI</strong>
-                      <br />
-                      {ui("Indicadores, filtros, análises, qualidade dos dados e relatórios.")}
-                    </p>
-                    <p>
-                      <strong className="text-primary">{ui("Prioridades")}</strong>
-                      <br />
-                      {ui("Credencial própria e sequência visual de produção.")}
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {ui(
-                      "O Admin do ANDON concentra cadastros e regras operacionais. Credenciais, estações e permissões são administradas no Hub.",
-                    )}
-                  </p>
-                </section>
               </div>
             )}
             {section === "security" && <HubSecuritySettings />}
             {section === "modules" && <ModuleCredentialSettings />}
-            {section === "priorities" && <PriorityAccessSettings />}
           </>
         )}
         <AdminLoginModal
