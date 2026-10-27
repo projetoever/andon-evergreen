@@ -1,6 +1,7 @@
 export type ModuleId = "operational" | "bi" | "priorities";
 export const HUB_ADMIN_SECTIONS = [
   "overview",
+  "users",
   "workstations",
   "security",
   "modules",

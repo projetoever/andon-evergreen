@@ -1,5 +1,7 @@
 import "./config/env.js";
 import Fastify from "fastify";
+import { readFileSync } from "node:fs";
+import { registerAccessRoutes } from "./routes/access.js";
 
 import { registerCorsSupport } from "./config/cors.js";
 import { enforceAdminAuthorization } from "./security/adminAuthorization.js";
@@ -34,7 +36,10 @@ const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = "0.0.0.0";
 
 export function buildServer() {
-  const app = Fastify({ logger: true });
+  const tls = process.env.ANDON_TLS_CERT && process.env.ANDON_TLS_KEY
+    ? { cert: readFileSync(process.env.ANDON_TLS_CERT), key: readFileSync(process.env.ANDON_TLS_KEY) }
+    : undefined;
+  const app = Fastify({ logger: { redact: ["req.headers.cookie", "req.headers.authorization", "req.headers.x-andon-csrf"] }, ...(tls ? { https: tls } : {}) });
   const plcRuntime = createPlcRuntime({
     debug: (bindings, message) => app.log.debug(bindings, message),
     info: (bindings, message) => app.log.info(bindings, message),
@@ -70,6 +75,7 @@ export function buildServer() {
 
   void registerHealthDbRoute(app);
   void registerAdminAuthRoutes(app);
+  void registerAccessRoutes(app);
   void registerAnalyticsRoutes(app);
   void registerPlcHealthRoute(app, plcRuntime);
   void registerMachineRoutes(app);

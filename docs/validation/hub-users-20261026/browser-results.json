@@ -1,0 +1,49 @@
+{
+  "environment": "Production build over isolated HTTPS; stateful API fixture, not PostgreSQL",
+  "results": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "passed": true,
+      "checks": [
+        "list",
+        "search",
+        "create",
+        "explicit scope and permissions",
+        "one-time secret",
+        "reload persistence (stateful fixture)",
+        "edit/no-change disabled",
+        "deactivate",
+        "first login/password change",
+        "PT/EN/ZH",
+        "no overflow",
+        "no credentials in browser storage"
+      ],
+      "requests": 22
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "passed": true,
+      "checks": [
+        "list",
+        "search",
+        "create",
+        "explicit scope and permissions",
+        "one-time secret",
+        "reload persistence (stateful fixture)",
+        "edit/no-change disabled",
+        "deactivate",
+        "first login/password change",
+        "PT/EN/ZH",
+        "no overflow",
+        "no credentials in browser storage"
+      ],
+      "requests": 22
+    }
+  ]
+}

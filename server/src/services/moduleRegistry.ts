@@ -35,6 +35,7 @@ export function apiModule(path: string): ModuleId | null {
   if (path.startsWith("/api/analytics/")) return "bi";
   if (path.startsWith("/api/dashboard-priority/")) return "priorities";
   if (
+    path.startsWith("/api/access/") ||
     path.startsWith("/api/admin-auth/") ||
     path.startsWith("/api/modules/") ||
     path === "/api/workstations" ||
