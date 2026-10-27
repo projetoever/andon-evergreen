@@ -96,6 +96,9 @@ jobs:
       - name: Validar fundação de acessos no PostgreSQL
         run: ANDON_INTEGRATION_TEST=1 npm run test:access:integration --prefix server
 
+      - name: Validar usuários por HTTPS e PostgreSQL
+        run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-access-http.mjs
+
       - name: Validar frontend e SSR
         run: |
           npm run typecheck

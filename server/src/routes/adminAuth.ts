@@ -65,7 +65,7 @@ async function getAdminCredentialState() {
   });
 }
 
-async function verifyAdminPassword(password: string) {
+export async function verifyAdminPassword(password: string) {
   const settings = await getAdminCredentialState();
   if (!settings?.adminPasswordHash) {
     return password === DEFAULT_ADMIN_PASSWORD;

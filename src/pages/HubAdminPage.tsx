@@ -1,3 +1,4 @@
+import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
@@ -23,6 +24,13 @@ import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
 import { getHubSettings } from "@/services/moduleService";
 
 const sections = [
+  {
+    id: "users",
+    get label() {
+      return ui("Usuários e Acessos");
+    },
+    icon: ShieldCheck,
+  },
   {
     id: "overview",
     get label() {
@@ -112,6 +120,11 @@ export function HubAdminPage() {
             </div>
           </div>
           <LanguageSelector compact />
+          <Button asChild variant="outline">
+            <Link to="/hub/admin" search={{ section: "users" }}>
+              {ui("Usuários e Acessos")}
+            </Link>
+          </Button>
           {authenticated && (
             <Button
               variant="outline"
@@ -125,7 +138,9 @@ export function HubAdminPage() {
             </Button>
           )}
         </header>
-        {!authenticated ? (
+        {section === "users" ? (
+          <UsersAccessSettings />
+        ) : !authenticated ? (
           <section className="space-y-4 rounded-xl border border-border bg-card p-6">
             <h2 className="text-lg font-bold">{ui("Acesso administrativo")}</h2>
             <p className="text-sm text-muted-foreground">

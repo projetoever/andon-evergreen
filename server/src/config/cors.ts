@@ -10,6 +10,7 @@ const DEFAULT_CORS_ORIGINS = [
 export const CORS_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"] as const;
 export const CORS_ALLOWED_HEADERS = [
   "Content-Type",
+  "X-Andon-CSRF",
   "X-Andon-Workstation-Id",
   "X-Andon-Operational-Token",
   "X-Andon-Bi-Token",
@@ -41,6 +42,7 @@ function applyCorsHeaders(
   if (origin && allowedOrigins.includes(origin)) {
     void reply.header("Access-Control-Allow-Origin", origin);
     void reply.header("Vary", "Origin");
+    if (request.url.startsWith("/api/access/")) void reply.header("Access-Control-Allow-Credentials", "true");
   }
 
   void reply.header("Access-Control-Allow-Methods", CORS_METHODS.join(","));

@@ -55,10 +55,10 @@ export async function resolveSession(
     authenticatedAt: row.createdAt,
   };
 }
-async function lockUser(tx: Prisma.TransactionClient, id: string) {
+export async function lockUser(tx: Prisma.TransactionClient, id: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`andon-access:${id}`}))::text`;
 }
-async function issueSession(
+export async function issueSession(
   tx: Prisma.TransactionClient,
   user: { id: string; authorizationVersion: number },
   workstationId: string,
