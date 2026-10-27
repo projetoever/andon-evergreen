@@ -17,10 +17,24 @@ if (Test-Path $processPath) {
     Remove-Item $processPath -Force
 }
 
+if ($RemoveData -and !(Get-Command docker.exe -ErrorAction SilentlyContinue)) {
+    throw "Docker nao encontrado. Os dados e as credenciais locais foram preservados."
+}
+
 if (Get-Command docker.exe -ErrorAction SilentlyContinue) {
     & docker.exe stop $containerName 1>$null 2>$null
     if ($RemoveData) {
-        & docker.exe rm -f $containerName 1>$null 2>$null
+        & docker.exe container inspect $containerName 1>$null 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            & docker.exe rm -f $containerName 1>$null 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha ao remover o container. Os dados e as credenciais locais foram preservados."
+            }
+        }
+        & docker.exe container inspect $containerName 1>$null 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            throw "O container ainda existe. Os dados e as credenciais locais foram preservados."
+        }
     }
 }
 

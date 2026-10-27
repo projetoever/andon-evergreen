@@ -74,6 +74,7 @@ if ($containerExists) {
         throw "O banco isolado existente usa a porta $($config.postgresPort). Reinicie usando essa porta ou remova os dados isolados."
     }
     $databasePassword = [string]$config.databasePassword
+    $seedRequired = $config.initialized -ne $true
     & docker.exe start $containerName | Out-Null
 } else {
     $bytes = New-Object byte[] 32
@@ -82,6 +83,7 @@ if ($containerExists) {
     $config = [ordered]@{
         databasePassword = $databasePassword
         postgresPort = $PostgresPort
+        initialized = $false
         createdAt = (Get-Date).ToUniversalTime().ToString("o")
     }
     $config | ConvertTo-Json | Set-Content -Encoding UTF8 $configPath
@@ -93,6 +95,7 @@ if ($containerExists) {
         -p "127.0.0.1:${PostgresPort}:5432" `
         postgres:16-alpine | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Falha ao criar o PostgreSQL isolado." }
+    $seedRequired = $true
 }
 
 $ready = $false
@@ -126,8 +129,17 @@ $env:ANDON_INSTALL_PROFILE = "starter"
 if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar o Prisma Client." }
 & npm.cmd run db:migrate --prefix (Join-Path $repoRoot "server")
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar migrations somente no banco de homologacao." }
-& npm.cmd run db:seed:starter --prefix (Join-Path $repoRoot "server")
-if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar os dados isolados." }
+if ($seedRequired) {
+    & npm.cmd run db:seed:starter --prefix (Join-Path $repoRoot "server")
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar os dados isolados." }
+    if ($config -is [System.Collections.IDictionary]) {
+        $config["initialized"] = $true
+    } else {
+        $config | Add-Member -NotePropertyName "initialized" -NotePropertyValue $true -Force
+    }
+    $config | ConvertTo-Json | Set-Content -Encoding UTF8 $configPath
+    & icacls.exe $configPath "/inheritance:r" "/grant:r" "$($env:USERNAME):(R,W)" | Out-Null
+}
 
 $env:HOST = "127.0.0.1"
 $env:PORT = "$ApiPort"

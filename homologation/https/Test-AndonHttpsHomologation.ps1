@@ -26,9 +26,16 @@ foreach ($required in @(
     'ANDON_TLS_CERT = $certPath',
     'ANDON_TLS_KEY = $keyPath',
     '127.0.0.1:${PostgresPort}:5432',
-    'mkcert.exe -install'
+    'mkcert.exe -install',
+    'if ($seedRequired)',
+    'Add-Member -NotePropertyName "initialized" -NotePropertyValue $true -Force'
 )) {
     if (!$start.Contains($required)) { throw "Controle ausente no launcher: $required" }
+}
+
+$stop = Get-Content $scripts[1] -Raw
+if (!$stop.Contains('Docker nao encontrado. Os dados e as credenciais locais foram preservados.')) {
+    throw "A remocao deve preservar credenciais quando o Docker estiver indisponivel."
 }
 
 if ($start -match 'NODE_TLS_REJECT_UNAUTHORIZED|ignoreHTTPSErrors|rejectUnauthorized') {
