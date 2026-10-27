@@ -54,7 +54,7 @@ async function unusedPort() {
   });
 }
 
-function request(client, options) {
+function request(client, options, body) {
   return new Promise((resolve, reject) => {
     const req = client(options, (response) => {
       let body = "";
@@ -64,7 +64,7 @@ function request(client, options) {
       );
     });
     req.once("error", reject);
-    req.end();
+    req.end(body);
   });
 }
 
@@ -114,12 +114,33 @@ try {
     request(httpRequest, { hostname: "127.0.0.1", port: tlsPort, path: "/health" }),
   );
 
+  const workstationId = `ws_${crypto.randomUUID()}`;
+  const registrationBody = JSON.stringify({ id: workstationId });
+  const registered = await request(
+    httpsRequest,
+    {
+      hostname: "localhost",
+      port: tlsPort,
+      path: "/api/workstations/register",
+      method: "POST",
+      ca: cert(),
+      headers: {
+        Origin: origin,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(registrationBody),
+        "X-Andon-Workstation-Id": workstationId,
+      },
+    },
+    registrationBody,
+  );
+  assert.equal(registered.status, 200);
+
   const allowed = await request(httpsRequest, {
     hostname: "localhost",
     port: tlsPort,
     path: "/api/access/session",
     ca: cert(),
-    headers: { Origin: origin, "X-Andon-Workstation-Id": `ws_${crypto.randomUUID()}` },
+    headers: { Origin: origin, "X-Andon-Workstation-Id": workstationId },
   });
   assert.equal(allowed.status, 200);
   assert.equal(allowed.headers["access-control-allow-origin"], origin);
@@ -131,7 +152,7 @@ try {
     ca: cert(),
     headers: {
       Origin: "https://untrusted.example",
-      "X-Andon-Workstation-Id": `ws_${crypto.randomUUID()}`,
+      "X-Andon-Workstation-Id": workstationId,
     },
   });
   assert.equal(denied.status, 403);
