@@ -255,7 +255,9 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=workstations");
     await page.getByRole("button", { name: /Kiosk Linha 1|Workstation não identificada/ }).click();
     await page.getByLabel("Motivo da decisão").fill("Kiosk validado para a Linha 1");
-    await page.getByRole("switch", { name: /ANDON BI/ }).click();
+    const decisionBiSwitch = page.getByRole("switch", { name: /ANDON BI/ }).first();
+    assert.equal(await decisionBiSwitch.isEnabled(), true);
+    await decisionBiSwitch.click();
     await page.screenshot({
       path: `${output}/${viewport.width}-admin-decision.png`,
       fullPage: true,
