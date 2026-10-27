@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { loadModuleAccess } from "@/services/moduleService";
+import { accessRequest } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
 
 const ModuleAccessContext = createContext<{
@@ -58,6 +59,23 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       revision.current += 1;
     };
   }, [pathname, refresh]);
+
+  useEffect(() => {
+    if (!access?.centralAccessEnabled || access.principal?.purpose !== "normal") return;
+    // Extend idle time only after real input. Polling and route refreshes never keep a session alive.
+    let lastRecordedAt = 0;
+    const record = () => {
+      if (Date.now() - lastRecordedAt < 60_000) return;
+      lastRecordedAt = Date.now();
+      void accessRequest("/interaction", "POST", {}).catch(() => void refresh());
+    };
+    window.addEventListener("pointerdown", record);
+    window.addEventListener("keydown", record);
+    return () => {
+      window.removeEventListener("pointerdown", record);
+      window.removeEventListener("keydown", record);
+    };
+  }, [access?.centralAccessEnabled, access?.principal?.purpose, refresh]);
 
   return (
     <ModuleAccessContext.Provider

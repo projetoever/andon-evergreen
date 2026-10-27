@@ -29,20 +29,18 @@ function parseCorsOrigins(value: string | undefined) {
 }
 
 export function getAllowedCorsOrigins() {
-  return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...parseCorsOrigins(process.env.CORS_ORIGINS)]));
+  return Array.from(
+    new Set([...DEFAULT_CORS_ORIGINS, ...parseCorsOrigins(process.env.CORS_ORIGINS)]),
+  );
 }
 
-function applyCorsHeaders(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  allowedOrigins: string[],
-) {
+function applyCorsHeaders(request: FastifyRequest, reply: FastifyReply, allowedOrigins: string[]) {
   const origin = request.headers.origin;
 
   if (origin && allowedOrigins.includes(origin)) {
     void reply.header("Access-Control-Allow-Origin", origin);
     void reply.header("Vary", "Origin");
-    if (request.url.startsWith("/api/access/")) void reply.header("Access-Control-Allow-Credentials", "true");
+    void reply.header("Access-Control-Allow-Credentials", "true");
   }
 
   void reply.header("Access-Control-Allow-Methods", CORS_METHODS.join(","));
@@ -62,6 +60,7 @@ async function registerCorsPlugin(app: FastifyInstance, allowedOrigins: string[]
 
   await app.register(corsPlugin as unknown as FastifyPluginAsync<Record<string, unknown>>, {
     origin: allowedOrigins,
+    credentials: true,
     methods: [...CORS_METHODS],
     allowedHeaders: [...CORS_ALLOWED_HEADERS],
   });

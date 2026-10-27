@@ -110,6 +110,7 @@ export function createAndonApiClient(
     try {
       response = await fetch(url, {
         ...init,
+        credentials: "include",
         headers: {
           ...(init.body
             ? { "Content-Type": "application/json" }

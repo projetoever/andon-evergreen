@@ -31,13 +31,21 @@ export function HubIdentityPanel({
   const admission = access.workstation.admission;
   const waiting = access.workstation.pendingApproval && admission?.status === "pending";
   const refreshSession = useCallback(async () => {
-    setSession(await accessRequest<AccessState>("/session"));
+    const next = await accessRequest<AccessState>("/session");
+    setSession(next);
+    setError("");
   }, []);
   useEffect(() => {
     void refreshSession().catch((cause) =>
       setError(messages[cause instanceof Error ? cause.message : ""] ?? "Acesso indisponível."),
     );
-  }, [refreshSession]);
+  }, [
+    access.principal?.userId,
+    access.principal?.purpose,
+    access.workstation.admission?.status,
+    access.workstation.pendingApproval,
+    refreshSession,
+  ]);
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
     setError("");
@@ -102,12 +110,31 @@ export function HubIdentityPanel({
           )}
         </p>
         <p className="break-all font-mono text-xs text-muted-foreground">{access.workstation.id}</p>
-        <Button variant="outline" disabled={busy} onClick={() => void onChanged()}>
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              await refreshSession();
+              await onChanged();
+            })
+          }
+        >
           {ui("Verificar novamente")}
         </Button>
       </Card>
     );
-  if (!session) return null;
+  if (!session)
+    return (
+      <Card className="mx-auto max-w-xl space-y-3 p-5">
+        <p role="alert" className="text-sm text-danger">
+          {ui(error || "Acesso indisponível.")}
+        </p>
+        <Button variant="outline" disabled={busy} onClick={() => void run(refreshSession)}>
+          {ui("Tentar novamente")}
+        </Button>
+      </Card>
+    );
   if (!session.initialized)
     return (
       <Card className="space-y-3 p-5">

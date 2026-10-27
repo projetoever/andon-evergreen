@@ -82,7 +82,8 @@ export async function registerModuleRoutes(app: FastifyInstance) {
         return false;
       if (!central) return true;
       if (!principal || principal.purpose !== "normal") return false;
-      if (principal.machineScope !== "all" && principal.machineIds.length === 0) return false;
+      // Selected-scope queries remain hidden until operational handlers enforce machine filters.
+      if (principal.machineScope !== "all") return false;
       try {
         assertModule(principal, workstation, module.id);
         return true;

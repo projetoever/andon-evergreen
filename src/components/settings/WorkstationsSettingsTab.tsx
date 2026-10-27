@@ -37,7 +37,8 @@ function formatLastSeen(value: string) {
 
 export function WorkstationsSettingsTab() {
   useInterfaceLanguage();
-  const { refresh } = useModuleAccess();
+  const { access, checking, refresh } = useModuleAccess();
+  const centralAccess = access?.centralAccessEnabled === true;
   const currentWorkstationId = getCurrentWorkstationId();
   const [items, setItems] = useState<ManagedWorkstation[]>([]);
   const [accessSession, setAccessSession] = useState<AccessState | null>(null);
@@ -54,6 +55,7 @@ export function WorkstationsSettingsTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const canManage =
     CONFIGURED_DATA_MODE === "local" ||
+    !centralAccess ||
     Boolean(
       accessSession?.principal?.isPrimaryAdmin ||
       accessSession?.principal?.permissions?.includes("workstations.manage"),
@@ -88,9 +90,9 @@ export function WorkstationsSettingsTab() {
   }, [currentWorkstationId, items, searchQuery, statusFilter]);
 
   const refreshAccessSession = useCallback(async () => {
-    if (CONFIGURED_DATA_MODE === "local") return;
+    if (CONFIGURED_DATA_MODE === "local" || !centralAccess) return;
     setAccessSession(await accessRequest<AccessState>("/session"));
-  }, []);
+  }, [centralAccess]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -98,7 +100,7 @@ export function WorkstationsSettingsTab() {
     try {
       await registerCurrentWorkstation();
       const workstations =
-        CONFIGURED_DATA_MODE === "local"
+        CONFIGURED_DATA_MODE === "local" || !centralAccess
           ? ((await listWorkstations()) as ManagedWorkstation[])
           : await accessRequest<ManagedWorkstation[]>("/workstations");
       setItems(workstations);
@@ -127,10 +129,11 @@ export function WorkstationsSettingsTab() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [centralAccess]);
 
   useEffect(() => {
-    if (CONFIGURED_DATA_MODE === "local") {
+    if (CONFIGURED_DATA_MODE === "api" && (checking || !access)) return;
+    if (CONFIGURED_DATA_MODE === "local" || !centralAccess) {
       void load();
       return;
     }
@@ -139,16 +142,17 @@ export function WorkstationsSettingsTab() {
         setLoadError(error instanceof Error ? error.message : "Falha ao verificar acesso."),
       )
       .finally(() => setIsLoading(false));
-  }, [load, refreshAccessSession]);
+  }, [access, centralAccess, checking, load, refreshAccessSession]);
 
   useEffect(() => {
     const principal = accessSession?.principal;
     if (
+      centralAccess &&
       principal?.purpose === "normal" &&
       (principal.isPrimaryAdmin || principal.permissions?.includes("workstations.read"))
     )
       void load();
-  }, [accessSession, load]);
+  }, [accessSession, centralAccess, load]);
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,7 +179,8 @@ export function WorkstationsSettingsTab() {
     if (!canManage || savingId || name.length > 120 || name === (workstation.name ?? "")) return;
     setSavingId(workstation.id);
     try {
-      if (CONFIGURED_DATA_MODE === "local") await updateWorkstation(workstation.id, { name });
+      if (CONFIGURED_DATA_MODE === "local" || !centralAccess)
+        await updateWorkstation(workstation.id, { name });
       else
         await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}`, "PATCH", {
           name,
@@ -193,7 +198,8 @@ export function WorkstationsSettingsTab() {
     if (!canManage) return;
     setSavingId(workstation.id);
     try {
-      if (CONFIGURED_DATA_MODE === "local") await updateWorkstation(workstation.id, { active });
+      if (CONFIGURED_DATA_MODE === "local" || !centralAccess)
+        await updateWorkstation(workstation.id, { active });
       else
         await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}`, "PATCH", {
           active,
@@ -220,7 +226,7 @@ export function WorkstationsSettingsTab() {
     if (!canManage) return;
     setSavingId(workstation.id);
     try {
-      if (CONFIGURED_DATA_MODE === "local")
+      if (CONFIGURED_DATA_MODE === "local" || !centralAccess)
         await updateWorkstation(workstation.id, { [field]: allowed });
       else
         await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}`, "PATCH", {
@@ -260,6 +266,7 @@ export function WorkstationsSettingsTab() {
 
   if (
     CONFIGURED_DATA_MODE === "api" &&
+    centralAccess &&
     (!accessSession?.principal || accessSession.principal.purpose !== "normal")
   ) {
     return (
@@ -302,6 +309,7 @@ export function WorkstationsSettingsTab() {
 
   if (
     CONFIGURED_DATA_MODE === "api" &&
+    centralAccess &&
     !accessSession?.principal?.isPrimaryAdmin &&
     !accessSession?.principal?.permissions?.includes("workstations.read")
   ) {
@@ -314,7 +322,7 @@ export function WorkstationsSettingsTab() {
 
   return (
     <div className="space-y-4">
-      <WorkstationAdmissionSettings />
+      {!centralAccess && <WorkstationAdmissionSettings />}
       <div className="space-y-1">
         <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
         <p className="text-sm text-muted-foreground">
@@ -518,7 +526,7 @@ export function WorkstationsSettingsTab() {
                     <p className="break-all font-mono text-xs text-muted-foreground">
                       {ui("UUID:")} {workstation.id}
                     </p>
-                    {workstation.admission && (
+                    {centralAccess && workstation.admission && (
                       <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs md:grid-cols-2">
                         <p>
                           <span className="text-muted-foreground">{ui("Solicitante")}: </span>
@@ -545,7 +553,7 @@ export function WorkstationsSettingsTab() {
                         </p>
                       </div>
                     )}
-                    {workstation.lastLogin && (
+                    {centralAccess && workstation.lastLogin && (
                       <div className="grid gap-2 rounded-lg border border-border p-3 text-xs md:grid-cols-2">
                         <p>
                           <span className="text-muted-foreground">{ui("Último login")}: </span>
@@ -572,92 +580,94 @@ export function WorkstationsSettingsTab() {
                         </p>
                       </div>
                     )}
-                    {workstation.pendingApproval && workstation.admission?.status === "pending" && (
-                      <div className="space-y-4 rounded-lg border border-warning/40 bg-warning/5 p-4">
-                        <div>
-                          <h4 className="font-bold">{ui("Decidir solicitação")}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            {ui(
-                              "A decisão será auditada. A aprovação fica vinculada exclusivamente a este UUID.",
-                            )}
-                          </p>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          {(
-                            [
-                              ["allowOperational", ui("ANDON operacional")],
-                              ["allowBi", "ANDON BI"],
-                              ["allowPriorities", ui("Prioridades")],
-                            ] as const
-                          ).map(([field, label]) => (
-                            <label
-                              key={field}
-                              className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border p-3 text-sm font-semibold"
+                    {centralAccess &&
+                      workstation.pendingApproval &&
+                      workstation.admission?.status === "pending" && (
+                        <div className="space-y-4 rounded-lg border border-warning/40 bg-warning/5 p-4">
+                          <div>
+                            <h4 className="font-bold">{ui("Decidir solicitação")}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {ui(
+                                "A decisão será auditada. A aprovação fica vinculada exclusivamente a este UUID.",
+                              )}
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {(
+                              [
+                                ["allowOperational", ui("ANDON operacional")],
+                                ["allowBi", "ANDON BI"],
+                                ["allowPriorities", ui("Prioridades")],
+                              ] as const
+                            ).map(([field, label]) => (
+                              <label
+                                key={field}
+                                className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border p-3 text-sm font-semibold"
+                              >
+                                {label}
+                                <Switch
+                                  aria-label={`${label} · ${workstationLabel(workstation)}`}
+                                  checked={decisionModules[workstation.id]?.[field] ?? false}
+                                  disabled={savingId !== null || !canManage}
+                                  onCheckedChange={(checked) =>
+                                    setDecisionModules((current) => ({
+                                      ...current,
+                                      [workstation.id]: {
+                                        ...(current[workstation.id] ?? {
+                                          allowOperational: false,
+                                          allowBi: false,
+                                          allowPriorities: false,
+                                        }),
+                                        [field]: checked,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <Label className="block space-y-2">
+                            {ui("Motivo da decisão")}
+                            <Input
+                              value={decisionReasons[workstation.id] ?? ""}
+                              required
+                              maxLength={500}
+                              disabled={!canManage}
+                              onChange={(event) =>
+                                setDecisionReasons((current) => ({
+                                  ...current,
+                                  [workstation.id]: event.target.value,
+                                }))
+                              }
+                            />
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              disabled={
+                                !canManage ||
+                                savingId !== null ||
+                                !(decisionReasons[workstation.id] ?? "").trim()
+                              }
+                              onClick={() => void decide(workstation, "approve")}
                             >
-                              {label}
-                              <Switch
-                                aria-label={`${label} · ${workstationLabel(workstation)}`}
-                                checked={decisionModules[workstation.id]?.[field] ?? false}
-                                disabled={savingId !== null || !canManage}
-                                onCheckedChange={(checked) =>
-                                  setDecisionModules((current) => ({
-                                    ...current,
-                                    [workstation.id]: {
-                                      ...(current[workstation.id] ?? {
-                                        allowOperational: false,
-                                        allowBi: false,
-                                        allowPriorities: false,
-                                      }),
-                                      [field]: checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            </label>
-                          ))}
+                              {ui("Aprovar workstation")}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                !canManage ||
+                                savingId !== null ||
+                                !(decisionReasons[workstation.id] ?? "").trim()
+                              }
+                              onClick={() => void decide(workstation, "reject")}
+                            >
+                              {ui("Recusar solicitação")}
+                            </Button>
+                          </div>
                         </div>
-                        <Label className="block space-y-2">
-                          {ui("Motivo da decisão")}
-                          <Input
-                            value={decisionReasons[workstation.id] ?? ""}
-                            required
-                            maxLength={500}
-                            disabled={!canManage}
-                            onChange={(event) =>
-                              setDecisionReasons((current) => ({
-                                ...current,
-                                [workstation.id]: event.target.value,
-                              }))
-                            }
-                          />
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            disabled={
-                              !canManage ||
-                              savingId !== null ||
-                              !(decisionReasons[workstation.id] ?? "").trim()
-                            }
-                            onClick={() => void decide(workstation, "approve")}
-                          >
-                            {ui("Aprovar workstation")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={
-                              !canManage ||
-                              savingId !== null ||
-                              !(decisionReasons[workstation.id] ?? "").trim()
-                            }
-                            onClick={() => void decide(workstation, "reject")}
-                          >
-                            {ui("Recusar solicitação")}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                      )}
                     {workstation.lockedMachineId && (
                       <p className="text-xs text-muted-foreground">
                         {ui("Tela fixada na máquina")}: {workstation.lockedMachineId}

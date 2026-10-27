@@ -31,9 +31,16 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
     return;
   // The access subsystem performs its own stricter HTTPS, origin, CSRF and workstation checks.
   if (path.startsWith("/api/access/")) return;
+  const central = centralAccessEnabled();
 
   const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
   if (!id) {
+    if (central) {
+      return reply.status(403).send({
+        error: "workstation_identification_required",
+        message: WORKSTATION_IDENTIFICATION_REQUIRED_MESSAGE,
+      });
+    }
     const policy = await prisma.systemSettings.findUnique({
       where: { id: "global" },
       select: { requireWorkstationApproval: true },
@@ -59,7 +66,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
   }
   // Metadata remains available to explain restrictions. Admin recovery is narrowly scoped.
   if (path === "/api/modules/access" && request.method === "GET") return;
-  if (isRecoveryRequest(request.method, path) && readAdminSession(request)) return;
+  if (!central && isRecoveryRequest(request.method, path) && readAdminSession(request)) return;
   if (!workstation.active) {
     return reply
       .status(403)
@@ -73,7 +80,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       message: "Módulo não autorizado para esta workstation.",
     });
   }
-  if (module && centralAccessEnabled()) {
+  if (central) {
     const origin = process.env.ANDON_ACCESS_ORIGIN ?? "";
     if (!(request.raw.socket as TLSSocket).encrypted || !origin.startsWith("https://"))
       return reply.status(426).send({ error: "https_required" });
@@ -84,8 +91,14 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
-      if (principal.machineScope !== "all" && principal.machineIds.length === 0)
-        throw new AccessError("machine_scope_denied");
+      // Operational handlers do not yet apply per-machine predicates. Until the dedicated
+      // activation phase adds them, selected-scope sessions fail closed instead of widening scope.
+      if (principal.machineScope !== "all") throw new AccessError("scoped_query_required");
+      // This admission PR establishes identity and read visibility only. Mutations require the
+      // route-to-action permission map delivered by the central activation phase.
+      if (!["GET", "HEAD"].includes(request.method))
+        throw new AccessError("central_action_not_supported");
+      if (!module) throw new AccessError("central_route_not_supported");
       assertModule(principal, workstation, module);
     } catch (error) {
       const accessError = error instanceof AccessError ? error : null;

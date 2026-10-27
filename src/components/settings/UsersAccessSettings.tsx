@@ -123,23 +123,6 @@ export function UsersAccessSettings() {
       invalidate();
     };
   }, [admin, refreshUsers, report]);
-  const hasPrincipal = Boolean(principal);
-  useEffect(() => {
-    if (!hasPrincipal) return;
-    // Keep idle time tied to real interaction, never background polling.
-    let last = Date.now();
-    const interact = () => {
-      if (Date.now() - last < 60000) return;
-      last = Date.now();
-      void accessRequest("/interaction", "POST", {}).catch(report);
-    };
-    window.addEventListener("pointerdown", interact);
-    window.addEventListener("keydown", interact);
-    return () => {
-      window.removeEventListener("pointerdown", interact);
-      window.removeEventListener("keydown", interact);
-    };
-  }, [hasPrincipal, report]);
   const edit = (user?: AccessUser) => {
     const value: UserDraft = user
       ? {

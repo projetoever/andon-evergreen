@@ -56,7 +56,11 @@ app.addHook("preHandler", enforceModuleAuthorization);
 await registerAccessRoutes(app, db, origin);
 await registerWorkstationRoutes(app);
 await registerModuleRoutes(app);
-app.get("/api/admission-operational-fixture", async () => ({ ok: true }));
+app.route({
+  url: "/api/admission-operational-fixture",
+  method: ["GET", "PATCH"],
+  handler: async () => ({ ok: true }),
+});
 app.get("/api/analytics/admission-fixture", async () => ({ ok: true }));
 app.get("/api/dashboard-priority/admission-fixture", async () => ({ ok: true }));
 
@@ -149,7 +153,7 @@ try {
       displayName: "Admission Requester",
       roleLabel: "Líder",
       active: true,
-      machineScope: "selected",
+      machineScope: "all",
       passwordHash: await hashAccessPassword(requesterPassword),
       mustChangePassword: false,
       permissions: { create: [{ key: "andon.read" }, { key: "bi.read" }] },
@@ -234,6 +238,29 @@ try {
   assert.deepEqual(moduleAccess.principal.machineIds, [machine.id]);
   await request(requester, pendingStation, "/api/admission-operational-fixture");
   await request(requester, pendingStation, "/api/analytics/admission-fixture");
+  await request(requester, pendingStation, "/api/admission-operational-fixture", "PATCH", {}, 403);
+  await db.accessUser.update({
+    where: { id: requesterUser.id },
+    data: { machineScope: "selected" },
+  });
+  const scopedModuleAccess = await request(
+    requester,
+    pendingStation,
+    "/api/modules/access",
+  );
+  assert.equal(scopedModuleAccess.modules.some((item) => item.allowed), false);
+  await request(
+    requester,
+    pendingStation,
+    "/api/admission-operational-fixture",
+    "GET",
+    undefined,
+    403,
+  );
+  await db.accessUser.update({
+    where: { id: requesterUser.id },
+    data: { machineScope: "all" },
+  });
   await request(
     requester,
     pendingStation,
