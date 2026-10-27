@@ -132,6 +132,10 @@ jobs:
           ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
           ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
           node tests/browser/workstationAdmission.mjs
+          ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
+          ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
+          ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
+          node tests/browser/hubAdminNavigation.mjs
 
       - name: Publicar capturas da admissão
         if: always()
@@ -139,6 +143,15 @@ jobs:
         with:
           name: workstation-admission-visual-evidence
           path: docs/validation/workstation-admission-20261027
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publicar capturas da administração do Hub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-admin-navigation-visual-evidence
+          path: docs/validation/hub-admin-navigation-20261027
           if-no-files-found: warn
           retention-days: 30
 

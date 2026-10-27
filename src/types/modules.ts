@@ -5,7 +5,6 @@ export const HUB_ADMIN_SECTIONS = [
   "workstations",
   "security",
   "modules",
-  "priorities",
 ] as const;
 export type HubAdminSection = (typeof HUB_ADMIN_SECTIONS)[number];
 
