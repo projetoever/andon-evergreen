@@ -257,7 +257,7 @@ try {
   });
   await db.accessSession.update({
     where: { id: session.id },
-    data: { expiresAt: new Date(Date.now() - 1000) },
+    data: { expiresAt: new Date(session.createdAt.getTime() + 1) },
   });
   await request(
     requester,
