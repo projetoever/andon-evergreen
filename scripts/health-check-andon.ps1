@@ -14,6 +14,8 @@ $PostgresHost = "127.0.0.1"
 $PostgresPort = 5432
 $DatabaseName = "andon_db"
 $DatabaseUser = "andon"
+$TransportMode = "http"
+$HttpsHost = ""
 
 $hasError = $false
 
@@ -44,10 +46,31 @@ if (Test-Path $ConfigPath) {
         if ($config.databaseUser) {
             $DatabaseUser = "$($config.databaseUser)"
         }
+
+        if ($config.transportMode) {
+            $TransportMode = "$($config.transportMode)".Trim().ToLowerInvariant()
+        }
+
+        if ($config.httpsHost) {
+            $HttpsHost = "$($config.httpsHost)".Trim()
+        }
     } catch {
         Write-Host "[AVISO] Falha ao ler $ConfigPath. Usando padroes." -ForegroundColor Yellow
     }
 }
+
+if ($TransportMode -notin @("http", "https")) {
+    Write-Host "[FALHA] transportMode invalido: $TransportMode" -ForegroundColor Red
+    exit 1
+}
+
+$RuntimeHost = if ($TransportMode -eq "https") { $HttpsHost } else { "127.0.0.1" }
+if ([string]::IsNullOrWhiteSpace($RuntimeHost)) {
+    Write-Host "[FALHA] Host HTTPS ausente na configuracao." -ForegroundColor Red
+    exit 1
+}
+$ApiBaseUrl = "${TransportMode}://${RuntimeHost}:$ApiPort"
+$FrontendUrl = "${TransportMode}://${RuntimeHost}:$FrontendPort"
 
 Write-Host "===== ANDON - HEALTH CHECK ====="
 
@@ -55,8 +78,9 @@ Write-Host ""
 Write-Host "Configuracao:"
 Write-Host "Base:       $BasePath"
 Write-Host "Projeto:    $ProjectPath"
-Write-Host "API:        http://localhost:$ApiPort"
-Write-Host "Frontend:   http://127.0.0.1:$FrontendPort"
+Write-Host "Transporte: $($TransportMode.ToUpperInvariant())"
+Write-Host "API:        $ApiBaseUrl"
+Write-Host "Frontend:   $FrontendUrl"
 Write-Host "PostgreSQL: $PostgresHost`:$PostgresPort"
 Write-Host "Banco:      $DatabaseName"
 Write-Host "Usuario DB: $DatabaseUser"
@@ -110,10 +134,10 @@ Write-Host ""
 Write-Host "1. API /health"
 
 try {
-    Invoke-RestMethod "http://localhost:$ApiPort/health" -TimeoutSec 5 | Out-Null
+    Invoke-RestMethod "$ApiBaseUrl/health" -TimeoutSec 5 | Out-Null
     Write-Host "[OK] API respondeu" -ForegroundColor Green
 } catch {
-    Write-Host "[FALHA] API nao respondeu em http://localhost:$ApiPort/health" -ForegroundColor Red
+    Write-Host "[FALHA] API nao respondeu em $ApiBaseUrl/health" -ForegroundColor Red
     $hasError = $true
 }
 
@@ -121,18 +145,18 @@ Write-Host ""
 Write-Host "2. Banco via API /health/db"
 
 try {
-    $databaseHealth = Invoke-RestMethod "http://localhost:$ApiPort/health/db" -TimeoutSec 5
+    $databaseHealth = Invoke-RestMethod "$ApiBaseUrl/health/db" -TimeoutSec 5
     if ($databaseHealth.connected -ne $true) { throw "Banco desconectado." }
     Write-Host "[OK] Banco respondeu via API" -ForegroundColor Green
 } catch {
-    Write-Host "[FALHA] Banco/API nao respondeu em http://localhost:$ApiPort/health/db" -ForegroundColor Red
+    Write-Host "[FALHA] Banco/API nao respondeu em $ApiBaseUrl/health/db" -ForegroundColor Red
     $hasError = $true
 }
 
 Write-Host ""
 Write-Host "2b. Prontidao do schema /health/ready"
 try {
-    $readiness = Invoke-RestMethod "http://localhost:$ApiPort/health/ready" -TimeoutSec 10
+    $readiness = Invoke-RestMethod "$ApiBaseUrl/health/ready" -TimeoutSec 10
     if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "Schema indisponivel." }
     Write-Host "[OK] API e schema prontos" -ForegroundColor Green
 } catch {
@@ -144,10 +168,10 @@ Write-Host ""
 Write-Host "3. Frontend"
 
 try {
-    Invoke-WebRequest "http://127.0.0.1:$FrontendPort" -UseBasicParsing -TimeoutSec 5 | Out-Null
+    Invoke-WebRequest $FrontendUrl -UseBasicParsing -TimeoutSec 5 | Out-Null
     Write-Host "[OK] Frontend respondeu" -ForegroundColor Green
 } catch {
-    Write-Host "[FALHA] Frontend nao respondeu em http://127.0.0.1:$FrontendPort" -ForegroundColor Red
+    Write-Host "[FALHA] Frontend nao respondeu em $FrontendUrl" -ForegroundColor Red
     $hasError = $true
 }
 

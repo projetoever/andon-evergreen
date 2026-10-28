@@ -35,6 +35,11 @@ $Global:AndonInstallerLogPath = ""
 
 $Global:AndonApiPort = 3001
 $Global:AndonFrontendPort = 8080
+$Global:AndonTransportMode = "http"
+$Global:AndonHttpsHost = ""
+$Global:AndonTlsCertificatePath = ""
+$Global:AndonTlsPrivateKeyPath = ""
+$Global:AndonCentralAccessEnabled = $false
 
 $Global:AndonPostgresHost = "127.0.0.1"
 $Global:AndonPostgresPort = 5433
@@ -846,6 +851,11 @@ function Get-AndonDefaultConfig {
         dockerVolume = $Global:AndonDockerVolume
         installationProfile = "legacy"
         installedCommit = ""
+        transportMode = "http"
+        httpsHost = ""
+        tlsCertificatePath = ""
+        tlsPrivateKeyPath = ""
+        centralAccessEnabled = $false
     }
 }
 
@@ -865,6 +875,14 @@ function Update-AndonGlobalsFromConfig {
     if ($Config.dockerContainer) { $Global:AndonDockerContainer = "$($Config.dockerContainer)" }
     if ($Config.dockerVolume) { $Global:AndonDockerVolume = "$($Config.dockerVolume)" }
     if ($Config.installedCommit) { $Global:AndonInstalledCommit = "$($Config.installedCommit)" }
+    $Global:AndonTransportMode = if ($Config.transportMode) { "$($Config.transportMode)".Trim().ToLowerInvariant() } else { "http" }
+    $Global:AndonHttpsHost = if ($Config.httpsHost) { "$($Config.httpsHost)".Trim() } else { "" }
+    $Global:AndonTlsCertificatePath = if ($Config.tlsCertificatePath) { "$($Config.tlsCertificatePath)".Trim() } else { "" }
+    $Global:AndonTlsPrivateKeyPath = if ($Config.tlsPrivateKeyPath) { "$($Config.tlsPrivateKeyPath)".Trim() } else { "" }
+    $Global:AndonCentralAccessEnabled = (
+        $null -ne $Config.centralAccessEnabled -and
+        "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+    )
     $Global:AndonLogsPath = "$Global:AndonProjectPath\logs"
     $Global:AndonBackupsPath = "$Global:AndonProjectPath\backups"
     $Global:AndonChromeProfilePath = "$Global:AndonProjectPath\chrome-profile"
@@ -875,8 +893,19 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit")) {
-                if ($null -ne $fileConfig.$key -and "$($fileConfig.$key)".Trim() -ne "") { $config.$key = $fileConfig.$key }
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled")) {
+                $allowsEmptyValue = $key -in @(
+                    "httpsHost",
+                    "tlsCertificatePath",
+                    "tlsPrivateKeyPath",
+                    "centralAccessEnabled"
+                )
+                if (
+                    $null -ne $fileConfig.$key -and
+                    ($allowsEmptyValue -or "$($fileConfig.$key)".Trim() -ne "")
+                ) {
+                    $config.$key = $fileConfig.$key
+                }
             }
         } catch { Write-AndonWarn "Falha ao ler andon-config.json. Usando defaults. Erro: $($_.Exception.Message)" }
     }
@@ -903,6 +932,14 @@ function Save-AndonConfig {
         dockerVolume = "$($Config.dockerVolume)"
         installationProfile = if ($Config.installationProfile) { "$($Config.installationProfile)" } else { "legacy" }
         installedCommit = if ($Config.installedCommit) { "$($Config.installedCommit)" } else { "" }
+        transportMode = if ($Config.transportMode) { "$($Config.transportMode)".Trim().ToLowerInvariant() } else { "http" }
+        httpsHost = if ($Config.httpsHost) { "$($Config.httpsHost)".Trim() } else { "" }
+        tlsCertificatePath = if ($Config.tlsCertificatePath) { "$($Config.tlsCertificatePath)".Trim() } else { "" }
+        tlsPrivateKeyPath = if ($Config.tlsPrivateKeyPath) { "$($Config.tlsPrivateKeyPath)".Trim() } else { "" }
+        centralAccessEnabled = (
+            $null -ne $Config.centralAccessEnabled -and
+            "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+        )
     }
     $configToSave | ConvertTo-Json -Depth 6 | Set-Content $Global:AndonConfigPath -Encoding UTF8
     Update-AndonGlobalsFromConfig ([pscustomobject]$configToSave)
@@ -915,6 +952,11 @@ function Save-AndonConfig {
     Write-Host "Frontend:      $($configToSave.frontendPort)"
     Write-Host "Perfil inicial: $($configToSave.installationProfile)"
     Write-Host "SHA instalado:  $(if ($configToSave.installedCommit) { $configToSave.installedCommit } else { 'nao registrado' })"
+    Write-Host "Transporte:      $($configToSave.transportMode.ToUpperInvariant())"
+    if ($configToSave.transportMode -eq "https") {
+        Write-Host "Host HTTPS:      $($configToSave.httpsHost)"
+    }
+    Write-Host "Acesso central:  $(if ($configToSave.centralAccessEnabled) { 'habilitado' } else { 'desligado' })"
 }
 
 function Get-AndonNetworkConfig {
@@ -932,14 +974,26 @@ function Test-AndonIPv4 {
 }
 
 function Save-AndonNetworkConfig {
-    param([string]$ServerIp)
+    param([string]$ServerIp, [object]$Config = $null)
     if (!(Test-AndonIPv4 $ServerIp)) { throw "IP invalido: $ServerIp" }
+    if (!$Config) { $Config = Import-AndonConfig }
     Initialize-AndonFolders
+    $transportMode = if ($Config.transportMode) { "$($Config.transportMode)".Trim().ToLowerInvariant() } else { "http" }
+    if ($transportMode -notin @("http", "https")) { throw "transportMode invalido: $transportMode" }
+    $publicHost = if ($transportMode -eq "https") { "$($Config.httpsHost)".Trim() } else { $ServerIp }
+    if ([string]::IsNullOrWhiteSpace($publicHost)) { throw "Host publico ausente para transporte $transportMode." }
+    $frontendUrl = "${transportMode}://${publicHost}:$($Config.frontendPort)"
+    $apiUrl = "${transportMode}://${publicHost}:$($Config.apiPort)"
+    $corsOrigins = if ($transportMode -eq "https") {
+        $frontendUrl
+    } else {
+        "http://localhost:$($Config.frontendPort),http://127.0.0.1:$($Config.frontendPort),http://${ServerIp}:$($Config.frontendPort)"
+    }
     $config = [ordered]@{
         serverIp = $ServerIp
-        apiUrl = "http://${ServerIp}:$Global:AndonApiPort"
-        frontendUrl = "http://${ServerIp}:$Global:AndonFrontendPort"
-        corsOrigins = "http://localhost:$Global:AndonFrontendPort,http://127.0.0.1:$Global:AndonFrontendPort,http://${ServerIp}:$Global:AndonFrontendPort"
+        apiUrl = $apiUrl
+        frontendUrl = $frontendUrl
+        corsOrigins = $corsOrigins
     }
     $config | ConvertTo-Json -Depth 5 | Set-Content $Global:AndonNetworkConfigPath -Encoding UTF8
     Write-AndonOk "Config de rede salva: $Global:AndonNetworkConfigPath"
@@ -969,13 +1023,13 @@ function Select-AndonServerIp {
             $choice = Read-Host "Escolha o IP que Raspberry/clients vao acessar"
             if ($choice -eq "M" -or $choice -eq "m") { break }
             $idx = 0
-            if ([int]::TryParse($choice, [ref]$idx) -and $idx -ge 1 -and $idx -le $addresses.Count) { return Save-AndonNetworkConfig -ServerIp $addresses[$idx - 1].IPAddress }
+            if ([int]::TryParse($choice, [ref]$idx) -and $idx -ge 1 -and $idx -le $addresses.Count) { return Save-AndonNetworkConfig -ServerIp $addresses[$idx - 1].IPAddress -Config (Import-AndonConfig) }
             Write-AndonFail "Opcao invalida."
         } while ($true)
     }
     do {
         $manualIp = Read-Host "Digite o IP do servidor ANDON"
-        if (Test-AndonIPv4 $manualIp) { return Save-AndonNetworkConfig -ServerIp $manualIp }
+        if (Test-AndonIPv4 $manualIp) { return Save-AndonNetworkConfig -ServerIp $manualIp -Config (Import-AndonConfig) }
         Write-AndonFail "IP invalido."
     } while ($true)
 }
@@ -984,6 +1038,26 @@ function Ensure-AndonNetworkConfig {
     $existing = Get-AndonNetworkConfig
     if ($existing -and $existing.serverIp) { return $existing }
     return Select-AndonServerIp
+}
+
+function Get-AndonApiBaseUrl {
+    $hostName = if ($Global:AndonTransportMode -eq "https") {
+        $Global:AndonHttpsHost
+    } else {
+        "127.0.0.1"
+    }
+    if ([string]::IsNullOrWhiteSpace($hostName)) { throw "Host do runtime ANDON nao configurado." }
+    return "$($Global:AndonTransportMode)://${hostName}:$Global:AndonApiPort"
+}
+
+function Get-AndonFrontendUrl {
+    $hostName = if ($Global:AndonTransportMode -eq "https") {
+        $Global:AndonHttpsHost
+    } else {
+        "127.0.0.1"
+    }
+    if ([string]::IsNullOrWhiteSpace($hostName)) { throw "Host do runtime ANDON nao configurado." }
+    return "$($Global:AndonTransportMode)://${hostName}:$Global:AndonFrontendPort"
 }
 
 function Write-AndonBackendEnv {
@@ -995,11 +1069,25 @@ function Write-AndonBackendEnv {
     if (!(Test-Path $serverPath)) { throw "Backend nao encontrado: $serverPath" }
     $databaseUrl = "postgresql://$($Config.databaseUser):$($Config.databasePassword)@$($Config.postgresHost):$($Config.postgresPort)/$($Config.databaseName)?schema=public"
     $envPath = "$serverPath\.env"
+    $centralAccessEnabled = if (
+        $null -ne $Config.centralAccessEnabled -and
+        "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+    ) { "1" } else { "0" }
+    $tlsEnvironment = ""
+    if ("$($Config.transportMode)".Trim().ToLowerInvariant() -eq "https") {
+        $tlsEnvironment = @"
+ANDON_TLS_CERT="$($Config.tlsCertificatePath)"
+ANDON_TLS_KEY="$($Config.tlsPrivateKeyPath)"
+"@
+    }
 @"
 PORT=$($Config.apiPort)
 HOST=0.0.0.0
 DATABASE_URL="$databaseUrl"
 CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
+ANDON_ACCESS_ORIGIN="$($NetworkConfig.frontendUrl)"
+ANDON_CENTRAL_ACCESS_ENABLED=$centralAccessEnabled
+$tlsEnvironment
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"
 }
@@ -1385,7 +1473,7 @@ function Invoke-AndonNodePipeline {
 }
 
 function Test-AndonApiWrite {
-    $api = "http://127.0.0.1:$Global:AndonApiPort"
+    $api = Get-AndonApiBaseUrl
     try {
         $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
         if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }

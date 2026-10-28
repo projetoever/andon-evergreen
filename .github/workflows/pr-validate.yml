@@ -117,6 +117,35 @@ jobs:
           npm run typecheck
           npm run build
 
+      - name: Validar runtime compilado HTTP e HTTPS
+        run: |
+          mkdir -p /tmp/andon-compiled-runtime
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/andon-compiled-runtime/key.pem \
+            -out /tmp/andon-compiled-runtime/cert.pem \
+            -days 1 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+          HOST=127.0.0.1 PORT=4188 \
+          ANDON_TLS_CERT=/tmp/andon-compiled-runtime/cert.pem \
+          ANDON_TLS_KEY=/tmp/andon-compiled-runtime/key.pem \
+          ANDON_TLS_HOST=localhost \
+          node scripts/serve-frontend.mjs > /tmp/andon-compiled-runtime/server.log 2>&1 &
+          runtime_pid=$!
+          trap 'kill "$runtime_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            curl --fail --silent --cacert /tmp/andon-compiled-runtime/cert.pem \
+              https://localhost:4188/hub >/tmp/andon-compiled-runtime/hub.html && break
+            sleep 1
+          done
+          test -s /tmp/andon-compiled-runtime/hub.html || {
+            cat /tmp/andon-compiled-runtime/server.log
+            exit 1
+          }
+          grep -q '<!DOCTYPE html>' /tmp/andon-compiled-runtime/hub.html
+          ! grep -q 'res.setHeaders is not a function' /tmp/andon-compiled-runtime/server.log
+          ! curl --fail --silent http://127.0.0.1:4188/hub >/dev/null 2>&1
+
       - name: Validar interface de admissão em desktop e mobile
         run: |
           mkdir -p /tmp/andon-playwright
@@ -128,7 +157,7 @@ jobs:
             -out /tmp/andon-admission-browser/cert.pem \
             -days 1 -subj "/CN=localhost" \
             -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
-          npm run preview -- --host 127.0.0.1 --port 4187 > /tmp/andon-preview.log 2>&1 &
+          HOST=127.0.0.1 PORT=4187 node scripts/serve-frontend.mjs > /tmp/andon-preview.log 2>&1 &
           preview_pid=$!
           trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do

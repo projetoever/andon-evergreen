@@ -175,6 +175,13 @@ $processScenarios = @(
         Expected = $true
     },
     @{
+        Name = "Node dedicado com frontend compilado ANDON"
+        ExecutablePath = $Global:AndonNodeExePath
+        CommandLine =
+            '"C:\web-andon-industrial\runtime\node\node.exe" "C:\web-andon-industrial\andon\scripts\serve-frontend.mjs"'
+        Expected = $true
+    },
+    @{
         Name = "Node global com aplicacao externa"
         ExecutablePath = "C:\Program Files\nodejs\node.exe"
         CommandLine =
@@ -207,6 +214,36 @@ $commonScript =
     Get-Content `
         (Join-Path $repositoryRoot "installer\AndonInstaller.Common.ps1") `
         -Raw
+
+$frontendStartScript =
+    Get-Content `
+        (Join-Path $repositoryRoot "scripts\start-frontend.ps1") `
+        -Raw
+
+$httpsConfigScript =
+    Get-Content `
+        (Join-Path $repositoryRoot "installer\configure-andon-https.ps1") `
+        -Raw
+
+Assert-AndonTest `
+    -Condition ($commonScript -match 'transportMode = "http"') `
+    -Message "Config legada deve permanecer em HTTP por padrao"
+
+Assert-AndonTest `
+    -Condition ($commonScript -match 'centralAccessEnabled = \$false') `
+    -Message "Acesso central deve permanecer desligado por padrao"
+
+Assert-AndonTest `
+    -Condition ($frontendStartScript -match 'serve-frontend\.mjs') `
+    -Message "Runtime deve usar o servidor de frontend compilado"
+
+Assert-AndonTest `
+    -Condition ($frontendStartScript -notmatch 'npmPath run preview|npm\.cmd run preview') `
+    -Message "Runtime oficial nao pode depender do Vite Preview"
+
+Assert-AndonTest `
+    -Condition ($httpsConfigScript -match 'certutil\.exe' -and $httpsConfigScript -match 'centralAccessEnabled" -Value \$false') `
+    -Message "Configurador HTTPS deve validar confianca sem ativar acesso central"
 
 $installScript =
     Get-Content `

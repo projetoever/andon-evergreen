@@ -31,6 +31,12 @@
     "revisionPolicy": "pin_per_execution",
     "installedCommitRecordedIn": "C:\\web-andon-industrial\\andon-config.json",
     "installerLogsPath": "C:\\web-andon-industrial\\andon\\logs\\installer",
+    "transport": {
+      "default": "http",
+      "https": "optional_by_windows_config",
+      "compiledFrontendServer": "scripts/serve-frontend.mjs",
+      "centralAccessDefault": false
+    },
     "supportBundle": "deferred"
   },
   "ports": {

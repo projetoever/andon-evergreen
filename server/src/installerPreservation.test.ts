@@ -40,8 +40,11 @@ function matchesAndonNodeOwnershipPolicy({
     normalizedCommandLine.includes("\\node_modules\\") &&
     hasViteEntrypoint &&
     /(^|\s)preview(\s|$)/.test(normalizedCommandLine);
+  const hasCompiledFrontendMarker = normalizedCommandLine.includes(
+    `${projectPath}\\scripts\\serve-frontend.mjs`,
+  );
 
-  if (!hasApiMarker && !hasFrontendMarker) return false;
+  if (!hasApiMarker && !hasFrontendMarker && !hasCompiledFrontendMarker) return false;
   if (normalizedExecutablePath === dedicatedNodePath) return true;
 
   return hasProjectMarker;
@@ -89,7 +92,7 @@ test("instalador e runtime usam exclusivamente o Node dedicado do ANDON", async 
   assert.match(runtimeCommon, /runtime\\node/);
   assert.match(runtimeCommon, /AndonRequiredNodeVersion = "v22\.23\.2"/);
   assert.match(startApi, /\$nodePath = \$context\.NodePath/);
-  assert.match(startFrontend, /\$npmPath = \$context\.NpmPath/);
+  assert.match(startFrontend, /\$nodePath = \$context\.NodePath/);
   assert.doesNotMatch(startApi, /C:\\Program Files\\nodejs/);
   assert.doesNotMatch(startFrontend, /C:\\Program Files\\nodejs/);
   assert.match(bootstrap, /Ensure-AndonDedicatedNodeRuntime/);
@@ -205,7 +208,10 @@ test("updater novo aceita com segurança o contrato de relaunch do commit d54f65
 
   assert.match(legacyD54RelaunchContract, /\[switch\]\$ContinueAfterSync/);
   assert.doesNotMatch(legacyD54RelaunchContract, /ExpectedCommit/);
-  assert.match(updateScript, /O updater d54f656 relanca o script novo somente com -ContinueAfterSync/);
+  assert.match(
+    updateScript,
+    /O updater d54f656 relanca o script novo somente com -ContinueAfterSync/,
+  );
   assert.match(updateScript, /Assert-AndonRepositoryClean/);
   assert.match(updateScript, /symbolic-ref", "--short", "HEAD"/);
   assert.match(updateScript, /\$branch -ne "main"/);
@@ -287,7 +293,10 @@ test("fresh install fixa SHA, relança scripts sincronizados e bloqueia configur
   const runtimeModuleIndex = installScript.indexOf("AndonInstaller.Runtime.ps1");
   assert.ok(syncIndex >= 0, "fresh install deve sincronizar antes da execução principal");
   assert.ok(relaunchIndex > syncIndex, "fresh install deve relançar após sincronizar");
-  assert.ok(runtimeModuleIndex > relaunchIndex, "módulos novos só devem ser carregados após relançar");
+  assert.ok(
+    runtimeModuleIndex > relaunchIndex,
+    "módulos novos só devem ser carregados após relançar",
+  );
 
   assert.match(installScript, /-ExpectedCommit \$selectedCommit/);
   assert.match(installScript, /Assert-AndonRepositoryCommit -ExpectedCommit \$ExpectedCommit/);
@@ -396,6 +405,13 @@ test("parada encerra Node dedicado e Node global legado somente com marcadores i
       expected: true,
     },
     {
+      name: "Node dedicado executando o frontend compilado do ANDON",
+      executablePath: "C:\\web-andon-industrial\\runtime\\node\\node.exe",
+      commandLine:
+        '"C:\\web-andon-industrial\\runtime\\node\\node.exe" "C:\\web-andon-industrial\\andon\\scripts\\serve-frontend.mjs"',
+      expected: true,
+    },
+    {
       name: "Node global executando aplicação externa",
       executablePath: "C:\\Program Files\\nodejs\\node.exe",
       commandLine: '"C:\\Program Files\\nodejs\\node.exe" "D:\\erp\\dist\\server.js"',
@@ -419,9 +435,35 @@ test("parada encerra Node dedicado e Node global legado somente com marcadores i
     assert.match(script, /\\server\\dist\\server\.js/);
     assert.match(script, /\\node_modules\\/);
     assert.match(script, /\\vite\\bin\\vite\.js/);
+    assert.match(script, /serve-frontend\.mjs/);
     assert.match(script, /Test-AndonNodeProcessOwned/);
     assert.doesNotMatch(script, /Get-Process node[^\r\n|]*\|\s*Stop-Process/i);
   }
+});
+
+test("HTTPS oficial e opcional preserva config legada e usa frontend compilado proprio", async () => {
+  const [common, runtimeCommon, startFrontend, menu, configureHttps, frontendServer] =
+    await Promise.all([
+      readInstaller("AndonInstaller.Common.ps1"),
+      readRepositoryFile("scripts/Andon.Runtime.Common.ps1"),
+      readRepositoryFile("scripts/start-frontend.ps1"),
+      readInstaller("menu-andon-installer.ps1"),
+      readInstaller("configure-andon-https.ps1"),
+      readRepositoryFile("scripts/serve-frontend.mjs"),
+    ]);
+
+  assert.match(common, /transportMode = "http"/);
+  assert.match(common, /centralAccessEnabled = \$false/);
+  assert.match(common, /ANDON_CENTRAL_ACCESS_ENABLED=\$centralAccessEnabled/);
+  assert.match(runtimeCommon, /TransportMode/);
+  assert.match(runtimeCommon, /TlsCertificatePath/);
+  assert.match(startFrontend, /serve-frontend\.mjs/);
+  assert.doesNotMatch(startFrontend, /npmPath run preview|npm\.cmd run preview/);
+  assert.match(menu, /14 - Configurar transporte HTTP\/HTTPS/);
+  assert.match(configureHttps, /centralAccessEnabled" -Value \$false/);
+  assert.match(configureHttps, /certutil\.exe/);
+  assert.match(frontendServer, /createHttpsServer/);
+  assert.doesNotMatch(frontendServer, /setHeaders\(/);
 });
 
 test("bootstraps V10.5.1 não reaplicam o instalador legado", async () => {
@@ -449,7 +491,6 @@ test("desinstalação limpa remove só o runtime dedicado e preservação manté
   assert.doesNotMatch(preserveUninstall, /Remove-AndonLocalDatabaseClean/);
   assert.doesNotMatch(preserveUninstall, /Remove-Item \$Global:AndonNodeRuntimePath/);
 });
-
 
 test("updater distingue falso positivo de Git de alteração local real", async () => {
   const common = await readInstaller("AndonInstaller.Common.ps1");

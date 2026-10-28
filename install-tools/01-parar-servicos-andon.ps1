@@ -54,11 +54,15 @@ function Test-AndonNodeProcessOwned {
   $hasViteEntrypoint =
     $normalizedCommandLine.Contains("\vite\bin\vite.js") -or
     $normalizedCommandLine.Contains("\vite\dist\node\cli.js")
+  $hasCompiledFrontendMarker =
+    $normalizedCommandLine.Contains("$normalizedProjectPath\scripts\serve-frontend.mjs")
   $hasFrontendMarker =
     $hasProjectMarker -and
     $normalizedCommandLine.Contains("\node_modules\") -and
     $hasViteEntrypoint -and
     $normalizedCommandLine -match '(^|\s)preview(\s|$)'
+
+  $hasFrontendMarker = $hasFrontendMarker -or $hasCompiledFrontendMarker
 
   if (!$hasApiMarker -and !$hasFrontendMarker) {
     return $false

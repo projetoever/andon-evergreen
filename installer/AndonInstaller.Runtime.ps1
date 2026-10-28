@@ -35,7 +35,7 @@ function Test-AndonKioskVisible {
 }
 
 function Test-AndonApiBusinessReady {
-    $api = "http://127.0.0.1:$Global:AndonApiPort"
+    $api = Get-AndonApiBaseUrl
     try {
         $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
         return ($readiness.status -eq "ok" -and $readiness.ready -is [bool] -and $readiness.ready)
@@ -61,7 +61,7 @@ function Wait-AndonApiBusinessReady {
 
 function Test-AndonFrontendReady {
     try {
-        Invoke-WebRequest "http://127.0.0.1:$Global:AndonFrontendPort" -UseBasicParsing -TimeoutSec 5 | Out-Null
+        Invoke-WebRequest (Get-AndonFrontendUrl) -UseBasicParsing -TimeoutSec 5 | Out-Null
         return $true
     } catch {
         return $false
@@ -73,7 +73,7 @@ function Wait-AndonFrontendReady {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         if (Test-AndonFrontendReady) {
-            Write-AndonOk "Frontend pronto: http://127.0.0.1:$Global:AndonFrontendPort"
+            Write-AndonOk "Frontend pronto: $(Get-AndonFrontendUrl)"
             return $true
         }
         Start-Sleep -Seconds 3
@@ -349,11 +349,19 @@ function Test-AndonNodeProcessOwned {
         $normalizedCommandLine.Contains("\vite\bin\vite.js") -or
         $normalizedCommandLine.Contains("\vite\dist\node\cli.js")
 
+    $hasCompiledFrontendMarker =
+        $normalizedCommandLine.Contains(
+            "$normalizedProjectPath\scripts\serve-frontend.mjs"
+        )
+
     $hasFrontendMarker =
         $hasProjectMarker -and
         $normalizedCommandLine.Contains("\node_modules\") -and
         $hasViteEntrypoint -and
         $normalizedCommandLine -match '(^|\s)preview(\s|$)'
+
+    $hasFrontendMarker =
+        $hasFrontendMarker -or $hasCompiledFrontendMarker
 
     if (!$hasApiMarker -and !$hasFrontendMarker) {
         return $false
@@ -488,7 +496,7 @@ function Invoke-AndonHealthCheck {
         }
     }
 
-    $api = "http://127.0.0.1:$($config.apiPort)"
+    $api = Get-AndonApiBaseUrl
     foreach ($url in @("$api/health", "$api/health/db", "$api/health/ready")) {
         try {
             $health = Invoke-RestMethod $url -TimeoutSec 10
@@ -511,9 +519,9 @@ function Invoke-AndonHealthCheck {
     }
 
     if (Test-AndonFrontendReady) {
-        Write-AndonOk "Frontend http://127.0.0.1:$($config.frontendPort)"
+        Write-AndonOk "Frontend $(Get-AndonFrontendUrl)"
     } else {
-        Write-AndonFail "Frontend http://127.0.0.1:$($config.frontendPort)"
+        Write-AndonFail "Frontend $(Get-AndonFrontendUrl)"
         $hasCriticalError = $true
     }
 
