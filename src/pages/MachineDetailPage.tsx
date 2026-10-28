@@ -345,7 +345,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
     if (!maintenanceCompletionAuthorization) return null;
     if (!maintenanceCompletionAuthorization.allowed)
-      return systemMessage(maintenanceCompletionAuthorization.message);
+      return `${systemMessage(maintenanceCompletionAuthorization.message)} ${ui(
+        "A autorização será confirmada pelo servidor ao concluir.",
+      )}`;
     if (maintenanceCompletionAuthorization.kind === "legacy") {
       return ui("Atendimento legado: conclusão permitida.");
     }
@@ -692,9 +694,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => void handleCompleteMaintenance()}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
-        maintenanceCompletionDisabled={
-          maintenanceCompletionAuthorization?.allowed === false || isCompletingMaintenance
-        }
+        // The browser is an advisory cache only. It may still have an old
+        // workstation snapshot after an HTTPS/hostname change or frontend
+        // upgrade. The API performs the authoritative validation atomically
+        // with the maintenance transition and must never be bypassed.
+        maintenanceCompletionDisabled={isCompletingMaintenance}
         maintenanceCompletionHint={maintenanceCompletionHint}
         maintenanceCompletionHintTone={maintenanceCompletionHintTone}
       />
