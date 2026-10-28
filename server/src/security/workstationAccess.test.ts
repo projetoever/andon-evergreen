@@ -143,7 +143,7 @@ test("module policy protects direct reads/writes and preserves priorities, recov
   await app.close();
 });
 
-test("central access allows only SQL-scoped machine reads and denies other selected-scope routes", async (t) => {
+test("central access binds scoped machine/call reads and protects history with additional rights", async (t) => {
   const previousFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   const previousOrigin = process.env.ANDON_ACCESS_ORIGIN;
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
@@ -151,6 +151,7 @@ test("central access allows only SQL-scoped machine reads and denies other selec
   const originalStation = prisma.workstation.findUnique;
   const originalSession = prisma.accessSession.findUnique;
   let machineScope = "all";
+  let canReadHistory = false;
   let sessionWorkstationId = id;
   prisma.workstation.findUnique = (async () => ({
     active: true,
@@ -179,7 +180,7 @@ test("central access allows only SQL-scoped machine reads and denies other selec
       mustChangePassword: false,
       authorizationVersion: 1,
       machineScope,
-      permissions: [{ key: "andon.read" }],
+      permissions: [ { key: "andon.read" }, ...(canReadHistory ? [{ key: "history.read" }] : []) ],
       machines: [{ machineId: "37" }],
     },
   })) as unknown as typeof originalSession;
@@ -209,7 +210,13 @@ test("central access allows only SQL-scoped machine reads and denies other selec
   app.get("/api/machines/:id", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
-  app.get("/api/andon-calls", async () => ({ ok: true }));
+  app.get("/api/andon-calls", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
+  app.get("/api/andon-calls/history", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
+  app.get("/api/analytics/overview", async () => ({ ok: true }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
   const headers = {
@@ -234,10 +241,24 @@ test("central access allows only SQL-scoped machine reads and denies other selec
   const machineDetail = await app.inject({ url: "/api/machines/37", headers });
   assert.equal(machineDetail.statusCode, 200);
   assert.deepEqual(machineDetail.json().allowedMachineIds, ["37"]);
-  const unsupportedSelected = await app.inject({ url: "/api/andon-calls", headers });
-  assert.equal(unsupportedSelected.statusCode, 403);
-  assert.equal(unsupportedSelected.json().error, "scoped_query_required");
+  const liveCalls = await app.inject({ url: "/api/andon-calls", headers });
+  assert.equal(liveCalls.statusCode, 200);
+  assert.deepEqual(liveCalls.json().allowedMachineIds, ["37"]);
+  const historyWithoutPermission = await app.inject({ url: "/api/andon-calls/history", headers });
+  assert.equal(historyWithoutPermission.statusCode, 403);
+  assert.equal(historyWithoutPermission.json().error, "permission_denied");
+  canReadHistory = true;
+  const history = await app.inject({ url: "/api/andon-calls/history", headers });
+  assert.equal(history.statusCode, 200);
+  assert.deepEqual(history.json().allowedMachineIds, ["37"]);
+  const stillUnsupported = await app.inject({ url: "/api/analytics/overview", headers });
+  assert.equal(stillUnsupported.statusCode, 403);
+  assert.equal(stillUnsupported.json().error, "scoped_query_required");
   machineScope = "all";
+  canReadHistory = false;
+  const fullScopeHistory = await app.inject({ url: "/api/andon-calls/history", headers });
+  assert.equal(fullScopeHistory.statusCode, 403);
+  assert.equal(fullScopeHistory.json().error, "permission_denied");
   sessionWorkstationId = id.replace(/37$/, "38");
   assert.equal((await app.inject({ url: "/api/machines", headers })).statusCode, 401);
   sessionWorkstationId = id;
