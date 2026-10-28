@@ -197,6 +197,15 @@ try {
     if ($choice -notin @("2", "3")) { throw "Opcao invalida." }
 
     if ($choice -eq "2") {
+        # Certificado de desenvolvimento local nunca deve ser provisionado em Windows Server.
+        $operatingSystem = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        if ([int]$operatingSystem.ProductType -ne 1) {
+            throw (
+                "HTTPS local assistido e exclusivo para estacoes Windows. " +
+                "Em Windows Server, utilize a opcao 3 com certificado confiavel de rede."
+            )
+        }
+
         Write-AndonHeader "HTTPS LOCAL - CONFIGURACAO ASSISTIDA"
         Write-AndonWarn "Este perfil funciona somente no computador atual, nao na rede da fabrica."
         Write-AndonWarn "Uma CA LOCAL sera confiada ao Windows com sua aprovacao explicita."
