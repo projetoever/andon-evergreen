@@ -110,10 +110,23 @@ try {
     $env:NODE_ENV = "production"
     $env:PORT = "$($context.ApiPort)"
     $env:HOST = "0.0.0.0"
+    $env:ANDON_ACCESS_ORIGIN = $context.FrontendUrl
+    $env:ANDON_CENTRAL_ACCESS_ENABLED = if ($context.CentralAccessEnabled) { "1" } else { "0" }
+
+    if ($context.TransportMode -eq "https") {
+        $env:ANDON_TLS_CERT = $context.TlsCertificatePath
+        $env:ANDON_TLS_KEY = $context.TlsPrivateKeyPath
+        $env:CORS_ORIGINS = $context.FrontendUrl
+    } else {
+        Remove-Item Env:\ANDON_TLS_CERT -ErrorAction SilentlyContinue
+        Remove-Item Env:\ANDON_TLS_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:\CORS_ORIGINS -ErrorAction SilentlyContinue
+    }
 
     Write-ApiLog `
         -Message (
-            "Iniciando API em 0.0.0.0:$($context.ApiPort) " +
+            "Iniciando API $($context.TransportMode.ToUpperInvariant()) " +
+            "em 0.0.0.0:$($context.ApiPort) " +
             "com Node ANDON: $nodePath."
         )
 

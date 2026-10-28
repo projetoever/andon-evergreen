@@ -98,6 +98,58 @@ function Get-AndonRuntimeContext {
     $basePath = Split-Path -Parent $configPath
     $nodeRuntimePath = Join-Path $basePath "runtime\node"
 
+    $transportMode = if (
+        $null -ne $config.transportMode -and
+        ![string]::IsNullOrWhiteSpace("$($config.transportMode)")
+    ) {
+        "$($config.transportMode)".Trim().ToLowerInvariant()
+    } else {
+        "http"
+    }
+
+    if ($transportMode -notin @("http", "https")) {
+        throw "transportMode invalido: $transportMode"
+    }
+
+    $httpsHost = if ($null -ne $config.httpsHost) {
+        "$($config.httpsHost)".Trim()
+    } else {
+        ""
+    }
+    $tlsCertificatePath = if ($null -ne $config.tlsCertificatePath) {
+        "$($config.tlsCertificatePath)".Trim()
+    } else {
+        ""
+    }
+    $tlsPrivateKeyPath = if ($null -ne $config.tlsPrivateKeyPath) {
+        "$($config.tlsPrivateKeyPath)".Trim()
+    } else {
+        ""
+    }
+
+    if ($transportMode -eq "https") {
+        if ([string]::IsNullOrWhiteSpace($httpsHost)) {
+            throw "httpsHost obrigatorio quando transportMode=https."
+        }
+        if (!(Test-Path $tlsCertificatePath -PathType Leaf)) {
+            throw "Certificado TLS nao encontrado: $tlsCertificatePath"
+        }
+        if (!(Test-Path $tlsPrivateKeyPath -PathType Leaf)) {
+            throw "Chave privada TLS nao encontrada: $tlsPrivateKeyPath"
+        }
+    }
+
+    $runtimeHost = if ($transportMode -eq "https") {
+        $httpsHost
+    } else {
+        "127.0.0.1"
+    }
+
+    $centralAccessEnabled = (
+        $null -ne $config.centralAccessEnabled -and
+        "$($config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+    )
+
     $dockerContainer = if (
         $null -ne $config.dockerContainer -and
         ![string]::IsNullOrWhiteSpace("$($config.dockerContainer)")
@@ -137,8 +189,13 @@ function Get-AndonRuntimeContext {
         ChromeProfilePath = Join-Path $projectPath "chrome-profile"
         DockerContainer   = $dockerContainer
         DockerVolume      = $dockerVolume
-        ApiBaseUrl        = "http://127.0.0.1:$apiPort"
-        FrontendUrl       = "http://127.0.0.1:$frontendPort"
+        TransportMode     = $transportMode
+        HttpsHost         = $httpsHost
+        TlsCertificatePath = $tlsCertificatePath
+        TlsPrivateKeyPath = $tlsPrivateKeyPath
+        CentralAccessEnabled = $centralAccessEnabled
+        ApiBaseUrl        = "${transportMode}://${runtimeHost}:$apiPort"
+        FrontendUrl       = "${transportMode}://${runtimeHost}:$frontendPort"
     }
 
     return $script:AndonRuntimeContext

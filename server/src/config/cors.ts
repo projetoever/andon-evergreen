@@ -29,8 +29,10 @@ function parseCorsOrigins(value: string | undefined) {
 }
 
 export function getAllowedCorsOrigins() {
+  const configuredOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
+
   return Array.from(
-    new Set([...DEFAULT_CORS_ORIGINS, ...parseCorsOrigins(process.env.CORS_ORIGINS)]),
+    new Set(configuredOrigins.length > 0 ? configuredOrigins : DEFAULT_CORS_ORIGINS),
   );
 }
 
