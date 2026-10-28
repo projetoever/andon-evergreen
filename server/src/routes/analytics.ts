@@ -433,6 +433,14 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         return badRequest(reply, "machineId, startDate e endDate válidos são obrigatórios");
       }
 
+      // This endpoint is strictly one-machine: reject out-of-scope IDs before
+      // querying settings, machine metadata, calls, events or technician sessions.
+      // Full-scope and legacy readers retain the existing result contract.
+      const allowedIds = scopedMachineReadIds(request);
+      if (allowedIds !== null && !allowedIds.includes(machineId)) {
+        return reply.code(404).send({ error: "Máquina não encontrada" });
+      }
+
       const policy = await loadAnalyticsEligibility();
       const generatedAt = new Date();
       const effectiveEnd = new Date(
