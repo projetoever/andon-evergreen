@@ -59,6 +59,7 @@ try {
       purpose: "normal",
     };
     let csrf = "fixture-csrf";
+    let initialized = true;
     const seed = (id, name, role, active = true) => ({
       id,
       login: id,
@@ -114,7 +115,7 @@ try {
           active: true,
           pendingApproval: false,
         });
-      if (path === "/api/access/session") return send({ principal, csrf, initialized: true });
+      if (path === "/api/access/session") return send({ principal, csrf, initialized });
       if (req.method() !== "GET") assert.equal(req.headers()["x-andon-csrf"], csrf);
       if (path === "/api/access/catalog")
         return send({
@@ -165,6 +166,20 @@ try {
       if (path === "/api/access/logout") {
         principal = null;
         return send({ ok: true });
+      }
+      if (path === "/api/access/initialize") {
+        assert.equal(data.login, "quality.admin");
+        assert.equal(data.currentPassword, "Existing fixture Admin");
+        assert.equal(data.newPassword, "Admin pessoal de homologacao");
+        initialized = true;
+        principal = {
+          userId: "admin",
+          login: data.login,
+          displayName: "Admin",
+          isPrimaryAdmin: true,
+          purpose: "normal",
+        };
+        return send({ csrf, purpose: "normal" });
       }
       if (path === "/api/access/login") {
         principal = {
@@ -266,6 +281,41 @@ try {
     assert(!storage.includes("provisional-fixture"));
     assert(!storage.includes("Minha senha pessoal"));
     assert(!storage.includes(csrf));
+
+    // Simulate a fresh installation to verify real label/input geometry.
+    initialized = false;
+    principal = null;
+    await page.reload();
+    await page.getByRole("heading", { name: "Habilitar gestão de usuários", exact: true }).waitFor();
+    const fields = [
+      "Usuário administrador",
+      "Senha Admin existente",
+      "Nova senha pessoal",
+      "Confirmar nova senha",
+    ];
+    let previousInputBottom = 0;
+    for (const name of fields) {
+      const labelRect = await page.getByText(name, { exact: true }).boundingBox();
+      const fieldRect = await page.getByLabel(name, { exact: true }).boundingBox();
+      assert(labelRect && fieldRect, `Missing layout rectangles: ${name}`);
+      assert(
+        labelRect.y + labelRect.height + 2 <= fieldRect.y,
+        `The label overlaps input: ${name}`,
+      );
+      assert(
+        fieldRect.y >= previousInputBottom,
+        `The input overlaps previous field: ${name}`,
+      );
+      previousInputBottom = fieldRect.y + fieldRect.height;
+    }
+    await noOverflow();
+    await page.screenshot({ path: `${output}/${viewport.width}-admin-initialization.png`, fullPage: true });
+    await page.getByLabel("Usuário administrador", { exact: true }).fill("quality.admin");
+    await page.getByLabel("Senha Admin existente", { exact: true }).fill("Existing fixture Admin");
+    await page.getByLabel("Nova senha pessoal", { exact: true }).fill("Admin pessoal de homologacao");
+    await page.getByLabel("Confirmar nova senha", { exact: true }).fill("Admin pessoal de homologacao");
+    await page.getByRole("button", { name: "Salvar senha pessoal", exact: true }).click();
+    await page.getByRole("button", { name: "Cadastrar usuário", exact: true }).waitFor();
     assert.deepEqual(errors, []);
     results.push({
       viewport,
@@ -283,6 +333,7 @@ try {
         "PT/EN/ZH",
         "no overflow",
         "no credentials in browser storage",
+        "admin first enrollment labels do not overlap inputs",
       ],
       requests: requests.length,
     });
