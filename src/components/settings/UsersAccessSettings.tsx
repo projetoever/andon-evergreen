@@ -160,15 +160,19 @@ export function UsersAccessSettings() {
       return;
     }
     const loginName = String(values.get("login") ?? principal?.login ?? "");
-    form.reset();
     await run(async () => {
       if (!session?.initialized)
-        await accessRequest("/initialize", "POST", { currentPassword: password, newPassword });
+        await accessRequest("/initialize", "POST", {
+          login: loginName,
+          currentPassword: password,
+          newPassword,
+        });
       else if (principal?.purpose === "password_change")
         await accessRequest("/password", "POST", { newPassword });
       else await accessRequest("/login", "POST", { login: loginName, password });
       setReauth(false);
       await refreshSession();
+      form.reset();
     });
   };
   const authForm = !principal || principal.purpose === "password_change" || reauth;
@@ -254,16 +258,19 @@ export function UsersAccessSettings() {
                 )}
               </p>
             )}
-            {!personalPassword && (
+            {(!personalPassword || !session.initialized) && (
               <Label className="block space-y-2">
-                {ui("Login")}
+                {ui(!session.initialized ? "Nickname do Admin (login)" : "Login")}
                 <Input
                   name="login"
                   autoComplete="username"
                   required
                   defaultValue={reauth ? principal?.login : ""}
                   readOnly={reauth}
+                  minLength={3}
                   maxLength={120}
+                  pattern="[a-zA-Z0-9][a-zA-Z0-9._\\-]{2,119}"
+                  placeholder={!session.initialized ? "admin" : undefined}
                 />
               </Label>
             )}
