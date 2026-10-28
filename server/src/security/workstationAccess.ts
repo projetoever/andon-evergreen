@@ -11,6 +11,10 @@ import {
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
 import { AccessError, assertModule } from "../access/policy.js";
+import {
+  bindAuthorizedMachineReadPrincipal,
+  isScopedMachineReadRoute,
+} from "./centralScopedMachineReads.js";
 import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 
@@ -95,15 +99,18 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
-      // Operational handlers do not yet apply per-machine predicates. Until the dedicated
-      // activation phase adds them, selected-scope sessions fail closed instead of widening scope.
-      if (principal.machineScope !== "all") throw new AccessError("scoped_query_required");
-      // This admission PR establishes identity and read visibility only. Mutations require the
-      // route-to-action permission map delivered by the central activation phase.
+      // Only the machine GET handlers currently implement database-enforced
+      // selected-machine filtering. Other restricted reads still fail closed.
+      if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path))
+        throw new AccessError("scoped_query_required");
+      // Mutations are still denied pending validated route/action permission maps.
       if (!["GET", "HEAD"].includes(request.method))
         throw new AccessError("central_action_not_supported");
       if (!module) throw new AccessError("central_route_not_supported");
       assertModule(principal, workstation, module);
+      if (isScopedMachineReadRoute(request.method, path)) {
+        bindAuthorizedMachineReadPrincipal(request, principal);
+      }
     } catch (error) {
       const accessError = error instanceof AccessError ? error : null;
       return reply
