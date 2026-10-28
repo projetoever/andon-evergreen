@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { getCurrentWorkstationId, hasWorkstationIdentityConflict } from "@/services/workstationIdentityService";
 import {
   listWorkstations,
+  diagnoseWorkstationCompletion,
+  type WorkstationCompletionDiagnostic,
   registerCurrentWorkstation,
   updateWorkstation,
 } from "@/services/workstationService";
@@ -54,6 +56,10 @@ export function WorkstationsSettingsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [diagnosticCallId, setDiagnosticCallId] = useState("");
+  const [diagnosticBusy, setDiagnosticBusy] = useState(false);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  const [diagnosticResult, setDiagnosticResult] = useState<WorkstationCompletionDiagnostic | null>(null);
   const canManage =
     CONFIGURED_DATA_MODE === "local" ||
     !centralAccess ||
@@ -172,6 +178,23 @@ export function WorkstationsSettingsTab() {
       setLoadError(error instanceof Error ? error.message : "Falha ao autenticar.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function inspectAttendance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (diagnosticBusy || !diagnosticCallId.trim()) return;
+    setDiagnosticResult(null);
+    setDiagnosticError(null);
+    setDiagnosticBusy(true);
+    try {
+      setDiagnosticResult(await diagnoseWorkstationCompletion(diagnosticCallId));
+    } catch (error) {
+      setDiagnosticError(
+        error instanceof Error ? error.message : ui("Não foi possível consultar o diagnóstico do chamado."),
+      );
+    } finally {
+      setDiagnosticBusy(false);
     }
   }
 
@@ -329,6 +352,59 @@ export function WorkstationsSettingsTab() {
         </p>
       )}
       {!centralAccess && <WorkstationAdmissionSettings />}
+      {!centralAccess && CONFIGURED_DATA_MODE === "api" && (
+        <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Diagnóstico de conclusão da manutenção")}>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold">{ui("Diagnóstico de conclusão da manutenção")}</h3>
+            <p className="text-xs text-muted-foreground">
+              {ui("Consulta administrativa somente leitura. Informe o ID do chamado para comparar as estações autorizadas no ciclo atual; não concede permissões e não modifica históricos.")}
+            </p>
+          </div>
+          <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => void inspectAttendance(event)}>
+            <Input
+              aria-label={ui("ID do chamado para diagnóstico")}
+              autoComplete="off"
+              placeholder={ui("Cole o ID do chamado")}
+              value={diagnosticCallId}
+              maxLength={120}
+              onChange={(event) => { setDiagnosticCallId(event.target.value); setDiagnosticResult(null); }}
+              className="min-w-0 flex-1"
+            />
+            <Button type="submit" disabled={diagnosticBusy || diagnosticCallId.trim().length < 4}>
+              {diagnosticBusy ? ui("Verificando...") : ui("Verificar conclusão")}
+            </Button>
+          </form>
+          {diagnosticError && <p role="alert" className="text-sm text-danger">{systemMessage(diagnosticError)}</p>}
+          {diagnosticResult && (
+            <div role="status" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+              <p className="font-semibold">
+                {ui("Máquina")}: {diagnosticResult.machineId} · {ui("Chamado")}: …{diagnosticResult.callIdSuffix} · {ui("Ciclo")}: {diagnosticResult.latestCycle}
+              </p>
+              <p>{ui("Estado da conclusão")}: {ui(
+                diagnosticResult.outcome === "authorized" ? "Workstation reconhecida no atendimento" :
+                diagnosticResult.outcome === "different_workstation" ? "Workstation diferente das registradas no atendimento" :
+                diagnosticResult.outcome === "unidentified" ? "Workstation atual não identificada" :
+                diagnosticResult.outcome === "inactive" ? "Workstation desativada" :
+                diagnosticResult.outcome === "legacy_no_provenance" ? "Atendimento legado sem workstation registrada" :
+                diagnosticResult.outcome === "restriction_off" ? "Restrição de conclusão desativada" :
+                "Chamado não está em atendimento",
+              )}</p>
+              <p className="text-xs text-muted-foreground">
+                {ui("Estação atual")}: {diagnosticResult.currentStationSuffix ?? "—"} · {ui("Sessões ativas")}: {diagnosticResult.activeMaintenanceSessions}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {ui("Workstations registradas neste ciclo")}: {diagnosticResult.authorizedStations.length
+                  ? diagnosticResult.authorizedStations.map((station) =>
+                      `${station.name ?? ui("Sem nome")} (…${station.suffix})`).join("; ")
+                  : ui("Sem proveniência de workstation")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {ui("Resultado apenas informativo. A autorização real é conferida no servidor ao executar a operação.")}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
       <div className="space-y-1">
         <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
         <p className="text-sm text-muted-foreground">
