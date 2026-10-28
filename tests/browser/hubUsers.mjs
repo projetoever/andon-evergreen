@@ -296,6 +296,7 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "Habilitar gestão de usuários", exact: true }).waitFor();
     await page.getByText("Etapa 1 de 2 · Configuração do administrador", { exact: true }).waitFor();
+    await page.getByText("A senha Admin existente confirma sua identidade atual. A nova senha pessoal é criada uma única vez para a conta Admin central, separada da conta legada. Não será necessário criar outra senha do Admin ao cadastrar colaboradores.",{exact:true}).waitFor();
     await page.getByText(
       "Próxima etapa: abrir o painel de colaboradores para cadastrar usuários, escolher máquinas e definir permissões. O acesso operacional central não será ativado nesta configuração.",
       { exact: true },

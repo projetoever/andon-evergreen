@@ -276,7 +276,7 @@ export function UsersAccessSettings() {
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
                     {ui(
-                      "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
+                      "A senha Admin existente confirma sua identidade atual. A nova senha pessoal é criada uma única vez para a conta Admin central, separada da conta legada. Não será necessário criar outra senha do Admin ao cadastrar colaboradores.",
                     )}
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
@@ -325,7 +325,7 @@ export function UsersAccessSettings() {
               {personalPassword && (
                 <div className="flex min-w-0 flex-col gap-5">
                   <p id="central-user-password-help" className="text-sm leading-5 text-muted-foreground">
-                    {ui("Use uma frase de acesso de 15 a 128 caracteres.")}
+                    {ui("Use uma frase de acesso de 15 a 128 caracteres. Esta senha é exclusiva da gestão central e não altera o acesso Admin legado nem as senhas dos módulos.")}
                   </p>
                   <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
                     <span className="block font-semibold leading-5">
