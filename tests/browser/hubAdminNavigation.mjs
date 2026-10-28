@@ -186,6 +186,9 @@ try {
       assert.equal(await link.getAttribute("aria-current"), "page");
     }
 
+    await navigation.getByRole("link",{name:"Segurança",exact:true}).click();
+    await page.getByText("Admin legado e Admin central são contas distintas",{exact:true}).waitFor();
+    await navigation.getByRole("link",{name:"Visão geral",exact:true}).click();
     await navigation.getByRole("link", { name: "Usuários e Acessos", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("section") === "users");
     await page.reload();
