@@ -10,13 +10,13 @@ são escopos posteriores.
 ### Inicialização do Admin principal
 
 No primeiro acesso a `/hub/admin?section=users`, em HTTPS confiável e workstation ativa:
-1. O administrador escolhe **nickname/login** (3–120 caracteres, `a-z`, `0-9`, ponto,
+1. O administrador escolhe **usuário (identificador de acesso)** (3–120 caracteres, `a-z`, `0-9`, ponto,
    traço e sublinhado; normalizado para minúsculas).
 2. Confirma a senha administrativa já configurada.
 3. Cria e confirma uma frase de acesso pessoal com 15–128 caracteres.
 4. A API exige os três campos e inicializa a conta principal **apenas uma vez**,
    mediante transação com bloqueio no PostgreSQL, senha armazenada como hash e
-   auditoria. O administrador passa a entrar com o nickname escolhido.
+   auditoria. O administrador passa a entrar com o usuário escolhido.
 
 Instalações **já inicializadas** não têm login ou hash alterados automaticamente.
 A senha Admin legada segue existente nesta fase para compatibilidade/recuperação,
@@ -24,7 +24,7 @@ sem ser apresentada como credencial unificada após a ativação futura.
 
 ### Criação dos demais usuários
 
-- Nome de exibição e nickname único.
+- Nome de exibição e usuário único.
 - Conta de pessoa ou registro inativo de kiosk.
 - Perfil descritivo, escopo de máquinas e permissões granulares.
 - Sugestões explícitas de permissão para Gestor/Gerente, Líder, Manutenção e Produção.
@@ -52,7 +52,7 @@ e revogação de credenciais de módulo como alternativa de login.
 
 ## Testes necessários
 
-- Backend HTTPS com PostgreSQL isolado: campo nickname obrigatório, login inválido,
+- Backend HTTPS com PostgreSQL isolado: campo usuário obrigatório, login inválido,
   escolha com maiúsculas normalizada, senha antiga incorreta e inicialização única.
 - Fluxos existentes: senha provisória, primeira troca, reset e revogação de sessão.
 - Interface: módulo ANDON/BI/Prioridades, sugestões aplicadas explicitamente e
