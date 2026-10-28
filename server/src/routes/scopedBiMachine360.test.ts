@@ -92,7 +92,8 @@ test("Machine 360 rejects out-of-scope machines before any database access", asy
 
   bind = false;
   const missingBinding = await app.inject({ url: path("38") });
-  assert.notEqual(missingBinding.statusCode, 200, "central principal must be server-bound");
+  assert.equal(missingBinding.statusCode, 403, missingBinding.body);
+  assert.equal(missingBinding.json().error, "permission_denied");
   assert.equal(machineReads, 2);
   assert.equal(policyReads, 2);
 
