@@ -17,7 +17,12 @@ let cachedWorkstationId: string | null = null;
  */
 export function hasWorkstationIdentityConflict() {
   if (typeof window === "undefined" || typeof document === "undefined") return false;
-  const cookie = readCookie(WORKSTATION_ID_STORAGE_KEY);
+  let cookie: string | null = null;
+  try {
+    cookie = readCookie(WORKSTATION_ID_STORAGE_KEY);
+  } catch {
+    /* Browsers can disallow cookies but keep localStorage available. */
+  }
   let mirror: string | null = null;
   try {
     mirror = window.localStorage.getItem(WORKSTATION_ID_STORAGE_KEY);
