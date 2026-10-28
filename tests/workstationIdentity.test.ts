@@ -178,7 +178,7 @@ test("cookie bloqueado usa o mesmo UUID persistido no espelho após reload", asy
   }
 });
 
-test("cookie/local mirror conflict fails closed without replacing either persisted ID", async () => {
+test("cookie/local conflict preserves existing origin UUID without rewriting either persisted ID", async () => {
   const { getCurrentWorkstationId, resetWorkstationIdentityCacheForTests } =
     await import("../src/services/workstationIdentityService");
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -197,7 +197,9 @@ test("cookie/local mirror conflict fails closed without replacing either persist
   try {
     resetWorkstationIdentityCacheForTests();
     assert.equal(hasWorkstationIdentityConflict(), true);
-    assert.equal(getCurrentWorkstationId(), null);
+    assert.equal(getCurrentWorkstationId(), `ws_${UUID_A}`);
+    resetWorkstationIdentityCacheForTests();
+    assert.equal(getCurrentWorkstationId(), `ws_${UUID_A}`);
     assert.equal(storage.getItem(WORKSTATION_ID_STORAGE_KEY), `ws_${UUID_A}`);
     assert.equal(cookieValue, `andon.workstationId=ws_${UUID_B}`);
   } finally {
