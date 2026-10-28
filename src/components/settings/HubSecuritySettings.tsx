@@ -76,6 +76,12 @@ export function HubSecuritySettings() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 text-sm">
+        <p className="font-bold">{ui("Admin legado e Admin central são contas distintas")}</p>
+        <p className="mt-2 leading-6 text-muted-foreground">
+          {ui("Esta tela altera somente a senha Admin legada, usada na administração atual. A senha pessoal do Admin central é criada uma vez em Usuários e Acessos e não muda aqui. Não altere senhas dos módulos enquanto a migração de permissões estiver pendente.")}
+        </p>
+      </div>
       <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
