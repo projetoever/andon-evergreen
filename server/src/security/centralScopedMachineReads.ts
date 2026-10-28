@@ -15,16 +15,6 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
   );
 }
 
-export function bindScopedMachineReadPrincipal(
-  request: FastifyRequest,
-  principal: Principal,
-) {
-  if (principal.purpose !== "normal" || principal.machineScope === "all") {
-    throw new AccessError("scoped_query_required");
-  }
-  scopedPrincipals.set(request, principal);
-}
-
 /**
  * Null means no user-scope filter: HTTP legacy mode, a validated service
  * identity, or an authorized full-machine-scope central user.
