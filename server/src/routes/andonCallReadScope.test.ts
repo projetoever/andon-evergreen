@@ -143,7 +143,8 @@ test("central call collection enforces history permission even with no status fi
 
   const active = await app.inject({ url: "/api/andon-calls?status=open" });
   assert.equal(active.statusCode, 200, active.body);
-  assert.deepEqual(queries.at(-1)?.where.status, { in: ["open", "in_progress", "post_maintenance"] });
+  assert.equal(queries.at(-1)?.where.status, "open");
+  assert.equal(queries.at(-1)?.where.finishedAt, null);
 
   scope = "all";
   const allScope = await app.inject({ url: "/api/andon-calls" });
