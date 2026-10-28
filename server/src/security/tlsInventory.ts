@@ -73,7 +73,11 @@ export function inspectTlsCertificate(
 }
 
 export function tlsInventoryFromEnvironment(
-  env: Pick<NodeJS.ProcessEnv, "ANDON_TLS_CERT" | "ANDON_TLS_KEY" | "ANDON_ACCESS_ORIGIN">,
+  env: Readonly<{
+    ANDON_TLS_CERT?: string;
+    ANDON_TLS_KEY?: string;
+    ANDON_ACCESS_ORIGIN?: string;
+  }>,
   now: Date = new Date(),
 ): TlsInventory {
   const canonicalHost = (() => {
