@@ -994,7 +994,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
         return reply.status(404).send({ error: "Máquina não encontrada" });
       }
-      const machineConstraint: Prisma.FailureEventWhereInput = filters.machineId
+      const machineConstraint = filters.machineId
         ? { machineId: filters.machineId }
         : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
       const policy = await loadAnalyticsEligibility();
@@ -1175,14 +1175,15 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
       ]);
 
-      const visibleEventCall = <T extends { callId: string | null; call: { machineId: string } | null }>(event: T) => {
-        const inScope = allowedIds === null || event.call === null ||
-          allowedIds.includes(event.call.machineId);
-        return { ...event, callId: inScope ? event.callId : null,
-          call: inScope ? event.call : null };
-      };
+      // Keep the precise Prisma projection type, including event timestamps
+      // and linked-call subtype/test fields, while redacting foreign call IDs.
       const failureEvents = rawFailureEvents
-        .map(visibleEventCall)
+        .map((event) => {
+          const inScope = allowedIds === null || event.call === null ||
+            allowedIds.includes(event.call.machineId);
+          return { ...event, callId: inScope ? event.callId : null,
+            call: inScope ? event.call : null };
+        })
         .filter((event) => event.call?.isSystemTest !== true)
         .filter(
           (event) =>
@@ -1200,7 +1201,12 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }));
 
       const healthOpenEvents = healthOpenFailureEvents
-        .map(visibleEventCall)
+        .map((event) => {
+          const inScope = allowedIds === null || event.call === null ||
+            allowedIds.includes(event.call.machineId);
+          return { ...event, callId: inScope ? event.callId : null,
+            call: inScope ? event.call : null };
+        })
         .filter((event) => event.call?.isSystemTest !== true)
         .filter(
           (event) =>
