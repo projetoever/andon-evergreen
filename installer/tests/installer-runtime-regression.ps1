@@ -239,6 +239,7 @@ $networkHttpsScript =
 
 Assert-AndonTest `
     -Condition ((Test-AndonNetworkHttpsIPv4 "192.168.88.10") -and
+        !(Test-AndonNetworkHttpsIPv4 "192.168.1") -and
         !(Test-AndonNetworkHttpsIPv4 "127.0.0.1") -and
         !(Test-AndonNetworkHttpsIPv4 "169.254.22.1") -and
         !(Test-AndonNetworkHttpsIPv4 "224.0.0.1")) `
@@ -246,6 +247,7 @@ Assert-AndonTest `
 
 Assert-AndonTest `
     -Condition ((Test-AndonNetworkHttpsDns "andon.empresa.internal") -and
+        !(Test-AndonNetworkHttpsDns "192.168.88.10") -and
         !(Test-AndonNetworkHttpsDns "andon") -and
         !(Test-AndonNetworkHttpsDns "https://andon.empresa.internal") -and
         !(Test-AndonNetworkHttpsDns "andon;Remove-Item.empresa.internal")) `
