@@ -66,8 +66,10 @@ export function HubAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
   const section = requestedSection ?? "overview";
   const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
-  const [loginOpen, setLoginOpen] = useState(() => !isAdminAuthenticated());
+  // Match SSR and the first client render; reveal the page only after a session check.
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
 
@@ -75,7 +77,8 @@ export function HubAdminPage() {
     const check = () => {
       const valid = isAdminAuthenticated();
       setAuthenticated(valid);
-      if (!valid) setLoginOpen(true);
+      setSessionChecked(true);
+      setLoginOpen(!valid);
     };
     check();
     window.addEventListener("andon:admin-session-expired", check);
@@ -89,10 +92,10 @@ export function HubAdminPage() {
   // A direct URL never mounts administrative sections while unauthenticated.
   // Closing the sign-in dialog returns to Hub; success sets the validated state.
   useEffect(() => {
-    if (!authenticated && !loginOpen) {
+    if (sessionChecked && !authenticated && !loginOpen) {
       void navigate({ to: "/hub", replace: true });
     }
-  }, [authenticated, loginOpen, navigate]);
+  }, [sessionChecked, authenticated, loginOpen, navigate]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -116,6 +119,10 @@ export function HubAdminPage() {
       disposed = true;
     };
   }, [authenticated]);
+
+  if (!sessionChecked) {
+    return <main className="min-h-dvh bg-background" aria-label={ui("Acesso administrativo")} />;
+  }
 
   if (!authenticated) {
     return (
