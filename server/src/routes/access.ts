@@ -223,15 +223,22 @@ export function registerAccessRoutes(
           ),
         ),
     );
-    app.post<{ Body: { currentPassword: string; newPassword: string } }>(
+    app.post<{ Body: { login: string; currentPassword: string; newPassword: string } }>(
       `${PREFIX}/initialize`,
-      { schema: schema({ currentPassword: string(128), newPassword: string(256) }) },
+      {
+        schema: schema({
+          login: string(120),
+          currentPassword: string(128),
+          newPassword: string(256),
+        }),
+      },
       async (req, reply) =>
         sendSession(
           reply,
           await initializeUserAdmin(
             db,
             requestAccess(req).workstationId,
+            req.body.login,
             req.body.currentPassword,
             req.body.newPassword,
           ),
