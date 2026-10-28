@@ -95,6 +95,18 @@ try {
           lockedMachineId: null,
         });
       if (path === "/api/modules/settings") return send({ hubEnabled: true });
+      if (path === "/api/workstations" && req.method() === "GET") {
+        const now = new Date();
+        return send([
+          {id:workstationId,name:"Notebook de validação",active:true,pendingApproval:false,
+            lastSeenAt:now.toISOString(),allowOperational:true,allowBi:true,allowPriorities:true},
+          {id:"ws_00000000-0000-4000-8000-000000000002",name:null,active:false,pendingApproval:true,
+            lastSeenAt:now.toISOString(),allowOperational:false,allowBi:false,allowPriorities:false},
+          {id:"ws_00000000-0000-4000-8000-000000000003",name:"Kiosk bloqueado",active:false,pendingApproval:false,
+            lastSeenAt:new Date(now.getTime()-86400000).toISOString(),
+            allowOperational:false,allowBi:false,allowPriorities:false},
+        ]);
+      }
       if (path === "/api/modules/access")
         return send({
           hubEnabled: true,
@@ -145,11 +157,21 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Resumo administrativo", exact: true }).waitFor();
+    await page.getByRole("group", {name:"Registradas"}).getByText("3", {exact:true}).waitFor();
+    await page.getByRole("group", {name:"Aguardando aprovação"}).getByText("1", {exact:true}).waitFor();
+    await page.getByRole("group", {name:"Bloqueadas"}).getByText("1", {exact:true}).waitFor();
+    await page.getByRole("group", {name:"Vistas nos últimos 30 min"}).getByText("2", {exact:true}).waitFor();
+    await page.getByText("1 estação(ões) sem nome cadastrado.",{exact:true}).waitFor();
+    assert.equal(await page.getByText("“Vistas nos últimos 30 min” considera apenas o último registro no servidor. Não confirma que a tela ANDON ou o kiosk estejam abertos.",{exact:true}).count(),1);
+    await page.getByRole("button",{name:"Atualizar resumo"}).click();
+    await page.getByRole("group",{name:"Registradas"}).getByText("3",{exact:true}).waitFor();
     const navigation = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     assert.equal(await navigation.getByRole("link").count(), 5);
     assert.equal(await page.getByRole("link", { name: "Usuários e Acessos", exact: true }).count(), 1);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-overview.png`, fullPage: true });
+    assert.equal(await page.getByRole("link",{name:"Gerenciar workstations",exact:true}).getAttribute("href"),
+      "/hub/admin?section=workstations");
 
     for (const [label, section] of [
       ["Usuários e Acessos", "users"],
