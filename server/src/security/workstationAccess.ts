@@ -110,7 +110,11 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       assertModule(principal, workstation, module);
       // Historical interventions require an additional permission even for
       // users who can see the live operational module.
-      if (["GET", "HEAD"].includes(request.method) && path === "/api/andon-calls/history") {
+      if (["GET", "HEAD"].includes(request.method) &&
+          (path === "/api/andon-calls/history" ||
+           path === "/api/analytics/data-quality-details")) {
+        // Data-quality detail rows contain diagnoses, work orders, and names;
+        // BI dashboard permission alone must not unlock that historical PII.
         assertPermission(principal, "history.read");
       }
       if (isScopedMachineReadRoute(request.method, path)) {
