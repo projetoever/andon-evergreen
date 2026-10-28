@@ -171,7 +171,7 @@ export function HubIdentityPanel({
       {!principal && (
         <form className="space-y-4" onSubmit={authenticate}>
           <Label className="block space-y-2">
-            {ui("Login")}
+            {ui("Usuário")}
             <Input name="login" autoComplete="username" required maxLength={120} />
           </Label>
           <Label className="block space-y-2">
