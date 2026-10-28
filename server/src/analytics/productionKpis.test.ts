@@ -135,7 +135,7 @@ test("filtros de setor/classificação não fabricam disponibilidade com denomin
 });
 
 test("BI2A: ausência de falha de manutenção é distinguida de falta de programação", () => {
-  const missingSchedule=build();
+  const missingSchedule=build({});
   assert.equal(missingSchedule.mtbfAvailabilityReason,"insufficient_schedule");
   assert.equal(missingSchedule.mttrAvailabilityReason,"no_closed_maintenance_episodes");
   const planned=build({
