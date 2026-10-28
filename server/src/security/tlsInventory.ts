@@ -1,5 +1,4 @@
 import { X509Certificate } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
 
 export type TlsCertificateSummary = {
@@ -22,7 +21,7 @@ export type TlsInventory = {
   note: string;
 };
 
-/** Only the configured server certificate is read. Private keys and trust-store files are never opened. */
+/** Inspects the immutable public PEM snapshot provided to the live TLS listener at startup. */
 export function inspectTlsCertificate(
   certificatePem: string,
   canonicalHost: string,
@@ -72,22 +71,24 @@ export function inspectTlsCertificate(
   };
 }
 
-export function tlsInventoryFromEnvironment(
-  env: Readonly<{
-    ANDON_TLS_CERT?: string;
-    ANDON_TLS_KEY?: string;
-    ANDON_ACCESS_ORIGIN?: string;
-  }>,
+/**
+ * The PEM must be the exact Buffer also passed to Fastify's HTTPS listener at
+ * process startup. Never reopen the file: a renewal can replace it without
+ * restarting the server, while the listener still serves the old certificate.
+ */
+export function tlsInventoryFromLoadedCertificate(
+  certificatePem: string | null,
+  origin: string | undefined,
   now: Date = new Date(),
 ): TlsInventory {
   const canonicalHost = (() => {
     try {
-      return env.ANDON_ACCESS_ORIGIN ? new URL(env.ANDON_ACCESS_ORIGIN).hostname : null;
+      return origin ? new URL(origin).hostname : null;
     } catch {
       return null;
     }
   })();
-  if (!env.ANDON_TLS_CERT || !env.ANDON_TLS_KEY) {
+  if (!certificatePem) {
     return {
       transport: "http",
       canonicalHost,
@@ -96,14 +97,12 @@ export function tlsInventoryFromEnvironment(
       note: "HTTPS ainda nao configurado neste processo.",
     };
   }
-  // Do not return filesystem paths, source config, private keys or CA secrets to clients.
-  const pem = readFileSync(env.ANDON_TLS_CERT, "utf8");
-  if (pem.length > 131072) throw new Error("tls_certificate_too_large");
-  const publicData = inspectTlsCertificate(pem, canonicalHost ?? "", now);
+  if (certificatePem.length > 131072) throw new Error("tls_certificate_too_large");
+  const publicData = inspectTlsCertificate(certificatePem, canonicalHost ?? "", now);
   return {
     transport: "https",
     canonicalHost,
     ...publicData,
-    note: "Validade e SAN verificadas localmente; a confianca de cada cliente deve ser testada separadamente.",
+    note: "Certificado carregado no processo. Validade e SAN locais nao comprovam a confianca dos demais clientes.",
   };
 }
