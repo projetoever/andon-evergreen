@@ -14,6 +14,7 @@ const principal = (scope: "all" | "selected", ids: string[]): Principal => ({
   purpose:"normal",authenticatedAt:new Date(),
 });
 const url=(suffix="")=>"/api/analytics/overview?startDate=2026-10-01T00%3A00%3A00-03%3A00&endDate=2026-10-02T00%3A00%3A00-03%3A00"+suffix;
+const temporalUrl=(suffix="")=>url(suffix).replace("/api/analytics/overview?", "/api/analytics/temporal?");
 
 test("B2.4C: overview and previous-period cohorts obey one authenticated machine scope",async(t)=>{
   const before=process.env.ANDON_CENTRAL_ACCESS_ENABLED;
@@ -133,6 +134,19 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(foreignSector.statusCode,200,foreignSector.body);
   assert.equal(foreignSector.json().kpis.downtimeMinutes,0,
     "linked call on machine 38 must not assign sector mechanical to machine 37 event");
+  // Temporal patterns reuse exactly the same scoped cohort as overview.
+  const catalogBeforeTemporalDenial=catalogReads;
+  const deniedTemporal=await app.inject({url:temporalUrl("&machineId=38")});
+  assert.equal(deniedTemporal.statusCode,404,deniedTemporal.body);
+  assert.equal((await app.inject({method:"HEAD",url:temporalUrl("&machineId=38")})).statusCode,404);
+  assert.equal(catalogReads,catalogBeforeTemporalDenial);
+  eventsFixture=true;
+  const temporal=await app.inject({url:temporalUrl()});
+  assert.equal(temporal.statusCode,200,temporal.body);
+  assert(!temporal.body.includes("call-38-secret"));
+  assert.deepEqual((queries.calls.at(-1) as any).where.machineId,{in:["37"]});
+  assert.deepEqual((queries.events.at(-1) as any).where.machineId,{in:["37"]});
+  assert.deepEqual((queries.impacts.at(-1) as any).where.call.machineId,{in:["37"]});
   eventsFixture=false;
 
   ids=[];
@@ -140,10 +154,16 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(empty.statusCode,200,empty.body);
   assert.equal(empty.json().kpis.callsOpened,0);
   assert.deepEqual((queries.calls.at(-1) as any).where.machineId,{in:[]});
+  const emptyTemporal=await app.inject({url:temporalUrl()});
+  assert.equal(emptyTemporal.statusCode,200,emptyTemporal.body);
+  assert.deepEqual((queries.calls.at(-1) as any).where.machineId,{in:[]});
 
   scope="all";
   const global=await app.inject({url:url()});
   assert.equal(global.statusCode,200,global.body);
+  assert.equal(Object.hasOwn((queries.calls.at(-1) as any).where,"machineId"),false);
+  const globalTemporal=await app.inject({url:temporalUrl()});
+  assert.equal(globalTemporal.statusCode,200,globalTemporal.body);
   assert.equal(Object.hasOwn((queries.calls.at(-1) as any).where,"machineId"),false);
 
   bind=false;
@@ -151,6 +171,8 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(noBinding.statusCode,403,noBinding.body);
   assert.equal(noBinding.json().statusCode,403);
   assert(!noBinding.body.includes("37"));
+  const unboundTemporal=await app.inject({url:temporalUrl()});
+  assert.equal(unboundTemporal.statusCode,403,unboundTemporal.body);
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED="0";
   const legacy=await app.inject({url:url()});
