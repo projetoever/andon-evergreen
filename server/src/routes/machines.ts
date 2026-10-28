@@ -12,6 +12,7 @@ import {
   type PriorityMachineState,
 } from "../domain/machinePriorityHistory.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
@@ -98,8 +99,14 @@ async function findMachineOr404(id: string, reply: Parameters<typeof notFound>[0
 export async function registerMachineRoutes(app: FastifyInstance) {
   app.get<{ Querystring: MachineQuery }>("/api/machines", async (request) => {
     const includeInactive = parseBoolean(request.query.includeInactive) === true;
+    const allowedIds = scopedMachineReadIds(request);
     const machines = await prisma.machine.findMany({
-      where: includeInactive ? undefined : { isActive: true },
+      where: {
+        ...(!includeInactive ? { isActive: true } : {}),
+        // The filter is enforced in SQL before results and nested production
+        // events are fetched; it is never a client-side postfilter.
+        ...(allowedIds !== null ? { id: { in: [...allowedIds] } } : {}),
+      },
       select: machineSelect,
     });
     return sortMachinesByNumber(machines);
@@ -180,6 +187,10 @@ export async function registerMachineRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { id: string } }>("/api/machines/:id", async (request, reply) => {
+    const allowedIds = scopedMachineReadIds(request);
+    // Return the same 404 for both absent and out-of-scope machines.
+    if (allowedIds !== null && !allowedIds.includes(request.params.id))
+      return notFound(reply, "Máquina não encontrada");
     const machine = await prisma.machine.findUnique({ where: { id: request.params.id }, select: machineSelect });
     if (!machine) return notFound(reply, "Máquina não encontrada");
     return machine;
