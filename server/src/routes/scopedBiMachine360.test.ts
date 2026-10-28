@@ -41,7 +41,7 @@ test("Machine 360 rejects out-of-scope machines before any database access", asy
   prisma.machine.findUnique = (async () => {
     machineReads++;
     return null; // Authorized IDs reach lookup; these fixtures do not contain a real machine.
-  }) as typeof original.findMachine;
+  }) as unknown as typeof original.findMachine;
   prisma.failureClassification.findMany = (async () => {
     policyReads++;
     return [];
