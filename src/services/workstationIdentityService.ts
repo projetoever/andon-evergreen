@@ -10,6 +10,23 @@ export interface WorkstationIdentityStorage {
 }
 
 let cachedWorkstationId: string | null = null;
+
+/**
+ * Two different UUIDs for the same origin must never be silently merged.
+ * Browser storage proves continuity only, not physical device ownership.
+ */
+export function hasWorkstationIdentityConflict() {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  const cookie = readCookie(WORKSTATION_ID_STORAGE_KEY);
+  let mirror: string | null = null;
+  try {
+    mirror = window.localStorage.getItem(WORKSTATION_ID_STORAGE_KEY);
+  } catch {
+    /* Cookie alone may remain usable. */
+  }
+  return isValidWorkstationId(cookie) && isValidWorkstationId(mirror) &&
+    cookie.trim().toLowerCase() !== mirror.trim().toLowerCase();
+}
 let inMemoryWorkstationId: string | null = null;
 
 const inMemoryStorage: WorkstationIdentityStorage = {
@@ -146,9 +163,17 @@ function getBrowserStorage() {
 }
 
 export function getCurrentWorkstationId() {
-  if (cachedWorkstationId) return cachedWorkstationId;
   const storage = getBrowserStorage();
   if (!storage) return null;
+  // This check must precede ensureWorkstationId: an invalid/mismatched pair
+  // must never cause creation of a third UUID or replacement of the mirror.
+  if (hasWorkstationIdentityConflict()) return null;
+  if (cachedWorkstationId) {
+    // Detect deleted/rotated storage while this tab is still open. An old
+    // cached UUID must not keep authorizing a workstation that lost identity.
+    const persisted = storage.getItem(WORKSTATION_ID_STORAGE_KEY);
+    return persisted?.trim().toLowerCase() === cachedWorkstationId ? cachedWorkstationId : null;
+  }
   const id = ensureWorkstationId(storage);
   // A volatile UUID would become a different station after reload. Fail clearly
   // instead of recording attendance against an identity that cannot be reused.
