@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 
 import { parseAnalyticsInstant } from "../analytics/overview.js";
 import { prisma } from "../db/prisma.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 import { badRequest } from "./routeUtils.js";
 
 const ZONE = process.env.ANDON_TIME_ZONE?.trim() || "America/Sao_Paulo";
@@ -78,14 +79,31 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       return badRequest(reply, "Informe category válida, page positiva e datas com fuso (startDate < endDate).");
     }
 
+    const machineId = value(q.machineId);
+    const subtype = value(q.subtype);
+    const classification = value(q.classification);
+    // Historical OS, diagnoses and technician names are protected by BOTH
+    // permissions and SQL scope. Check explicit foreign IDs before reading.
+    const allowedIds = scopedMachineReadIds(request);
+    if (machineId && allowedIds !== null && !allowedIds.includes(machineId)) {
+      return reply.status(404).send({ error: "Máquina não encontrada" });
+    }
+    const machineFilter = machineId ? { machineId }
+      : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
     const policy = await loadAnalyticsEligibility();
     const now = new Date();
     const effectiveEnd = new Date(Math.min(now.getTime(), end.getTime()));
     const cutoff = new Date(now.getTime() - OVER_24H_MS);
-    const machineId = value(q.machineId);
-    const subtype = value(q.subtype);
-    const classification = value(q.classification);
-    const machineFilter = machineId ? { machineId } : {};
+    const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
+      ? policy.eventWhere
+      : { AND: [{ OR: [
+          { AND: [policy.eventWhere, {
+            OR: [{ callId: null }, { call: { is: { machineId: { in: [...allowedIds] } } } }],
+          }] },
+          { AND: [policy.eventOwnWhere, {
+            call: { is: { machineId: { notIn: [...allowedIds] } } },
+          }] },
+        ] }] };
     const scope = {
       ...machineFilter,
       ...(subtype ? { subtype } : {}),
@@ -125,14 +143,19 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       }));
     } else if (itemType === "open-events" || itemType === "unlinked-events") {
       const sharedWhere: Prisma.FailureEventWhereInput = {
-        ...policy.eventWhere,
+        ...eventEligibilityWhere,
         ...machineFilter,
         ...(itemType === "open-events"
           ? {
               endedAt: null,
               startedAt: { lte: cutoff },
               ...(subtype
-                ? { call: { is: { ...policy.callWhere, subtype } } }
+                ? { call: { is: {
+                    ...policy.callWhere,
+                    ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
+                    subtype,
+                  } } }
+                : allowedIds !== null ? {}
                 : { OR: [{ callId: null }, { call: { is: { ...policy.callWhere } } }] }),
             }
           : {
@@ -155,12 +178,15 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
             select: {
               id: true, machineId: true, machine: { select: { name: true, isActive: true } },
               callId: true, startedAt: true, endedAt: true, classification: true, notes: true,
+              call: { select: { machineId: true } },
             },
           }),
         ]);
         count = total;
         items = rows.map((r) => ({
-          kind: itemType, id: r.id, callId: r.callId,
+          kind: itemType, id: r.id,
+          callId: allowedIds !== null && r.call !== null && !allowedIds.includes(r.call.machineId)
+            ? null : r.callId,
           machineId: r.machineId, machineName: r.machine.name,
           machineIsActive: r.machine.isActive,
           startedAt: r.startedAt.toISOString(),
@@ -177,6 +203,7 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
         startedAt: { lte: cutoff },
         call: {
           ...policy.callWhere,
+          ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
           ...(subtype ? { subtype } : {}),
         },
       };

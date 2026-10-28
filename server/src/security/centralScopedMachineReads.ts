@@ -20,6 +20,7 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
     pathname === "/api/analytics/maintenance" ||
     pathname === "/api/analytics/reliability" ||
     pathname === "/api/analytics/temporal" ||
+    pathname === "/api/analytics/data-quality-details" ||
     pathname === "/api/analytics/failure-intelligence" ||
     pathname === "/api/analytics/machine-360" ||
     pathname === "/api/analytics/drilldown"

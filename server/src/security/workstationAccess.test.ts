@@ -248,6 +248,9 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/analytics/temporal", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/data-quality-details", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/analytics/failure-intelligence", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -335,10 +338,20 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal(scopedMaintenance.statusCode,200);
   assert.deepEqual(scopedMaintenance.json().allowedMachineIds,["37"]);
   assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/maintenance",headers})).statusCode,200);
+  // BI access alone is insufficient for detailed technician/history data.
+  canReadHistory = false;
+  const deniedQuality = await app.inject({url:"/api/analytics/data-quality-details",headers});
+  assert.equal(deniedQuality.statusCode,403);
+  assert.equal(deniedQuality.json().error,"permission_denied");
+  canReadHistory = true;
   const scopedTemporal = await app.inject({url:"/api/analytics/temporal",headers});
   assert.equal(scopedTemporal.statusCode,200);
   assert.deepEqual(scopedTemporal.json().allowedMachineIds,["37"]);
   assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/temporal",headers})).statusCode,200);
+  const scopedQuality = await app.inject({url:"/api/analytics/data-quality-details",headers});
+  assert.equal(scopedQuality.statusCode,200);
+  assert.deepEqual(scopedQuality.json().allowedMachineIds,["37"]);
+  assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/data-quality-details",headers})).statusCode,200);
   const scopedReliability = await app.inject({ url: "/api/analytics/reliability", headers });
   assert.equal(scopedReliability.statusCode, 200);
   assert.deepEqual(scopedReliability.json().allowedMachineIds, ["37"]);
