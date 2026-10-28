@@ -11,7 +11,7 @@ After updating the server, an existing maintenance attendance was displayed as i
 ### Safe changes
 - The browser still displays its advisory workstation warning but does NOT disable the maintenance completion action for a suspected mismatch. It permits an attempt; the existing backend transaction continues to enforce the policy, including the active cycle and persisted workstation UUID.
 - The completion action remains disabled while already submitting, avoiding duplicate requests.
-- When a valid cookie and localStorage mirror disagree, do NOT auto-enroll a new UUID or overwrite either identity. Return no workstation ID until supervised reconciliation. This protects existing provenance instead of silently changing historical sessions.
+- When a valid cookie and localStorage mirror disagree, preserve the existing origin-local UUID on that origin without overwriting the different cross-port cookie or creating a third UUID. This prevents a migration from silently changing which workstation owns an active attendance. Display the conflict to the administrator for supervised reconciliation. On an origin with no local identity, the cookie remains canonical across ports.
 - If persisted identity is deleted/changed after the page cached it, the cached ID is no longer sent in new requests. Cookie-blocked browsers retain their existing mirror fallback.
 
 ### Regression tests
