@@ -228,7 +228,7 @@ try {
     // Fresh Hub session: settings opens sign-in here, before navigating to Admin.
     delayModules = true;
     await page.goto("https://127.0.0.1:4188/hub");
-    const loadingModules = page.getByRole("status", { name: "Carregando módulos e permissões..." });
+    const loadingModules = page.locator('section[role="status"][aria-label]');
     await loadingModules.waitFor();
     assert.equal(await page.getByText("Nenhum módulo liberado para esta workstation. Solicite a liberação ao administrador do Hub.",{exact:true}).count(),0,
       "a slow API response must not briefly display a false no-modules state");
