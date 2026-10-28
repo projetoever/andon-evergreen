@@ -89,6 +89,7 @@ const analyticsEventSelect = {
   },
   call: {
     select: {
+      machineId: true,
       isSystemTest: true,
       subtype: true,
     },
@@ -101,9 +102,31 @@ async function loadOverviewDataset(
   effectiveEnd: Date,
   filters: AnalyticsOverviewFilters,
   includeActiveCalls: boolean,
+  allowedIds: readonly string[] | null = null,
 ) {
   const policy = await loadAnalyticsEligibility();
-  const dimensionsWhere = callDimensionsWhere(filters);
+  // Foreign linked-call data must not decide whether a physical event on an
+  // authorized machine belongs to the cohort. Only its own snapshot does.
+  // For in-scope linked calls, preserve the existing full eligibility policy.
+  const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
+    ? policy.eventWhere
+    : { AND: [{ OR: [
+        { AND: [
+          policy.eventWhere,
+          { OR: [
+            { callId: null },
+            { call: { is: { machineId: { in: [...allowedIds] } } } },
+          ] },
+        ] },
+        { AND: [
+          policy.eventOwnWhere,
+          { call: { is: { machineId: { notIn: [...allowedIds] } } } },
+        ] },
+      ] }] };
+  const machineConstraint = filters.machineId
+    ? { machineId: filters.machineId }
+    : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
+  const dimensionsWhere = { ...callDimensionsWhere(filters), ...machineConstraint };
   const reliabilityEnabled = !filters.subtype && !filters.classification;
 
   const [calls, activeCallsNow, rawReliabilityAssets] = await Promise.all([
@@ -139,7 +162,7 @@ async function loadOverviewDataset(
           where: {
             ...policy.callWhere,
             status: { in: ACTIVE_CALL_STATUSES },
-            ...(filters.machineId ? { machineId: filters.machineId } : {}),
+            ...machineConstraint,
             ...(filters.subtype ? { subtype: filters.subtype } : {}),
           },
         })
@@ -148,6 +171,7 @@ async function loadOverviewDataset(
       ? prisma.machine.findMany({
           where: {
             ...(filters.machineId ? { id: filters.machineId } : { isActive: true }),
+            ...(allowedIds === null ? {} : { id: { in: filters.machineId ? [filters.machineId] : [...allowedIds] } }),
             createdAt: { lt: effectiveEnd },
           },
           select: {
@@ -170,8 +194,8 @@ async function loadOverviewDataset(
   if (effectiveEnd.getTime() > start.getTime()) {
     let rawFailureEvents = await prisma.failureEvent.findMany({
       where: {
-        ...policy.eventWhere,
-        ...(filters.machineId ? { machineId: filters.machineId } : {}),
+        ...eventEligibilityWhere,
+        ...machineConstraint,
         ...(filters.classification
           ? { classification: filters.classification }
           : {}),
@@ -191,9 +215,15 @@ async function loadOverviewDataset(
       }
       const earlier = await prisma.failureEvent.findMany({
         where: {
-          ...policy.eventWhere,
+          ...eventEligibilityWhere,
+          ...machineConstraint,
           ...(filters.classification ? { classification:filters.classification } : {}),
-          ...(filters.subtype ? { call:{is:{subtype:filters.subtype}} } : {}),
+          ...(filters.subtype ? {
+            call: { is: {
+              subtype: filters.subtype,
+              ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
+            } },
+          } : {}),
           OR:[...earliest].map(([machineId,boundary]) => ({machineId,startedAt:{lt:boundary},OR:[{endedAt:null},{endedAt:{gte:boundary}}]})),
         },
         select: analyticsEventSelect,
@@ -203,7 +233,19 @@ async function loadOverviewDataset(
       rawFailureEvents = [...new Map([...rawFailureEvents,...earlier].map(row => [row.id,row])).values()];
     }
 
-    failureEvents = rawFailureEvents
+    // A physical event can be linked to a call on a different machine.
+    // Keep its own physical downtime, but never use an out-of-scope
+    // linked call as a sector dimension or export its identifier.
+    const scopedEvents = rawFailureEvents.map((event) => {
+      const visibleCall = allowedIds === null ||
+        event.call === null || allowedIds.includes(event.call.machineId);
+      return {
+        ...event,
+        call: visibleCall ? event.call : null,
+        callId: visibleCall ? event.callId : null,
+      };
+    });
+    failureEvents = scopedEvents
       .filter((event) => event.call?.isSystemTest !== true)
       .filter(
         (event) =>
@@ -229,7 +271,8 @@ async function loadOverviewDataset(
       machineId: {in:[...new Set(failureEvents.map(event=>event.machineId))]},
       startedAt: { lt: effectiveEnd },
       OR: [{ endedAt: null }, { endedAt: { gt: impactStart } }],
-      call: policy.callWhere,
+      call: allowedIds === null ? policy.callWhere :
+        { ...policy.callWhere, machineId: { in: [...allowedIds] } },
     },
     select: { id: true, machineId: true, startedAt: true, endedAt: true,
       call: { select: { failureResponsibility: true } } },
@@ -292,6 +335,12 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      // Machine scope is bound by the server's central authorization hook.
+      // Reject explicit foreign IDs before any database or catalog reads.
+      const allowedIds = scopedMachineReadIds(request);
+      if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
+        return reply.status(404).send({ error: "Máquina não encontrada" });
+      }
       const durationMs = Math.max(0, effectiveEnd.getTime() - period.start.getTime());
       const previousEnd = period.start;
       const previousStart = new Date(previousEnd.getTime() - durationMs);
@@ -303,6 +352,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           effectiveEnd,
           filters,
           true,
+          allowedIds,
         ),
         loadOverviewDataset(
           previousStart,
@@ -310,6 +360,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           previousEnd,
           filters,
           false,
+          allowedIds,
         ),
       ]);
 

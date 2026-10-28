@@ -41,7 +41,7 @@ test("only explicit machine GET routes are eligible for scoped central reads", (
   assert(!isScopedMachineReadRoute("POST", "/api/analytics/machine-360"));
   assert(isScopedMachineReadRoute("HEAD", "/api/dashboard-priority/order"));
   assert(isScopedMachineReadRoute("HEAD", "/api/analytics/filter-options"));
-  assert(!isScopedMachineReadRoute("GET", "/api/analytics/overview"));
+  assert(isScopedMachineReadRoute("GET", "/api/analytics/overview"));
   assert(!isScopedMachineReadRoute("PUT", "/api/dashboard-priority/order"));
   assert(!isScopedMachineReadRoute("GET", "/api/andon-calls/details"));
   assert(!isScopedMachineReadRoute("GET", "/api/andon-calls/123"));
@@ -52,7 +52,8 @@ test("only explicit machine GET routes are eligible for scoped central reads", (
   assert(isScopedMachineReadRoute("HEAD", "/api/machines"));
   assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls"));
   assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls/history"));
-  assert(!isScopedMachineReadRoute("HEAD", "/api/analytics/overview"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/analytics/overview"));
+  assert(!isScopedMachineReadRoute("POST", "/api/analytics/overview"));
 });
 
 test("central-mode scope is unavailable without an authorized server-side binding", () => {

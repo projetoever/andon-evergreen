@@ -109,6 +109,26 @@ export function analyticsEligibility(
     isSystemTest: false,
     AND: [{ status: { notIn: ["cancelled", "canceled"] } }, ...diagnosisConditions],
   };
+  // Eligibility of the physical event without consulting any linked call.
+  // Restricted BI reads use this for events pointing to foreign machines:
+  // the event's own snapshots, not an out-of-scope call, decide inclusion.
+  const eventOwnWhere: Prisma.FailureEventWhereInput = {
+    AND: [
+      {
+        OR: [
+          { analyticsDisposition: "include" },
+          {
+            analyticsDisposition: null,
+            OR: [
+              { classification: null },
+              { classification: { notIn: excludedValues } },
+            ],
+          },
+        ],
+      },
+      { OR: [{ classification: null }, { classification: { notIn: RESERVED_EXCLUSIONS } }] },
+    ],
+  };
   const eventWhere: Prisma.FailureEventWhereInput = {
     AND: [
       {
@@ -131,5 +151,5 @@ export function analyticsEligibility(
       },
     ],
   };
-  return { callWhere, eventWhere };
+  return { callWhere, eventWhere, eventOwnWhere };
 }

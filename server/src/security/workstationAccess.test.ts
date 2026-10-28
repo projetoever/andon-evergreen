@@ -236,7 +236,9 @@ test("central access binds scoped machine/call reads and protects history with a
     allowedMachineIds: scopedMachineReadIds(request),
   }));
   app.put("/api/dashboard-priority/order", async () => ({ ok: true }));
-  app.get("/api/analytics/overview", async () => ({ ok: true }));
+  app.get("/api/analytics/overview", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
   const headers = {
@@ -313,9 +315,10 @@ test("central access binds scoped machine/call reads and protects history with a
   const deniedPriorityWrite = await app.inject({ method: "PUT", url: "/api/dashboard-priority/order", headers });
   assert.equal(deniedPriorityWrite.statusCode, 403);
   assert.equal(deniedPriorityWrite.json().error, "scoped_query_required");
-  const stillUnsupported = await app.inject({ url: "/api/analytics/overview", headers });
-  assert.equal(stillUnsupported.statusCode, 403);
-  assert.equal(stillUnsupported.json().error, "scoped_query_required");
+  const scopedOverview = await app.inject({ url: "/api/analytics/overview", headers });
+  assert.equal(scopedOverview.statusCode, 200);
+  assert.deepEqual(scopedOverview.json().allowedMachineIds, ["37"]);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/overview", headers })).statusCode, 200);
   machineScope = "all";
   canReadHistory = false;
   const fullScopeHistory = await app.inject({ url: "/api/andon-calls/history", headers });
