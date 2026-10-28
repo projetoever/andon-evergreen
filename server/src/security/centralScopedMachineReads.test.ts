@@ -60,6 +60,9 @@ test("only explicit machine GET routes are eligible for scoped central reads", (
   assert(isScopedMachineReadRoute("GET", "/api/analytics/reliability"));
   assert(isScopedMachineReadRoute("HEAD", "/api/analytics/reliability"));
   assert(!isScopedMachineReadRoute("POST", "/api/analytics/reliability"));
+  assert(isScopedMachineReadRoute("GET", "/api/analytics/temporal"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/analytics/temporal"));
+  assert(!isScopedMachineReadRoute("POST", "/api/analytics/temporal"));
   assert(isScopedMachineReadRoute("GET", "/api/analytics/failure-intelligence"));
   assert(isScopedMachineReadRoute("HEAD", "/api/analytics/failure-intelligence"));
   assert(!isScopedMachineReadRoute("POST", "/api/analytics/failure-intelligence"));
