@@ -97,3 +97,72 @@ test("active calls and history apply machine scope BEFORE ordering and paginatio
   const allMachines = sqlQueries.pop() as { where: Record<string, unknown> };
   assert.deepEqual(allMachines.where, { status: "open" });
 });
+
+test("central call collection enforces history permission even with no status filter", async (t) => {
+  const before = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const original = prisma.andonCall.findMany;
+  const queries: Array<{ where: Record<string, unknown> }> = [];
+  let canReadHistory = false;
+  let scope: "all" | "selected" = "selected";
+  prisma.andonCall.findMany = (async (query: unknown) => {
+    queries.push(query as { where: Record<string, unknown> });
+    return [];
+  }) as typeof original;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  t.after(() => {
+    prisma.andonCall.findMany = original;
+    if (before === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = before;
+  });
+  const app = Fastify();
+  app.addHook("preHandler", async (request) => {
+    bindAuthorizedMachineReadPrincipal(request, {
+      ...principal(scope, ["37"]),
+      permissions: canReadHistory ? ["andon.read", "history.read"] : ["andon.read"],
+    });
+  });
+  await registerAndonCallRoutes(app);
+  t.after(() => app.close());
+
+  const unfiltered = await app.inject({ url: "/api/andon-calls" });
+  assert.equal(unfiltered.statusCode, 200, unfiltered.body);
+  assert.deepEqual(queries.at(-1)?.where, {
+    AND: [{ machineId: { in: ["37"] } }],
+    status: { in: ["open", "in_progress", "post_maintenance"] },
+    finishedAt: null,
+  });
+  const beforeDenied = queries.length;
+  for (const status of ["finished", "cancelled"]) {
+    const denied = await app.inject({ url: `/api/andon-calls?status=${status}` });
+    assert.equal(denied.statusCode, 403, denied.body);
+    assert.equal(denied.json().error, "permission_denied");
+  }
+  assert.equal(queries.length, beforeDenied, "historical queries never reach Prisma");
+  const deniedHead = await app.inject({ method: "HEAD", url: "/api/andon-calls?status=finished" });
+  assert.equal(deniedHead.statusCode, 403);
+
+  const active = await app.inject({ url: "/api/andon-calls?status=open" });
+  assert.equal(active.statusCode, 200, active.body);
+  assert.deepEqual(queries.at(-1)?.where.status, { in: ["open", "in_progress", "post_maintenance"] });
+
+  scope = "all";
+  const allScope = await app.inject({ url: "/api/andon-calls" });
+  assert.equal(allScope.statusCode, 200, allScope.body);
+  assert.deepEqual(queries.at(-1)?.where, {
+    status: { in: ["open", "in_progress", "post_maintenance"] },
+    finishedAt: null,
+  });
+
+  canReadHistory = true;
+  const historical = await app.inject({ url: "/api/andon-calls?status=finished" });
+  assert.equal(historical.statusCode, 200, historical.body);
+  assert.deepEqual(queries.at(-1)?.where, { status: "finished" });
+  const nowUnfiltered = await app.inject({ url: "/api/andon-calls" });
+  assert.equal(nowUnfiltered.statusCode, 200, nowUnfiltered.body);
+  assert.deepEqual(queries.at(-1)?.where, {});
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const legacy = await app.inject({ url: "/api/andon-calls?status=finished" });
+  assert.equal(legacy.statusCode, 200, legacy.body);
+  assert.deepEqual(queries.at(-1)?.where, { status: "finished" });
+});
