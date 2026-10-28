@@ -239,6 +239,9 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/analytics/overview", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/maintenance", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
   const headers = {
@@ -319,6 +322,10 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal(scopedOverview.statusCode, 200);
   assert.deepEqual(scopedOverview.json().allowedMachineIds, ["37"]);
   assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/overview", headers })).statusCode, 200);
+  const scopedMaintenance = await app.inject({url:"/api/analytics/maintenance",headers});
+  assert.equal(scopedMaintenance.statusCode,200);
+  assert.deepEqual(scopedMaintenance.json().allowedMachineIds,["37"]);
+  assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/maintenance",headers})).statusCode,200);
   machineScope = "all";
   canReadHistory = false;
   const fullScopeHistory = await app.inject({ url: "/api/andon-calls/history", headers });

@@ -17,6 +17,7 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
     pathname === "/api/dashboard-priority/order" ||
     pathname === "/api/analytics/filter-options" ||
     pathname === "/api/analytics/overview" ||
+    pathname === "/api/analytics/maintenance" ||
     pathname === "/api/analytics/machine-360" ||
     pathname === "/api/analytics/drilldown"
   );
