@@ -268,7 +268,7 @@ export function UsersAccessSettings() {
             {!session.initialized && (
               <p className="text-sm text-muted-foreground">
                 {ui(
-                  "Confirme a senha Admin já configurada e escolha uma senha pessoal para esta gestão. As credenciais dos módulos serão preservadas.",
+                  "Escolha um nickname para o Admin, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
                 )}
               </p>
             )}
