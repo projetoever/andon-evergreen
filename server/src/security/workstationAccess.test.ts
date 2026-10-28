@@ -292,7 +292,7 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal((await app.inject({ method: "HEAD", url: "/api/dashboard-priority/order", headers })).statusCode, 200);
   const deniedPriorityWrite = await app.inject({ method: "PUT", url: "/api/dashboard-priority/order", headers });
   assert.equal(deniedPriorityWrite.statusCode, 403);
-  assert.equal(deniedPriorityWrite.json().error, "central_action_not_supported");
+  assert.equal(deniedPriorityWrite.json().error, "scoped_query_required");
   const stillUnsupported = await app.inject({ url: "/api/analytics/overview", headers });
   assert.equal(stillUnsupported.statusCode, 403);
   assert.equal(stillUnsupported.json().error, "scoped_query_required");
