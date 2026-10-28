@@ -23,6 +23,7 @@ import {
 import { prisma } from "../db/prisma.js";
 import { badRequest } from "./routeUtils.js";
 import { registerAnalyticsDataQualityRoutes } from "./analyticsDataQuality.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 
 type AnalyticsOverviewQuery = {
   startDate?: string;
@@ -256,9 +257,13 @@ function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Da
 
 export async function registerAnalyticsRoutes(app: FastifyInstance) {
   // BI-only workstations receive filter metadata without access to operational snapshots.
-  app.get("/api/analytics/filter-options", async () => {
+  app.get("/api/analytics/filter-options", async (request) => {
+    const allowedIds = scopedMachineReadIds(request);
     const [machines, sectors, classifications] = await Promise.all([
-      prisma.machine.findMany({ select: { id: true, name: true, isActive: true } }),
+      prisma.machine.findMany({
+        where: allowedIds === null ? undefined : { id: { in: [...allowedIds] } },
+        select: { id: true, name: true, isActive: true },
+      }),
       prisma.andonCategory.findMany({ select: { id: true, displayName: true, active: true, categoryGroup: true } }),
       prisma.failureClassification.findMany({ select: { id: true, label: true, value: true, active: true } }),
     ]);
