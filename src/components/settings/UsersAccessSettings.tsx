@@ -268,13 +268,13 @@ export function UsersAccessSettings() {
             {!session.initialized && (
               <p className="text-sm text-muted-foreground">
                 {ui(
-                  "Escolha um nickname para o Admin, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
+                  "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
                 )}
               </p>
             )}
             {(!personalPassword || !session.initialized) && (
               <Label className="block space-y-2">
-                {ui(!session.initialized ? "Nickname do Admin (login)" : "Login")}
+                {ui(!session.initialized ? "Usuário administrador" : "Usuário")}
                 <Input
                   name="login"
                   autoComplete="username"
@@ -451,7 +451,7 @@ export function UsersAccessSettings() {
                       />
                     </Label>
                     <Label className="space-y-2">
-                      {ui("Nickname / login")}
+                      {ui("Usuário")}
                       <Input
                         value={draft.login}
                         required
