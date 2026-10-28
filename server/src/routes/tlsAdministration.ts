@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import type { TLSSocket } from "node:tls";
 import { readAdminSession } from "../security/adminAuthorization.js";
 import { centralAccessEnabled } from "../access/http.js";
-import { tlsInventoryFromEnvironment } from "../security/tlsInventory.js";
+import { tlsInventoryFromLoadedCertificate } from "../security/tlsInventory.js";
 
 async function configuredDnsDiagnostic(host: string | null) {
   if (!host) return { state: "not_configured", addresses: [] as string[], localMatch: false };
@@ -35,7 +35,10 @@ async function configuredDnsDiagnostic(host: string | null) {
 }
 
 /** Read-only TLS inventory. Legacy Admin only until the central identity migration is complete. */
-export function registerTlsAdministrationRoutes(app: FastifyInstance) {
+export function registerTlsAdministrationRoutes(
+  app: FastifyInstance,
+  loadedTlsCertificatePem: string | null,
+) {
   app.get("/api/admin-auth/tls-status", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     if (centralAccessEnabled()) {
@@ -55,7 +58,7 @@ export function registerTlsAdministrationRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "origin_denied" });
     }
     try {
-      const inventory = tlsInventoryFromEnvironment(process.env);
+      const inventory = tlsInventoryFromLoadedCertificate(loadedTlsCertificatePem, process.env.ANDON_ACCESS_ORIGIN);
       const dns = await configuredDnsDiagnostic(inventory.canonicalHost);
       return { ...inventory, dns };
     } catch (error) {
