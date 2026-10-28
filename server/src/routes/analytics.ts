@@ -110,7 +110,7 @@ async function loadOverviewDataset(
   // For in-scope linked calls, preserve the existing full eligibility policy.
   const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
     ? policy.eventWhere
-    : { OR: [
+    : { AND: [{ OR: [
         { AND: [
           policy.eventWhere,
           { OR: [
@@ -122,7 +122,7 @@ async function loadOverviewDataset(
           policy.eventOwnWhere,
           { call: { is: { machineId: { notIn: [...allowedIds] } } } },
         ] },
-      ] };
+      ] }] };
   const machineConstraint = filters.machineId
     ? { machineId: filters.machineId }
     : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
