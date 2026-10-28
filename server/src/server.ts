@@ -41,6 +41,9 @@ export function buildServer() {
   const tls = process.env.ANDON_TLS_CERT && process.env.ANDON_TLS_KEY
     ? { cert: readFileSync(process.env.ANDON_TLS_CERT), key: readFileSync(process.env.ANDON_TLS_KEY) }
     : undefined;
+  // The same immutable cert Buffer is passed to Fastify and to the read-only
+  // inventory; replacing the file on disk cannot misreport a live renewal.
+  const loadedTlsCertificatePem = tls ? tls.cert.toString("utf8") : null;
   const app = Fastify({ logger: { redact: ["req.headers.cookie", "req.headers.authorization", "req.headers.x-andon-csrf"] }, ...(tls ? { https: tls } : {}) });
   const plcRuntime = createPlcRuntime({
     debug: (bindings, message) => app.log.debug(bindings, message),
@@ -77,7 +80,7 @@ export function buildServer() {
 
   void registerHealthDbRoute(app);
   void registerAdminAuthRoutes(app);
-  registerTlsAdministrationRoutes(app);
+  registerTlsAdministrationRoutes(app, loadedTlsCertificatePem);
   void registerAccessRoutes(app);
   void registerIndustrialServiceAuthRoutes(app);
   void registerAnalyticsRoutes(app);
