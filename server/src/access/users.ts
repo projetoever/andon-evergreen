@@ -142,9 +142,11 @@ export async function saveUser(
 export async function initializeUserAdmin(
   db: PrismaClient,
   workstationId: string,
+  loginName: string,
   currentPassword: string,
   newPassword: string,
 ) {
+  const adminLogin = normalizeLogin(loginName);
   validatePersonalPassword(newPassword);
   const settings = await db.systemSettings.findUnique({ where: { id: "global" } });
   if (!(await verifyAdminPassword(currentPassword)))
@@ -162,7 +164,7 @@ export async function initializeUserAdmin(
     if (!station?.active || station.pendingApproval) throw new AccessError("workstation_denied");
     const user = await tx.accessUser.create({
       data: {
-        login: "admin",
+        login: adminLogin,
         displayName: "Admin",
         roleLabel: "Admin",
         isPrimaryAdmin: true,
@@ -174,7 +176,7 @@ export async function initializeUserAdmin(
     const session = await issueSession(tx, user, workstationId, "normal", new Date());
     await appendAudit(
       tx,
-      { actorType: "legacy_admin", actorLogin: "admin", workstationId },
+      { actorType: "legacy_admin", actorLogin: adminLogin, workstationId },
       {
         action: "access.admin.initialized",
         resourceType: "access_user",
