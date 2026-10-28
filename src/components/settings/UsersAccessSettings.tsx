@@ -270,11 +270,21 @@ export function UsersAccessSettings() {
                 )}
               </h3>
               {!session.initialized && (
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {ui(
-                    "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
-                  )}
-                </p>
+                <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-foreground">
+                    {ui("Etapa 1 de 2 · Configuração do administrador")}
+                  </p>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {ui(
+                      "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
+                    )}
+                  </p>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {ui(
+                      "Próxima etapa: abrir o painel de colaboradores para cadastrar usuários, escolher máquinas e definir permissões. O acesso operacional central não será ativado nesta configuração.",
+                    )}
+                  </p>
+                </div>
               )}
             </div>
             <div className="flex min-w-0 flex-col gap-5">
@@ -350,7 +360,11 @@ export function UsersAccessSettings() {
               )}
             </div>
             <Button className="min-h-11 w-full sm:w-fit" type="submit" disabled={busy}>
-              {ui(personalPassword ? "Salvar senha pessoal" : "Entrar")}
+              {ui(!session.initialized
+                ? "Criar administrador e abrir painel"
+                : personalPassword
+                  ? "Salvar senha pessoal"
+                  : "Entrar")}
             </Button>
           </form>
         </Card>
@@ -418,6 +432,12 @@ export function UsersAccessSettings() {
               </form>
             </Card>
           )}
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold">{ui("Painel de colaboradores")}</h3>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {ui("Cadastre e gerencie pessoas, máquinas e permissões individuais. Alterações de acesso operacional dependem da ativação segura do controle central.")}
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <Input
               className="min-w-0 flex-1 basis-64"
@@ -430,13 +450,18 @@ export function UsersAccessSettings() {
                 setPage(0);
               }}
             />
-            <Button disabled={busy} onClick={() => edit()}>
+            <Button disabled={busy || !catalog} onClick={() => edit()}>
               {ui("Cadastrar usuário")}
             </Button>
             <Button variant="outline" disabled={busy} onClick={() => void run(refreshUsers)}>
               {ui("Atualizar")}
             </Button>
           </div>
+          {!catalog && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {ui("Carregando catálogo de permissões...")}
+            </p>
+          )}
           {draft && catalog && (
             <Card className="p-4 md:p-5">
               <form

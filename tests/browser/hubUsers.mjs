@@ -205,6 +205,7 @@ try {
       );
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
     await page.getByText("Ana — Gerência Industrial", { exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Painel de colaboradores", exact: true }).waitFor();
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-list.png`, fullPage: true });
     await page.getByRole("textbox", { name: "Pesquisar usuários" }).fill("Carlos");
@@ -287,6 +288,11 @@ try {
     principal = null;
     await page.reload();
     await page.getByRole("heading", { name: "Habilitar gestão de usuários", exact: true }).waitFor();
+    await page.getByText("Etapa 1 de 2 · Configuração do administrador", { exact: true }).waitFor();
+    await page.getByText(
+      "Próxima etapa: abrir o painel de colaboradores para cadastrar usuários, escolher máquinas e definir permissões. O acesso operacional central não será ativado nesta configuração.",
+      { exact: true },
+    ).waitFor();
     const fields = [
       "Usuário administrador",
       "Senha Admin existente",
@@ -314,7 +320,8 @@ try {
     await page.getByLabel("Senha Admin existente", { exact: true }).fill("Existing fixture Admin");
     await page.getByLabel("Nova senha pessoal", { exact: true }).fill("Admin pessoal de homologacao");
     await page.getByLabel("Confirmar nova senha", { exact: true }).fill("Admin pessoal de homologacao");
-    await page.getByRole("button", { name: "Salvar senha pessoal", exact: true }).click();
+    await page.getByRole("button", { name: "Criar administrador e abrir painel", exact: true }).click();
+    await page.getByRole("heading", { name: "Painel de colaboradores", exact: true }).waitFor();
     await page.getByRole("button", { name: "Cadastrar usuário", exact: true }).waitFor();
     assert.deepEqual(errors, []);
     results.push({
@@ -334,6 +341,7 @@ try {
         "no overflow",
         "no credentials in browser storage",
         "admin first enrollment labels do not overlap inputs",
+        "guided administrator setup and visible staff registration panel",
       ],
       requests: requests.length,
     });
