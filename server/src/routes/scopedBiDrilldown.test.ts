@@ -39,6 +39,7 @@ test("BI drilldown binds per-machine and dimension-wide SQL scopes before readin
   let policyReads = 0;
   const eventQueries: Array<{ where: Record<string, unknown> }> = [];
   const callQueries: Array<{ where: Record<string, unknown> }> = [];
+  let eventFixture: unknown[] = [];
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   prisma.failureClassification.findMany = (async () => {
@@ -47,7 +48,7 @@ test("BI drilldown binds per-machine and dimension-wide SQL scopes before readin
   }) as unknown as typeof original.classifications;
   prisma.failureEvent.findMany = (async (query: unknown) => {
     eventQueries.push(query as { where: Record<string, unknown> });
-    return [];
+    return eventFixture;
   }) as unknown as typeof original.events;
   prisma.andonCall.findMany = (async (query: unknown) => {
     callQueries.push(query as { where: Record<string, unknown> });
@@ -85,6 +86,68 @@ test("BI drilldown binds per-machine and dimension-wide SQL scopes before readin
   assert.equal(allowedMachine.statusCode, 200, allowedMachine.body);
   assert.deepEqual(allowedMachine.json().items, []);
   assert.equal(eventQueries.at(-1)?.where.machineId, "37");
+
+  // Regression: an authorized machine event can reference an unauthorized
+  // machine's call. Preserve the event but hide its linked call details.
+  const baseEvent = {
+    machineId: "37",
+    startedAt: new Date("2026-10-01T15:00:00Z"),
+    endedAt: null,
+    classification: "electrical",
+    failureResponsibility: "maintenance",
+    analyticsDisposition: "include",
+    notes: "Vibração detectada na máquina 37",
+    source: "manual",
+    machine: { name: "Máquina 37" },
+  };
+  eventFixture = [
+    {
+      ...baseEvent,
+      id: "event-cross",
+      callId: "call-38-secret",
+      call: {
+        machineId: "38",
+        isSystemTest: false,
+        subtype: "mechanical",
+        status: "finished",
+        workOrderNumber: "OS-38-SECRET",
+        failureDescription: "Diagnóstico reservado da máquina 38",
+        technicianNames: ["Tecnico 38"],
+      },
+    },
+    {
+      ...baseEvent,
+      id: "event-same",
+      callId: "call-37-visible",
+      call: {
+        machineId: "37",
+        isSystemTest: false,
+        subtype: "electrical",
+        status: "finished",
+        workOrderNumber: "OS-37",
+        failureDescription: "Diagnóstico permitido",
+        technicianNames: ["Tecnico 37"],
+      },
+    },
+  ];
+  const linked = await app.inject({ url: url("machine", "37") });
+  assert.equal(linked.statusCode, 200, linked.body);
+  const cross = linked.json().items.find((item: { id: string }) => item.id === "event-cross");
+  assert(cross, "authorized physical event must remain visible");
+  assert.equal(cross.callId, null);
+  assert.equal(cross.subtype, null);
+  assert.equal(cross.workOrderNumber, null);
+  assert.deepEqual(cross.technicianNames, []);
+  assert.equal(cross.description, "Vibração detectada na máquina 37");
+  assert(!linked.body.includes("OS-38-SECRET"));
+  assert(!linked.body.includes("Diagnóstico reservado da máquina 38"));
+  assert(!linked.body.includes("Tecnico 38"));
+  assert(!linked.body.includes("call-38-secret"));
+  const same = linked.json().items.find((item: { id: string }) => item.id === "event-same");
+  assert.equal(same.callId, "call-37-visible");
+  assert.equal(same.workOrderNumber, "OS-37");
+  assert.deepEqual(same.technicianNames, ["Tecnico 37"]);
+  eventFixture = [];
 
   const byClassification = await app.inject({ url: url("classification", "electrical") });
   assert.equal(byClassification.statusCode, 200, byClassification.body);
