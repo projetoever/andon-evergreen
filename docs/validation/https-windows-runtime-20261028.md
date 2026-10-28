@@ -11,18 +11,19 @@ Somente depois do merge autorizado, no notebook com o ANDON parado:
 
 1. Faça o backup habitual e execute `ABRIR_MENU_ANDON.bat` como Administrador.
 2. Use **2 — Atualizar pela main**. A atualização não executa seed e preserva o banco/configuração.
-3. Gere ou selecione manualmente um certificado confiável para o nome que será aberto no Chrome.
-   Para homologação local, uma opção é instalar `mkcert`, executar manualmente `mkcert -install` e
-   gerar certificado para `localhost`, `127.0.0.1` e `::1`. O ANDON não cria nem confia em uma CA.
-4. Mantenha os arquivos PEM fora do repositório.
+3. Na opção 14, selecione **2 — HTTPS local assistido**. O ANDON solicita sua autorização
+   antes de instalar/confiar numa CA local e gera automaticamente certificado e chave. Se `mkcert`
+   não existir, oferece instalação via `winget`, com consentimento.
+4. Para **HTTPS de rede**, selecione a opção **3** e forneça certificado confiável da
+   empresa (nome/IP e par PEM). Não use a CA local do `mkcert` na Evergreen.
+5. Para detalhes e limitações, veja `docs/HTTPS_ASSISTED_SETUP.md`.
 
 ## Ativar HTTPS
 
 1. Confirme que o ANDON está parado com **5 — Parar ANDON temporariamente**.
-2. Use **14 — Configurar transporte HTTP/HTTPS** e selecione HTTPS.
-3. Informe `127.0.0.1` como host no notebook (também incluído no certificado), o certificado PEM
-   e a chave privada PEM. Manter o mesmo host usado pelo kiosk HTTP permite transportar o cookie
-   canônico e preservar o UUID da workstation na mudança de esquema.
+2. Use **14 — Configurar HTTPS (assistente)** e escolha **2 — HTTPS local assistido**.
+3. O assistente utiliza `127.0.0.1` e gera o certificado sem solicitar caminhos PEM.
+   Manter o host usado pelo kiosk anterior ajuda a preservar a identidade da workstation.
 4. O configurador valida período, host, par certificado/chave e cadeia confiável do Windows. Antes
    de copiar a chave, cria uma área transacional restrita exclusivamente a Administradores e SYSTEM
    e comprova essa ACL. O par anterior e as configurações permanecem preservados até a conclusão.

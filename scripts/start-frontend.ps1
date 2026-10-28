@@ -88,7 +88,11 @@ try {
     Set-Location $context.ProjectPath
 
     $env:NODE_ENV = "production"
-    $env:HOST = "0.0.0.0"
+    $bindHost = if (
+        $context.TransportMode -eq "https" -and
+        $context.HttpsHost -in @("127.0.0.1", "localhost")
+    ) { "127.0.0.1" } else { "0.0.0.0" }
+    $env:HOST = $bindHost
     $env:PORT = "$($context.FrontendPort)"
     $env:ANDON_PROJECT_PATH = $context.ProjectPath
 
@@ -105,7 +109,7 @@ try {
     Write-FrontendLog `
         -Message (
             "Iniciando frontend compilado " +
-            "$($context.TransportMode.ToUpperInvariant()) em 0.0.0.0:" +
+            "$($context.TransportMode.ToUpperInvariant()) em $($bindHost):" +
             "$($context.FrontendPort) com Node ANDON: $nodePath."
         )
 

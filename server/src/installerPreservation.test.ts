@@ -459,10 +459,16 @@ test("HTTPS oficial e opcional preserva config legada e usa frontend compilado p
   assert.match(runtimeCommon, /TransportMode/);
   assert.match(runtimeCommon, /TlsCertificatePath/);
   assert.match(startFrontend, /serve-frontend\.mjs/);
+  assert.match(startFrontend, /\$bindHost = if \(/);
+  assert.match(startFrontend, /\$context\.HttpsHost -in @\("127\.0\.0\.1", "localhost"\)/);
   assert.doesNotMatch(startFrontend, /npmPath run preview|npm\.cmd run preview/);
-  assert.match(menu, /14 - Configurar transporte HTTP\/HTTPS/);
+  assert.match(menu, /14 - Configurar HTTPS \(assistente\)/);
   assert.match(configureHttps, /centralAccessEnabled" -Value \$false/);
   assert.match(configureHttps, /certutil\.exe/);
+  assert.match(configureHttps, /HTTPS LOCAL assistido/);
+  assert.match(configureHttps, /Read-AndonYesNo "Autoriza configurar a confianca local/);
+  assert.match(configureHttps, /Ensure-AndonMkcert/);
+  assert.match(configureHttps, /HTTPS DE REDE/);
   assert.match(configureHttps, /Invoke-AndonTransportTransaction/);
   assert.doesNotMatch(configureHttps, /return\s+if\s*\(/);
   assert.match(configureHttps, /Get-AndonPreservedEnvLines/);

@@ -256,6 +256,20 @@ Assert-AndonTest `
 
 Assert-AndonTest `
     -Condition (
+        $httpsConfigScript -match 'HTTPS LOCAL assistido' -and
+        $httpsConfigScript -match 'HTTPS DE REDE' -and
+        $httpsConfigScript -match 'Ensure-AndonMkcert' -and
+        $httpsConfigScript -match 'ProductType -ne 1' -and
+        $httpsConfigScript -match 'FiloSottile\.mkcert' -and
+        $httpsConfigScript -match 'Read-AndonYesNo "Autoriza configurar a confianca local' -and
+        $httpsConfigScript -match 'Set-AndonRestrictedTlsAcl -Path \$script:AndonLocalTlsTemp' -and
+        $httpsConfigScript -match 'Assert-AndonTlsPair -CertificatePath' -and
+        $httpsConfigScript -notmatch 'use 127\.0\.0\.1 no notebook'
+    ) `
+    -Message "Assistente HTTPS local precisa de consentimento, ACL, validacao e texto generico"
+
+Assert-AndonTest `
+    -Condition (
         $httpsConfigScript -match 'Get-AndonPreservedEnvLines' -and
         $httpsConfigScript -match 'Add-AndonPreservedEnvLines'
     ) `

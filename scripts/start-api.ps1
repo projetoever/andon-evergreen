@@ -109,7 +109,11 @@ try {
 
     $env:NODE_ENV = "production"
     $env:PORT = "$($context.ApiPort)"
-    $env:HOST = "0.0.0.0"
+    $bindHost = if (
+        $context.TransportMode -eq "https" -and
+        $context.HttpsHost -in @("127.0.0.1", "localhost")
+    ) { "127.0.0.1" } else { "0.0.0.0" }
+    $env:HOST = $bindHost
     $env:ANDON_ACCESS_ORIGIN = $context.FrontendUrl
     $env:ANDON_CENTRAL_ACCESS_ENABLED = if ($context.CentralAccessEnabled) { "1" } else { "0" }
 
@@ -126,7 +130,7 @@ try {
     Write-ApiLog `
         -Message (
             "Iniciando API $($context.TransportMode.ToUpperInvariant()) " +
-            "em 0.0.0.0:$($context.ApiPort) " +
+            "em $($bindHost):$($context.ApiPort) " +
             "com Node ANDON: $nodePath."
         )
 
