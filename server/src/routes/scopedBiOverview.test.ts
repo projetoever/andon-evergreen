@@ -129,6 +129,10 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert(!linked.body.includes("call-38-secret"),"foreign-machine call ID is not disclosed");
   assert.deepEqual((queries.impacts.at(-1) as any).where.call.machineId,{in:["37"]});
   assert.equal(queries.production.at(-1) && (queries.production.at(-1) as any).where.machineId.in[0],"37");
+  const foreignSector = await app.inject({url:url("&machineId=37&subtype=mechanical")});
+  assert.equal(foreignSector.statusCode,200,foreignSector.body);
+  assert.equal(foreignSector.json().kpis.downtimeMinutes,0,
+    "linked call on machine 38 must not assign sector mechanical to machine 37 event");
   eventsFixture=false;
 
   ids=[];
