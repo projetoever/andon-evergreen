@@ -32,6 +32,7 @@ import { registerWorkstationRoutes } from "./routes/workstations.js";
 import { registerModuleRoutes } from "./routes/modules.js";
 import { registerModuleCredentialRoutes } from "./routes/moduleCredentials.js";
 import { registerIndustrialServiceAuthRoutes } from "./routes/industrialServiceAuth.js";
+import { registerTlsAdministrationRoutes } from "./routes/tlsAdministration.js";
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = "0.0.0.0";
@@ -76,6 +77,7 @@ export function buildServer() {
 
   void registerHealthDbRoute(app);
   void registerAdminAuthRoutes(app);
+  registerTlsAdministrationRoutes(app);
   void registerAccessRoutes(app);
   void registerIndustrialServiceAuthRoutes(app);
   void registerAnalyticsRoutes(app);
