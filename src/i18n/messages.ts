@@ -1,6 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Login", "Login", "登入名稱"],
+  ["Nickname do Admin (login)", "Admin nickname (login)", "管理員暱稱（登入名稱）"],
+  ["Nickname / login", "Nickname / login", "暱稱／登入名稱"],
+  ["Aplicar permissões sugeridas", "Apply suggested permissions", "套用建議權限"],
+  ["Substitui a seleção atual. Revise as permissões antes de salvar.", "Replaces the current selection. Review permissions before saving.", "將取代目前選擇。儲存前請檢查權限。"],
+  ["Acesso aos módulos", "Module access", "模組存取"],
+  ["Permissões de ações específicas", "Permissions for specific actions", "特定操作權限"],
+  ["As permissões serão aplicadas às operações após a ativação segura do controle central.", "Permissions will govern operations after secure central access activation.", "安全啟用集中存取控制後，權限才會套用至操作。"],
   ["Usuários e Acessos", "Users and Access", "使用者與存取權"],
   ["As permissões cadastradas serão aplicadas aos módulos em uma etapa posterior.", "Saved permissions will be applied to modules in a later stage.", "已儲存的權限將於後續階段套用至模組。"],
   ["Este acesso exige HTTPS na interface e na API.", "This access requires HTTPS for the interface and API.", "此功能的介面與 API 均須使用 HTTPS。"],
@@ -28,7 +35,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Crie sua senha pessoal", "Create your personal password", "建立個人密碼"],
   ["Confirme seu acesso Admin", "Confirm your Admin access", "確認管理員存取權"],
   ["Entrar em Usuários e Acessos", "Sign in to Users and Access", "登入使用者與存取權"],
-  ["Confirme a senha Admin já configurada e escolha uma senha pessoal para esta gestão. As credenciais dos módulos serão preservadas.", "Confirm the configured Admin password and choose a personal password for user management. Module credentials will be preserved.", "請確認既有管理員密碼，並為使用者管理設定個人密碼。模組憑證將維持不變。"],
+  ["Escolha um nickname para o Admin, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.", "Choose an Admin nickname, confirm the existing administrative password, and create your personal password. Module credentials will be preserved.", "請選擇管理員暱稱、確認現有管理密碼，並建立個人密碼。模組憑證將保留。"],
   ["Senha Admin existente", "Existing Admin password", "既有管理員密碼"],
   ["Use uma frase de acesso de 15 a 128 caracteres.", "Use a passphrase of 15 to 128 characters.", "請使用 15 至 128 個字元的密碼片語。"],
   ["Nova senha pessoal", "New personal password", "新個人密碼"],
