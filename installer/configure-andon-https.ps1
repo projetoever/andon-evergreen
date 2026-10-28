@@ -240,7 +240,7 @@ try {
         Assert-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
     } else {
         Write-AndonHeader "HTTPS DE REDE - ASSISTENTE DNS E CERTIFICADOS"
-        Write-Host "1 - Homologar HTTPS na rede do notebook (CA de teste, mkcert)"
+        Write-Host "1 - Homologacao HTTPS em ambiente de rede (CA de teste, mkcert)"
         Write-Host "2 - Ativar HTTPS com certificado confiavel JA EMITIDO (PEM)"
         Write-Host "3 - Preparar CSR para autoridade certificadora da empresa (nao ativa HTTPS)"
         Write-Host "0 - Voltar sem alterar o transporte"
@@ -271,7 +271,7 @@ try {
                 throw "CA de teste em rede e proibida no Windows Server. Use CSR ou certificado corporativo."
             }
             Write-AndonWarn "Modo de homologacao: mkcert NAO e certificado corporativo."
-            Write-AndonWarn "A CA de teste sera confiada apenas neste notebook, nao em outros clientes."
+            Write-AndonWarn "A CA de teste sera confiada apenas nesta estacao; outros dispositivos nao confiarao automaticamente."
             if (!(Read-AndonYesNo "Autoriza instalar/confiar numa CA LOCAL de TESTE?" $false)) {
                 Write-AndonWarn "Operacao cancelada. Transporte existente preservado."
                 exit 0

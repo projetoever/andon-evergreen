@@ -264,6 +264,8 @@ Assert-AndonTest `
         $httpsConfigScript -match 'New-AndonNetworkHttpsCsr' -and
         $httpsConfigScript -match 'HTTPS DE REDE - ASSISTENTE DNS E CERTIFICADOS' -and
         $httpsConfigScript -match 'CA de teste em rede e proibida no Windows Server' -and
+        $httpsConfigScript -match 'Homologacao HTTPS em ambiente de rede' -and
+        $httpsConfigScript -notmatch 'no notebook|neste notebook' -and
         $httpsConfigScript -match 'Assert-AndonTlsPair' -and
         $networkHttpsScript -match 'Show-AndonNetworkHttpsDnsGuidance' -and
         $networkHttpsScript -match 'Add-DnsServerResourceRecordA' -and

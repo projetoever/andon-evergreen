@@ -252,84 +252,104 @@ export function UsersAccessSettings() {
         </Button>
       )}
       {session && authForm && (
-        <Card className="mx-auto max-w-xl p-5">
-          <form onSubmit={(event) => void credentials(event)} className="space-y-4">
-            <h3 className="font-bold">
-              {ui(
-                !session.initialized
-                  ? "Habilitar gestão de usuários"
-                  : personalPassword
-                    ? "Crie sua senha pessoal"
-                    : reauth
-                      ? "Confirme seu acesso Admin"
-                      : "Entrar em Usuários e Acessos",
-              )}
-            </h3>
-            {!session.initialized && (
-              <p className="text-sm text-muted-foreground">
+        <Card className="mx-auto w-full max-w-xl p-4 sm:p-6">
+          <form
+            onSubmit={(event) => void credentials(event)}
+            className="flex min-w-0 flex-col gap-5"
+          >
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold leading-7">
                 {ui(
-                  "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
+                  !session.initialized
+                    ? "Habilitar gestão de usuários"
+                    : personalPassword
+                      ? "Crie sua senha pessoal"
+                      : reauth
+                        ? "Confirme seu acesso Admin"
+                        : "Entrar em Usuários e Acessos",
                 )}
-              </p>
-            )}
-            {(!personalPassword || !session.initialized) && (
-              <Label className="block space-y-2">
-                {ui(!session.initialized ? "Usuário administrador" : "Usuário")}
-                <Input
-                  name="login"
-                  autoComplete="username"
-                  required
-                  defaultValue={reauth ? principal?.login : ""}
-                  readOnly={reauth}
-                  minLength={3}
-                  maxLength={120}
-                  pattern="[a-zA-Z0-9][a-zA-Z0-9._\\-]{2,119}"
-                  placeholder={!session.initialized ? "admin" : undefined}
-                />
-              </Label>
-            )}
-            {principal?.purpose !== "password_change" && (
-              <Label className="block space-y-2">
-                {ui(!session.initialized ? "Senha Admin existente" : "Senha")}
-                <Input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  maxLength={128}
-                />
-              </Label>
-            )}
-            {personalPassword && (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  {ui("Use uma frase de acesso de 15 a 128 caracteres.")}
+              </h3>
+              {!session.initialized && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {ui(
+                    "Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.",
+                  )}
                 </p>
-                <Label className="block space-y-2">
-                  {ui("Nova senha pessoal")}
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-5">
+              {(!personalPassword || !session.initialized) && (
+                <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
+                  <span className="block font-semibold leading-5">
+                    {ui(!session.initialized ? "Usuário administrador" : "Usuário")}
+                  </span>
                   <Input
-                    name="newPassword"
-                    type="password"
-                    autoComplete="new-password"
+                    className="h-11 min-w-0"
+                    name="login"
+                    autoComplete="username"
                     required
-                    minLength={15}
+                    defaultValue={reauth ? principal?.login : ""}
+                    readOnly={reauth}
+                    minLength={3}
+                    maxLength={120}
+                    pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,119}"
+                    placeholder={!session.initialized ? "admin" : undefined}
+                  />
+                </Label>
+              )}
+              {principal?.purpose !== "password_change" && (
+                <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
+                  <span className="block font-semibold leading-5">
+                    {ui(!session.initialized ? "Senha Admin existente" : "Senha")}
+                  </span>
+                  <Input
+                    className="h-11 min-w-0"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
                     maxLength={128}
                   />
                 </Label>
-                <Label className="block space-y-2">
-                  {ui("Confirmar nova senha")}
-                  <Input
-                    name="confirm"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={15}
-                    maxLength={128}
-                  />
-                </Label>
-              </>
-            )}
-            <Button type="submit" disabled={busy}>
+              )}
+              {personalPassword && (
+                <div className="flex min-w-0 flex-col gap-5">
+                  <p id="central-user-password-help" className="text-sm leading-5 text-muted-foreground">
+                    {ui("Use uma frase de acesso de 15 a 128 caracteres.")}
+                  </p>
+                  <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
+                    <span className="block font-semibold leading-5">
+                      {ui("Nova senha pessoal")}
+                    </span>
+                    <Input
+                      className="h-11 min-w-0"
+                      name="newPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      aria-describedby="central-user-password-help"
+                      required
+                      minLength={15}
+                      maxLength={128}
+                    />
+                  </Label>
+                  <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
+                    <span className="block font-semibold leading-5">
+                      {ui("Confirmar nova senha")}
+                    </span>
+                    <Input
+                      className="h-11 min-w-0"
+                      name="confirm"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      minLength={15}
+                      maxLength={128}
+                    />
+                  </Label>
+                </div>
+              )}
+            </div>
+            <Button className="min-h-11 w-full sm:w-fit" type="submit" disabled={busy}>
               {ui(personalPassword ? "Salvar senha pessoal" : "Entrar")}
             </Button>
           </form>

@@ -35,10 +35,10 @@ mkcert, **nunca** deve ser compartilhado. O assistente nao copia nem publica ess
 A alteracao da confianca na CA fica registrada no Windows, e **nao** e desfeita pelo rollback
 HTTP do ANDON.
 
-## Homologacao HTTPS de rede no notebook (opcao 14 -> 3 -> 1)
+## Homologacao HTTPS de rede em estacao de testes (opcao 14 -> 3 -> 1)
 
 1. Pare o ANDON e confirme backup e isolamento do banco.
-2. Abra 14 -> 3, selecione **1 - Homologar HTTPS na rede do notebook**.
+2. Abra 14 -> 3, selecione **1 - Homologacao HTTPS em ambiente de rede**.
 3. Escolha explicitamente um IPv4 valido (ignore interfaces Docker/VPN). Para teste imediato,
    escolha **IP de rede**, ou escolha **nome DNS** somente quando o registro A estiver
    resolvendo para o IPv4 escolhido.
