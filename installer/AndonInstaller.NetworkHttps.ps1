@@ -72,6 +72,7 @@ function Show-AndonNetworkHttpsDnsGuidance {
 }
 
 function Select-AndonNetworkHttpsIdentity {
+    param([switch]$AllowPendingDns)
     $addresses = @(Get-AndonNetworkHttpsAddresses)
     if ($addresses.Count -eq 0) {
         throw "Nenhum IPv4 valido encontrado. Configure a rede antes de continuar."
@@ -91,7 +92,7 @@ function Select-AndonNetworkHttpsIdentity {
     Write-Host "2 - Usar nome DNS corporativo (recomendado, exige DNS funcionando)"
     $identityChoice = (Read-Host "Escolha o endereco do ANDON").Trim()
     if ($identityChoice -eq "1") {
-        return [pscustomobject]@{ HostName = $address; ServerAddress = $address; IsDns = $false }
+        return [pscustomobject]@{ HostName = $address; ServerAddress = $address; IsDns = $false; DnsReady = $true }
     }
     if ($identityChoice -ne "2") { throw "Opcao de endereco invalida." }
     $name = (Read-Host "Nome DNS completo (ex.: andon.empresa.internal)").Trim().ToLowerInvariant()
@@ -101,10 +102,13 @@ function Select-AndonNetworkHttpsIdentity {
     $resolved = @(Get-AndonNetworkHttpsDnsAddresses -DnsName $name)
     if ($resolved -notcontains $address) {
         Show-AndonNetworkHttpsDnsGuidance -DnsName $name -Address $address
-        throw "DNS nao aponta para este computador. Crie/corrija o registro antes de usar este host."
+        if (!$AllowPendingDns -or !(Read-AndonYesNo "Continuar apenas com CSR, sem ativar HTTPS?" $false)) {
+            throw "DNS nao aponta para este computador. Crie/corrija o registro antes de usar este host."
+        }
+        return [pscustomobject]@{ HostName = $name; ServerAddress = $address; IsDns = $true; DnsReady = $false }
     }
     Write-AndonOk "DNS $name resolveu para o IPv4 selecionado ($address)."
-    return [pscustomobject]@{ HostName = $name; ServerAddress = $address; IsDns = $true }
+    return [pscustomobject]@{ HostName = $name; ServerAddress = $address; IsDns = $true; DnsReady = $true }
 }
 
 # Gera apenas a requisicao de assinatura corporativa, nunca um certificado autoassinado.
