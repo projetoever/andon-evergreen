@@ -1,6 +1,6 @@
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
-import { ui, systemMessage } from "@/i18n/translate";
+import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { HubSecuritySettings } from "@/components/settings/HubSecuritySettings";
+import { HubAdminOverview } from "@/components/settings/HubAdminOverview";
 import { ModuleCredentialSettings } from "@/components/settings/ModuleCredentialSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
-import { getHubSettings } from "@/services/moduleService";
 
 const sections = [
   {
@@ -70,8 +70,6 @@ export function HubAdminPage() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     const check = () => {
@@ -96,29 +94,6 @@ export function HubAdminPage() {
       void navigate({ to: "/hub", replace: true });
     }
   }, [sessionChecked, authenticated, loginOpen, navigate]);
-
-  useEffect(() => {
-    if (!authenticated) return;
-    let disposed = false;
-    void getHubSettings()
-      .then((settings) => {
-        if (!disposed) {
-          setHubEnabled(settings.hubEnabled);
-          setSettingsError(null);
-        }
-      })
-      .catch((error) => {
-        if (!disposed) {
-          setHubEnabled(null);
-          setSettingsError(
-            error instanceof Error ? error.message : "Falha ao carregar configuração do Hub.",
-          );
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [authenticated]);
 
   if (!sessionChecked) {
     return <main className="min-h-dvh bg-background" aria-label={ui("Acesso administrativo")} />;
@@ -209,51 +184,7 @@ export function HubAdminPage() {
           <WorkstationsSettingsTab />
         ) : (
           <>
-            {section === "overview" && (
-              <div className="space-y-4">
-                <section className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
-                  <div>
-                    <h2 className="text-lg font-bold">{ui("Resumo administrativo")}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {ui("Estado atual dos controles disponíveis neste endereço.")}
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg border border-border p-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                        {ui("Entrada do Hub")}
-                      </p>
-                      <p className="mt-1 font-bold">
-                        {hubEnabled === null
-                          ? ui("Indisponível")
-                          : hubEnabled
-                            ? ui("Ativa")
-                            : ui("Inativa")}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border p-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                        {ui("Admin legado")}
-                      </p>
-                      <p className="mt-1 font-bold">
-                        {authenticated ? ui("Sessão ativa") : ui("Não autenticado")}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border p-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                        {ui("Usuários e Acessos")}
-                      </p>
-                      <p className="mt-1 font-bold">{ui("Sessão central independente")}</p>
-                    </div>
-                  </div>
-                  {settingsError && (
-                    <p role="alert" className="text-sm text-danger">
-                      {systemMessage(settingsError)}
-                    </p>
-                  )}
-                </section>
-              </div>
-            )}
+            {section === "overview" && <HubAdminOverview />}
             {section === "security" && <HubSecuritySettings />}
             {section === "modules" && <ModuleCredentialSettings />}
           </>
