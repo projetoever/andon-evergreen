@@ -37,7 +37,10 @@ test("only explicit machine GET routes are eligible for scoped central reads", (
   assert(!isScopedMachineReadRoute("POST", "/api/machines"));
   assert(!isScopedMachineReadRoute("PATCH", "/api/machines/37"));
   assert(!isScopedMachineReadRoute("GET", "/api/machines/"));
-  assert(!isScopedMachineReadRoute("HEAD", "/api/machines"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/machines"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls/history"));
+  assert(!isScopedMachineReadRoute("HEAD", "/api/analytics/overview"));
 });
 
 test("central-mode scope is unavailable without an authorized server-side binding", () => {
