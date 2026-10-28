@@ -105,6 +105,24 @@ async function loadOverviewDataset(
   allowedIds: readonly string[] | null = null,
 ) {
   const policy = await loadAnalyticsEligibility();
+  // Foreign linked-call data must not decide whether a physical event on an
+  // authorized machine belongs to the cohort. Only its own snapshot does.
+  // For in-scope linked calls, preserve the existing full eligibility policy.
+  const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
+    ? policy.eventWhere
+    : { OR: [
+        { AND: [
+          policy.eventWhere,
+          { OR: [
+            { callId: null },
+            { call: { is: { machineId: { in: [...allowedIds] } } } },
+          ] },
+        ] },
+        { AND: [
+          policy.eventOwnWhere,
+          { call: { is: { machineId: { notIn: [...allowedIds] } } } },
+        ] },
+      ] };
   const machineConstraint = filters.machineId
     ? { machineId: filters.machineId }
     : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
@@ -176,7 +194,7 @@ async function loadOverviewDataset(
   if (effectiveEnd.getTime() > start.getTime()) {
     let rawFailureEvents = await prisma.failureEvent.findMany({
       where: {
-        ...policy.eventWhere,
+        ...eventEligibilityWhere,
         ...machineConstraint,
         ...(filters.classification
           ? { classification: filters.classification }
@@ -197,10 +215,15 @@ async function loadOverviewDataset(
       }
       const earlier = await prisma.failureEvent.findMany({
         where: {
-          ...policy.eventWhere,
+          ...eventEligibilityWhere,
           ...machineConstraint,
           ...(filters.classification ? { classification:filters.classification } : {}),
-          ...(filters.subtype ? { call:{is:{subtype:filters.subtype}} } : {}),
+          ...(filters.subtype ? {
+            call: { is: {
+              subtype: filters.subtype,
+              ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
+            } },
+          } : {}),
           OR:[...earliest].map(([machineId,boundary]) => ({machineId,startedAt:{lt:boundary},OR:[{endedAt:null},{endedAt:{gte:boundary}}]})),
         },
         select: analyticsEventSelect,
