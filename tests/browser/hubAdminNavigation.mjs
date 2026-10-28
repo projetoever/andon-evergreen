@@ -199,6 +199,10 @@ try {
 
     // Fresh Hub session: settings opens sign-in here, before navigating to Admin.
     await page.goto("https://127.0.0.1:4188/hub");
+    // Previous tests deliberately end in Chinese; reset locale before matching
+    // the Portuguese Hub login labels in this independent scenario.
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: "Português", exact: true }).click();
     await page.evaluate(() => {
       localStorage.setItem("andon.test.skipAdminAutoLogin", "1");
       sessionStorage.removeItem("andonAdminSession");
