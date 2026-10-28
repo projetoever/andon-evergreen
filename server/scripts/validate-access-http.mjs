@@ -136,7 +136,7 @@ try {
     newPassword: "Admin personal phrase test",
   }, 400);
   await call(admin, "/initialize", "POST", {
-    login: "bad nickname",
+    login: "bad username",
     currentPassword: "Existing isolated Admin",
     newPassword: "Admin personal phrase test",
   }, 400);
