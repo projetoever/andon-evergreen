@@ -3,6 +3,20 @@ import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { Workstation, WorkstationUpdate } from "@/types/workstation";
 import { getCurrentWorkstationId, isValidWorkstationId } from "./workstationIdentityService";
 
+export interface WorkstationCompletionDiagnostic {
+  machineId: string;
+  callIdSuffix: string;
+  callStatus: string;
+  latestCycle: number;
+  activeMaintenanceSessions: number;
+  authorizedStations: Array<{ suffix: string; name: string | null; active: boolean | null }>;
+  currentStationSuffix: string | null;
+  currentStationActive: boolean | null;
+  outcome: "restriction_off" | "legacy_no_provenance" | "unidentified" |
+    "inactive" | "authorized" | "different_workstation" | "not_in_progress";
+  advisoryOnly: true;
+}
+
 export const WORKSTATION_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 const apiClient = createAndonApiClient();
@@ -87,4 +101,13 @@ export async function updateWorkstation(id: string, patch: WorkstationUpdate) {
   };
   saveLocalWorkstations(items.map((item) => (item.id === id ? updated : item)));
   return updated;
+}
+
+export async function diagnoseWorkstationCompletion(callId: string) {
+  if (CONFIGURED_DATA_MODE !== "api") {
+    throw new Error("Diagnóstico disponível apenas em instalações conectadas à API.");
+  }
+  return apiClient.get<WorkstationCompletionDiagnostic>(
+    `/api/admin-auth/workstation-attendance-diagnostic?callId=${encodeURIComponent(callId.trim())}`,
+  );
 }
