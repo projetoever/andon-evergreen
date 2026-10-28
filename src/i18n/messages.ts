@@ -1,5 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["MTBF indisponível com filtro de setor ou classificação", "MTBF unavailable with sector or classification filter", "依部門或分類篩選時無法計算 MTBF"],
+  ["Sem histórico completo de produção programada", "No complete scheduled-production history", "缺少完整的計畫生產歷史紀錄"],
+  ["Sem minutos de produção programada no período", "No scheduled-production minutes in this period", "此期間沒有計畫生產分鐘數"],
+  ["{0} episódio(s) com responsabilidade pendente ou mista", "{0} episode(s) with pending or mixed responsibility", "{0} 起事件責任尚未確定或屬混合責任"],
+  ["Nenhuma falha de manutenção confirmada na programação", "No confirmed maintenance failures during scheduled production", "計畫生產期間沒有已確認的維修故障"],
+  ["{0} parada(s) encerrada(s) ainda sem responsabilidade confirmada", "{0} closed stop(s) without confirmed responsibility", "{0} 起已結束停機尚未確認責任歸屬"],
+  ["{0} parada(s) de manutenção ainda em andamento", "{0} maintenance stop(s) still ongoing", "{0} 起維修停機仍在進行中"],
+  ["Nenhuma parada de manutenção encerrada com amostra válida", "No completed maintenance stops with a valid sample", "沒有具有效樣本的已完成維修停機"],
   ["Diagnóstico de conclusão da manutenção", "Maintenance completion diagnostics", "維修完成診斷"],
   ["Consulta administrativa somente leitura. Informe o ID do chamado para comparar as estações autorizadas no ciclo atual; não concede permissões e não modifica históricos.", "Read-only administrative query. Enter a call ID to compare authorized workstations in the current cycle; this does not grant permissions or change history.", "僅供管理員唯讀查詢。輸入叫修 ID 以比較目前週期中授權的工作站；不會授予權限或修改歷史紀錄。"],
   ["ID do chamado para diagnóstico", "Call ID for diagnostics", "診斷用叫修 ID"],
