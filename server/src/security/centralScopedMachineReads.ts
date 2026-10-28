@@ -11,7 +11,9 @@ const scopedPrincipals = new WeakMap<FastifyRequest, Principal>();
 export function isScopedMachineReadRoute(method: string, pathname: string) {
   return (method === "GET" || method === "HEAD") && (
     pathname === "/api/machines" ||
-    /^\/api\/machines\/[^/]+$/.test(pathname)
+    /^\/api\/machines\/[^/]+$/.test(pathname) ||
+    pathname === "/api/andon-calls" ||
+    pathname === "/api/andon-calls/history"
   );
 }
 
@@ -31,6 +33,18 @@ export function scopedMachineReadIds(request: FastifyRequest): readonly string[]
     throw new AccessError("central_read_context_required");
   }
   return principal.machineScope === "all" ? null : principal.machineIds;
+}
+
+/**
+ * The live call collection must never expose completed/cancelled records
+ * to a central user without history.read, even if no status was requested.
+ * Legacy callers and validated industrial services retain existing behavior.
+ */
+export function restrictCentralCallListToActive(request: FastifyRequest): boolean {
+  if (!centralAccessEnabled() || request.industrialService) return false;
+  const principal = scopedPrincipals.get(request);
+  if (!principal) throw new AccessError("central_read_context_required");
+  return !principal.isPrimaryAdmin && !principal.permissions.includes("history.read");
 }
 
 /** Bind full and restricted users only after HTTPS, Origin and module checks. */

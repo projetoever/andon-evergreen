@@ -29,13 +29,17 @@ const mockRequest = () => ({}) as FastifyRequest;
 test("only explicit machine GET routes are eligible for scoped central reads", () => {
   assert(isScopedMachineReadRoute("GET", "/api/machines"));
   assert(isScopedMachineReadRoute("GET", "/api/machines/37"));
-  assert(!isScopedMachineReadRoute("GET", "/api/andon-calls"));
+  assert(isScopedMachineReadRoute("GET", "/api/andon-calls"));
+  assert(isScopedMachineReadRoute("GET", "/api/andon-calls/history"));
+  assert(!isScopedMachineReadRoute("GET", "/api/andon-calls/details"));
+  assert(!isScopedMachineReadRoute("GET", "/api/andon-calls/123"));
   assert(!isScopedMachineReadRoute("GET", "/api/machines/37/status"));
   assert(!isScopedMachineReadRoute("POST", "/api/machines"));
   assert(!isScopedMachineReadRoute("PATCH", "/api/machines/37"));
   assert(!isScopedMachineReadRoute("GET", "/api/machines/"));
   assert(isScopedMachineReadRoute("HEAD", "/api/machines"));
-  assert(isScopedMachineReadRoute("HEAD", "/api/machines/37"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/andon-calls/history"));
   assert(!isScopedMachineReadRoute("HEAD", "/api/analytics/overview"));
 });
 

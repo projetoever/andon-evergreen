@@ -24,6 +24,11 @@ import {
   WorkstationAuthorizationError,
 } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
+import {
+  restrictCentralCallListToActive,
+  scopedMachineReadIds,
+} from "../security/centralScopedMachineReads.js";
+import { callMachineReadWhere } from "../security/callReadScope.js";
 
 type AndonCallQuery = {
   machineId?: string;
@@ -1210,11 +1215,18 @@ async function ensureOpenFailureEventForStoppedCall(
 }
 
 export async function registerAndonCallRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request) => {
+  app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
+    const allowedIds = scopedMachineReadIds(request);
+    const activeOnly = restrictCentralCallListToActive(request);
+    if (activeOnly && status && !OPEN_CALL_STATUSES.includes(status)) {
+      return reply.status(403).send({ error: "permission_denied" });
+    }
     const where: Prisma.AndonCallWhereInput = {
-      ...(machineId ? { machineId } : {}),
-      ...(status ? { status } : {}),
+      ...callMachineReadWhere(machineId, allowedIds),
+      ...(activeOnly
+        ? { status: status ?? { in: OPEN_CALL_STATUSES }, finishedAt: null }
+        : status ? { status } : {}),
       ...(criticality ? { criticality } : {}),
     };
 
@@ -1230,11 +1242,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls/history", async (request) => {
     const { machineId } = request.query;
+    const allowedIds = scopedMachineReadIds(request);
     const startDate = parseDate(request.query.startDate);
     const endDate = parseDate(request.query.endDate);
     const where: Prisma.AndonCallWhereInput = {
       finishedAt: { not: null },
-      ...(machineId ? { machineId } : {}),
+      ...callMachineReadWhere(machineId, allowedIds),
       ...(startDate || endDate
         ? {
             finishedAt: {

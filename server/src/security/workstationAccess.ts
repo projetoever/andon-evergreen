@@ -10,7 +10,7 @@ import {
 } from "../services/workstationAuthorization.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
-import { AccessError, assertModule } from "../access/policy.js";
+import { AccessError, assertModule, assertPermission } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
   isScopedMachineReadRoute,
@@ -108,6 +108,11 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         throw new AccessError("central_action_not_supported");
       if (!module) throw new AccessError("central_route_not_supported");
       assertModule(principal, workstation, module);
+      // Historical interventions require an additional permission even for
+      // users who can see the live operational module.
+      if (["GET", "HEAD"].includes(request.method) && path === "/api/andon-calls/history") {
+        assertPermission(principal, "history.read");
+      }
       if (isScopedMachineReadRoute(request.method, path)) {
         bindAuthorizedMachineReadPrincipal(request, principal);
       }
