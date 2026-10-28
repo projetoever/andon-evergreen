@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { prisma } from "../db/prisma.js";
 import { enforceWorkstationAccess } from "./workstationAccess.js";
 import { createAdminSession, enforceAdminAuthorization } from "./adminAuthorization.js";
+import { scopedMachineReadIds } from "./centralScopedMachineReads.js";
 
 const id = "ws_00000000-0000-4000-8000-000000000037";
 
@@ -142,7 +143,7 @@ test("module policy protects direct reads/writes and preserves priorities, recov
   await app.close();
 });
 
-test("central access has no legacy bypass and fails closed for actions and selected machine scope", async (t) => {
+test("central access allows only SQL-scoped machine reads and denies other selected-scope routes", async (t) => {
   const previousFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   const previousOrigin = process.env.ANDON_ACCESS_ORIGIN;
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
@@ -200,8 +201,15 @@ test("central access has no legacy bypass and fails closed for actions and selec
   app.route({
     url: "/api/machines",
     method: ["GET", "PATCH"],
-    handler: async () => ({ ok: true }),
+    handler: async (request) => ({
+      ok: true,
+      allowedMachineIds: request.method === "GET" ? scopedMachineReadIds(request) : null,
+    }),
   });
+  app.get("/api/machines/:id", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
+  app.get("/api/andon-calls", async () => ({ ok: true }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
   const headers = {
@@ -221,8 +229,18 @@ test("central access has no legacy bypass and fails closed for actions and selec
   assert.equal(mutation.json().error, "central_action_not_supported");
   machineScope = "selected";
   const scoped = await app.inject({ url: "/api/machines", headers });
-  assert.equal(scoped.statusCode, 403);
-  assert.equal(scoped.json().error, "scoped_query_required");
+  assert.equal(scoped.statusCode, 200);
+  assert.deepEqual(scoped.json().allowedMachineIds, ["37"]);
+  const machineDetail = await app.inject({ url: "/api/machines/37", headers });
+  assert.equal(machineDetail.statusCode, 200);
+  assert.deepEqual(machineDetail.json().allowedMachineIds, ["37"]);
+  const headList = await app.inject({ method: "HEAD", url: "/api/machines", headers });
+  assert.equal(headList.statusCode, 200);
+  const headDetail = await app.inject({ method: "HEAD", url: "/api/machines/37", headers });
+  assert.equal(headDetail.statusCode, 200);
+  const unsupportedSelected = await app.inject({ url: "/api/andon-calls", headers });
+  assert.equal(unsupportedSelected.statusCode, 403);
+  assert.equal(unsupportedSelected.json().error, "scoped_query_required");
   machineScope = "all";
   sessionWorkstationId = id.replace(/37$/, "38");
   assert.equal((await app.inject({ url: "/api/machines", headers })).statusCode, 401);
