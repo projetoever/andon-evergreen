@@ -11,6 +11,7 @@ import {
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 
 const GLOBAL_PRIORITY_CONFIG_ID = "global";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -131,8 +132,10 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       configured: Boolean(config?.managerUsername && config?.managerPasswordHash),
       passwordRequired: config?.passwordRequired ?? true,
       username: config?.managerUsername ?? null,
-      lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
-      lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
+      // These metadata fields describe a GLOBAL reorder and can reveal
+      // activity on machines outside a restricted user's scope.
+      lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
+      lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
     };
   });
 
@@ -230,11 +233,15 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/dashboard-priority/order", async (request, reply) => {
+    const allowedIds = scopedMachineReadIds(request);
+    // Retain the existing Priorities credential check until unified login
+    // replaces it in a separate reviewed, audited activation phase.
     const auth = await getPrioritySession(request, reply);
     if (!auth) return;
 
     const [machines, config] = await Promise.all([
       prisma.machine.findMany({
+        where: allowedIds === null ? undefined : { id: { in: [...allowedIds] } },
         select: {
           id: true,
           name: true,
