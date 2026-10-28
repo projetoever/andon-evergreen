@@ -236,7 +236,9 @@ test("central access binds scoped machine/call reads and protects history with a
     allowedMachineIds: scopedMachineReadIds(request),
   }));
   app.put("/api/dashboard-priority/order", async () => ({ ok: true }));
-  app.get("/api/analytics/overview", async () => ({ ok: true }));
+  app.get("/api/analytics/overview", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
   const headers = {
