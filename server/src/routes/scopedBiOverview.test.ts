@@ -22,12 +22,13 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
     calls:prisma.andonCall.findMany,
     callCount:prisma.andonCall.count,
     events:prisma.failureEvent.findMany,
+    impacts:prisma.callImpactInterval.findMany,
     machines:prisma.machine.findMany,
     production:prisma.machineProductionEvent.findMany,
     transaction:prisma.$transaction,
   };
-  const queries:{calls:unknown[];counts:unknown[];events:unknown[];machines:unknown[];production:unknown[]}={
-    calls:[],counts:[],events:[],machines:[],production:[],
+  const queries:{calls:unknown[];counts:unknown[];events:unknown[];impacts:unknown[];machines:unknown[];production:unknown[]}={
+    calls:[],counts:[],events:[],impacts:[],machines:[],production:[],
   };
   let catalogReads=0, bind=true;
   let scope: "all" | "selected"="selected";
@@ -46,7 +47,9 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   }) as unknown as typeof original.machines;
   prisma.failureEvent.findMany=(async(q:unknown)=>{
     queries.events.push(q);
-    if(!eventsFixture)return [];
+    const where=(q as any).where;
+    // Expansion query must not replay the initial event indefinitely.
+    if(!eventsFixture || where.OR.some((item: any)=>Object.hasOwn(item,"machineId")))return [];
     return [{
       id:"event-37",machineId:"37",
       startedAt:new Date("2026-10-01T15:00:00Z"),
@@ -58,6 +61,10 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
       call:{machineId:"38",subtype:"mechanical",isSystemTest:false},
     }];
   }) as unknown as typeof original.events;
+  prisma.callImpactInterval.findMany=(async(q:unknown)=>{
+    queries.impacts.push(q);
+    return [];
+  }) as unknown as typeof original.impacts;
   prisma.machineProductionEvent.findMany=(async(q:unknown)=>{
     queries.production.push(q);
     return [{machineId:"37",productionMode:"scheduled",
@@ -80,6 +87,7 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
     prisma.andonCall.count=original.callCount;
     prisma.machine.findMany=original.machines;
     prisma.failureEvent.findMany=original.events;
+    prisma.callImpactInterval.findMany=original.impacts;
     prisma.machineProductionEvent.findMany=original.production;
     prisma.$transaction=original.transaction;
     if(before===undefined)delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
@@ -102,7 +110,16 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(queries.events.length,2);
   for(const q of queries.calls)assert.deepEqual((q as any).where.machineId,{in:["37"]});
   for(const q of queries.counts)assert.deepEqual((q as any).where.machineId,{in:["37"]});
-  for(const q of queries.events)assert.deepEqual((q as any).where.machineId,{in:["37"]});
+  for(const q of queries.events) {
+    const where=(q as any).where;
+    assert.deepEqual(where.machineId,{in:["37"]});
+    // The second branch MUST ignore all foreign-call attributes except
+    // machineId itself; physical-event snapshots decide eligibility.
+    const foreignBranch=where.AND[0].OR[1];
+    assert.deepEqual(foreignBranch.AND[1].call.is.machineId,{notIn:["37"]});
+    assert.doesNotMatch(JSON.stringify(foreignBranch.AND[0]), /"call"/);
+    assert.match(JSON.stringify(foreignBranch.AND[0]), /"analyticsDisposition"/);
+  }
   for(const q of queries.machines)assert.deepEqual((q as any).where.id,{in:["37"]});
 
   eventsFixture=true;
@@ -110,6 +127,7 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(linked.statusCode,200,linked.body);
   assert.equal(linked.json().kpis.downtimeMinutes,60,"physical event stays in scope");
   assert(!linked.body.includes("call-38-secret"),"foreign-machine call ID is not disclosed");
+  assert.deepEqual((queries.impacts.at(-1) as any).where.call.machineId,{in:["37"]});
   assert.equal(queries.production.at(-1) && (queries.production.at(-1) as any).where.machineId.in[0],"37");
   eventsFixture=false;
 
