@@ -41,7 +41,7 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
     return [];
   }) as typeof originals.machineFind;
   prisma.dashboardPriorityConfig.findUnique = (async (query: { select?: unknown }) =>
-    query.select && "passwordRequired" in query.select
+    query.select && typeof query.select === "object" && "passwordRequired" in query.select
       ? { passwordRequired: false }
       : { lastOrderUpdatedAt: new Date("2026-10-28T10:00:00Z"), lastOrderUpdatedBy: "other.admin" }
   ) as typeof originals.priorityConfig;
