@@ -1,7 +1,7 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { Workstation, WorkstationUpdate } from "@/types/workstation";
-import { getCurrentWorkstationId, hasWorkstationIdentityConflict, isValidWorkstationId } from "./workstationIdentityService";
+import { getCurrentWorkstationId, isValidWorkstationId } from "./workstationIdentityService";
 
 export const WORKSTATION_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -45,12 +45,7 @@ function registerLocalWorkstation(id: string) {
 
 export async function registerCurrentWorkstation() {
   const id = getCurrentWorkstationId();
-  if (!id) {
-    if (hasWorkstationIdentityConflict()) {
-      throw new Error("Identidade divergente entre cookie e navegador. Nenhuma workstation será alterada automaticamente. Solicite recuperação supervisionada ao administrador.");
-    }
-    throw new Error("Não foi possível persistir a identidade da workstation. Habilite cookies ou armazenamento do site neste navegador.");
-  }
+  if (!id) throw new Error("Não foi possível persistir a identidade da workstation. Habilite cookies ou armazenamento do site neste navegador.");
 
   if (CONFIGURED_DATA_MODE === "local") return registerLocalWorkstation(id);
   return apiClient.post<Workstation>("/api/workstations/register", { id });
