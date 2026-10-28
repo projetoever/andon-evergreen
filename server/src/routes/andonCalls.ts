@@ -24,7 +24,10 @@ import {
   WorkstationAuthorizationError,
 } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
-import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
+import {
+  restrictCentralCallListToActive,
+  scopedMachineReadIds,
+} from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
 
 type AndonCallQuery = {
@@ -1212,12 +1215,18 @@ async function ensureOpenFailureEventForStoppedCall(
 }
 
 export async function registerAndonCallRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request) => {
+  app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
     const allowedIds = scopedMachineReadIds(request);
+    const activeOnly = restrictCentralCallListToActive(request);
+    if (activeOnly && status && !OPEN_CALL_STATUSES.includes(status)) {
+      return reply.status(403).send({ error: "permission_denied" });
+    }
     const where: Prisma.AndonCallWhereInput = {
       ...callMachineReadWhere(machineId, allowedIds),
-      ...(status ? { status } : {}),
+      ...(activeOnly
+        ? { status: { in: OPEN_CALL_STATUSES }, finishedAt: null }
+        : status ? { status } : {}),
       ...(criticality ? { criticality } : {}),
     };
 
