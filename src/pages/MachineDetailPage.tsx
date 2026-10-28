@@ -321,6 +321,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
   }, []);
+  // Workstation status shown here is advisory. Only the backend transaction
+  // can authorize a maintenance completion using the persisted session UUIDs.
   const maintenanceCompletionAuthorization = useMemo(
     () =>
       workstationRestrictionContext
@@ -694,10 +696,6 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => void handleCompleteMaintenance()}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
-        // The browser is an advisory cache only. It may still have an old
-        // workstation snapshot after an HTTPS/hostname change or frontend
-        // upgrade. The API performs the authoritative validation atomically
-        // with the maintenance transition and must never be bypassed.
         maintenanceCompletionDisabled={isCompletingMaintenance}
         maintenanceCompletionHint={maintenanceCompletionHint}
         maintenanceCompletionHintTone={maintenanceCompletionHintTone}
