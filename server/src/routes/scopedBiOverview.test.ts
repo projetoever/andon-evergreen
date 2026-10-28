@@ -145,7 +145,8 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   bind=false;
   const noBinding=await app.inject({url:url()});
   assert.equal(noBinding.statusCode,403,noBinding.body);
-  assert.equal(noBinding.json().error,"permission_denied");
+  assert.equal(noBinding.json().statusCode,403);
+  assert(!noBinding.body.includes("37"));
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED="0";
   const legacy=await app.inject({url:url()});
