@@ -559,7 +559,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 classification: true,
                 failureResponsibility: true, analyticsDisposition: true,
                 notes: true,
-                call: { select: { isSystemTest: true, subtype: true } },
+                call: { select: { machineId: true, isSystemTest: true, subtype: true } },
               },
             })
           : Promise.resolve([]),
@@ -576,7 +576,20 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
       ]);
 
-      const events = rawEvents
+      // An event can be linked to a call of a different machine. Hide that
+      // relationship when the linked call is outside the authenticated scope;
+      // the physical event of the authorized machine remains visible.
+      const scopedEvents = rawEvents.map((event) => {
+        const linkedCallVisible =
+          allowedIds === null ||
+          (event.call !== null && allowedIds.includes(event.call.machineId));
+        return {
+          ...event,
+          call: linkedCallVisible ? event.call : null,
+          callId: linkedCallVisible ? event.callId : null,
+        };
+      });
+      const events = scopedEvents
         .filter((event) => event.call?.isSystemTest !== true)
         .filter((event) =>
           !subtype || (event.call !== null && event.call.subtype === subtype),
@@ -1168,16 +1181,40 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       }
       if (!value) return badRequest(reply, "Valor do detalhamento é obrigatório");
 
-      const policy = await loadAnalyticsEligibility();
-      const generatedAt = new Date();
-      const effectiveEnd =
-        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
-      const limit = parseDrilldownLimit(request.query.limit);
       const filters: AnalyticsOverviewFilters = {
         machineId: optionalQueryString(request.query.machineId),
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      // Bind only the server-authorized machine scope. For classification/sector,
+      // apply the scope in SQL before limit/orderBy to avoid cross-machine leaks.
+      let allowedIds: readonly string[] | null;
+      try {
+        allowedIds = scopedMachineReadIds(request);
+      } catch (error) {
+        if (error instanceof AccessError) {
+          return reply.code(error.statusCode).send({ error: "permission_denied" });
+        }
+        throw error;
+      }
+      if (allowedIds !== null && (
+        (dimension === "machine" && !allowedIds.includes(value)) ||
+        (filters.machineId && !allowedIds.includes(filters.machineId))
+      )) {
+        return reply.code(404).send({ error: "Máquina não encontrada" });
+      }
+      const machineWhere: Prisma.AndonCallWhereInput =
+        filters.machineId
+          ? { machineId: filters.machineId }
+          : allowedIds === null
+            ? {}
+            : { machineId: { in: [...allowedIds] } };
+
+      const policy = await loadAnalyticsEligibility();
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
+      const limit = parseDrilldownLimit(request.query.limit);
 
       if (dimension === "machine") {
         const events = await prisma.failureEvent.findMany({
@@ -1203,6 +1240,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             machine: { select: { name: true } },
             call: {
               select: {
+                machineId: true,
                 isSystemTest: true,
                 subtype: true,
                 status: true,
@@ -1216,7 +1254,20 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           take: 100,
         });
 
-        const items = events
+        // Physical event machine and linked call machine are independent in
+        // the existing schema. Do not return IDs/OS/diagnosis/technicians from
+        // another machine, even if the event itself is in scope.
+        const safeEvents = events.map((event) => {
+          const linkedCallVisible =
+            allowedIds === null ||
+            (event.call !== null && allowedIds.includes(event.call.machineId));
+          return {
+            ...event,
+            call: linkedCallVisible ? event.call : null,
+            callId: linkedCallVisible ? event.callId : null,
+          };
+        });
+        const items = safeEvents
           .filter((event) => event.call?.isSystemTest !== true)
           .filter(
             (event) =>
@@ -1271,14 +1322,14 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
               status: "finished",
               failureClassification: value,
               finishedAt: { gte: period.start, lt: effectiveEnd },
-              ...(filters.machineId ? { machineId: filters.machineId } : {}),
+              ...machineWhere,
               ...(filters.subtype ? { subtype: filters.subtype } : {}),
             }
           : {
               ...policy.callWhere,
               subtype: value,
               openedAt: { gte: period.start, lt: effectiveEnd },
-              ...(filters.machineId ? { machineId: filters.machineId } : {}),
+              ...machineWhere,
               ...(filters.classification
                 ? { failureClassification: filters.classification }
                 : {}),

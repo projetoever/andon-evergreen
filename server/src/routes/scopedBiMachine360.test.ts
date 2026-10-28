@@ -30,18 +30,43 @@ test("Machine 360 rejects out-of-scope machines before any database access", asy
   const original = {
     findMachine: prisma.machine.findUnique,
     classifications: prisma.failureClassification.findMany,
+    calls: prisma.andonCall.findMany,
+    events: prisma.failureEvent.findMany,
+    sessions: prisma.technicianSession.findMany,
   };
   let machineReads = 0;
   let policyReads = 0;
   let scope: "selected" | "all" = "selected";
   let machineIds: string[] = ["37"];
   let bind = true;
+  let useFixture = false;
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   prisma.machine.findUnique = (async () => {
     machineReads++;
-    return null; // Authorized IDs reach lookup; these fixtures do not contain a real machine.
+    return useFixture ? {
+      id: "37",
+      name: "Máquina 37",
+      isActive: true,
+      createdAt: new Date("2026-09-01T00:00:00Z"),
+      machineStatus: "running",
+      productionMode: "producing",
+    } : null;
   }) as unknown as typeof original.findMachine;
+  prisma.andonCall.findMany = (async () => []) as unknown as typeof original.calls;
+  prisma.technicianSession.findMany = (async () => []) as unknown as typeof original.sessions;
+  prisma.failureEvent.findMany = (async () => useFixture ? [{
+    id: "event-37-foreign-link",
+    machineId: "37",
+    callId: "call-38-secret",
+    startedAt: new Date("2026-10-01T15:00:00Z"),
+    endedAt: null,
+    classification: "electrical",
+    failureResponsibility: "maintenance",
+    analyticsDisposition: "include",
+    notes: "Ocorrência física na máquina 37",
+    call: { machineId: "38", isSystemTest: false, subtype: "mechanical" },
+  }] : []) as unknown as typeof original.events;
   prisma.failureClassification.findMany = (async () => {
     policyReads++;
     return [];
@@ -50,6 +75,9 @@ test("Machine 360 rejects out-of-scope machines before any database access", asy
   t.after(() => {
     prisma.machine.findUnique = original.findMachine;
     prisma.failureClassification.findMany = original.classifications;
+    prisma.andonCall.findMany = original.calls;
+    prisma.failureEvent.findMany = original.events;
+    prisma.technicianSession.findMany = original.sessions;
     if (oldFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = oldFlag;
   });
@@ -84,22 +112,34 @@ test("Machine 360 rejects out-of-scope machines before any database access", asy
   assert.equal(machineReads, 1, "authorized machine reaches the normal lookup");
   assert.equal(policyReads, 1);
 
+  useFixture = true;
+  const scopedLinkedCall = await app.inject({ url: path("37") });
+  assert.equal(scopedLinkedCall.statusCode, 200, scopedLinkedCall.body);
+  const event = scopedLinkedCall.json().timeline.items.find(
+    (item: { id: string }) => item.id === "event-37-foreign-link",
+  );
+  assert(event, "authorized physical event remains in Machine 360 timeline");
+  assert.equal(event.callId, null, "out-of-scope linked call ID is redacted");
+  assert(!scopedLinkedCall.body.includes("call-38-secret"));
+  assert.equal(event.description, "Ocorrência física na máquina 37");
+  useFixture = false;
+
   scope = "all";
   const fullScope = await app.inject({ url: path("38") });
   assert.equal(fullScope.statusCode, 404, fullScope.body);
-  assert.equal(machineReads, 2);
-  assert.equal(policyReads, 2);
+  assert.equal(machineReads, 3);
+  assert.equal(policyReads, 3);
 
   bind = false;
   const missingBinding = await app.inject({ url: path("38") });
   assert.equal(missingBinding.statusCode, 403, missingBinding.body);
   assert.equal(missingBinding.json().error, "permission_denied");
-  assert.equal(machineReads, 2);
-  assert.equal(policyReads, 2);
+  assert.equal(machineReads, 3);
+  assert.equal(policyReads, 3);
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
   const legacy = await app.inject({ url: path("38") });
   assert.equal(legacy.statusCode, 404, legacy.body);
-  assert.equal(machineReads, 3, "legacy mode retains its existing database behavior");
-  assert.equal(policyReads, 3);
+  assert.equal(machineReads, 4, "legacy mode retains its existing database behavior");
+  assert.equal(policyReads, 4);
 });

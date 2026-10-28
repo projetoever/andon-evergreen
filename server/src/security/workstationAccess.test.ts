@@ -229,6 +229,9 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/analytics/machine-360", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/drilldown", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/dashboard-priority/order", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -282,6 +285,9 @@ test("central access binds scoped machine/call reads and protects history with a
   const deniedMachine360 = await app.inject({ url: "/api/analytics/machine-360", headers });
   assert.equal(deniedMachine360.statusCode, 403);
   assert.equal(deniedMachine360.json().error, "permission_denied");
+  const deniedDrilldown = await app.inject({ url: "/api/analytics/drilldown", headers });
+  assert.equal(deniedDrilldown.statusCode, 403);
+  assert.equal(deniedDrilldown.json().error, "permission_denied");
   const deniedPriorities = await app.inject({ url: "/api/dashboard-priority/order", headers });
   assert.equal(deniedPriorities.statusCode, 403);
   assert.equal(deniedPriorities.json().error, "permission_denied");
@@ -295,6 +301,10 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal(machine360.statusCode, 200);
   assert.deepEqual(machine360.json().allowedMachineIds, ["37"]);
   assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/machine-360", headers })).statusCode, 200);
+  const drilldown = await app.inject({ url: "/api/analytics/drilldown", headers });
+  assert.equal(drilldown.statusCode, 200);
+  assert.deepEqual(drilldown.json().allowedMachineIds, ["37"]);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/drilldown", headers })).statusCode, 200);
   const priorityOrder = await app.inject({ url: "/api/dashboard-priority/order", headers });
   assert.equal(priorityOrder.statusCode, 200);
   assert.deepEqual(priorityOrder.json().allowedMachineIds, ["37"]);
