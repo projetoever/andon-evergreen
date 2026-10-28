@@ -90,3 +90,20 @@ test("BI: resumo executivo determinístico usa o idioma selecionado nos percentu
   assert.match(src, /tempo de parada do período/);
   assert.doesNotMatch(src, /Sem IA/);
 });
+
+test("BI2A: razões de indisponibilidade são comuns ao painel e ao relatório", async () => {
+  const [panel, pdf, reason, metrics] = await Promise.all([
+    readFile(new URL("../src/components/bi/BiOverviewWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/services/andonBiPdfReport.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/utils/biKpiAvailability.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/analytics/productionKpis.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(panel, /explainMissingMtbf\(scheduled\)/);
+  assert.match(panel, /explainMissingMttr\(scheduled\)/);
+  assert.match(pdf, /explainMissingMtbf\(overview\.production\)/);
+  assert.match(pdf, /explainMissingMttr\(overview\.production\)/);
+  assert.match(reason, /pending_attribution/);
+  assert.match(reason, /no_maintenance_failures/);
+  assert.match(metrics, /closedPendingRestorationEpisodes/);
+  assert.match(metrics, /plannedMtbfMinutes=episodes>0 && pending===0/);
+});

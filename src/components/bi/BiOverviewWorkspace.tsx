@@ -7,6 +7,7 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
+import { explainMissingMtbf, explainMissingMttr } from "@/utils/biKpiAvailability";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsOverview,
@@ -71,8 +72,8 @@ export function BiOverviewWorkspace({
           )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
           detail={
-            scheduled?.availabilityStatus === "dimension_filtered"
-              ? ui("Indisponível com filtro por setor ou classificação")
+            scheduled && scheduled.plannedMtbfMinutes === null
+              ? explainMissingMtbf(scheduled)
               : ui("{0} falha(s) de manutenção · {1} pendente(s)/misto(s)", {
                   0: scheduled?.productionFailureEpisodes ?? 0,
                   1: scheduled?.pendingAttributionEpisodes ?? 0,
@@ -102,9 +103,13 @@ export function BiOverviewWorkspace({
             "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
           )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
-          detail={ui("Manutenção · {0} episódio(s) encerrado(s)", {
-            0: scheduled?.resolvedEpisodes ?? 0,
-          })}
+          detail={
+            scheduled && scheduled.resolvedMttrMinutes === null
+              ? explainMissingMttr(scheduled)
+              : ui("Manutenção · {0} episódio(s) encerrado(s)", {
+                  0: scheduled?.resolvedEpisodes ?? 0,
+                })
+          }
           icon={Wrench}
           tone="blue"
           sampleSize={scheduled?.resolvedEpisodes}

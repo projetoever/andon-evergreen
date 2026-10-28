@@ -291,3 +291,36 @@ test("executive PDF follows interface language and keeps escaped registered text
     else Reflect.deleteProperty(globalThis, "document");
   }
 });
+
+test("BI2A: PDF explica o indicador sem amostra sem transformar ausência em zero", () => {
+  const data = fixture();
+  data.overview.production = {
+    availabilityPercent: 90,
+    plannedMtbfMinutes: null,
+    scheduledMinutes: 480,
+    scheduledDowntimeMinutes: 48,
+    operatingMinutes: 432,
+    productionFailureEpisodes: 0,
+    pendingAttributionEpisodes: 2,
+    physicalProductionEpisodes: 2,
+    mtbfAvailabilityReason: "pending_attribution",
+    mttrAvailabilityReason: "pending_attribution",
+    closedPendingRestorationEpisodes: 1,
+    openMaintenanceEpisodes: 0,
+    allCauseRestorationMinutes: 48,
+    allCauseResolvedEpisodes: 1,
+    coveredMachineCount: 1,
+    uncoveredMachineCount: 0,
+    populationCount: 1,
+    resolvedMttrMinutes: null,
+    resolvedEpisodes: 0,
+    daily: [],
+    availabilityStatus: "available",
+    methodology: { availability: "", mtbf: "", mttr: "", caveat: "" },
+  };
+  const html = buildExecutiveReportHtml(data);
+  assert.match(html, /2 episódio\(s\) com responsabilidade pendente ou mista/);
+  assert.match(html, /1 parada\(s\) encerrada\(s\) ainda sem responsabilidade confirmada/);
+  assert.match(html, /<div class="kpi-value">—<\/div>/);
+  assert.doesNotMatch(html, /<div class="kpi-value">0min<\/div>/);
+});

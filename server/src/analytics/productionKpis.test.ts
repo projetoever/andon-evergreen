@@ -133,3 +133,65 @@ test("filtros de setor/classificação não fabricam disponibilidade com denomin
   assert.equal(out.availabilityPercent,null);
   assert.equal(out.availabilityStatus,"dimension_filtered");
 });
+
+test("BI2A: ausência de falha de manutenção é distinguida de falta de programação", () => {
+  const missingSchedule=build({});
+  assert.equal(missingSchedule.mtbfAvailabilityReason,"insufficient_schedule");
+  assert.equal(missingSchedule.mttrAvailabilityReason,"no_closed_maintenance_episodes");
+  const planned=build({
+    productionEvents:[production("M","scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z")],
+  });
+  assert.equal(planned.availabilityPercent,100);
+  assert.equal(planned.plannedMtbfMinutes,null);
+  assert.equal(planned.mtbfAvailabilityReason,"no_maintenance_failures");
+  const unplanned=build({
+    productionEvents:[production("M","not_scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z")],
+  });
+  assert.equal(unplanned.mtbfAvailabilityReason,"no_programmed_minutes");
+  assert.equal(unplanned.availabilityPercent,null);
+  assert.equal(build({assets:null}).mtbfAvailabilityReason,"dimension_filtered");
+});
+
+test("BI2A: responsabilidade pendente não vira MTBF ou MTTR zero", () => {
+  const pending={...failure("pending","M","2026-10-12T11:00:00Z","2026-10-12T12:00:00Z"),
+    failureResponsibility:"unassigned"};
+  const out=build({
+    productionEvents:[production("M","scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z")],
+    failureEvents:[pending],
+  });
+  assert.equal(out.plannedMtbfMinutes,null);
+  assert.equal(out.resolvedMttrMinutes,null);
+  assert.equal(out.mtbfAvailabilityReason,"pending_attribution");
+  assert.equal(out.mttrAvailabilityReason,"pending_attribution");
+  assert.equal(out.closedPendingRestorationEpisodes,1);
+  assert.equal(out.pendingAttributionEpisodes,1);
+  assert.equal(out.allCauseRestorationMinutes,60);
+  assert.equal(out.allCauseResolvedEpisodes,1);
+});
+
+test("BI2A: parada em manutenção ainda aberta explica MTTR indisponível", () => {
+  const out=build({
+    productionEvents:[production("M","scheduled","2026-10-12T10:00:00Z",null)],
+    failureEvents:[failure("open","M","2026-10-12T16:00:00Z",null)],
+  });
+  assert.equal(out.mttrAvailabilityReason,"awaiting_restoration");
+  assert.equal(out.openMaintenanceEpisodes,1);
+  assert.equal(out.resolvedMttrMinutes,null);
+  assert.equal(out.mtbfAvailabilityReason,"available");
+  assert.equal(out.productionFailureEpisodes,1);
+  assert.equal(out.plannedMtbfMinutes,360);
+});
+
+test("BI2A: indicadores disponíveis não têm seus valores alterados", () => {
+  const out=build({
+    productionEvents:[production("M","scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z")],
+    failureEvents:[failure("closed","M","2026-10-12T11:00:00Z","2026-10-12T12:00:00Z")],
+  });
+  assert.equal(out.mtbfAvailabilityReason,"available");
+  assert.equal(out.mttrAvailabilityReason,"available");
+  assert.equal(out.scheduledMinutes,480);
+  assert.equal(out.scheduledDowntimeMinutes,60);
+  assert.equal(out.plannedMtbfMinutes,420);
+  assert.equal(out.resolvedMttrMinutes,60);
+  assert.equal(out.resolvedEpisodes,1);
+});

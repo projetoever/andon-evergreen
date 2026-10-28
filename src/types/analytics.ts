@@ -60,6 +60,21 @@ export type AnalyticsProductionMetrics = {
   physicalProductionEpisodes?: number;
   allCauseRestorationMinutes?: number | null;
   allCauseResolvedEpisodes?: number;
+  /** Counts and reasons explain unavailable KPIs; none change the formula. */
+  closedPendingRestorationEpisodes?: number;
+  openMaintenanceEpisodes?: number;
+  mttrAvailabilityReason?:
+    | "available"
+    | "pending_attribution"
+    | "awaiting_restoration"
+    | "no_closed_maintenance_episodes";
+  mtbfAvailabilityReason?:
+    | "available"
+    | "dimension_filtered"
+    | "insufficient_schedule"
+    | "no_programmed_minutes"
+    | "pending_attribution"
+    | "no_maintenance_failures";
   coveredMachineCount: number;
   uncoveredMachineCount: number;
   populationCount: number;
