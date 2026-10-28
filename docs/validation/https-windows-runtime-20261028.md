@@ -23,8 +23,9 @@ Somente depois do merge autorizado, no notebook com o ANDON parado:
 3. Informe `127.0.0.1` como host no notebook (também incluído no certificado), o certificado PEM
    e a chave privada PEM. Manter o mesmo host usado pelo kiosk HTTP permite transportar o cookie
    canônico e preservar o UUID da workstation na mudança de esquema.
-4. O configurador valida período, host, par certificado/chave e cadeia confiável do Windows. Depois
-   copia o par para `C:\web-andon-industrial\tls` com acesso restrito a Administradores e SYSTEM.
+4. O configurador valida período, host, par certificado/chave e cadeia confiável do Windows. Antes
+   de copiar a chave, cria uma área transacional restrita exclusivamente a Administradores e SYSTEM
+   e comprova essa ACL. O par anterior e as configurações permanecem preservados até a conclusão.
 5. Use **4 — Iniciar ANDON**. API, frontend compilado, watchdog, health check e Chrome Kiosk passam
    a usar o mesmo esquema e host configurados.
 6. Use **6 — Verificar saúde** e acesse Hub, ANDON, BI, Prioridades e Administração.
@@ -43,6 +44,10 @@ O rollback não remove certificado, banco nem dados; apenas volta as URLs, CORS,
 watchdog e kiosk para HTTP. Os contratos de API não foram alterados. Clientes industriais reais
 não devem ser apontados ao notebook HTTPS nesta homologação; a mudança de esquema exige validação
 posterior específica antes de qualquer ativação na Evergreen.
+
+Se qualquer gravação de configuração, rede, `.env`, ACL ou certificado falhar, a transação restaura
+automaticamente o estado anterior. Pares TLS ativados com sucesso usam diretórios versionados; o
+configurador nunca sobrescreve o certificado ou a chave que sustentavam a configuração anterior.
 
 ## Checklist manual de homologação
 

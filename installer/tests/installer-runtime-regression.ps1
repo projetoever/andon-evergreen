@@ -225,6 +225,11 @@ $httpsConfigScript =
         (Join-Path $repositoryRoot "installer\configure-andon-https.ps1") `
         -Raw
 
+$transportScript =
+    Get-Content `
+        (Join-Path $repositoryRoot "installer\AndonInstaller.Transport.ps1") `
+        -Raw
+
 Assert-AndonTest `
     -Condition ($commonScript -match 'transportMode = "http"') `
     -Message "Config legada deve permanecer em HTTP por padrao"
@@ -244,6 +249,31 @@ Assert-AndonTest `
 Assert-AndonTest `
     -Condition ($httpsConfigScript -match 'certutil\.exe' -and $httpsConfigScript -match 'centralAccessEnabled" -Value \$false') `
     -Message "Configurador HTTPS deve validar confianca sem ativar acesso central"
+
+$restrictAclIndex = $transportScript.IndexOf(
+    "Set-AndonRestrictedTlsAcl -Path `$transactionPath"
+)
+$copyPrivateKeyIndex = $transportScript.IndexOf(
+    "-LiteralPath `$SourcePrivateKeyPath"
+)
+Assert-AndonTest `
+    -Condition (
+        $restrictAclIndex -ge 0 -and
+        $copyPrivateKeyIndex -gt $restrictAclIndex
+    ) `
+    -Message "ACL restritiva deve anteceder qualquer copia da chave TLS"
+
+Assert-AndonTest `
+    -Condition ($transportScript -match '\[System\.Security\.AccessControl\.(?:Directory|File)Security\]::new') `
+    -Message "ACL TLS deve ser reconstruida sem preservar permissoes explicitas antigas"
+
+Assert-AndonTest `
+    -Condition ($transportScript -match 'Restore-AndonTransportStateSnapshot') `
+    -Message "Atualizacao de transporte deve restaurar configuracoes em falhas intermediarias"
+
+Assert-AndonTest `
+    -Condition ($transportScript -match 'active-\$transactionId') `
+    -Message "Novo par TLS deve usar caminho versionado sem sobrescrever o anterior"
 
 $installScript =
     Get-Content `

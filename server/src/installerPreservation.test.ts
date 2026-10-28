@@ -442,7 +442,7 @@ test("parada encerra Node dedicado e Node global legado somente com marcadores i
 });
 
 test("HTTPS oficial e opcional preserva config legada e usa frontend compilado proprio", async () => {
-  const [common, runtimeCommon, startFrontend, menu, configureHttps, frontendServer] =
+  const [common, runtimeCommon, startFrontend, menu, configureHttps, frontendServer, transport] =
     await Promise.all([
       readInstaller("AndonInstaller.Common.ps1"),
       readRepositoryFile("scripts/Andon.Runtime.Common.ps1"),
@@ -450,6 +450,7 @@ test("HTTPS oficial e opcional preserva config legada e usa frontend compilado p
       readInstaller("menu-andon-installer.ps1"),
       readInstaller("configure-andon-https.ps1"),
       readRepositoryFile("scripts/serve-frontend.mjs"),
+      readInstaller("AndonInstaller.Transport.ps1"),
     ]);
 
   assert.match(common, /transportMode = "http"/);
@@ -462,6 +463,16 @@ test("HTTPS oficial e opcional preserva config legada e usa frontend compilado p
   assert.match(menu, /14 - Configurar transporte HTTP\/HTTPS/);
   assert.match(configureHttps, /centralAccessEnabled" -Value \$false/);
   assert.match(configureHttps, /certutil\.exe/);
+  assert.match(configureHttps, /Invoke-AndonTransportTransaction/);
+  assert.match(transport, /S-1-5-18/);
+  assert.match(transport, /S-1-5-32-544/);
+  assert.match(transport, /SetAccessRuleProtection\(\$true, \$false\)/);
+  assert.match(transport, /Restore-AndonTransportStateSnapshot/);
+  assert.match(transport, /active-\$transactionId/);
+
+  const aclIndex = transport.indexOf("Set-AndonRestrictedTlsAcl -Path $transactionPath");
+  const privateKeyCopyIndex = transport.indexOf("-LiteralPath $SourcePrivateKeyPath");
+  assert.ok(aclIndex >= 0 && privateKeyCopyIndex > aclIndex);
   assert.match(frontendServer, /createHttpsServer/);
   assert.doesNotMatch(frontendServer, /setHeaders\(/);
 });

@@ -1,4 +1,5 @@
 ﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.Transport.ps1"
 
 $ErrorActionPreference = "Stop"
 
@@ -67,22 +68,27 @@ function Assert-AndonTlsPair {
     }
 }
 
-function Save-AndonTransportNetwork {
-    param([object]$Config)
+function Get-AndonTransportServerIp {
     $network = Get-AndonNetworkConfig
-    $serverIp = if ($network -and (Test-AndonIPv4 "$($network.serverIp)")) {
+    return if ($network -and (Test-AndonIPv4 "$($network.serverIp)")) {
         "$($network.serverIp)"
     } else {
         "127.0.0.1"
     }
-    $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $Config
-    Write-AndonBackendEnv -Config $Config -NetworkConfig $updatedNetwork
 }
 
 try {
     Assert-AndonAdmin
     Assert-AndonStoppedForTransportChange
     $config = Import-AndonConfig
+    $serverIp = Get-AndonTransportServerIp
+    $tlsPath = Join-Path $Global:AndonBasePath "tls"
+    $backendEnvPath = Join-Path $Global:AndonProjectPath "server\.env"
+    $statePaths = @(
+        $Global:AndonConfigPath,
+        $Global:AndonNetworkConfigPath,
+        $backendEnvPath
+    )
 
     Write-AndonHeader "CONFIGURAR TRANSPORTE HTTP/HTTPS"
     Write-Host "Modo atual: $($config.transportMode.ToUpperInvariant())"
@@ -98,11 +104,22 @@ try {
     }
 
     if ($choice -eq "1") {
-        $config = Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "http"
-        $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value ""
-        $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
-        Save-AndonConfig $config
-        Save-AndonTransportNetwork -Config $config
+        Invoke-AndonTransportTransaction `
+            -TlsPath $tlsPath `
+            -StatePaths $statePaths `
+            -Mutation {
+                param($certificatePath, $privateKeyPath, $failurePoint)
+                $config = Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "http"
+                $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value ""
+                $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
+                Save-AndonConfig $config
+                Invoke-AndonTransportFailurePoint -Point "after_config" -FailurePoint $failurePoint
+                $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
+                Invoke-AndonTransportFailurePoint -Point "after_network" -FailurePoint $failurePoint
+                Write-AndonBackendEnv -Config $config -NetworkConfig $updatedNetwork
+                Invoke-AndonTransportFailurePoint -Point "after_env" -FailurePoint $failurePoint
+            } |
+            Out-Null
         Write-AndonOk "Rollback configurado. A opcao 4 iniciara o ANDON em HTTP."
         exit 0
     }
@@ -120,33 +137,26 @@ try {
     $sourcePrivateKey = (Read-Host "Caminho completo da chave privada PEM").Trim('"').Trim()
     Assert-AndonTlsPair -CertificatePath $sourceCertificate -PrivateKeyPath $sourcePrivateKey -HttpsHost $httpsHost
 
-    $tlsPath = Join-Path $Global:AndonBasePath "tls"
-    $stagingPath = Join-Path $tlsPath ("staging-" + [guid]::NewGuid().ToString("N"))
-    New-Item -ItemType Directory -Path $stagingPath -Force | Out-Null
-    try {
-        $stagedCertificate = Join-Path $stagingPath "certificate.pem"
-        $stagedPrivateKey = Join-Path $stagingPath "private-key.pem"
-        Copy-Item -LiteralPath $sourceCertificate -Destination $stagedCertificate -Force
-        Copy-Item -LiteralPath $sourcePrivateKey -Destination $stagedPrivateKey -Force
-
-        New-Item -ItemType Directory -Path $tlsPath -Force | Out-Null
-        $targetCertificate = Join-Path $tlsPath "certificate.pem"
-        $targetPrivateKey = Join-Path $tlsPath "private-key.pem"
-        Move-Item -LiteralPath $stagedCertificate -Destination $targetCertificate -Force
-        Move-Item -LiteralPath $stagedPrivateKey -Destination $targetPrivateKey -Force
-        & icacls.exe $tlsPath "/inheritance:r" "/grant:r" "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" "/T" 1>$null
-        if ($LASTEXITCODE -ne 0) { throw "Falha ao restringir as permissoes dos arquivos TLS." }
-    } finally {
-        Remove-Item -LiteralPath $stagingPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    $config = Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "https"
-    $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value $httpsHost
-    $config = Set-AndonConfigProperty -Config $config -Name "tlsCertificatePath" -Value $targetCertificate
-    $config = Set-AndonConfigProperty -Config $config -Name "tlsPrivateKeyPath" -Value $targetPrivateKey
-    $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
-    Save-AndonConfig $config
-    Save-AndonTransportNetwork -Config $config
+    Invoke-AndonTransportTransaction `
+        -TlsPath $tlsPath `
+        -StatePaths $statePaths `
+        -SourceCertificatePath $sourceCertificate `
+        -SourcePrivateKeyPath $sourcePrivateKey `
+        -Mutation {
+            param($certificatePath, $privateKeyPath, $failurePoint)
+            $config = Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "https"
+            $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value $httpsHost
+            $config = Set-AndonConfigProperty -Config $config -Name "tlsCertificatePath" -Value $certificatePath
+            $config = Set-AndonConfigProperty -Config $config -Name "tlsPrivateKeyPath" -Value $privateKeyPath
+            $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
+            Save-AndonConfig $config
+            Invoke-AndonTransportFailurePoint -Point "after_config" -FailurePoint $failurePoint
+            $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
+            Invoke-AndonTransportFailurePoint -Point "after_network" -FailurePoint $failurePoint
+            Write-AndonBackendEnv -Config $config -NetworkConfig $updatedNetwork
+            Invoke-AndonTransportFailurePoint -Point "after_env" -FailurePoint $failurePoint
+        } |
+        Out-Null
 
     Write-AndonOk "HTTPS configurado com certificado confiavel existente."
     Write-AndonWarn "A autenticacao central continua desligada."
