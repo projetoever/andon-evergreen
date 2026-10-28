@@ -259,6 +259,7 @@ Assert-AndonTest `
         $httpsConfigScript -match 'HTTPS LOCAL assistido' -and
         $httpsConfigScript -match 'HTTPS DE REDE' -and
         $httpsConfigScript -match 'Ensure-AndonMkcert' -and
+        $httpsConfigScript -match 'ProductType -ne 1' -and
         $httpsConfigScript -match 'FiloSottile\.mkcert' -and
         $httpsConfigScript -match 'Read-AndonYesNo "Autoriza configurar a confianca local' -and
         $httpsConfigScript -match 'Set-AndonRestrictedTlsAcl -Path \$script:AndonLocalTlsTemp' -and
