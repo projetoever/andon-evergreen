@@ -241,7 +241,7 @@ try {
       path: `${output}/${viewport.width}-identification.png`,
       fullPage: true,
     });
-    await page.getByLabel("Login").fill("lider.producao");
+    await page.getByLabel("Usuário").fill("lider.producao");
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
     await page.getByLabel("Identificação da workstation").fill("Kiosk Linha 1");
@@ -268,7 +268,7 @@ try {
     principal = null;
     await page.goto("https://127.0.0.1:4188/hub");
     await page.getByRole("heading", { name: "Identifique-se para acessar o Hub" }).waitFor();
-    await page.getByLabel("Login").fill("lider.producao");
+    await page.getByLabel("Usuário").fill("lider.producao");
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
     await page.getByText("ANDON BI", { exact: true }).waitFor();

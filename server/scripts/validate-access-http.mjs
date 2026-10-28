@@ -129,21 +129,34 @@ try {
   assert.equal(insecure.statusCode, 426);
   checks++;
   const admin = {};
+  const adminLogin = `owner.${suffix}`;
   assert.equal((await call(admin, "/session")).initialized, false);
+  await call(admin, "/initialize", "POST", {
+    currentPassword: "Existing isolated Admin",
+    newPassword: "Admin personal phrase test",
+  }, 400);
+  await call(admin, "/initialize", "POST", {
+    login: "bad username",
+    currentPassword: "Existing isolated Admin",
+    newPassword: "Admin personal phrase test",
+  }, 400);
   await call(
     admin,
     "/initialize",
     "POST",
-    { currentPassword: "123456", newPassword: "Admin personal phrase test" },
+    { login: adminLogin, currentPassword: "123456", newPassword: "Admin personal phrase test" },
     401,
   );
   await call(admin, "/initialize", "POST", {
+    login: adminLogin.toUpperCase(),
     currentPassword: "Existing isolated Admin",
     newPassword: "Admin personal phrase test",
   });
   const a = (await call(admin, "/session")).principal;
   adminId = a.userId;
   assert.equal(a.isPrimaryAdmin, true);
+  assert.equal(a.login, adminLogin); // Login is normalized, not forced to "admin".
+  assert.equal(a.displayName, "Admin");
   assert.equal(
     (await db.systemSettings.findUnique({ where: { id: "global" } })).adminPasswordHash,
     hash,
@@ -152,7 +165,7 @@ try {
     admin,
     "/initialize",
     "POST",
-    { currentPassword: "Existing isolated Admin", newPassword: "Admin personal phrase test" },
+    { login: "replacement.admin", currentPassword: "Existing isolated Admin", newPassword: "Admin personal phrase test" },
     409,
   );
   await call(admin, "/catalog"); // No operational module grant required.
@@ -255,7 +268,7 @@ try {
     { reason: "Expired reauthentication" },
     401,
   );
-  await call(admin, "/login", "POST", { login: "admin", password: "Admin personal phrase test" });
+  await call(admin, "/login", "POST", { login: adminLogin, password: "Admin personal phrase test" });
   const reset = await call(admin, `/users/${created.user.id}/reset`, "POST", {
     reason: "Requested by user",
   });

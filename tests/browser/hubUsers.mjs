@@ -198,8 +198,13 @@ try {
     await page.getByRole("textbox", { name: "Pesquisar usuários" }).fill("");
     await page.getByRole("button", { name: "Cadastrar usuário", exact: true }).click();
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
-    await page.getByLabel("Login", { exact: true }).fill("marina.producao");
+    await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
     await page.getByLabel("Perfil", { exact: true }).selectOption("Líder");
+    await page.getByRole("button", { name: "Aplicar permissões sugeridas", exact: true }).click();
+    assert.equal(
+      await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(),
+      true,
+    );
     await page.getByRole("checkbox", { name: "Máquina 37 · 37", exact: true }).check();
     await page.getByRole("checkbox", { name: "ANDON: visualizar", exact: true }).check();
     await page.getByRole("checkbox", { name: "Chamados: abrir", exact: true }).check();
@@ -240,7 +245,7 @@ try {
     await page.getByRole("button", { name: "建立使用者", exact: true }).waitFor();
     await chooseLanguage("Português");
     await page.getByRole("button", { name: "Sair desta sessão", exact: true }).click();
-    await page.getByLabel("Login", { exact: true }).fill("first.user");
+    await page.getByLabel("Usuário", { exact: true }).fill("first.user");
     await page.getByLabel("Senha", { exact: true }).fill("provisional-fixture");
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await page
