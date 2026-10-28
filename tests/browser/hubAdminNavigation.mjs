@@ -46,6 +46,7 @@ try {
     const context = await browser.newContext({ viewport, ignoreHTTPSErrors: true });
     await context.addInitScript(({ id }) => {
       localStorage.setItem("andon.workstationId", id);
+      if (localStorage.getItem("andon.test.skipAdminAutoLogin") === "1") return;
       sessionStorage.setItem(
         "andonAdminSession",
         JSON.stringify({
@@ -94,6 +95,30 @@ try {
           lockedMachineId: null,
         });
       if (path === "/api/modules/settings") return send({ hubEnabled: true });
+      if (path === "/api/modules/access")
+        return send({
+          hubEnabled: true,
+          centralAccessEnabled: false,
+          workstation: {
+            id: workstationId,
+            name: "Estação de validação",
+            active: true,
+            allowOperational: true,
+            allowBi: true,
+            allowPriorities: true,
+          },
+          modules: [],
+        });
+      if (path === "/api/admin-auth/login") {
+        const { username, password } = req.postDataJSON();
+        if (username !== "admin" || password !== "valid-fixture-password")
+          return send({ error: "invalid_credentials" }, 401);
+        return send({
+          token: "validated-admin-token",
+          username: "admin",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        });
+      }
       if (path === "/api/access/session")
         return send({
           initialized: true,
@@ -171,8 +196,50 @@ try {
     assert.equal(await page.getByRole("button", { name: "Tentar novamente", exact: true }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-https-required.png`, fullPage: true });
+
+    // Fresh Hub session: settings opens sign-in here, before navigating to Admin.
+    await page.goto("https://127.0.0.1:4188/hub");
+    // Previous tests deliberately end in Chinese; reset locale before matching
+    // the Portuguese Hub login labels in this independent scenario.
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: "Português", exact: true }).click();
+    await page.evaluate(() => {
+      localStorage.setItem("andon.test.skipAdminAutoLogin", "1");
+      sessionStorage.removeItem("andonAdminSession");
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Administração do Hub", exact: true }).click();
+    const login = page.getByRole("dialog", { name: "Acesso administrativo" });
+    await login.waitFor();
+    assert.equal(new URL(page.url()).pathname, "/hub");
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    await login.getByRole("button", { name: "Cancelar", exact: true }).click();
+    assert.equal(new URL(page.url()).pathname, "/hub");
+
+    await page.getByRole("button", { name: "Administração do Hub", exact: true }).click();
+    await login.getByLabel("Senha", { exact: true }).fill("wrong-password");
+    await login.getByRole("button", { name: "Entrar", exact: true }).click();
+    await login.getByText("Usuário ou senha inválidos.", { exact: true }).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/hub");
+    await login.getByLabel("Senha", { exact: true }).fill("valid-fixture-password");
+    await login.getByRole("button", { name: "Entrar", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/hub/admin");
+    await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).waitFor();
+    await noOverflow();
+    await page.screenshot({ path: `${output}/${viewport.width}-admin-after-login.png`, fullPage: true });
+
+    // Expired/missing session on direct route must not show the Admin UI.
+    await page.evaluate(() => sessionStorage.removeItem("andonAdminSession"));
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=security");
+    await page.getByRole("dialog", { name: "Acesso administrativo" }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    assert.equal(await page.getByRole("heading", { name: "Administração do Hub", exact: true }).count(), 0);
+    await page.getByRole("dialog").getByRole("button", { name: "Cancelar", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/hub");
+    await noOverflow();
+
     assert.deepEqual(errors, []);
-    results.push({ viewport, navigationSections: 5, screenshots: 3, noOverflow: true });
+    results.push({ viewport, navigationSections: 5, screenshots: 4, noOverflow: true, modalFirst: true });
     await context.close();
   }
   await writeFile(

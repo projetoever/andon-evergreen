@@ -252,6 +252,15 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}-pending.png`, fullPage: true });
 
     administrativeView = true;
+    // This test focuses on workstation admission, so provision a validated
+    // legacy Admin session fixture before opening the newly gated Admin route.
+    await page.evaluate(() => {
+      sessionStorage.setItem("andonAdminSession", JSON.stringify({
+        token: "workstation-test-admin-session",
+        username: "admin",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }));
+    });
     await page.goto("https://127.0.0.1:4188/hub/admin?section=workstations");
     await page.getByRole("button", { name: /Kiosk Linha 1|Workstation não identificada/ }).click();
     await page.getByLabel("Motivo da decisão").fill("Kiosk validado para a Linha 1");

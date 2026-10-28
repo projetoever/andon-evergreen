@@ -1,5 +1,6 @@
 import { systemMessage, ui } from "@/i18n/translate";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { LayoutGrid, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
@@ -7,10 +8,21 @@ import { Button } from "@/components/ui/button";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
+import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
+import { isAdminAuthenticated } from "@/services/adminAuthService";
 
 export function HubPage() {
   const { access, error, refresh } = useModuleAccess();
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const enterAdministration = () => {
+    if (isAdminAuthenticated()) {
+      void navigate({ to: "/hub/admin" });
+    } else {
+      setAdminLoginOpen(true);
+    }
+  };
   return (
     <main className="min-h-dvh bg-background p-4 text-foreground md:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
@@ -28,11 +40,9 @@ export function HubPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <LanguageSelector />
-            <Button variant="outline" asChild>
-              <Link to="/hub/admin">
-                <Settings className="mr-2 h-4 w-4" />
-                {t("Administração do Hub")}
-              </Link>
+            <Button variant="outline" onClick={enterAdministration}>
+              <Settings className="mr-2 h-4 w-4" />
+              {t("Administração do Hub")}
             </Button>
           </div>
         </header>
@@ -85,6 +95,11 @@ export function HubPage() {
             </footer>
           </>
         )}
+        <AdminLoginModal
+          open={adminLoginOpen}
+          onOpenChange={setAdminLoginOpen}
+          onSuccess={() => { void navigate({ to: "/hub/admin" }); }}
+        />
       </div>
     </main>
   );
