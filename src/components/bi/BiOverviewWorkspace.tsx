@@ -10,6 +10,7 @@ import { BiKpiCard } from "@/components/bi/BiKpiCard";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsOverview,
+  AnalyticsProductionMetrics,
   AndonBiPeriodPreset,
 } from "@/types/analytics";
 
@@ -20,6 +21,43 @@ function formatMinutes(value: number | null) {
   const hours = Math.floor(rounded / 60);
   const minutes = rounded % 60;
   return minutes ? `${hours}${ui("h")} ${minutes}${ui("m")}` : `${hours}${ui("h")}`;
+}
+
+function explainMissingMtbf(scheduled: AnalyticsProductionMetrics) {
+  switch (scheduled.mtbfAvailabilityReason) {
+    case "dimension_filtered":
+      return ui("MTBF indisponível com filtro de setor ou classificação");
+    case "insufficient_schedule":
+      return ui("Sem histórico completo de produção programada");
+    case "no_programmed_minutes":
+      return ui("Sem minutos de produção programada no período");
+    case "pending_attribution":
+      return ui("{0} episódio(s) com responsabilidade pendente ou mista", {
+        0: scheduled.pendingAttributionEpisodes,
+      });
+    case "no_maintenance_failures":
+      return ui("Nenhuma falha de manutenção confirmada na programação");
+    default:
+      return ui("{0} falha(s) de manutenção · {1} pendente(s)/misto(s)", {
+        0: scheduled.productionFailureEpisodes,
+        1: scheduled.pendingAttributionEpisodes ?? 0,
+      });
+  }
+}
+
+function explainMissingMttr(scheduled: AnalyticsProductionMetrics) {
+  switch (scheduled.mttrAvailabilityReason) {
+    case "pending_attribution":
+      return ui("{0} parada(s) encerrada(s) ainda sem responsabilidade confirmada", {
+        0: scheduled.closedPendingRestorationEpisodes ?? 0,
+      });
+    case "awaiting_restoration":
+      return ui("{0} parada(s) de manutenção ainda em andamento", {
+        0: scheduled.openMaintenanceEpisodes ?? 0,
+      });
+    default:
+      return ui("Nenhuma parada de manutenção encerrada com amostra válida");
+  }
 }
 
 export function BiOverviewWorkspace({
@@ -71,8 +109,8 @@ export function BiOverviewWorkspace({
           )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
           detail={
-            scheduled?.availabilityStatus === "dimension_filtered"
-              ? ui("Indisponível com filtro por setor ou classificação")
+            scheduled && scheduled.plannedMtbfMinutes === null
+              ? explainMissingMtbf(scheduled)
               : ui("{0} falha(s) de manutenção · {1} pendente(s)/misto(s)", {
                   0: scheduled?.productionFailureEpisodes ?? 0,
                   1: scheduled?.pendingAttributionEpisodes ?? 0,
@@ -102,9 +140,13 @@ export function BiOverviewWorkspace({
             "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
           )}
           value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
-          detail={ui("Manutenção · {0} episódio(s) encerrado(s)", {
-            0: scheduled?.resolvedEpisodes ?? 0,
-          })}
+          detail={
+            scheduled && scheduled.resolvedMttrMinutes === null
+              ? explainMissingMttr(scheduled)
+              : ui("Manutenção · {0} episódio(s) encerrado(s)", {
+                  0: scheduled?.resolvedEpisodes ?? 0,
+                })
+          }
           icon={Wrench}
           tone="blue"
           sampleSize={scheduled?.resolvedEpisodes}
