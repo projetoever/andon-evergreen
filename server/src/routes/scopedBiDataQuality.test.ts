@@ -42,7 +42,9 @@ test("B2.4C/4c: every data-quality detail query is machine scoped before paginat
   prisma.andonCall.count=(async(query:unknown)=>{q.call.push(query);return 0}) as unknown as typeof orig.callCount;
   prisma.andonCall.findMany=(async(query:unknown)=>{q.call.push(query);return []}) as unknown as typeof orig.callRows;
   prisma.failureEvent.count=(async(query:unknown)=>{
-    q.event.push(query);return accepted((query as any).where.machineId,"37")?1:0;
+    q.event.push(query);
+    const where=(query as any).where;
+    return where.callId===null?0:(accepted(where.machineId,"37")?1:0);
   }) as unknown as typeof orig.eventCount;
   prisma.failureEvent.findMany=(async(query:unknown)=>{
     q.event.push(query);
@@ -114,14 +116,14 @@ test("B2.4C/4c: every data-quality detail query is machine scoped before paginat
   assert.equal(open.json().items[0].description,"Falha física na Máquina 37");
   assert(!open.body.includes("call-38-secret"));
 
-  const beforeScoped=q.call.length+q.event.length+q.session.length;
+  const beforeScopedCalls=q.call.length;
   ids=[];
   for(const category of CATEGORIES){
     const result=await app.inject({url:url(category)});
     assert.equal(result.statusCode,200,result.body);
     assert.deepEqual(result.json().items,[]);
   }
-  for(const query of q.call.slice(beforeScoped>=0?4:0)) {
+  for(const query of q.call.slice(beforeScopedCalls)) {
     assert.deepEqual(query.where.machineId,{in:[]});
   }
   assert.deepEqual(q.event.at(-1).where.machineId,{in:[]});
