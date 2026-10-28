@@ -26,9 +26,12 @@ sem alterar a estrutura do menu nem credenciais do ANDON.
 - Respostas com `Cache-Control: no-store`.
 - Acesso central habilitado: a rota permanece indisponível até integrar
   autenticação central e permissões da Fase B, sem criar bypass.
-- O backend lê somente o arquivo de certificado configurado, com limite
-  de tamanho; nunca lê ou devolve a chave privada TLS, chave privada de CA,
-  variáveis de banco, arquivos de ambiente ou caminhos internos.
+- O backend utiliza um retrato imutável do certificado público efetivamente
+  carregado no listener HTTPS no início do processo; a página não reabre
+  o certificado no disco em cada consulta. Uma substituição do arquivo sem
+  reiniciar a API não será apresentada como renovação já ativa.
+- O certificado público possui limite de tamanho; a API nunca devolve chave
+  privada TLS, chave privada de CA, variáveis de banco, ambiente ou caminhos internos.
 - Certificados públicos são extraídos apenas de blocos PEM `CERTIFICATE`,
   mesmo que um arquivo de origem contenha material adicional.
 - A verificação local de datas/SAN não comprova a cadeia de confiança,
