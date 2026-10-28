@@ -56,7 +56,7 @@ function Show-AndonMenu {
         Write-Host "11 - Desinstalacao limpa"
         Write-Host "12 - Configurar IP/rede do servidor"
         Write-Host "13 - Configurar PostgreSQL/porta do banco"
-        Write-Host "14 - Configurar transporte HTTP/HTTPS"
+        Write-Host "14 - Configurar HTTPS (assistente)"
         Write-Host "0  - Sair"
         Write-Host ""
 
