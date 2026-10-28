@@ -1,8 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Login", "Login", "登入名稱"],
-  ["Nickname do Admin (login)", "Admin nickname (login)", "管理員暱稱（登入名稱）"],
-  ["Nickname / login", "Nickname / login", "暱稱／登入名稱"],
+  ["Usuário administrador", "Administrator username", "管理員使用者名稱"],
   ["Aplicar permissões sugeridas", "Apply suggested permissions", "套用建議權限"],
   ["Substitui a seleção atual. Revise as permissões antes de salvar.", "Replaces the current selection. Review permissions before saving.", "將取代目前選擇。儲存前請檢查權限。"],
   ["Acesso aos módulos", "Module access", "模組存取"],
@@ -35,7 +34,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Crie sua senha pessoal", "Create your personal password", "建立個人密碼"],
   ["Confirme seu acesso Admin", "Confirm your Admin access", "確認管理員存取權"],
   ["Entrar em Usuários e Acessos", "Sign in to Users and Access", "登入使用者與存取權"],
-  ["Escolha um nickname para o Admin, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.", "Choose an Admin nickname, confirm the existing administrative password, and create your personal password. Module credentials will be preserved.", "請選擇管理員暱稱、確認現有管理密碼，並建立個人密碼。模組憑證將保留。"],
+  ["Escolha seu usuário administrador, confirme a senha administrativa existente e crie sua senha pessoal. As credenciais dos módulos serão preservadas.", "Choose an administrator username, confirm the existing administrative password, and create your personal password. Module credentials will be preserved.", "請選擇管理員使用者名稱、確認現有管理密碼，並建立個人密碼。模組憑證將保留。"],
   ["Senha Admin existente", "Existing Admin password", "既有管理員密碼"],
   ["Use uma frase de acesso de 15 a 128 caracteres.", "Use a passphrase of 15 to 128 characters.", "請使用 15 至 128 個字元的密碼片語。"],
   ["Nova senha pessoal", "New personal password", "新個人密碼"],
