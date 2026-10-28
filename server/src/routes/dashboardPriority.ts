@@ -132,10 +132,8 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       configured: Boolean(config?.managerUsername && config?.managerPasswordHash),
       passwordRequired: config?.passwordRequired ?? true,
       username: config?.managerUsername ?? null,
-      // These metadata fields describe a GLOBAL reorder and can reveal
-      // activity on machines outside a restricted user's scope.
-      lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
-      lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
+      lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
+      lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
     };
   });
 
@@ -267,8 +265,9 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
 
     return {
       machines,
-      lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
-      lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
+      // Global change attribution must not leak activity on inaccessible assets.
+      lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
+      lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
     };
   });
 
