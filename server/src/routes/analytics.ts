@@ -559,7 +559,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 classification: true,
                 failureResponsibility: true, analyticsDisposition: true,
                 notes: true,
-                call: { select: { isSystemTest: true, subtype: true } },
+                call: { select: { machineId: true, isSystemTest: true, subtype: true } },
               },
             })
           : Promise.resolve([]),
@@ -576,7 +576,20 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
       ]);
 
-      const events = rawEvents
+      // An event can be linked to a call of a different machine. Hide that
+      // relationship when the linked call is outside the authenticated scope;
+      // the physical event of the authorized machine remains visible.
+      const scopedEvents = rawEvents.map((event) => {
+        const linkedCallVisible =
+          allowedIds === null ||
+          (event.call !== null && allowedIds.includes(event.call.machineId));
+        return {
+          ...event,
+          call: linkedCallVisible ? event.call : null,
+          callId: linkedCallVisible ? event.callId : null,
+        };
+      });
+      const events = scopedEvents
         .filter((event) => event.call?.isSystemTest !== true)
         .filter((event) =>
           !subtype || (event.call !== null && event.call.subtype === subtype),
@@ -1227,6 +1240,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             machine: { select: { name: true } },
             call: {
               select: {
+                machineId: true,
                 isSystemTest: true,
                 subtype: true,
                 status: true,
@@ -1240,7 +1254,20 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           take: 100,
         });
 
-        const items = events
+        // Physical event machine and linked call machine are independent in
+        // the existing schema. Do not return IDs/OS/diagnosis/technicians from
+        // another machine, even if the event itself is in scope.
+        const safeEvents = events.map((event) => {
+          const linkedCallVisible =
+            allowedIds === null ||
+            (event.call !== null && allowedIds.includes(event.call.machineId));
+          return {
+            ...event,
+            call: linkedCallVisible ? event.call : null,
+            callId: linkedCallVisible ? event.callId : null,
+          };
+        });
+        const items = safeEvents
           .filter((event) => event.call?.isSystemTest !== true)
           .filter(
             (event) =>
