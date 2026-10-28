@@ -230,6 +230,49 @@ $transportScript =
         (Join-Path $repositoryRoot "installer\AndonInstaller.Transport.ps1") `
         -Raw
 
+$networkHttpsScript =
+    Get-Content `
+        (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkHttps.ps1") `
+        -Raw
+
+. (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkHttps.ps1")
+
+Assert-AndonTest `
+    -Condition ((Test-AndonNetworkHttpsIPv4 "192.168.88.10") -and
+        !(Test-AndonNetworkHttpsIPv4 "192.168.1") -and
+        !(Test-AndonNetworkHttpsIPv4 "127.0.0.1") -and
+        !(Test-AndonNetworkHttpsIPv4 "169.254.22.1") -and
+        !(Test-AndonNetworkHttpsIPv4 "224.0.0.1")) `
+    -Message "HTTPS de rede deve aceitar somente IPv4 de interface plausivel"
+
+Assert-AndonTest `
+    -Condition ((Test-AndonNetworkHttpsDns "andon.empresa.internal") -and
+        !(Test-AndonNetworkHttpsDns "192.168.88.10") -and
+        !(Test-AndonNetworkHttpsDns "andon") -and
+        !(Test-AndonNetworkHttpsDns "https://andon.empresa.internal") -and
+        !(Test-AndonNetworkHttpsDns "andon;Remove-Item.empresa.internal")) `
+    -Message "DNS deve rejeitar host unico, protocolo e sintaxe nao confiavel"
+
+Assert-AndonThrows `
+    -Action { New-AndonNetworkHttpsCsr -HttpsHost "../bad" -TlsPath "X:\invalid" } `
+    -ExpectedMessage "Host invalido" `
+    -Message "CSR nao deve aceitar host arbitrario"
+
+Assert-AndonTest `
+    -Condition (
+        $httpsConfigScript -match 'Select-AndonNetworkHttpsIdentity' -and
+        $httpsConfigScript -match 'New-AndonNetworkHttpsCsr' -and
+        $httpsConfigScript -match 'HTTPS DE REDE - ASSISTENTE DNS E CERTIFICADOS' -and
+        $httpsConfigScript -match 'CA de teste em rede e proibida no Windows Server' -and
+        $httpsConfigScript -match 'Assert-AndonTlsPair' -and
+        $networkHttpsScript -match 'Show-AndonNetworkHttpsDnsGuidance' -and
+        $networkHttpsScript -match 'Add-DnsServerResourceRecordA' -and
+        $networkHttpsScript -notmatch '& Add-DnsServerResourceRecordA' -and
+        $networkHttpsScript -match 'Set-AndonRestrictedTlsAcl' -and
+        $networkHttpsScript -match 'openssl\.exe'
+    ) `
+    -Message "Assistente de rede deve orientar DNS, proteger chaves e separar CSR, teste e producao"
+
 Assert-AndonTest `
     -Condition ($commonScript -match 'transportMode = "http"') `
     -Message "Config legada deve permanecer em HTTP por padrao"
