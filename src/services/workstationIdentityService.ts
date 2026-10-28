@@ -115,8 +115,9 @@ function writeCookie(key: string, value: string) {
   document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${WORKSTATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
-// Cookie is canonical across ports on the same host. A browser-local mirror
-// recovers the same UUID when cookies are unavailable; it is never exported.
+// Cookie is shared across ports of the same hostname, but localStorage is
+// origin-specific. During upgrades preserve an already established origin
+// identity on conflict; never silently overwrite either stored ID.
 const browserCookieStorage: WorkstationIdentityStorage = {
   getItem(key) {
     let cookie: string | null = null;
@@ -124,6 +125,19 @@ const browserCookieStorage: WorkstationIdentityStorage = {
       cookie = readCookie(key);
     } catch {
       /* Browser may deny cookie access entirely. */
+    }
+    let mirror: string | null = null;
+    try {
+      mirror = window.localStorage.getItem(key);
+    } catch {
+      /* Cookie may remain available. */
+    }
+    if (isValidWorkstationId(mirror) && isValidWorkstationId(cookie) &&
+        mirror.trim().toLowerCase() !== cookie.trim().toLowerCase()) {
+      // Preserve the workstation used on this *origin* before an upgrade.
+      // The different cookie is not rewritten, and no new workstation is created.
+      // Administrators can inspect the conflict and schedule reconciliation.
+      return mirror;
     }
     if (isValidWorkstationId(cookie)) {
       try {
@@ -133,18 +147,13 @@ const browserCookieStorage: WorkstationIdentityStorage = {
       }
       return cookie;
     }
-    try {
-      const mirror = window.localStorage.getItem(key);
-      if (isValidWorkstationId(mirror)) {
-        try {
-          writeCookie(key, mirror);
-        } catch {
-          /* The mirror remains persistent. */
-        }
-        return mirror;
+    if (isValidWorkstationId(mirror)) {
+      try {
+        writeCookie(key, mirror);
+      } catch {
+        /* The mirror remains persistent. */
       }
-    } catch {
-      /* No persistent mirror available. */
+      return mirror;
     }
     return null;
   },
@@ -170,9 +179,9 @@ function getBrowserStorage() {
 export function getCurrentWorkstationId() {
   const storage = getBrowserStorage();
   if (!storage) return null;
-  // This check must precede ensureWorkstationId: an invalid/mismatched pair
-  // must never cause creation of a third UUID or replacement of the mirror.
-  if (hasWorkstationIdentityConflict()) return null;
+  // Existing origin identity wins over a conflicting cross-port cookie.
+  // No third UUID is generated, and the server remains authoritative for
+  // whether this device may operate on the current attendance.
   if (cachedWorkstationId) {
     // Detect deleted/rotated storage while this tab is still open. An old
     // cached UUID must not keep authorizing a workstation that lost identity.
