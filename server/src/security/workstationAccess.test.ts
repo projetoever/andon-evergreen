@@ -338,9 +338,12 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal(scopedMaintenance.statusCode,200);
   assert.deepEqual(scopedMaintenance.json().allowedMachineIds,["37"]);
   assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/maintenance",headers})).statusCode,200);
+  // BI access alone is insufficient for detailed technician/history data.
+  canReadHistory = false;
   const deniedQuality = await app.inject({url:"/api/analytics/data-quality-details",headers});
   assert.equal(deniedQuality.statusCode,403);
   assert.equal(deniedQuality.json().error,"permission_denied");
+  canReadHistory = true;
   const scopedTemporal = await app.inject({url:"/api/analytics/temporal",headers});
   assert.equal(scopedTemporal.statusCode,200);
   assert.deepEqual(scopedTemporal.json().allowedMachineIds,["37"]);
