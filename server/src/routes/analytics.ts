@@ -984,27 +984,52 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
-      const policy = await loadAnalyticsEligibility();
-      const generatedAt = new Date();
-      const effectiveEnd =
-        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
       const filters: AnalyticsOverviewFilters = {
         machineId: optionalQueryString(request.query.machineId),
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      // Reject a foreign machine before touching the classification catalog.
+      const allowedIds = scopedMachineReadIds(request);
+      if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
+        return reply.status(404).send({ error: "Máquina não encontrada" });
+      }
+      const machineConstraint = filters.machineId
+        ? { machineId: filters.machineId }
+        : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
+      const policy = await loadAnalyticsEligibility();
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
+      // A physical event must not inherit test/eligibility state from a call
+      // owned by another machine. Keep the event's own snapshot and suppress
+      // foreign call attributes; compose separate ORs under AND to avoid
+      // overwriting the time-window predicate.
+      const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
+        ? policy.eventWhere
+        : { AND: [{ OR: [
+            { AND: [policy.eventWhere, {
+              OR: [{ callId: null }, { call: { is: { machineId: { in: [...allowedIds] } } } }],
+            }] },
+            { AND: [policy.eventOwnWhere, {
+              call: { is: { machineId: { notIn: [...allowedIds] } } },
+            }] },
+          ] }] };
 
       const includeInactive = request.query.includeInactive === "true";
-      const machineWhere: Prisma.MachineWhereInput = filters.machineId
-        ? { id: filters.machineId }
-        : {
-            ...(includeInactive ? {} : { isActive: true }),
-            createdAt: { lt: effectiveEnd },
-          };
+      const machineWhere: Prisma.MachineWhereInput = {
+        ...(filters.machineId ? {} : {
+          ...(includeInactive ? {} : { isActive: true }),
+          createdAt: { lt: effectiveEnd },
+        }),
+        ...(filters.machineId
+          ? { id: filters.machineId }
+          : allowedIds === null ? {} : { id: { in: [...allowedIds] } }),
+      };
 
       const callScopeWhere: Prisma.AndonCallWhereInput = {
         ...policy.callWhere,
-        ...(filters.machineId ? { machineId: filters.machineId } : {}),
+        ...machineConstraint,
         ...(filters.subtype ? { subtype: filters.subtype } : {}),
       };
 
@@ -1051,8 +1076,12 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         effectiveEnd.getTime() > period.start.getTime()
           ? prisma.failureEvent.findMany({
               where: {
-                ...policy.eventWhere,
-                ...(filters.machineId ? { machineId: filters.machineId } : {}),
+                ...eventEligibilityWhere,
+                ...machineConstraint,
+                ...(filters.subtype ? { call: { is: {
+                  subtype: filters.subtype,
+                  ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
+                } } } : {}),
                 ...(filters.classification
                   ? { classification: filters.classification }
                   : {}),
@@ -1069,6 +1098,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
                 callId: true,
                 call: {
                   select: {
+                    machineId: true,
                     isSystemTest: true,
                     subtype: true,
                   },
@@ -1095,9 +1125,10 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         prisma.technicianSession.findMany({
           where: {
             endedAt: null,
-            ...(filters.machineId ? { machineId: filters.machineId } : {}),
+            ...machineConstraint,
             call: {
               ...policy.callWhere,
+              ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
               ...(filters.subtype ? { subtype: filters.subtype } : {}),
             },
           },
@@ -1109,9 +1140,13 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
         prisma.failureEvent.findMany({
           where: {
-            ...policy.eventWhere,
+            ...eventEligibilityWhere,
             endedAt: null,
-            ...(filters.machineId ? { machineId: filters.machineId } : {}),
+            ...machineConstraint,
+            ...(filters.subtype ? { call: { is: {
+              subtype: filters.subtype,
+              ...(allowedIds === null ? {} : { machineId: { in: [...allowedIds] } }),
+            } } } : {}),
           },
           select: {
             id: true,
@@ -1123,6 +1158,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             callId: true,
             call: {
               select: {
+                machineId: true,
                 isSystemTest: true,
                 subtype: true,
               },
@@ -1139,7 +1175,15 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
       ]);
 
+      // Keep the precise Prisma projection type, including event timestamps
+      // and linked-call subtype/test fields, while redacting foreign call IDs.
       const failureEvents = rawFailureEvents
+        .map((event) => {
+          const inScope = allowedIds === null || event.call === null ||
+            allowedIds.includes(event.call.machineId);
+          return { ...event, callId: inScope ? event.callId : null,
+            call: inScope ? event.call : null };
+        })
         .filter((event) => event.call?.isSystemTest !== true)
         .filter(
           (event) =>
@@ -1157,6 +1201,12 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }));
 
       const healthOpenEvents = healthOpenFailureEvents
+        .map((event) => {
+          const inScope = allowedIds === null || event.call === null ||
+            allowedIds.includes(event.call.machineId);
+          return { ...event, callId: inScope ? event.callId : null,
+            call: inScope ? event.call : null };
+        })
         .filter((event) => event.call?.isSystemTest !== true)
         .filter(
           (event) =>

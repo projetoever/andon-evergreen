@@ -242,6 +242,9 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/analytics/maintenance", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/reliability", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/analytics/failure-intelligence", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -329,6 +332,10 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.equal(scopedMaintenance.statusCode,200);
   assert.deepEqual(scopedMaintenance.json().allowedMachineIds,["37"]);
   assert.equal((await app.inject({method:"HEAD",url:"/api/analytics/maintenance",headers})).statusCode,200);
+  const scopedReliability = await app.inject({ url: "/api/analytics/reliability", headers });
+  assert.equal(scopedReliability.statusCode, 200);
+  assert.deepEqual(scopedReliability.json().allowedMachineIds, ["37"]);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/reliability", headers })).statusCode, 200);
   const scopedFailures = await app.inject({url:"/api/analytics/failure-intelligence",headers});
   assert.equal(scopedFailures.statusCode,200);
   assert.deepEqual(scopedFailures.json().allowedMachineIds,["37"]);
