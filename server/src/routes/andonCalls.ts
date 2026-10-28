@@ -24,6 +24,8 @@ import {
   WorkstationAuthorizationError,
 } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
+import { callMachineReadWhere } from "../security/callReadScope.js";
 
 type AndonCallQuery = {
   machineId?: string;
@@ -1212,8 +1214,9 @@ async function ensureOpenFailureEventForStoppedCall(
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request) => {
     const { machineId, status, criticality } = request.query;
+    const allowedIds = scopedMachineReadIds(request);
     const where: Prisma.AndonCallWhereInput = {
-      ...(machineId ? { machineId } : {}),
+      ...callMachineReadWhere(machineId, allowedIds),
       ...(status ? { status } : {}),
       ...(criticality ? { criticality } : {}),
     };
@@ -1230,11 +1233,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls/history", async (request) => {
     const { machineId } = request.query;
+    const allowedIds = scopedMachineReadIds(request);
     const startDate = parseDate(request.query.startDate);
     const endDate = parseDate(request.query.endDate);
     const where: Prisma.AndonCallWhereInput = {
       finishedAt: { not: null },
-      ...(machineId ? { machineId } : {}),
+      ...callMachineReadWhere(machineId, allowedIds),
       ...(startDate || endDate
         ? {
             finishedAt: {
