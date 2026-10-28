@@ -2,6 +2,9 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import { centralAccessEnabled } from "../access/http.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { describeMaintenanceStationAuthorization } from "../services/workstationCompletionDiagnostics.js";
 import {
   createAdminSession,
   readAdminSession,
@@ -90,6 +93,68 @@ function invalidCredentials(reply: FastifyReply) {
 }
 
 export function registerAdminAuthRoutes(app: FastifyInstance) {
+  // Read-only for the legacy Admin while central administration is not yet
+  // authorized for this endpoint. Never exposes full workstation UUIDs.
+  app.get<{ Querystring: { callId?: string } }>(
+    "/api/admin-auth/workstation-attendance-diagnostic",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled()) {
+        return reply.status(403).send({ error: "central_admin_integration_pending" });
+      }
+      if (!readAdminSession(request)) {
+        return reply.status(401).send({ error: "admin_auth_required" });
+      }
+      const callId = request.query.callId?.trim();
+      if (!callId || !/^[a-zA-Z0-9_-]{4,120}$/.test(callId)) {
+        return badRequest(reply, "Identificador de chamado inválido.");
+      }
+      const currentStationId = parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? null;
+      const [call, settings, station] = await Promise.all([
+        prisma.andonCall.findUnique({
+          where: { id: callId },
+          select: {
+            id: true, machineId: true, status: true, category: true,
+            technicianSessions: {
+              select: {
+                workstationId: true, cycleIndex: true, endedAt: true, phase: true,
+                workstation: { select: { name: true, active: true } },
+              },
+            },
+          },
+        }),
+        prisma.systemSettings.findUnique({
+          where: { id: GLOBAL_SETTINGS_ID },
+          select: { restrictMaintenanceCompletionToAttendanceWorkstation: true },
+        }),
+        currentStationId
+          ? prisma.workstation.findUnique({
+              where: { id: currentStationId },
+              select: { active: true },
+            })
+          : Promise.resolve(null),
+      ]);
+      if (!call) return reply.status(404).send({ error: "call_not_found" });
+      if (call.category !== "maintenance") {
+        return badRequest(reply, "Diagnóstico disponível para chamados de manutenção.");
+      }
+      const diagnostic = describeMaintenanceStationAuthorization(
+        call.technicianSessions,
+        currentStationId,
+        station?.active ?? null,
+        settings?.restrictMaintenanceCompletionToAttendanceWorkstation ?? false,
+      );
+      return {
+        machineId: call.machineId,
+        callIdSuffix: call.id.slice(-8),
+        callStatus: call.status,
+        ...diagnostic,
+        outcome: call.status === "in_progress" ? diagnostic.outcome : "not_in_progress",
+        advisoryOnly: true,
+      };
+    },
+  );
+
   app.get("/api/admin-auth/status", async () => {
     const settings = await getAdminCredentialState();
     return {
