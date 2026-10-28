@@ -110,7 +110,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       assertModule(principal, workstation, module);
       // Historical interventions require an additional permission even for
       // users who can see the live operational module.
-      if (request.method === "GET" && path === "/api/andon-calls/history") {
+      if (["GET", "HEAD"].includes(request.method) && path === "/api/andon-calls/history") {
         assertPermission(principal, "history.read");
       }
       if (isScopedMachineReadRoute(request.method, path)) {
