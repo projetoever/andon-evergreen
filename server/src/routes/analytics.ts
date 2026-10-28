@@ -21,6 +21,7 @@ import {
   type AnalyticsReliabilityAsset,
 } from "../analytics/overview.js";
 import { prisma } from "../db/prisma.js";
+import { AccessError } from "../access/policy.js";
 import { badRequest } from "./routeUtils.js";
 import { registerAnalyticsDataQualityRoutes } from "./analyticsDataQuality.js";
 import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
@@ -431,6 +432,22 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       const machineId = optionalQueryString(request.query.machineId);
       if (!period || !machineId) {
         return badRequest(reply, "machineId, startDate e endDate válidos são obrigatórios");
+      }
+
+      // This endpoint is strictly one-machine: reject out-of-scope IDs before
+      // querying settings, machine metadata, calls, events or technician sessions.
+      // Full-scope and legacy readers retain the existing result contract.
+      let allowedIds: readonly string[] | null;
+      try {
+        allowedIds = scopedMachineReadIds(request);
+      } catch (error) {
+        if (error instanceof AccessError) {
+          return reply.code(error.statusCode).send({ error: "permission_denied" });
+        }
+        throw error;
+      }
+      if (allowedIds !== null && !allowedIds.includes(machineId)) {
+        return reply.code(404).send({ error: "Máquina não encontrada" });
       }
 
       const policy = await loadAnalyticsEligibility();

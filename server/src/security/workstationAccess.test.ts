@@ -226,6 +226,9 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/analytics/filter-options", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/machine-360", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
   app.get("/api/dashboard-priority/order", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -276,6 +279,9 @@ test("central access binds scoped machine/call reads and protects history with a
   const deniedBi = await app.inject({ url: "/api/analytics/filter-options", headers });
   assert.equal(deniedBi.statusCode, 403);
   assert.equal(deniedBi.json().error, "permission_denied");
+  const deniedMachine360 = await app.inject({ url: "/api/analytics/machine-360", headers });
+  assert.equal(deniedMachine360.statusCode, 403);
+  assert.equal(deniedMachine360.json().error, "permission_denied");
   const deniedPriorities = await app.inject({ url: "/api/dashboard-priority/order", headers });
   assert.equal(deniedPriorities.statusCode, 403);
   assert.equal(deniedPriorities.json().error, "permission_denied");
@@ -285,6 +291,10 @@ test("central access binds scoped machine/call reads and protects history with a
   const biFilters = await app.inject({ url: "/api/analytics/filter-options", headers });
   assert.equal(biFilters.statusCode, 200);
   assert.deepEqual(biFilters.json().allowedMachineIds, ["37"]);
+  const machine360 = await app.inject({ url: "/api/analytics/machine-360", headers });
+  assert.equal(machine360.statusCode, 200);
+  assert.deepEqual(machine360.json().allowedMachineIds, ["37"]);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/machine-360", headers })).statusCode, 200);
   const priorityOrder = await app.inject({ url: "/api/dashboard-priority/order", headers });
   assert.equal(priorityOrder.statusCode, 200);
   assert.deepEqual(priorityOrder.json().allowedMachineIds, ["37"]);
