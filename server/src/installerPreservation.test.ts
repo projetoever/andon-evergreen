@@ -459,6 +459,8 @@ test("HTTPS oficial e opcional preserva config legada e usa frontend compilado p
   assert.match(runtimeCommon, /TransportMode/);
   assert.match(runtimeCommon, /TlsCertificatePath/);
   assert.match(startFrontend, /serve-frontend\.mjs/);
+  assert.match(startFrontend, /\$bindHost = if \(/);
+  assert.match(startFrontend, /\$context\.HttpsHost -in @\("127\.0\.0\.1", "localhost"\)/);
   assert.doesNotMatch(startFrontend, /npmPath run preview|npm\.cmd run preview/);
   assert.match(menu, /14 - Configurar HTTPS \(assistente\)/);
   assert.match(configureHttps, /centralAccessEnabled" -Value \$false/);
