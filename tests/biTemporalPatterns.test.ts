@@ -11,7 +11,9 @@ test("BI-12 possui endpoint temporal read-only com filtros coerentes com overvie
   ]);
   assert.match(route, /"\/api\/analytics\/temporal"/);
   assert.match(route, /buildTemporalPatterns/);
-  assert.match(route, /loadOverviewDataset\(period\.start, period\.end, effectiveEnd, filters, false\)/);
+  assert.match(route, /loadOverviewDataset\(period\.start, period\.end, effectiveEnd, filters, false, allowedIds\)/);
+  assert.match(route, /const allowedIds = scopedMachineReadIds\(request\)/);
+  assert.match(route, /if \(filters\.machineId && allowedIds !== null && !allowedIds\.includes\(filters\.machineId\)\)/);
   assert.match(route, /31 \* 24 \* 60 \* 60 \* 1000/);
   assert.match(analytics, /mergedPhysicalIntervals/);
   assert.match(analytics, /isEligible/);
