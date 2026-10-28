@@ -759,15 +759,23 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
-      const policy = await loadAnalyticsEligibility();
-      const generatedAt = new Date();
-      const effectiveEnd =
-        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
       const filters: AnalyticsOverviewFilters = {
         machineId: optionalQueryString(request.query.machineId),
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      const allowedIds = scopedMachineReadIds(request);
+      // Explicit foreign IDs fail before querying the catalog or case history.
+      if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
+        return reply.status(404).send({ error: "Máquina não encontrada" });
+      }
+      const machineWhere = filters.machineId
+        ? { machineId: filters.machineId }
+        : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
+      const policy = await loadAnalyticsEligibility();
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
       const historyStart = new Date(period.start.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       // Histórico da mesma máquina e diagnóstico, independente do setor antigo.
@@ -781,7 +789,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
               failureClassification: filters.classification
                 ? filters.classification
                 : { not: null },
-              ...(filters.machineId ? { machineId: filters.machineId } : {}),
+              ...machineWhere,
             },
             select: {
               id: true,
