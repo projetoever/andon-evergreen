@@ -234,6 +234,10 @@ test("central access allows only SQL-scoped machine reads and denies other selec
   const machineDetail = await app.inject({ url: "/api/machines/37", headers });
   assert.equal(machineDetail.statusCode, 200);
   assert.deepEqual(machineDetail.json().allowedMachineIds, ["37"]);
+  const headList = await app.inject({ method: "HEAD", url: "/api/machines", headers });
+  assert.equal(headList.statusCode, 200);
+  const headDetail = await app.inject({ method: "HEAD", url: "/api/machines/37", headers });
+  assert.equal(headDetail.statusCode, 200);
   const unsupportedSelected = await app.inject({ url: "/api/andon-calls", headers });
   assert.equal(unsupportedSelected.statusCode, 403);
   assert.equal(unsupportedSelected.json().error, "scoped_query_required");
