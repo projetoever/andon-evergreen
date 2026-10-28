@@ -53,6 +53,9 @@ O modo legado do ANDON permanece inalterado.
 
 ## Dependência
 
-Este PR é deliberadamente *encadeado* à branch de B2.1 (#223) e tem como base
-essa branch. Não tentar integrar diretamente à main antes de B2.1, e após
-integrar B2.1 atualizar a base/revisar o diff.
+Este PR é deliberadamente *encadeado* à implementação B2.1 (#223).
+Para executar o CI, sua base foi temporariamente configurada como `main`,
+conforme os gatilhos do workflow existentes. Até B2.1 ser integrado, o diff
+contra `main` também exibirá as alterações de B2.1. Não integrar B2.2
+antes de B2.1; após o merge de B2.1, revisar novamente o diff, as verificações
+de segurança e o CI de B2.2.
