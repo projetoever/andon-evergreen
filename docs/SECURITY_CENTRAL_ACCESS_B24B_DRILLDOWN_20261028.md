@@ -9,6 +9,8 @@ A rota `GET/HEAD /api/analytics/drilldown` é usada para detalhar uma máquina, 
 - Dimensão `machine`: exige que `value` pertença ao escopo autorizado, respondendo 404 caso contrário, ANTES de consultar a política/SQL. A consulta de eventos mantém `machineId = value`.
 - Dimensões `classification` e `sector`: aplicam `machineId: { in: machineIds }` diretamente ao `where` Prisma antes de qualquer `orderBy`, `take`, agregação ou mapeamento dos resultados.
 - Se `machineId` for fornecido explicitamente, também precisa estar autorizado; sem máquinas cadastradas, a consulta SQL usa `IN []` (não vira resultado global).
+- Eventos físicos e chamados vinculados podem pertencer a máquinas diferentes no esquema atual. No drilldown por máquina, detalhes do chamado vinculado só são expostos quando a máquina do chamado também pertence ao escopo autorizado; caso contrário, `callId`, OS, diagnóstico e técnicos são ocultados, preservando o evento da máquina consultada.
+- A mesma proteção oculta o `callId` fora do escopo na linha do tempo do Machine 360, sem excluir o evento físico legítimo.
 - Escopo global e modo legado continuam com consulta sem filtro extra, exceto filtros explicitamente informados pelo usuário.
 - Contexto de identidade ausente em modo central retorna 403, sem consultas a eventos ou chamados.
 
