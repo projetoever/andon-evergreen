@@ -2,6 +2,7 @@ import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState, type FormEvent } from "react";
 import { KeyRound } from "lucide-react";
+import { TlsInspectionPanel } from "@/components/settings/TlsInspectionPanel";
 import { toast } from "@/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +75,8 @@ export function HubSecuritySettings() {
   }
 
   return (
-    <Card>
+    <div className="space-y-4">
+      <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-primary" />
@@ -191,6 +193,8 @@ export function HubSecuritySettings() {
           )}
         </div>
       </CardContent>
-    </Card>
+      </Card>
+      <TlsInspectionPanel />
+    </div>
   );
 }
