@@ -3,7 +3,7 @@ import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft,
   KeyRound,
@@ -65,13 +65,18 @@ export function HubAdminPage() {
   useInterfaceLanguage();
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
   const section = requestedSection ?? "overview";
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const navigate = useNavigate();
+  const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
+  const [loginOpen, setLoginOpen] = useState(() => !isAdminAuthenticated());
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [hubEnabled, setHubEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const check = () => setAuthenticated(isAdminAuthenticated());
+    const check = () => {
+      const valid = isAdminAuthenticated();
+      setAuthenticated(valid);
+      if (!valid) setLoginOpen(true);
+    };
     check();
     window.addEventListener("andon:admin-session-expired", check);
     const timer = window.setInterval(check, 30_000);
@@ -80,6 +85,14 @@ export function HubAdminPage() {
       window.removeEventListener("andon:admin-session-expired", check);
     };
   }, []);
+
+  // A direct URL never mounts administrative sections while unauthenticated.
+  // Closing the sign-in dialog returns to Hub; success sets the validated state.
+  useEffect(() => {
+    if (!authenticated && !loginOpen) {
+      void navigate({ to: "/hub", replace: true });
+    }
+  }, [authenticated, loginOpen, navigate]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -103,6 +116,18 @@ export function HubAdminPage() {
       disposed = true;
     };
   }, [authenticated]);
+
+  if (!authenticated) {
+    return (
+      <main className="min-h-dvh bg-background" aria-label={ui("Acesso administrativo")}>
+        <AdminLoginModal
+          open={loginOpen}
+          onOpenChange={setLoginOpen}
+          onSuccess={() => setAuthenticated(true)}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-dvh bg-background p-4 text-foreground md:p-6">
@@ -136,6 +161,8 @@ export function HubAdminPage() {
                 onClick={() => {
                   logoutAdmin();
                   setAuthenticated(false);
+                  setLoginOpen(false);
+                  void navigate({ to: "/hub", replace: true });
                 }}
               >
                 <LogOut className="mr-2 h-4 w-4" />
@@ -173,16 +200,6 @@ export function HubAdminPage() {
           <UsersAccessSettings />
         ) : section === "workstations" ? (
           <WorkstationsSettingsTab />
-        ) : !authenticated ? (
-          <section className="space-y-4 rounded-xl border border-border bg-card p-6">
-            <h2 className="text-lg font-bold">{ui("Acesso administrativo")}</h2>
-            <p className="text-sm text-muted-foreground">
-              {ui(
-                "Entre com a credencial administrativa existente para gerenciar estações e recuperar acessos.",
-              )}
-            </p>
-            <Button onClick={() => setLoginOpen(true)}>{ui("Entrar no Admin")}</Button>
-          </section>
         ) : (
           <>
             {section === "overview" && (
@@ -234,11 +251,6 @@ export function HubAdminPage() {
             {section === "modules" && <ModuleCredentialSettings />}
           </>
         )}
-        <AdminLoginModal
-          open={loginOpen}
-          onOpenChange={setLoginOpen}
-          onSuccess={() => setAuthenticated(true)}
-        />
       </div>
     </main>
   );
