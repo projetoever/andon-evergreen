@@ -10,6 +10,28 @@ export interface WorkstationIdentityStorage {
 }
 
 let cachedWorkstationId: string | null = null;
+
+/**
+ * Two different UUIDs for the same origin must never be silently merged.
+ * Browser storage proves continuity only, not physical device ownership.
+ */
+export function hasWorkstationIdentityConflict() {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  let cookie: string | null = null;
+  try {
+    cookie = readCookie(WORKSTATION_ID_STORAGE_KEY);
+  } catch {
+    /* Browsers can disallow cookies but keep localStorage available. */
+  }
+  let mirror: string | null = null;
+  try {
+    mirror = window.localStorage.getItem(WORKSTATION_ID_STORAGE_KEY);
+  } catch {
+    /* Cookie alone may remain usable. */
+  }
+  return isValidWorkstationId(cookie) && isValidWorkstationId(mirror) &&
+    cookie.trim().toLowerCase() !== mirror.trim().toLowerCase();
+}
 let inMemoryWorkstationId: string | null = null;
 
 const inMemoryStorage: WorkstationIdentityStorage = {
@@ -93,8 +115,9 @@ function writeCookie(key: string, value: string) {
   document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${WORKSTATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
-// Cookie is canonical across ports on the same host. A browser-local mirror
-// recovers the same UUID when cookies are unavailable; it is never exported.
+// Cookie is shared across ports of the same hostname, but localStorage is
+// origin-specific. During upgrades preserve an already established origin
+// identity on conflict; never silently overwrite either stored ID.
 const browserCookieStorage: WorkstationIdentityStorage = {
   getItem(key) {
     let cookie: string | null = null;
@@ -102,6 +125,19 @@ const browserCookieStorage: WorkstationIdentityStorage = {
       cookie = readCookie(key);
     } catch {
       /* Browser may deny cookie access entirely. */
+    }
+    let mirror: string | null = null;
+    try {
+      mirror = window.localStorage.getItem(key);
+    } catch {
+      /* Cookie may remain available. */
+    }
+    if (isValidWorkstationId(mirror) && isValidWorkstationId(cookie) &&
+        mirror.trim().toLowerCase() !== cookie.trim().toLowerCase()) {
+      // Preserve the workstation used on this *origin* before an upgrade.
+      // The different cookie is not rewritten, and no new workstation is created.
+      // Administrators can inspect the conflict and schedule reconciliation.
+      return mirror;
     }
     if (isValidWorkstationId(cookie)) {
       try {
@@ -111,18 +147,13 @@ const browserCookieStorage: WorkstationIdentityStorage = {
       }
       return cookie;
     }
-    try {
-      const mirror = window.localStorage.getItem(key);
-      if (isValidWorkstationId(mirror)) {
-        try {
-          writeCookie(key, mirror);
-        } catch {
-          /* The mirror remains persistent. */
-        }
-        return mirror;
+    if (isValidWorkstationId(mirror)) {
+      try {
+        writeCookie(key, mirror);
+      } catch {
+        /* The mirror remains persistent. */
       }
-    } catch {
-      /* No persistent mirror available. */
+      return mirror;
     }
     return null;
   },
@@ -146,9 +177,17 @@ function getBrowserStorage() {
 }
 
 export function getCurrentWorkstationId() {
-  if (cachedWorkstationId) return cachedWorkstationId;
   const storage = getBrowserStorage();
   if (!storage) return null;
+  // Existing origin identity wins over a conflicting cross-port cookie.
+  // No third UUID is generated, and the server remains authoritative for
+  // whether this device may operate on the current attendance.
+  if (cachedWorkstationId) {
+    // Detect deleted/rotated storage while this tab is still open. An old
+    // cached UUID must not keep authorizing a workstation that lost identity.
+    const persisted = storage.getItem(WORKSTATION_ID_STORAGE_KEY);
+    return persisted?.trim().toLowerCase() === cachedWorkstationId ? cachedWorkstationId : null;
+  }
   const id = ensureWorkstationId(storage);
   // A volatile UUID would become a different station after reload. Fail clearly
   // instead of recording attendance against an identity that cannot be reused.

@@ -9,6 +9,7 @@ import {
   ensureWorkstationId,
   isValidWorkstationId,
   WORKSTATION_ID_STORAGE_KEY,
+  hasWorkstationIdentityConflict,
 } from "../src/services/workstationIdentityService";
 import { DEFAULT_SETTINGS } from "../src/context/defaultSettings";
 
@@ -98,7 +99,10 @@ test("cookie técnico e espelho usam a mesma chave da identidade da workstation"
   assert.match(identitySource, /localStorage/);
   assert.doesNotMatch(serviceSource, /window\.localStorage/);
   assert.match(serviceSource, /getCurrentWorkstationId\(\)/);
-  assert.doesNotMatch(identitySource, /machineId|hostname|ipAddress|macAddress/i);
+  // Human-readable comments may mention hostname and IP as examples.
+  // Only executable source must remain independent of network/device identifiers.
+  const executableIdentitySource = identitySource.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  assert.doesNotMatch(executableIdentitySource, /machineId|hostname|ipAddress|macAddress/i);
 });
 
 test("backup legado sem workstation continua válido e não clona identidade de dispositivo", () => {
@@ -174,5 +178,70 @@ test("cookie bloqueado usa o mesmo UUID persistido no espelho após reload", asy
     resetWorkstationIdentityCacheForTests();
     if(previousWindow)Object.defineProperty(globalThis,'window',previousWindow);else Reflect.deleteProperty(globalThis,'window');
     if(previousDocument)Object.defineProperty(globalThis,'document',previousDocument);else Reflect.deleteProperty(globalThis,'document');
+  }
+});
+
+test("cookie/local conflict preserves existing origin UUID without rewriting either persisted ID", async () => {
+  const { getCurrentWorkstationId, resetWorkstationIdentityCacheForTests } =
+    await import("../src/services/workstationIdentityService");
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const storage = new MemoryStorage();
+  storage.setItem(WORKSTATION_ID_STORAGE_KEY, `ws_${UUID_A}`);
+  let cookieValue = `andon.workstationId=ws_${UUID_B}`;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage } });
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      get cookie() { return cookieValue; },
+      set cookie(value: string) { cookieValue = value; },
+    },
+  });
+  try {
+    resetWorkstationIdentityCacheForTests();
+    assert.equal(hasWorkstationIdentityConflict(), true);
+    assert.equal(getCurrentWorkstationId(), `ws_${UUID_A}`);
+    resetWorkstationIdentityCacheForTests();
+    assert.equal(getCurrentWorkstationId(), `ws_${UUID_A}`);
+    assert.equal(storage.getItem(WORKSTATION_ID_STORAGE_KEY), `ws_${UUID_A}`);
+    assert.equal(cookieValue, `andon.workstationId=ws_${UUID_B}`);
+  } finally {
+    resetWorkstationIdentityCacheForTests();
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+    if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});
+
+test("cached workstation identity stops authorizing requests when storage is lost", async () => {
+  const { getCurrentWorkstationId, resetWorkstationIdentityCacheForTests } =
+    await import("../src/services/workstationIdentityService");
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const storage = new MemoryStorage();
+  storage.setItem(WORKSTATION_ID_STORAGE_KEY, `ws_${UUID_A}`);
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage } });
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: { get cookie() { return ""; }, set cookie(_value: string) {} },
+  });
+  try {
+    resetWorkstationIdentityCacheForTests();
+    assert.equal(getCurrentWorkstationId(), `ws_${UUID_A}`);
+    const unavailableStorage = {
+      getItem() { throw new Error("storage unavailable"); },
+      setItem() { throw new Error("storage unavailable"); },
+    };
+    Object.defineProperty(globalThis, "window", {
+      configurable: true, value: { localStorage: unavailableStorage },
+    });
+    assert.equal(getCurrentWorkstationId(), null);
+  } finally {
+    resetWorkstationIdentityCacheForTests();
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+    if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument);
+    else Reflect.deleteProperty(globalThis, "document");
   }
 });

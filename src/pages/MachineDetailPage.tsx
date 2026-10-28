@@ -321,6 +321,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, onSettingsChanged);
   }, []);
+  // Workstation status shown here is advisory. Only the backend transaction
+  // can authorize a maintenance completion using the persisted session UUIDs.
   const maintenanceCompletionAuthorization = useMemo(
     () =>
       workstationRestrictionContext
@@ -345,7 +347,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
     if (!maintenanceCompletionAuthorization) return null;
     if (!maintenanceCompletionAuthorization.allowed)
-      return systemMessage(maintenanceCompletionAuthorization.message);
+      return `${systemMessage(maintenanceCompletionAuthorization.message)} ${ui(
+        "A autorização será confirmada pelo servidor ao concluir.",
+      )}`;
     if (maintenanceCompletionAuthorization.kind === "legacy") {
       return ui("Atendimento legado: conclusão permitida.");
     }
@@ -692,9 +696,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         onFinish={() => currentCall && setFinishCallId(currentCall.id)}
         onCompleteMaintenance={() => void handleCompleteMaintenance()}
         onReturnToMaintenance={() => void handleReturnToMaintenance()}
-        maintenanceCompletionDisabled={
-          maintenanceCompletionAuthorization?.allowed === false || isCompletingMaintenance
-        }
+        maintenanceCompletionDisabled={isCompletingMaintenance}
         maintenanceCompletionHint={maintenanceCompletionHint}
         maintenanceCompletionHintTone={maintenanceCompletionHintTone}
       />

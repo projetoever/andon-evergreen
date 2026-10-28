@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["A identidade anterior deste navegador foi preservada. Um cookie de outra porta contém UUID diferente. Verifique o histórico antes de unificar as estações; nenhum identificador foi substituído.", "The previous identity for this browser was preserved. A cookie from another port has a different UUID. Review attendance history before reconciling stations; no ID has been replaced.", "此瀏覽器原有的工作站識別已保留。另一個連接埠的 Cookie 使用不同 UUID。合併工作站前請檢查維修紀錄；系統未取代任何識別碼。"],
+  ["A autorização será confirmada pelo servidor ao concluir.", "The server will verify your authorization when completing maintenance.", "完成維修時將由伺服器確認授權。"],
+  ["Identidade divergente entre cookie e navegador. Nenhuma workstation será alterada automaticamente. Solicite recuperação supervisionada ao administrador.", "Cookie and browser workstation identities differ. No workstation will be changed automatically. Ask an administrator for supervised recovery.", "Cookie 與瀏覽器的工作站識別不一致。不會自動變更任何工作站，請聯絡管理員協助復原。"],
   ["Certificados e DNS","Certificates and DNS","憑證與 DNS"],
   ["Inspeção somente leitura do HTTPS em uso. Nenhuma configuração ou chave privada é alterada.","Read-only inspection of active HTTPS. No configuration or private key is modified.","唯讀檢查目前使用的 HTTPS，不會修改任何設定或私鑰。"],
   ["Atualizar diagnóstico","Refresh diagnostics","更新診斷"],

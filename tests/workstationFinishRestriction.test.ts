@@ -502,11 +502,14 @@ test("página não bloqueia por incerteza de carregamento e mantém erro do back
     page,
     /Promise\.allSettled\(\[getSystemSettings\(\), registerCurrentWorkstation\(\)\]\)/,
   );
-  assert.match(page, /maintenanceCompletionAuthorization\?\.allowed === false/);
+  assert.match(page, /maintenanceCompletionDisabled=\{isCompletingMaintenance\}/);
+  assert.doesNotMatch(page, /maintenanceCompletionDisabled=\{[^}]*maintenanceCompletionAuthorization/);
+  assert.match(page, /A autorização será confirmada pelo servidor ao concluir/);
   assert.match(page, /isCompletingMaintenance/);
   assert.doesNotMatch(page, /Workstation autorizada para concluir esta manutenção/);
   assert.match(page, /A validação será feita ao concluir/);
-  assert.match(page, /return systemMessage\(maintenanceCompletionAuthorization\.message\)/);
+  assert.match(page, /systemMessage\(maintenanceCompletionAuthorization\.message\)/);
+  assert.match(page, /A autorização será confirmada pelo servidor ao concluir/);
   assert.match(page, /await completeMaintenance\(currentCall\.id\)/);
   assert.doesNotMatch(page, /MaintenanceFollowUpSelectionModal/);
 });

@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
+import { getCurrentWorkstationId, hasWorkstationIdentityConflict } from "@/services/workstationIdentityService";
 import {
   listWorkstations,
   registerCurrentWorkstation,
@@ -40,6 +40,7 @@ export function WorkstationsSettingsTab() {
   const { access, checking, refresh } = useModuleAccess();
   const centralAccess = access?.centralAccessEnabled === true;
   const currentWorkstationId = getCurrentWorkstationId();
+  const workstationIdentityConflict = hasWorkstationIdentityConflict();
   const [items, setItems] = useState<ManagedWorkstation[]>([]);
   const [accessSession, setAccessSession] = useState<AccessState | null>(null);
   const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
@@ -322,6 +323,11 @@ export function WorkstationsSettingsTab() {
 
   return (
     <div className="space-y-4">
+      {workstationIdentityConflict && (
+        <p role="status" className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
+          {ui("A identidade anterior deste navegador foi preservada. Um cookie de outra porta contém UUID diferente. Verifique o histórico antes de unificar as estações; nenhum identificador foi substituído.")}
+        </p>
+      )}
       {!centralAccess && <WorkstationAdmissionSettings />}
       <div className="space-y-1">
         <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
