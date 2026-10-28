@@ -1225,7 +1225,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const where: Prisma.AndonCallWhereInput = {
       ...callMachineReadWhere(machineId, allowedIds),
       ...(activeOnly
-        ? { status: { in: OPEN_CALL_STATUSES }, finishedAt: null }
+        ? { status: status ?? { in: OPEN_CALL_STATUSES }, finishedAt: null }
         : status ? { status } : {}),
       ...(criticality ? { criticality } : {}),
     };
