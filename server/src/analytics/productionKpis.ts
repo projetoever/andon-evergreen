@@ -130,6 +130,22 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     mttrMinutes: closedMaintenance.length ? round2(closedMaintenance.reduce((total, episode) => total + episode.end - episode.start, 0) / MINUTE / closedMaintenance.length) : null,
     resolvedEpisodes: closedMaintenance.length,
   };
+  const closedPendingEpisodes = causalEpisodes.filter(episode =>
+    ["unassigned", "mixed"].includes(episode.responsibility) &&
+    Number.isFinite(episode.end) &&
+    episode.end >= start.getTime() && episode.end < effectiveEnd.getTime(),
+  ).length;
+  const openMaintenanceEpisodes = causalEpisodes.filter(episode =>
+    episode.responsibility === "maintenance" &&
+    !Number.isFinite(episode.end) && episode.start < effectiveEnd.getTime(),
+  ).length;
+  const mttrAvailabilityReason = restoration.resolvedEpisodes > 0
+    ? "available" as const
+    : closedPendingEpisodes > 0
+      ? "pending_attribution" as const
+      : openMaintenanceEpisodes > 0
+        ? "awaiting_restoration" as const
+        : "no_closed_maintenance_episodes" as const;
   const startMs=start.getTime(), endMs=effectiveEnd.getTime();
   const empty={
     availabilityPercent:null as number|null,
@@ -140,6 +156,13 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     resolvedMttrMinutes:restoration.mttrMinutes,
     resolvedEpisodes:restoration.resolvedEpisodes,
     allCauseRestorationMinutes:allCauseRestoration.mttrMinutes, allCauseResolvedEpisodes:allCauseRestoration.resolvedEpisodes,
+    // Diagnostic-only fields: preserve the official KPI formulas unchanged.
+    closedPendingRestorationEpisodes: closedPendingEpisodes,
+    openMaintenanceEpisodes,
+    mttrAvailabilityReason,
+    mtbfAvailabilityReason: (assets === null ? "dimension_filtered" : "insufficient_schedule") as
+      "dimension_filtered" | "insufficient_schedule" | "no_programmed_minutes" |
+      "pending_attribution" | "no_maintenance_failures" | "available",
     daily:[] as Array<{date:string;availabilityPercent:number|null;scheduledMinutes:number;scheduledDowntimeMinutes:number}>,
     availabilityStatus:assets===null?"dimension_filtered":"insufficient_schedule",
     methodology:{
@@ -193,6 +216,11 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   const scheduledDowntimeMinutes=round2(stoppedScheduledMs/MINUTE);
   const availabilityPercent=scheduledMs>0?round2((operatingMs/scheduledMs)*100):null;
   const plannedMtbfMinutes=episodes>0 && pending===0?round2(operatingMs/MINUTE/episodes):null;
+  const mtbfAvailabilityReason = covered===0 ? "insufficient_schedule" as const :
+    scheduledMs===0 ? "no_programmed_minutes" as const :
+    pending>0 ? "pending_attribution" as const :
+    episodes===0 ? "no_maintenance_failures" as const :
+    "available" as const;
   if (covered>0) {
     let cursor=startMs;
     for(let guard=0;cursor<endMs && guard<40;guard++) {
@@ -210,7 +238,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   })).sort((a,b)=>a.date.localeCompare(b.date));
   return {
     ...empty,
-    availabilityPercent,plannedMtbfMinutes,
+    availabilityPercent,plannedMtbfMinutes,mtbfAvailabilityReason,
     scheduledMinutes,scheduledDowntimeMinutes,
     operatingMinutes:round2(operatingMs/MINUTE),
     productionFailureEpisodes:episodes,
