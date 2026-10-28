@@ -15,6 +15,11 @@ import {
 } from "@/services/accessService";
 
 import { permissionLabels } from "@/services/accessLabels";
+import {
+  MODULE_ENTRY_PERMISSIONS,
+  hasRoleSuggestion,
+  suggestedPermissions,
+} from "@/services/accessRolePresets";
 
 const emptyDraft = (): UserDraft => ({
   login: "",
@@ -147,6 +152,15 @@ export function UsersAccessSettings() {
     setSecret(null);
     setResetTarget(null);
     setError("");
+  };
+  const togglePermission = (key: string, checked: boolean) => {
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      permissions: checked
+        ? [...draft.permissions.filter((permission) => permission !== key), key]
+        : draft.permissions.filter((permission) => permission !== key),
+    });
   };
   const credentials = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -437,7 +451,7 @@ export function UsersAccessSettings() {
                       />
                     </Label>
                     <Label className="space-y-2">
-                      {ui("Login")}
+                      {ui("Nickname / login")}
                       <Input
                         value={draft.login}
                         required
@@ -548,31 +562,67 @@ export function UsersAccessSettings() {
                   </fieldset>
                   <fieldset className="space-y-3">
                     <legend className="font-bold">{ui("Permissões por módulo e ação")}</legend>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {catalog.permissions.map((key) => (
+                    {draft.accountType === "person" && hasRoleSuggestion(draft.roleLabel) && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setDraft({
+                              ...draft,
+                              permissions: suggestedPermissions(draft.roleLabel, catalog.permissions),
+                            })
+                          }
+                        >
+                          {ui("Aplicar permissões sugeridas")}
+                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                          {ui("Substitui a seleção atual. Revise as permissões antes de salvar.")}
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-sm font-semibold">{ui("Acesso aos módulos")}</p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {MODULE_ENTRY_PERMISSIONS.filter((item) =>
+                        catalog.permissions.includes(item.key),
+                      ).map((item) => (
                         <Label
-                          key={key}
-                          className="flex min-h-11 items-start gap-3 rounded-md border p-3"
+                          key={item.key}
+                          className="flex min-h-11 items-center gap-3 rounded-md border p-3"
                         >
                           <input
-                            className="mt-1 shrink-0"
                             type="checkbox"
-                            checked={draft.permissions.includes(key)}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                permissions: e.target.checked
-                                  ? [...draft.permissions, key]
-                                  : draft.permissions.filter((p) => p !== key),
-                              })
-                            }
+                            checked={draft.permissions.includes(item.key)}
+                            onChange={(e) => togglePermission(item.key, e.target.checked)}
                           />
-                          <span className="min-w-0 break-words">
-                            {ui(permissionLabels[key] ?? key)}
-                          </span>
+                          <span className="min-w-0 break-words">{ui(item.label)}</span>
                         </Label>
                       ))}
                     </div>
+                    <p className="text-sm font-semibold">{ui("Permissões de ações específicas")}</p>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {catalog.permissions
+                        .filter((key) => !MODULE_ENTRY_PERMISSIONS.some((item) => item.key === key))
+                        .map((key) => (
+                          <Label
+                            key={key}
+                            className="flex min-h-11 items-start gap-3 rounded-md border p-3"
+                          >
+                            <input
+                              className="mt-1 shrink-0"
+                              type="checkbox"
+                              checked={draft.permissions.includes(key)}
+                              onChange={(e) => togglePermission(key, e.target.checked)}
+                            />
+                            <span className="min-w-0 break-words">
+                              {ui(permissionLabels[key] ?? key)}
+                            </span>
+                          </Label>
+                        ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {ui("As permissões serão aplicadas às operações após a ativação segura do controle central.")}
+                    </p>
                   </fieldset>
                   <div className="flex flex-wrap gap-3">
                     <Button
