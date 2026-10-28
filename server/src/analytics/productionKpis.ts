@@ -90,7 +90,9 @@ export function calculateObservedRestorationMttr(
 /** A schedule is eligible only when an explicit production-mode event covers
  * its entire observation interval, including the start. Gaps, overlap and
  * unknown values are not interpreted as scheduled production. */
-function confirmedSchedule(events: ProductionModeInterval[], interval: Interval): Interval[] | null {
+/** Exposed solely for the read-only audit to use exactly the same
+ * schedule-coverage policy as the official availability/MTBF calculator. */
+export function confirmedSchedule(events: ProductionModeInterval[], interval: Interval): Interval[] | null {
   const raw=events.filter(e=>e.startedAt.getTime()<interval.end &&
     (e.endedAt?.getTime()??Infinity)>interval.start)
     .map(e=>({start:Math.max(interval.start,e.startedAt.getTime()),
