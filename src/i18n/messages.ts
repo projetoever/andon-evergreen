@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Sessão Admin legado","Legacy Admin session","舊版管理員工作階段"],
   ["Situação consultada no servidor; não representa disponibilidade instantânea das máquinas.","Server data snapshot; it does not indicate real-time machine availability.","伺服器資料快照；不代表機台即時可用狀態。"],
   ["Atualizar resumo","Refresh summary","更新摘要"],
   ["Registradas","Registered","已登記"],
