@@ -97,7 +97,7 @@ test("B2.4C: overview and previous-period cohorts obey one authenticated machine
   assert.equal(allowed.statusCode,200,allowed.body);
   assert.equal(allowed.json().kpis.callsOpened,0);
   assert.equal(queries.calls.length,2,"current and previous period");
-  assert.equal(queries.counts.length,4,"both eligibility populations, current and previous");
+  assert.equal(queries.counts.length,5,"one scoped active-call snapshot plus both eligibility populations in current and previous periods");
   assert.equal(queries.machines.length,2);
   assert.equal(queries.events.length,2);
   for(const q of queries.calls)assert.deepEqual((q as any).where.machineId,{in:["37"]});
