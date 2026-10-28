@@ -6,7 +6,7 @@ import { registerTlsAdministrationRoutes } from "./tlsAdministration.js";
 
 test("TLS inventory rejects anonymous access, HTTP and central mode before disclosure", async () => {
   const app = Fastify();
-  registerTlsAdministrationRoutes(app);
+  registerTlsAdministrationRoutes(app, null);
   await app.ready();
   const savedOrigin = process.env.ANDON_ACCESS_ORIGIN;
   const savedCentral = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
