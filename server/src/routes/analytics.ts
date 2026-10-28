@@ -881,25 +881,39 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         );
       }
 
-      const policy = await loadAnalyticsEligibility();
-      const generatedAt = new Date();
-      const effectiveEnd =
-        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
       const filters: AnalyticsOverviewFilters = {
         machineId: optionalQueryString(request.query.machineId),
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      // Server-bound authenticated scope is checked before querying the
+      // classification catalog or technician identities.
+      const allowedIds = scopedMachineReadIds(request);
+      if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
+        return reply.status(404).send({ error: "Máquina não encontrada" });
+      }
+      const machineWhere = filters.machineId
+        ? { machineId: filters.machineId }
+        : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
+      const policy = await loadAnalyticsEligibility();
+      const generatedAt = new Date();
+      const effectiveEnd =
+        period.end.getTime() < generatedAt.getTime() ? period.end : generatedAt;
 
       const sessions =
         effectiveEnd.getTime() > period.start.getTime()
           ? await prisma.technicianSession.findMany({
               where: {
-                ...(filters.machineId ? { machineId: filters.machineId } : {}),
+                ...machineWhere,
                 startedAt: { lt: effectiveEnd },
                 OR: [{ endedAt: null }, { endedAt: { gt: period.start } }],
                 call: {
                   ...policy.callWhere,
+                  // A session on an authorized machine cannot inherit
+                  // details from a linked call belonging to a foreign machine.
+                  ...(allowedIds === null ? {} : {
+                    machineId: { in: [...allowedIds] },
+                  }),
                   ...(filters.subtype ? { subtype: filters.subtype } : {}),
                   ...(filters.classification
                     ? { failureClassification: filters.classification }
