@@ -442,16 +442,21 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
       if (period.end.getTime() - period.start.getTime() > 31 * 24 * 60 * 60 * 1000) {
         return badRequest(reply, "O limite desta visualização temporal é de 31 dias");
       }
-      const policy = await loadAnalyticsEligibility();
-      const generatedAt = new Date();
-      const effectiveEnd = new Date(Math.min(generatedAt.getTime(), period.end.getTime()));
       const filters: AnalyticsOverviewFilters = {
         machineId: optionalQueryString(request.query.machineId),
         subtype: optionalQueryString(request.query.subtype),
         classification: optionalQueryString(request.query.classification),
       };
+      // Use the same SQL-bound cohort as the authenticated overview route;
+      // an explicitly foreign machine must fail before any database access.
+      const allowedIds = scopedMachineReadIds(request);
+      if (filters.machineId && allowedIds !== null && !allowedIds.includes(filters.machineId)) {
+        return reply.status(404).send({ error: "Máquina não encontrada" });
+      }
+      const generatedAt = new Date();
+      const effectiveEnd = new Date(Math.min(generatedAt.getTime(), period.end.getTime()));
       const data = effectiveEnd.getTime() > period.start.getTime()
-        ? await loadOverviewDataset(period.start, period.end, effectiveEnd, filters, false)
+        ? await loadOverviewDataset(period.start, period.end, effectiveEnd, filters, false, allowedIds)
         : { calls: [], failureEvents: [] };
       return {
         meta: {
