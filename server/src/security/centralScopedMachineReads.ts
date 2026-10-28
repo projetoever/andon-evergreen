@@ -11,7 +11,9 @@ const scopedPrincipals = new WeakMap<FastifyRequest, Principal>();
 export function isScopedMachineReadRoute(method: string, pathname: string) {
   return method === "GET" && (
     pathname === "/api/machines" ||
-    /^\/api\/machines\/[^/]+$/.test(pathname)
+    /^\/api\/machines\/[^/]+$/.test(pathname) ||
+    pathname === "/api/andon-calls" ||
+    pathname === "/api/andon-calls/history"
   );
 }
 
