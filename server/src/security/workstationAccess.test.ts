@@ -152,6 +152,8 @@ test("central access binds scoped machine/call reads and protects history with a
   const originalSession = prisma.accessSession.findUnique;
   let machineScope = "all";
   let canReadHistory = false;
+  let canReadBi = false;
+  let canReadPriorities = false;
   let sessionWorkstationId = id;
   prisma.workstation.findUnique = (async () => ({
     active: true,
@@ -180,7 +182,12 @@ test("central access binds scoped machine/call reads and protects history with a
       mustChangePassword: false,
       authorizationVersion: 1,
       machineScope,
-      permissions: [ { key: "andon.read" }, ...(canReadHistory ? [{ key: "history.read" }] : []) ],
+      permissions: [
+        { key: "andon.read" },
+        ...(canReadHistory ? [{ key: "history.read" }] : []),
+        ...(canReadBi ? [{ key: "bi.read" }] : []),
+        ...(canReadPriorities ? [{ key: "priorities.read" }] : []),
+      ],
       machines: [{ machineId: "37" }],
     },
   })) as unknown as typeof originalSession;
@@ -216,6 +223,13 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/andon-calls/history", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/analytics/filter-options", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
+  app.get("/api/dashboard-priority/order", async (request) => ({
+    allowedMachineIds: scopedMachineReadIds(request),
+  }));
+  app.put("/api/dashboard-priority/order", async () => ({ ok: true }));
   app.get("/api/analytics/overview", async () => ({ ok: true }));
   app.get("/api/modules/settings", async () => ({ ok: true }));
   const token = "a".repeat(64);
@@ -259,6 +273,26 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.deepEqual(history.json().allowedMachineIds, ["37"]);
   const historyHead = await app.inject({ method: "HEAD", url: "/api/andon-calls/history", headers });
   assert.equal(historyHead.statusCode, 200);
+  const deniedBi = await app.inject({ url: "/api/analytics/filter-options", headers });
+  assert.equal(deniedBi.statusCode, 403);
+  assert.equal(deniedBi.json().error, "permission_denied");
+  const deniedPriorities = await app.inject({ url: "/api/dashboard-priority/order", headers });
+  assert.equal(deniedPriorities.statusCode, 403);
+  assert.equal(deniedPriorities.json().error, "permission_denied");
+
+  canReadBi = true;
+  canReadPriorities = true;
+  const biFilters = await app.inject({ url: "/api/analytics/filter-options", headers });
+  assert.equal(biFilters.statusCode, 200);
+  assert.deepEqual(biFilters.json().allowedMachineIds, ["37"]);
+  const priorityOrder = await app.inject({ url: "/api/dashboard-priority/order", headers });
+  assert.equal(priorityOrder.statusCode, 200);
+  assert.deepEqual(priorityOrder.json().allowedMachineIds, ["37"]);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/analytics/filter-options", headers })).statusCode, 200);
+  assert.equal((await app.inject({ method: "HEAD", url: "/api/dashboard-priority/order", headers })).statusCode, 200);
+  const deniedPriorityWrite = await app.inject({ method: "PUT", url: "/api/dashboard-priority/order", headers });
+  assert.equal(deniedPriorityWrite.statusCode, 403);
+  assert.equal(deniedPriorityWrite.json().error, "scoped_query_required");
   const stillUnsupported = await app.inject({ url: "/api/analytics/overview", headers });
   assert.equal(stillUnsupported.statusCode, 403);
   assert.equal(stillUnsupported.json().error, "scoped_query_required");
