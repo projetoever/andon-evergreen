@@ -9,7 +9,7 @@ import { AccessError, type Principal } from "../access/policy.js";
 const scopedPrincipals = new WeakMap<FastifyRequest, Principal>();
 
 export function isScopedMachineReadRoute(method: string, pathname: string) {
-  return method === "GET" && (
+  return (method === "GET" || method === "HEAD") && (
     pathname === "/api/machines" ||
     /^\/api\/machines\/[^/]+$/.test(pathname) ||
     pathname === "/api/andon-calls" ||
