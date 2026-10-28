@@ -99,7 +99,10 @@ test("cookie técnico e espelho usam a mesma chave da identidade da workstation"
   assert.match(identitySource, /localStorage/);
   assert.doesNotMatch(serviceSource, /window\.localStorage/);
   assert.match(serviceSource, /getCurrentWorkstationId\(\)/);
-  assert.doesNotMatch(identitySource, /machineId|hostname|ipAddress|macAddress/i);
+  // Human-readable comments may mention hostname and IP as examples.
+  // Only executable source must remain independent of network/device identifiers.
+  const executableIdentitySource = identitySource.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  assert.doesNotMatch(executableIdentitySource, /machineId|hostname|ipAddress|macAddress/i);
 });
 
 test("backup legado sem workstation continua válido e não clona identidade de dispositivo", () => {
