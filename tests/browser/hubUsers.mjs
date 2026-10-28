@@ -45,9 +45,16 @@ try {
     { width: 390, height: 844 },
   ]) {
     const context = await browser.newContext({ viewport, ignoreHTTPSErrors: true });
-    await context.addInitScript(() =>
-      localStorage.setItem("andon.workstationId", "ws_00000000-0000-4000-8000-000000000001"),
-    );
+    await context.addInitScript(() => {
+      localStorage.setItem("andon.workstationId", "ws_00000000-0000-4000-8000-000000000001");
+      // The administrative page now requires a validated legacy Admin session
+      // before the independent central-users bootstrap/login is displayed.
+      sessionStorage.setItem("andonAdminSession", JSON.stringify({
+        token: "users-ui-admin-session",
+        username: "admin",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }));
+    });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
