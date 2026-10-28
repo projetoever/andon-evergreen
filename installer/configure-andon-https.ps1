@@ -1,5 +1,6 @@
 ﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Transport.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.NetworkHttps.ps1"
 
 $ErrorActionPreference = "Stop"
 
@@ -238,17 +239,67 @@ try {
         Set-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
         Assert-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
     } else {
-        Write-AndonHeader "HTTPS DE REDE - CERTIFICADO DA EMPRESA"
-        Write-AndonWarn "A CA precisa ser confiavel em cada navegador e cliente industrial."
-        do {
-            $httpsHost = (Read-Host "Nome DNS ou IP coberto pelo certificado (sem https:// ou porta)").Trim()
-            if (!(Test-AndonHttpsHost -HostName $httpsHost)) {
-                Write-AndonFail "Host HTTPS invalido. Nao informe protocolo, porta ou caminho."
-            }
-        } while (!(Test-AndonHttpsHost -HostName $httpsHost))
+        Write-AndonHeader "HTTPS DE REDE - ASSISTENTE DNS E CERTIFICADOS"
+        Write-Host "1 - Homologar HTTPS na rede do notebook (CA de teste, mkcert)"
+        Write-Host "2 - Ativar HTTPS com certificado confiavel JA EMITIDO (PEM)"
+        Write-Host "3 - Preparar CSR para autoridade certificadora da empresa (nao ativa HTTPS)"
+        Write-Host "0 - Voltar sem alterar o transporte"
+        $networkMode = (Read-Host "Escolha a etapa").Trim()
+        if ($networkMode -eq "0") { exit 0 }
+        if ($networkMode -notin @("1", "2", "3")) { throw "Opcao de certificado invalida." }
 
-        $sourceCertificate = (Read-Host "Caminho completo do certificado PEM confiavel").Trim('"').Trim()
-        $sourcePrivateKey = (Read-Host "Caminho completo da chave privada PEM").Trim('"').Trim()
+        $networkIdentity = Select-AndonNetworkHttpsIdentity -AllowPendingDns:($networkMode -eq "3")
+        $httpsHost = "$($networkIdentity.HostName)"
+        $serverIp = "$($networkIdentity.ServerAddress)"
+        Write-AndonOk "Host canonico escolhido: $httpsHost"
+        Write-Host "URL apos ativacao: https://$httpsHost`:$($config.frontendPort)/hub"
+
+        if ($networkMode -eq "3") {
+            $csr = New-AndonNetworkHttpsCsr -HttpsHost $httpsHost -TlsPath $tlsPath
+            Write-AndonHeader "SOLICITACAO CORPORATIVA GERADA"
+            Write-AndonOk "CSR para enviar a CA da empresa: $($csr.CsrPath)"
+            Write-AndonWarn "Chave privada preservada SOMENTE no servidor: $($csr.KeyPath)"
+            Write-Host "Solicite a emissao de um certificado TLS Server Authentication para $httpsHost."
+            Write-Host "Depois retorne em 14 -> 3 -> 2 com certificado PEM emitido e esta mesma chave."
+            Write-AndonWarn "Nenhuma configuracao HTTP/HTTPS ou DNS foi alterada."
+            exit 0
+        }
+
+        if ($networkMode -eq "1") {
+            $operatingSystem = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+            if ([int]$operatingSystem.ProductType -ne 1) {
+                throw "CA de teste em rede e proibida no Windows Server. Use CSR ou certificado corporativo."
+            }
+            Write-AndonWarn "Modo de homologacao: mkcert NAO e certificado corporativo."
+            Write-AndonWarn "A CA de teste sera confiada apenas neste notebook, nao em outros clientes."
+            if (!(Read-AndonYesNo "Autoriza instalar/confiar numa CA LOCAL de TESTE?" $false)) {
+                Write-AndonWarn "Operacao cancelada. Transporte existente preservado."
+                exit 0
+            }
+            $mkcert = Ensure-AndonMkcert
+            & $mkcert -install
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha ao instalar a confianca da CA local. Configuracao anterior preservada."
+            }
+
+            New-Item -ItemType Directory -Path $tlsPath -Force | Out-Null
+            $script:AndonLocalTlsTemp = Join-Path $tlsPath ("network-test-" + [guid]::NewGuid().ToString("N"))
+            New-Item -ItemType Directory -Path $script:AndonLocalTlsTemp -Force | Out-Null
+            Set-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
+            Assert-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
+            $sourceCertificate = Join-Path $script:AndonLocalTlsTemp "certificate.pem"
+            $sourcePrivateKey = Join-Path $script:AndonLocalTlsTemp "private-key.pem"
+            & $mkcert -cert-file $sourceCertificate -key-file $sourcePrivateKey $httpsHost "127.0.0.1" "localhost"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha ao gerar certificado de teste da rede. Configuracao preservada."
+            }
+            Set-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
+            Assert-AndonRestrictedTlsAcl -Path $script:AndonLocalTlsTemp
+        } else {
+            Write-AndonWarn "A CA do certificado deve ser confiavel neste servidor e em todos os clientes."
+            $sourceCertificate = (Read-Host "Caminho completo do certificado PEM confiavel").Trim('"').Trim()
+            $sourcePrivateKey = (Read-Host "Caminho completo da chave privada PEM").Trim('"').Trim()
+        }
     }
     Assert-AndonTlsPair -CertificatePath $sourceCertificate -PrivateKeyPath $sourcePrivateKey -HttpsHost $httpsHost
 
@@ -276,7 +327,10 @@ try {
         } |
         Out-Null
 
-    Write-AndonOk "HTTPS configurado com certificado confiavel existente."
+    Write-AndonOk "HTTPS configurado com certificado validado para $httpsHost."
+    if ($choice -eq "3" -and $networkMode -eq "1") {
+        Write-AndonWarn "HOMOLOGACAO: outros clientes nao confiam automaticamente na CA mkcert."
+    }
     Write-AndonWarn "A autenticacao central continua desligada."
     Write-AndonOk "Use a opcao 4 para iniciar o ANDON em https://$httpsHost`:$($config.frontendPort)."
     exit 0
