@@ -37,6 +37,18 @@ export function scopedMachineReadIds(request: FastifyRequest): readonly string[]
   return principal.machineScope === "all" ? null : principal.machineIds;
 }
 
+/**
+ * The live call collection must never expose completed/cancelled records
+ * to a central user without history.read, even if no status was requested.
+ * Legacy callers and validated industrial services retain existing behavior.
+ */
+export function restrictCentralCallListToActive(request: FastifyRequest): boolean {
+  if (!centralAccessEnabled() || request.industrialService) return false;
+  const principal = scopedPrincipals.get(request);
+  if (!principal) throw new AccessError("central_read_context_required");
+  return !principal.isPrimaryAdmin && !principal.permissions.includes("history.read");
+}
+
 /** Bind full and restricted users only after HTTPS, Origin and module checks. */
 export function bindAuthorizedMachineReadPrincipal(
   request: FastifyRequest,
