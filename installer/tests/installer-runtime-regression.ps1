@@ -250,6 +250,17 @@ Assert-AndonTest `
     -Condition ($httpsConfigScript -match 'certutil\.exe' -and $httpsConfigScript -match 'centralAccessEnabled" -Value \$false') `
     -Message "Configurador HTTPS deve validar confianca sem ativar acesso central"
 
+Assert-AndonTest `
+    -Condition ($httpsConfigScript -notmatch 'return\s+if\s*\(') `
+    -Message "PowerShell 5.1 nao pode tratar if como comando ao obter IP do servidor"
+
+Assert-AndonTest `
+    -Condition (
+        $httpsConfigScript -match 'Get-AndonPreservedEnvLines' -and
+        $httpsConfigScript -match 'Add-AndonPreservedEnvLines'
+    ) `
+    -Message "Troca de transporte deve preservar variaveis adicionais do backend"
+
 $restrictAclIndex = $transportScript.IndexOf(
     "Set-AndonRestrictedTlsAcl -Path `$transactionPath"
 )

@@ -69,6 +69,40 @@ try {
     [void]$permissiveAcl.AddAccessRule($permissiveRule)
     Set-Acl -LiteralPath $previousPrivateKey -AclObject $permissiveAcl
 
+    Set-Content `
+        -LiteralPath $script:envPath `
+        -Value @(
+            "PORT=3001",
+            "ANDON_TIME_ZONE=UTC",
+            "CUSTOM_INTEGRATION_MODE=isolated",
+            "# comentario preservado"
+        ) `
+        -Encoding UTF8
+    $preservedEnvLines = @(
+        Get-AndonPreservedEnvLines `
+            -Path $script:envPath `
+            -ManagedVariableNames @("PORT", "ANDON_TLS_CERT")
+    )
+    Assert-TransportTest `
+        -Condition ($preservedEnvLines -contains "ANDON_TIME_ZONE=UTC") `
+        -Message "Variavel adicional do backend deve ser preservada"
+    Assert-TransportTest `
+        -Condition ($preservedEnvLines -contains "CUSTOM_INTEGRATION_MODE=isolated") `
+        -Message "Integracao adicional do backend deve ser preservada"
+    Assert-TransportTest `
+        -Condition ($preservedEnvLines -notcontains "PORT=3001") `
+        -Message "Variavel gerenciada nao pode ser duplicada"
+    Set-Content -LiteralPath $script:envPath -Value "PORT=4001" -Encoding UTF8
+    Add-AndonPreservedEnvLines -Path $script:envPath -Lines $preservedEnvLines
+    $mergedEnv = Get-Content -LiteralPath $script:envPath
+    Assert-TransportTest `
+        -Condition (
+            $mergedEnv -contains "PORT=4001" -and
+            $mergedEnv -contains "ANDON_TIME_ZONE=UTC" -and
+            $mergedEnv -contains "CUSTOM_INTEGRATION_MODE=isolated"
+        ) `
+        -Message "Arquivo gerado deve combinar transporte e configuracoes adicionais"
+
     $statePaths = @($script:configPath, $script:networkPath, $script:envPath)
     $failurePoints = @(
         "after_tls_copy",

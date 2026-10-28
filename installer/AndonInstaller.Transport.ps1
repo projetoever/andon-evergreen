@@ -125,6 +125,50 @@ function Invoke-AndonTransportFailurePoint {
     }
 }
 
+function Get-AndonPreservedEnvLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string[]]$ManagedVariableNames
+    )
+
+    if (!(Test-Path $Path -PathType Leaf)) {
+        return @()
+    }
+
+    $managedNames = @{}
+    foreach ($name in $ManagedVariableNames) {
+        $managedNames[$name.ToUpperInvariant()] = $true
+    }
+
+    return @(
+        Get-Content -LiteralPath $Path | Where-Object {
+            $line = $_
+            if (
+                $line -match '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*='
+            ) {
+                return !$managedNames.ContainsKey($Matches[1].ToUpperInvariant())
+            }
+            return $true
+        }
+    )
+}
+
+function Add-AndonPreservedEnvLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [string[]]$Lines = @()
+    )
+
+    if ($Lines.Count -eq 0) {
+        return
+    }
+
+    Add-Content -LiteralPath $Path -Value $Lines -Encoding UTF8
+}
+
 function Save-AndonTransportStateSnapshot {
     param(
         [Parameter(Mandatory = $true)]

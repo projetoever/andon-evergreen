@@ -70,11 +70,10 @@ function Assert-AndonTlsPair {
 
 function Get-AndonTransportServerIp {
     $network = Get-AndonNetworkConfig
-    return if ($network -and (Test-AndonIPv4 "$($network.serverIp)")) {
-        "$($network.serverIp)"
-    } else {
-        "127.0.0.1"
+    if ($network -and (Test-AndonIPv4 "$($network.serverIp)")) {
+        return "$($network.serverIp)"
     }
+    return "127.0.0.1"
 }
 
 try {
@@ -84,6 +83,21 @@ try {
     $serverIp = Get-AndonTransportServerIp
     $tlsPath = Join-Path $Global:AndonBasePath "tls"
     $backendEnvPath = Join-Path $Global:AndonProjectPath "server\.env"
+    $managedBackendEnvNames = @(
+        "PORT",
+        "HOST",
+        "DATABASE_URL",
+        "CORS_ORIGINS",
+        "ANDON_ACCESS_ORIGIN",
+        "ANDON_CENTRAL_ACCESS_ENABLED",
+        "ANDON_TLS_CERT",
+        "ANDON_TLS_KEY"
+    )
+    $preservedBackendEnvLines = @(
+        Get-AndonPreservedEnvLines `
+            -Path $backendEnvPath `
+            -ManagedVariableNames $managedBackendEnvNames
+    )
     $statePaths = @(
         $Global:AndonConfigPath,
         $Global:AndonNetworkConfigPath,
@@ -117,6 +131,9 @@ try {
                 $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
                 Invoke-AndonTransportFailurePoint -Point "after_network" -FailurePoint $failurePoint
                 Write-AndonBackendEnv -Config $config -NetworkConfig $updatedNetwork
+                Add-AndonPreservedEnvLines `
+                    -Path $backendEnvPath `
+                    -Lines $preservedBackendEnvLines
                 Invoke-AndonTransportFailurePoint -Point "after_env" -FailurePoint $failurePoint
             } |
             Out-Null
@@ -154,6 +171,9 @@ try {
             $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
             Invoke-AndonTransportFailurePoint -Point "after_network" -FailurePoint $failurePoint
             Write-AndonBackendEnv -Config $config -NetworkConfig $updatedNetwork
+            Add-AndonPreservedEnvLines `
+                -Path $backendEnvPath `
+                -Lines $preservedBackendEnvLines
             Invoke-AndonTransportFailurePoint -Point "after_env" -FailurePoint $failurePoint
         } |
         Out-Null

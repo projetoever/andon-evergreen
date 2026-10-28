@@ -464,6 +464,9 @@ test("HTTPS oficial e opcional preserva config legada e usa frontend compilado p
   assert.match(configureHttps, /centralAccessEnabled" -Value \$false/);
   assert.match(configureHttps, /certutil\.exe/);
   assert.match(configureHttps, /Invoke-AndonTransportTransaction/);
+  assert.doesNotMatch(configureHttps, /return\s+if\s*\(/);
+  assert.match(configureHttps, /Get-AndonPreservedEnvLines/);
+  assert.match(configureHttps, /Add-AndonPreservedEnvLines/);
   assert.match(transport, /S-1-5-18/);
   assert.match(transport, /S-1-5-32-544/);
   assert.match(transport, /SetAccessRuleProtection\(\$true, \$false\)/);
