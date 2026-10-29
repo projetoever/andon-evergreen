@@ -1461,12 +1461,231 @@ function Invoke-AndonNodePipeline {
     Remove-Item Env:\VITE_ANDON_API_BASE_URL -ErrorAction SilentlyContinue
     $env:VITE_ANDON_DATA_MODE = "api"
     $env:VITE_ANDON_API_PORT = "$($config.apiPort)"
+    # Persist the SHA pinned by install/update INSIDE the compiled frontend.
+    # The dedicated Node runtime may not have git.exe on its PATH.
+    $previousBuildCommit = $env:ANDON_BUILD_COMMIT
+    $previousBuildBranch = $env:ANDON_BUILD_BRANCH
+    $pinnedFrontendCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+    if ($pinnedFrontendCommit -match '^[0-9a-f]{40}
+    if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
+    Write-AndonOk "Backend/frontend preparados."
+}
+
+function Test-AndonApiWrite {
+    $api = Get-AndonApiBaseUrl
+    try {
+        $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
+        if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
+        if ($readiness.operationalPasswordRequired -eq $true -or $readiness.workstationApprovalRequired -eq $true) {
+            $result = New-AndonHealthResult `
+                -Status "SKIP" `
+                -Message "Escrita automatica pulada: ANDON exige senha de modulo ou aprovacao de workstation. Valide pela interface autorizada."
+            Write-AndonHealthResult $result
+            return $result
+        }
+    } catch {
+        $result = New-AndonHealthResult -Status "FAIL" -Message "Nao foi possivel verificar a prontidao da API."
+        Write-AndonHealthResult $result
+        return $result
+    }
+    try { $machines = Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 10 }
+    catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste de escrita: nao foi possivel listar maquinas pela API. $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
+    $machine = $machines | Where-Object { $_.currentCallId -eq $null } | Select-Object -First 1
+    if (!$machine) {
+        $result = New-AndonHealthResult `
+            -Status "SKIP" `
+            -Message "Teste de escrita pulado: nenhuma maquina livre."
+        Write-AndonHealthResult $result
+        return $result
+    }
+    $payload = @{ machineId = "$($machine.id)"; category = "maintenance"; subtype = "mechanical"; criticality = "medium"; machineCondition = "running"; description = "Chamado temporario criado pelo health check do instalador"; createdBy = "installer-health"; origin = "installer_health_check"; isSystemTest = $true } | ConvertTo-Json
+    try {
+        $call = Invoke-RestMethod "$api/api/andon-calls" -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 10
+        $cancelPayload = @{ reason = "Teste automatico do instalador"; cancelledBy = "installer-health" } | ConvertTo-Json
+        Invoke-RestMethod "$api/api/andon-calls/$($call.id)/cancel" -Method Patch -ContentType "application/json" -Body $cancelPayload -TimeoutSec 10 | Out-Null
+        $result = New-AndonHealthResult `
+            -Status "PASS" `
+            -Message "Teste real de escrita API aprovado."
+        Write-AndonHealthResult $result
+        return $result
+    } catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste real de escrita API falhou: $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
+}
+
+function Remove-AndonTasks {
+    foreach ($taskName in @("ANDON - Inicializacao Automatica", $Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
+        try { $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue; if ($task) { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue; Write-AndonOk "Tarefa removida: $taskName" } } catch { Write-AndonWarn "Nao foi possivel remover tarefa $taskName." }
+    }
+}
+
+function Remove-AndonFirewallRules {
+    Get-NetFirewallRule -DisplayName "ANDON Frontend 8080" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    Get-NetFirewallRule -DisplayName "ANDON API 3001" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    Write-AndonOk "Regras de firewall removidas, se existiam."
+}
+
+function Show-AndonStatus {
+    Write-AndonHeader "STATUS RAPIDO"
+    Write-Host "Base oficial:  $Global:AndonBasePath"
+    Write-Host "Projeto/app:   $Global:AndonProjectPath"
+    Write-Host "Tools:         $Global:AndonToolsPath"
+    Write-Host "Installer:     $Global:AndonInstallerPath"
+    Write-Host "Config global: $Global:AndonConfigPath"
+    Write-Host "Node ANDON:   $Global:AndonNodeExePath"
+    $nodeVersion = Get-AndonNodeRuntimeVersion
+    if ($nodeVersion) { Write-Host "Versao Node:  $nodeVersion" } else { Write-AndonWarn "Runtime Node dedicado ainda nao esta pronto." }
+    Write-Host ""
+    $config = Import-AndonConfig
+    if (Test-Path $Global:AndonConfigPath) {
+        Write-Host "databaseMode:  $($config.databaseMode)"
+        Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"
+        Write-Host "Database:      $($config.databaseName)"
+        Write-Host "API:           $($config.apiPort)"
+        Write-Host "Frontend:      $($config.frontendPort)"
+        Write-Host "Perfil inicial: $($config.installationProfile)"
+        Write-Host "SHA instalado:  $(if ($config.installedCommit) { $config.installedCommit } else { 'nao registrado' })"
+    } else { Write-AndonWarn "andon-config.json ainda nao existe." }
+    Write-Host ""
+    $ports = @($Global:AndonApiPort, $Global:AndonFrontendPort, [int]$config.postgresPort) | Select-Object -Unique
+    foreach ($port in $ports) { if (Test-AndonPortInUse $port) { Write-Host "[USO]   Porta $port" -ForegroundColor Yellow } else { Write-Host "[LIVRE] Porta $port" -ForegroundColor Green } }
+    Write-Host ""
+    $tasks = Get-ScheduledTask -TaskName "ANDON*" -ErrorAction SilentlyContinue
+    if ($tasks) { $tasks | Select-Object TaskName, State | Format-Table -AutoSize } else { Write-AndonWarn "Nenhuma tarefa ANDON encontrada." }
+}
+) {
+        $env:ANDON_BUILD_COMMIT = $pinnedFrontendCommit
+    } else {
+        Remove-Item Env:\ANDON_BUILD_COMMIT -ErrorAction SilentlyContinue
+    }
+    if ($Global:AndonBranch -match '^[a-zA-Z0-9_./-]{1,120}
+    if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
+    Write-AndonOk "Backend/frontend preparados."
+}
+
+function Test-AndonApiWrite {
+    $api = Get-AndonApiBaseUrl
+    try {
+        $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
+        if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
+        if ($readiness.operationalPasswordRequired -eq $true -or $readiness.workstationApprovalRequired -eq $true) {
+            $result = New-AndonHealthResult `
+                -Status "SKIP" `
+                -Message "Escrita automatica pulada: ANDON exige senha de modulo ou aprovacao de workstation. Valide pela interface autorizada."
+            Write-AndonHealthResult $result
+            return $result
+        }
+    } catch {
+        $result = New-AndonHealthResult -Status "FAIL" -Message "Nao foi possivel verificar a prontidao da API."
+        Write-AndonHealthResult $result
+        return $result
+    }
+    try { $machines = Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 10 }
+    catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste de escrita: nao foi possivel listar maquinas pela API. $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
+    $machine = $machines | Where-Object { $_.currentCallId -eq $null } | Select-Object -First 1
+    if (!$machine) {
+        $result = New-AndonHealthResult `
+            -Status "SKIP" `
+            -Message "Teste de escrita pulado: nenhuma maquina livre."
+        Write-AndonHealthResult $result
+        return $result
+    }
+    $payload = @{ machineId = "$($machine.id)"; category = "maintenance"; subtype = "mechanical"; criticality = "medium"; machineCondition = "running"; description = "Chamado temporario criado pelo health check do instalador"; createdBy = "installer-health"; origin = "installer_health_check"; isSystemTest = $true } | ConvertTo-Json
+    try {
+        $call = Invoke-RestMethod "$api/api/andon-calls" -Method Post -ContentType "application/json" -Body $payload -TimeoutSec 10
+        $cancelPayload = @{ reason = "Teste automatico do instalador"; cancelledBy = "installer-health" } | ConvertTo-Json
+        Invoke-RestMethod "$api/api/andon-calls/$($call.id)/cancel" -Method Patch -ContentType "application/json" -Body $cancelPayload -TimeoutSec 10 | Out-Null
+        $result = New-AndonHealthResult `
+            -Status "PASS" `
+            -Message "Teste real de escrita API aprovado."
+        Write-AndonHealthResult $result
+        return $result
+    } catch {
+        $result = New-AndonHealthResult `
+            -Status "FAIL" `
+            -Message "Teste real de escrita API falhou: $($_.Exception.Message)"
+        Write-AndonHealthResult $result
+        return $result
+    }
+}
+
+function Remove-AndonTasks {
+    foreach ($taskName in @("ANDON - Inicializacao Automatica", $Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
+        try { $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue; if ($task) { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue; Write-AndonOk "Tarefa removida: $taskName" } } catch { Write-AndonWarn "Nao foi possivel remover tarefa $taskName." }
+    }
+}
+
+function Remove-AndonFirewallRules {
+    Get-NetFirewallRule -DisplayName "ANDON Frontend 8080" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    Get-NetFirewallRule -DisplayName "ANDON API 3001" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    Write-AndonOk "Regras de firewall removidas, se existiam."
+}
+
+function Show-AndonStatus {
+    Write-AndonHeader "STATUS RAPIDO"
+    Write-Host "Base oficial:  $Global:AndonBasePath"
+    Write-Host "Projeto/app:   $Global:AndonProjectPath"
+    Write-Host "Tools:         $Global:AndonToolsPath"
+    Write-Host "Installer:     $Global:AndonInstallerPath"
+    Write-Host "Config global: $Global:AndonConfigPath"
+    Write-Host "Node ANDON:   $Global:AndonNodeExePath"
+    $nodeVersion = Get-AndonNodeRuntimeVersion
+    if ($nodeVersion) { Write-Host "Versao Node:  $nodeVersion" } else { Write-AndonWarn "Runtime Node dedicado ainda nao esta pronto." }
+    Write-Host ""
+    $config = Import-AndonConfig
+    if (Test-Path $Global:AndonConfigPath) {
+        Write-Host "databaseMode:  $($config.databaseMode)"
+        Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"
+        Write-Host "Database:      $($config.databaseName)"
+        Write-Host "API:           $($config.apiPort)"
+        Write-Host "Frontend:      $($config.frontendPort)"
+        Write-Host "Perfil inicial: $($config.installationProfile)"
+        Write-Host "SHA instalado:  $(if ($config.installedCommit) { $config.installedCommit } else { 'nao registrado' })"
+    } else { Write-AndonWarn "andon-config.json ainda nao existe." }
+    Write-Host ""
+    $ports = @($Global:AndonApiPort, $Global:AndonFrontendPort, [int]$config.postgresPort) | Select-Object -Unique
+    foreach ($port in $ports) { if (Test-AndonPortInUse $port) { Write-Host "[USO]   Porta $port" -ForegroundColor Yellow } else { Write-Host "[LIVRE] Porta $port" -ForegroundColor Green } }
+    Write-Host ""
+    $tasks = Get-ScheduledTask -TaskName "ANDON*" -ErrorAction SilentlyContinue
+    if ($tasks) { $tasks | Select-Object TaskName, State | Format-Table -AutoSize } else { Write-AndonWarn "Nenhuma tarefa ANDON encontrada." }
+}
+) {
+        $env:ANDON_BUILD_BRANCH = "$Global:AndonBranch"
+    } else {
+        Remove-Item Env:\ANDON_BUILD_BRANCH -ErrorAction SilentlyContinue
+    }
     try {
         if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $Global:AndonProjectPath }
         Invoke-AndonNodeProcess $npm @("run", "build") $Global:AndonProjectPath
     } finally {
         Remove-Item Env:\VITE_ANDON_DATA_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\VITE_ANDON_API_PORT -ErrorAction SilentlyContinue
+        if ($null -eq $previousBuildCommit) {
+            Remove-Item Env:\ANDON_BUILD_COMMIT -ErrorAction SilentlyContinue
+        } else {
+            $env:ANDON_BUILD_COMMIT = $previousBuildCommit
+        }
+        if ($null -eq $previousBuildBranch) {
+            Remove-Item Env:\ANDON_BUILD_BRANCH -ErrorAction SilentlyContinue
+        } else {
+            $env:ANDON_BUILD_BRANCH = $previousBuildBranch
+        }
     }
     if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
     Write-AndonOk "Backend/frontend preparados."
