@@ -72,11 +72,11 @@ function fixture(opts: Options = {}) {
     },
     andonCall: {
       findUnique: async () => {
-        log.push(lockCount < 2 ? "call-before-lock" : "call-after-lock");
+        log.push(lockCount < 3 ? "call-before-lock" : "call-after-lock");
         return {
           ...call,
           machineId: opts.foreignMachine ? "39" : opts.callMachine ?? "37",
-          status: lockCount >= 2 && opts.afterLockState ? opts.afterLockState : "open",
+          status: lockCount >= 3 && opts.afterLockState ? opts.afterLockState : "open",
         };
       },
     },
@@ -88,7 +88,7 @@ function fixture(opts: Options = {}) {
     },
     $queryRaw: async () => {
       lockCount++;
-      log.push(lockCount === 1 ? "lock-user" : "lock-machine");
+      log.push(lockCount === 1 ? "lock-user" : lockCount === 2 ? "lock-workstation" : "lock-machine");
       return [{ lockResult: "" }];
     },
     auditEvent: {
@@ -148,7 +148,7 @@ test("SEC-04/2A.3: authorized attendance locks user then machine and audits in o
   const f = fixture();
   assert.deepEqual(await f.run(), { ok: true });
   assert.deepEqual(f.log, [
-    "transaction-begin", "session-token-lookup", "lock-user",
+    "transaction-begin", "session-token-lookup", "lock-user", "lock-workstation",
     "session-validate-1", "station-validate-1", "call-before-lock",
     "lock-machine", "call-after-lock", "machine-active",
     "session-validate-2", "station-validate-2",
