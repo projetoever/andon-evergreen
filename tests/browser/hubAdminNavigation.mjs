@@ -59,6 +59,8 @@ try {
     const page = await context.newPage();
     const errors = [];
     let delayModules = false;
+    let centralMode = false;
+    let primaryAdmin = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/api/**", async (route) => {
@@ -120,7 +122,7 @@ try {
         if (delayModules) await new Promise((resolve) => setTimeout(resolve, 650));
         return send({
           hubEnabled: true,
-          centralAccessEnabled: false,
+          centralAccessEnabled: centralMode,
           workstation: {
             id: workstationId,
             name: "Estação de validação",
@@ -150,7 +152,7 @@ try {
             userId: "admin",
             login: "admin.central",
             displayName: "Admin Central",
-            isPrimaryAdmin: true,
+            isPrimaryAdmin: primaryAdmin,
             purpose: "normal",
           },
         });
@@ -246,7 +248,7 @@ try {
     await page.goto("http://127.0.0.1:4187/hub/admin?section=users");
     await page
       .getByText(
-        "Gestão de usuários indisponível neste endereço. É necessário configurar acesso HTTPS seguro.",
+        "Não foi possível verificar as permissões administrativas.",
         { exact: true },
       )
       .waitFor();
@@ -302,8 +304,32 @@ try {
     await page.waitForURL((url) => url.pathname === "/hub");
     await noOverflow();
 
+    // Central mode uses server-owned cookie identity, not the legacy Admin
+    // session. Direct URL, limited tabs and role revocation are exercised.
+    centralMode = true;
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
+    await centralNav.waitFor();
+    assert.equal(await centralNav.getByRole("link").count(), 3);
+    await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
+    assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
+    await noOverflow();
+    await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
+
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=security");
+    await page.getByText(
+      "Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.",
+      { exact: true },
+    ).waitFor();
+    assert.equal(await page.getByRole("link", { name: "Módulos e senhas" }).count(), 0);
+    primaryAdmin = false;
+    await page.reload();
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    await noOverflow();
+
     assert.deepEqual(errors, []);
-    results.push({ viewport, navigationSections: 5, screenshots: 4, noOverflow: true, modalFirst: true });
+    results.push({ viewport, navigationSections: 5, centralSections: 3, screenshots: 5, noOverflow: true, modalFirst: true });
     await context.close();
   }
   await writeFile(
