@@ -16,6 +16,7 @@ export type ExecutiveReportData = {
   failures: AnalyticsFailureIntelligence;
   filters: AndonBiFilters;
   options: AndonBiFilterOptions;
+  branding?: { clientName: string; clientUnit: string };
 };
 
 const esc = (input: unknown): string =>
@@ -140,9 +141,12 @@ function paretoGraph(data: Array<{ machineName: string; downtimeMinutes: number 
   </div>`;
 }
 
-function pageHeader(number: string, heading: string, stamp: string) {
+function pageHeader(number: string, heading: string, stamp: string,
+  branding: { clientName: string; clientUnit: string }) {
+  const clientLabel = [branding.clientName, branding.clientUnit].filter(Boolean).join(" · ");
   return `<div class="page-heading"><div>
     <div class="brand"><span class="brand-square"></span> ANDON BI <span class="brand-sub">${esc(ui("ANÁLISE DE MANUTENÇÃO E CONFIABILIDADE"))}</span></div>
+    <div class="client-identity">${esc(clientLabel)}</div>
     <h1>${esc(heading)}</h1>
   </div><div class="page-number">${esc(number)}<small>${esc(stamp)}</small></div></div>`;
 }
@@ -154,6 +158,7 @@ export function buildExecutiveReportHtml({
   failures,
   filters,
   options,
+  branding = { clientName: "Evergreen", clientUnit: "" },
 }: ExecutiveReportData): string {
   const period = overview.meta.period;
   const timeZone = overview.meta.timeZone || "America/Sao_Paulo";
@@ -342,7 +347,8 @@ export function buildExecutiveReportHtml({
     html, body { margin: 0; padding: 0; background: #fff; color: #1e293b; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
     /* Exactly one physical sheet per logical page. The footer must not flow
        to the next sheet (as happened in the October homologation PDF). */
-    .page { position: relative; width: 210mm; height: 296mm; min-height: 0; padding: 13mm 14mm 21mm; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
+    .client-identity { max-width: 133mm; margin-top: 2mm; font-size: 9px; font-weight: 700; color: #475569; overflow-wrap: anywhere; }
+        .page { position: relative; width: 210mm; height: 296mm; min-height: 0; padding: 13mm 14mm 21mm; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; break-after: page; page-break-after: always; }
     .page:last-child { break-after: auto; page-break-after: auto; }
     .page-heading { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #f59e0b; }
     .brand { font-size: 18px; letter-spacing: 1px; font-weight: 900; color: #101820; }
@@ -415,7 +421,7 @@ export function buildExecutiveReportHtml({
 </head>
 <body>
   <section class="page">
-    ${pageHeader("01", ui("Relatório executivo de manutenção"), periodNote)}
+    ${pageHeader("01", ui("Relatório executivo de manutenção"), periodNote, branding)}
     ${meta}
     ${sectionTitle(ui("Indicadores executivos"), ui("Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis."))}
     <div class="kpis">
@@ -458,7 +464,7 @@ export function buildExecutiveReportHtml({
   </section>
 
   <section class="page">
-    ${pageHeader("02", ui("Ativos críticos e reincidências"), periodNote)}
+    ${pageHeader("02", ui("Ativos críticos e reincidências"), periodNote, branding)}
     ${sectionTitle(ui("Máquinas com maior parada"), ui("Downtime físico recortado no período; inclui máquinas ativas e inativas com parada física."))}
     ${paretoGraph(topMachines)}
     ${reportTable([ui("#"), ui("MÁQUINA"), ui("CADASTRO"), ui("DOWNTIME"), ui("EPISÓDIOS"), ui("INTERVALO EST."), ui("ATIVOS")], topMachineRows)}
@@ -490,7 +496,7 @@ export function buildExecutiveReportHtml({
   </section>
 
   <section class="page">
-    ${pageHeader("03", ui("Equipe, integridade e metodologia"), periodNote)}
+    ${pageHeader("03", ui("Equipe, integridade e metodologia"), periodNote, branding)}
     ${sectionTitle(ui("Participação técnica"), ui("Pessoa-minutos registrados, não horas produtivas auditadas nem ranking de desempenho."))}
     <div class="note ${(h.activeSessionsOver24h ?? 0) > 0 ? "red" : "good"}">
       <strong>${

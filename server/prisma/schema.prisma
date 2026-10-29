@@ -9,6 +9,8 @@ datasource db {
 
 model SystemSettings {
   id                                                   String   @id @default("global")
+  clientName                                           String   @default("Evergreen") @db.VarChar(100)
+  clientUnit                                           String   @default("") @db.VarChar(100)
   hubEnabled                                           Boolean  @default(false)
   requireWorkstationApproval                           Boolean  @default(false)
   allowWholeSetCalls                                   Boolean  @default(true)

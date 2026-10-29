@@ -1,6 +1,6 @@
 import { systemMessage, ui } from "@/i18n/translate";
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutGrid, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
@@ -11,12 +11,21 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
+import { getSystemSettings } from "@/services/systemSettingsService";
 
 export function HubPage() {
   const { access, error, checking, refresh } = useModuleAccess();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [identity, setIdentity] = useState({ clientName: "", clientUnit: "" });
+  useEffect(() => {
+    let mounted = true;
+    void getSystemSettings().then((settings) => {
+      if (mounted) setIdentity({ clientName: settings.clientName, clientUnit: settings.clientUnit });
+    }).catch(() => { /* Keep explicit default rather than inventing new values. */ });
+    return () => { mounted = false; };
+  }, []);
   const enterAdministration = () => {
     if (isAdminAuthenticated()) {
       void navigate({ to: "/hub/admin" });
@@ -34,9 +43,10 @@ export function HubPage() {
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {ui("ANDON EVERGREEN")}
+                {ui("ANDON WEB INDUSTRIAL")}
               </p>
               <h1 className="text-2xl font-black">{ui("HUB")}</h1>
+              {identity.clientName && <p className="text-xs text-muted-foreground">{identity.clientName}{identity.clientUnit ? ` · ${identity.clientUnit}` : ""}</p>}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">

@@ -59,6 +59,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     let delayModules = false;
+    let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/api/**", async (route) => {
       const req = route.request();
@@ -95,6 +96,13 @@ try {
           allowPriorities: true,
           lockedMachineId: null,
         });
+      if (path === "/api/system-settings") {
+        if (req.method() === "PATCH") {
+          const change = req.postDataJSON();
+          customerIdentity = { ...customerIdentity, ...change };
+        }
+        return send(customerIdentity);
+      }
       if (path === "/api/modules/settings") return send({ hubEnabled: true });
       if (path === "/api/workstations" && req.method() === "GET") {
         const now = new Date();
@@ -160,6 +168,14 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Resumo administrativo", exact: true }).waitFor();
+    const customer = page.getByRole("region", { name: "Identificação da empresa e unidade" });
+    await customer.getByLabel("Nome da empresa").waitFor();
+    assert.equal(await customer.getByLabel("Nome da empresa").inputValue(), "Evergreen");
+    await customer.getByLabel("Unidade / planta").fill("Piloto M37");
+    await customer.getByRole("button", { name: "Salvar identificação" }).click();
+    await customer.getByText("Identificação do cliente salva.").waitFor();
+    assert.equal(customerIdentity.clientUnit, "Piloto M37");
+
     const buildVersion = page.getByRole("region", { name: "Identificação da versão instalada" });
     await buildVersion.waitFor();
     await buildVersion.getByText("Versão do produto", { exact: true }).waitFor();

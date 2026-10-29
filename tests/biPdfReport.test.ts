@@ -324,3 +324,16 @@ test("BI2A: PDF explica o indicador sem amostra sem transformar ausência em zer
   assert.match(html, /<div class="kpi-value">—<\/div>/);
   assert.doesNotMatch(html, /<div class="kpi-value">0min<\/div>/);
 });
+
+test("empresa e unidade são exibidas nas 3 páginas e sempre escapadas", () => {
+  const input = fixture();
+  input.branding = {
+    clientName: "Oficina <script>alert('x')</script>",
+    clientUnit: "Unidade A & B",
+  };
+  const html = buildExecutiveReportHtml(input);
+  assert.equal((html.match(/Oficina &lt;script&gt;alert\(&#39;x&#39;\)&lt;\/script&gt;/g) ?? []).length, 3);
+  assert.equal((html.match(/Unidade A &amp; B/g) ?? []).length, 3);
+  assert.doesNotMatch(html, /<script>alert/);
+  assert.equal((html.match(/<section class="page">/g) ?? []).length, 3);
+});

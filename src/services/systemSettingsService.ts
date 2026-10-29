@@ -26,6 +26,8 @@ function createDefaultLocalSystemSettings(): SystemSettings {
   const now = new Date().toISOString();
   return {
     id: "global",
+    clientName: "Evergreen",
+    clientUnit: "",
     allowWholeSetCalls: true,
     virtualKeyboardEnabled: true,
     requireWorkOrderAtOpen: false,
@@ -160,6 +162,13 @@ export async function updateDashboardSoundState(
 }
 
 export async function updateSystemSettings(patch: SystemSettingsPatch) {
+  if (patch.clientName !== undefined &&
+      (patch.clientName.trim().length < 2 || patch.clientName.trim().length > 100)) {
+    throw new Error("Informe um nome de empresa entre 2 e 100 caracteres.");
+  }
+  if (patch.clientUnit !== undefined && patch.clientUnit.trim().length > 100) {
+    throw new Error("A unidade deve conter no máximo 100 caracteres.");
+  }
   if (
     patch.dashboardSoundMuteTimerEnabled !== undefined &&
     typeof patch.dashboardSoundMuteTimerEnabled !== "boolean"
