@@ -536,7 +536,7 @@ test("inativação de workstation é serializada com sessões ativas", async () 
     "const lockedWorkstation = await tx.workstation.findUnique",
   );
   const sessionIndex = updateRoute.indexOf("tx.technicianSession.findFirst");
-  const updateIndex = updateRoute.indexOf("return tx.workstation.update");
+  const updateIndex = updateRoute.indexOf("const updated = await tx.workstation.update");
 
   assert.ok(lockIndex >= 0);
   assert.ok(reloadIndex > lockIndex);
