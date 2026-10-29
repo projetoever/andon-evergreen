@@ -8,6 +8,7 @@ import {
   changePassword,
   resetPassword,
   revokeUserSessions,
+  recordInteraction,
 } from "../dist/access/sessions.js";
 import { assertPermission } from "../dist/access/policy.js";
 import { auditedMutation } from "../dist/access/audit.js";
@@ -75,6 +76,17 @@ try {
   const req = { token: changed.token, workstationId };
   const principal = await resolveSession(otherProcess, req); // Persistent across client/process instances.
   assertPermission(principal, "calls.open", machine.id);
+  // Real PostgreSQL regression: a valid interaction updates only an active session.
+  // Preserve the access_session_chronology DB constraint: lastInteractionAt
+  // cannot precede the session's createdAt.
+  const interactionBefore = await db.accessSession.findUniqueOrThrow({
+    where: { id: changed.sessionId },
+  });
+  await recordInteraction(otherProcess, req);
+  const interacted = await db.accessSession.findUniqueOrThrow({
+    where: { id: changed.sessionId },
+  });
+  assert(interacted.lastInteractionAt >= interactionBefore.lastInteractionAt);
   assert.throws(() => assertPermission(principal, "calls.open", "unapproved-machine"));
   assert.throws(() => assertPermission(principal, "users.create"));
   await assert.rejects(changePassword(db, req, "Another personal password"));
@@ -86,6 +98,7 @@ try {
     },
   });
   await assert.rejects(resolveSession(db, req));
+  await assert.rejects(recordInteraction(otherProcess, req));
   await db.accessSession.update({
     where: { id: changed.sessionId },
     data: { lastInteractionAt: new Date() },
@@ -137,6 +150,7 @@ try {
   await db.workstation.update({ where: { id: workstationId }, data: { active: true } });
   await revokeUserSessions(db, adminReq, admin.id, "Test revocation");
   await assert.rejects(resolveSession(otherProcess, adminReq));
+  await assert.rejects(recordInteraction(otherProcess, adminReq));
   const audit = await db.auditEvent.findMany({ where: { workstationId } });
   const serialized = JSON.stringify(audit);
   for (const secret of [

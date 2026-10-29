@@ -279,12 +279,32 @@ export async function logout(db: PrismaClient, request: AccessRequest) {
     });
   });
 }
-// Called only for explicit user interaction by the future HTTP adapter, never polling.
+// Called only for explicit user interaction by the HTTP adapter, never polling.
+// Serialize with logout/user revocation so a stale request cannot refresh a
+// session that was revoked while it waited for its database write.
 export async function recordInteraction(db: PrismaClient, request: AccessRequest) {
-  const principal = await resolveSession(db, request);
-  await db.accessSession.update({
-    where: { id: principal.sessionId },
-    data: { lastInteractionAt: new Date() },
+  return db.$transaction(async (tx) => {
+    const initial = await resolveSession(tx, request);
+    await lockUser(tx, initial.userId);
+    const now = new Date();
+    const principal = await resolveSession(tx, request, now);
+    if (principal.userId !== initial.userId ||
+        principal.sessionId !== initial.sessionId)
+      throw new AccessError("authentication_required", 401);
+
+    // Check live-session predicates AGAIN at update time. This also handles
+    // a concurrent workstation-wide revocation that does not share lockUser.
+    const touched = await tx.accessSession.updateMany({
+      where: {
+        id: principal.sessionId,
+        revokedAt: null,
+        expiresAt: { gt: now },
+        lastInteractionAt: { gt: new Date(now.getTime() - IDLE) },
+      },
+      data: { lastInteractionAt: now },
+    });
+    if (touched.count !== 1)
+      throw new AccessError("authentication_required", 401);
   });
 }
 export function assertRecentAdmin(principal: Principal) {

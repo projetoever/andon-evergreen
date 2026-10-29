@@ -24,7 +24,7 @@
     "db:seed:demo": "tsx prisma/seed.ts --profile=demo",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "test:access": "node --import tsx --test src/access/foundation.test.ts src/access/industrialServices.test.ts src/access/centralActionRegistry.test.ts src/access/centralWriteInventory.test.ts src/access/centralCallWritePreflight.test.ts src/access/centralCallTransactionalGuard.test.ts src/access/centralAttendanceAtomicAudit.test.ts src/access/logoutSerialization.test.ts",
+    "test:access": "node --import tsx --test src/access/foundation.test.ts src/access/industrialServices.test.ts src/access/centralActionRegistry.test.ts src/access/centralWriteInventory.test.ts src/access/centralCallWritePreflight.test.ts src/access/centralCallTransactionalGuard.test.ts src/access/centralAttendanceAtomicAudit.test.ts src/access/logoutSerialization.test.ts src/access/interactionSerialization.test.ts",
     "test:access:integration": "node scripts/validate-access-foundation.mjs",
     "test:service:integration": "node scripts/validate-industrial-service.mjs",
     "test:https:integration": "node scripts/validate-https-homologation.mjs"
