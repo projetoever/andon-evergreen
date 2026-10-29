@@ -2,6 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralClassificationRequest } from "../security/centralClassificationHttp.js";
+import { runCentralFailureClassificationWrite } from "../access/centralFailureClassificationWrite.js";
 import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
 
 import { RESPONSIBILITIES, DISPOSITIONS, RESERVED_EXCLUSIONS, reservedDisposition } from "../analytics/eligibility.js";
@@ -47,6 +52,27 @@ export async function registerFailureClassificationRoutes(app: FastifyInstance) 
   app.post<{ Body: FailureClassificationBody }>(
     "/api/failure-classifications",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralClassificationRequest(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          const created = await runCentralFailureClassificationWrite(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            operation: "create",
+            body: request.body ?? {},
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return reply.status(201).send(created);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isUniqueConstraintError(error))
+            return conflict(reply, "Já existe uma classificação com este identificador");
+          throw error;
+        }
+      }
       const label = requiredString(request.body?.label);
       const value = requiredString(request.body?.value)?.toLowerCase();
       const active = parseBoolean(request.body?.active) ?? true;
@@ -86,6 +112,27 @@ export async function registerFailureClassificationRoutes(app: FastifyInstance) 
   app.patch<{ Params: { id: string }; Body: FailureClassificationBody }>(
     "/api/failure-classifications/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralClassificationRequest(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await runCentralFailureClassificationWrite(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            operation: "update",
+            classificationId: request.params.id,
+            body: request.body ?? {},
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isUniqueConstraintError(error))
+            return conflict(reply, "Já existe uma classificação com este identificador");
+          throw error;
+        }
+      }
       const current = await prisma.failureClassification.findUnique({
         where: { id: request.params.id },
       });
