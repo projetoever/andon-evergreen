@@ -26,7 +26,7 @@ test("SEC-04 single central login bypasses only legacy module passwords, not cen
   prisma.moduleCredential.findUnique = (async () => {
     legacyLookup++;
     return { passwordRequired: true, credentialVersion: 1 };
-  }) as typeof originalCredential;
+  }) as unknown as typeof originalCredential;
   prisma.accessSession.findUnique = (async () => ({
     id: "central-session", workstationId: stationId, purpose: "normal",
     authorizationVersion: 1, revokedAt: null,
