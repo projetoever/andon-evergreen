@@ -15,11 +15,13 @@ import {
 import {
   getTechnicianTechnicalAreas,
   identifyTechnician,
+  technicianIdentitySelect,
   resolveTechniciansByNames,
   type IdentifiedTechnician,
 } from "../services/technicianIdentity.js";
 import {
   assertMaintenanceCompletionWorkstation,
+  parseWorkstationId,
   resolveAttendanceWorkstationId,
   WorkstationAuthorizationError,
 } from "../services/workstationAuthorization.js";
@@ -29,6 +31,8 @@ import {
   scopedMachineReadIds,
 } from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
+import { AccessError } from "../access/policy.js";
+import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
   machineId?: string;
@@ -1163,6 +1167,127 @@ async function createTechnicianSessions(
   });
 }
 
+type AttendanceCallWithMachine = Prisma.AndonCallGetPayload<{
+  include: { machine: true };
+}>;
+
+/**
+ * One transaction-scoped business transition for both legacy and future central
+ * attendance. Caller must hold the machine lock and have already verified
+ * technician credentials, technician-session exclusivity and workstation.
+ * Never handles auth, PINs or audit itself.
+ */
+async function persistAttendanceTransition(
+  tx: Prisma.TransactionClient,
+  params: {
+    currentCall: AttendanceCallWithMachine;
+    technicians: IdentifiedTechnician[];
+    missingTechnicians: IdentifiedTechnician[];
+    workstationId: string | null;
+  },
+) {
+  const { currentCall, technicians, missingTechnicians, workstationId } = params;
+  const transitionAt = new Date();
+  const names = technicians.map((technician) => technician.name);
+  const technicianArea = currentCall.subtype ?? currentCall.technicianArea;
+
+  await tx.andonCall.update({
+    where: { id: currentCall.id },
+    data: {
+      status: "in_progress",
+      attendedAt: currentCall.attendedAt ?? transitionAt,
+      currentAttendanceStartedAt: transitionAt,
+      technicianName: names[0] ?? currentCall.technicianName,
+      technicianNames: names.length
+        ? uniqueNames([...currentCall.technicianNames, ...names])
+        : currentCall.technicianNames,
+      technicianArea,
+      productionModeAtAttend: currentCall.machine.productionMode,
+      machineStatusAtAttend: currentCall.machine.machineStatus,
+    },
+  });
+
+  await createTechnicianSessions(tx, {
+    callId: currentCall.id,
+    machineId: currentCall.machineId,
+    technicians: missingTechnicians,
+    startedAt: transitionAt,
+    productionModeAtStart: currentCall.machine.productionMode,
+    machineStatusAtStart: currentCall.machine.machineStatus,
+    workstationId,
+    technicalArea: currentCall.subtype,
+    phase: "maintenance",
+    cycleIndex: currentCall.maintenanceReturnCount + 1,
+  });
+
+  if (!currentCall.isSystemTest) {
+    await syncMachineOperationalState(tx, currentCall.machineId);
+  }
+  return findCallWithSessions(tx, currentCall.id);
+}
+
+/**
+ * SEC-04/2A.9b1: server-side domain callback used only after authenticated
+ * central guard + verified technician identity, while user/workstation/machine
+ * and technician locks are held in the SAME interactive transaction.
+ *
+ * Deliberately NOT a new HTTP route or central permission grant.
+ */
+export async function applyVerifiedCentralAttendanceDomainTransition(
+  tx: Prisma.TransactionClient,
+  call: LockedAttendanceContext,
+  technician: Pick<IdentifiedTechnician, "id" | "name" | "employeeId">,
+  workstationId: string,
+) {
+  const parsedStationId = parseWorkstationId(workstationId);
+  if (!parsedStationId || parsedStationId !== workstationId)
+    throw new AccessError("workstation_inactive");
+  const station = await tx.workstation.findUnique({
+    where: { id: workstationId },
+    select: { active: true, pendingApproval: true, allowOperational: true },
+  });
+  if (!station?.active || station.pendingApproval || !station.allowOperational)
+    throw new AccessError("workstation_inactive");
+
+  const currentCall = await tx.andonCall.findUnique({
+    where: { id: call.callId },
+    include: { machine: true },
+  });
+  if (!currentCall || currentCall.machineId !== call.machineId)
+    throw new AccessError("call_not_found", 404);
+  if (currentCall.status !== "open" || currentCall.category !== "maintenance")
+    throw new AccessError("call_state_changed", 409);
+  if (currentCall.isSystemTest) throw new AccessError("system_test_transition_denied");
+
+  // Identity is retrieved from server-owned rows, not a client-provided name.
+  // The outer guard has already validated PIN/tag twice and locked technician.
+  const verified = await tx.technician.findUnique({
+    where: { id: technician.id },
+    select: technicianIdentitySelect,
+  });
+  if (!verified?.active || verified.name !== technician.name ||
+      !currentCall.subtype ||
+      !getTechnicianTechnicalAreas(verified).includes(currentCall.subtype))
+    throw new AccessError("technician_area_denied");
+
+  // Use EXACTLY the existing lock and legacy-name exclusivity checks.
+  const missingTechnicians = await lockAndFindMissingActiveTechnicians(tx, {
+    callId: currentCall.id,
+    technicians: [verified],
+  });
+  if (missingTechnicians.length !== 1)
+    throw new AccessError("technician_already_attending", 409);
+
+  // Preserve all legacy side effects and timestamps. The outer guard will
+  // append AuditEvent AFTER this callback before the same commit.
+  return persistAttendanceTransition(tx, {
+    currentCall,
+    technicians: [verified],
+    missingTechnicians,
+    workstationId,
+  });
+}
+
 async function ensureOpenFailureEventForStoppedCall(
   tx: Prisma.TransactionClient,
   params: {
@@ -1724,43 +1849,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             throw new AndonCallValidationError("Chamado não está aberto");
           }
 
-          const transitionAt = new Date();
-          const names = technicians.map((technician) => technician.name);
-          const technicianArea = currentCall.subtype ?? currentCall.technicianArea;
-
-          await tx.andonCall.update({
-            where: { id: currentCall.id },
-            data: {
-              status: "in_progress",
-              attendedAt: currentCall.attendedAt ?? transitionAt,
-              currentAttendanceStartedAt: transitionAt,
-              technicianName: names[0] ?? currentCall.technicianName,
-              technicianNames: names.length
-                ? uniqueNames([...currentCall.technicianNames, ...names])
-                : currentCall.technicianNames,
-              technicianArea,
-              productionModeAtAttend: currentCall.machine.productionMode,
-              machineStatusAtAttend: currentCall.machine.machineStatus,
-            },
-          });
-
-          await createTechnicianSessions(tx, {
-            callId: currentCall.id,
-            machineId: currentCall.machineId,
-            technicians: missingTechnicians,
-            startedAt: transitionAt,
-            productionModeAtStart: currentCall.machine.productionMode,
-            machineStatusAtStart: currentCall.machine.machineStatus,
+          return persistAttendanceTransition(tx, {
+            currentCall,
+            technicians,
+            missingTechnicians,
             workstationId,
-            technicalArea: currentCall.subtype,
-            phase: "maintenance",
-            cycleIndex: currentCall.maintenanceReturnCount + 1,
           });
-
-          if (!currentCall.isSystemTest) {
-            await syncMachineOperationalState(tx, currentCall.machineId);
-          }
-          return findCallWithSessions(tx, currentCall.id);
         });
 
         return updatedCall;
