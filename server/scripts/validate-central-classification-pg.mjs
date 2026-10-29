@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import Fastify from "fastify";
+import { csrfToken } from "../dist/access/credentials.js";
+import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
+import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.js";
+import { enforceModuleAuthorization } from "../dist/security/moduleAuthorization.js";
+import { registerFailureClassificationRoutes } from "../dist/routes/failureClassifications.js";
 import { tokenHash } from "../dist/access/credentials.js";
 import { runCentralFailureClassificationWrite } from "../dist/access/centralFailureClassificationWrite.js";
 
@@ -135,12 +141,83 @@ try {
     denies("immutable_classification_identifier"));
   assert.equal((await audited()).length, 3);
 
+
+  // SEC-04/2C: exercise the actual registered HTTP path with the same real
+  // isolated PostgreSQL credentials, not just the transaction adapter.
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED = "1";
+  process.env.ANDON_ACCESS_ORIGIN = "https://andon.test";
+  const app = Fastify();
+  app.addHook("onRequest", async (request) => {
+    Object.defineProperty(request.raw.socket, "encrypted", { value: true, configurable: true });
+  });
+  app.addHook("preHandler", enforceWorkstationAccess);
+  app.addHook("preHandler", enforceAdminAuthorization);
+  app.addHook("preHandler", enforceModuleAuthorization);
+  await registerFailureClassificationRoutes(app);
+  app.post("/api/andon-calls", async () => ({ incorrectlyAllowed: true }));
+  const headers = {
+    origin: "https://andon.test",
+    "x-andon-workstation-id": stationId,
+    cookie: "__Host-andon-access=" + token,
+    "x-andon-csrf": csrfToken(token),
+  };
+  const urlPath = "/api/failure-classifications/" + classificationId;
+  const send = (method, path, payload, extra = {}) =>
+    app.inject({ method, url: path, headers: { ...headers, ...extra }, payload });
+  try {
+    const httpEdit = await send("PATCH", urlPath, { label: "HTTP central edit" });
+    assert.equal(httpEdit.statusCode, 200, httpEdit.body);
+    assert.equal(httpEdit.json().label, "HTTP central edit");
+    assert.equal((await audited()).length, 4);
+
+    const httpCreate = await send("POST", "/api/failure-classifications", {
+      label: "HTTP reserved exclusion", value: "test",
+    });
+    // This reserved key may exist from other isolated fixtures; whichever
+    // constraint applies, it must NEVER create an included BI classification.
+    assert([201, 409].includes(httpCreate.statusCode), httpCreate.body);
+    if (httpCreate.statusCode === 201) {
+      const createdId = httpCreate.json().id;
+      const reserved = await db.failureClassification.findUniqueOrThrow({
+        where: { id: createdId },
+      });
+      assert.equal(reserved.analyticsDisposition, "test");
+      await db.failureClassification.delete({ where: { id: createdId } });
+    }
+
+    const csrfDenied = await send("PATCH", urlPath, { label: "CSRF bypass" },
+      { "x-andon-csrf": "0".repeat(64) });
+    assert.equal(csrfDenied.statusCode, 403);
+    const guest = await send("PATCH", urlPath, { label: "Guest bypass" },
+      { cookie: "" });
+    assert.equal(guest.statusCode, 401);
+
+    const otherWrite = await send("POST", "/api/andon-calls", { machineId: "37" });
+    assert.equal(otherWrite.statusCode, 403,
+      "non-classification central HTTP writes must stay denied");
+
+    process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED = "0";
+    const disabled = await send("PATCH", urlPath, { label: "Gate bypass" });
+    assert.equal(disabled.statusCode, 403);
+    assert.equal(disabled.json().error, "central_action_not_supported");
+    assert.equal((await db.failureClassification.findUniqueOrThrow({
+      where: { id: classificationId },
+    })).label, "HTTP central edit");
+    assert.equal((await audited()).length, 4);
+  } finally {
+    await app.close();
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+    delete process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED;
+    delete process.env.ANDON_ACCESS_ORIGIN;
+  }
+
   await db.accessSession.update({ where: { id: sessionId },
     data: { revokedAt: new Date() } });
   await assert.rejects(submit("update", { label: "Revoked" }),
     denies("authentication_required"));
-  assert.equal((await audited()).length, 3);
-  console.log("SEC-04 catalog PostgreSQL PASS: ACL, full scope, station, rollback, two clients, audit and revocation");
+  assert.equal((await audited()).length, 4);
+  console.log("SEC-04 catalog PostgreSQL PASS: domain/HTTP, ACL, full scope, CSRF, 2 clients, atomic audit, rollback, revocation and fail-closed gate");
 } finally {
   if (classificationId) await db.failureClassification.delete({
     where: { id: classificationId },
