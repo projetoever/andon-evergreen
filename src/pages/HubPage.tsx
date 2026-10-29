@@ -5,6 +5,7 @@ import { LayoutGrid, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
@@ -12,7 +13,7 @@ import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 
 export function HubPage() {
-  const { access, error, refresh } = useModuleAccess();
+  const { access, error, checking, refresh } = useModuleAccess();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
@@ -57,13 +58,34 @@ export function HubPage() {
             {t("Operação, indicadores e prioridades em um só lugar.")}
           </p>
         </section>
-        {!access && (
-          <div role="status" className="space-y-3 rounded-xl border border-border bg-card p-6">
-            <p>{(error ? systemMessage(error) : null) ?? t("Verificando workstation")}</p>
-            {error && <Button onClick={() => void refresh()}>{t("Verificar novamente")}</Button>}
+        {checking && (
+          <section
+            role="status"
+            aria-label={t("Carregando módulos e permissões...")}
+            className="space-y-3"
+          >
+            <p className="text-sm text-muted-foreground">
+              {t("Carregando módulos e permissões...")}
+            </p>
+            <div className="grid gap-4 md:grid-cols-3" aria-hidden="true">
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6">
+                  <Skeleton className="h-12 w-12 rounded-xl motion-reduce:animate-none" />
+                  <Skeleton className="h-6 w-3/4 motion-reduce:animate-none" />
+                  <Skeleton className="h-4 w-full motion-reduce:animate-none" />
+                  <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {!checking && !access && (
+          <div role={error ? "alert" : "status"} className="space-y-3 rounded-xl border border-border bg-card p-6">
+            <p>{error ? systemMessage(error) : t("Nenhuma informação de acesso disponível.")}</p>
+            <Button onClick={() => void refresh()}>{t("Verificar novamente")}</Button>
           </div>
         )}
-        {access && (
+        {!checking && access && (
           <>
             {!access.centralAccessEnabled && !access.workstation.active && (
               <p role="alert" className="text-danger">

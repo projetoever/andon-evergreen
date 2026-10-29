@@ -58,6 +58,7 @@ try {
     }, { id: workstationId });
     const page = await context.newPage();
     const errors = [];
+    let delayModules = false;
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/api/**", async (route) => {
       const req = route.request();
@@ -107,7 +108,8 @@ try {
             allowOperational:false,allowBi:false,allowPriorities:false},
         ]);
       }
-      if (path === "/api/modules/access")
+      if (path === "/api/modules/access") {
+        if (delayModules) await new Promise((resolve) => setTimeout(resolve, 650));
         return send({
           hubEnabled: true,
           centralAccessEnabled: false,
@@ -121,6 +123,7 @@ try {
           },
           modules: [],
         });
+      }
       if (path === "/api/admin-auth/login") {
         const { username, password } = req.postDataJSON();
         if (username !== "admin" || password !== "valid-fixture-password")
@@ -223,7 +226,14 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}-https-required.png`, fullPage: true });
 
     // Fresh Hub session: settings opens sign-in here, before navigating to Admin.
+    delayModules = true;
     await page.goto("https://127.0.0.1:4188/hub");
+    const loadingModules = page.locator('section[role="status"][aria-label]');
+    await loadingModules.waitFor();
+    assert.equal(await page.getByText("Nenhum módulo liberado para esta workstation. Solicite a liberação ao administrador do Hub.",{exact:true}).count(),0,
+      "a slow API response must not briefly display a false no-modules state");
+    await loadingModules.waitFor({state:"hidden"});
+    delayModules = false;
     // Previous tests deliberately end in Chinese; reset locale before matching
     // the Portuguese Hub login labels in this independent scenario.
     await page.getByRole("combobox").first().click();

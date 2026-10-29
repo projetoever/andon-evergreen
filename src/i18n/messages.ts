@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Carregando módulos e permissões...","Loading modules and permissions...","正在載入模組及權限…"],
+  ["Nenhuma informação de acesso disponível.","No access information is available.","沒有可用的存取資訊。"],
   ["Sessão Admin legado","Legacy Admin session","舊版管理員工作階段"],
   ["Situação consultada no servidor; não representa disponibilidade instantânea das máquinas.","Server data snapshot; it does not indicate real-time machine availability.","伺服器資料快照；不代表機台即時可用狀態。"],
   ["Atualizar resumo","Refresh summary","更新摘要"],
