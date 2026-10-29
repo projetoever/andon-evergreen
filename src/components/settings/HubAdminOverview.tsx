@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Activity, Clock3, Monitor, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { getHubSettings } from "@/services/moduleService";
@@ -166,6 +167,7 @@ export function HubAdminOverview() {
           </div>
         </section>
       </div>
+      <HubBuildVersionCard />
     </div>
   );
 }

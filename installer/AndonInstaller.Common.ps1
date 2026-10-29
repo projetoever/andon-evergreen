@@ -1461,12 +1461,37 @@ function Invoke-AndonNodePipeline {
     Remove-Item Env:\VITE_ANDON_API_BASE_URL -ErrorAction SilentlyContinue
     $env:VITE_ANDON_DATA_MODE = "api"
     $env:VITE_ANDON_API_PORT = "$($config.apiPort)"
+    # The installer has already pinned the working tree's SHA before build.
+    # Inject it explicitly: git.exe may be unavailable on the runtime PATH.
+    $previousBuildCommit = $env:ANDON_BUILD_COMMIT
+    $previousBuildBranch = $env:ANDON_BUILD_BRANCH
+    $pinnedFrontendCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+    if ($pinnedFrontendCommit -match '^[0-9a-f]{40}$') {
+        $env:ANDON_BUILD_COMMIT = $pinnedFrontendCommit
+    } else {
+        Remove-Item Env:\ANDON_BUILD_COMMIT -ErrorAction SilentlyContinue
+    }
+    if ($Global:AndonBranch -match '^[a-zA-Z0-9_./-]{1,120}$') {
+        $env:ANDON_BUILD_BRANCH = "$Global:AndonBranch"
+    } else {
+        Remove-Item Env:\ANDON_BUILD_BRANCH -ErrorAction SilentlyContinue
+    }
     try {
         if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $Global:AndonProjectPath }
         Invoke-AndonNodeProcess $npm @("run", "build") $Global:AndonProjectPath
     } finally {
         Remove-Item Env:\VITE_ANDON_DATA_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\VITE_ANDON_API_PORT -ErrorAction SilentlyContinue
+        if ($null -eq $previousBuildCommit) {
+            Remove-Item Env:\ANDON_BUILD_COMMIT -ErrorAction SilentlyContinue
+        } else {
+            $env:ANDON_BUILD_COMMIT = $previousBuildCommit
+        }
+        if ($null -eq $previousBuildBranch) {
+            Remove-Item Env:\ANDON_BUILD_BRANCH -ErrorAction SilentlyContinue
+        } else {
+            $env:ANDON_BUILD_BRANCH = $previousBuildBranch
+        }
     }
     if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
     Write-AndonOk "Backend/frontend preparados."
