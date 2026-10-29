@@ -1239,6 +1239,27 @@ export async function applyVerifiedCentralAttendanceDomainTransition(
   technician: Pick<IdentifiedTechnician, "id" | "name" | "employeeId">,
   workstationId: string,
 ) {
+  return applyVerifiedCentralAttendanceDomainTransitionMany(
+    tx, call, [technician], workstationId,
+  );
+}
+
+/**
+ * SEC-04/2A.9b2a: same domain transition as the legacy handler, with one
+ * atomic TechnicianSession per independently verified/locked technician.
+ * The outer caller MUST already have verified every credential and acquired
+ * all technician advisory locks in stable order.
+ */
+export async function applyVerifiedCentralAttendanceDomainTransitionMany(
+  tx: Prisma.TransactionClient,
+  call: LockedAttendanceContext,
+  technicians: Array<Pick<IdentifiedTechnician, "id" | "name" | "employeeId">>,
+  workstationId: string,
+) {
+  if (!Array.isArray(technicians) || technicians.length < 1 ||
+      technicians.length > 6 ||
+      new Set(technicians.map((t) => t.id)).size !== technicians.length)
+    throw new AccessError("technician_credentials_invalid", 400);
   const parsedStationId = parseWorkstationId(workstationId);
   if (!parsedStationId || parsedStationId !== workstationId)
     throw new AccessError("workstation_inactive");
@@ -1259,30 +1280,31 @@ export async function applyVerifiedCentralAttendanceDomainTransition(
     throw new AccessError("call_state_changed", 409);
   if (currentCall.isSystemTest) throw new AccessError("system_test_transition_denied");
 
-  // Identity is retrieved from server-owned rows, not a client-provided name.
-  // The outer guard has already validated PIN/tag twice and locked technician.
-  const verified = await tx.technician.findUnique({
-    where: { id: technician.id },
+  // Query all actual technician records under the caller's locks; never
+  // use name, shift, area or employee ID supplied by the browser.
+  const verified = await tx.technician.findMany({
+    where: { id: { in: technicians.map((t) => t.id) }, active: true },
     select: technicianIdentitySelect,
   });
-  if (!verified?.active || verified.name !== technician.name ||
-      !currentCall.subtype ||
-      !getTechnicianTechnicalAreas(verified).includes(currentCall.subtype))
+  const byId = new Map(verified.map((t) => [t.id, t]));
+  const ordered = technicians.map((t) => byId.get(t.id));
+  if (!currentCall.subtype || ordered.some((t, i) =>
+    !t || t.name !== technicians[i].name ||
+    !getTechnicianTechnicalAreas(t).includes(currentCall.subtype!)))
     throw new AccessError("technician_area_denied");
 
-  // Use EXACTLY the existing lock and legacy-name exclusivity checks.
+  // Reuse the original legacy exclusivity check for all people as one group.
+  // This acquires the SAME technician locks (idempotent per transaction).
   const missingTechnicians = await lockAndFindMissingActiveTechnicians(tx, {
     callId: currentCall.id,
-    technicians: [verified],
+    technicians: ordered as IdentifiedTechnician[],
   });
-  if (missingTechnicians.length !== 1)
+  if (missingTechnicians.length !== ordered.length)
     throw new AccessError("technician_already_attending", 409);
 
-  // Preserve all legacy side effects and timestamps. The outer guard will
-  // append AuditEvent AFTER this callback before the same commit.
   return persistAttendanceTransition(tx, {
     currentCall,
-    technicians: [verified],
+    technicians: ordered as IdentifiedTechnician[],
     missingTechnicians,
     workstationId,
   });
