@@ -175,7 +175,7 @@ export function DashboardPriorityPage() {
   const session = getStoredDashboardPrioritySession();
 
   return (
-    <div className="min-h-dvh bg-background p-3 md:p-5">
+    <div className="andon-screen-enter min-h-dvh bg-background p-3 md:p-5">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 items-start gap-3">
