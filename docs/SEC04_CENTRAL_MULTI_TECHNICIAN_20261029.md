@@ -14,7 +14,7 @@ Permitir que a futura operação central de início de atendimento identifique *
 ## Testes
 - `centralMultiTechnicianVerification.test.ts`: ordem dos locks, ordem de credenciais, duplicação, credencial inválida, revogação, área/status e sessões legadas ativas.
 - `centralAttendanceAtomicAudit.test.ts`: registra todos os técnicos em evento único e impede payloads de auditoria inconsistentes.
-- `validate-central-multi-technician.mjs`: PostgreSQL isolado (`andon_test`), com dois técnicos e chamados sintéticos; testa rollback integral, PIN inválido, gravação conjunta de duas sessões, origem, horário, sincronismo de máquina e conflito com atendimento concorrente. Não é teste completo de uma requisição HTTP autenticada.
+- `validate-central-multi-technician.mjs`: PostgreSQL isolado (`andon_test`), com dois técnicos e chamados sintéticos; testa rollback integral, PIN inválido, gravação conjunta de duas sessões, origem, horário e sincronismo de máquina. Também usa **duas conexões Prisma simultâneas** disputando o mesmo chamado e exige exatamente um commit, com a segunda tentativa rejeitada após observar o novo estado. Não é teste completo de uma requisição HTTP autenticada.
 
 ## Segurança e limites
 - **Não está habilitado o acesso central de escrita**, que segue recusado por `central_action_not_supported`. Não houve criação de rota HTTP e nenhum operador do piloto pode invocar esse fluxo.
