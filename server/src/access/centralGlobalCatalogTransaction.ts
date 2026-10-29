@@ -39,7 +39,7 @@ export async function runCentralGlobalCatalogTransaction<T>(
     await lockWorkstationFlow(tx, input.workstationId);
     // Serialize global catalog modifications across all categories and types.
     await tx.$queryRaw(Prisma.sql`
-      SELECT pg_advisory_xact_lock(hashtext(andon-global-catalog))::text
+      SELECT pg_advisory_xact_lock(hashtext(${`andon-global-catalog`}))::text
     `);
     const request = { token: input.token, workstationId: input.workstationId };
     const principal = await resolveSession(tx, request);
