@@ -95,16 +95,27 @@ try {
   const noAuth = await db.workstation.findUniqueOrThrow({ where: { id: activeStation } });
   assert.equal(noAuth.name, null);
 
-  await update(pendingStation, { active: true }, 400);
-  await update(pendingStation, { name: "Bypass approval" }, 400);
+  await update(pendingStation, { allowBi: false }, 400);
   await update(rejectedStation, { active: true }, 400);
+  // The legacy Admin is an authorized approver when central access is OFF.
+  const approved = await update(pendingStation, { active: true, allowBi: false });
+  assert.equal(approved.pendingApproval, false);
+  assert.equal(approved.active, true);
   const [pending, rejected] = await Promise.all([
-    db.workstation.findUniqueOrThrow({ where: { id: pendingStation } }),
+    db.workstation.findUniqueOrThrow({ where: { id: pendingStation }, include: { admission: true } }),
     db.workstation.findUniqueOrThrow({ where: { id: rejectedStation } }),
   ]);
-  assert.equal(pending.pendingApproval, true);
-  assert.equal(pending.active, false);
+  assert.equal(pending.pendingApproval, false);
+  assert.equal(pending.admission?.status, "approved");
+  assert.equal(pending.allowBi, false);
   assert.equal(rejected.active, false);
+  const approvalAudit = await db.auditEvent.findFirstOrThrow({
+    where: { action: "workstation.admission.approved", resourceId: pendingStation },
+  });
+  assert.equal(approvalAudit.actorType, "legacy_admin");
+  assert.equal(approvalAudit.actorLogin, "admin");
+  assert.equal(approvalAudit.before.pendingApproval, true);
+  assert.equal(approvalAudit.after.pendingApproval, false);
 
   const renamed = await update(activeStation, { name: "Legacy isolated workstation" });
   assert.equal(renamed.name, "Legacy isolated workstation");
@@ -149,9 +160,9 @@ try {
   );
   assert.equal(
     await db.auditEvent.count({
-      where: { action: "workstation.access.updated", resourceId: pendingStation },
+      where: { action: "workstation.access.updated", resourceId: rejectedStation },
     }), 0,
-    "rejected administration must not create a successful mutation audit",
+    "rejected reactivation must not create a successful mutation audit",
   );
 
   console.log("SEC-04/2A.8 legacy workstation integration: PASS (admission, revocation, audit, reactivation)");
