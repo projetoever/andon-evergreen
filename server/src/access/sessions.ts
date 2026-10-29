@@ -256,11 +256,22 @@ export async function revokeUserSessions(
 }
 export async function logout(db: PrismaClient, request: AccessRequest) {
   return db.$transaction(async (tx) => {
+    // Align logout with authorization-version changes and guarded attendance:
+    // always acquire the user's advisory lock before the final session read.
+    const initial = await resolveSession(tx, request);
+    await lockUser(tx, initial.userId);
     const principal = await resolveSession(tx, request);
-    await tx.accessSession.update({
-      where: { id: principal.sessionId },
+    if (principal.userId !== initial.userId ||
+        principal.sessionId !== initial.sessionId)
+      throw new AccessError("authentication_required", 401);
+    // Conditional update rejects concurrent or duplicate revocation and
+    // prevents a second success/audit for a session already terminated.
+    const revoked = await tx.accessSession.updateMany({
+      where: { id: principal.sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (revoked.count !== 1)
+      throw new AccessError("authentication_required", 401);
     await appendAudit(tx, actorFromPrincipal(principal), {
       action: "access.logout",
       resourceType: "access_session",
