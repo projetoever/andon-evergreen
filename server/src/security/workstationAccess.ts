@@ -17,6 +17,7 @@ import {
 } from "./centralScopedMachineReads.js";
 import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
+import { markCentralClassificationAuthorized, isCentralClassificationMutation } from "./centralClassificationHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -103,9 +104,17 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       // selected-machine filtering. Other restricted reads still fail closed.
       if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path))
         throw new AccessError("scoped_query_required");
-      // Mutations are still denied pending validated route/action permission maps.
-      if (!["GET", "HEAD"].includes(request.method))
+      // SEC-04: one narrowly scoped opt-in route family, never a generic
+      // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
+      // the domain adapter revalidates every grant under transactional locks.
+      // All other writes still fail closed, including calls and Priorities.
+      if (!["GET", "HEAD"].includes(request.method)) {
+        if (isCentralClassificationMutation(request.method, path)) {
+          markCentralClassificationAuthorized(request, principal, workstation);
+          return;
+        }
         throw new AccessError("central_action_not_supported");
+      }
       if (!module) throw new AccessError("central_route_not_supported");
       assertModule(principal, workstation, module);
       // Historical interventions require an additional permission even for
