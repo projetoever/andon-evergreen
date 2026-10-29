@@ -32,6 +32,9 @@ import {
 } from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
 import { AccessError } from "../access/policy.js";
+import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
+import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1831,6 +1834,31 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: AttendAndonCallBody }>(
     "/api/andon-calls/:id/attend",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralAttendanceRequest(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        const allowed = ["credentials", "technicianName", "technicianNames", "technicianArea"];
+        if (!Array.isArray(body.credentials) || body.credentials.length === 0 ||
+            body.credentials.length > 6 || Object.keys(body).some((key) => !allowed.includes(key)))
+          return reply.status(400).send({ error: "technician_credentials_invalid" });
+        // Names and areas sent by the client never authorize an attendance:
+        // every PIN/RFID maps to a real technician under machine+user+device locks.
+        try {
+          return await runCentralMultiTechnicianAttendancePrototype(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            credentials: body.credentials,
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const body = request.body ?? {};
       const call = await prisma.andonCall.findUnique({
         include: { machine: true },
