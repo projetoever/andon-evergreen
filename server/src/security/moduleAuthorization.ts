@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../db/prisma.js";
 import { apiModule } from "../services/moduleRegistry.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { centralAccessEnabled } from "../access/http.js";
 
 export type PasswordModule = "operational" | "bi";
 export type ModulePolicy = { passwordRequired: boolean; credentialVersion: number };
@@ -81,6 +82,13 @@ export async function enforceModuleAuthorization(request: FastifyRequest, reply:
     return;
   const module = apiModule(path);
   if (!module || !isPasswordModule(module)) return;
+  // In central mode, the earlier enforceWorkstationAccess hook already
+  // authenticated the central cookie, approved station, module grant and
+  // machine scope. Never require a second, legacy module password here.
+  // This is only a removal of duplicated READ authentication: central HTTP
+  // writes remain fail-closed in enforceWorkstationAccess.
+  // CRITICAL: keep the hook registration order in server.ts unchanged.
+  if (centralAccessEnabled()) return;
   const policy = await prisma.moduleCredential.findUnique({
     where: { id: module },
     select: { passwordRequired: true, credentialVersion: true },
