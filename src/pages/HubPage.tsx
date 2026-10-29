@@ -43,7 +43,7 @@ export function HubPage() {
             </span>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {ui("ANDON WEB INDUSTRIAL")}
+                ANDON WEB INDUSTRIAL
               </p>
               <h1 className="text-2xl font-black">{ui("HUB")}</h1>
               {identity.clientName && <p className="text-xs text-muted-foreground">{identity.clientName}{identity.clientUnit ? ` · ${identity.clientUnit}` : ""}</p>}
