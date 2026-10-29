@@ -23,6 +23,8 @@ type VerifiedAttendance<T> = {
   value: T;
   /** Stable ID from the domain's verified technician record, never raw client text. */
   technicianId: string;
+  /** Verified IDs in credential order for atomic multi-technician attendance. */
+  technicianIds?: string[];
 };
 
 export type GuardedAttendanceInput<T> = {
@@ -131,6 +133,15 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
         !result.technicianId.trim())
       throw new AccessError("verified_technician_required");
 
+    const multiIds = result.technicianIds;
+    if (multiIds !== undefined &&
+        (!Array.isArray(multiIds) || multiIds.length < 1 ||
+         multiIds.length > 6 ||
+         multiIds.some((id) => typeof id !== "string" || !id.trim()) ||
+         multiIds[0] !== result.technicianId ||
+         new Set(multiIds).size !== multiIds.length))
+      throw new AccessError("verified_technician_required");
+
     // Both transition and audit are in the SAME Prisma transaction. A failure
     // to persist the audit rejects the transaction and rolls back the change.
     await appendAudit(tx, {
@@ -142,7 +153,9 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
       resourceType: "andon_call",
       resourceId: call.callId,
       machineId: call.machineId,
-      after: { technicianId: result.technicianId },
+      after: multiIds
+        ? { technicianId: result.technicianId, technicianIds: multiIds }
+        : { technicianId: result.technicianId },
     });
     return result.value;
   });

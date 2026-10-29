@@ -34,7 +34,9 @@ test("SEC-04/2A.9b1: legacy and verified central call the same attendance state 
   assert.match(central, /currentCall\.status !== "open"/);
   assert.match(central, /currentCall\.isSystemTest/);
   assert.match(central, /technicianIdentitySelect/);
-  assert.match(central, /getTechnicianTechnicalAreas\(verified\)/);
+  assert.match(central, /getTechnicianTechnicalAreas\(t\)/);
+  assert.match(central, /applyVerifiedCentralAttendanceDomainTransitionMany/);
+  assert.match(central, /new Set\(technicians\.map\(\(t\) => t\.id\)\)/);
   assert.match(central, /await lockAndFindMissingActiveTechnicians\(tx/);
   assert.match(central, /return persistAttendanceTransition\(tx/);
 });

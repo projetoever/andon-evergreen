@@ -30,6 +30,7 @@ type Options = {
   auditThrows?: boolean;
   transitionThrows?: boolean;
   missingPermission?: boolean;
+  multiple?: boolean;
 };
 
 function fixture(opts: Options = {}) {
@@ -101,7 +102,9 @@ function fixture(opts: Options = {}) {
         assert.equal(args.data.resourceId, "call-37");
         assert.equal(args.data.actorType, "user");
         assert.equal(args.data.workstationId, baseStation.id);
-        assert.deepEqual(args.data.after, { technicianId: "tech-1" });
+        assert.deepEqual(args.data.after, opts.multiple
+          ? { technicianId: "tech-1", technicianIds: ["tech-1", "tech-2"] }
+          : { technicianId: "tech-1" });
         staged.push("audit");
         return { id: "audit-1" };
       },
@@ -132,7 +135,10 @@ function fixture(opts: Options = {}) {
         });
         if (opts.transitionThrows) throw new Error("technician PIN denied");
         staged.push("transition");
-        return { value: { ok: true }, technicianId: "tech-1" };
+        return {
+          value: { ok: true }, technicianId: "tech-1",
+          ...(opts.multiple ? { technicianIds: ["tech-1", "tech-2"] } : {}),
+        };
       },
       ...overrides,
     });
@@ -216,4 +222,24 @@ test("SEC-04/2A.3: unverified technician result aborts, without audit or commit"
   }) }), "verified_technician_required");
   assert(!f.log.includes("audit"));
   assert(!f.committed);
+});
+
+test("SEC-04/2A.9b2a: both verified technician IDs are audited together with the transition", async () => {
+  const f = fixture({ multiple: true });
+  assert.deepEqual(await f.run(), { ok: true });
+  assert.deepEqual(f.staged, ["transition", "audit"]);
+  assert(f.committed);
+});
+
+test("SEC-04/2A.9b2a: malformed multi-technician audit attribution rolls back", async () => {
+  for (const technicianIds of [
+    ["tech-2", "tech-1"], ["tech-1", "tech-1"], [], ["tech-1", ""],
+  ]) {
+    const f = fixture();
+    await deny(f.run({ verifyAndApplyAttendance: async () => ({
+      value: { ok: true }, technicianId: "tech-1", technicianIds,
+    }) }), "verified_technician_required");
+    assert(!f.committed);
+    assert(!f.log.includes("audit"));
+  }
 });
