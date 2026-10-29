@@ -30,3 +30,19 @@ test("SEC-04/2B.4: reserved BI exclusions cannot be changed into included mainte
     denied(() => validateCentralClassificationUpdate({value:reservedValue},{analyticsDisposition:"include"}),"reserved_classification_exclusion");
   }
 });
+
+test("SEC-04: reject malformed or unrecognized classification creation fields", () => {
+  denied(() => validateCentralClassificationCreate({label:"Valid",value:"valid",unexpected:"x"} as never),"invalid_classification");
+  denied(() => validateCentralClassificationCreate(null as never),"invalid_classification");
+  denied(() => validateCentralClassificationUpdate({value:"valid"},null as never),"invalid_classification");
+  denied(() => validateCentralClassificationUpdate({value:"valid"},[] as never),"invalid_classification");
+});
+test("SEC-04: all reserved classifications use excluded analytics dispositions", async () => {
+  const { RESERVED_EXCLUSIONS, reservedDisposition } = await import("../analytics/eligibility.js");
+  for (const value of RESERVED_EXCLUSIONS) {
+    const classification = validateCentralClassificationCreate({label:"Reserved",value});
+    assert.equal(classification.analyticsDisposition,reservedDisposition(value));
+    denied(() => validateCentralClassificationCreate({label:"Reserved",value,analyticsDisposition:"include"}),"reserved_classification_exclusion");
+    denied(() => validateCentralClassificationUpdate({value},{analyticsDisposition:"include"}),"reserved_classification_exclusion");
+  }
+});
