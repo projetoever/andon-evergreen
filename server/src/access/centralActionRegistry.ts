@@ -44,6 +44,20 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "PATCH", route: "/api/machine-subsets/:id", permission: "catalog.assets.manage", scope: "machine_from_subset_record", module: "operational" },
   { method: "DELETE", route: "/api/machine-subsets/:id", permission: "catalog.assets.manage", scope: "machine_from_subset_record", module: "operational" },
 
+  // SEC-04/2B.2: global catalog planning only; never activates HTTP mutations.
+  // Global catalogs require policy + full-machine scope and atomic audit on future activation.
+  { method: "POST", route: "/api/machine-set-types", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/machine-set-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "DELETE", route: "/api/machine-set-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "POST", route: "/api/machine-subset-types", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/machine-subset-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "DELETE", route: "/api/machine-subset-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  { method: "POST", route: "/api/andon-categories", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "DELETE", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "POST", route: "/api/failure-classifications", permission: "catalog.classifications.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/failure-classifications/:id", permission: "catalog.classifications.manage", scope: "module_global", module: "operational" },
+
   { method: "GET", route: "/api/andon-calls", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/andon-calls/history", permission: "history.read", scope: "collection_filter", module: "operational" },
   { method: "POST", route: "/api/andon-calls", permission: "calls.open", scope: "machine_from_body", module: "operational" },
