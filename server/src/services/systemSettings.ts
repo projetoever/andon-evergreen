@@ -6,6 +6,8 @@ export type AttendanceMode = (typeof ATTENDANCE_MODES)[number];
 
 const PUBLIC_SYSTEM_SETTINGS_SELECT = {
   id: true,
+  clientName: true,
+  clientUnit: true,
   allowWholeSetCalls: true,
   virtualKeyboardEnabled: true,
   requireWorkOrderAtOpen: true,
