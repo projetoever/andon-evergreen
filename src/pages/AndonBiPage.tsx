@@ -17,6 +17,7 @@ import { BiOverviewWorkspace } from "@/components/bi/BiOverviewWorkspace";
 import { BiReliabilityStrip } from "@/components/bi/BiReliabilityStrip";
 import { BiWorkspaceTabs, type BiWorkspaceTab } from "@/components/bi/BiWorkspaceTabs";
 import { buildExecutiveReportHtml, openReportPrintDialog } from "@/services/andonBiPdfReport";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import {
   loadAnalyticsDrilldown,
   loadAndonBiFilterOptions,
@@ -412,10 +413,11 @@ export function AndonBiPage() {
       // Re-fetch the authoritative period at click time. Never mix stale
       // overview cards with a new filter or a different reporting window.
       const reportOverview = await loadExecutiveOverview(filters);
-      const [reportReliability, reportMaintenance, reportFailures] = await Promise.all([
+      const [reportReliability, reportMaintenance, reportFailures, identity] = await Promise.all([
         loadAssetReliability(filters, reportOverview.meta.period),
         loadMaintenanceParticipation(filters, reportOverview.meta.period),
         loadFailureIntelligence(filters, reportOverview.meta.period),
+        getSystemSettings(),
       ]);
       const reportHtml = buildExecutiveReportHtml({
         overview: reportOverview,
@@ -424,6 +426,7 @@ export function AndonBiPage() {
         failures: reportFailures,
         filters,
         options,
+        branding: { clientName: identity.clientName, clientUnit: identity.clientUnit },
       });
       openReportPrintDialog(reportHtml);
     } catch (reportFailure) {
