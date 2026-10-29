@@ -44,6 +44,8 @@ function getApiSyncIntervalMs() {
 
 interface AndonContextValue {
   machines: Machine[];
+  /** First API snapshot state, independent of polling / operational mutation. */
+  initialSnapshotState: "loading" | "ready" | "error";
   calls: AndonCall[];
   settings: AppSettings;
   soundConfigs: SoundConfig[];
@@ -112,6 +114,9 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       : loadFromStorage<Machine[]>(LOCAL_STORAGE_KEYS.machines, createInitialMachines()).map(
         andonService.normalizeMachine,
       ),
+  );
+  const [initialSnapshotState, setInitialSnapshotState] = useState<"loading" | "ready" | "error">(
+    CONFIGURED_DATA_MODE === "api" ? "loading" : "ready",
   );
   const [calls, setCalls] = useState<AndonCall[]>(() =>
     CONFIGURED_DATA_MODE === "api"
@@ -184,18 +189,24 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       try {
         const revision = snapshotRevision.current.capture();
         const snapshot = await andonRepository.loadSnapshot();
-        if (!snapshot || disposed || !snapshotRevision.current.canApply(revision)) return;
+        if (!snapshot || disposed || !snapshotRevision.current.canApply(revision)) {
+          if (!snapshot && !disposed) setInitialSnapshotState((state) =>
+            state === "ready" ? state : "error");
+          return;
+        }
 
         setMachines(snapshot.machines.map(andonService.normalizeMachine));
         setCalls(snapshot.calls.map(andonService.normalizeAndonCall));
         setSettings(snapshot.settings);
         setSoundConfigs(snapshot.soundConfigs);
+        setInitialSnapshotState("ready");
 
         if (typeof snapshot.serverTimeOffsetMs === "number" && Number.isFinite(snapshot.serverTimeOffsetMs)) {
           setServerTimeOffsetMs(snapshot.serverTimeOffsetMs);
           setServerTimeOffsetStateMs(snapshot.serverTimeOffsetMs);
         }
       } catch (error) {
+        if (!disposed) setInitialSnapshotState((state) => state === "ready" ? state : "error");
         console.error(
           error instanceof Error
             ? `[${reason}] ${error.message}`
@@ -479,6 +490,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AndonContextValue>(
     () => ({
       machines,
+      initialSnapshotState,
       calls,
       settings,
       soundConfigs,
@@ -509,6 +521,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     }),
     [
       machines,
+      initialSnapshotState,
       calls,
       settings,
       soundConfigs,
