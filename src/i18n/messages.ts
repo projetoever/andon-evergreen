@@ -26,6 +26,14 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
 
   ["Identificação da versão instalada","Installed version identification","已安裝版本識別"],
   ["Versão e rastreabilidade","Version and traceability","版本與追溯資訊"],
+  ["Verificando sessão administrativa","Verifying administrator session","正在驗證管理員工作階段"],
+  ["Acesso administrativo restrito","Administrative access restricted","管理存取權限受限"],
+  ["Sessão central","Central session","集中式工作階段"],
+  ["Não foi possível verificar as permissões administrativas.","Could not verify administrator permissions.","無法驗證管理員權限。"],
+  ["Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.","Sign in to the Hub using an authorized primary Admin account. The legacy password does not grant central administration access.","請使用獲授權的主要管理員帳號登入 Hub。舊版密碼無法授予集中管理權限。"],
+  ["Estatísticas consultadas pela sessão central. Último contato não comprova presença online.","Statistics retrieved through the central session. Last contact does not prove online presence.","統計資料透過集中式工作階段取得。最後聯絡時間不代表目前在線。"],
+  ["Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.","This setting is unavailable in central administration until sensitive operations have been migrated.","敏感操作尚未完成遷移，集中式管理暫不提供此設定。"],
+
   ["Versão do produto","Product version","產品版本"],
   ["Branch de origem da compilação","Build source branch","編譯來源分支"],
   ["Não identificada","Unknown","無法識別"],
