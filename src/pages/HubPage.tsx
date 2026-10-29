@@ -18,7 +18,7 @@ export function HubPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
-  const [identity, setIdentity] = useState({ clientName: "Evergreen", clientUnit: "" });
+  const [identity, setIdentity] = useState({ clientName: "", clientUnit: "" });
   useEffect(() => {
     let mounted = true;
     void getSystemSettings().then((settings) => {
@@ -46,7 +46,7 @@ export function HubPage() {
                 {ui("ANDON WEB INDUSTRIAL")}
               </p>
               <h1 className="text-2xl font-black">{ui("HUB")}</h1>
-              <p className="text-xs text-muted-foreground">{identity.clientName}{identity.clientUnit ? ` · ${identity.clientUnit}` : ""}</p>
+              {identity.clientName && <p className="text-xs text-muted-foreground">{identity.clientName}{identity.clientUnit ? ` · ${identity.clientUnit}` : ""}</p>}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
