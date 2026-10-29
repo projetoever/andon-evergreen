@@ -157,7 +157,7 @@ try {
   const winner = results.find((result) => result.status === "fulfilled").value;
   assert.equal(winner.status, "in_progress");
   assert(winner.attendedAt instanceof Date);
-  assert.equal(winner.currentAttendanceCycle, 1);
+  assert.equal(winner.maintenanceReturnCount, 0);
 
   const committed = await db.technicianSession.findMany({
     where: { callId: firstCall }, orderBy: { technicianId: "asc" },
