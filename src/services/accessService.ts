@@ -1,5 +1,6 @@
 import { DEFAULT_ANDON_API_CLIENT_CONFIG } from "@/api/andonApiClient";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
+import { setCentralCsrf, clearCentralCsrf } from "./centralCsrf";
 import type { Workstation } from "@/types/workstation";
 export interface AccessUser {
   id: string;
@@ -94,6 +95,13 @@ export async function accessRequest<T>(path: string, method = "GET", body?: unkn
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "access_unavailable");
-  if (typeof data.csrf === "string") csrf = data.csrf;
+  if (typeof data.csrf === "string") {
+    csrf = data.csrf;
+    setCentralCsrf(csrf);
+  }
+  if (path === "/logout" && method === "POST") {
+    csrf = "";
+    clearCentralCsrf();
+  }
   return data as T;
 }
