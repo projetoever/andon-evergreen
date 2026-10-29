@@ -221,11 +221,14 @@ try {
   });
   await request(service, "/api/machines", { expected: 403 });
 
-  const blockedOperational = await request(admin, "/api/machines", {
+  // Central human identity already has workstation and operational ACL.
+  // The legacy module password must not create a second login challenge.
+  await request(admin, "/api/machines", { browser: true });
+  const unauthenticatedBrowser = await request({}, "/api/machines", {
     browser: true,
     expected: 401,
   });
-  assert.equal(blockedOperational.error, "module_auth_required");
+  assert.equal(unauthenticatedBrowser.error, "authentication_required");
 
   const session = await db.industrialServiceSession.findUniqueOrThrow({
     where: { tokenHash: (await import("../dist/access/credentials.js")).tokenHash(firstToken) },

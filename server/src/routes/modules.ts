@@ -114,11 +114,16 @@ export async function registerModuleRoutes(app: FastifyInstance) {
         return {
           ...module,
           allowed: permitted(module),
+          // When central identity is active, a second ANDON/BI password
+          // would contradict the verified central session and hook order.
+          // Priorities retain their separate credentials until audited migration.
           passwordRequired: isPasswordModule(module.id)
-            ? policy.passwordRequired
+            ? (!central && policy.passwordRequired)
             : (priority?.passwordRequired ?? true),
           authenticated: isPasswordModule(module.id)
-            ? hasModuleSession(request, module.id, policy)
+            ? (central
+                ? Boolean(principal?.purpose === "normal" && permitted(module))
+                : hasModuleSession(request, module.id, policy))
             : false,
         };
       }),
