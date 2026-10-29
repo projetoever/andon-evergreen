@@ -401,7 +401,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col gap-1.5 p-2 md:p-3 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
+    <div className="andon-screen-enter flex min-h-dvh flex-col gap-1.5 p-2 md:p-3 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       {!audioUnlocked && audioPlaybackBlocked && (
         <AudioPlaybackRecovery onActivate={handleUnlock} />
       )}
