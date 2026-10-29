@@ -14,11 +14,13 @@ export type ResourceScope =
   | "machines_from_body"
   | "machine_from_route"
   | "machine_from_call_record"
+  | "machine_from_set_record"
+  | "machine_from_subset_record"
   | "module_global"
   | "needs_call_ownership";
 
 export type CentralRouteAction = {
-  method: "GET" | "POST" | "PUT" | "PATCH";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   route: string;
   permission: Permission | null;
   scope: ResourceScope;
@@ -31,6 +33,16 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/production-mode", permission: "production.schedule.write", scope: "machine_from_route", module: "operational" },
+
+  // Planning-only asset mutation permissions. The central middleware still
+  // rejects ALL writes. Ownership is resolved from the database by the
+  // dedicated SEC-04/2B.1 preflight before any future domain callback.
+  { method: "POST", route: "/api/machines/:machineId/sets", permission: "catalog.assets.manage", scope: "machine_from_route", module: "operational" },
+  { method: "PATCH", route: "/api/machine-sets/:id", permission: "catalog.assets.manage", scope: "machine_from_set_record", module: "operational" },
+  { method: "DELETE", route: "/api/machine-sets/:id", permission: "catalog.assets.manage", scope: "machine_from_set_record", module: "operational" },
+  { method: "POST", route: "/api/machine-sets/:machineSetId/subsets", permission: "catalog.assets.manage", scope: "machine_from_set_record", module: "operational" },
+  { method: "PATCH", route: "/api/machine-subsets/:id", permission: "catalog.assets.manage", scope: "machine_from_subset_record", module: "operational" },
+  { method: "DELETE", route: "/api/machine-subsets/:id", permission: "catalog.assets.manage", scope: "machine_from_subset_record", module: "operational" },
 
   { method: "GET", route: "/api/andon-calls", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/andon-calls/history", permission: "history.read", scope: "collection_filter", module: "operational" },
