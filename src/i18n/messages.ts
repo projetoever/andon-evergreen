@@ -1,5 +1,23 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Identificação da versão instalada","Installed version identification","已安裝版本識別"],
+  ["Versão e rastreabilidade","Version and traceability","版本與追溯資訊"],
+  ["Versão do produto","Product version","產品版本"],
+  ["Branch de origem da compilação","Build source branch","編譯來源分支"],
+  ["Não identificada","Unknown","無法識別"],
+  ["Commit do frontend compilado","Compiled frontend commit","前端編譯版本提交"],
+  ["Não identificado","Unknown","無法識別"],
+  ["Copiar SHA completo","Copy full SHA","複製完整 SHA"],
+  ["Copiado","Copied","已複製"],
+  ["Copiar SHA","Copy SHA","複製 SHA"],
+  ["Cópia automática indisponível. Selecione o código para copiar.","Automatic copying unavailable. Select the code to copy.","無法自動複製，請選取代碼後複製。"],
+  ["Compilado em (UTC)","Built at (UTC)","編譯時間（UTC）"],
+  ["PR de origem da compilação","Build pull request","編譯來源 PR"],
+  ["Ver commit no GitHub","View commit on GitHub","在 GitHub 檢視提交"],
+  ["Comparar com a main","Compare with main","與 main 比較"],
+  ["Consultar main atual","View latest main","查看目前 main"],
+  ["Este identificador pertence ao frontend compilado nesta instalação. Não confirma o commit do backend nem consulta a main em tempo real.","This ID identifies the frontend built for this installation. It does not confirm the backend commit or query main in real time.","此識別碼僅代表本安裝中編譯的前端版本，不代表後端提交，也不會即時查詢 main。"],
+
   ["Carregando módulos e permissões...","Loading modules and permissions...","正在載入模組及權限…"],
   ["Nenhuma informação de acesso disponível.","No access information is available.","沒有可用的存取資訊。"],
   ["Sessão Admin legado","Legacy Admin session","舊版管理員工作階段"],
