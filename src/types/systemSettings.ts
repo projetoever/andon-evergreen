@@ -4,6 +4,8 @@ export type DashboardMachineOrderMode = "default" | "priority";
 
 export interface SystemSettings {
   id: string;
+  clientName: string;
+  clientUnit: string;
   allowWholeSetCalls: boolean;
   virtualKeyboardEnabled: boolean;
   requireWorkOrderAtOpen: boolean;
@@ -27,6 +29,8 @@ export interface SystemSettings {
 }
 
 export interface SystemSettingsPatch {
+  clientName?: string;
+  clientUnit?: string;
   allowWholeSetCalls?: boolean;
   virtualKeyboardEnabled?: boolean;
   requireWorkOrderAtOpen?: boolean;
