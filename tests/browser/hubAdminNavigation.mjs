@@ -160,6 +160,19 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Resumo administrativo", exact: true }).waitFor();
+    const buildVersion = page.getByRole("region", { name: "Identificação da versão instalada" });
+    await buildVersion.waitFor();
+    await buildVersion.getByText("Versão do produto", { exact: true }).waitFor();
+    await buildVersion.getByText("Commit do frontend compilado", { exact: true }).waitFor();
+    const displayedCommit = (await buildVersion.locator("code").innerText()).trim();
+    if (/^[a-f0-9]{40}$/.test(displayedCommit)) {
+      assert.equal(await buildVersion.getByRole("link", { name: "Ver commit no GitHub" }).getAttribute("href"),
+        `https://github.com/projetoever/andon-evergreen/commit/${displayedCommit}`);
+      assert.equal(await buildVersion.getByRole("link", { name: "Comparar com a main" }).getAttribute("href"),
+        `https://github.com/projetoever/andon-evergreen/compare/${displayedCommit}...main`);
+    } else {
+      assert.equal(displayedCommit, "Não identificado");
+    }
     await page.getByRole("group", {name:"Registradas"}).getByText("3", {exact:true}).waitFor();
     await page.getByRole("group", {name:"Aguardando aprovação"}).getByText("1", {exact:true}).waitFor();
     await page.getByRole("group", {name:"Bloqueadas"}).getByText("1", {exact:true}).waitFor();
