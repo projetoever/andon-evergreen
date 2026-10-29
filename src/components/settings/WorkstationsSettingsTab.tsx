@@ -37,6 +37,23 @@ function formatLastSeen(value: string) {
     : date.toLocaleString(getInterfaceLocale());
 }
 
+/** Check-in is historical evidence, never proof that a browser or kiosk is online. */
+function hasRecentServerContact(value: string) {
+  const timestamp = Date.parse(value);
+  const now = Date.now();
+  return Number.isFinite(timestamp) && timestamp <= now && now - timestamp <= 30 * 60 * 1000;
+}
+
+function sessionStateLabel(state: NonNullable<ManagedWorkstation["lastLogin"]>["state"]) {
+  switch (state) {
+    case "valid": return "Sessão válida";
+    case "expired": return "Sessão expirada";
+    case "revoked": return "Sessão revogada";
+    case "user_inactive": return "Sessão de usuário inativo";
+    case "workstation_blocked": return "Sessão bloqueada pela workstation";
+  }
+}
+
 export function WorkstationsSettingsTab() {
   useInterfaceLanguage();
   const { access, checking, refresh } = useModuleAccess();
@@ -583,15 +600,25 @@ export function WorkstationsSettingsTab() {
                       <span className="block break-words">
                         {formatLastSeen(workstation.lastSeenAt)}
                       </span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {ui(hasRecentServerContact(workstation.lastSeenAt)
+                          ? "Registro nos últimos 30 min — não confirma conexão ativa"
+                          : "Sem registro nos últimos 30 min — estado online desconhecido")}
+                      </span>
                     </span>
                     <span className="col-span-2 min-w-0 text-xs lg:col-span-1">
-                      <span className="block text-muted-foreground">{ui("Conta / sessão")}</span>
+                      <span className="block text-muted-foreground">
+                        {ui(!centralAccess ? "Conta / sessão" :
+                          workstation.authenticatedAccount ? "Sessão central autenticada" :
+                          workstation.linkedAccount ? "Solicitante da admissão" :
+                          "Conta central")}
+                      </span>
                       <span className="block break-words font-semibold">
-                        {workstation.authenticatedAccount
+                        {centralAccess && workstation.authenticatedAccount
                           ? `${workstation.authenticatedAccount.roleLabel} · ${workstation.authenticatedAccount.displayName}`
-                          : workstation.linkedAccount
+                          : centralAccess && workstation.linkedAccount
                             ? `${workstation.linkedAccount.roleLabel} · ${workstation.linkedAccount.displayName}`
-                            : ui("Sem conta vinculada")}
+                            : ui(centralAccess ? "Sem sessão central válida" : "Gestão central não habilitada")}
                       </span>
                     </span>
                     <span className="col-span-2 flex items-center gap-2 text-xs font-semibold text-primary lg:col-span-1">
@@ -646,9 +673,7 @@ export function WorkstationsSettingsTab() {
                           <span className="text-muted-foreground">{ui("Estado da sessão")}: </span>
                           <strong>
                             {ui(
-                              workstation.lastLogin.state === "valid"
-                                ? "Sessão válida"
-                                : "Histórico — sessão não válida",
+                              sessionStateLabel(workstation.lastLogin.state),
                             )}
                           </strong>
                         </p>
