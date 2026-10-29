@@ -80,8 +80,9 @@ test("Hub module access reflects the verified central login, not legacy module p
     assert.equal(item.authenticated, true);
   }
   const priorities = modules.find((m: { id: string }) => m.id === "priorities");
-  assert.equal(priorities.passwordRequired, true,
-    "priority credential is NOT removed until its migration is reviewed");
+  assert.equal(priorities.passwordRequired, false,
+    "central read-only priority access must not require a second login");
+  assert.equal(priorities.authenticated, true);
 
   purpose = "password_change";
   const provisional = (await app.inject({ url: "/api/modules/access", headers })).json();
@@ -92,4 +93,5 @@ test("Hub module access reflects the verified central login, not legacy module p
   const legacy = (await app.inject({ url: "/api/modules/access", headers })).json();
   assert.equal(legacy.modules.find((m: {id: string}) => m.id === "operational").passwordRequired, true);
   assert.equal(legacy.modules.find((m: {id: string}) => m.id === "bi").authenticated, false);
+  assert.equal(legacy.modules.find((m: {id: string}) => m.id === "priorities").passwordRequired, true);
 });
