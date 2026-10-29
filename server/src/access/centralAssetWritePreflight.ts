@@ -101,6 +101,8 @@ export async function preflightCentralAssetWrite(input: CentralAssetWritePreflig
     machineId = subset.machineSet.machineId;
   }
 
+  if (!machineId) throw new AccessError("asset_not_found", 404);
+
   // Mask the existence of other machines and their asset IDs from a
   // machine-scoped principal. The body must never determine the owner.
   if (principal.machineScope !== "all" && !principal.machineIds.includes(machineId))
