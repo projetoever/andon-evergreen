@@ -21,6 +21,9 @@ export function HubClientIdentitySettings() {
     setMessage(null);
     try {
       const settings = await getSystemSettings();
+      if (typeof settings.clientName !== "string" || typeof settings.clientUnit !== "string") {
+        throw new Error("Identificação indisponível: atualize a API e aplique a migration antes de editar.");
+      }
       const value = {
         clientName: settings.clientName ?? "Evergreen",
         clientUnit: settings.clientUnit ?? "",
