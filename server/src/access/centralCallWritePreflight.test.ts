@@ -64,6 +64,9 @@ test("SEC-04/2A: session, workstation, module and action authorization are cumul
     workstation: { ...workstation, id: "ws-foreign" },
   })), "workstation_session_mismatch");
   await rejects(preflightCentralCallWrite(input(open, {
+    workstation: { ...workstation, pendingApproval: true },
+  })), "workstation_inactive");
+  await rejects(preflightCentralCallWrite(input(open, {
     workstation: { ...workstation, allowOperational: false },
   })), "workstation_module_denied");
   await rejects(preflightCentralCallWrite(input(open, {
