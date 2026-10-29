@@ -44,7 +44,7 @@ function buildMetadata() {
   const branch = /^[a-zA-Z0-9_./-]{1,120}$/.test(sourceBranch) &&
     !sourceBranch.includes("..") ? sourceBranch : null;
   const ref = process.env.GITHUB_REF || "";
-  const prFromRef = /^refs\\/pull\\/(\\d+)\\/merge$/.exec(ref)?.[1];
+  const prFromRef = /^refs\/pull\/(\d+)\/merge$/.exec(ref)?.[1];
   const pullRequest = prFromRef ? Number(prFromRef) : null;
   const packageInfo = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
   return {
