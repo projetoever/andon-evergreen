@@ -263,6 +263,12 @@ try {
     });
     await page.goto("https://127.0.0.1:4188/hub/admin?section=workstations");
     await page.getByRole("button", { name: /Kiosk Linha 1|Workstation não identificada/ }).click();
+    // Distinguish historical admission identity from the current authenticated account.
+    await page.getByText("Solicitante da admissão", { exact: true }).first().waitFor();
+    await page.getByText("Sessão central autenticada", { exact: true }).first().waitFor();
+    await page.getByText("Sessão bloqueada pela workstation", { exact: true }).first().waitFor();
+    await page.getByText("Sem registro nos últimos 30 min — estado online desconhecido", { exact: true }).first().waitFor();
+    assert.equal(await page.getByText("Registro nos últimos 30 min — não confirma conexão ativa", { exact: true }).count(), 0);
     await page.getByLabel("Motivo da decisão").fill("Kiosk validado para a Linha 1");
     const decisionBiSwitch = page.getByRole("switch", { name: /ANDON BI/ }).first();
     assert.equal(await decisionBiSwitch.isEnabled(), true);
