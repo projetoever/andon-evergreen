@@ -111,7 +111,8 @@ export function createAndonApiClient(
     const needsCentralCsrf =
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/attend$/.test(path)) ||
       ((method === "POST" || method === "PATCH") &&
-       /^\/api\/failure-classifications(?:\/[^/]+)?$/.test(path));
+       /^\/api\/failure-classifications(?:\/[^/]+)?$/.test(path)) ||
+      (method === "PUT" && path === "/api/dashboard-priority/order");
     const centralCsrf = needsCentralCsrf
       ? await getCentralCsrf(baseUrl, workstationId ?? "") : null;
 

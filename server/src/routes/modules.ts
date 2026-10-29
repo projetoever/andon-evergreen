@@ -8,7 +8,8 @@ import { hasModuleSession, isPasswordModule } from "../security/moduleAuthorizat
 import type { TLSSocket } from "node:tls";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
-import { assertModule, type Principal } from "../access/policy.js";
+import { assertModule, assertFullMachineScope, assertPermission, type Principal } from "../access/policy.js";
+import { centralPriorityHttpEnabled } from "../security/centralPriorityHttp.js";
 
 export async function registerModuleRoutes(app: FastifyInstance) {
   app.get("/api/modules/access", async (request, reply) => {
@@ -95,6 +96,17 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       hubEnabled: settings?.hubEnabled ?? false,
       workstation,
       centralAccessEnabled: central,
+      // Never expose the central editor as active unless the server-side
+      // opt-in is enabled and this exact account/device has full global grant.
+      prioritiesWriteEnabled: Boolean(central && centralPriorityHttpEnabled() &&
+        principal?.purpose === "normal" && permitted(MODULE_REGISTRY[2]) &&
+        (() => {
+          try {
+            assertFullMachineScope(principal!);
+            assertPermission(principal!, "priorities.write");
+            return true;
+          } catch { return false; }
+        })()),
       principal: principal
         ? {
             userId: principal.userId,

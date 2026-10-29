@@ -40,7 +40,8 @@ export function DashboardPriorityPage() {
   const navigate = useNavigate();
   const { access } = useModuleAccess();
   const returnTo = "/hub";
-  const centralReadOnly = access?.centralAccessEnabled === true;
+  const centralReadOnly = access?.centralAccessEnabled === true &&
+    access?.prioritiesWriteEnabled !== true;
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);

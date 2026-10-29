@@ -19,6 +19,7 @@ import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 import { markCentralClassificationAuthorized, isCentralClassificationMutation } from "./centralClassificationHttp.js";
 import { markCentralAttendanceAuthorized, isCentralAttendanceMutation } from "./centralAttendanceHttp.js";
+import { isCentralPriorityWrite, markCentralPriorityAuthorized } from "./centralPriorityHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -117,6 +118,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralAttendanceMutation(request.method, path)) {
           markCentralAttendanceAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralPriorityWrite(request.method, path)) {
+          markCentralPriorityAuthorized(request, principal, workstation);
           return;
         }
         throw new AccessError("central_action_not_supported");
