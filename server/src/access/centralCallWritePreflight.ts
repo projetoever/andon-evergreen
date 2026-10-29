@@ -28,6 +28,7 @@ type CentralCallWriteRequest = {
 type WorkstationContext = {
   id: string;
   active: boolean;
+  pendingApproval?: boolean;
   allowOperational: boolean;
   allowBi: boolean;
   allowPriorities: boolean;
@@ -99,7 +100,9 @@ export async function preflightCentralCallWrite({
     throw new AccessError("central_action_not_supported");
   }
 
-  if (!workstation.active) throw new AccessError("workstation_inactive");
+  if (!workstation.active || workstation.pendingApproval) {
+    throw new AccessError("workstation_inactive");
+  }
   if (!principal.workstationId || principal.workstationId !== workstation.id) {
     throw new AccessError("workstation_session_mismatch");
   }
