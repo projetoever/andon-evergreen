@@ -124,7 +124,7 @@ export function HubAdminPage() {
             <ShieldCheck className="h-6 w-6 text-primary" />
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {ui("ANDON WEB INDUSTRIAL")}
+                ANDON WEB INDUSTRIAL
               </p>
               <h1 className="text-xl font-black">{ui("Administração do Hub")}</h1>
             </div>
