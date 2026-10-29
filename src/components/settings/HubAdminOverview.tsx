@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Activity, Clock3, Monitor, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
+import { HubClientIdentitySettings } from "@/components/settings/HubClientIdentitySettings";
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { getHubSettings } from "@/services/moduleService";
@@ -167,6 +168,7 @@ export function HubAdminOverview() {
           </div>
         </section>
       </div>
+      <HubClientIdentitySettings />
       <HubBuildVersionCard />
     </div>
   );
