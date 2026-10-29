@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
 import { tokenHash } from "./credentials.js";
+import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { AccessError, assertModule, assertPermission } from "./policy.js";
 import { lockUser, resolveSession } from "./sessions.js";
 import {
@@ -72,6 +73,10 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
     // Existing user advisory lock serializes admin authorization-version
     // changes with this attempt. It MUST precede the machine lock.
     await lockUser(tx, session.userId);
+    // Serialize with central/legacy workstation administration before
+    // reading its current admission, active and module-allowance flags.
+    // Global order for this guarded path: user -> workstation -> machine.
+    await lockWorkstationFlow(tx, input.workstationId);
     const principal = await resolveSession(tx, request);
     if (principal.userId !== session.userId)
       throw new AccessError("authentication_required", 401);
