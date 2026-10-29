@@ -1,4 +1,4 @@
-# SEC-04/2A.1 — Preflight de abertura e início do atendimento (29/10/2026)
+# SEC-04/2A.1 — Preflight de abertura e início do atendimento (28/10/2026)
 
 Roadmap: #232. Continuação da matriz #245, SEM ativar operações centrais.
 
