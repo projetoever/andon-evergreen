@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { isAuthorizedCentralClassificationRequest } from "./centralClassificationHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -131,6 +132,9 @@ export async function enforceAdminAuthorization(
   reply: FastifyReply,
 ) {
   if (!isAdminProtectedMutation(request.method, request.url)) return;
+  // Only the specific request verified by the preceding central session,
+  // workstation, CSRF and catalog permission hook may bypass legacy Admin.
+  if (isAuthorizedCentralClassificationRequest(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
