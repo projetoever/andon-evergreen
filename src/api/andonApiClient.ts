@@ -4,6 +4,7 @@ import {
 } from "@/services/adminSessionStorage";
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 import { clearModuleSession, getModuleAuthorizationHeaders } from "@/services/moduleSessionStorage";
+import { getCentralCsrf } from "@/services/centralCsrf";
 
 export interface AndonApiClientConfig {
   baseUrl: string;
@@ -104,6 +105,15 @@ export function createAndonApiClient(
     const url = normalizeUrl(path);
     const workstationId = getCurrentWorkstationId();
     const adminAuthorization = getAdminAuthorizationHeader();
+    const method = (init.method ?? "GET").toUpperCase();
+    // Only the reviewed, narrowly opted-in central mutations need the
+    // derived CSRF header. The legacy API path remains unchanged.
+    const needsCentralCsrf =
+      (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/attend$/.test(path)) ||
+      ((method === "POST" || method === "PATCH") &&
+       /^\/api\/failure-classifications(?:\/[^/]+)?$/.test(path));
+    const centralCsrf = needsCentralCsrf
+      ? await getCentralCsrf(baseUrl, workstationId ?? "") : null;
 
     let response: Response;
 
@@ -118,6 +128,7 @@ export function createAndonApiClient(
           ...(workstationId ? { "X-Andon-Workstation-Id": workstationId } : {}),
           ...(adminAuthorization ? { Authorization: adminAuthorization } : {}),
           ...getModuleAuthorizationHeaders(),
+          ...(centralCsrf ? { "X-Andon-CSRF": centralCsrf } : {}),
           ...init.headers,
         },
         signal: AbortSignal.timeout(config.timeoutMs),

@@ -18,6 +18,7 @@ import {
 import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 import { markCentralClassificationAuthorized, isCentralClassificationMutation } from "./centralClassificationHttp.js";
+import { markCentralAttendanceAuthorized, isCentralAttendanceMutation } from "./centralAttendanceHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -102,7 +103,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       });
       // Only the machine GET handlers currently implement database-enforced
       // selected-machine filtering. Other restricted reads still fail closed.
-      if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path))
+      if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path) &&
+          !isCentralAttendanceMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -111,6 +113,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       if (!["GET", "HEAD"].includes(request.method)) {
         if (isCentralClassificationMutation(request.method, path)) {
           markCentralClassificationAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralAttendanceMutation(request.method, path)) {
+          markCentralAttendanceAuthorized(request, principal, workstation);
           return;
         }
         throw new AccessError("central_action_not_supported");
