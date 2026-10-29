@@ -1,6 +1,5 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
-  ["ANDON WEB INDUSTRIAL","ANDON WEB INDUSTRIAL","ANDON 工業網頁系統"],
   ["Identificação da empresa e unidade","Company and plant identification","公司與廠區資訊"],
   ["Empresa e unidade","Company and plant","公司與廠區"],
   ["Dados exibidos na identificação do Hub e nos relatórios executivos do BI.","Shown in the Hub identity and executive BI reports.","顯示於 Hub 識別資訊與 BI 高階報表中。"],
