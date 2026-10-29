@@ -21,6 +21,8 @@ import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSetti
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isAdminAuthenticated, logoutAdmin } from "@/services/adminAuthService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { HubCentralAdminPage } from "./HubCentralAdminPage";
 
 const sections = [
   {
@@ -66,6 +68,7 @@ export function HubAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
   const section = requestedSection ?? "overview";
   const navigate = useNavigate();
+  const { access, error: accessError, checking: checkingAccess } = useModuleAccess();
   // Match SSR and the first client render; reveal the page only after a session check.
   const [sessionChecked, setSessionChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -90,10 +93,27 @@ export function HubAdminPage() {
   // A direct URL never mounts administrative sections while unauthenticated.
   // Closing the sign-in dialog returns to Hub; success sets the validated state.
   useEffect(() => {
-    if (sessionChecked && !authenticated && !loginOpen) {
+    if (!checkingAccess && !access?.centralAccessEnabled && sessionChecked && !authenticated && !loginOpen) {
       void navigate({ to: "/hub", replace: true });
     }
-  }, [sessionChecked, authenticated, loginOpen, navigate]);
+  }, [checkingAccess, access?.centralAccessEnabled, sessionChecked, authenticated, loginOpen, navigate]);
+
+  if (checkingAccess) {
+    return <main className="min-h-dvh bg-background" aria-label={ui("Acesso administrativo")} />;
+  }
+  // An unavailable policy server must never silently fall back to cached
+  // legacy administration while central access may be active.
+  if (accessError) {
+    return <main className="min-h-dvh bg-background p-6" role="alert">
+      <div className="mx-auto max-w-lg space-y-3 rounded-xl border border-border bg-card p-6">
+        <p>{ui("Não foi possível verificar as permissões administrativas.")}</p>
+        <Button asChild variant="outline"><Link to="/hub">{ui("Voltar ao Hub")}</Link></Button>
+      </div>
+    </main>;
+  }
+  // Central administration never trusts legacy token/sessionStorage.
+  // Its own page revalidates the HttpOnly central session on the server.
+  if (access?.centralAccessEnabled) return <HubCentralAdminPage />;
 
   if (!sessionChecked) {
     return <main className="min-h-dvh bg-background" aria-label={ui("Acesso administrativo")} />;

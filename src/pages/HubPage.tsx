@@ -27,7 +27,9 @@ export function HubPage() {
     return () => { mounted = false; };
   }, []);
   const enterAdministration = () => {
-    if (isAdminAuthenticated()) {
+    if (access?.centralAccessEnabled) {
+      void navigate({ to: "/hub/admin" });
+    } else if (isAdminAuthenticated()) {
       void navigate({ to: "/hub/admin" });
     } else {
       setAdminLoginOpen(true);
@@ -127,11 +129,11 @@ export function HubPage() {
             </footer>
           </>
         )}
-        <AdminLoginModal
+        {!access?.centralAccessEnabled && <AdminLoginModal
           open={adminLoginOpen}
           onOpenChange={setAdminLoginOpen}
           onSuccess={() => { void navigate({ to: "/hub/admin" }); }}
-        />
+        />}
       </div>
     </main>
   );
