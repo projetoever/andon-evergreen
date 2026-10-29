@@ -1,6 +1,6 @@
 /** The central session secret never leaves the HttpOnly cookie.
  * Only a derived anti-CSRF token is held in memory for the current page.
- * No localStorage/sessionStorage and no user credentials are retained.
+ * No persistent browser storage or user credentials are retained.
  */
 let centralMode = false;
 let csrf = "";
