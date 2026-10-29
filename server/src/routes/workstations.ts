@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 
 import { prisma } from "../db/prisma.js";
+import { appendAudit } from "../access/audit.js";
+import { readAdminSession } from "../security/adminAuthorization.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
@@ -226,6 +228,10 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const id = parseWorkstationId(request.params.id);
       if (!id) return badRequest(reply, "Identificador de workstation inválido");
+      // Defense in depth: do not rely only on the global Admin preHandler.
+      // A legacy administrator remains distinguishable from a central user.
+      const admin = readAdminSession(request);
+      if (!admin) return reply.status(401).send({ error: "admin_auth_required" });
 
       const hasName = Object.prototype.hasOwnProperty.call(request.body ?? {}, "name");
       const hasActive = Object.prototype.hasOwnProperty.call(request.body ?? {}, "active");
@@ -285,10 +291,30 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
 
           const lockedWorkstation = await tx.workstation.findUnique({
             where: { id },
-            select: { id: true, active: true, lockedMachineId: true },
+            select: {
+              id: true,
+              name: true,
+              active: true,
+              pendingApproval: true,
+              allowOperational: true,
+              allowBi: true,
+              allowPriorities: true,
+              lockedMachineId: true,
+              admission: { select: { status: true } },
+            },
           });
           if (!lockedWorkstation) {
             throw new WorkstationUpdateValidationError("Workstation não encontrada");
+          }
+          // Approval/rejection is reserved for the audited central
+          // admission-decision flow. A legacy PATCH must not bypass it.
+          if (
+            lockedWorkstation.pendingApproval ||
+            (active === true && lockedWorkstation.admission?.status === "rejected")
+          ) {
+            throw new WorkstationUpdateValidationError(
+              "Aguardando decisão de admissão pela Administração do Hub.",
+            );
           }
 
           if (
@@ -319,19 +345,53 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             }
           }
 
-          return tx.workstation.update({
+          const updated = await tx.workstation.update({
             where: { id },
             data: {
               ...(hasName ? { name } : {}),
-              ...(active !== undefined
-                ? { active, ...(active ? { pendingApproval: false } : {}) }
-                : {}),
+              ...(active !== undefined ? { active } : {}),
               ...(allowOperational !== undefined ? { allowOperational } : {}),
               ...(allowBi !== undefined ? { allowBi } : {}),
               ...(allowPriorities !== undefined ? { allowPriorities } : {}),
             },
             select: workstationSelect,
           });
+          // Keep session revocation consistent with the central Admin route.
+          // This update and the audit must succeed in the SAME transaction.
+          if (active === false) {
+            await tx.accessSession.updateMany({
+              where: { workstationId: id, revokedAt: null },
+              data: { revokedAt: new Date() },
+            });
+          }
+          await appendAudit(tx, {
+            actorType: "legacy_admin",
+            actorLogin: admin.session.username,
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? undefined,
+            ipAddress: request.ip,
+            requestId: request.id,
+          }, {
+            action: "workstation.access.updated",
+            resourceType: "workstation",
+            resourceId: id,
+            before: {
+              name: lockedWorkstation.name,
+              active: lockedWorkstation.active,
+              pendingApproval: lockedWorkstation.pendingApproval,
+              allowOperational: lockedWorkstation.allowOperational,
+              allowBi: lockedWorkstation.allowBi,
+              allowPriorities: lockedWorkstation.allowPriorities,
+            },
+            after: {
+              name: updated.name,
+              active: updated.active,
+              pendingApproval: updated.pendingApproval,
+              allowOperational: updated.allowOperational,
+              allowBi: updated.allowBi,
+              allowPriorities: updated.allowPriorities,
+            },
+          });
+          return updated;
         });
       } catch (error) {
         if (error instanceof WorkstationUpdateValidationError) {
