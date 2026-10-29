@@ -122,6 +122,17 @@ try {
           active: true,
           pendingApproval: false,
         });
+      // Admin entry now verifies the Hub policy before rendering; provide
+      // the legacy-mode policy in this independent users-screen fixture.
+      if (path === "/api/modules/access") return send({
+        hubEnabled: true, centralAccessEnabled: false,
+        workstation: {
+          id: "ws_00000000-0000-4000-8000-000000000001",
+          active: true, pendingApproval: false,
+          allowOperational: true, allowBi: true, allowPriorities: true,
+        },
+        modules: [],
+      });
       if (path === "/api/access/session") return send({ principal, csrf, initialized });
       if (req.method() !== "GET") assert.equal(req.headers()["x-andon-csrf"], csrf);
       if (path === "/api/access/catalog")
