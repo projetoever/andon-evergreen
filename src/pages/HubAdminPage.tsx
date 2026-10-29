@@ -178,17 +178,19 @@ export function HubAdminPage() {
             );
           })}
         </nav>
-        {section === "users" ? (
-          <UsersAccessSettings />
-        ) : section === "workstations" ? (
-          <WorkstationsSettingsTab />
-        ) : (
-          <>
-            {section === "overview" && <HubAdminOverview />}
-            {section === "security" && <HubSecuritySettings />}
-            {section === "modules" && <ModuleCredentialSettings />}
-          </>
-        )}
+        <div key={section} className="andon-panel-enter min-w-0">
+          {section === "users" ? (
+            <UsersAccessSettings />
+          ) : section === "workstations" ? (
+            <WorkstationsSettingsTab />
+          ) : (
+            <>
+              {section === "overview" && <HubAdminOverview />}
+              {section === "security" && <HubSecuritySettings />}
+              {section === "modules" && <ModuleCredentialSettings />}
+            </>
+          )}
+        </div>
       </div>
     </main>
   );
