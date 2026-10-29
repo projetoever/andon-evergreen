@@ -22,7 +22,7 @@ test("SEC-04 single central login bypasses only legacy module passwords, not cen
   prisma.workstation.findUnique = (async () => ({
     id: stationId, active: true, pendingApproval: false,
     allowOperational: true, allowBi, allowPriorities: false,
-  })) as typeof originalStation;
+  })) as unknown as typeof originalStation;
   prisma.moduleCredential.findUnique = (async () => {
     legacyLookup++;
     return { passwordRequired: true, credentialVersion: 1 };
@@ -42,7 +42,7 @@ test("SEC-04 single central login bypasses only legacy module passwords, not cen
       ],
       machines: [],
     },
-  })) as typeof originalSession;
+  })) as unknown as typeof originalSession;
   t.after(() => {
     prisma.workstation.findUnique = originalStation;
     prisma.accessSession.findUnique = originalSession;
