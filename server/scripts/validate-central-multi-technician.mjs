@@ -38,8 +38,8 @@ try {
   callIds.push(first.id);
   const context = { callId: first.id, machineId, category: "maintenance", status: "open" };
 
-  async function attempt(ctx, group, failAtAudit = false) {
-    return db.$transaction(async (tx) => {
+  async function attempt(ctx, group, failAtAudit = false, client = db) {
+    return client.$transaction(async (tx) => {
       await lockWorkstationFlow(tx, workstationId);
       await lockMachineFlow(tx, machineId);
       const verified = await verifyCentralAttendanceTechnicians(tx, ctx, group);
@@ -60,7 +60,25 @@ try {
   );
   assert.equal(await db.technicianSession.count({ where: { callId: first.id } }), 0);
 
-  const attended = await attempt(context, credentials);
+  // Two actual independent PostgreSQL connections race on the same
+  // workstation + machine. One commits; the loser must observe the new
+  // call state after acquiring the advisory transaction lock.
+  const contender = new PrismaClient();
+  let attended;
+  try {
+    const results = await Promise.allSettled([
+      attempt(context, credentials),
+      attempt(context, [credentials[1], credentials[0]], false, contender),
+    ]);
+    assert.equal(results.filter((x) => x.status === "fulfilled").length, 1,
+      "exactly one concurrent attempt must commit");
+    assert.equal(results.filter((x) => x.status === "rejected").length, 1);
+    const denied = results.find((x) => x.status === "rejected");
+    assert.equal(denied.reason?.code, "call_state_changed");
+    attended = results.find((x) => x.status === "fulfilled").value;
+  } finally {
+    await contender.$disconnect();
+  }
   assert.equal(attended.status, "in_progress");
   assert(attended.attendedAt instanceof Date);
   assert.deepEqual(attended.technicianNames, [
@@ -84,7 +102,7 @@ try {
   await assert.rejects(attempt(next, [credentials[1], credentials[0]]),
     (error) => error?.code === "technician_already_attending");
   assert.equal((await db.andonCall.findUniqueOrThrow({ where: { id: other.id } })).status, "open");
-  console.log("SEC-04/2A.9b2a PostgreSQL PASS: group rollback, invalid credential, 2 sessions, origin, machine, cross-call exclusion");
+  console.log("SEC-04/2A.9b2a PostgreSQL PASS: group rollback, 2-connection race, invalid credential, 2 sessions, origin and exclusion");
 } finally {
   await db.technicianSession.deleteMany({ where: { callId: { in: callIds } } });
   await db.andonCall.deleteMany({ where: { id: { in: callIds } } });
