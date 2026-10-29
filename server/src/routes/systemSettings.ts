@@ -16,6 +16,8 @@ import {
 import { badRequest } from "./routeUtils.js";
 
 type UpdateSystemSettingsBody = {
+  clientName?: unknown;
+  clientUnit?: unknown;
   allowWholeSetCalls?: unknown;
   virtualKeyboardEnabled?: unknown;
   requireWorkOrderAtOpen?: unknown;
@@ -67,6 +69,8 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
 
   app.patch<{ Body: UpdateSystemSettingsBody }>("/api/system-settings", async (request, reply) => {
     const body = request.body ?? {};
+    const clientName = body.clientName;
+    const clientUnit = body.clientUnit;
     const allowWholeSetCalls = body.allowWholeSetCalls;
     const virtualKeyboardEnabled = body.virtualKeyboardEnabled;
     const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
@@ -85,6 +89,14 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const filterTechniciansByCurrentShift = body.filterTechniciansByCurrentShift;
 
     if (!Object.keys(body).length) return badRequest(reply, "Informe ao menos uma configuração");
+    if ("clientName" in body &&
+        (typeof clientName !== "string" || clientName.trim().length < 2 ||
+         clientName.trim().length > 100 || /[\\x00-\\x1F\\x7F]/.test(clientName)))
+      return badRequest(reply, "Nome do cliente deve conter de 2 a 100 caracteres válidos");
+    if ("clientUnit" in body &&
+        (typeof clientUnit !== "string" || clientUnit.trim().length > 100 ||
+         /[\\x00-\\x1F\\x7F]/.test(clientUnit)))
+      return badRequest(reply, "Unidade deve conter até 100 caracteres válidos");
     if ("allowWholeSetCalls" in body && typeof allowWholeSetCalls !== "boolean") {
       return badRequest(reply, "Campo allowWholeSetCalls deve ser booleano");
     }
@@ -150,6 +162,8 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     }
 
     const patch = {
+      ...(typeof clientName === "string" ? { clientName: clientName.trim() } : {}),
+      ...(typeof clientUnit === "string" ? { clientUnit: clientUnit.trim() } : {}),
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
       ...(typeof virtualKeyboardEnabled === "boolean" ? { virtualKeyboardEnabled } : {}),
       ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
