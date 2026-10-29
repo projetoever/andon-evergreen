@@ -38,7 +38,7 @@ export async function verifyCentralAttendanceTechnicians(
   // All identities are discovered from server-owned credential hashes, not
   // names or IDs sent by the client. Reject duplicate persons even if PIN
   // and RFID are different credentials for that same person.
-  const original = [];
+  const original: IdentifiedTechnician[] = [];
   for (const credential of credentials) {
     const match = await identifyTechnician(credential!, tx);
     if (!match) throw new AccessError("technician_credential_invalid");
@@ -54,7 +54,7 @@ export async function verifyCentralAttendanceTechnicians(
 
   // All PINs/RFID and names/areas are revalidated AFTER obtaining every
   // technician lock. Admin credential edits use these same advisory locks.
-  const verified = [];
+  const verified: IdentifiedTechnician[] = [];
   for (let i = 0; i < credentials.length; i++) {
     const match = await identifyTechnician(credentials[i]!, tx);
     if (!match || match.id !== original[i].id)
