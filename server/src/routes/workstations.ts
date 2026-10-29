@@ -306,16 +306,25 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
           if (!lockedWorkstation) {
             throw new WorkstationUpdateValidationError("Workstation não encontrada");
           }
-          // Approval/rejection is reserved for the audited central
-          // admission-decision flow. A legacy PATCH must not bypass it.
-          if (
-            lockedWorkstation.pendingApproval ||
-            (active === true && lockedWorkstation.admission?.status === "rejected")
-          ) {
+          // With central access OFF, the legacy Admin is the authorized
+          // approver for registration-policy pending workstations. Preserve
+          // that established flow, but make its decision explicit/auditable.
+          // A previously rejected central admission cannot be overridden.
+          if (active === true && lockedWorkstation.admission?.status === "rejected") {
             throw new WorkstationUpdateValidationError(
-              "Aguardando decisão de admissão pela Administração do Hub.",
+              "Admissão rejeitada: solicite uma nova aprovação da workstation.",
             );
           }
+          if (
+            lockedWorkstation.pendingApproval && active !== true &&
+            (allowOperational !== undefined || allowBi !== undefined ||
+             allowPriorities !== undefined)
+          ) {
+            throw new WorkstationUpdateValidationError(
+              "A workstation está aguardando aprovação para liberar módulos.",
+            );
+          }
+          const approvingLegacyAdmission = active === true && lockedWorkstation.pendingApproval;
 
           if (
             (allowOperational === false || active === false) &&
@@ -349,13 +358,26 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             where: { id },
             data: {
               ...(hasName ? { name } : {}),
-              ...(active !== undefined ? { active } : {}),
+              ...(active !== undefined
+                ? { active, ...(approvingLegacyAdmission ? { pendingApproval: false } : {}) }
+                : {}),
               ...(allowOperational !== undefined ? { allowOperational } : {}),
               ...(allowBi !== undefined ? { allowBi } : {}),
               ...(allowPriorities !== undefined ? { allowPriorities } : {}),
             },
             select: workstationSelect,
           });
+          if (approvingLegacyAdmission && lockedWorkstation.admission?.status === "pending") {
+            await tx.workstationAdmission.update({
+              where: { workstationId: id },
+              data: {
+                status: "approved",
+                decidedAt: new Date(),
+                decisionReason: "Aprovada por Admin legado autenticado",
+                decidedByUserId: null,
+              },
+            });
+          }
           // Keep session revocation consistent with the central Admin route.
           // This update and the audit must succeed in the SAME transaction.
           if (active === false) {
@@ -371,7 +393,9 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             ipAddress: request.ip,
             requestId: request.id,
           }, {
-            action: "workstation.access.updated",
+            action: approvingLegacyAdmission
+              ? "workstation.admission.approved"
+              : "workstation.access.updated",
             resourceType: "workstation",
             resourceId: id,
             before: {
