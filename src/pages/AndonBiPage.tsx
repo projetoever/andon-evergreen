@@ -648,7 +648,7 @@ export function AndonBiPage() {
           </div>
         )}
 
-        <section className="min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        <section key={activeTab} className="andon-panel-enter min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           {activeTab === "overview" && (
             <BiOverviewWorkspace
               overview={overview}
