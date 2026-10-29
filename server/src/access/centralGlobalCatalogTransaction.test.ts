@@ -8,7 +8,7 @@ test("SEC-04/2B.3: central global catalog transaction preserves security order a
     "tokenHash(input.token)", "lockUser(tx, session.userId)",
     "lockWorkstationFlow(tx, input.workstationId)",
     "pg_advisory_xact_lock", "resolveSession(tx, request)",
-    "preflightCentralGlobalCatalogWrite", "applyReviewedDomainMutation(tx)",
+    "const action = preflightCentralGlobalCatalogWrite", "applyReviewedDomainMutation(tx)",
     "appendAudit(tx",
   ];
   let last = -1;
