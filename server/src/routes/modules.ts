@@ -119,12 +119,12 @@ export async function registerModuleRoutes(app: FastifyInstance) {
           // Priorities retain their separate credentials until audited migration.
           passwordRequired: isPasswordModule(module.id)
             ? (!central && policy.passwordRequired)
-            : (priority?.passwordRequired ?? true),
+            : (!central && (priority?.passwordRequired ?? true)),
           authenticated: isPasswordModule(module.id)
             ? (central
                 ? Boolean(principal?.purpose === "normal" && permitted(module))
                 : hasModuleSession(request, module.id, policy))
-            : false,
+            : (central && Boolean(principal?.purpose === "normal" && permitted(module))),
         };
       }),
     };

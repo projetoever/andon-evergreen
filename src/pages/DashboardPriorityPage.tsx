@@ -40,6 +40,7 @@ export function DashboardPriorityPage() {
   const navigate = useNavigate();
   const { access } = useModuleAccess();
   const returnTo = "/hub";
+  const centralReadOnly = access?.centralAccessEnabled === true;
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
@@ -121,6 +122,7 @@ export function DashboardPriorityPage() {
   }, [authenticated, loadOrder]);
 
   function moveRow(sourceIndex: number, targetIndex: number) {
+    if (centralReadOnly) return;
     if (
       sourceIndex < 0 ||
       targetIndex < 0 ||
@@ -146,7 +148,7 @@ export function DashboardPriorityPage() {
   }
 
   async function handleSave() {
-    if (!hasUnsavedChanges || isSaving) return;
+    if (centralReadOnly || !hasUnsavedChanges || isSaving) return;
 
     setIsSaving(true);
     try {
@@ -242,6 +244,11 @@ export function DashboardPriorityPage() {
           </span>
         </div>
 
+        {centralReadOnly && (
+          <p role="status" className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            {ui("Somente leitura")}: {ui("A edição de prioridades pela autenticação central ainda não está liberada.")}
+          </p>
+        )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
           {isLoading ? (
             <div role="status" aria-label={ui("Carregando sequência...")}
@@ -279,7 +286,7 @@ export function DashboardPriorityPage() {
                     onDrop={(event) => {
                       event.preventDefault();
                       const sourceId = draggedId || event.dataTransfer.getData("text/plain");
-                      if (sourceId) moveById(sourceId, row.id);
+                      if (!centralReadOnly && sourceId) moveById(sourceId, row.id);
                       setDraggedId(null);
                     }}
                     className={cn(
@@ -295,8 +302,9 @@ export function DashboardPriorityPage() {
 
                     <button
                       type="button"
-                      draggable
+                      draggable={!centralReadOnly}
                       onDragStart={(event) => {
+                        if (centralReadOnly) return;
                         setDraggedId(row.id);
                         event.dataTransfer.effectAllowed = "move";
                         event.dataTransfer.setData("text/plain", row.id);
@@ -334,7 +342,7 @@ export function DashboardPriorityPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={index === 0}
+                        disabled={centralReadOnly || index === 0}
                         onClick={() => moveRow(index, index - 1)}
                         aria-label={ui("Mover {0} para cima", { 0: row.name })}
                       >
@@ -344,7 +352,7 @@ export function DashboardPriorityPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={index === rows.length - 1}
+                        disabled={centralReadOnly || index === rows.length - 1}
                         onClick={() => moveRow(index, index + 1)}
                         aria-label={ui("Mover {0} para baixo", { 0: row.name })}
                       >
@@ -358,7 +366,7 @@ export function DashboardPriorityPage() {
           )}
         </section>
 
-        <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+        {!centralReadOnly && <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
           <p className="text-xs text-muted-foreground">
             {hasUnsavedChanges
               ? ui("Alterações não salvas. O Dashboard ainda usa a sequência anterior.")
@@ -390,7 +398,7 @@ export function DashboardPriorityPage() {
               {isSaving ? ui("Salvando...") : ui("Salvar sequência")}
             </Button>
           </div>
-        </div>
+        </div>}
       </div>
 
       <DashboardPriorityLoginModal

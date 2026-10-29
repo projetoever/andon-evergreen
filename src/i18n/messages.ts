@@ -21,6 +21,9 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Dados das máquinas indisponíveis. O sistema tentará reconectar automaticamente.","Machine data unavailable. The system will try to reconnect automatically.","機台資料無法使用。系統將自動嘗試重新連線。"],
   ["Nenhuma máquina cadastrada no ANDON.","No machines registered in ANDON.","ANDON 尚未登記任何機台。"],
   ["Nenhuma máquina disponível para ordenar.","No machines available to prioritize.","沒有可排序的機台。"],
+  ["Somente leitura","Read-only","唯讀"],
+  ["A edição de prioridades pela autenticação central ainda não está liberada.","Editing priorities via central authentication is not yet enabled.","尚未開放透過集中式驗證編輯優先順序。"],
+
   ["Identificação da versão instalada","Installed version identification","已安裝版本識別"],
   ["Versão e rastreabilidade","Version and traceability","版本與追溯資訊"],
   ["Versão do produto","Product version","產品版本"],
