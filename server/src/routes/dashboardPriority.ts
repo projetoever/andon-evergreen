@@ -12,6 +12,7 @@ import { hashCredential, verifyCredential } from "../security/technicianCredenti
 import { badRequest } from "./routeUtils.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
+import { centralAccessEnabled } from "../access/http.js";
 
 const GLOBAL_PRIORITY_CONFIG_ID = "global";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -232,10 +233,15 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
 
   app.get("/api/dashboard-priority/order", async (request, reply) => {
     const allowedIds = scopedMachineReadIds(request);
-    // Retain the existing Priorities credential check until unified login
-    // replaces it in a separate reviewed, audited activation phase.
-    const auth = await getPrioritySession(request, reply);
-    if (!auth) return;
+    // Scoped context exists ONLY after the global workstation hook has
+    // validated the central cookie, HTTPS, origin, station and priorities.read.
+    // Access without that hook fails closed in scopedMachineReadIds above.
+    // In central mode, a read does not need a second legacy password.
+    // PUT still fails closed before reaching this router.
+    if (!centralAccessEnabled() || request.industrialService) {
+      const auth = await getPrioritySession(request, reply);
+      if (!auth) return;
+    }
 
     const [machines, config] = await Promise.all([
       prisma.machine.findMany({
