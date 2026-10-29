@@ -11,7 +11,7 @@ test("SEC-04/2A.8: legacy workstation mutations preserve admission decisions and
   assert.match(update, /admin_auth_required/);
   const lock = update.indexOf("await lockWorkstationFlow(tx, id)");
   const read = update.indexOf("const lockedWorkstation = await tx.workstation.findUnique");
-  const gate = update.indexOf("lockedWorkstation.pendingApproval");
+  const gate = update.indexOf('lockedWorkstation.admission?.status === "rejected"');
   const session = update.indexOf("tx.technicianSession.findFirst");
   const mutation = update.indexOf("const updated = await tx.workstation.update");
   const revoke = update.indexOf("await tx.accessSession.updateMany");
@@ -20,9 +20,12 @@ test("SEC-04/2A.8: legacy workstation mutations preserve admission decisions and
   assert(lock >= 0 && lock < read && read < gate && gate < session && session < mutation);
   assert(mutation < revoke && revoke < audit && audit < response, "audit and session revocation must commit with mutation");
   assert.match(update, /lockedWorkstation.admission\?\.status === "rejected"/);
-  assert.doesNotMatch(update, /pendingApproval: false\s*}\s*:\s*\{\}/);
+  assert.match(update, /approvingLegacyAdmission/);
+  assert.match(update, /pendingApproval: false/);
+  assert.match(update, /tx.workstationAdmission.update/);
+  assert.match(update, /"workstation.admission.approved"/);
   assert.match(update, /actorType: "legacy_admin"/);
-  assert.match(update, /action: "workstation.access.updated"/);
+  assert.match(update, /"workstation.access.updated"/);
   assert.match(update, /where: \{ workstationId: id, revokedAt: null \}/);
 });
 
