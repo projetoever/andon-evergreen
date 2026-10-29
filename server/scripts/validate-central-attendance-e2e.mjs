@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import Fastify from "fastify";
+import { csrfToken } from "../dist/access/credentials.js";
+import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
+import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.js";
+import { enforceModuleAuthorization } from "../dist/security/moduleAuthorization.js";
+import { registerAndonCallRoutes } from "../dist/routes/andonCalls.js";
 import { tokenHash } from "../dist/access/credentials.js";
 import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../dist/access/centralMultiAttendancePrototype.js";
@@ -111,6 +117,77 @@ try {
     },
   });
   sessionId = session.id;
+  // SEC-04/2D: exercise the real HTTP attendance handler with a selected
+  // machine-scope human and two PINs, then restore the synthetic machine so
+  // the existing direct-adapter race tests remain independent.
+  const httpCallId = await createCall();
+  const previousCentral = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const previousFlag = process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED;
+  const previousOrigin = process.env.ANDON_ACCESS_ORIGIN;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED = "1";
+  process.env.ANDON_ACCESS_ORIGIN = "https://andon.test";
+  const httpApp = Fastify();
+  httpApp.addHook("onRequest", async (req) => {
+    Object.defineProperty(req.raw.socket, "encrypted", { value: true, configurable: true });
+  });
+  httpApp.addHook("preHandler", enforceWorkstationAccess);
+  httpApp.addHook("preHandler", enforceAdminAuthorization);
+  httpApp.addHook("preHandler", enforceModuleAuthorization);
+  await registerAndonCallRoutes(httpApp);
+  const headers = {
+    origin: "https://andon.test",
+    "x-andon-workstation-id": stationId,
+    cookie: "__Host-andon-access=" + token,
+    "x-andon-csrf": csrfToken(token),
+  };
+  const path = "/api/andon-calls/" + httpCallId + "/attend";
+  const send = (extraHeaders = {}, body = { credentials }) =>
+    httpApp.inject({ method: "PATCH", url: path,
+      headers: { ...headers, ...extraHeaders }, payload: body });
+  try {
+    const badCsrf = await send({ "x-andon-csrf": "0".repeat(64) });
+    assert.equal(badCsrf.statusCode, 403);
+    const guest = await send({ cookie: "" });
+    assert.equal(guest.statusCode, 401);
+    const invalid = await send({}, { credentials: [{ method: "pin", value: "00000000" }] });
+    assert.equal(invalid.statusCode, 403);
+    assert.equal((await db.andonCall.findUniqueOrThrow({ where: { id: httpCallId } })).status, "open");
+    assert.equal(await db.auditEvent.count({
+      where: { resourceType: "andon_call", resourceId: httpCallId, action: "calls.attend" },
+    }), 0);
+
+    process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED = "0";
+    const off = await send();
+    assert.equal(off.statusCode, 403);
+    assert.equal(off.json().error, "central_action_not_supported");
+    process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED = "1";
+
+    const done = await send();
+    assert.equal(done.statusCode, 200, done.body);
+    assert.equal(done.json().status, "in_progress");
+    assert.equal(await db.technicianSession.count({ where: { callId: httpCallId } }), 2);
+    assert.equal(await db.auditEvent.count({
+      where: { resourceType: "andon_call", resourceId: httpCallId, action: "calls.attend" },
+    }), 1);
+    const replay = await send();
+    assert.equal(replay.statusCode, 409);
+    assert.equal(replay.json().error, "call_state_changed");
+  } finally {
+    await httpApp.close();
+    if (previousCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentral;
+    if (previousFlag === undefined) delete process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED = previousFlag;
+    if (previousOrigin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
+    else process.env.ANDON_ACCESS_ORIGIN = previousOrigin;
+    await db.technicianSession.deleteMany({ where: { callId: httpCallId } });
+    await db.andonCall.delete({ where: { id: httpCallId } });
+    await db.machine.update({ where: { id: machineId },
+      data: { currentCallId: null, andonStatus: "normal" } });
+  }
+  console.log("SEC-04/2D central HTTP attendance PASS: selected scope, dual PIN, CSRF, opt-in off, atomic audit, replay");
+
   const firstCall = await createCall();
 
   // A wrong token or cloned station UUID must not reach the domain callback.
