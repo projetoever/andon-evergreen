@@ -15,4 +15,4 @@ Uma estação registrada e seu IP/último contato não provam que o browser ou k
 Sem mudança de contrato da API, banco, autenticação, regras de expiração, IP, workstation UUID, Node-RED/GPIO, HTTPS ou cálculo de KPIs. Gestão central continua desabilitada no piloto; sem deploy.
 
 ## Validação
-CI de build/typecheck e testes regressivos existentes. Conferência adicional dos novos rótulos de sessão e de registros antigos/atuais no painel com fixture controlada antes de homologar no equipamento industrial. A tentativa de estender o teste de navegador nesta etapa foi bloqueada pela ferramenta; nenhum novo teste automatizado é declarado como aprovado.
+CI de build/typecheck e testes regressivos existentes. Conferência adicional dos novos rótulos de sessão e de registros antigos/atuais no painel com fixture controlada antes de homologar no equipamento industrial. O teste de navegador `tests/browser/workstationAdmission.mjs` foi ampliado para validar os novos estados de sessão, a distinção entre solicitante e conta autenticada e o registro do último contato. O CI da revisão anterior passou com sucesso; a atualização desta documentação exige nova verificação do HEAD.
