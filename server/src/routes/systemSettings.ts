@@ -91,11 +91,11 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     if (!Object.keys(body).length) return badRequest(reply, "Informe ao menos uma configuração");
     if ("clientName" in body &&
         (typeof clientName !== "string" || clientName.trim().length < 2 ||
-         clientName.trim().length > 100 || /[\\x00-\\x1F\\x7F]/.test(clientName)))
+         clientName.trim().length > 100 || /[\x00-\x1F\x7F]/.test(clientName)))
       return badRequest(reply, "Nome do cliente deve conter de 2 a 100 caracteres válidos");
     if ("clientUnit" in body &&
         (typeof clientUnit !== "string" || clientUnit.trim().length > 100 ||
-         /[\\x00-\\x1F\\x7F]/.test(clientUnit)))
+         /[\x00-\x1F\x7F]/.test(clientUnit)))
       return badRequest(reply, "Unidade deve conter até 100 caracteres válidos");
     if ("allowWholeSetCalls" in body && typeof allowWholeSetCalls !== "boolean") {
       return badRequest(reply, "Campo allowWholeSetCalls deve ser booleano");
