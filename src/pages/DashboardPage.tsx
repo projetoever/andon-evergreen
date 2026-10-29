@@ -9,6 +9,7 @@ import { AudioPlaybackRecovery } from "@/components/common/AudioPlaybackRecovery
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { MachineGrid } from "@/components/machines/MachineGrid";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
@@ -43,6 +44,7 @@ import {
 export function DashboardPage() {
   const {
     machines,
+    initialSnapshotState,
     calls,
     settings,
     soundConfigs,
@@ -523,13 +525,35 @@ export function DashboardPage() {
         onSuccess={() => void navigate({ to: "/machine-priorities" })}
       />
 
-      <MachineGrid
-        className="min-w-0 lg:min-h-0 lg:flex-1"
-        orderMode={dashboardMachineOrderMode}
-        machines={[...machines]
-          .filter((machine) => machine.isActive)
-          .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
-      />
+      {initialSnapshotState === "loading" && machines.length === 0 ? (
+        <section role="status" aria-label={t("Carregando máquinas do ANDON")}
+          className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} aria-hidden="true" className="space-y-4 rounded-xl border border-border bg-card p-4">
+              <Skeleton className="h-6 w-1/2 motion-reduce:animate-none" />
+              <Skeleton className="h-12 w-4/5 motion-reduce:animate-none" />
+              <Skeleton className="h-5 w-2/3 motion-reduce:animate-none" />
+              <Skeleton className="h-10 w-full motion-reduce:animate-none" />
+            </div>
+          ))}
+        </section>
+      ) : initialSnapshotState === "error" && machines.length === 0 ? (
+        <div role="alert" className="rounded-xl border border-danger/60 bg-danger/10 p-5 text-sm text-danger">
+          {t("Dados das máquinas indisponíveis. O sistema tentará reconectar automaticamente.")}
+        </div>
+      ) : initialSnapshotState === "ready" && machines.length === 0 ? (
+        <div role="status" className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          {t("Nenhuma máquina cadastrada no ANDON.")}
+        </div>
+      ) : (
+        <MachineGrid
+          className="min-w-0 lg:min-h-0 lg:flex-1"
+          orderMode={dashboardMachineOrderMode}
+          machines={[...machines]
+            .filter((machine) => machine.isActive)
+            .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
+        />
+      )}
     </div>
   );
 }
