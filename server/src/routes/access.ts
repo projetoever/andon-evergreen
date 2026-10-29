@@ -13,6 +13,7 @@ import {
   resetPassword,
   logout,
   recordInteraction,
+  lockUser,
 } from "../access/sessions.js";
 import {
   initializeUserAdmin,
@@ -386,6 +387,9 @@ export function registerAccessRoutes(
         const reason = req.body.reason?.trim().replace(/\s+/g, " ") || null;
         if (!requestedName) throw new AccessError("invalid_input", 400);
         return db.$transaction(async (tx) => {
+          // Global order: actor user -> workstation -> machine. Revalidate
+          // the admission session after both locks; never trust preflight only.
+          await lockUser(tx, principal.userId);
           await lockWorkstationFlow(tx, principal.workstationId);
           const current = await resolveSession(tx, requestAccess(req), new Date(), true);
           if (current.purpose !== "workstation_admission")
@@ -549,8 +553,14 @@ export function registerAccessRoutes(
         if (req.body.active === false && id === initial.workstationId)
           throw new AccessError("current_workstation_protected", 400);
         return db.$transaction(async (tx) => {
+          // Match central attendance lock order: actor user, then target station.
+          // Revalidate the actor after acquiring both locks.
+          await lockUser(tx, initial.userId);
           await lockWorkstationFlow(tx, id);
           const principal = await resolveSession(tx, requestAccess(req));
+          if (principal.userId !== initial.userId ||
+              principal.sessionId !== initial.sessionId)
+            throw new AccessError("authentication_required", 401);
           assertPermission(principal, "workstations.manage");
           const station = await tx.workstation.findUnique({
             where: { id },
@@ -650,8 +660,14 @@ export function registerAccessRoutes(
         const id = parseWorkstationId(req.params.id);
         if (!id) throw new AccessError("invalid_input", 400);
         return db.$transaction(async (tx) => {
+          // Match central attendance lock order: actor user, then target station.
+          // Revalidate the actor after acquiring both locks.
+          await lockUser(tx, initial.userId);
           await lockWorkstationFlow(tx, id);
           const principal = await resolveSession(tx, requestAccess(req));
+          if (principal.userId !== initial.userId ||
+              principal.sessionId !== initial.sessionId)
+            throw new AccessError("authentication_required", 401);
           assertPermission(principal, "workstations.manage");
           const station = await tx.workstation.findUnique({
             where: { id },
