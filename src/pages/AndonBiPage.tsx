@@ -468,7 +468,7 @@ export function AndonBiPage() {
   }, [drillSelection]);
 
   return (
-    <main className="bi-page min-h-dvh bg-background lg:h-dvh lg:overflow-hidden text-foreground">
+    <main className="andon-screen-enter bi-page min-h-dvh bg-background lg:h-dvh lg:overflow-hidden text-foreground">
       <div className="mx-auto flex w-full max-w-[1920px] lg:h-full flex-col gap-3 px-4 py-3 md:px-6">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div className="min-w-0">
