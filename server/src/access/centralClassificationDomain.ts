@@ -36,7 +36,7 @@ export function validateCentralClassificationCreate(body: ClassificationMutation
   const requestedDisposition = body.analyticsDisposition === undefined
     ? "include" : membership(body.analyticsDisposition, DISPOSITIONS);
   const reserved = reservedDisposition(value);
-  if (reserved && requestedDisposition !== reserved)
+  if (reserved && body.analyticsDisposition !== undefined && requestedDisposition !== reserved)
     throw new AccessError("reserved_classification_exclusion", 403);
   return {
     value, label: string(body.label, 100),
