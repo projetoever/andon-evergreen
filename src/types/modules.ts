@@ -24,6 +24,7 @@ export interface ModuleDefinition {
 export interface ModuleAccess {
   hubEnabled: boolean;
   centralAccessEnabled?: boolean;
+  prioritiesWriteEnabled?: boolean;
   principal?: {
     userId: string;
     login: string;
