@@ -29,6 +29,10 @@ function membership<T extends string>(value: unknown, options: readonly T[]): T 
   return value as T;
 }
 export function validateCentralClassificationCreate(body: ClassificationMutation) {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw new AccessError("invalid_classification", 400);
+  if (Object.keys(body).some(key => !["label", "value", "active", "responsibility", "analyticsDisposition"].includes(key)))
+    throw new AccessError("invalid_classification", 400);
   const value = string(body.value, 64).toLowerCase();
   if (!IDENTIFIER.test(value)) throw new AccessError("invalid_classification", 400);
   const responsibility = body.responsibility === undefined
@@ -47,6 +51,8 @@ export function validateCentralClassificationCreate(body: ClassificationMutation
 export function validateCentralClassificationUpdate(
   current: { value: string }, body: ClassificationMutation,
 ) {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw new AccessError("invalid_classification", 400);
   if (Object.prototype.hasOwnProperty.call(body, "value"))
     throw new AccessError("immutable_classification_identifier", 400);
   const keys = ["label", "active", "responsibility", "analyticsDisposition"] as const;
