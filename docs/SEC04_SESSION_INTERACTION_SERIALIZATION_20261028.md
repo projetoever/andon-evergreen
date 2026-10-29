@@ -21,6 +21,8 @@ A atualização condicional também evita retorno indevido de sucesso após revo
 
 Teste `server/src/access/interactionSerialization.test.ts` cobre sucesso, revogação entre leituras, expiração, atualização que não encontra sessão ativa, token inválido e workstation incorreta. Executado dentro de `test:access` no CI.
 
+O teste de integração `server/scripts/validate-access-foundation.mjs` também exercita PostgreSQL isolado (`andon_test`): atualização de sessão ativa, rejeição após expiração por inatividade e rejeição após revogação administrativa.
+
 ## Limites
 
 Esta etapa não modifica tempos de atendimento, BI, modelo de dados, emissão Node-RED, GPIO ou o comportamento do servidor industrial. A gestão central de escrita humana segue bloqueada. Ainda é necessária auditoria adicional dos fluxos de administração de workstation/admissão e um teste PostgreSQL com concorrência real antes da ativação.
