@@ -254,7 +254,16 @@ try {
       true,
     );
     await page.getByRole("checkbox", { name: "Usuário ativo", exact: true }).uncheck();
-    await page.getByRole("button", { name: "Salvar usuário", exact: true }).click();
+    // Wait for the actual mutation response rather than an unchanged list
+    // label that can remain visible while the API update is still pending.
+    const [savedUser] = await Promise.all([
+      page.waitForResponse((response) =>
+        new URL(response.url()).pathname.startsWith("/api/access/users/") &&
+        response.request().method() === "PUT" && response.ok(),
+      ),
+      page.getByRole("button", { name: "Salvar usuário", exact: true }).click(),
+    ]);
+    assert.equal((await savedUser.json()).user.active, false);
     await page.getByText("Marina — Supervisão de Produção", { exact: true }).waitFor();
     assert.equal(users.find((u) => u.login === "marina.producao").active, false);
     // Explicit language switching avoids the pre-existing persisted-locale SSR mismatch.
