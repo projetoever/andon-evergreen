@@ -12,7 +12,10 @@ import { hashCredential, verifyCredential } from "../security/technicianCredenti
 import { badRequest } from "./routeUtils.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
-import { centralAccessEnabled } from "../access/http.js";
+import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { isAuthorizedCentralPriorityRequest } from "../security/centralPriorityHttp.js";
+import { runCentralPriorityOrderWrite } from "../access/centralPriorityOrderWrite.js";
 
 const GLOBAL_PRIORITY_CONFIG_ID = "global";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -278,6 +281,22 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   });
 
   app.put<{ Body: OrderBody }>("/api/dashboard-priority/order", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralPriorityRequest(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        return await runCentralPriorityOrderWrite(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          machineIds: request.body?.machineIds,
+          requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    }
     const auth = await getPrioritySession(request, reply);
     if (!auth) return;
 
