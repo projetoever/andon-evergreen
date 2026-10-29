@@ -1,5 +1,10 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Carregando indicadores do BI","Loading BI indicators","正在載入 BI 指標"],
+  ["Carregando máquinas do ANDON","Loading ANDON machines","正在載入 ANDON 機台"],
+  ["Dados das máquinas indisponíveis. O sistema tentará reconectar automaticamente.","Machine data unavailable. The system will try to reconnect automatically.","機台資料無法使用。系統將自動嘗試重新連線。"],
+  ["Nenhuma máquina cadastrada no ANDON.","No machines registered in ANDON.","ANDON 尚未登記任何機台。"],
+  ["Nenhuma máquina disponível para ordenar.","No machines available to prioritize.","沒有可排序的機台。"],
   ["Identificação da versão instalada","Installed version identification","已安裝版本識別"],
   ["Versão e rastreabilidade","Version and traceability","版本與追溯資訊"],
   ["Versão do produto","Product version","產品版本"],

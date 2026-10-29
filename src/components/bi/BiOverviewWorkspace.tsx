@@ -7,6 +7,7 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { explainMissingMtbf, explainMissingMttr } from "@/utils/biKpiAvailability";
 import type {
   AnalyticsDrilldownSelection,
@@ -38,6 +39,33 @@ export function BiOverviewWorkspace({
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
 }) {
   const { t } = useLanguage();
+  // Do not show zero, N/A or misleading KPI samples before the FIRST
+  // server response. Never fabricate metric data while loading.
+  if (loading && !overview) {
+    return (
+      <section role="status" aria-label={t("Carregando indicadores do BI")}
+        className="grid min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(12rem,1fr)]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-hidden="true">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4">
+              <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+              <Skeleton className="h-8 w-1/2 motion-reduce:animate-none" />
+              <Skeleton className="h-3 w-full motion-reduce:animate-none" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-20 rounded-xl motion-reduce:animate-none" aria-hidden="true" />
+        <div className="grid gap-3 lg:grid-cols-3" aria-hidden="true">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <Skeleton className="h-4 w-2/5 motion-reduce:animate-none" />
+              <Skeleton className="h-40 w-full motion-reduce:animate-none" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
   const kpis = overview?.kpis;
   const scheduled = overview?.production;
   const displayPercent = (value: number | null | undefined) =>

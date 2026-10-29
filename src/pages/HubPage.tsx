@@ -25,7 +25,7 @@ export function HubPage() {
     }
   };
   return (
-    <main className="min-h-dvh bg-background p-4 text-foreground md:p-8">
+    <main className="andon-screen-enter min-h-dvh bg-background p-4 text-foreground md:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
           <div className="flex items-center gap-3">

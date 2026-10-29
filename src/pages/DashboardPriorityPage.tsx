@@ -17,6 +17,7 @@ import { toast } from "@/i18n/toast";
 
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
@@ -54,6 +55,7 @@ export function DashboardPriorityPage() {
   const [lastOrderUpdatedAt, setLastOrderUpdatedAt] = useState<string | null>(null);
   const [lastOrderUpdatedBy, setLastOrderUpdatedBy] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const currentIds = rows.map((row) => row.id);
@@ -83,6 +85,7 @@ export function DashboardPriorityPage() {
     }
 
     setIsLoading(true);
+    setLoadingError(null);
     try {
       const localMachines =
         CONFIGURED_DATA_MODE === "local"
@@ -94,6 +97,7 @@ export function DashboardPriorityPage() {
       setLastOrderUpdatedAt(snapshot.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(snapshot.lastOrderUpdatedBy);
     } catch (error) {
+      setLoadingError(error instanceof Error ? error.message : "Não foi possível carregar a sequência.");
       if (error instanceof Error && /sessão|autentica/i.test(error.message)) {
         setAuthenticated(false);
         setLoginOpen(true);
@@ -175,7 +179,7 @@ export function DashboardPriorityPage() {
   const session = getStoredDashboardPrioritySession();
 
   return (
-    <div className="min-h-dvh bg-background p-3 md:p-5">
+    <div className="andon-screen-enter min-h-dvh bg-background p-3 md:p-5">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 items-start gap-3">
@@ -240,9 +244,30 @@ export function DashboardPriorityPage() {
 
         <section className="overflow-hidden rounded-xl border border-border bg-card">
           {isLoading ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              {ui("Carregando sequência...")}
+            <div role="status" aria-label={ui("Carregando sequência...")}
+              className="space-y-3 p-4">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} aria-hidden="true" className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <Skeleton className="h-9 w-9 shrink-0 motion-reduce:animate-none" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+                    <Skeleton className="h-3 w-1/3 motion-reduce:animate-none" />
+                  </div>
+                  <Skeleton className="h-9 w-16 shrink-0 motion-reduce:animate-none" />
+                </div>
+              ))}
             </div>
+          ) : loadingError ? (
+            <div role="alert" className="space-y-3 p-6 text-sm">
+              <p className="text-danger">{loadingError}</p>
+              <Button type="button" variant="outline" onClick={() => void loadOrder()}>
+                {ui("Tentar novamente")}
+              </Button>
+            </div>
+          ) : rows.length === 0 ? (
+            <p role="status" className="p-6 text-sm text-muted-foreground">
+              {ui("Nenhuma máquina disponível para ordenar.")}
+            </p>
           ) : (
             <div className="divide-y divide-border">
               {rows.map((row, index) => {

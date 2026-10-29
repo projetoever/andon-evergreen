@@ -112,7 +112,7 @@ export function HubAdminPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-background p-4 text-foreground md:p-6">
+    <main className="andon-screen-enter min-h-dvh bg-background p-4 text-foreground md:p-6">
       <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 md:p-4">
           <div className="flex items-center gap-3">
@@ -178,17 +178,19 @@ export function HubAdminPage() {
             );
           })}
         </nav>
-        {section === "users" ? (
-          <UsersAccessSettings />
-        ) : section === "workstations" ? (
-          <WorkstationsSettingsTab />
-        ) : (
-          <>
-            {section === "overview" && <HubAdminOverview />}
-            {section === "security" && <HubSecuritySettings />}
-            {section === "modules" && <ModuleCredentialSettings />}
-          </>
-        )}
+        <div key={section} className="andon-panel-enter min-w-0">
+          {section === "users" ? (
+            <UsersAccessSettings />
+          ) : section === "workstations" ? (
+            <WorkstationsSettingsTab />
+          ) : (
+            <>
+              {section === "overview" && <HubAdminOverview />}
+              {section === "security" && <HubSecuritySettings />}
+              {section === "modules" && <ModuleCredentialSettings />}
+            </>
+          )}
+        </div>
       </div>
     </main>
   );

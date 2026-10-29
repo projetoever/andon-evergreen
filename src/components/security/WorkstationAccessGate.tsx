@@ -2,6 +2,7 @@ import { systemMessage } from "@/i18n/translate";
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { ModuleLoginPanel } from "./ModuleLoginPanel";
@@ -27,6 +28,23 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
   const checking = checkingRoute || (!access && !error);
+  if (checking) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background p-6">
+        <section role="status" aria-label={t("Verificando workstation")}
+          className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6">
+          <p className="text-center text-sm font-semibold">
+            {t("Validando a identidade deste navegador com o servidor.")}
+          </p>
+          <div aria-hidden="true" className="space-y-3">
+            <Skeleton className="mx-auto h-7 w-2/3 motion-reduce:animate-none" />
+            <Skeleton className="h-4 w-full motion-reduce:animate-none" />
+            <Skeleton className="mx-auto h-4 w-3/4 motion-reduce:animate-none" />
+          </div>
+        </section>
+      </main>
+    );
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div

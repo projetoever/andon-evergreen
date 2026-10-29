@@ -315,3 +315,20 @@
     min-width: 0;
   }
 }
+
+/* UX-07: navigation-only reveal. No artificial delay, layout transform,
+   overlay or animation of real-time alarm/status updates. */
+@keyframes andon-screen-reveal {
+  from { opacity: 0.82; }
+  to { opacity: 1; }
+}
+@keyframes andon-panel-reveal {
+  from { opacity: 0.88; }
+  to { opacity: 1; }
+}
+.andon-screen-enter { animation: andon-screen-reveal 140ms ease-out both; }
+.andon-panel-enter { animation: andon-panel-reveal 110ms ease-out both; }
+@media (prefers-reduced-motion: reduce), print {
+  .andon-screen-enter,
+  .andon-panel-enter { animation: none !important; }
+}
