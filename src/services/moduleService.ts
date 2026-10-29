@@ -2,6 +2,7 @@ import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import type { ModuleAccess } from "@/types/modules";
 import { localModulePolicy } from "./moduleAuthService";
+import { setCentralMode } from "./centralCsrf";
 import { readModuleSession } from "./moduleSessionStorage";
 import { localPriorityPasswordRequired } from "./dashboardPriorityService";
 import {
@@ -32,7 +33,9 @@ async function ensureRegistration() {
 export async function loadModuleAccess(): Promise<ModuleAccess> {
   if (CONFIGURED_DATA_MODE === "api") {
     await ensureRegistration();
-    return api.get<ModuleAccess>("/api/modules/access");
+    const access = await api.get<ModuleAccess>("/api/modules/access");
+    setCentralMode(access.centralAccessEnabled === true);
+    return access;
   }
   const workstation = await registerCurrentWorkstation();
   // Explicit development mode only; production never falls back to this registry.
