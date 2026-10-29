@@ -42,7 +42,7 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   }) as typeof originals.machineFind;
   prisma.dashboardPriorityConfig.findUnique = (async (query: { select?: unknown }) =>
     query.select && typeof query.select === "object" && "passwordRequired" in query.select
-      ? { passwordRequired: false }
+      ? { passwordRequired: true }
       : { lastOrderUpdatedAt: new Date("2026-10-28T10:00:00Z"), lastOrderUpdatedBy: "other.admin" }
   ) as unknown as typeof originals.priorityConfig;
   prisma.andonCategory.findMany = (async () => []) as typeof originals.sectors;
@@ -68,6 +68,8 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   const workstation = "ws_" + randomUUID();
   const headers = { "x-andon-workstation-id": workstation };
 
+  // A verified central user can READ without a redundant priority token,
+  // even when the legacy priority password policy remains enabled.
   const priority = await app.inject({ url: "/api/dashboard-priority/order", headers });
   assert.equal(priority.statusCode, 200, priority.body);
   assert.deepEqual(queries.pop()?.where, { id: { in: ["37"] } });
@@ -92,4 +94,18 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   const fullBi = await app.inject({ url: "/api/analytics/filter-options", headers });
   assert.equal(fullBi.statusCode, 200, fullBi.body);
   assert.equal(queries.pop()?.where, undefined);
+});
+
+test("priorities read without a central scoped-principal binding fails closed", async (t) => {
+  const oldFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  t.after(() => {
+    if (oldFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = oldFlag;
+  });
+  const app = Fastify();
+  t.after(() => app.close());
+  await registerDashboardPriorityRoutes(app);
+  const response = await app.inject({ url: "/api/dashboard-priority/order" });
+  assert.equal(response.statusCode, 403);
 });
