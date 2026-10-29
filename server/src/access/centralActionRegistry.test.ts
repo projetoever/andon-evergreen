@@ -18,7 +18,7 @@ test("all classified routes have valid unique permissions or explicitly blocked 
 test("operational actions distinguish read, creation, maintenance and diagnostic rights", () => {
   assert.equal(classifyCentralRouteAction("GET", "/api/machines")?.permission, "andon.read");
   assert.equal(classifyCentralRouteAction("POST", "/api/andon-calls")?.permission, "calls.open");
-  assert.equal(classifyCentralRouteAction("POST", "/api/andon-calls/batch")?.scope, "machines_from_body");
+  assert.equal(classifyCentralRouteAction("POST", "/api/andon-calls/batch")?.scope, "machine_from_body");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/attend")?.permission, "calls.attend");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/finish-maintenance")?.permission, "calls.finishMaintenance");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/failure-details")?.permission, "diagnosis.edit");

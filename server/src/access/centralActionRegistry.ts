@@ -35,7 +35,7 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "GET", route: "/api/andon-calls", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/andon-calls/history", permission: "history.read", scope: "collection_filter", module: "operational" },
   { method: "POST", route: "/api/andon-calls", permission: "calls.open", scope: "machine_from_body", module: "operational" },
-  { method: "POST", route: "/api/andon-calls/batch", permission: "calls.open", scope: "machines_from_body", module: "operational" },
+  { method: "POST", route: "/api/andon-calls/batch", permission: "calls.open", scope: "machine_from_body", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/attend", permission: "calls.attend", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/cancel", permission: null, scope: "needs_call_ownership", module: "operational", blockedReason: "calls.cancel.own versus calls.cancel.any requires domain ownership resolution" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
