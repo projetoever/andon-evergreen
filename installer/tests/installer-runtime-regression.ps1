@@ -105,6 +105,7 @@ Assert-AndonTest `
 $script:TestReady = $true
 $script:TestPasswordRequired = $false
 $script:TestApprovalRequired = $false
+$script:TestAdminConfigured = $true
 $script:ReadinessRequests = @()
 function Invoke-RestMethod {
     param(
@@ -117,6 +118,9 @@ function Invoke-RestMethod {
     if ($Uri -like "*/health/ready") {
         return [pscustomobject]@{ status = "ok"; ready = $script:TestReady; operationalPasswordRequired = $script:TestPasswordRequired; workstationApprovalRequired = $script:TestApprovalRequired }
     }
+    if ($Uri -like "*/api/admin-auth/status") {
+        return [pscustomobject]@{ passwordConfigured = $script:TestAdminConfigured }
+    }
     if ($script:TestPasswordRequired) { throw "Endpoint operacional nao deve ser usado como health check." }
     return @()
 }
@@ -126,6 +130,15 @@ $emptyWriteResult = Test-AndonApiWrite
 Assert-AndonTest `
     -Condition ($emptyWriteResult.Status -eq "SKIP") `
     -Message "Perfil empty sem maquinas deve retornar SKIP"
+
+$script:TestAdminConfigured = $false
+$script:ReadinessRequests = @()
+$pendingSetupResult = Test-AndonApiWrite
+Assert-AndonTest -Condition ($pendingSetupResult.Status -eq "SKIP") -Message "Bootstrap sem senha deve adiar escrita"
+Assert-AndonTest -Condition (
+    @($script:ReadinessRequests | Where-Object { $_ -like "*/api/machines*" }).Count -eq 0
+) -Message "Bootstrap pendente nao pode consultar maquinas"
+$script:TestAdminConfigured = $true
 
 $script:TestPasswordRequired = $true
 $script:ReadinessRequests = @()
