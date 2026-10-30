@@ -1204,6 +1204,46 @@ type AttendanceCallWithMachine = Prisma.AndonCallGetPayload<{
 }>;
 
 /**
+ * Shared post-verification technician-add transition for both legacy and
+ * central sessions. Caller must hold the machine and technician locks and
+ * verify credential identity, permissions, exclusivity and current status.
+ */
+export async function persistAddedTechnicianSessions(
+  tx: Prisma.TransactionClient,
+  input: {
+    currentCall: AttendanceCallWithMachine;
+    technicians: IdentifiedTechnician[];
+    missingTechnicians: IdentifiedTechnician[];
+    workstationId: string | null;
+  },
+) {
+  const { currentCall, technicians, missingTechnicians, workstationId } = input;
+  const transitionAt = new Date();
+  const names = technicians.map(technician => technician.name);
+  await createTechnicianSessions(tx, {
+    callId: currentCall.id,
+    machineId: currentCall.machineId,
+    technicians: missingTechnicians,
+    startedAt: transitionAt,
+    productionModeAtStart: currentCall.machine.productionMode,
+    machineStatusAtStart: currentCall.machine.machineStatus,
+    workstationId,
+    technicalArea: currentCall.subtype,
+    phase: currentCall.status === "post_maintenance" ? "follow_up" : "maintenance",
+    cycleIndex: currentCall.maintenanceReturnCount + 1,
+  });
+  await tx.andonCall.update({
+    where: { id: currentCall.id },
+    data: {
+      technicianName: currentCall.technicianName ?? names[0],
+      technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
+      technicianArea: currentCall.technicianArea ?? currentCall.subtype,
+    },
+  });
+  return findCallWithSessions(tx, currentCall.id);
+}
+
+/**
  * One transaction-scoped business transition for both legacy and future central
  * attendance. Caller must hold the machine lock and have already verified
  * technician credentials, technician-session exclusivity and workstation.
@@ -2862,32 +2902,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             throw new AndonCallValidationError("Chamado não está em atendimento ou acompanhamento");
           }
 
-          const transitionAt = new Date();
-          const names = technicians.map((technician) => technician.name);
-
-          await createTechnicianSessions(tx, {
-            callId: currentCall.id,
-            machineId: currentCall.machineId,
-            technicians: missingTechnicians,
-            startedAt: transitionAt,
-            productionModeAtStart: currentCall.machine.productionMode,
-            machineStatusAtStart: currentCall.machine.machineStatus,
-            workstationId,
-            technicalArea: currentCall.subtype,
-            phase: currentCall.status === "post_maintenance" ? "follow_up" : "maintenance",
-            cycleIndex: currentCall.maintenanceReturnCount + 1,
+          return persistAddedTechnicianSessions(tx, {
+            currentCall, technicians, missingTechnicians, workstationId,
           });
-
-          await tx.andonCall.update({
-            where: { id: currentCall.id },
-            data: {
-              technicianName: currentCall.technicianName ?? names[0],
-              technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
-              technicianArea: currentCall.technicianArea ?? currentCall.subtype,
-            },
-          });
-
-          return findCallWithSessions(tx, currentCall.id);
         });
 
         return reply.status(201).send(updatedCall);
