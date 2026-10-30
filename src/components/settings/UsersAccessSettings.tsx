@@ -47,7 +47,8 @@ const errorLabels: Record<string, string> = {
   admin_required: "Somente o Admin principal pode gerenciar usuários nesta etapa.",
   reauthentication_required: "Entre novamente como Admin antes de redefinir a senha.",
   current_password_required: "Informe a senha atual correta.",
-  invalid_input: "Confira os campos. A senha pessoal deve ter de 15 a 128 caracteres.",
+  invalid_input: "Confira os campos. A senha pessoal deve ter de 8 a 128 caracteres.",
+  password_reuse_denied: "A nova senha central deve ser diferente da senha Admin legada.",
   invalid_user: "Confira os campos e mantenha contas kiosk inativas.",
   invalid_machine_scope: "Uma máquina selecionada não está mais disponível.",
 };
@@ -276,7 +277,7 @@ export function UsersAccessSettings() {
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
                     {ui(
-                      "A senha Admin existente confirma sua identidade atual. A nova senha pessoal é criada uma única vez para a conta Admin central, separada da conta legada. Não será necessário criar outra senha do Admin ao cadastrar colaboradores.",
+                      "Você criará uma única conta Admin principal central. A senha Admin existente apenas confirma sua identidade e não será alterada. Durante a migração, haverá duas senhas: a antiga para funções legadas e a nova para o login central do Hub, ANDON e BI.",
                     )}
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
@@ -325,7 +326,7 @@ export function UsersAccessSettings() {
               {personalPassword && (
                 <div className="flex min-w-0 flex-col gap-5">
                   <p id="central-user-password-help" className="text-sm leading-5 text-muted-foreground">
-                    {ui("Use uma frase de acesso de 15 a 128 caracteres. Esta senha é exclusiva da gestão central e não altera o acesso Admin legado nem as senhas dos módulos.")}
+                    {ui("Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Ela é exclusiva do login central e não altera a senha Admin legada nem as senhas dos módulos.")}
                   </p>
                   <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
                     <span className="block font-semibold leading-5">
@@ -338,7 +339,7 @@ export function UsersAccessSettings() {
                       autoComplete="new-password"
                       aria-describedby="central-user-password-help"
                       required
-                      minLength={15}
+                      minLength={8}
                       maxLength={128}
                     />
                   </Label>
@@ -352,7 +353,7 @@ export function UsersAccessSettings() {
                       type="password"
                       autoComplete="new-password"
                       required
-                      minLength={15}
+                      minLength={8}
                       maxLength={128}
                     />
                   </Label>
