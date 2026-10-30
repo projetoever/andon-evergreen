@@ -415,7 +415,7 @@ export class ApiAndonRepository implements AndonRepository {
     await this.apiClient.patch(
       `/api/andon-calls/${params.callId}/technicians/end`,
       {
-        technicianName: params.technicianName ?? session?.technicianName,
+        ...(!isCentralMode() ? { technicianName: params.technicianName ?? session?.technicianName } : {}),
         credential: params.credential,
         reason: params.endReason,
         notes: params.notes,
