@@ -21,6 +21,7 @@ const fieldLabels: Readonly<Record<VisualPaletteKey, string>> = {
   focusAccent: "Foco e seleção",
 };
 const accentLabels: Readonly<Record<VisualAccent, string>> = {
+  slate: "Cinza industrial",
   evergreen: "Verde padrão",
   ocean: "Azul oceano",
   indigo: "Índigo",
