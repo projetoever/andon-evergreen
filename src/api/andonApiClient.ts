@@ -114,6 +114,7 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/return-to-maintenance$/.test(path)) ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/finish$/.test(path)) ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/cancel$/.test(path)) ||
+      (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/technicians\/end$/.test(path)) ||
       ((method === "POST" || method === "PATCH") &&
        /^\/api\/failure-classifications(?:\/[^/]+)?$/.test(path)) ||
       (method === "PUT" && path === "/api/dashboard-priority/order") ||
