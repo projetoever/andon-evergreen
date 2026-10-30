@@ -31,6 +31,8 @@ model SystemSettings {
   rfidInputTerminator                                  String   @default("enter")
   rfidCodeLength                                       Int?
   filterTechniciansByCurrentShift                      Boolean  @default(true)
+  andonVisualPalette                                   Json     @default("{}")
+  andonVisualPaletteRevision                           Int      @default(0)
   adminPasswordHash                                    String?
   adminRecoveryCodeHash                                String?
   adminRecoveryCodeIssuedAt                            DateTime?

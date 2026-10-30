@@ -86,8 +86,20 @@ export async function setDashboardSoundState(
   return toPayload(updated);
 }
 
+type SoundSettingsSnapshot = {
+  dashboardSoundMuted: boolean;
+  dashboardSoundMutedAt: Date | null;
+  dashboardSoundMutedUntil: Date | null;
+  dashboardSoundMuteReason: string | null;
+  dashboardSoundMuteTimerEnabled: boolean;
+  dashboardSoundMuteDurationMinutes: number;
+  updatedAt: Date;
+};
+
 export async function resolveDashboardSoundState() {
-  let settings = await getSystemSettings();
+  // Keep this state machine independent from non-audio settings. The public
+  // palette getter returns sanitized JSON, while Prisma.update returns raw JSON.
+  let settings: SoundSettingsSnapshot = await getSystemSettings();
 
   if (!settings.dashboardSoundMuted) {
     if (

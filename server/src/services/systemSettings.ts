@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma.js";
+import { publicVisualPalette, publicVisualPaletteRevision } from "./andonVisualPalette.js";
 
 export const GLOBAL_SYSTEM_SETTINGS_ID = "global";
 export const ATTENDANCE_MODES = ["name", "pin", "rfid"] as const;
@@ -26,17 +27,24 @@ const PUBLIC_SYSTEM_SETTINGS_SELECT = {
   rfidInputTerminator: true,
   rfidCodeLength: true,
   filterTechniciansByCurrentShift: true,
+  andonVisualPalette: true,
+  andonVisualPaletteRevision: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
-export function getSystemSettings() {
-  return prisma.systemSettings.upsert({
+export async function getSystemSettings() {
+  const settings = await prisma.systemSettings.upsert({
     where: { id: GLOBAL_SYSTEM_SETTINGS_ID },
     update: {},
     create: { id: GLOBAL_SYSTEM_SETTINGS_ID },
     select: PUBLIC_SYSTEM_SETTINGS_SELECT,
   });
+  return {
+    ...settings,
+    andonVisualPalette: publicVisualPalette(settings.andonVisualPalette),
+    andonVisualPaletteRevision: publicVisualPaletteRevision(settings.andonVisualPaletteRevision),
+  };
 }
 
 export async function allowsWholeSetCalls() {
