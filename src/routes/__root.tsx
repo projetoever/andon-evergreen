@@ -18,6 +18,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { WorkstationAccessGate } from "@/components/security/WorkstationAccessGate";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
 import { ThemeProvider } from "@/theme/ThemeProvider";
+import { GlobalVisualPaletteProvider } from "@/theme/GlobalVisualPaletteProvider";
 import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
 
 import appCss from "../styles.css?url";
@@ -101,7 +102,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <ThemeProvider><LanguageProvider>{children}</LanguageProvider></ThemeProvider>
+        <ThemeProvider><GlobalVisualPaletteProvider><LanguageProvider>{children}</LanguageProvider></GlobalVisualPaletteProvider></ThemeProvider>
         <Scripts />
       </body>
     </html>
