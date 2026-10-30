@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Ativar destaque intenso dos cards","Enable stronger card highlighting","啟用卡片強化提醒"],
+  ["Ativar destaque discreto dos cards","Enable discreet card highlighting","啟用卡片低調提醒"],
+  ["Destacado","Highlighted","強化"],
+  ["Discreto","Discreet","低調"],
   ["Ativar tema claro", "Switch to light theme", "切換為淺色主題"],
   ["Ativar tema escuro", "Switch to dark theme", "切換為深色主題"],
   ["Primeiro acesso — Configuração do administrador", "First access — Administrator setup", "首次使用 — 管理員設定"],
