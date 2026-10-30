@@ -2557,10 +2557,19 @@ async function run() {
   });
   assert.equal(sessionCallCAfterConflict, 1);
 
-  await request(
+  const blockedOnlySessionA = await request(
     `/api/andon-calls/${sessionCallA.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "4821" } }),
+    400,
   );
+  assert.match(blockedOnlySessionA.message, /último mantenedor/);
+  // The supported way to end the last technician's work is a maintenance
+  // completion, not an individual exit that leaves an orphaned active call.
+  const concludedSessionCallA = await request(
+    `/api/andon-calls/${sessionCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [] }),
+  );
+  assert.equal(concludedSessionCallA.status, "post_maintenance");
   const addedAfterEnd = await request(
     `/api/andon-calls/${sessionCallC.id}/technicians`,
     json("POST", { credentials: [{ method: "rfid", value: "TAG-ELECTRICAL-47" }] }),
@@ -2577,10 +2586,17 @@ async function run() {
     `/api/andon-calls/${sessionCallC.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "4821" } }),
   );
-  await request(
+  const blockedOnlySessionC = await request(
     `/api/andon-calls/${sessionCallC.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "6943" } }),
+    400,
   );
+  assert.match(blockedOnlySessionC.message, /último mantenedor/);
+  const concludedSessionCallC = await request(
+    `/api/andon-calls/${sessionCallC.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [] }),
+  );
+  assert.equal(concludedSessionCallC.status, "post_maintenance");
 
   const concurrentSessionCallD = await request(
     "/api/andon-calls",
