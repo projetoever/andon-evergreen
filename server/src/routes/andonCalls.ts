@@ -39,6 +39,8 @@ import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCom
 import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
 import { runCentralReturnToMaintenance } from "../access/centralReturnToMaintenance.js";
 import { isAuthorizedCentralReturnToMaintenance } from "../security/centralReturnToMaintenanceHttp.js";
+import { runCentralOpenCallWrite } from "../access/centralOpenCallWrite.js";
+import { isAuthorizedCentralOpenCall } from "../security/centralOpenCallHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1675,7 +1677,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: OpenAndonCallBody }>("/api/andon-calls", async (request, reply) => {
+    const centralOpen = centralAccessEnabled();
+    if (centralOpen && !isAuthorizedCentralOpenCall(request))
+      throw new AccessError("central_action_not_supported");
     const body = request.body ?? {};
+    if (centralOpen) {
+      // A human browser can never forge a system test, origin or creator.
+      if (body.isSystemTest !== undefined || body.createdBy !== undefined ||
+          (body.origin !== undefined && body.origin !== "kiosk"))
+        return reply.status(403).send({ error: "reserved_call_origin" });
+      if (Object.keys(body).some((key) => ![
+        "machineId", "machineSetId", "machineSubsetId", "category", "subtype",
+        "criticality", "description", "origin", "machineCondition",
+        "workOrderNumber", "operatorNote",
+      ].includes(key)))
+        return reply.status(400).send({ error: "invalid_input" });
+    }
     const machineId = body.machineId === undefined ? undefined : String(body.machineId);
     const machineSetId = optionalString(body.machineSetId);
     const machineSubsetId = optionalString(body.machineSubsetId);
@@ -1768,7 +1785,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
     const now = new Date();
     try {
-      const call = await prisma.$transaction(async (tx) => {
+      const applyOpen = async (tx: Prisma.TransactionClient, verifiedCreator?: string) => {
         await lockMachineCallFlow(tx, machineId);
         await lockAndonCategoryFlow(tx, subtype);
 
@@ -1839,7 +1856,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             machineStoppedMinutes: 0,
             impactTrackingVersion: isSystemTest ? null : 1,
             notes: description ?? null,
-            createdBy,
+            createdBy: verifiedCreator ?? createdBy,
             origin,
             isSystemTest,
             productionModeAtOpen: lockedMachine.productionMode,
@@ -1909,11 +1926,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         }
 
         const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
-        return attachAssetSnapshots(createdCallWithSessions, machineSet, machineSubset);
-      });
+        const response = attachAssetSnapshots(createdCallWithSessions, machineSet, machineSubset);
+        if (!response || typeof response !== "object" ||
+            !("id" in response) || typeof response.id !== "string" ||
+            !("status" in response) || typeof response.status !== "string")
+          throw new AndonCallValidationError("Chamado não encontrado após abertura");
+        return response as { id: string; status: string };
+      };
+      const call = centralOpen
+        ? await runCentralOpenCallWrite(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            machineId: machineId!,
+            body: body as Record<string, unknown>,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          }, (tx, principal) => applyOpen(tx, principal.login))
+        : await prisma.$transaction((tx) => applyOpen(tx));
 
       return reply.status(201).send(call);
     } catch (error) {
+      if (error instanceof AccessError)
+        return reply.status(error.statusCode).send({ error: error.code });
       if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
       throw error;
     }

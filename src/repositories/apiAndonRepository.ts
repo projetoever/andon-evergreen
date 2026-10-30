@@ -1,3 +1,4 @@
+import { isCentralMode } from "@/services/centralCsrf";
 import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient";
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
@@ -336,7 +337,7 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async openCall(_machines: Machine[], _calls: AndonCall[], params: OpenAndonCallParams) {
-    const call = mapCall(await this.apiClient.post<ApiAndonCall>("/api/andon-calls", { ...params, createdBy: "kiosk" }));
+    const call = mapCall(await this.apiClient.post<ApiAndonCall>("/api/andon-calls", { ...params, ...(!isCentralMode() ? { createdBy: "kiosk" } : {}) }));
     const result = await this.loadResult();
     return { ...result, call };
   }
