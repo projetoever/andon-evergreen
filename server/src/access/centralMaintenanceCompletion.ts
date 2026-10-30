@@ -103,8 +103,8 @@ export function runCentralMaintenanceCompletion(
       before: { status: call.status },
       after: {
         status: "post_maintenance",
-        continuedTechnicianSessions: input.followUpSessionIds === undefined
-          ? "all_active" : input.followUpSessionIds.length,
+        continuedTechnicianSessions: Array.isArray(input.followUpSessionIds)
+          ? input.followUpSessionIds.length : "all_active",
       },
     });
     return result;
