@@ -11,7 +11,10 @@ const catalog = [
   "history.read",
   "calls.open",
   "calls.attend",
+  "calls.technicians.manage",
   "calls.finishMaintenance",
+  "calls.finish",
+  "analytics.reclassify",
   "calls.cancel.any",
   "calls.followUp",
   "calls.returnToMaintenance",
@@ -32,6 +35,14 @@ test("role suggestions require an explicit action and never imply admin powers",
     assert.equal(perms.includes("workstations.manage"), false, role);
     assert.equal(perms.includes("users.create"), false, role);
   }
+  const maintenance = suggestedPermissions("Manutenção", catalog);
+  assert(maintenance.includes("calls.technicians.manage"));
+  assert(maintenance.includes("calls.finish"));
+  assert(maintenance.includes("diagnosis.edit"));
+  assert(!maintenance.includes("analytics.reclassify"),
+    "BI reclassification is an independent explicit admin grant");
+  assert(!suggestedPermissions("Produção", catalog).includes("calls.technicians.manage"));
+  assert(!suggestedPermissions("Líder", catalog).includes("calls.technicians.manage"));
   assert.equal(hasRoleSuggestion("Admin"), false);
   assert.deepEqual(suggestedPermissions("Admin", catalog), []);
   assert.deepEqual(suggestedPermissions("unknown", catalog), []);
