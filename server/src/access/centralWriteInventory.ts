@@ -21,7 +21,6 @@ export const UNMIGRATED_WRITE_ROUTES: readonly UnmigratedWriteRoute[] = [
   { source: "failureEvents.ts", method: "POST", route: "/api/failure-events", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id/finish", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
-  { source: "technicians.ts", method: "POST", route: "/api/technicians/identify", reason: "Technician identification is an authentication transition, not a generic technician-edit grant." },
   { source: "technicians.ts", method: "POST", route: "/api/technicians", reason: "Technician identity and technician catalog changes require separate identity or catalog authority and audit." },
   { source: "technicians.ts", method: "PATCH", route: "/api/technicians/:id", reason: "Technician identity and technician catalog changes require separate identity or catalog authority and audit." },
   { source: "shifts.ts", method: "PATCH", route: "/api/shifts/:id", reason: "Shift scheduling updates require production scheduling authority and audit." },
