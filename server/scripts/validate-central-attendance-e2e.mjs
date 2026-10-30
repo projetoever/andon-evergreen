@@ -10,6 +10,7 @@ import { registerAndonCallRoutes } from "../dist/routes/andonCalls.js";
 import { tokenHash } from "../dist/access/credentials.js";
 import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../dist/access/centralMultiAttendancePrototype.js";
+import { runCentralMaintenanceCompletion } from "../dist/access/centralMaintenanceCompletion.js";
 
 // A real PostgreSQL test, not mocked locks, AND NEVER a production callback.
 // Every database and the central write gate must be deliberately isolated.
@@ -173,6 +174,128 @@ try {
     const replay = await send();
     assert.equal(replay.statusCode, 409);
     assert.equal(replay.json().error, "call_state_changed");
+
+    // SEC-04/2F: complete the SAME HTTP-attended call using the shared
+    // legacy domain, with permission, scope, workstation and atomic audit.
+    const beforeSettings = await db.systemSettings.findUnique({ where: { id: "global" } });
+    await db.systemSettings.upsert({
+      where: { id: "global" },
+      create: { id: "global", restrictMaintenanceCompletionToAttendanceWorkstation: true },
+      update: { restrictMaintenanceCompletionToAttendanceWorkstation: true },
+    });
+    const completionFlag = process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED;
+    process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED = "1";
+    const completionPath = "/api/andon-calls/" + httpCallId + "/finish-maintenance";
+    const finish = (body = { notes: "Tested completion" }, extraHeaders = {}) =>
+      httpApp.inject({ method: "PATCH", url: completionPath,
+        headers: { ...headers, ...extraHeaders }, payload: body });
+    const completedAudit = () => db.auditEvent.count({
+      where: { resourceType: "andon_call", resourceId: httpCallId,
+        action: "calls.finishMaintenance" },
+    });
+    try {
+      // Missing permission, malformed body and CSRF must not change live state.
+      const noPermission = await finish();
+      assert.equal(noPermission.statusCode, 403);
+      await db.accessPermission.create({
+        data: { userId, key: "calls.finishMaintenance" },
+      });
+      const invalidCsrf = await finish(undefined, { "x-andon-csrf": "0".repeat(64) });
+      assert.equal(invalidCsrf.statusCode, 403);
+      const withoutCookie = await finish(undefined, { cookie: "" });
+      assert.equal(withoutCookie.statusCode, 401);
+      const badPayload = await finish({ notes: "Valid", unknownPrivilege: true });
+      assert.equal(badPayload.statusCode, 400);
+      await db.accessMachine.delete({
+        where: { userId_machineId: { userId, machineId } },
+      });
+      const deniedScope = await finish();
+      assert.equal(deniedScope.statusCode, 404);
+      await db.accessMachine.create({ data: { userId, machineId } });
+
+      // A different *valid* central workstation+session is NOT allowed to
+      // conclude maintenance whose technician sessions started elsewhere.
+      const alternateToken = randomBytes(32).toString("hex");
+      await db.accessSession.create({
+        data: {
+          tokenHash: tokenHash(alternateToken), userId, workstationId: otherStationId,
+          purpose: "normal", authorizationVersion: user.authorizationVersion,
+          createdAt: now, lastInteractionAt: now,
+          expiresAt: new Date(now.getTime() + 3600000),
+        },
+      });
+      const foreign = await finish(undefined, {
+        "x-andon-workstation-id": otherStationId,
+        cookie: "__Host-andon-access=" + alternateToken,
+        "x-andon-csrf": csrfToken(alternateToken),
+      });
+      assert.equal(foreign.statusCode, 400, foreign.body);
+      assert.match(foreign.json().message ?? "", /workstation/i);
+
+      // Audit insertion failure MUST rollback domain transition and every
+      // technician session/follow-up mutation, not just the HTTP response.
+      await assert.rejects(runCentralMaintenanceCompletion(db, {
+        token, workstationId: stationId, callId: httpCallId,
+        followUpSessionIds: [],
+        ipAddress: "x".repeat(46),
+      }));
+      assert.equal((await db.andonCall.findUniqueOrThrow({
+        where: { id: httpCallId },
+      })).status, "in_progress");
+      assert.equal((await db.technicianSession.count({
+        where: { callId: httpCallId, endedAt: null },
+      })), 2);
+      assert.equal(await completedAudit(), 0);
+
+      process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED = "0";
+      const stillDenied = await finish();
+      assert.equal(stillDenied.statusCode, 403);
+      assert.equal(stillDenied.json().error, "central_action_not_supported");
+      process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED = "1";
+
+      const active = await db.technicianSession.findMany({
+        where: { callId: httpCallId, endedAt: null },
+        orderBy: { id: "asc" },
+      });
+      assert.equal(active.length, 2);
+      const finished = await finish({
+        notes: "Completion with one technician continuing",
+        followUpSessionIds: [active[0].id],
+      });
+      assert.equal(finished.statusCode, 200, finished.body);
+      assert.equal(finished.json().status, "post_maintenance");
+      assert.equal(await completedAudit(), 1);
+      assert.equal((await db.technicianSession.count({
+        where: { callId: httpCallId, endedAt: null, phase: "follow_up" },
+      })), 1);
+      assert.equal((await db.technicianSession.count({
+        where: { callId: httpCallId, endedAt: null, phase: "maintenance" },
+      })), 0);
+      const completedCall = await db.andonCall.findUniqueOrThrow({
+        where: { id: httpCallId },
+      });
+      assert(completedCall.maintenanceCompletedAt instanceof Date);
+      assert(completedCall.attendanceMinutes >= 0);
+      const duplicateFinish = await finish();
+      assert.equal(duplicateFinish.statusCode, 409);
+      assert.equal(duplicateFinish.json().error, "call_state_changed");
+      assert.equal(await completedAudit(), 1);
+      console.log("SEC-04/2F completion PASS: station ownership, machine scope, CSRF, rollback, follow-up and replay");
+    } finally {
+      if (completionFlag === undefined)
+        delete process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED;
+      else process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED = completionFlag;
+      if (beforeSettings)
+        await db.systemSettings.update({
+          where: { id: "global" },
+          data: {
+            restrictMaintenanceCompletionToAttendanceWorkstation:
+              beforeSettings.restrictMaintenanceCompletionToAttendanceWorkstation,
+          },
+        });
+      else
+        await db.systemSettings.delete({ where: { id: "global" } });
+    }
   } finally {
     await httpApp.close();
     if (previousCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
