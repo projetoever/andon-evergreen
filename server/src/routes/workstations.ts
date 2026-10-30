@@ -6,6 +6,10 @@ import { readAdminSession } from "../security/adminAuthorization.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { isAuthorizedCentralOwnWorkstationPreference } from "../security/centralOwnWorkstationPrefsHttp.js";
+import { runCentralOwnWorkstationPreference } from "../access/centralOwnWorkstationPrefs.js";
 
 type RegisterWorkstationBody = { id?: unknown };
 type UpdateWorkstationBody = {
@@ -130,6 +134,29 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: ScreenLockBody }>(
     "/api/workstations/:id/screen-lock",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralOwnWorkstationPreference(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some(key => key !== "machineId") ||
+            !(body.machineId === null ||
+              (typeof body.machineId === "string" && body.machineId.trim())))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralOwnWorkstationPreference(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            targetWorkstationId: request.params.id,
+            change: { type: "screen-lock",
+              machineId: body.machineId === null ? null : String(body.machineId).trim() },
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const id = parseWorkstationId(request.params.id);
       if (!id) return badRequest(reply, "Identificador de workstation inválido");
 
@@ -178,6 +205,28 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
   app.put<{ Params: { id: string; machineId: string }; Body: MachineSoundPreferenceBody }>(
     "/api/workstations/:id/machine-sound/:machineId",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralOwnWorkstationPreference(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some(key => key !== "enabled") ||
+            typeof body.enabled !== "boolean")
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralOwnWorkstationPreference(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            targetWorkstationId: request.params.id,
+            change: { type: "machine-sound", machineId: request.params.machineId,
+              enabled: body.enabled },
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const id = parseWorkstationId(request.params.id);
       if (!id) return badRequest(reply, "Identificador de workstation inválido");
       const machineId = request.params.machineId.trim();
