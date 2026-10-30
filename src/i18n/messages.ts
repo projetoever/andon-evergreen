@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Cinza industrial", "Industrial gray", "工業灰"],
   ["Aparência e cores","Appearance and colors","外觀與色彩"],
   ["Prévia das cores de contorno e seleção, sem alterar alertas.","Preview border and selection colors without changing alerts.","預覽邊框及選取色彩，不變更警報。"],
   ["Contorno padrão dos cards","Default card border","卡片預設邊框"],
