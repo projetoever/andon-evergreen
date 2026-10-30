@@ -2876,6 +2876,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }),
         );
       } catch (error) {
+        if (error instanceof AndonCallValidationError)
+          return badRequest(reply, error.message);
         if (
           error instanceof ActiveTechnicianSessionNotFoundError ||
           error instanceof FinishCallNotFoundError
