@@ -18,6 +18,7 @@ const db = new PrismaClient();
 const n = randomUUID().replaceAll("-", "").slice(0, 12);
 const machineId = "ci-open-" + n;
 const categoryId = "ci_cat_" + n;
+const batchCategories = ["ci_batch_a_" + n, "ci_batch_b_" + n];
 const stationId = "ws_" + randomUUID();
 const otherMachineId = "ci-out-of-scope-" + n;
 const login = "ci.open." + n;
@@ -141,6 +142,51 @@ try {
   })));
   assert.equal(await db.andonCall.count({ where: { machineId } }), 1);
 
+  // SEC-04/2I multi-sector acceptance. The first opening owns downtime;
+  // batch sectors inherit that same stop event and never duplicate duration.
+  await db.andonCategory.createMany({
+    data: batchCategories.map(id => ({
+      id, displayName: "Batch " + id, categoryGroup: "maintenance",
+      color: "#555555", active: true,
+    })),
+  });
+  process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = "1";
+  const batchBody = {
+    machineId, subtypes: batchCategories, machineCondition: "stopped",
+    workOrderNumber: body.workOrderNumber, criticality: "medium",
+  };
+  const sendBatch = (payload = batchBody, extra = {}) =>
+    send(payload, extra, "POST", "/api/andon-calls/batch");
+  assert.equal((await sendBatch(batchBody, { cookie: "" })).statusCode, 401);
+  assert.equal((await sendBatch(batchBody, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
+  assert.equal((await sendBatch({ ...batchBody, createdBy: "forged" })).statusCode, 403);
+  assert.equal((await sendBatch({ ...batchBody, machineId: otherMachineId })).statusCode, 403);
+  assert.equal((await sendBatch({ ...batchBody, workOrderNumber: undefined })).statusCode, 400);
+  assert.equal((await sendBatch({ ...batchBody, subtypes: [batchCategories[0], batchCategories[0]] })).statusCode, 400);
+  assert.equal((await sendBatch({ ...batchBody, subtypes: [batchCategories[0], "missing-ci-sector"] })).statusCode, 400);
+  assert.equal(await db.andonCall.count({ where: { machineId } }), 1,
+    "invalid sector in a batch cannot partially open a call");
+  const batchRace = await Promise.all([sendBatch(), sendBatch()]);
+  assert.deepEqual(batchRace.map(r => r.statusCode).sort(), [201, 400],
+    batchRace.map(r => r.body).join("\n"));
+  const successfulBatch = batchRace.find(r => r.statusCode === 201).json();
+  assert.equal(successfulBatch.length, 2);
+  assert(successfulBatch.every(call => call.createdBy === login && call.status === "open"));
+  assert.deepEqual(new Set(successfulBatch.map(call => call.subtype)),
+    new Set(batchCategories));
+  assert.equal(await db.andonCall.count({ where: { machineId } }), 3);
+  assert.equal(await db.auditEvent.count({
+    where: { action: "calls.open", machineId, actorUserId: userId },
+  }), 3, "each successfully created call receives exactly one atomic audit");
+  assert.equal(await db.callImpactInterval.count({
+    where: { machineId, endedAt: null },
+  }), 1, "multiple sectors do not create duplicate physical downtime intervals");
+  process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = "0";
+  const batchDisabled = await sendBatch();
+  assert.equal(batchDisabled.statusCode, 403);
+  assert.equal(batchDisabled.json().error, "central_action_not_supported");
+  process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = "1";
+
   process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED = "0";
   const disabled = await send();
   assert.equal(disabled.statusCode, 403);
@@ -151,11 +197,12 @@ try {
     data: { revokedAt: new Date() } });
   assert.equal((await send()).statusCode, 401);
   assert.equal(await auditCount(), 1);
-  console.log("SEC-04 individual opening PG PASS: OS, ACL, origin, scope, CSRF, duplicate race, stopped ownership, audit rollback, revoked session");
+  console.log("SEC-04 individual+batch opening PG PASS: OS, ACL, CSRF, scope, duplicate races, atomic multi-sector stop, rollback, revocation");
 } finally {
   if (app) await app.close();
   if (previous.access === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previous.access;
+  delete process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED;
   if (previous.flag === undefined) delete process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED;
   else process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED = previous.flag;
   if (previous.origin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
@@ -174,7 +221,7 @@ try {
     await db.accessUser.update({ where: { id: userId }, data: { active: false } });
   }
   await db.workstation.deleteMany({ where: { id: stationId } });
-  await db.andonCategory.deleteMany({ where: { id: categoryId } });
+  await db.andonCategory.deleteMany({ where: { id: { in: [categoryId, ...batchCategories] } } });
   await db.machine.deleteMany({ where: { id: { in: [machineId, otherMachineId] } } });
   await db.$disconnect();
 }
