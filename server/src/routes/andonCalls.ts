@@ -1931,7 +1931,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             !("id" in response) || typeof response.id !== "string" ||
             !("status" in response) || typeof response.status !== "string")
           throw new AndonCallValidationError("Chamado não encontrado após abertura");
-        return response;
+        return response as { id: string; status: string };
       };
       const call = centralOpen
         ? await runCentralOpenCallWrite(prisma, {
