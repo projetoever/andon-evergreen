@@ -21,6 +21,12 @@ export function classifyCentralOwnWorkstationPreference(method: string, path: st
     return { workstationId: parseWorkstationId(sound[1])!, action: "machine-sound" as const };
   return null;
 }
+export function centralOwnWorkstationPreferenceReadTarget(method: string, path: string) {
+  if (method !== "GET") return null;
+  const match = /^\/api\/workstations\/([^/]+)\/runtime-preferences$/.exec(path);
+  return match ? parseWorkstationId(match[1]) ?? null : null;
+}
+
 export function isCentralOwnWorkstationPreference(method: string, path: string) {
   return classifyCentralOwnWorkstationPreference(method, path) !== null;
 }
