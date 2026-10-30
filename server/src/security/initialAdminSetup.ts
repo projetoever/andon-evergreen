@@ -24,7 +24,8 @@ function digest(value: string) {
  * The server must never configure trustProxy for this initial bootstrap.
  */
 export function isLocalInitialAdminRequest(request: FastifyRequest) {
-  const ip = request.ip;
+  // Read the transport socket, never a proxy-derived request.ip / XFF.
+  const ip = request.raw.socket.remoteAddress;
   if (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(ip)) return false;
   const host = request.headers.host ?? "";
   if (!/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/.test(host)) return false;
