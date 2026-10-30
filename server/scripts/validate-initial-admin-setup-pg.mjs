@@ -127,7 +127,7 @@ try {
   assert.equal(login.statusCode, 200, login.body);
   const audit = await db.auditEvent.findFirstOrThrow({
     where: { action: "admin.global_password.initialized" },
-    orderBy: { createdAt: "desc" },
+    orderBy: { occurredAt: "desc" },
   });
   assert.equal(audit.actorLogin, "admin");
   assert(!JSON.stringify(audit).includes("A6@rX2p!"));
