@@ -6,6 +6,7 @@ import { registerAccessRoutes } from "./routes/access.js";
 import { registerCorsSupport } from "./config/cors.js";
 import { enforceAdminAuthorization } from "./security/adminAuthorization.js";
 import { enforceWorkstationAccess } from "./security/workstationAccess.js";
+import { enforceInitialAdminSetup } from "./security/initialAdminSetupGuard.js";
 import { enforceModuleAuthorization } from "./security/moduleAuthorization.js";
 import { prisma } from "./db/prisma.js";
 import {
@@ -53,6 +54,7 @@ export function buildServer() {
   });
 
   registerCorsSupport(app);
+  app.addHook("preHandler", enforceInitialAdminSetup);
   app.addHook("preHandler", enforceWorkstationAccess);
   app.addHook("preHandler", enforceAdminAuthorization);
   app.addHook("preHandler", enforceModuleAuthorization);

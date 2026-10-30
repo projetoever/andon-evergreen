@@ -101,6 +101,25 @@ try {
                 Invoke-AndonHealthCheck -Full
                 Write-AndonHeader "INSTALACAO LIMPA FINALIZADA"
                 Write-AndonOk "ANDON instalado com databaseMode=$($dbConfig.databaseMode), installationProfile=$installationProfile e SHA=$pinnedCommit."
+                Write-AndonHeader "PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL"
+                Write-Host "Nao existe senha administrativa padrao nesta instalacao."
+                Write-Host "O primeiro cadastro deve ocorrer no navegador do proprio servidor."
+                Write-Host "Ate a configuracao, o Hub nao libera a navegacao normal."
+                $firstSetupScheme = if ($Global:AndonTransportMode -eq "https") { "https" } else { "http" }
+                $firstSetupUrl = "${firstSetupScheme}://localhost:$Global:AndonFrontendPort/hub"
+                if ($firstSetupScheme -eq "https") {
+                    Write-AndonWarn "HTTPS local requer certificado confiavel e valido para localhost (SAN). Nao ignore erros do navegador."
+                }
+                Write-Host "Endereco local: $firstSetupUrl"
+                if (Read-AndonYesNo "Abrir configuracao inicial segura neste servidor agora?" $true) {
+                    try {
+                        Start-Process -FilePath $firstSetupUrl -ErrorAction Stop | Out-Null
+                        Write-AndonOk "Navegador local aberto para cadastrar a senha global."
+                    } catch {
+                        Write-AndonWarn "Nao foi possivel abrir o navegador automaticamente. Acesse $firstSetupUrl no proprio servidor."
+                    }
+                }
+                Write-Host "Nao exponha este servidor a rede nao confiavel antes de concluir a configuracao e a homologacao de seguranca."
                 Write-Host "Acesso Raspberry/clients: http://$($network.serverIp):$Global:AndonFrontendPort"
             }
         }

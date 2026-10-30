@@ -87,6 +87,9 @@ try {
             "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH",
           },
         });
+      if (path === "/api/admin-auth/status")
+        return send({ username: "admin", passwordConfigured: true,
+          recoveryConfigured: false, recoveryCodeIssuedAt: null });
       if (path === "/api/workstations/register")
         return send({
           id: workstationId,

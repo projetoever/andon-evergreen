@@ -229,7 +229,7 @@ Write-Host "ANDON HTTPS de homologacao pronto:" -ForegroundColor Green
 Write-Host "  Hub: $origin/hub"
 Write-Host "  API: $apiUrl"
 Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
-Write-Host "  Primeiro acesso: use a senha Admin legada 123456 e defina uma frase pessoal."
+Write-Host "  Primeiro acesso local: crie a senha Admin global (SEM senha predefinida)."
 Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
 Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"

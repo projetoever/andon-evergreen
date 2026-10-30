@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { PrismaClient } from "@prisma/client";
 import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
@@ -86,7 +87,20 @@ async function waitForTls(port) {
 
 let api;
 let legacy;
+const db = new PrismaClient();
+let originalSettings;
 try {
+  // No hardcoded password: exercise the same first-run path a customer sees.
+  // This script is guarded above and must never mutate a non-test database.
+  originalSettings = await db.systemSettings.findUnique({
+    where: { id: "global" },
+    select: { adminPasswordHash: true },
+  });
+  await db.systemSettings.upsert({
+    where: { id: "global" },
+    update: { adminPasswordHash: null },
+    create: { id: "global", adminPasswordHash: null },
+  });
   const tlsPort = await unusedPort();
   api = spawn(process.execPath, ["dist/server.js"], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
@@ -113,6 +127,42 @@ try {
   await assert.rejects(
     request(httpRequest, { hostname: "127.0.0.1", port: tlsPort, path: "/health" }),
   );
+
+  const bootstrapHeaders = { Origin: origin };
+  const status = await request(httpsRequest, {
+    hostname: "localhost", port: tlsPort, path: "/api/admin-auth/status",
+    ca: cert(), headers: bootstrapHeaders,
+  });
+  assert.equal(status.status, 200);
+  const initialState = JSON.parse(status.body);
+  assert.equal(initialState.passwordConfigured, false);
+  assert.equal(initialState.setupAvailable, true);
+  assert.match(initialState.setupToken ?? "", /^[a-f0-9]{64}$/);
+
+  const beforeSetup = await request(httpsRequest, {
+    hostname: "localhost", port: tlsPort, path: "/api/access/session",
+    ca: cert(), headers: bootstrapHeaders,
+  });
+  assert.equal(beforeSetup.status, 428);
+  assert.equal(JSON.parse(beforeSetup.body).error, "initial_admin_setup_required");
+
+  const password = "Hml#T9xB7";
+  const setupBody = JSON.stringify({ setupToken: initialState.setupToken, password });
+  const setup = await request(httpsRequest, {
+    hostname: "localhost", port: tlsPort, path: "/api/admin-auth/initialize",
+    method: "POST", ca: cert(),
+    headers: { ...bootstrapHeaders, "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(setupBody) },
+  }, setupBody);
+  assert.equal(setup.status, 200, setup.body);
+  assert.equal(JSON.parse(setup.body).passwordConfigured, true);
+
+  const readyStatus = await request(httpsRequest, {
+    hostname: "localhost", port: tlsPort, path: "/api/admin-auth/status",
+    ca: cert(), headers: bootstrapHeaders,
+  });
+  assert.equal(JSON.parse(readyStatus.body).passwordConfigured, true);
+  assert.equal(JSON.parse(readyStatus.body).setupToken, undefined);
 
   const workstationId = `ws_${crypto.randomUUID()}`;
   const registrationBody = JSON.stringify({ id: workstationId });
@@ -191,10 +241,22 @@ try {
   }
   assert.equal(legacyHealth?.status, 200);
   console.log(
-    "HTTPS homologation runtime PASS: native TLS trust, HTTP refusal, strict origin and legacy HTTP isolation.",
+    "HTTPS homologation runtime PASS: native TLS, no default password, first-run local setup, HTTP refusal, strict origin and legacy HTTP isolation.",
   );
 } finally {
   api?.kill("SIGKILL");
   legacy?.kill("SIGKILL");
-  rmSync(temp, { recursive: true, force: true });
+  try {
+    if (originalSettings) {
+      await db.systemSettings.update({
+        where: { id: "global" },
+        data: { adminPasswordHash: originalSettings.adminPasswordHash },
+      });
+    } else {
+      await db.systemSettings.deleteMany({ where: { id: "global" } });
+    }
+  } finally {
+    await db.$disconnect();
+    rmSync(temp, { recursive: true, force: true });
+  }
 }

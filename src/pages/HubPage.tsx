@@ -12,12 +12,40 @@ import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
+import { getAdminAuthStatus, type AdminAuthStatus } from "@/services/adminAuthService";
+import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
 
 export function HubPage() {
   const { access, error, checking, refresh } = useModuleAccess();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  // The server has no access to the browser's saved locale. Keep the first
+  // hydration frame deterministic, then translate after the client mounts.
+  const [clientHydrated, setClientHydrated] = useState(false);
+  useEffect(() => { setClientHydrated(true); }, []);
+  const [initialStatus, setInitialStatus] = useState<AdminAuthStatus | null>(null);
+  const [initialStatusError, setInitialStatusError] = useState("");
+  const [initialStatusPending, setInitialStatusPending] = useState(
+    CONFIGURED_DATA_MODE === "api",
+  );
+  const refreshInitialStatus = async () => {
+    if (CONFIGURED_DATA_MODE !== "api") return;
+    setInitialStatusPending(true);
+    try {
+      setInitialStatus(await getAdminAuthStatus());
+      setInitialStatusError("");
+    } catch {
+      setInitialStatusError(ui("Não foi possível verificar a configuração administrativa inicial."));
+    } finally {
+      setInitialStatusPending(false);
+    }
+  };
+  useEffect(() => {
+    void refreshInitialStatus();
+  }, []);
+
   const [identity, setIdentity] = useState({ clientName: "", clientUnit: "" });
   useEffect(() => {
     let mounted = true;
@@ -35,6 +63,29 @@ export function HubPage() {
       setAdminLoginOpen(true);
     }
   };
+  if (CONFIGURED_DATA_MODE === "api") {
+    if (initialStatusPending) return (
+      <main className="min-h-dvh bg-background p-6 text-foreground" role="status">
+        {clientHydrated
+          ? ui("Verificando a configuração inicial do administrador...")
+          : "Verificando a configuração inicial do administrador..."}
+      </main>
+    );
+    if (initialStatusError || !initialStatus) return (
+      <main className="min-h-dvh bg-background p-6 text-foreground">
+        <div role="alert">{initialStatusError || ui("Configuração inicial indisponível.")}</div>
+        <Button className="mt-4" onClick={() => void refreshInitialStatus()}>
+          {ui("Tentar novamente")}
+        </Button>
+      </main>
+    );
+    if (!initialStatus.passwordConfigured) return (
+      <InitialAdminSetup status={initialStatus} onComplete={async () => {
+        await refreshInitialStatus();
+        await refresh();
+      }} />
+    );
+  }
   return (
     <main className="andon-screen-enter min-h-dvh bg-background p-4 text-foreground md:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
