@@ -18,6 +18,8 @@ import { getCallTypeOption } from "@/data/callTypes";
 import { useTechnicians } from "@/hooks/useTechnicians";
 import { cn } from "@/lib/utils";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { allowedAttendanceModes, effectiveAttendanceMode } from "@/utils/attendanceModePolicy";
 import {
   identifyTechnicianConfig,
   type IdentifiedTechnicianConfig,
@@ -62,6 +64,8 @@ export function TechnicianIdentificationModal({
   const option = call ? getCallTypeOption(call.subtype) : null;
   const area = (option?.technicianArea ?? call?.subtype ?? null) as TechnicianArea | null;
 
+  const { access } = useModuleAccess();
+  const centralAttendance = access?.centralAccessEnabled === true;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
@@ -92,7 +96,7 @@ export function TechnicianIdentificationModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(systemSettings.attendanceMode);
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -102,7 +106,7 @@ export function TechnicianIdentificationModal({
             : "Não foi possível carregar o modo de atendimento",
         );
       });
-  }, [open, callId]);
+  }, [open, callId, centralAttendance]);
 
   const excluded = useMemo(
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
@@ -218,6 +222,7 @@ export function TechnicianIdentificationModal({
   }
 
   function handleNameSubmit() {
+    if (centralAttendance) return;
     const technicians = names.map((name) => {
       const technician = findTechnicianByName(name);
       return {
@@ -255,8 +260,9 @@ export function TechnicianIdentificationModal({
 
   if (!call) return null;
 
-  const allowedMethods: AttendanceMode[] =
-    settings?.attendanceMode === "name" ? ["name", "pin", "rfid"] : ["pin", "rfid"];
+  const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
+    settings?.attendanceMode, centralAttendance,
+  );
   const actionLabel =
     purpose === "start"
       ? ui("Iniciar atendimento")
@@ -291,6 +297,12 @@ export function TechnicianIdentificationModal({
             </button>
           </div>
         </DialogHeader>
+
+        {centralAttendance && settings?.attendanceMode === "name" && (
+          <p role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm font-semibold text-foreground">
+            {ui("No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.")}
+          </p>
+        )}
 
         {showAlternatives && (
           <div className="grid gap-2 rounded-xl border border-info/30 bg-info/10 p-2 sm:grid-cols-3">
