@@ -177,6 +177,7 @@ try {
     hash, // Legacy secret is still preserved for isolated compatibility.
   );
   const legacyIsNotCentral = {};
+  await call(legacyIsNotCentral, "/session"); // Obtain guest CSRF before proving password rejection.
   await call(legacyIsNotCentral, "/login", "POST", {
     login: adminLogin, password: "Existing isolated Admin",
   }, 401);
