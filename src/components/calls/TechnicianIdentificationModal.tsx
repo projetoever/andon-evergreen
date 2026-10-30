@@ -154,6 +154,7 @@ export function TechnicianIdentificationModal({
     if (
       (method !== "pin" && method !== "rfid") ||
       !credentialValue.trim() ||
+      !call ||
       submittingRef.current
     ) {
       return;
