@@ -2,7 +2,8 @@
 param(
     [int]$FrontendPort = 8443,
     [int]$ApiPort = 3443,
-    [int]$PostgresPort = 55432
+    [int]$PostgresPort = 55432,
+    [switch]$EnableCentralOperationalWrites
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,38 @@ $processPath = Join-Path $statePath "processes.json"
 $containerName = "andon-https-hml-postgres"
 $databaseName = "andon_https_hml"
 $databaseUser = "andon_hml"
+
+# SEC-04 notebook-only opt-in: exclude physical downtime events, global siren,
+# industrial identities, legacy passwords, and catalog-admin mutations.
+$centralHomologationFlags = @(
+    "ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED",
+    "ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED",
+    "ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED",
+    "ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED",
+    "ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED",
+    "ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED",
+    "ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED",
+    "ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED",
+    "ANDON_CENTRAL_TECHNICIAN_END_HTTP_ENABLED",
+    "ANDON_CENTRAL_TECHNICIAN_ADD_HTTP_ENABLED",
+    "ANDON_CENTRAL_DIAGNOSIS_EDIT_HTTP_ENABLED",
+    "ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED",
+    "ANDON_CENTRAL_TECHNICIAN_IDENTITY_HTTP_ENABLED",
+    "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
+)
+if ($EnableCentralOperationalWrites) {
+    # This launcher always binds to localhost and uses its own Docker database.
+    if ($FrontendPort -eq 8080 -or $ApiPort -eq 3001 -or $PostgresPort -eq 5432) {
+        throw "Portas produtivas nao permitidas no teste operacional isolado."
+    }
+    if ($FrontendPort -lt 1024 -or $ApiPort -lt 1024 -or $PostgresPort -lt 1024 -or
+        $FrontendPort -gt 65535 -or $ApiPort -gt 65535 -or $PostgresPort -gt 65535 -or
+        $FrontendPort -eq $ApiPort -or $FrontendPort -eq $PostgresPort -or $ApiPort -eq $PostgresPort) {
+        throw "Portas invalidas ou duplicadas na homologacao operacional."
+    }
+}
+
 
 function Require-Command([string]$Name, [string]$Guidance) {
     if (!(Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -116,7 +149,7 @@ $environmentNames = @(
     "ANDON_CENTRAL_ACCESS_ENABLED", "VITE_ANDON_DATA_MODE", "VITE_ANDON_API_BASE_URL",
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT"
-)
+) + $centralHomologationFlags
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
@@ -149,6 +182,12 @@ $env:ANDON_TLS_KEY = $keyPath
 $env:CORS_ORIGINS = $origin
 $env:ANDON_ACCESS_ORIGIN = $origin
 $env:ANDON_CENTRAL_ACCESS_ENABLED = "1"
+# No accidental inheritance of feature flags from the launching shell.
+# With no switch, all 15 write adapters are forced OFF in child processes.
+foreach ($flag in $centralHomologationFlags) {
+    [Environment]::SetEnvironmentVariable(
+        $flag, $(if ($EnableCentralOperationalWrites) { "1" } else { "0" }), "Process")
+}
 $apiProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
     -WorkingDirectory (Join-Path $repoRoot "server") -PassThru `
     -RedirectStandardOutput (Join-Path $statePath "api.log") `
@@ -169,6 +208,7 @@ $frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
     apiPid = $apiProcess.Id
     frontendPid = $frontendProcess.Id
     startedAt = (Get-Date).ToUniversalTime().ToString("o")
+    isolatedCentralWrites = [bool]$EnableCentralOperationalWrites
 } | ConvertTo-Json | Set-Content -Encoding UTF8 $processPath
 
 try {
@@ -190,4 +230,6 @@ Write-Host "  Hub: $origin/hub"
 Write-Host "  API: $apiUrl"
 Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
 Write-Host "  Primeiro acesso: use a senha Admin legada 123456 e defina uma frase pessoal."
+Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
+Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"
