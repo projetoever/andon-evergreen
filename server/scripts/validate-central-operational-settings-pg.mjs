@@ -152,7 +152,8 @@ try {
   if (userId) {
     await db.accessSession.deleteMany({ where: { userId } });
     await db.accessPermission.deleteMany({ where: { userId } });
-    await db.accessUser.update({ where: { id: userId }, data: { active: false } });
+    await db.accessUser.update({ where: { id: userId },
+      data: { active: false, isPrimaryAdmin: false } });
   }
   await db.workstation.deleteMany({ where: { id: workstationId } });
   await db.$disconnect();
