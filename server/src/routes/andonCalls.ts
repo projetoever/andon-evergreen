@@ -45,6 +45,8 @@ import { runCentralBatchOpenCallWrite } from "../access/centralBatchOpenCallWrit
 import { isAuthorizedCentralBatchOpen } from "../security/centralBatchOpenHttp.js";
 import { runCentralFinishCall } from "../access/centralFinishCallWrite.js";
 import { isAuthorizedCentralFinishCall } from "../security/centralFinishCallHttp.js";
+import { runCentralCancelCall } from "../access/centralCancelCallWrite.js";
+import { isAuthorizedCentralCancelCall } from "../security/centralCancelCallHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -2722,8 +2724,36 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: CancelAndonCallBody }>(
     "/api/andon-calls/:id/cancel",
     async (request, reply) => {
+      if (centralAccessEnabled() && !isAuthorizedCentralCancelCall(request))
+        throw new AccessError("central_action_not_supported");
       const reason = optionalString(request.body?.reason);
       if (!reason) return badRequest(reply, "Justificativa do cancelamento é obrigatória.");
+
+      if (centralAccessEnabled()) {
+        if (Object.keys(request.body ?? {}).some((key) => key !== "reason"))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          const updated = await runCentralCancelCall(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id, reason,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          }, (tx, principal, verifiedReason) =>
+            applyCancellationDomainTransition(tx, {
+              callId: request.params.id,
+              reason: verifiedReason,
+              cancellationNote: `Motivo: ${verifiedReason} | Cancelado por: ${principal.login}`,
+            }));
+          const [enriched] = await enrichCallsWithAssetSnapshots([updated]);
+          return reply.send(enriched ?? updated);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (error instanceof AndonCallValidationError)
+            return badRequest(reply, error.message);
+          throw error;
+        }
+      }
 
       const call = await prisma.andonCall.findUnique({
         include: { technicianSessions: true },
