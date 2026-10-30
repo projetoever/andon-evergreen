@@ -13,6 +13,7 @@ No login central, o PATCH de `/api/system-settings` estava bloqueado, impossibil
 - Histórico de auditoria armazena usuário central, estação, campos modificados e antes/depois (sem credenciais ou tags). Se audit falhar, a atualização é desfeita na mesma transação.
 - O modo legado anterior é preservado integralmente, sem migração de schema.
 - O cliente adiciona CSRF derivado ao PATCH apenas no modo central.
+- **Leituras seguras de usuários com escopo selecionado:** `GET /api/system-settings` usa apenas a projeção pública já existente, sem senhas; `GET /api/dashboard-sound-state` retorna apenas o estado operacional. Ambos exigem sessão central e módulo ANDON e não autorizam escrita nem acesso a máquinas fora do escopo. Isso evita bloquear os modais PIN/RFID e o indicador de mute do dashboard.
 
 ## Critérios de aceite
 - Suíte unitária de flag OFF, Admin principal, machineScope total, CSRF, módulo e whitelist.
