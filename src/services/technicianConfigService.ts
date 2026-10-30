@@ -117,10 +117,12 @@ export async function updateTechnicianConfig(
 export async function identifyTechnicianConfig(
   method: TechnicianCredentialMethod,
   value: string,
+  callId: string,
 ): Promise<IdentifiedTechnicianConfig> {
   const technician = await apiClient.post<ApiTechnician>("/api/technicians/identify", {
     method,
     value,
+    callId,
   });
 
   return {
