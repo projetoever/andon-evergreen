@@ -17,7 +17,7 @@ test("UX-11: existing terminals default to the industrial dark palette", async (
 
   const root = await source("src/routes/__root.tsx");
   assert.match(root, /<html lang="pt-BR" className="dark">/);
-  assert.match(root, /<ThemeProvider><LanguageProvider>\{children\}<\/LanguageProvider><\/ThemeProvider>/);
+  assert.match(root, /<ThemeProvider><GlobalVisualPaletteProvider><LanguageProvider>\{children\}<\/LanguageProvider><\/GlobalVisualPaletteProvider><\/ThemeProvider>/);
 });
 
 test("UX-11: theme remains device-local, hydrated after SSR and synced between tabs", async () => {
