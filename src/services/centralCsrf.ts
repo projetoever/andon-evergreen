@@ -6,6 +6,7 @@ let centralMode = false;
 let csrf = "";
 let loading: Promise<string> | null = null;
 
+export function isCentralMode() { return centralMode; }
 export function setCentralMode(enabled: boolean) {
   centralMode = enabled;
   if (!enabled) csrf = "";
