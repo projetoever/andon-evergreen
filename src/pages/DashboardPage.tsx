@@ -504,7 +504,11 @@ export function DashboardPage() {
             title={t("Configurar sons do ANDON")}
             aria-label={t("Configurar sons do ANDON")}
             onClick={() => {
-              if (access?.centralAccessEnabled) {
+              if (!access) {
+                toast.error(t("Não foi possível verificar as permissões administrativas."));
+                return;
+              }
+              if (access.centralAccessEnabled) {
                 void navigate({ to: "/hub/admin", search: { section: "andon" } });
               } else {
                 isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true);
@@ -517,7 +521,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {!access?.centralAccessEnabled && (
+      {access && !access.centralAccessEnabled && (
         <>
           <AdminLoginModal
             open={adminLoginOpen}
