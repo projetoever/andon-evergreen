@@ -148,7 +148,9 @@ export function MachineSectorButton({
       )}
       style={{
         backgroundColor: activeCall ? (selected ? "#111827" : "#27313D") : category.color,
-        borderColor: !activeCall || selected ? accentColor : undefined,
+        borderColor: selected
+          ? `var(--andon-palette-sector-selection, ${accentColor})`
+          : !activeCall ? accentColor : undefined,
         color: activeCall ? "#FFFFFF" : readableTextColor(category.color),
       }}
     >
@@ -158,7 +160,7 @@ export function MachineSectorButton({
           data-selection-ring="true"
           className="pointer-events-none absolute -inset-1 rounded-xl border-2 opacity-100 animate-pulse motion-reduce:animate-none"
           style={{
-            borderColor: accentColor,
+            borderColor: `var(--andon-palette-sector-selection, ${accentColor})`,
             boxShadow: `0 0 14px ${accentColor}99`,
           }}
         />
@@ -168,7 +170,7 @@ export function MachineSectorButton({
           aria-hidden="true"
           data-selected-inset="true"
           className="pointer-events-none absolute inset-0.5 rounded-md border opacity-70"
-          style={{ borderColor: accentColor }}
+          style={{ borderColor: `var(--andon-palette-selected-card-border, ${accentColor})` }}
         />
       )}
       <span className="relative flex min-w-0 flex-col items-center justify-center gap-1">
@@ -289,7 +291,7 @@ export function MachineActionPanel({
       {currentCall && (
         <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-1.5">
           {currentCall.status === "open" && (
-            <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
+            <BigButton tone="info" size="md" className={cn(workflowActionClass, "andon-palette-operation-button")} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> {t("Atender selecionado")}
             </BigButton>
           )}
