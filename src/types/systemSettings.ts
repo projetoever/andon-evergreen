@@ -1,6 +1,7 @@
 export type AttendanceMode = "name" | "pin" | "rfid";
 export type RfidInputTerminator = "enter" | "tab" | "fixed_length";
 export type DashboardMachineOrderMode = "default" | "priority";
+import type { VisualPaletteDraft } from "@/theme/andonVisualPalette";
 
 export interface SystemSettings {
   id: string;
@@ -24,6 +25,9 @@ export interface SystemSettings {
   rfidInputTerminator: RfidInputTerminator;
   rfidCodeLength: number | null;
   filterTechniciansByCurrentShift: boolean;
+  /** Read-only in UX-12/2A: centrally stored only after a future audited write API is enabled. */
+  andonVisualPalette?: VisualPaletteDraft;
+  andonVisualPaletteRevision?: number;
   createdAt: string;
   updatedAt: string;
 }
