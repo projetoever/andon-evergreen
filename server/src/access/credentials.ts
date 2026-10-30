@@ -48,7 +48,7 @@ export function validatePersonalPassword(password: string) {
     length < MIN_PERSONAL_PASSWORD_LENGTH ||
     length > MAX_PERSONAL_PASSWORD_LENGTH ||
     COMMON_PASSWORDS.has(password.toLowerCase()) ||
-    /^([\\s\\S])\\1{7,}$/.test(password)
+    /^(.)\1{7,}$/s.test(password)
   ) {
     throw new Error("password_policy_failed");
   }
