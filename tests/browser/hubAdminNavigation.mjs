@@ -71,6 +71,7 @@ try {
     page.on("pageerror", (error) => errors.push(error.message));
     const mockApi = async (route) => {
       const req = route.request();
+      const requestedWorkstationId = req.headers()["x-andon-workstation-id"] || workstationId;
       const path = new URL(req.url()).pathname;
       const send = (body, status = 200) =>
         route.fulfill({
@@ -98,7 +99,7 @@ try {
           recoveryConfigured: false, recoveryCodeIssuedAt: null });
       if (path === "/api/workstations/register")
         return send({
-          id: workstationId,
+          id: requestedWorkstationId,
           name: "Notebook de validação",
           active: true,
           pendingApproval: false,
@@ -139,7 +140,7 @@ try {
       if (path === "/api/workstations" && req.method() === "GET") {
         const now = new Date();
         return send([
-          {id:workstationId,name:"Notebook de validação",active:true,pendingApproval:false,
+          {id:requestedWorkstationId,name:"Notebook de validação",active:true,pendingApproval:false,
             lastSeenAt:now.toISOString(),allowOperational:true,allowBi:true,allowPriorities:true},
           {id:"ws_00000000-0000-4000-8000-000000000002",name:null,active:false,pendingApproval:true,
             lastSeenAt:now.toISOString(),allowOperational:false,allowBi:false,allowPriorities:false},
@@ -154,7 +155,7 @@ try {
           hubEnabled: true,
           centralAccessEnabled: centralMode,
           workstation: {
-            id: workstationId,
+            id: requestedWorkstationId,
             name: "Estação de validação",
             active: true,
             allowOperational: true,
