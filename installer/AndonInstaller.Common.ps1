@@ -1503,6 +1503,16 @@ function Test-AndonApiWrite {
     try {
         $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
         if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
+        # Uma instalacao nova nao deve executar testes operacionais antes da
+        # configuracao da primeira senha. O estado pendente e esperado.
+        $adminState = Invoke-RestMethod "$api/api/admin-auth/status" -TimeoutSec 10
+        if ($adminState.passwordConfigured -ne $true) {
+            $result = New-AndonHealthResult `
+                -Status "SKIP" `
+                -Message "Teste de escrita adiado: aguardando cadastro local do primeiro administrador global. API e banco saudaveis."
+            Write-AndonHealthResult $result
+            return $result
+        }
         if ($readiness.operationalPasswordRequired -eq $true -or $readiness.workstationApprovalRequired -eq $true) {
             $result = New-AndonHealthResult `
                 -Status "SKIP" `
