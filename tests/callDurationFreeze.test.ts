@@ -125,16 +125,18 @@ test("cenário E: cancelReason e dados do cancelamento permanecem preservados", 
     new URL("../server/src/routes/andonCalls.ts", import.meta.url),
     "utf8",
   );
-  const cancelRoute = route.slice(
-    route.indexOf('"/api/andon-calls/:id/cancel"'),
-    route.indexOf('"/api/andon-calls/:id/technicians"'),
-  );
+  const domainStart = route.indexOf("export async function applyCancellationDomainTransition");
+  const domainEnd = route.indexOf("export async function registerAndonCallRoutes", domainStart);
+  assert.ok(domainStart >= 0 && domainEnd > domainStart,
+    "legacy and central cancellation must share one transactional domain");
+  const cancelDomain = route.slice(domainStart, domainEnd);
+  assert.match(route, /applyCancellationDomainTransition\(tx/);
 
-  assert.match(cancelRoute, /status: "cancelled"/);
-  assert.match(cancelRoute, /finishedAt: now/);
-  assert.match(cancelRoute, /callWaitingMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
-  assert.match(cancelRoute, /totalCallMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
-  assert.match(cancelRoute, /cancelReason: reason/);
+  assert.match(cancelDomain, /status: "cancelled"/);
+  assert.match(cancelDomain, /finishedAt: now/);
+  assert.match(cancelDomain, /callWaitingMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
+  assert.match(cancelDomain, /totalCallMinutes: diffMinutes\(currentCall\.openedAt, now\)/);
+  assert.match(cancelDomain, /cancelReason: input\.reason/);
 
   const apiCall = createCall({
     status: "cancelled",
