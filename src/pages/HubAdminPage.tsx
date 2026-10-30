@@ -66,7 +66,7 @@ const sections = [
 export function HubAdminPage() {
   useInterfaceLanguage();
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = requestedSection ?? "overview";
+  const section = requestedSection === "andon" ? "overview" : requestedSection ?? "overview";
   const navigate = useNavigate();
   const { access, error: accessError, checking: checkingAccess } = useModuleAccess();
   // Match SSR and the first client render; reveal the page only after a session check.

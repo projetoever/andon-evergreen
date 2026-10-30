@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
+import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
+import { AttendanceModeSettingsTab } from "@/components/settings/AttendanceModeSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
@@ -103,6 +105,7 @@ export function HubCentralAdminPage() {
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
     { id: "users", name: ui("Usuários e Acessos"), icon: ShieldCheck },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
+    { id: "andon", name: ui("Configurações do ANDON"), icon: Factory },
   ] as const;
   return (
     <main className="andon-screen-enter min-h-dvh bg-background p-4 md:p-6">
@@ -135,7 +138,7 @@ export function HubCentralAdminPage() {
           </Button>
         </header>
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-2">
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
           {sections.map(item => {
             const Icon = item.icon;
             return <Button asChild key={item.id}
@@ -151,7 +154,21 @@ export function HubCentralAdminPage() {
         {section === "overview" && <CentralOverview />}
         {section === "users" && <UsersAccessSettings />}
         {section === "workstations" && <WorkstationsSettingsTab />}
-        {!["overview","users","workstations"].includes(section) && (
+        {section === "andon" && (
+          <div className="space-y-4">
+            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
+              <h2 className="text-lg font-bold">{ui("Configurações operacionais do ANDON")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {ui("Estas regras são globais e exigem uma sessão de Admin principal. Sons, cadastros e credenciais mantêm controles separados.")}
+              </p>
+            </section>
+            <GeneralSettingsTab />
+            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
+              <AttendanceModeSettingsTab />
+            </section>
+          </div>
+        )}
+        {!["overview","users","workstations","andon"].includes(section) && (
           <div role="status" className="rounded-xl border border-border bg-card p-5">
             {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
           </div>

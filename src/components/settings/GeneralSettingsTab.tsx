@@ -8,11 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { getDashboardPriorityAccessStatus } from "@/services/dashboardPriorityService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
 import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 
 export function GeneralSettingsTab() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
+  const priorityModuleAllowed = access?.modules.some(
+    (module) => module.id === "priorities" && module.available && module.enabled && module.allowed,
+  ) === true;
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(true);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [restrictMaintenanceCompletion, setRestrictMaintenanceCompletion] = useState(false);
@@ -54,6 +60,13 @@ export function GeneralSettingsTab() {
   const loadPriorityAccess = useCallback(async () => {
     setIsLoadingPriorityAccess(true);
     setPriorityAccessLoadError(null);
+    if (centralMode) {
+      // In central access, legacy priority passwords must not be consulted:
+      // policy comes exclusively from the workstation/module grants.
+      setPriorityConfigured(priorityModuleAllowed);
+      setIsLoadingPriorityAccess(false);
+      return;
+    }
 
     try {
       const status = await getDashboardPriorityAccessStatus();
@@ -65,7 +78,7 @@ export function GeneralSettingsTab() {
     } finally {
       setIsLoadingPriorityAccess(false);
     }
-  }, []);
+  }, [centralMode, priorityModuleAllowed]);
 
   useEffect(() => {
     void loadGeneralSettings();

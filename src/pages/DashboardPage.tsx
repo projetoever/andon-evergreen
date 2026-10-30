@@ -503,9 +503,17 @@ export function DashboardPage() {
             type="button"
             title={t("Configurar sons do ANDON")}
             aria-label={t("Configurar sons do ANDON")}
-            onClick={() =>
-              isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true)
-            }
+            onClick={() => {
+              if (!access) {
+                toast.error(t("Não foi possível verificar as permissões administrativas."));
+                return;
+              }
+              if (access.centralAccessEnabled) {
+                void navigate({ to: "/hub/admin", search: { section: "andon" } });
+              } else {
+                isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true);
+              }
+            }}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
           >
             <Settings className="h-4 w-4" />
@@ -513,12 +521,16 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <AdminLoginModal
-        open={adminLoginOpen}
-        onOpenChange={setAdminLoginOpen}
-        onSuccess={() => setAdminSettingsOpen(true)}
-      />
-      <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
+      {access && !access.centralAccessEnabled && (
+        <>
+          <AdminLoginModal
+            open={adminLoginOpen}
+            onOpenChange={setAdminLoginOpen}
+            onSuccess={() => setAdminSettingsOpen(true)}
+          />
+          <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
+        </>
+      )}
       <DashboardPriorityLoginModal
         open={priorityLoginOpen}
         onOpenChange={setPriorityLoginOpen}
