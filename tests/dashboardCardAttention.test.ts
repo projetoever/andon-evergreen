@@ -190,3 +190,45 @@ test("card evita redundância de recência enquanto existe chamado ativo", async
   assert.match(card, /\{currentCall && \(/);
   assert.match(card, /callElapsedLabel/);
 });
+
+
+test("UX-13: intensity is local, versioned and defaults to the existing discreet mode", async () => {
+  const { DEFAULT_DASHBOARD_ATTENTION_MODE, DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode } =
+    await import("../src/theme/dashboardAttentionMode");
+  assert.equal(DEFAULT_DASHBOARD_ATTENTION_MODE, "discreet");
+  assert.equal(DASHBOARD_ATTENTION_STORAGE_KEY, "andon.dashboardAttention.v1");
+  for (const invalid of [null, undefined, "invalid", "high", "danger", "light"]) {
+    assert.equal(parseDashboardAttentionMode(invalid), "discreet");
+  }
+  assert.equal(parseDashboardAttentionMode("highlighted"), "highlighted");
+  const dashboard = await readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8");
+  assert.match(dashboard, /aria-pressed=\{attentionMode === "highlighted"\}/);
+  assert.match(dashboard, /window\.localStorage\.setItem\(DASHBOARD_ATTENTION_STORAGE_KEY, next\)/);
+  assert.match(dashboard, /window\.addEventListener\("storage", onStorage\)/);
+  assert.match(dashboard, /window\.removeEventListener\("storage", onStorage\)/);
+  assert.match(dashboard, /attentionMode=\{attentionMode\}/);
+  assert.doesNotMatch(dashboard, /updateSystemSettings\(\{\s*attentionMode/);
+});
+
+test("UX-13: actual alert tone governs the stronger translucent card, never user colors", async () => {
+  const [card, grid, css] = await Promise.all([
+    readFile(new URL("../src/components/machines/MachineCard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/machines/MachineGrid.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(card, /getDashboardCardAttentionTone\(/);
+  assert.match(card, /attentionMode === "highlighted" && cardAttentionTone === "danger"/);
+  assert.match(card, /attentionMode === "highlighted" && cardAttentionTone === "warning"/);
+  assert.match(card, /attentionMode = "discreet"/);
+  assert.match(grid, /attentionMode=\{attentionMode\}/);
+  assert.match(css, /\.andon-card-highlighted-danger::before/);
+  assert.match(css, /\.andon-card-highlighted-warning::before/);
+  assert.match(css, /background-color: color-mix\(in oklch, var\(--danger\) 13%, transparent\)/);
+  assert.match(css, /background-color: color-mix\(in oklch, var\(--warning\) 14%, transparent\)/);
+  assert.match(css, /z-index: -1;/);
+  assert.match(css, /pointer-events: none;/);
+  assert.match(css, /\.animate-andon-card-halo-danger-strong/);
+  assert.match(css, /\.animate-andon-card-halo-warning-strong/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(css, /\.andon-card-highlighted-danger\s*\{[^}]*opacity:\s*0\./);
+});
