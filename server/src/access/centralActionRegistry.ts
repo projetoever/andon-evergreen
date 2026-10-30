@@ -39,6 +39,9 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // Operational settings are globally scoped and require primary Admin plus
   // full machine scope, not merely andon.read. Runtime guard enforces this.
   { method: "PATCH", route: "/api/system-settings", permission: "andon.read", scope: "module_global", module: "operational" },
+  // UX-12: independent primary-Admin-only policy, separate feature flag,
+  // CSRF and transactional audit. Registry is NOT runtime authorization.
+  { method: "PATCH", route: "/api/andon-visual-palette", permission: "andon.read", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
