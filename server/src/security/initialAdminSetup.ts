@@ -26,7 +26,7 @@ function digest(value: string) {
 export function isLocalInitialAdminRequest(request: FastifyRequest) {
   // Read the transport socket, never a proxy-derived request.ip / XFF.
   const ip = request.raw.socket.remoteAddress;
-  if (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(ip)) return false;
+  if (!ip || !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(ip)) return false;
   const host = request.headers.host ?? "";
   if (!/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/.test(host)) return false;
   const origin = request.headers.origin ?? "";
