@@ -35,6 +35,8 @@ import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
+import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
+import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -2381,6 +2383,31 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: NotesBody }>(
     "/api/andon-calls/:id/finish-maintenance",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralMaintenanceCompletion(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some((key) => !["notes", "followUpSessionIds"].includes(key)))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralMaintenanceCompletion(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            notes: body.notes,
+            followUpSessionIds: body.followUpSessionIds,
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (error instanceof AndonCallValidationError ||
+              error instanceof WorkstationAuthorizationError)
+            return badRequest(reply, error.message);
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({
         include: { machine: true },
         where: { id: request.params.id },
