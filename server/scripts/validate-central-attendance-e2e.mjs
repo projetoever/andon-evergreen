@@ -11,6 +11,7 @@ import { tokenHash } from "../dist/access/credentials.js";
 import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../dist/access/centralMultiAttendancePrototype.js";
 import { runCentralMaintenanceCompletion } from "../dist/access/centralMaintenanceCompletion.js";
+import { runCentralReturnToMaintenance } from "../dist/access/centralReturnToMaintenance.js";
 
 // A real PostgreSQL test, not mocked locks, AND NEVER a production callback.
 // Every database and the central write gate must be deliberately isolated.
@@ -281,6 +282,82 @@ try {
       assert.equal(duplicateFinish.json().error, "call_state_changed");
       assert.equal(await completedAudit(), 1);
       console.log("SEC-04/2F completion PASS: station ownership, machine scope, CSRF, rollback, follow-up and replay");
+
+      // SEC-04/2G: the same real call returns from selected follow-up to
+      // maintenance and preserves technician cycle and timing.
+      const previousReturnFlag = process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED;
+      process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED = "1";
+      const returnPath = "/api/andon-calls/" + httpCallId + "/return-to-maintenance";
+      const sendReturn = (body = { reason: "Maintenance resumed" }, extraHeaders = {}) =>
+        httpApp.inject({ method: "PATCH", url: returnPath,
+          headers: { ...headers, ...extraHeaders }, payload: body });
+      const returnAudit = () => db.auditEvent.count({
+        where: { resourceType: "andon_call", resourceId: httpCallId,
+          action: "calls.returnToMaintenance" },
+      });
+      try {
+        const missingReturnPermission = await sendReturn();
+        assert.equal(missingReturnPermission.statusCode, 403);
+        await db.accessPermission.create({
+          data: { userId, key: "calls.returnToMaintenance" },
+        });
+        assert.equal((await sendReturn(undefined,
+          { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
+        assert.equal((await sendReturn(undefined, { cookie: "" })).statusCode, 401);
+        assert.equal((await sendReturn({ reason: "ok", privilege: true })).statusCode, 400);
+
+        await db.accessMachine.delete({
+          where: { userId_machineId: { userId, machineId } },
+        });
+        const scopeDenied = await sendReturn();
+        assert.equal(scopeDenied.statusCode, 404);
+        await db.accessMachine.create({ data: { userId, machineId } });
+        await assert.rejects(runCentralReturnToMaintenance(db, {
+          token, workstationId: stationId, callId: httpCallId,
+          reason: "Rejected failed audit", ipAddress: "x".repeat(46),
+        }));
+        assert.equal((await db.andonCall.findUniqueOrThrow({
+          where: { id: httpCallId },
+        })).status, "post_maintenance");
+        assert.equal((await db.technicianSession.count({
+          where: { callId: httpCallId, endedAt: null, phase: "follow_up" },
+        })), 1);
+        assert.equal(await returnAudit(), 0);
+        process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED = "0";
+        const disabledReturn = await sendReturn();
+        assert.equal(disabledReturn.statusCode, 403);
+        assert.equal(disabledReturn.json().error, "central_action_not_supported");
+        process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED = "1";
+
+        const returned = await sendReturn({ reason: "Next maintenance cycle" });
+        assert.equal(returned.statusCode, 200, returned.body);
+        assert.equal(returned.json().status, "in_progress");
+        assert.equal(returned.json().maintenanceReturnCount, 1);
+        assert.equal(await returnAudit(), 1);
+        const activeMaintenance = await db.technicianSession.findMany({
+          where: { callId: httpCallId, endedAt: null, phase: "maintenance" },
+        });
+        assert.equal(activeMaintenance.length, 1);
+        assert.equal(activeMaintenance[0].cycleIndex, 2);
+        assert.equal(activeMaintenance[0].workstationId, stationId);
+        assert.equal((await db.technicianSession.count({
+          where: { callId: httpCallId, endedAt: null, phase: "follow_up" },
+        })), 0);
+        const resumedCall = await db.andonCall.findUniqueOrThrow({
+          where: { id: httpCallId },
+        });
+        assert(resumedCall.currentAttendanceStartedAt instanceof Date);
+        assert(resumedCall.postMaintenanceMinutes >= 0);
+        const replayReturn = await sendReturn();
+        assert.equal(replayReturn.statusCode, 409);
+        assert.equal(replayReturn.json().error, "call_state_changed");
+        assert.equal(await returnAudit(), 1);
+        console.log("SEC-04/2G return PASS: ACL, scope, CSRF, rollback, resumed technician, cycle & replay");
+      } finally {
+        if (previousReturnFlag === undefined)
+          delete process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED;
+        else process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED = previousReturnFlag;
+      }
     } finally {
       if (completionFlag === undefined)
         delete process.env.ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED;

@@ -37,6 +37,8 @@ import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttenda
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
 import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
 import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
+import { runCentralReturnToMaintenance } from "../access/centralReturnToMaintenance.js";
+import { isAuthorizedCentralReturnToMaintenance } from "../security/centralReturnToMaintenanceHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1516,6 +1518,108 @@ export async function applyMaintenanceCompletionDomainTransition(
           return findCallWithSessions(tx, currentCall.id);
 }
 
+/** Shared return-from-follow-up domain transition. Legacy and central
+ * authorization both call this SAME transaction-scoped mutation to preserve
+ * technician exclusivity, cycle count and maintenance/follow-up timing.
+ */
+export async function applyReturnToMaintenanceDomainTransition(
+  tx: Prisma.TransactionClient,
+  input: { callId: string; reason?: unknown },
+) {
+  const reference = await tx.andonCall.findUnique({
+    where: { id: input.callId }, select: { machineId: true },
+  });
+  if (!reference) throw new AccessError("call_not_found", 404);
+  await lockMachineCallFlow(tx, reference.machineId);
+        let currentCall = await tx.andonCall.findUnique({
+          where: { id: input.callId },
+          include: { machine: true, technicianSessions: true },
+        });
+        if (!currentCall || currentCall.status !== "post_maintenance") {
+          return null;
+        }
+        const sessionsToLock = currentCall.technicianSessions.filter(
+          (session) =>
+            !session.endedAt && (session.phase === "follow_up" || session.phase === null),
+        );
+        const technicianIds = Array.from(
+          new Set(
+            sessionsToLock
+              .map((session) => session.technicianId)
+              .filter((technicianId): technicianId is string => Boolean(technicianId)),
+          ),
+        ).sort();
+        for (const technicianId of technicianIds) {
+          await lockTechnicianSessionFlow(tx, technicianId);
+        }
+
+        currentCall = await tx.andonCall.findUnique({
+          where: { id: input.callId },
+          include: { machine: true, technicianSessions: true },
+        });
+        if (!currentCall || currentCall.status !== "post_maintenance") {
+          return null;
+        }
+        const activeFollowUpSessions = currentCall.technicianSessions.filter(
+          (session) =>
+            !session.endedAt && (session.phase === "follow_up" || session.phase === null),
+        );
+        const transitionAt = new Date();
+
+        if (activeFollowUpSessions.length) {
+          await tx.technicianSession.updateMany({
+            where: {
+              id: { in: activeFollowUpSessions.map((session) => session.id) },
+              endedAt: null,
+            },
+            data: {
+              endedAt: transitionAt,
+              endReason: "returned_to_maintenance",
+              productionModeAtEnd: currentCall.machine.productionMode,
+              machineStatusAtEnd: currentCall.machine.machineStatus,
+            },
+          });
+          await tx.technicianSession.createMany({
+            data: activeFollowUpSessions.map((session) => ({
+              callId: session.callId,
+              machineId: session.machineId,
+              technicianId: session.technicianId,
+              technicianName: session.technicianName,
+              technicalArea: session.technicalArea,
+              shiftId: session.shiftId,
+              shiftName: session.shiftName,
+              workstationId: session.workstationId,
+              phase: "maintenance",
+              cycleIndex: currentCall.maintenanceReturnCount + 2,
+              startedAt: transitionAt,
+              productionModeAtStart: currentCall.machine.productionMode,
+              machineStatusAtStart: currentCall.machine.machineStatus,
+            })),
+          });
+        }
+        await tx.andonCall.update({
+          where: { id: currentCall.id },
+          data: {
+            status: "in_progress",
+            currentAttendanceStartedAt: transitionAt,
+            maintenanceCompletedAt: null,
+            postMaintenanceMinutes:
+              (currentCall.postMaintenanceMinutes ?? 0) +
+              diffPreciseMinutes(currentCall.maintenanceCompletedAt, transitionAt),
+            maintenanceReturnCount: { increment: 1 },
+            notes: appendNote(
+              currentCall.notes,
+              optionalString(input.reason),
+              "Retorno à manutenção",
+            ),
+          },
+        });
+        if (!currentCall.isSystemTest) {
+          await syncMachineOperationalState(tx, currentCall.machineId);
+        }
+        return findCallWithSessions(tx, currentCall.id);
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
@@ -2446,6 +2550,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: ReturnToMaintenanceBody }>(
     "/api/andon-calls/:id/return-to-maintenance",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralReturnToMaintenance(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some((key) => key !== "reason"))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralReturnToMaintenance(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            reason: body.reason,
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({ where: { id: request.params.id } });
       if (!call) return notFound(reply, "Chamado não encontrado");
       if (call.category !== "maintenance") {
@@ -2455,96 +2580,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         return badRequest(reply, "Chamado não está em acompanhamento");
       }
 
-      const updatedCall = await prisma.$transaction(async (tx) => {
-        await lockMachineCallFlow(tx, call.machineId);
-        let currentCall = await tx.andonCall.findUnique({
-          where: { id: call.id },
-          include: { machine: true, technicianSessions: true },
-        });
-        if (!currentCall || currentCall.status !== "post_maintenance") {
-          return null;
-        }
-        const sessionsToLock = currentCall.technicianSessions.filter(
-          (session) =>
-            !session.endedAt && (session.phase === "follow_up" || session.phase === null),
-        );
-        const technicianIds = Array.from(
-          new Set(
-            sessionsToLock
-              .map((session) => session.technicianId)
-              .filter((technicianId): technicianId is string => Boolean(technicianId)),
-          ),
-        ).sort();
-        for (const technicianId of technicianIds) {
-          await lockTechnicianSessionFlow(tx, technicianId);
-        }
-
-        currentCall = await tx.andonCall.findUnique({
-          where: { id: call.id },
-          include: { machine: true, technicianSessions: true },
-        });
-        if (!currentCall || currentCall.status !== "post_maintenance") {
-          return null;
-        }
-        const activeFollowUpSessions = currentCall.technicianSessions.filter(
-          (session) =>
-            !session.endedAt && (session.phase === "follow_up" || session.phase === null),
-        );
-        const transitionAt = new Date();
-
-        if (activeFollowUpSessions.length) {
-          await tx.technicianSession.updateMany({
-            where: {
-              id: { in: activeFollowUpSessions.map((session) => session.id) },
-              endedAt: null,
-            },
-            data: {
-              endedAt: transitionAt,
-              endReason: "returned_to_maintenance",
-              productionModeAtEnd: currentCall.machine.productionMode,
-              machineStatusAtEnd: currentCall.machine.machineStatus,
-            },
-          });
-          await tx.technicianSession.createMany({
-            data: activeFollowUpSessions.map((session) => ({
-              callId: session.callId,
-              machineId: session.machineId,
-              technicianId: session.technicianId,
-              technicianName: session.technicianName,
-              technicalArea: session.technicalArea,
-              shiftId: session.shiftId,
-              shiftName: session.shiftName,
-              workstationId: session.workstationId,
-              phase: "maintenance",
-              cycleIndex: currentCall.maintenanceReturnCount + 2,
-              startedAt: transitionAt,
-              productionModeAtStart: currentCall.machine.productionMode,
-              machineStatusAtStart: currentCall.machine.machineStatus,
-            })),
-          });
-        }
-        await tx.andonCall.update({
-          where: { id: currentCall.id },
-          data: {
-            status: "in_progress",
-            currentAttendanceStartedAt: transitionAt,
-            maintenanceCompletedAt: null,
-            postMaintenanceMinutes:
-              (currentCall.postMaintenanceMinutes ?? 0) +
-              diffPreciseMinutes(currentCall.maintenanceCompletedAt, transitionAt),
-            maintenanceReturnCount: { increment: 1 },
-            notes: appendNote(
-              currentCall.notes,
-              optionalString(request.body?.reason),
-              "Retorno à manutenção",
-            ),
-          },
-        });
-        if (!currentCall.isSystemTest) {
-          await syncMachineOperationalState(tx, currentCall.machineId);
-        }
-        return findCallWithSessions(tx, currentCall.id);
-      });
+      const updatedCall = await prisma.$transaction((tx) =>
+        applyReturnToMaintenanceDomainTransition(tx, {
+          callId: call.id, reason: request.body?.reason,
+        }),
+      );
 
       if (!updatedCall) return badRequest(reply, "Chamado não está em acompanhamento");
       return updatedCall;
