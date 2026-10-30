@@ -536,3 +536,28 @@ test("route tree gerado possui EOL fixo e CI detecta build que suje o arquivo", 
   assert.match(workflow, /git diff --exit-code -- src\/routeTree\.gen\.ts/);
   assert.match(workflow, /git status --porcelain -- src\/routeTree\.gen\.ts/);
 });
+
+test("instalacao nova abre cadastro local e reconhece seguranca pendente no health check", async () => {
+  const [install, common] = await Promise.all([
+    readInstaller("install-andon-server.ps1"),
+    readInstaller("AndonInstaller.Common.ps1"),
+  ]);
+  assert.match(install, /PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL/);
+  assert.match(install, /\$firstSetupScheme = if \(\$Global:AndonTransportMode -eq "https"\)/);
+  assert.match(install, /\/\/localhost:\$Global:AndonFrontendPort\/hub/);
+  assert.match(install, /Start-Process -FilePath \$firstSetupUrl/);
+  const firstRunSection = install.slice(install.indexOf('Write-AndonHeader "PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL"'));
+  assert.doesNotMatch(firstRunSection, /Read-Host|ConvertFrom-SecureString|Set-Content/);
+
+  const healthSection = common.slice(
+    common.indexOf("function Test-AndonApiWrite {"),
+    common.indexOf("function Remove-AndonTasks {"),
+  );
+  assert.ok(healthSection.startsWith("function Test-AndonApiWrite {"));
+  const bootstrapCheck = healthSection.indexOf('"/api/admin-auth/status"');
+  const machineRead = healthSection.indexOf('/api/machines?includeInactive=true');
+  assert.ok(bootstrapCheck >= 0 && machineRead > bootstrapCheck,
+    "health check must detect first-run setup before probing operational reads/writes");
+  assert.match(healthSection, /\$adminState\.passwordConfigured -ne \$true/);
+  assert.match(healthSection, /Status "SKIP"/);
+});
