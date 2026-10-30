@@ -47,6 +47,8 @@ import { runCentralFinishCall } from "../access/centralFinishCallWrite.js";
 import { isAuthorizedCentralFinishCall } from "../security/centralFinishCallHttp.js";
 import { runCentralCancelCall } from "../access/centralCancelCallWrite.js";
 import { isAuthorizedCentralCancelCall } from "../security/centralCancelCallHttp.js";
+import { runCentralTechnicianEnd } from "../access/centralTechnicianEnd.js";
+import { isAuthorizedCentralTechnicianEnd } from "../security/centralTechnicianEndHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -979,7 +981,7 @@ async function findCallWithSessions(tx: Prisma.TransactionClient, callId: string
   });
 }
 
-async function endActiveTechnicianSession(
+export async function endActiveTechnicianSession(
   tx: Prisma.TransactionClient,
   params: {
     callId: string;
@@ -2936,6 +2938,34 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: EndTechnicianBody }>(
     "/api/andon-calls/:id/technicians/end",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralTechnicianEnd(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        // The central path must never infer technician identity from a name.
+        if (!body.credential || Object.keys(body).some((key) =>
+            !["credential", "reason", "notes"].includes(key)))
+          return reply.status(400).send({ error: "technician_credential_required" });
+        try {
+          return await runCentralTechnicianEnd(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            credential: body.credential,
+            reason: body.reason, notes: body.notes,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (error instanceof AndonCallValidationError)
+            return badRequest(reply, error.message);
+          if (error instanceof ActiveTechnicianSessionNotFoundError ||
+              error instanceof FinishCallNotFoundError)
+            return notFound(reply, error.message);
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({ where: { id: request.params.id } });
       if (!call) return notFound(reply, "Chamado não encontrado");
 
