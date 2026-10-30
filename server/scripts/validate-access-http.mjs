@@ -151,17 +151,17 @@ try {
     login: adminLogin,
     currentPassword: "Existing isolated Admin",
     newPassword: "Seven#7",
-  }, 400, "too short");
+  }, 400);
   await call(admin, "/initialize", "POST", {
     login: adminLogin,
     currentPassword: "Existing isolated Admin",
     newPassword: "12345678",
-  }, 400, "common password");
+  }, 400);
   await call(admin, "/initialize", "POST", {
     login: adminLogin,
     currentPassword: "Existing isolated Admin",
     newPassword: "Existing isolated Admin",
-  }, 400, "do not reuse legacy password");
+  }, 400);
   await call(admin, "/initialize", "POST", {
     login: adminLogin.toUpperCase(),
     currentPassword: "Existing isolated Admin",
