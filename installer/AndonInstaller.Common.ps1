@@ -985,7 +985,8 @@ function Save-AndonNetworkConfig {
     $frontendUrl = "${transportMode}://${publicHost}:$($Config.frontendPort)"
     $apiUrl = "${transportMode}://${publicHost}:$($Config.apiPort)"
     $corsOrigins = if ($transportMode -eq "https") {
-        $frontendUrl
+        # Add localhost explicitly for first-run setup (still guarded by actual loopback IP).
+        "$frontendUrl,https://localhost:$($Config.frontendPort),https://127.0.0.1:$($Config.frontendPort)"
     } else {
         "http://localhost:$($Config.frontendPort),http://127.0.0.1:$($Config.frontendPort),http://${ServerIp}:$($Config.frontendPort)"
     }
