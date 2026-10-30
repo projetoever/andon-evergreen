@@ -22,6 +22,7 @@ import { markCentralAttendanceAuthorized, isCentralAttendanceMutation } from "./
 import { isCentralPriorityWrite, markCentralPriorityAuthorized } from "./centralPriorityHttp.js";
 import { isCentralMaintenanceCompletionMutation, markCentralMaintenanceCompletionAuthorized } from "./centralMaintenanceCompletionHttp.js";
 import { isCentralReturnToMaintenanceMutation, markCentralReturnToMaintenanceAuthorized } from "./centralReturnToMaintenanceHttp.js";
+import { isCentralOpenCallMutation, markCentralOpenCallAuthorized } from "./centralOpenCallHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -109,7 +110,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path) &&
           !isCentralAttendanceMutation(request.method, path) &&
           !isCentralMaintenanceCompletionMutation(request.method, path) &&
-          !isCentralReturnToMaintenanceMutation(request.method, path))
+          !isCentralReturnToMaintenanceMutation(request.method, path) &&
+          !isCentralOpenCallMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -130,6 +132,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralReturnToMaintenanceMutation(request.method, path)) {
           markCentralReturnToMaintenanceAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralOpenCallMutation(request.method, path)) {
+          markCentralOpenCallAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralPriorityWrite(request.method, path)) {
