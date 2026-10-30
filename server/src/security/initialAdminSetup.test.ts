@@ -11,7 +11,7 @@ function request(ip: string, host: string, origin: string) {
   return {
     ip, id: "unit-request",
     headers: { host, origin },
-    raw: { socket: { encrypted: false } },
+    raw: { socket: { encrypted: false, remoteAddress: ip } },
   } as unknown as FastifyRequest;
 }
 
