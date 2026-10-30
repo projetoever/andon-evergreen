@@ -6,6 +6,7 @@ import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
+import { AppearanceSettingsPreview } from "@/components/settings/AppearanceSettingsPreview";
 import { AttendanceModeSettingsTab } from "@/components/settings/AttendanceModeSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
@@ -163,6 +164,7 @@ export function HubCentralAdminPage() {
               </p>
             </section>
             <GeneralSettingsTab />
+            <AppearanceSettingsPreview />
             <section className="rounded-xl border border-border bg-card p-4 md:p-5">
               <AttendanceModeSettingsTab />
             </section>

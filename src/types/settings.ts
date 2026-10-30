@@ -41,6 +41,7 @@ export interface AdminSession {
 
 export type SettingsTab =
   | "general"
+  | "appearance"
   | "sounds"
   | "attendance"
   | "technicians"
