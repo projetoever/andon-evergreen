@@ -554,7 +554,7 @@ test("instalacao nova abre cadastro local e reconhece seguranca pendente no heal
     common.indexOf("function Remove-AndonTasks {"),
   );
   assert.ok(healthSection.startsWith("function Test-AndonApiWrite {"));
-  const bootstrapCheck = healthSection.indexOf('"/api/admin-auth/status"');
+  const bootstrapCheck = healthSection.indexOf("/api/admin-auth/status");
   const machineRead = healthSection.indexOf('/api/machines?includeInactive=true');
   assert.ok(bootstrapCheck >= 0 && machineRead > bootstrapCheck,
     "health check must detect first-run setup before probing operational reads/writes");
