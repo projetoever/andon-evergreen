@@ -28,6 +28,7 @@ import { registerMachineSetRoutes } from "./routes/machineSets.js";
 import { registerMachineSubsetRoutes } from "./routes/machineSubsets.js";
 import { registerShiftRoutes } from "./routes/shifts.js";
 import { registerSystemSettingsRoutes } from "./routes/systemSettings.js";
+import { registerVisualPaletteRoutes } from "./routes/visualPalette.js";
 import { registerTechnicianRoutes } from "./routes/technicians.js";
 import { registerWorkstationRoutes } from "./routes/workstations.js";
 import { registerModuleRoutes } from "./routes/modules.js";
@@ -96,6 +97,7 @@ export function buildServer() {
   void registerFailureEventRoutes(app);
   void registerDiagnosisAuditRoutes(app);
   void registerSystemSettingsRoutes(app);
+  void registerVisualPaletteRoutes(app);
   void registerDashboardPriorityRoutes(app);
   void registerTechnicianRoutes(app);
   void registerShiftRoutes(app);
