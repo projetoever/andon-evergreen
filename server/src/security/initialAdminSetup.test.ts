@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FastifyRequest } from "fastify";
+import { isBlockedBeforeAdminSetup } from "./initialAdminSetupGuard.js";
 import {
   isLocalInitialAdminRequest,
   issueInitialAdminSetupToken,
@@ -35,4 +36,18 @@ test("fresh install setup token is issued only to same-machine localhost browser
     if (saved === undefined) delete process.env.CORS_ORIGINS;
     else process.env.CORS_ORIGINS = saved;
   }
+});
+
+test("unconfigured installation denies all operational writes but permits local setup and read-only status", () => {
+  for (const [method, path] of [
+    ["POST", "/api/andon-calls"], ["PATCH", "/api/system-settings"],
+    ["POST", "/api/access/initialize"], ["POST", "/api/workstations/register"],
+    ["POST", "/api/technicians/identify"], ["PUT", "/api/modules/settings"],
+    ["DELETE", "/api/machines/1"],
+  ]) assert.equal(isBlockedBeforeAdminSetup(method, path), true);
+  for (const [method, path] of [
+    ["GET", "/api/admin-auth/status"], ["GET", "/api/machines"],
+    ["OPTIONS", "/api/andon-calls"], ["POST", "/api/admin-auth/initialize"],
+    ["POST", "/api/admin-auth/recover"], ["GET", "/health"],
+  ]) assert.equal(isBlockedBeforeAdminSetup(method, path), false);
 });
