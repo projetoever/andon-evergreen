@@ -63,8 +63,13 @@ export function GlobalVisualPaletteProvider({ children }: { children: ReactNode 
 
   useEffect(() => {
     const root = document.documentElement;
-    for (const key of VISUAL_PALETTE_KEYS)
-      root.style.setProperty(VARIABLES[key], accentForTheme(current.palette[key], theme));
+    for (const key of VISUAL_PALETTE_KEYS) {
+      // The unmodified industrial preset must preserve the existing CSS and
+      // category identity colors exactly, including isolated component tests.
+      if (current.palette[key] === DEFAULT_VISUAL_PALETTE[key])
+        root.style.removeProperty(VARIABLES[key]);
+      else root.style.setProperty(VARIABLES[key], accentForTheme(current.palette[key], theme));
+    }
     return () => {
       for (const key of VISUAL_PALETTE_KEYS)
         root.style.removeProperty(VARIABLES[key]);
