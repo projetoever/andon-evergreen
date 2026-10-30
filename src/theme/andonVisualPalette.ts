@@ -3,7 +3,7 @@
  * Non-critical accents are selected from a small, vetted set; alarm danger/
  * warning colors and their UI states remain exclusively in semantic CSS.
  */
-export type VisualAccent = "evergreen" | "ocean" | "indigo" | "violet";
+export type VisualAccent = "slate" | "evergreen" | "ocean" | "indigo" | "violet";
 export type VisualPaletteKey =
   | "cardBorder"
   | "selectedCardBorder"
@@ -24,6 +24,7 @@ export const VISUAL_ACCENTS: Readonly<Record<VisualAccent, Readonly<{
   dark: string;
   light: string;
 }>>> = Object.freeze({
+  slate: Object.freeze({ dark: "#526578", light: "#CBD5E1" }),
   evergreen: Object.freeze({ dark: "#35BE79", light: "#16794A" }),
   ocean: Object.freeze({ dark: "#55B6EF", light: "#12668F" }),
   indigo: Object.freeze({ dark: "#A0A5FF", light: "#4347A7" }),
@@ -37,7 +38,7 @@ export const VISUAL_PALETTE_KEYS: readonly VisualPaletteKey[] = Object.freeze([
 
 export const DEFAULT_VISUAL_PALETTE: VisualPaletteDraft = Object.freeze({
   version: 1,
-  cardBorder: "evergreen",
+  cardBorder: "slate",
   selectedCardBorder: "evergreen",
   sectorSelection: "evergreen",
   operationAccent: "evergreen",
