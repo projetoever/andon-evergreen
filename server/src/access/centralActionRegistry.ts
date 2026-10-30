@@ -71,6 +71,10 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "POST", route: "/api/andon-calls/batch", permission: "calls.open", scope: "machine_from_body", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/attend", permission: "calls.attend", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/cancel", permission: null, scope: "needs_call_ownership", module: "operational", blockedReason: "calls.cancel.own versus calls.cancel.any requires domain ownership resolution" },
+  // Identification is a read-like credential preflight behind an exact POST route,
+  // call-scoped and requiring calls.attend OR calls.technicians.manage.
+  // The runtime guard enforces the alternative privilege; this catalog is NOT ACL.
+  { method: "POST", route: "/api/technicians/identify", permission: "calls.attend", scope: "machine_from_call_record", module: "operational" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/:technicianName/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
