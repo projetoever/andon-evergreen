@@ -257,12 +257,50 @@
     animation: andon-card-halo 1.7s ease-in-out infinite;
   }
 
+  /*
+   * UX-13: opt-in stronger alert. The tinted ::before is behind the card
+   * content in its own stacking context; no opacity on text/icons/buttons.
+   * Severity colors come exclusively from the original status selector.
+   */
+  .andon-card-highlighted-danger::before,
+  .andon-card-highlighted-warning::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .andon-card-highlighted-danger::before {
+    background-color: color-mix(in oklch, var(--danger) 13%, transparent);
+  }
+  .andon-card-highlighted-warning::before {
+    background-color: color-mix(in oklch, var(--warning) 14%, transparent);
+  }
+  @keyframes andon-card-halo-strong {
+    0%, 100% { transform: scale(1); opacity: 0.92; box-shadow: 0 0 0 2px currentColor; }
+    50% { transform: scale(1.012); opacity: 0.42; box-shadow: 0 0 0 7px currentColor; }
+  }
+  .animate-andon-card-halo-danger-strong {
+    animation: andon-card-halo-strong 1.7s ease-in-out infinite;
+  }
+  .animate-andon-card-halo-warning-strong {
+    animation: andon-card-halo-strong 2s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-andon-card-halo-danger,
     .animate-andon-card-halo-warning {
       animation: none;
       opacity: 0.72;
       box-shadow: 0 0 0 3px currentColor;
+    }
+    .animate-andon-card-halo-danger-strong,
+    .animate-andon-card-halo-warning-strong {
+      animation: none;
+      opacity: 0.9;
+      transform: none;
+      box-shadow: 0 0 0 4px currentColor;
     }
   }
 }
