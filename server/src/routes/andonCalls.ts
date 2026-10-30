@@ -41,6 +41,8 @@ import { runCentralReturnToMaintenance } from "../access/centralReturnToMaintena
 import { isAuthorizedCentralReturnToMaintenance } from "../security/centralReturnToMaintenanceHttp.js";
 import { runCentralOpenCallWrite } from "../access/centralOpenCallWrite.js";
 import { isAuthorizedCentralOpenCall } from "../security/centralOpenCallHttp.js";
+import { runCentralBatchOpenCallWrite } from "../access/centralBatchOpenCallWrite.js";
+import { isAuthorizedCentralBatchOpen } from "../security/centralBatchOpenHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1953,7 +1955,15 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: BatchOpenAndonCallsBody }>("/api/andon-calls/batch", async (request, reply) => {
+    const centralBatch = centralAccessEnabled();
+    if (centralBatch && !isAuthorizedCentralBatchOpen(request))
+      throw new AccessError("central_action_not_supported");
     const body = request.body ?? {};
+    if (centralBatch && Object.keys(body).some(key => ![
+      "machineId", "subtypes", "criticality", "machineCondition",
+      "workOrderNumber", "operatorNote",
+    ].includes(key)))
+      return reply.status(403).send({ error: "reserved_call_origin" });
     const machineId = body.machineId === undefined ? undefined : String(body.machineId);
     const subtypes = Array.isArray(body.subtypes)
       ? Array.from(
@@ -1984,7 +1994,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       return badRequest(reply, "Informação do operador deve ter no máximo 500 caracteres");
     }
     try {
-      const calls = await prisma.$transaction(async (tx) => {
+      const applyBatch = async (tx: Prisma.TransactionClient, verifiedCreator?: string) => {
         await lockMachineCallFlow(tx, machineId);
         for (const subtype of [...subtypes].sort()) {
           await lockAndonCategoryFlow(tx, subtype);
@@ -2058,7 +2068,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               totalCallMinutes: 0,
               machineStoppedMinutes: 0,
               impactTrackingVersion: 1,
-              createdBy: "kiosk",
+              createdBy: verifiedCreator ?? "kiosk",
               origin: "kiosk",
               isSystemTest: false,
               productionModeAtOpen: machine.productionMode,
@@ -2110,11 +2120,25 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           },
         });
 
-        return createdCalls;
-      });
+        if (createdCalls.some(call => !call || typeof call.id !== "string" ||
+          typeof call.status !== "string"))
+          throw new AndonCallValidationError("Falha na leitura dos chamados criados");
+        return createdCalls as Array<{ id: string; status: string }>;
+      };
+      const calls = centralBatch
+        ? await runCentralBatchOpenCallWrite(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            machineId: machineId!,
+            body: body as Record<string, unknown>,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          }, (tx, principal) => applyBatch(tx, principal.login))
+        : await prisma.$transaction(tx => applyBatch(tx));
 
       return reply.status(201).send(calls);
     } catch (error) {
+      if (error instanceof AccessError)
+        return reply.status(error.statusCode).send({ error: error.code });
       if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
       throw error;
     }
