@@ -1752,39 +1752,39 @@ export async function applyFinalCallDomainTransition(
             ? await machineHasActiveSets(tx, call.machineId)
             : false;
 
-          if (requiresAssetConfirmation && hasActiveSets && !confirmedMachineSetId) {
+          if (requiresAssetConfirmation && hasActiveSets && !input.confirmedMachineSetId) {
             throw new FinishCallValidationError(
               "O conjunto confirmado é obrigatório para esta máquina",
             );
           }
 
           const confirmedMachineSet =
-            requiresAssetConfirmation && confirmedMachineSetId
+            requiresAssetConfirmation && input.confirmedMachineSetId
               ? await findMachineSetForConfirmation(
                   tx,
                   call.machineId,
-                  confirmedMachineSetId,
+                  input.confirmedMachineSetId,
                   call.machineSetId,
                 )
               : null;
 
-          if (requiresAssetConfirmation && confirmedMachineSetId && !confirmedMachineSet) {
+          if (requiresAssetConfirmation && input.confirmedMachineSetId && !confirmedMachineSet) {
             throw new FinishCallValidationError(
               "Conjunto confirmado inválido, inativo ou não pertence à máquina",
             );
           }
 
           const confirmedMachineSubset =
-            requiresAssetConfirmation && confirmedMachineSetId && confirmedMachineSubsetId
+            requiresAssetConfirmation && input.confirmedMachineSetId && input.confirmedMachineSubsetId
               ? await findMachineSubsetForConfirmation(
                   tx,
-                  confirmedMachineSetId,
-                  confirmedMachineSubsetId,
+                  input.confirmedMachineSetId,
+                  input.confirmedMachineSubsetId,
                   call.machineSubsetId,
                 )
               : null;
 
-          if (requiresAssetConfirmation && confirmedMachineSubsetId && !confirmedMachineSubset) {
+          if (requiresAssetConfirmation && input.confirmedMachineSubsetId && !confirmedMachineSubset) {
             throw new FinishCallValidationError(
               "Subconjunto confirmado inválido, inativo ou incompatível com o conjunto",
             );
@@ -1813,7 +1813,7 @@ export async function applyFinalCallDomainTransition(
           }
 
           const preserveLegacyOpeningSnapshot =
-            requiresAssetConfirmation && !hasActiveSets && !confirmedMachineSetId;
+            requiresAssetConfirmation && !hasActiveSets && !input.confirmedMachineSetId;
 
           const finalMachineSetId = confirmedMachineSet?.id ?? null;
 
@@ -1830,7 +1830,7 @@ export async function applyFinalCallDomainTransition(
             (preserveLegacyOpeningSnapshot ? call.machineSetTypeSnapshot : null);
 
           const preserveLegacyOpeningSubsetSnapshot =
-            preserveLegacyOpeningSnapshot && !confirmedMachineSubsetId;
+            preserveLegacyOpeningSnapshot && !input.confirmedMachineSubsetId;
 
           const finalMachineSubsetId = confirmedMachineSubset?.id ?? null;
 
@@ -1891,7 +1891,7 @@ export async function applyFinalCallDomainTransition(
 
           const normalizedAssetChangeReason = resolveAssetChangeReason(
             locationChanged,
-            assetChangeReason,
+            input.assetChangeReason,
           );
 
           const now = new Date();
@@ -1903,8 +1903,8 @@ export async function applyFinalCallDomainTransition(
                 machineId: call.machineId,
                 currentMachineStatus: call.machine.machineStatus,
                 finishedAt: now,
-                requestedMachineStatus,
-                requestedImpactCallIds,
+                requestedMachineStatus: input.requestedMachineStatus,
+                requestedImpactCallIds: input.requestedImpactCallIds,
                 requireStatusConfirmation: true,
               });
 
@@ -1922,7 +1922,7 @@ export async function applyFinalCallDomainTransition(
               status: "finished",
               currentAttendanceStartedAt: null,
               finishedAt: now,
-              notes: mergeFinalDescription(call.notes, finalDescription),
+              notes: mergeFinalDescription(call.notes, input.finalDescription),
               failureClassification: call.isSystemTest ? null : failureClassification,
               ...snapshot,
               failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
