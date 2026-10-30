@@ -128,6 +128,17 @@ try {
   assert.equal(await changes(), 0);
   assert.equal(await audits(), 0);
 
+  const descriptionCall = await createCall();
+  const descriptionOnly = await send(descriptionCall, {}, {
+    ...payload, failureClassification: initialValue,
+    failureDescription: "New explanation, unchanged BI classification",
+  });
+  assert.equal(descriptionOnly.statusCode, 200, descriptionOnly.body);
+  assert.equal(descriptionOnly.json().failureClassification, initialValue);
+  assert.equal((await db.auditEvent.count({
+    where: { action: "diagnosis.edit", resourceId: descriptionCall },
+  })), 1, "description edit needs no analytics.reclassify grant");
+
   const denied = await send();
   assert.equal(denied.statusCode, 403, denied.body);
   assert.equal(denied.json().error, "permission_denied");
