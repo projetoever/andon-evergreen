@@ -164,22 +164,30 @@ test("backend e modo local validam detalhes e preservam descrição única", asy
     readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/services/andonService.ts", import.meta.url), "utf8"),
   ]);
-  const transactionStart = route.indexOf("const updatedCall = await prisma.$transaction");
-  const eventLookup = route.indexOf("const openFailureEvent", transactionStart);
-  const eventUpdate = route.indexOf("await tx.failureEvent.update", eventLookup);
-  const callUpdate = route.indexOf("await tx.andonCall.update", eventUpdate);
+  // The legacy and central routes now execute the SAME finishing domain
+  // under their respective caller-owned PostgreSQL transactions.
+  const domainStart = route.indexOf("export async function applyFinalCallDomainTransition");
+  const domainEnd = route.indexOf("export async function registerAndonCallRoutes", domainStart);
+  const finishDomain = route.slice(domainStart, domainEnd);
+  const transactionStart = finishDomain.indexOf("await lockMachineCallFlow");
+  const eventLookup = finishDomain.indexOf("const openFailureEvent", transactionStart);
+  const eventUpdate = finishDomain.indexOf("await tx.failureEvent.update", eventLookup);
+  const callUpdate = finishDomain.indexOf("await tx.andonCall.update", eventUpdate);
 
+  assert.ok(domainStart >= 0 && domainEnd > domainStart);
   assert.ok(transactionStart >= 0 && eventLookup > transactionStart);
   assert.ok(eventUpdate > eventLookup && callUpdate > eventUpdate);
+  assert.match(route, /await prisma\.\$transaction\(applyFinish\)/);
+  assert.match(route, /runCentralFinishCall\(prisma/);
   assert.match(route, /GENERIC_FAILURE_CLASSIFICATIONS/);
   assert.match(route, /tx\.failureClassification\.findUnique/);
   assert.match(route, /applicableFailureEvent\?\.classification !== catalogClassification\.value/);
   assert.match(
     route,
-    /const resolvedFailureDescription =\s*optionalString\(body\.failureDescription\) \?\? optionalString\(body\.notes\)/,
+    /const resolvedFailureDescription =\s*optionalString\(input\.body\.failureDescription\) \?\? optionalString\(input\.body\.notes\)/,
   );
   assert.match(route, /if \(!resolvedFailureDescription\)/);
-  const finishRoute = route.slice(transactionStart);
+  const finishRoute = finishDomain;
   assert.doesNotMatch(finishRoute, /tx\.failureEvent\.create/);
   assert.match(finishRoute, /if \(!call\.isSystemTest\)/);
   assert.match(finishRoute, /failureClassification: call\.isSystemTest \? null : failureClassification/);
@@ -188,7 +196,7 @@ test("backend e modo local validam detalhes e preservam descrição única", asy
     route,
     /const finalDescription =\s*optionalString\(body\.notes\) \?\? optionalString\(body\.failureDescription\)/,
   );
-  assert.match(route, /notes: mergeFinalDescription\(call\.notes, finalDescription\)/);
+  assert.match(route, /notes: mergeFinalDescription\(call\.notes, input\.finalDescription\)/);
   assert.doesNotMatch(
     route,
     /Falha encerrada automaticamente na finalização do chamado responsável/,
