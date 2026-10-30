@@ -22,6 +22,7 @@ const AUDITED_ROUTE_FILES = [
   "failureClassifications.ts",
   "shifts.ts",
   "systemSettings.ts",
+  "visualPalette.ts",
   "workstations.ts",
   "modules.ts",
   "moduleCredentials.ts"
