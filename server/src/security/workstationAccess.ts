@@ -114,6 +114,15 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
+      // Publicly selected operational settings (not credentials) and the
+      // read-only global dashboard sound state have no machine-specific rows.
+      // Selected-machine personnel must read them to render PIN/RFID dialogs
+      // and show the actual siren state; writes remain independently blocked.
+      if (request.method === "GET" &&
+          (path === "/api/system-settings" || path === "/api/dashboard-sound-state")) {
+        assertModule(principal, workstation, "operational");
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
