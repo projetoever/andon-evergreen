@@ -49,6 +49,7 @@ const errorLabels: Record<string, string> = {
   current_password_required: "Informe a senha atual correta.",
   invalid_input: "Confira os campos. A senha pessoal deve ter de 8 a 128 caracteres.",
   password_reuse_denied: "A nova senha central deve ser diferente da senha Admin legada.",
+  password_policy_failed: "Use 8 a 128 caracteres e evite senhas comuns ou repetitivas.",
   invalid_user: "Confira os campos e mantenha contas kiosk inativas.",
   invalid_machine_scope: "Uma máquina selecionada não está mais disponível.",
 };
