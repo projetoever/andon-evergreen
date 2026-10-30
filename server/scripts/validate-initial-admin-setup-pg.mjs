@@ -98,7 +98,7 @@ try {
     where: { id: "global" }, data: { adminPasswordHash: original.adminPasswordHash },
   });
   else await db.systemSettings.deleteMany({ where: { id: "global" } });
-  await db.auditEvent.deleteMany({ where: { action: "admin.global_password.initialized" } });
+  // AuditEvent is append-only by database design; preserve its test entry.
   if (savedCors === undefined) delete process.env.CORS_ORIGINS;
   else process.env.CORS_ORIGINS = savedCors;
   await db.$disconnect();
