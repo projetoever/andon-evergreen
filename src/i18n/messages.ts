@@ -1,5 +1,14 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.",
+    "With central login, identify the technician using PIN or tag. Name selection remains available only in legacy mode.",
+    "使用集中式登入時，請透過 PIN 或識別標籤確認維修人員身分。依姓名選擇僅適用於舊版模式。"],
+  ["No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.",
+    "In central login, name selection does not authenticate the technician. Attendance requires PIN or tag, regardless of the saved legacy mode.",
+    "在集中式登入中，僅選擇姓名無法驗證維修人員身分。無論舊版設定為何，處理作業都必須使用 PIN 或標籤。"],
+  ["Com login central, use PIN ou tag para identificar o mantenedor.",
+    "With central login, use PIN or tag to identify the technician.",
+    "使用集中式登入時，請使用 PIN 或標籤驗證維修人員身分。"],
   ["ANDON WEB INDUSTRIAL","ANDON WEB INDUSTRIAL","ANDON WEB INDUSTRIAL"],
   ["Identificação da empresa e unidade","Company and plant identification","公司與廠區資訊"],
   ["Empresa e unidade","Company and plant","公司與廠區"],
