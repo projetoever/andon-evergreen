@@ -39,6 +39,11 @@ test("personal workstation settings require own-station scope, not admin rights"
     "own_workstation_machine");
 });
 
+test("global operational settings require dedicated primary Admin guard", () => {
+  assert.equal(classifyCentralRouteAction("PATCH", "/api/system-settings")?.scope, "module_global");
+  assert.equal(classifyCentralRouteAction("PATCH", "/api/dashboard-sound-state"), null);
+});
+
 test("BI requires filtered aggregates and priority edits differ from reads", () => {
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/overview?period=week")?.scope, "aggregate_filter");
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/filter-options")?.scope, "collection_filter");
