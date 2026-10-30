@@ -1671,6 +1671,23 @@ async function run() {
   assert.ok(endedSupportSession.endedAt);
   assert.equal(endedSupportSession.endReason, "support_finished");
 
+  // Never allow individual termination of the final active maintainer.
+  const blockedLastEnd = await request(
+    `/api/andon-calls/${electricalCall.id}/technicians/end`,
+    json("PATCH", {
+      credential: { method: "rfid", value: "TAG-ELECTRICAL-47" },
+      reason: "support_finished",
+    }),
+    400,
+  );
+  assert.match(blockedLastEnd.message, /último mantenedor/);
+  const afterBlockedLastEnd = await prisma.andonCall.findUniqueOrThrow({
+    where: { id: electricalCall.id },
+    include: { technicianSessions: true },
+  });
+  assert.equal(afterBlockedLastEnd.status, "in_progress");
+  assert.equal(afterBlockedLastEnd.technicianSessions.filter(s => !s.endedAt).length, 1);
+
   const firstAttendanceStartedAt = new Date(Date.now() - 11 * 1000);
   await prisma.andonCall.update({
     where: { id: electricalCall.id },
