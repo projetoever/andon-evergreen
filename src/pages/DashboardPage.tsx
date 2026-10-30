@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
-import { BarChart3, ListOrdered, Volume2, VolumeX, Settings } from "lucide-react";
+import { BarChart3, ListOrdered, Volume2, VolumeX, Settings, Eye } from "lucide-react";
+import { DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode, type DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
@@ -55,6 +56,33 @@ export function DashboardPage() {
 
   const navigate = useNavigate();
   const { t } = useLanguage();
+  // SSR-safe dark-factory dashboard stays discreet until browser preferences load.
+  const [attentionMode, setAttentionMode] = useState<DashboardAttentionMode>("discreet");
+  useEffect(() => {
+    try {
+      setAttentionMode(parseDashboardAttentionMode(
+        window.localStorage.getItem(DASHBOARD_ATTENTION_STORAGE_KEY),
+      ));
+    } catch {
+      setAttentionMode("discreet");
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === DASHBOARD_ATTENTION_STORAGE_KEY || event.key === null)
+        setAttentionMode(parseDashboardAttentionMode(event.newValue));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+  const toggleAttentionMode = () => {
+    const next: DashboardAttentionMode = attentionMode === "discreet" ? "highlighted" : "discreet";
+    setAttentionMode(next);
+    try {
+      window.localStorage.setItem(DASHBOARD_ATTENTION_STORAGE_KEY, next);
+    } catch {
+      // In-memory selection still works for kiosk browsers without storage.
+    }
+  };
+
   const { access } = useModuleAccess();
   const canOpen = (id: "bi" | "priorities") =>
     access?.modules.some(
@@ -436,6 +464,19 @@ export function DashboardPage() {
         </div>
         <div className="row-start-2 flex max-w-full flex-wrap items-center justify-start gap-2 sm:col-start-2 sm:row-start-1 sm:justify-end sm:justify-self-end md:col-start-3">
           <LanguageSelector />
+          <button
+            type="button"
+            title={t(attentionMode === "discreet" ? "Ativar destaque intenso dos cards" : "Ativar destaque discreto dos cards")}
+            aria-label={t(attentionMode === "discreet" ? "Ativar destaque intenso dos cards" : "Ativar destaque discreto dos cards")}
+            aria-pressed={attentionMode === "highlighted"}
+            onClick={toggleAttentionMode}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-2 text-xs font-bold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Eye className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden 2xl:inline">
+              {t(attentionMode === "highlighted" ? "Destacado" : "Discreto")}
+            </span>
+          </button>
           <ModuleNavigation />
           {audioUnlocked && (
             <button
@@ -561,6 +602,7 @@ export function DashboardPage() {
         <MachineGrid
           className="min-w-0 lg:min-h-0 lg:flex-1"
           orderMode={dashboardMachineOrderMode}
+          attentionMode={attentionMode}
           machines={[...machines]
             .filter((machine) => machine.isActive)
             .sort((a, b) => (a.displayOrder ?? Number(a.id)) - (b.displayOrder ?? Number(b.id)))}
