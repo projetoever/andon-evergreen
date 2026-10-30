@@ -28,6 +28,32 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   assert.match(page, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.doesNotMatch(page, /<HubSecuritySettings \/>/);
   assert.doesNotMatch(page, /<ModuleCredentialSettings \/>/);
-  assert.match(page, /!\["overview","users","workstations"\]\.includes\(section\)/);
+  assert.match(page, /!\["overview","users","workstations","andon"\]\.includes\(section\)/);
   assert.match(page, /Configuração indisponível na administração central/);
+});
+
+test("Dashboard uses central session and never renders the legacy admin login in central mode", async () => {
+  const page = await read("../src/pages/DashboardPage.tsx");
+  const hub = await read("../src/pages/HubCentralAdminPage.tsx");
+  const route = await read("../src/routes/hub.admin.tsx");
+  const types = await read("../src/types/modules.ts");
+  assert.match(page, /if \(access\?\.centralAccessEnabled\) \{/);
+  assert.match(page, /navigate\(\{ to: "\/hub\/admin", search: \{ section: "andon" \} \}\)/);
+  assert.match(page, /!access\?\.centralAccessEnabled && \(/);
+  assert.match(hub, /section === "andon" && \(/);
+  assert.match(hub, /<GeneralSettingsTab \/>/);
+  assert.match(hub, /<AttendanceModeSettingsTab \/>/);
+  assert.match(hub, /session\.principal\.isPrimaryAdmin === true/);
+  assert.doesNotMatch(hub, /<AdminLoginModal|<AdminSettingsModal|<SoundsSettingsTab|<TechniciansSettingsTab/);
+  assert.match(route, /HUB_ADMIN_SECTIONS\.includes/);
+  assert.match(types, /"andon"/);
+});
+
+test("central global rules do not consult legacy Priority passwords and cannot expose global sound settings", async () => {
+  const general = await read("../src/components/settings/GeneralSettingsTab.tsx");
+  const central = await read("../src/pages/HubCentralAdminPage.tsx");
+  assert.match(general, /if \(centralMode\) \{/);
+  assert.match(general, /setPriorityConfigured\(priorityModuleAllowed\)/);
+  assert.match(central, /Sons, cadastros e credenciais mantêm controles separados/);
+  assert.doesNotMatch(central, /<DashboardSoundMuteSettings|<SoundsSettingsTab/);
 });
