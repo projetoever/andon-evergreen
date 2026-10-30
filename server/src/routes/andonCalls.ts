@@ -43,6 +43,8 @@ import { runCentralOpenCallWrite } from "../access/centralOpenCallWrite.js";
 import { isAuthorizedCentralOpenCall } from "../security/centralOpenCallHttp.js";
 import { runCentralBatchOpenCallWrite } from "../access/centralBatchOpenCallWrite.js";
 import { isAuthorizedCentralBatchOpen } from "../security/centralBatchOpenHttp.js";
+import { runCentralFinishCall } from "../access/centralFinishCallWrite.js";
+import { isAuthorizedCentralFinishCall } from "../security/centralFinishCallHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -3023,6 +3025,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: FinishAndonCallBody }>(
     "/api/andon-calls/:id/finish",
     async (request, reply) => {
+      const centralFinish = centralAccessEnabled();
+      if (centralFinish && !isAuthorizedCentralFinishCall(request))
+        throw new AccessError("central_action_not_supported");
       const body = request.body ?? {};
       const requestedMachineStatus = optionalString(body.machineStatus);
       const requestedImpactCallIds = Array.isArray(body.impactCallIds)
@@ -3063,10 +3068,21 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             assetChangeReason,
             finalDescription,
           });
-        const updatedCall = await prisma.$transaction(applyFinish);
+        const updatedCall = centralFinish
+          ? await runCentralFinishCall(prisma, {
+              token: readSecureCookie(request, ACCESS_COOKIE),
+              workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+              callId: request.params.id,
+              body: body as Record<string, unknown>,
+              requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+            }, applyFinish)
+          : await prisma.$transaction(applyFinish);
 
         return updatedCall;
       } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+
         if (error instanceof FinishCallNotFoundError) {
           return notFound(reply, error.message);
         }
