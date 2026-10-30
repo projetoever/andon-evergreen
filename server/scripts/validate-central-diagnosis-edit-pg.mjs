@@ -121,7 +121,7 @@ try {
   assert.equal((await send(id, { cookie: "" })).statusCode, 401);
   assert.equal((await send(id, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
   assert.equal((await send(id, {}, { ...payload, editor: "forged" })).statusCode, 400);
-  assert.equal((await send(id, {}, { ...payload, pin: "99999999" })).statusCode, 401);
+  assert.equal((await send(id, {}, { ...payload, pin: "99999999" })).statusCode, 403);
   assert.equal((await send(outsideCall)).statusCode, 404);
   assert.equal((await send(testingCall)).statusCode, 403);
   assert.equal((await send(openCall)).statusCode, 409);
@@ -145,6 +145,7 @@ try {
   assert.equal(await changes(), 0);
   assert.equal(await audits(), 0);
   await db.accessPermission.create({ data: { userId, key: "analytics.reclassify" } });
+  assert.equal((await send(id, {}, { ...payload, pin: "99999999" })).statusCode, 401);
 
   // Force a failure in the same transaction after the domain attempts
   // to persist the diagnosis: no partial call/event/audit is permitted.
