@@ -12,6 +12,7 @@ import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../dist/access/centralMultiAttendancePrototype.js";
 import { runCentralMaintenanceCompletion } from "../dist/access/centralMaintenanceCompletion.js";
 import { runCentralReturnToMaintenance } from "../dist/access/centralReturnToMaintenance.js";
+import { runCentralFinishCall } from "../dist/access/centralFinishCallWrite.js";
 
 // A real PostgreSQL test, not mocked locks, AND NEVER a production callback.
 // Every database and the central write gate must be deliberately isolated.
@@ -353,6 +354,95 @@ try {
         assert.equal(replayReturn.json().error, "call_state_changed");
         assert.equal(await returnAudit(), 1);
         console.log("SEC-04/2G return PASS: ACL, scope, CSRF, rollback, resumed technician, cycle & replay");
+        // SEC-04/2J: finish maintenance again and then close the entire
+        // call with a specific classified diagnosis, no lost technician time.
+        const finishAgain = await finish({ followUpSessionIds: [] });
+        assert.equal(finishAgain.statusCode, 200, finishAgain.body);
+        assert.equal(finishAgain.json().status, "post_maintenance");
+        const failureValue = "ci_finish_" + n;
+        await db.failureClassification.create({ data: {
+          label: "CI validated failure", value: failureValue,
+          responsibility: "maintenance", analyticsDisposition: "include",
+        } });
+        const previousFinalFlag = process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED;
+        process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED = "1";
+        const finalPath = "/api/andon-calls/" + httpCallId + "/finish";
+        const finalBody = {
+          failureClassification: failureValue,
+          failureDescription: "Repaired mechanical assembly",
+          machineStatus: "running",
+        };
+        const sendFinal = (payload = finalBody, extraHeaders = {}) =>
+          httpApp.inject({ method: "PATCH", url: finalPath,
+            headers: { ...headers, ...extraHeaders }, payload });
+        const finalAudit = () => db.auditEvent.count({
+          where: { resourceType: "andon_call", resourceId: httpCallId,
+            action: "calls.finish" },
+        });
+        try {
+          assert.equal((await sendFinal()).statusCode, 403,
+            "calls.finish permission is required in addition to ANDON read");
+          await db.accessPermission.create({ data: { userId, key: "calls.finish" } });
+          assert.equal((await sendFinal(undefined, { cookie: "" })).statusCode, 401);
+          assert.equal((await sendFinal(undefined, {
+            "x-andon-csrf": "0".repeat(64),
+          })).statusCode, 403);
+          assert.equal((await sendFinal({
+            ...finalBody, failureClassification: "unclassified",
+          })).statusCode, 400);
+          assert.equal((await sendFinal({
+            ...finalBody, failureDescription: "",
+          })).statusCode, 400);
+          assert.equal((await sendFinal({
+            ...finalBody, impactCallIds: ["not-a-call"],
+          })).statusCode, 400);
+          assert.equal((await sendFinal({
+            ...finalBody, otherControl: true,
+          })).statusCode, 400);
+
+          // Audit write fails AFTER a transaction callback changes the call,
+          // verifying that the finished status is not committed by itself.
+          await assert.rejects(runCentralFinishCall(db, {
+            token, workstationId: stationId, callId: httpCallId,
+            body: finalBody, ipAddress: "x".repeat(46),
+          }, async tx => {
+            await tx.andonCall.update({
+              where: { id: httpCallId }, data: { status: "finished" },
+            });
+            return { id: httpCallId, status: "finished" };
+          }));
+          assert.equal((await db.andonCall.findUniqueOrThrow({
+            where: { id: httpCallId },
+          })).status, "post_maintenance");
+          assert.equal(await finalAudit(), 0);
+
+          process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED = "0";
+          const disabledFinal = await sendFinal();
+          assert.equal(disabledFinal.statusCode, 403);
+          assert.equal(disabledFinal.json().error, "central_action_not_supported");
+          process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED = "1";
+          const closed = await sendFinal();
+          assert.equal(closed.statusCode, 200, closed.body);
+          assert.equal(closed.json().status, "finished");
+          assert.equal(closed.json().failureClassification, failureValue);
+          assert.equal(closed.json().failureDescription, finalBody.failureDescription);
+          assert(closed.json().machineStoppedMinutes >= 0);
+          assert.equal(await finalAudit(), 1);
+          assert.equal(await db.technicianSession.count({
+            where: { callId: httpCallId, endedAt: null },
+          }), 0, "finalization must close every technician session");
+          assert.equal((await sendFinal()).statusCode, 409);
+          assert.equal(await finalAudit(), 1, "replay cannot duplicate audit");
+          console.log("SEC-04/2J finalization PASS: diagnosis, scope, CSRF, rollback, times, technician closure and replay");
+        } finally {
+          if (previousFinalFlag === undefined)
+            delete process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED;
+          else process.env.ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED = previousFinalFlag;
+          await db.failureClassification.deleteMany({
+            where: { value: failureValue },
+          });
+        }
+
       } finally {
         if (previousReturnFlag === undefined)
           delete process.env.ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED;

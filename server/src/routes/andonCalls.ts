@@ -43,6 +43,8 @@ import { runCentralOpenCallWrite } from "../access/centralOpenCallWrite.js";
 import { isAuthorizedCentralOpenCall } from "../security/centralOpenCallHttp.js";
 import { runCentralBatchOpenCallWrite } from "../access/centralBatchOpenCallWrite.js";
 import { isAuthorizedCentralBatchOpen } from "../security/centralBatchOpenHttp.js";
+import { runCentralFinishCall } from "../access/centralFinishCallWrite.js";
+import { isAuthorizedCentralFinishCall } from "../security/centralFinishCallHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1624,6 +1626,378 @@ export async function applyReturnToMaintenanceDomainTransition(
         return findCallWithSessions(tx, currentCall.id);
 }
 
+/** One authoritative domain for finalizing calls in BOTH legacy and central
+ * modes. Diagnosis, classification, physical stop ownership, impact transfer,
+ * asset snapshots and all per-technician time accounting remain unchanged.
+ * Caller owns the PostgreSQL transaction; central authorization is external.
+ */
+export async function applyFinalCallDomainTransition(
+  tx: Prisma.TransactionClient,
+  input: {
+    callId: string;
+    body: FinishAndonCallBody;
+    requestedMachineStatus?: string;
+    requestedImpactCallIds: string[];
+    confirmedMachineSetId?: string;
+    confirmedMachineSubsetId?: string;
+    assetChangeReason?: string;
+    finalDescription?: string;
+  },
+) {
+          const callReference = await tx.andonCall.findUnique({
+            where: { id: input.callId },
+            select: { machineId: true },
+          });
+
+          if (!callReference) {
+            throw new FinishCallNotFoundError("Chamado não encontrado");
+          }
+
+          await lockMachineCallFlow(tx, callReference.machineId);
+
+          const call = await tx.andonCall.findUnique({
+            include: {
+              machine: true,
+              technicianSessions: {
+                orderBy: {
+                  startedAt: "asc",
+                },
+              },
+            },
+            where: {
+              id: input.callId,
+            },
+          });
+
+          if (!call) {
+            throw new FinishCallNotFoundError("Chamado não encontrado");
+          }
+
+          if (call.status === "finished" || call.status === "cancelled") {
+            throw new FinishCallValidationError("Chamado já está encerrado");
+          }
+
+          if (!call.isSystemTest) {
+            if (call.category === "maintenance" && call.status !== "post_maintenance") {
+              throw new FinishCallValidationError(
+                "Chamado de manutenção deve concluir a manutenção antes da finalização",
+              );
+            }
+            if (call.category === "production" && call.status !== "in_progress") {
+              throw new FinishCallValidationError(
+                "Chamado de produção deve estar em atendimento para ser finalizado",
+              );
+            }
+          }
+
+          const openFailureEvent = await tx.failureEvent.findFirst({
+            where: {
+              callId: call.id,
+              endedAt: null,
+            },
+            orderBy: { startedAt: "desc" },
+          });
+
+          const applicableFailureEvent =
+            openFailureEvent ??
+            (await tx.failureEvent.findFirst({
+              where: { callId: call.id },
+              orderBy: { startedAt: "desc" },
+            }));
+
+          const failureClassification = optionalString(input.body.failureClassification);
+          const resolvedFailureDescription =
+            optionalString(input.body.failureDescription) ?? optionalString(input.body.notes);
+
+          let snapshot: DiagnosisSnapshot = { failureResponsibility: null, analyticsDisposition: null };
+          if (!call.isSystemTest) {
+            if (!failureClassification) {
+              throw new FinishCallValidationError("Classificação da falha é obrigatória");
+            }
+            if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
+              throw new FinishCallValidationError("Selecione uma classificação específica da falha");
+            }
+            if (!resolvedFailureDescription) {
+              throw new FinishCallValidationError("Descrição da falha é obrigatória");
+            }
+
+            const catalogClassification = await tx.failureClassification.findUnique({
+              where: { value: failureClassification },
+            });
+
+            if (!catalogClassification) {
+              throw new FinishCallValidationError("Classificação da falha inválida");
+            }
+            if (
+              !catalogClassification.active &&
+              applicableFailureEvent?.classification !== catalogClassification.value
+            ) {
+              throw new FinishCallValidationError("Classificação da falha está inativa");
+            }
+
+            snapshot = diagnosisSnapshot(catalogClassification);
+            if (applicableFailureEvent) {
+              await tx.failureEvent.update({
+                where: { id: applicableFailureEvent.id },
+                data: {
+                  classification: catalogClassification.value,
+                  ...snapshot,
+                  notes: resolvedFailureDescription,
+                },
+              });
+            }
+          }
+
+          const requiresAssetConfirmation = call.category === "maintenance";
+
+          const hasActiveSets = requiresAssetConfirmation
+            ? await machineHasActiveSets(tx, call.machineId)
+            : false;
+
+          if (requiresAssetConfirmation && hasActiveSets && !input.confirmedMachineSetId) {
+            throw new FinishCallValidationError(
+              "O conjunto confirmado é obrigatório para esta máquina",
+            );
+          }
+
+          const confirmedMachineSet =
+            requiresAssetConfirmation && input.confirmedMachineSetId
+              ? await findMachineSetForConfirmation(
+                  tx,
+                  call.machineId,
+                  input.confirmedMachineSetId,
+                  call.machineSetId,
+                )
+              : null;
+
+          if (requiresAssetConfirmation && input.confirmedMachineSetId && !confirmedMachineSet) {
+            throw new FinishCallValidationError(
+              "Conjunto confirmado inválido, inativo ou não pertence à máquina",
+            );
+          }
+
+          const confirmedMachineSubset =
+            requiresAssetConfirmation && input.confirmedMachineSetId && input.confirmedMachineSubsetId
+              ? await findMachineSubsetForConfirmation(
+                  tx,
+                  input.confirmedMachineSetId,
+                  input.confirmedMachineSubsetId,
+                  call.machineSubsetId,
+                )
+              : null;
+
+          if (requiresAssetConfirmation && input.confirmedMachineSubsetId && !confirmedMachineSubset) {
+            throw new FinishCallValidationError(
+              "Subconjunto confirmado inválido, inativo ou incompatível com o conjunto",
+            );
+          }
+
+          if (
+            requiresAssetConfirmation &&
+            !call.isSystemTest &&
+            confirmedMachineSet &&
+            !confirmedMachineSubset &&
+            !(await allowsWholeSetCalls())
+          ) {
+            const activeSubsetCount = await tx.machineSubset.count({
+              where: {
+                machineSetId: confirmedMachineSet.id,
+                isActive: true,
+                subsetType: { isActive: true },
+              },
+            });
+
+            if (activeSubsetCount > 0) {
+              throw new FinishCallValidationError(
+                "Selecione um subconjunto ou equipamento para confirmar a localização neste conjunto",
+              );
+            }
+          }
+
+          const preserveLegacyOpeningSnapshot =
+            requiresAssetConfirmation && !hasActiveSets && !input.confirmedMachineSetId;
+
+          const finalMachineSetId = confirmedMachineSet?.id ?? null;
+
+          const finalMachineSetCodeSnapshot =
+            confirmedMachineSet?.code ??
+            (preserveLegacyOpeningSnapshot ? call.machineSetCodeSnapshot : null);
+
+          const finalMachineSetNameSnapshot =
+            confirmedMachineSet?.name ??
+            (preserveLegacyOpeningSnapshot ? call.machineSetNameSnapshot : null);
+
+          const finalMachineSetTypeSnapshot =
+            confirmedMachineSet?.type ??
+            (preserveLegacyOpeningSnapshot ? call.machineSetTypeSnapshot : null);
+
+          const preserveLegacyOpeningSubsetSnapshot =
+            preserveLegacyOpeningSnapshot && !input.confirmedMachineSubsetId;
+
+          const finalMachineSubsetId = confirmedMachineSubset?.id ?? null;
+
+          const finalMachineSubsetCodeSnapshot =
+            confirmedMachineSubset?.code ??
+            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetCodeSnapshot : null);
+
+          const finalMachineSubsetNameSnapshot =
+            confirmedMachineSubset?.name ??
+            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetNameSnapshot : null);
+
+          const finalMachineSubsetTypeSnapshot =
+            confirmedMachineSubset?.type ??
+            (confirmedMachineSubset?.id === call.machineSubsetId ||
+            preserveLegacyOpeningSubsetSnapshot
+              ? call.machineSubsetTypeSnapshot
+              : null);
+
+          const openingSetKey = assetSnapshotKey(
+            call.machineSetId,
+            call.machineSetCodeSnapshot,
+            call.machineSetNameSnapshot,
+            call.machineSetTypeSnapshot,
+          );
+
+          const confirmedSetKey = assetSnapshotKey(
+            finalMachineSetId,
+            finalMachineSetCodeSnapshot,
+            finalMachineSetNameSnapshot,
+            finalMachineSetTypeSnapshot,
+          );
+
+          const openingSubsetKey = assetSnapshotKey(
+            call.machineSubsetId,
+            call.machineSubsetCodeSnapshot,
+            call.machineSubsetNameSnapshot,
+            call.machineSubsetTypeSnapshot,
+          );
+
+          const confirmedSubsetKey = assetSnapshotKey(
+            finalMachineSubsetId,
+            finalMachineSubsetCodeSnapshot,
+            finalMachineSubsetNameSnapshot,
+            finalMachineSubsetTypeSnapshot,
+          );
+
+          const openingLocationExists = Boolean(
+            requiresAssetConfirmation && (openingSetKey || openingSubsetKey),
+          );
+          const locationChanged = Boolean(
+            openingLocationExists &&
+            (openingSetKey !== confirmedSetKey || openingSubsetKey !== confirmedSubsetKey),
+          );
+
+          const assetConfirmedBy = requiresAssetConfirmation
+            ? resolveAutomaticAssetConfirmedBy(call)
+            : null;
+
+          const normalizedAssetChangeReason = resolveAssetChangeReason(
+            locationChanged,
+            input.assetChangeReason,
+          );
+
+          const now = new Date();
+
+          const finalMachineStatus = call.isSystemTest
+            ? call.machine.machineStatus
+            : await resumeMachineWhenFinishingOwnedStop(tx, {
+                callId: call.id,
+                machineId: call.machineId,
+                currentMachineStatus: call.machine.machineStatus,
+                finishedAt: now,
+                requestedMachineStatus: input.requestedMachineStatus,
+                requestedImpactCallIds: input.requestedImpactCallIds,
+                requireStatusConfirmation: true,
+              });
+
+          const machineStoppedMinutes = call.isSystemTest
+            ? 0
+            : call.impactTrackingVersion === 1
+              ? await calculateCallImpactMinutes(tx, call.id, now)
+              : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
+
+          await tx.andonCall.update({
+            where: {
+              id: call.id,
+            },
+            data: {
+              status: "finished",
+              currentAttendanceStartedAt: null,
+              finishedAt: now,
+              notes: mergeFinalDescription(call.notes, input.finalDescription),
+              failureClassification: call.isSystemTest ? null : failureClassification,
+              ...snapshot,
+              failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
+              callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
+              attendanceMinutes:
+                (call.attendanceMinutes ?? 0) +
+                (call.status === "in_progress"
+                  ? diffPreciseMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
+                  : 0),
+              postMaintenanceMinutes:
+                (call.postMaintenanceMinutes ?? 0) +
+                (call.status === "post_maintenance"
+                  ? diffPreciseMinutes(call.maintenanceCompletedAt, now)
+                  : 0),
+              totalCallMinutes: diffMinutes(call.openedAt, now),
+              machineStoppedMinutes,
+              productionModeAtFinish: call.machine.productionMode,
+              machineStatusAtFinish: finalMachineStatus,
+
+              confirmedMachineSetId: finalMachineSetId,
+              confirmedMachineSetCodeSnapshot: finalMachineSetCodeSnapshot,
+              confirmedMachineSetNameSnapshot: finalMachineSetNameSnapshot,
+              confirmedMachineSetTypeSnapshot: finalMachineSetTypeSnapshot,
+
+              confirmedMachineSubsetId: finalMachineSubsetId,
+              confirmedMachineSubsetCodeSnapshot: finalMachineSubsetCodeSnapshot,
+              confirmedMachineSubsetNameSnapshot: finalMachineSubsetNameSnapshot,
+              confirmedMachineSubsetTypeSnapshot: finalMachineSubsetTypeSnapshot,
+
+              assetConfirmedAt: requiresAssetConfirmation ? now : null,
+              assetConfirmedBy,
+              assetLocationChanged: locationChanged,
+              assetChangeReason: normalizedAssetChangeReason,
+            },
+          });
+
+          if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
+
+          await tx.technicianSession.updateMany({
+            where: {
+              callId: call.id,
+              endedAt: null,
+              ...(call.status === "post_maintenance"
+                ? { OR: [{ phase: "follow_up" }, { phase: null }] }
+                : {}),
+            },
+            data: {
+              endedAt: now,
+              endReason: "final_call",
+              productionModeAtEnd: call.machine.productionMode,
+              machineStatusAtEnd: finalMachineStatus,
+            },
+          });
+
+          await tx.technicianSession.updateMany({
+            where: {
+              callId: call.id,
+              endReason: "support_finished",
+              phase: null,
+            },
+            data: {
+              endedAt: now,
+              endReason: "final_call",
+              productionModeAtEnd: call.machine.productionMode,
+              machineStatusAtEnd: finalMachineStatus,
+            },
+          });
+
+          const completed = await findCallWithSessions(tx, call.id);
+          if (!completed) throw new FinishCallNotFoundError("Chamado não encontrado após finalização");
+          return completed;
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
@@ -2651,6 +3025,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: FinishAndonCallBody }>(
     "/api/andon-calls/:id/finish",
     async (request, reply) => {
+      const centralFinish = centralAccessEnabled();
+      if (centralFinish && !isAuthorizedCentralFinishCall(request))
+        throw new AccessError("central_action_not_supported");
       const body = request.body ?? {};
       const requestedMachineStatus = optionalString(body.machineStatus);
       const requestedImpactCallIds = Array.isArray(body.impactCallIds)
@@ -2680,361 +3057,32 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       try {
-        const updatedCall = await prisma.$transaction(async (tx) => {
-          const callReference = await tx.andonCall.findUnique({
-            where: { id: request.params.id },
-            select: { machineId: true },
-          });
-
-          if (!callReference) {
-            throw new FinishCallNotFoundError("Chamado não encontrado");
-          }
-
-          await lockMachineCallFlow(tx, callReference.machineId);
-
-          const call = await tx.andonCall.findUnique({
-            include: {
-              machine: true,
-              technicianSessions: {
-                orderBy: {
-                  startedAt: "asc",
-                },
-              },
-            },
-            where: {
-              id: request.params.id,
-            },
-          });
-
-          if (!call) {
-            throw new FinishCallNotFoundError("Chamado não encontrado");
-          }
-
-          if (call.status === "finished" || call.status === "cancelled") {
-            throw new FinishCallValidationError("Chamado já está encerrado");
-          }
-
-          if (!call.isSystemTest) {
-            if (call.category === "maintenance" && call.status !== "post_maintenance") {
-              throw new FinishCallValidationError(
-                "Chamado de manutenção deve concluir a manutenção antes da finalização",
-              );
-            }
-            if (call.category === "production" && call.status !== "in_progress") {
-              throw new FinishCallValidationError(
-                "Chamado de produção deve estar em atendimento para ser finalizado",
-              );
-            }
-          }
-
-          const openFailureEvent = await tx.failureEvent.findFirst({
-            where: {
-              callId: call.id,
-              endedAt: null,
-            },
-            orderBy: { startedAt: "desc" },
-          });
-
-          const applicableFailureEvent =
-            openFailureEvent ??
-            (await tx.failureEvent.findFirst({
-              where: { callId: call.id },
-              orderBy: { startedAt: "desc" },
-            }));
-
-          const failureClassification = optionalString(body.failureClassification);
-          const resolvedFailureDescription =
-            optionalString(body.failureDescription) ?? optionalString(body.notes);
-
-          let snapshot: DiagnosisSnapshot = { failureResponsibility: null, analyticsDisposition: null };
-          if (!call.isSystemTest) {
-            if (!failureClassification) {
-              throw new FinishCallValidationError("Classificação da falha é obrigatória");
-            }
-            if (GENERIC_FAILURE_CLASSIFICATIONS.has(failureClassification)) {
-              throw new FinishCallValidationError("Selecione uma classificação específica da falha");
-            }
-            if (!resolvedFailureDescription) {
-              throw new FinishCallValidationError("Descrição da falha é obrigatória");
-            }
-
-            const catalogClassification = await tx.failureClassification.findUnique({
-              where: { value: failureClassification },
-            });
-
-            if (!catalogClassification) {
-              throw new FinishCallValidationError("Classificação da falha inválida");
-            }
-            if (
-              !catalogClassification.active &&
-              applicableFailureEvent?.classification !== catalogClassification.value
-            ) {
-              throw new FinishCallValidationError("Classificação da falha está inativa");
-            }
-
-            snapshot = diagnosisSnapshot(catalogClassification);
-            if (applicableFailureEvent) {
-              await tx.failureEvent.update({
-                where: { id: applicableFailureEvent.id },
-                data: {
-                  classification: catalogClassification.value,
-                  ...snapshot,
-                  notes: resolvedFailureDescription,
-                },
-              });
-            }
-          }
-
-          const requiresAssetConfirmation = call.category === "maintenance";
-
-          const hasActiveSets = requiresAssetConfirmation
-            ? await machineHasActiveSets(tx, call.machineId)
-            : false;
-
-          if (requiresAssetConfirmation && hasActiveSets && !confirmedMachineSetId) {
-            throw new FinishCallValidationError(
-              "O conjunto confirmado é obrigatório para esta máquina",
-            );
-          }
-
-          const confirmedMachineSet =
-            requiresAssetConfirmation && confirmedMachineSetId
-              ? await findMachineSetForConfirmation(
-                  tx,
-                  call.machineId,
-                  confirmedMachineSetId,
-                  call.machineSetId,
-                )
-              : null;
-
-          if (requiresAssetConfirmation && confirmedMachineSetId && !confirmedMachineSet) {
-            throw new FinishCallValidationError(
-              "Conjunto confirmado inválido, inativo ou não pertence à máquina",
-            );
-          }
-
-          const confirmedMachineSubset =
-            requiresAssetConfirmation && confirmedMachineSetId && confirmedMachineSubsetId
-              ? await findMachineSubsetForConfirmation(
-                  tx,
-                  confirmedMachineSetId,
-                  confirmedMachineSubsetId,
-                  call.machineSubsetId,
-                )
-              : null;
-
-          if (requiresAssetConfirmation && confirmedMachineSubsetId && !confirmedMachineSubset) {
-            throw new FinishCallValidationError(
-              "Subconjunto confirmado inválido, inativo ou incompatível com o conjunto",
-            );
-          }
-
-          if (
-            requiresAssetConfirmation &&
-            !call.isSystemTest &&
-            confirmedMachineSet &&
-            !confirmedMachineSubset &&
-            !(await allowsWholeSetCalls())
-          ) {
-            const activeSubsetCount = await tx.machineSubset.count({
-              where: {
-                machineSetId: confirmedMachineSet.id,
-                isActive: true,
-                subsetType: { isActive: true },
-              },
-            });
-
-            if (activeSubsetCount > 0) {
-              throw new FinishCallValidationError(
-                "Selecione um subconjunto ou equipamento para confirmar a localização neste conjunto",
-              );
-            }
-          }
-
-          const preserveLegacyOpeningSnapshot =
-            requiresAssetConfirmation && !hasActiveSets && !confirmedMachineSetId;
-
-          const finalMachineSetId = confirmedMachineSet?.id ?? null;
-
-          const finalMachineSetCodeSnapshot =
-            confirmedMachineSet?.code ??
-            (preserveLegacyOpeningSnapshot ? call.machineSetCodeSnapshot : null);
-
-          const finalMachineSetNameSnapshot =
-            confirmedMachineSet?.name ??
-            (preserveLegacyOpeningSnapshot ? call.machineSetNameSnapshot : null);
-
-          const finalMachineSetTypeSnapshot =
-            confirmedMachineSet?.type ??
-            (preserveLegacyOpeningSnapshot ? call.machineSetTypeSnapshot : null);
-
-          const preserveLegacyOpeningSubsetSnapshot =
-            preserveLegacyOpeningSnapshot && !confirmedMachineSubsetId;
-
-          const finalMachineSubsetId = confirmedMachineSubset?.id ?? null;
-
-          const finalMachineSubsetCodeSnapshot =
-            confirmedMachineSubset?.code ??
-            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetCodeSnapshot : null);
-
-          const finalMachineSubsetNameSnapshot =
-            confirmedMachineSubset?.name ??
-            (preserveLegacyOpeningSubsetSnapshot ? call.machineSubsetNameSnapshot : null);
-
-          const finalMachineSubsetTypeSnapshot =
-            confirmedMachineSubset?.type ??
-            (confirmedMachineSubset?.id === call.machineSubsetId ||
-            preserveLegacyOpeningSubsetSnapshot
-              ? call.machineSubsetTypeSnapshot
-              : null);
-
-          const openingSetKey = assetSnapshotKey(
-            call.machineSetId,
-            call.machineSetCodeSnapshot,
-            call.machineSetNameSnapshot,
-            call.machineSetTypeSnapshot,
-          );
-
-          const confirmedSetKey = assetSnapshotKey(
-            finalMachineSetId,
-            finalMachineSetCodeSnapshot,
-            finalMachineSetNameSnapshot,
-            finalMachineSetTypeSnapshot,
-          );
-
-          const openingSubsetKey = assetSnapshotKey(
-            call.machineSubsetId,
-            call.machineSubsetCodeSnapshot,
-            call.machineSubsetNameSnapshot,
-            call.machineSubsetTypeSnapshot,
-          );
-
-          const confirmedSubsetKey = assetSnapshotKey(
-            finalMachineSubsetId,
-            finalMachineSubsetCodeSnapshot,
-            finalMachineSubsetNameSnapshot,
-            finalMachineSubsetTypeSnapshot,
-          );
-
-          const openingLocationExists = Boolean(
-            requiresAssetConfirmation && (openingSetKey || openingSubsetKey),
-          );
-          const locationChanged = Boolean(
-            openingLocationExists &&
-            (openingSetKey !== confirmedSetKey || openingSubsetKey !== confirmedSubsetKey),
-          );
-
-          const assetConfirmedBy = requiresAssetConfirmation
-            ? resolveAutomaticAssetConfirmedBy(call)
-            : null;
-
-          const normalizedAssetChangeReason = resolveAssetChangeReason(
-            locationChanged,
+        const applyFinish = (tx: Prisma.TransactionClient) =>
+          applyFinalCallDomainTransition(tx, {
+            callId: request.params.id,
+            body,
+            requestedMachineStatus,
+            requestedImpactCallIds,
+            confirmedMachineSetId,
+            confirmedMachineSubsetId,
             assetChangeReason,
-          );
-
-          const now = new Date();
-
-          const finalMachineStatus = call.isSystemTest
-            ? call.machine.machineStatus
-            : await resumeMachineWhenFinishingOwnedStop(tx, {
-                callId: call.id,
-                machineId: call.machineId,
-                currentMachineStatus: call.machine.machineStatus,
-                finishedAt: now,
-                requestedMachineStatus,
-                requestedImpactCallIds,
-                requireStatusConfirmation: true,
-              });
-
-          const machineStoppedMinutes = call.isSystemTest
-            ? 0
-            : call.impactTrackingVersion === 1
-              ? await calculateCallImpactMinutes(tx, call.id, now)
-              : await calculateStoppedMinutesForPeriod(tx, call.machineId, call.openedAt, now);
-
-          await tx.andonCall.update({
-            where: {
-              id: call.id,
-            },
-            data: {
-              status: "finished",
-              currentAttendanceStartedAt: null,
-              finishedAt: now,
-              notes: mergeFinalDescription(call.notes, finalDescription),
-              failureClassification: call.isSystemTest ? null : failureClassification,
-              ...snapshot,
-              failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
-              callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
-              attendanceMinutes:
-                (call.attendanceMinutes ?? 0) +
-                (call.status === "in_progress"
-                  ? diffPreciseMinutes(call.currentAttendanceStartedAt ?? call.attendedAt, now)
-                  : 0),
-              postMaintenanceMinutes:
-                (call.postMaintenanceMinutes ?? 0) +
-                (call.status === "post_maintenance"
-                  ? diffPreciseMinutes(call.maintenanceCompletedAt, now)
-                  : 0),
-              totalCallMinutes: diffMinutes(call.openedAt, now),
-              machineStoppedMinutes,
-              productionModeAtFinish: call.machine.productionMode,
-              machineStatusAtFinish: finalMachineStatus,
-
-              confirmedMachineSetId: finalMachineSetId,
-              confirmedMachineSetCodeSnapshot: finalMachineSetCodeSnapshot,
-              confirmedMachineSetNameSnapshot: finalMachineSetNameSnapshot,
-              confirmedMachineSetTypeSnapshot: finalMachineSetTypeSnapshot,
-
-              confirmedMachineSubsetId: finalMachineSubsetId,
-              confirmedMachineSubsetCodeSnapshot: finalMachineSubsetCodeSnapshot,
-              confirmedMachineSubsetNameSnapshot: finalMachineSubsetNameSnapshot,
-              confirmedMachineSubsetTypeSnapshot: finalMachineSubsetTypeSnapshot,
-
-              assetConfirmedAt: requiresAssetConfirmation ? now : null,
-              assetConfirmedBy,
-              assetLocationChanged: locationChanged,
-              assetChangeReason: normalizedAssetChangeReason,
-            },
+            finalDescription,
           });
-
-          if (!call.isSystemTest) await syncMachineOperationalState(tx, call.machineId);
-
-          await tx.technicianSession.updateMany({
-            where: {
-              callId: call.id,
-              endedAt: null,
-              ...(call.status === "post_maintenance"
-                ? { OR: [{ phase: "follow_up" }, { phase: null }] }
-                : {}),
-            },
-            data: {
-              endedAt: now,
-              endReason: "final_call",
-              productionModeAtEnd: call.machine.productionMode,
-              machineStatusAtEnd: finalMachineStatus,
-            },
-          });
-
-          await tx.technicianSession.updateMany({
-            where: {
-              callId: call.id,
-              endReason: "support_finished",
-              phase: null,
-            },
-            data: {
-              endedAt: now,
-              endReason: "final_call",
-              productionModeAtEnd: call.machine.productionMode,
-              machineStatusAtEnd: finalMachineStatus,
-            },
-          });
-
-          return findCallWithSessions(tx, call.id);
-        });
+        const updatedCall = centralFinish
+          ? await runCentralFinishCall(prisma, {
+              token: readSecureCookie(request, ACCESS_COOKIE),
+              workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+              callId: request.params.id,
+              body: body as Record<string, unknown>,
+              requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+            }, applyFinish)
+          : await prisma.$transaction(applyFinish);
 
         return updatedCall;
       } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+
         if (error instanceof FinishCallNotFoundError) {
           return notFound(reply, error.message);
         }
