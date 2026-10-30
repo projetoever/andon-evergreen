@@ -31,6 +31,7 @@ import { isCentralTechnicianAddMutation, markCentralTechnicianAddAuthorized } fr
 import { isCentralDiagnosisEditMutation, markCentralDiagnosisEditAuthorized } from "./centralDiagnosisEditHttp.js";
 import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized, centralOwnWorkstationPreferenceReadTarget, centralOwnWorkstationPreferencesEnabled } from "./centralOwnWorkstationPrefsHttp.js";
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
+import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -113,6 +114,15 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
+      // Publicly selected operational settings (not credentials) and the
+      // read-only global dashboard sound state have no machine-specific rows.
+      // Selected-machine personnel must read them to render PIN/RFID dialogs
+      // and show the actual siren state; writes remain independently blocked.
+      if (request.method === "GET" &&
+          (path === "/api/system-settings" || path === "/api/dashboard-sound-state")) {
+        assertModule(principal, workstation, "operational");
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
@@ -135,7 +145,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralTechnicianAddMutation(request.method, path) &&
           !isCentralDiagnosisEditMutation(request.method, path) &&
           !isCentralOwnWorkstationPreference(request.method, path) &&
-          !isCentralTechnicianIdentityMutation(request.method, path))
+          !isCentralTechnicianIdentityMutation(request.method, path) &&
+          !isCentralOperationalSettingsMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -192,6 +203,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianIdentityMutation(request.method, path)) {
           markCentralTechnicianIdentityAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralOperationalSettingsMutation(request.method, path)) {
+          markCentralOperationalSettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralPriorityWrite(request.method, path)) {

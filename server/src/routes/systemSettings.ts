@@ -14,6 +14,11 @@ import {
   type DashboardSoundMuteReason,
 } from "../services/dashboardSoundState.js";
 import { badRequest } from "./routeUtils.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { isAuthorizedCentralOperationalSettings } from "../security/centralOperationalSettingsHttp.js";
+import { runCentralOperationalSettingsUpdate } from "../access/centralOperationalSettings.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
 
 type UpdateSystemSettingsBody = {
   clientName?: unknown;
@@ -68,6 +73,23 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
   );
 
   app.patch<{ Body: UpdateSystemSettingsBody }>("/api/system-settings", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralOperationalSettings(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        await runCentralOperationalSettingsUpdate(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          patch: request.body, requestId: request.id,
+          ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        return getSystemSettings();
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    }
     const body = request.body ?? {};
     const clientName = body.clientName;
     const clientUnit = body.clientUnit;

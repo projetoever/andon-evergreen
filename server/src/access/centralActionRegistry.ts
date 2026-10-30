@@ -36,6 +36,9 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "GET", route: "/api/workstations/:id/runtime-preferences", permission: "andon.read", scope: "own_workstation", module: "operational" },
   { method: "PATCH", route: "/api/workstations/:id/screen-lock", permission: "andon.read", scope: "own_workstation_machine", module: "operational" },
   { method: "PUT", route: "/api/workstations/:id/machine-sound/:machineId", permission: "andon.read", scope: "own_workstation_machine", module: "operational" },
+  // Operational settings are globally scoped and require primary Admin plus
+  // full machine scope, not merely andon.read. Runtime guard enforces this.
+  { method: "PATCH", route: "/api/system-settings", permission: "andon.read", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
