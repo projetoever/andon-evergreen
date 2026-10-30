@@ -1,0 +1,33 @@
+import type { FastifyRequest } from "fastify";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { checkCsrf } from "../access/credentials.js";
+import { AccessError, assertModule, type Principal } from "../access/policy.js";
+
+const approved = new WeakSet<FastifyRequest>();
+export function centralCancelCallEnabled() {
+  return centralAccessEnabled() &&
+    process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED === "1";
+}
+export function isCentralCancelCallMutation(method: string, path: string) {
+  return method === "PATCH" &&
+    /^\/api\/andon-calls\/[a-zA-Z0-9_-]{1,160}\/cancel$/.test(path);
+}
+export function markCentralCancelCallAuthorized(
+  req: FastifyRequest, principal: Principal,
+  station: { allowOperational: boolean; allowBi: boolean; allowPriorities: boolean },
+) {
+  const path = req.url.split("?", 1)[0] ?? "";
+  if (!centralCancelCallEnabled() || !isCentralCancelCallMutation(req.method, path))
+    throw new AccessError("central_action_not_supported");
+  assertModule(principal, station, "operational");
+  if (!principal.isPrimaryAdmin &&
+      !principal.permissions.includes("calls.cancel.own") &&
+      !principal.permissions.includes("calls.cancel.any"))
+    throw new AccessError("permission_denied");
+  if (!checkCsrf(readSecureCookie(req, ACCESS_COOKIE), req.headers["x-andon-csrf"]))
+    throw new AccessError("csrf_denied");
+  approved.add(req);
+}
+export function isAuthorizedCentralCancelCall(req: FastifyRequest) {
+  return centralCancelCallEnabled() && approved.has(req);
+}

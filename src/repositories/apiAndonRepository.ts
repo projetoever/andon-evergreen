@@ -461,7 +461,7 @@ export class ApiAndonRepository implements AndonRepository {
   async cancelCall(_machines: Machine[], _calls: AndonCall[], params: CancelAndonCallParams) {
     await this.apiClient.patch(`/api/andon-calls/${params.callId}/cancel`, {
       reason: params.reason,
-      cancelledBy: params.cancelledBy,
+      ...(!isCentralMode() ? { cancelledBy: params.cancelledBy } : {}),
     });
     return this.loadResult();
   }
