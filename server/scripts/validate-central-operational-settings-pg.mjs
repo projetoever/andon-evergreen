@@ -88,6 +88,12 @@ try {
   assert.equal((await send({ clientName: newName })).statusCode, 403);
   await db.accessUser.update({ where: { id: userId },
     data: { isPrimaryAdmin: true, machineScope: "selected" } });
+  // Even selected-machine users need these safe, public reads for the
+  // PIN/RFID modal and the current dashboard's muted-state indicator.
+  assert.equal((await app.inject({ method: "GET", url: "/api/system-settings",
+    headers })).statusCode, 200);
+  assert.equal((await app.inject({ method: "GET", url: "/api/dashboard-sound-state",
+    headers })).statusCode, 200);
   assert.equal((await send({ clientName: newName })).statusCode, 403);
   await db.accessUser.update({ where: { id: userId },
     data: { isPrimaryAdmin: true, machineScope: "all" } });
