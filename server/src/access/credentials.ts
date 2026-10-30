@@ -30,13 +30,25 @@ export function normalizeLogin(value: string) {
   if (!/^[a-z0-9][a-z0-9._-]{2,119}$/.test(login)) throw new Error("invalid_login");
   return login;
 }
+export const MIN_PERSONAL_PASSWORD_LENGTH = 8;
+export const MAX_PERSONAL_PASSWORD_LENGTH = 128;
+
+const COMMON_PASSWORDS = new Set([
+  "12345678", "123456789", "1234567890", "123456789012345",
+  "password", "password123", "passwordpassword", "senha123",
+  "senha1234", "senha12345678901", "admin123", "admin1234",
+  "qwerty123", "qwertyuiop", "abcdefgh", "11111111", "00000000",
+]);
+
 export function validatePersonalPassword(password: string) {
   const length = [...password].length;
-  // A local denylist works without network dependencies; grow it with the installer.
+  // No external lookup: reject known weak values and single-character repeats.
+  // Longer passphrases are recommended, but 8 chars is the accepted minimum.
   if (
-    length < 15 ||
-    length > 128 ||
-    ["123456789012345", "passwordpassword", "senha12345678901"].includes(password.toLowerCase())
+    length < MIN_PERSONAL_PASSWORD_LENGTH ||
+    length > MAX_PERSONAL_PASSWORD_LENGTH ||
+    COMMON_PASSWORDS.has(password.toLowerCase()) ||
+    /^([\\s\\S])\\1{7,}$/.test(password)
   ) {
     throw new Error("password_policy_failed");
   }
