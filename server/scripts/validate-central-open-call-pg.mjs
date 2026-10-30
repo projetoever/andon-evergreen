@@ -8,6 +8,7 @@ import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.j
 import { enforceModuleAuthorization } from "../dist/security/moduleAuthorization.js";
 import { registerAndonCallRoutes } from "../dist/routes/andonCalls.js";
 import { runCentralOpenCallWrite } from "../dist/access/centralOpenCallWrite.js";
+import { runCentralCancelCall } from "../dist/access/centralCancelCallWrite.js";
 
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://invalid/invalid");
 if (process.env.ANDON_INTEGRATION_TEST !== "1" ||
@@ -187,6 +188,62 @@ try {
   assert.equal(batchDisabled.json().error, "central_action_not_supported");
   process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = "1";
 
+  // SEC-04/2K: single-actor cancellation applies to the actual opener.
+  // Legacy/other creator requires the stronger calls.cancel.any grant.
+  process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED = "1";
+  await db.accessPermission.create({ data: { userId, key: "calls.cancel.own" } });
+  const cancelPath = (id) => "/api/andon-calls/" + id + "/cancel";
+  const sendCancel = (id, payload = { reason: "Cancelled in isolated CI" }, extra = {}) =>
+    app.inject({ method: "PATCH", url: cancelPath(id),
+      headers: { ...headers, ...extra }, payload });
+  const ownId = successfulBatch[0].id;
+  const otherId = successfulBatch[1].id;
+  assert.equal((await sendCancel(ownId, undefined, { cookie: "" })).statusCode, 401);
+  assert.equal((await sendCancel(ownId, undefined,
+    { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
+  assert.equal((await sendCancel(ownId, {
+    reason: "Reason", cancelledBy: "forged-admin",
+  })).statusCode, 400, "browser cannot choose the cancellation actor");
+  assert.equal((await sendCancel(ownId, { reason: " " })).statusCode, 400);
+  await assert.rejects(runCentralCancelCall(db, {
+    token, workstationId: stationId, callId: ownId,
+    reason: "rollback required", ipAddress: "x".repeat(46),
+  }, async (tx) => tx.andonCall.update({
+    where: { id: ownId }, data: { status: "cancelled" },
+  })));
+  assert.equal((await db.andonCall.findUniqueOrThrow({
+    where: { id: ownId },
+  })).status, "open", "failing audit cannot commit cancellation");
+  const cancelledOwn = await sendCancel(ownId);
+  assert.equal(cancelledOwn.statusCode, 200, cancelledOwn.body);
+  assert.equal(cancelledOwn.json().status, "cancelled");
+  assert.equal(cancelledOwn.json().cancelReason, "Cancelled in isolated CI");
+  assert.match(cancelledOwn.json().notes, new RegExp("Cancelado por: " + login));
+  assert.equal((await sendCancel(ownId)).statusCode, 409,
+    "double cancellation must be rejected");
+  assert.equal(await db.auditEvent.count({
+    where: { action: "calls.cancel", resourceId: ownId },
+  }), 1);
+
+  await db.andonCall.update({
+    where: { id: otherId }, data: { createdBy: "kiosk" },
+  });
+  const notOwner = await sendCancel(otherId);
+  assert.equal(notOwner.statusCode, 403);
+  assert.equal(notOwner.json().error, "permission_denied");
+  await db.accessPermission.create({ data: { userId, key: "calls.cancel.any" } });
+  const cancelledOther = await sendCancel(otherId, { reason: "Manager cancellation" });
+  assert.equal(cancelledOther.statusCode, 200, cancelledOther.body);
+  assert.equal(cancelledOther.json().cancelReason, "Manager cancellation");
+  assert.equal(await db.auditEvent.count({
+    where: { action: "calls.cancel", resourceId: otherId },
+  }), 1);
+  process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED = "0";
+  const cancelDisabled = await sendCancel(createdCallId);
+  assert.equal(cancelDisabled.statusCode, 403);
+  assert.equal(cancelDisabled.json().error, "central_action_not_supported");
+  process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED = "1";
+
   process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED = "0";
   const disabled = await send();
   assert.equal(disabled.statusCode, 403);
@@ -197,12 +254,13 @@ try {
     data: { revokedAt: new Date() } });
   assert.equal((await send()).statusCode, 401);
   assert.equal(await auditCount(), 1);
-  console.log("SEC-04 individual+batch opening PG PASS: OS, ACL, CSRF, scope, duplicate races, atomic multi-sector stop, rollback, revocation");
+  console.log("SEC-04 opening and cancellation PG PASS: OS, ACL, CSRF, scope, duplicate races, atomic multi-sector stop, rollback, revocation");
 } finally {
   if (app) await app.close();
   if (previous.access === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previous.access;
   delete process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED;
+  delete process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED;
   if (previous.flag === undefined) delete process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED;
   else process.env.ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED = previous.flag;
   if (previous.origin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
