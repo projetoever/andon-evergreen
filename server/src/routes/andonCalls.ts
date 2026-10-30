@@ -35,6 +35,8 @@ import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
+import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
+import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1364,6 +1366,156 @@ async function ensureOpenFailureEventForStoppedCall(
   return params.startedAt;
 }
 
+/** Shared maintenance-completion domain: the SAME implementation serves
+ * legacy and central authenticated callers, in the caller's own transaction.
+ * Machine, technician, workstation ownership, phase accounting and follow-up
+ * sessions retain legacy semantics. Authorization/audit are NOT here.
+ */
+export async function applyMaintenanceCompletionDomainTransition(
+  tx: Prisma.TransactionClient,
+  input: { callId: string; workstationId: unknown; notes?: unknown; followUpSessionIds?: unknown },
+) {
+  const reference = await tx.andonCall.findUnique({
+    where: { id: input.callId }, select: { machineId: true },
+  });
+  if (!reference) throw new AccessError("call_not_found", 404);
+  await lockMachineCallFlow(tx, reference.machineId);
+          let currentCall = await tx.andonCall.findUnique({
+            include: { machine: true, technicianSessions: true },
+            where: { id: input.callId },
+          });
+          if (!currentCall || currentCall.status !== "in_progress") {
+            throw new AndonCallValidationError("Chamado não está em atendimento");
+          }
+
+          const sessionsToLock = currentCall.technicianSessions.filter(
+            (session) =>
+              !session.endedAt && (session.phase === "maintenance" || session.phase === null),
+          );
+          const technicianIds = Array.from(
+            new Set(
+              sessionsToLock
+                .map((session) => session.technicianId)
+                .filter((technicianId): technicianId is string => Boolean(technicianId)),
+            ),
+          ).sort();
+          for (const technicianId of technicianIds) {
+            await lockTechnicianSessionFlow(tx, technicianId);
+          }
+
+          currentCall = await tx.andonCall.findUnique({
+            include: { machine: true, technicianSessions: true },
+            where: { id: input.callId },
+          });
+          if (!currentCall || currentCall.status !== "in_progress") {
+            throw new AndonCallValidationError("Chamado não está em atendimento");
+          }
+
+          await assertMaintenanceCompletionWorkstation(tx, {
+            callId: currentCall.id,
+            workstationHeader: input.workstationId,
+            isSystemTest: currentCall.isSystemTest,
+          });
+
+          const activeMaintenanceSessions = currentCall.technicianSessions.filter(
+            (session) =>
+              !session.endedAt && (session.phase === "maintenance" || session.phase === null),
+          );
+          const rawFollowUpSessionIds = input.followUpSessionIds;
+          if (
+            rawFollowUpSessionIds !== undefined &&
+            (!Array.isArray(rawFollowUpSessionIds) ||
+              rawFollowUpSessionIds.some(
+                (sessionId) => typeof sessionId !== "string" || !sessionId.trim(),
+              ))
+          ) {
+            throw new AndonCallValidationError(
+              "Seleção de mantenedores para acompanhamento é inválida",
+            );
+          }
+          const requestedFollowUpSessionIds = Array.isArray(rawFollowUpSessionIds)
+            ? Array.from(
+                new Set(
+                  rawFollowUpSessionIds
+                    .map(optionalString)
+                    .filter((sessionId): sessionId is string => Boolean(sessionId)),
+                ),
+              )
+            : undefined;
+          const activeSessionIds = new Set(activeMaintenanceSessions.map((session) => session.id));
+          if (requestedFollowUpSessionIds?.some((sessionId) => !activeSessionIds.has(sessionId))) {
+            throw new AndonCallValidationError(
+              "Seleção de mantenedores para acompanhamento é inválida",
+            );
+          }
+          const followUpSessionIds = new Set(
+            requestedFollowUpSessionIds ?? activeMaintenanceSessions.map((session) => session.id),
+          );
+          const transitionAt = new Date();
+
+          if (activeMaintenanceSessions.length) {
+            await tx.technicianSession.updateMany({
+              where: {
+                id: { in: activeMaintenanceSessions.map((session) => session.id) },
+                endedAt: null,
+              },
+              data: {
+                endedAt: transitionAt,
+                endReason: "maintenance_completed",
+                productionModeAtEnd: currentCall.machine.productionMode,
+                machineStatusAtEnd: currentCall.machine.machineStatus,
+              },
+            });
+
+            const continuingSessions = activeMaintenanceSessions.filter((session) =>
+              followUpSessionIds.has(session.id),
+            );
+            if (continuingSessions.length) {
+              await tx.technicianSession.createMany({
+                data: continuingSessions.map((session) => ({
+                  callId: session.callId,
+                  machineId: session.machineId,
+                  technicianId: session.technicianId,
+                  technicianName: session.technicianName,
+                  technicalArea: session.technicalArea,
+                  shiftId: session.shiftId,
+                  shiftName: session.shiftName,
+                  workstationId: session.workstationId,
+                  phase: "follow_up",
+                  cycleIndex: session.cycleIndex ?? currentCall.maintenanceReturnCount + 1,
+                  startedAt: transitionAt,
+                  productionModeAtStart: currentCall.machine.productionMode,
+                  machineStatusAtStart: currentCall.machine.machineStatus,
+                })),
+              });
+            }
+          }
+
+          await tx.andonCall.update({
+            where: { id: currentCall.id },
+            data: {
+              status: "post_maintenance",
+              currentAttendanceStartedAt: null,
+              maintenanceCompletedAt: transitionAt,
+              attendanceMinutes:
+                (currentCall.attendanceMinutes ?? 0) +
+                diffPreciseMinutes(
+                  currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt,
+                  transitionAt,
+                ),
+              notes: appendNote(
+                currentCall.notes,
+                optionalString(input.notes),
+                "Conclusão da manutenção",
+              ),
+            },
+          });
+          if (!currentCall.isSystemTest) {
+            await syncMachineOperationalState(tx, currentCall.machineId);
+          }
+          return findCallWithSessions(tx, currentCall.id);
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
@@ -2231,6 +2383,31 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: NotesBody }>(
     "/api/andon-calls/:id/finish-maintenance",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralMaintenanceCompletion(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some((key) => !["notes", "followUpSessionIds"].includes(key)))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralMaintenanceCompletion(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            notes: body.notes,
+            followUpSessionIds: body.followUpSessionIds,
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (error instanceof AndonCallValidationError ||
+              error instanceof WorkstationAuthorizationError)
+            return badRequest(reply, error.message);
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({
         include: { machine: true },
         where: { id: request.params.id },
@@ -2244,143 +2421,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       }
 
       try {
-        const updatedCall = await prisma.$transaction(async (tx) => {
-          await lockMachineCallFlow(tx, call.machineId);
-          let currentCall = await tx.andonCall.findUnique({
-            include: { machine: true, technicianSessions: true },
-            where: { id: call.id },
-          });
-          if (!currentCall || currentCall.status !== "in_progress") {
-            throw new AndonCallValidationError("Chamado não está em atendimento");
-          }
-
-          const sessionsToLock = currentCall.technicianSessions.filter(
-            (session) =>
-              !session.endedAt && (session.phase === "maintenance" || session.phase === null),
-          );
-          const technicianIds = Array.from(
-            new Set(
-              sessionsToLock
-                .map((session) => session.technicianId)
-                .filter((technicianId): technicianId is string => Boolean(technicianId)),
-            ),
-          ).sort();
-          for (const technicianId of technicianIds) {
-            await lockTechnicianSessionFlow(tx, technicianId);
-          }
-
-          currentCall = await tx.andonCall.findUnique({
-            include: { machine: true, technicianSessions: true },
-            where: { id: call.id },
-          });
-          if (!currentCall || currentCall.status !== "in_progress") {
-            throw new AndonCallValidationError("Chamado não está em atendimento");
-          }
-
-          await assertMaintenanceCompletionWorkstation(tx, {
-            callId: currentCall.id,
-            workstationHeader: request.headers["x-andon-workstation-id"],
-            isSystemTest: currentCall.isSystemTest,
-          });
-
-          const activeMaintenanceSessions = currentCall.technicianSessions.filter(
-            (session) =>
-              !session.endedAt && (session.phase === "maintenance" || session.phase === null),
-          );
-          const rawFollowUpSessionIds = request.body?.followUpSessionIds;
-          if (
-            rawFollowUpSessionIds !== undefined &&
-            (!Array.isArray(rawFollowUpSessionIds) ||
-              rawFollowUpSessionIds.some(
-                (sessionId) => typeof sessionId !== "string" || !sessionId.trim(),
-              ))
-          ) {
-            throw new AndonCallValidationError(
-              "Seleção de mantenedores para acompanhamento é inválida",
-            );
-          }
-          const requestedFollowUpSessionIds = Array.isArray(rawFollowUpSessionIds)
-            ? Array.from(
-                new Set(
-                  rawFollowUpSessionIds
-                    .map(optionalString)
-                    .filter((sessionId): sessionId is string => Boolean(sessionId)),
-                ),
-              )
-            : undefined;
-          const activeSessionIds = new Set(activeMaintenanceSessions.map((session) => session.id));
-          if (requestedFollowUpSessionIds?.some((sessionId) => !activeSessionIds.has(sessionId))) {
-            throw new AndonCallValidationError(
-              "Seleção de mantenedores para acompanhamento é inválida",
-            );
-          }
-          const followUpSessionIds = new Set(
-            requestedFollowUpSessionIds ?? activeMaintenanceSessions.map((session) => session.id),
-          );
-          const transitionAt = new Date();
-
-          if (activeMaintenanceSessions.length) {
-            await tx.technicianSession.updateMany({
-              where: {
-                id: { in: activeMaintenanceSessions.map((session) => session.id) },
-                endedAt: null,
-              },
-              data: {
-                endedAt: transitionAt,
-                endReason: "maintenance_completed",
-                productionModeAtEnd: currentCall.machine.productionMode,
-                machineStatusAtEnd: currentCall.machine.machineStatus,
-              },
-            });
-
-            const continuingSessions = activeMaintenanceSessions.filter((session) =>
-              followUpSessionIds.has(session.id),
-            );
-            if (continuingSessions.length) {
-              await tx.technicianSession.createMany({
-                data: continuingSessions.map((session) => ({
-                  callId: session.callId,
-                  machineId: session.machineId,
-                  technicianId: session.technicianId,
-                  technicianName: session.technicianName,
-                  technicalArea: session.technicalArea,
-                  shiftId: session.shiftId,
-                  shiftName: session.shiftName,
-                  workstationId: session.workstationId,
-                  phase: "follow_up",
-                  cycleIndex: session.cycleIndex ?? currentCall.maintenanceReturnCount + 1,
-                  startedAt: transitionAt,
-                  productionModeAtStart: currentCall.machine.productionMode,
-                  machineStatusAtStart: currentCall.machine.machineStatus,
-                })),
-              });
-            }
-          }
-
-          await tx.andonCall.update({
-            where: { id: currentCall.id },
-            data: {
-              status: "post_maintenance",
-              currentAttendanceStartedAt: null,
-              maintenanceCompletedAt: transitionAt,
-              attendanceMinutes:
-                (currentCall.attendanceMinutes ?? 0) +
-                diffPreciseMinutes(
-                  currentCall.currentAttendanceStartedAt ?? currentCall.attendedAt,
-                  transitionAt,
-                ),
-              notes: appendNote(
-                currentCall.notes,
-                optionalString(request.body?.notes),
-                "Conclusão da manutenção",
-              ),
-            },
-          });
-          if (!currentCall.isSystemTest) {
-            await syncMachineOperationalState(tx, currentCall.machineId);
-          }
-          return findCallWithSessions(tx, currentCall.id);
-        });
+        const updatedCall = await prisma.$transaction((tx) =>
+          applyMaintenanceCompletionDomainTransition(tx, {
+            callId: call.id,
+            workstationId: request.headers["x-andon-workstation-id"],
+            notes: request.body?.notes,
+            followUpSessionIds: request.body?.followUpSessionIds,
+          }),
+        );
 
         return updatedCall;
       } catch (error) {

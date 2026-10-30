@@ -110,6 +110,7 @@ export function createAndonApiClient(
     // derived CSRF header. The legacy API path remains unchanged.
     const needsCentralCsrf =
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/attend$/.test(path)) ||
+      (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/finish-maintenance$/.test(path)) ||
       ((method === "POST" || method === "PATCH") &&
        /^\/api\/failure-classifications(?:\/[^/]+)?$/.test(path)) ||
       (method === "PUT" && path === "/api/dashboard-priority/order");
