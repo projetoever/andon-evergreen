@@ -74,7 +74,10 @@ export function HubPage() {
       </main>
     );
     if (!initialStatus.passwordConfigured) return (
-      <InitialAdminSetup status={initialStatus} onComplete={refreshInitialStatus} />
+      <InitialAdminSetup status={initialStatus} onComplete={async () => {
+        await refreshInitialStatus();
+        await refresh();
+      }} />
     );
   }
   return (
