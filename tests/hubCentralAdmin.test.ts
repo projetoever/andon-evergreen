@@ -37,9 +37,10 @@ test("Dashboard uses central session and never renders the legacy admin login in
   const hub = await read("../src/pages/HubCentralAdminPage.tsx");
   const route = await read("../src/routes/hub.admin.tsx");
   const types = await read("../src/types/modules.ts");
-  assert.match(page, /if \(access\?\.centralAccessEnabled\) \{/);
+  assert.match(page, /if \(access\.centralAccessEnabled\) \{/);
   assert.match(page, /navigate\(\{ to: "\/hub\/admin", search: \{ section: "andon" \} \}\)/);
-  assert.match(page, /!access\?\.centralAccessEnabled && \(/);
+  assert.match(page, /access && !access\.centralAccessEnabled && \(/);
+  assert.match(page, /if \(!access\) \{/);
   assert.match(hub, /section === "andon" && \(/);
   assert.match(hub, /<GeneralSettingsTab \/>/);
   assert.match(hub, /<AttendanceModeSettingsTab \/>/);
