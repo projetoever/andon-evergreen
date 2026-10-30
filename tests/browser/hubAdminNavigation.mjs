@@ -173,6 +173,25 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Resumo administrativo", exact: true }).waitFor();
+
+    // UX-11: a real browser restores the light theme after reload without
+    // changing the factory-dark default or any global system settings.
+    const themeButton = page.getByRole("button", { name: "Ativar tema claro" });
+    assert.equal(await themeButton.getAttribute("aria-pressed"), "false");
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("dark")), true);
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.classList.contains("light"));
+    assert.equal(await page.evaluate(() => localStorage.getItem("andon.theme.v1")), "light");
+    await noOverflow();
+    await page.screenshot({ path: `${output}/${viewport.width}-theme-light.png`, fullPage: true });
+    await page.reload();
+    await page.getByRole("heading", { name: "Resumo administrativo", exact: true }).waitFor();
+    await page.waitForFunction(() => document.documentElement.classList.contains("light"));
+    assert.equal(await page.getByRole("button", { name: "Ativar tema escuro" }).getAttribute("aria-pressed"), "true");
+    await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    assert.equal(await page.evaluate(() => localStorage.getItem("andon.theme.v1")), "dark");
+
     const customer = page.getByRole("region", { name: "Identificação da empresa e unidade" });
     await customer.getByLabel("Nome da empresa").waitFor();
     assert.equal(await customer.getByLabel("Nome da empresa").inputValue(), "Evergreen");
