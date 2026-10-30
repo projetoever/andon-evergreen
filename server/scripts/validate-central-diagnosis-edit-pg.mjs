@@ -43,7 +43,7 @@ try {
     { value: initialValue, label: "Old diagnosis", responsibility: "maintenance",
       analyticsDisposition: "include" },
     { value: newValue, label: "New diagnosis", responsibility: "process",
-      analyticsDisposition: "exclude" },
+      analyticsDisposition: "false_call" },
   ] });
   await db.technician.create({ data: {
     id: technicianId, employeeId: technicianId,
@@ -184,7 +184,6 @@ try {
     else process.env[env] = prev[prop];
   }
   await db.failureDiagnosisAudit.deleteMany({ where: { callId: { in: callIds } } });
-  await db.auditEvent.deleteMany({ where: { resourceType: "andon_call", resourceId: { in: callIds } } });
   if (eventId) await db.failureEvent.deleteMany({ where: { id: eventId } });
   await db.andonCall.deleteMany({ where: { id: { in: callIds } } });
   if (userId) {
