@@ -69,7 +69,7 @@ try {
       sectorSelection: "evergreen", operationAccent: "evergreen", focusAccent: "evergreen",
     };
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.route("**/api/**", async (route) => {
+    const mockApi = async (route) => {
       const req = route.request();
       const path = new URL(req.url()).pathname;
       const send = (body, status = 200) =>
@@ -194,7 +194,8 @@ try {
       if (path === "/api/dashboard-priority/access-status")
         return send({ passwordRequired: false, configured: false });
       return send({ error: `Unexpected fixture route: ${path}` }, 500);
-    });
+    };
+    await page.route("**/api/**", mockApi);
 
     const noOverflow = async () =>
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -403,6 +404,45 @@ try {
       Array.from(document.querySelectorAll('select')).some(s => s.getAttribute("aria-label") === "Contorno padrão dos cards" && s.value === "violet"));
     assert.equal(await cardBorder.inputValue(), "violet");
     paletteWriteEnabled = false;
+    // UX-12 acceptance: two independent browser contexts with different
+    // local visual preferences still receive the SAME revisioned global palette.
+    // Both contexts use the same server mock, not a shared browser storage.
+    const otherContext = await browser.newContext({
+      viewport: { width: 1024, height: 768 }, ignoreHTTPSErrors: true,
+    });
+    await otherContext.addInitScript(({ id }) => {
+      localStorage.setItem("andon.workstationId", id);
+      localStorage.setItem("andon.theme.v1", "light");
+      localStorage.setItem("andon.dashboardAttention.v1", "highlighted");
+    }, { id: "ws_00000000-0000-4000-8000-000000000022" });
+    const otherPage = await otherContext.newPage();
+    await otherPage.route("**/api/**", mockApi);
+    await otherPage.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await otherPage.waitForFunction(() => (
+      document.documentElement.classList.contains("light") &&
+      document.documentElement.style.getPropertyValue("--andon-palette-card-border") === "#7837A6"
+    ), { timeout: 10000 });
+    // Trigger read refresh on the original device, without transferring
+    // its independently chosen theme or alert-intensity preference.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    const expectedDark = await page.evaluate(() => document.documentElement.classList.contains("dark"));
+    assert.equal(expectedDark, true, "first terminal's theme remains dark");
+    await page.waitForFunction(() =>
+      document.documentElement.style.getPropertyValue("--andon-palette-card-border") === "#C69BF5");
+    assert.equal(await otherPage.evaluate(() => localStorage.getItem("andon.theme.v1")), "light");
+    assert.equal(await otherPage.evaluate(() => localStorage.getItem("andon.dashboardAttention.v1")), "highlighted");
+    assert.notEqual(await page.evaluate(() => localStorage.getItem("andon.dashboardAttention.v1")), "highlighted");
+    // Updating the same global palette will be picked up when the second
+    // workstation becomes active, without changing either local preference.
+    paletteRevision += 1;
+    globalPalette = { ...globalPalette, cardBorder: "ocean" };
+    await otherPage.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await otherPage.waitForFunction(() =>
+      document.documentElement.style.getPropertyValue("--andon-palette-card-border") === "#12668F");
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.waitForFunction(() =>
+      document.documentElement.style.getPropertyValue("--andon-palette-card-border") === "#55B6EF");
+    await otherContext.close();
     await noOverflow();
 
     await page.goto("https://127.0.0.1:4188/hub/admin?section=security");
