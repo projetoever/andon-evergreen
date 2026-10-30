@@ -1,5 +1,17 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Primeiro acesso — Configuração do administrador", "First access — Administrator setup", "首次使用 — 管理員設定"],
+  ["Esta instalação ainda não possui senha administrativa. Não existe senha padrão. A configuração deve ser concluída no próprio servidor antes de liberar o ANDON na rede.", "This installation has no administrator password yet. There is no default password. Complete setup on the server itself before making ANDON available on the network.", "此安裝尚未設定管理員密碼，也不存在預設密碼。請先在伺服器本機完成設定，再讓 ANDON 提供網路存取。"],
+  ["Por segurança, abra o Hub diretamente no navegador do servidor usando localhost para cadastrar a primeira senha. Outros dispositivos não podem realizar esta etapa.", "For security, open the Hub in the server's browser using localhost to create the first password. Other devices cannot complete this step.", "為確保安全，請在伺服器本機的瀏覽器中使用 localhost 開啟 Hub 來建立第一組密碼。其他裝置無法完成此步驟。"],
+  ["Nova senha global do administrador", "New global administrator password", "新的全域管理員密碼"],
+  ["Use entre 8 e 128 caracteres. Recomendamos pelo menos 12, sem senhas comuns. Esta senha será usada nas funções administrativas legadas durante a migração para o login central.", "Use 8 to 128 characters. We recommend at least 12 and avoiding common passwords. This password supports legacy administration while migrating to central sign-in.", "請使用 8 至 128 個字元，建議至少 12 個且避免常見密碼。遷移至集中式登入期間，此密碼用於舊版管理功能。"],
+  ["Configurando...", "Configuring...", "設定中..."],
+  ["Criar senha e concluir primeira configuração", "Create password and finish first-time setup", "建立密碼並完成首次設定"],
+  ["Não foi possível concluir a configuração inicial.", "Could not complete initial setup.", "無法完成初始設定。"],
+  ["Não foi possível verificar a configuração administrativa inicial.", "Could not verify initial administrator setup.", "無法驗證管理員初始設定。"],
+  ["Verificando a configuração inicial do administrador...", "Checking initial administrator setup...", "正在檢查管理員初始設定..."],
+  ["Configuração inicial indisponível.", "Initial setup unavailable.", "無法進行初始設定。"],
+  ["A senha deve conter entre 8 e 128 caracteres.", "The password must contain between 8 and 128 characters.", "密碼須介於 8 至 128 個字元。"],
   ["Configurações do ANDON",
     "ANDON Settings",
     "ANDON 設定"],
