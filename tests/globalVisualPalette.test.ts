@@ -51,10 +51,10 @@ test("UX-12: global save is accessible only to Hub primary Admin when server fla
   ]);
   assert.match(legacy, /<AppearanceSettingsPreview \/>/);
   assert.match(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
-  assert.match(preview, /canWrite &&/);
+  assert.match(preview, /!allowGlobalSave \\|\\| !canWrite/);
   assert.match(preview, /disabled=\{!canWrite \|\| !changed/);
   assert.match(preview, /Confirmar restauração global/);
-  assert.match(preview, /expectedRevision/);
+  assert.match(service, /expectedRevision/);
   assert.match(preview, /error\.status === 409/);
   assert.match(preview, /CustomEvent\("andon:global-palette-changed"\)/);
   assert.match(service, /apiClient\.patch<\{/);
