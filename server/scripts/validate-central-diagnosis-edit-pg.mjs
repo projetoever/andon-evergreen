@@ -128,6 +128,13 @@ try {
   assert.equal(await changes(), 0);
   assert.equal(await audits(), 0);
 
+  const denied = await send();
+  assert.equal(denied.statusCode, 403, denied.body);
+  assert.equal(denied.json().error, "permission_denied");
+  assert.equal(await changes(), 0);
+  assert.equal(await audits(), 0);
+  await db.accessPermission.create({ data: { userId, key: "analytics.reclassify" } });
+
   // Force a failure in the same transaction after the domain attempts
   // to persist the diagnosis: no partial call/event/audit is permitted.
   await assert.rejects(runCentralDiagnosisEdit(db, {
