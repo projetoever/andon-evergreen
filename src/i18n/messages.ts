@@ -4966,6 +4966,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Cancelando...", "Cancelling...", "正在取消…"],
   ["Encerrar acompanhamento individual", "End individual follow-up", "結束個人追蹤"],
   ["Encerrar atendimento individual", "End individual service", "結束個人處理"],
+  ["Não é possível encerrar o último mantenedor enquanto o chamado estiver em atendimento. Adicione outro mantenedor ou conclua a manutenção para iniciar o acompanhamento.", "The last active maintenance technician cannot end their individual session while the call is in progress. Add another technician or complete maintenance to begin follow-up.", "呼叫仍在維修中，最後一位在場的維修技術人員不可單獨結束工作。請新增另一位技術人員，或完成維修並進入追蹤階段。"],
   ["Usar PIN", "Use PIN", "使用 PIN"],
   ["Usar tag", "Use tag", "使用標籤"],
   ["Aproxime a tag no leitor", "Scan tag on reader", "將標籤靠近讀取器"],
