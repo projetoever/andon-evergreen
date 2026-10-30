@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import Fastify from "fastify";
 import { registerAdminAuthRoutes, verifyAdminPassword } from "../dist/routes/adminAuth.js";
 import { verifyCredential } from "../dist/security/technicianCredentials.js";
+import { enforceInitialAdminSetup } from "../dist/security/initialAdminSetupGuard.js";
 
 const databaseUrl = new URL(process.env.DATABASE_URL ?? "postgresql://invalid/invalid");
 if (process.env.ANDON_INTEGRATION_TEST !== "1" || databaseUrl.pathname !== "/andon_test")
@@ -13,6 +14,23 @@ const savedCors = process.env.CORS_ORIGINS;
 process.env.CORS_ORIGINS = "http://localhost:8080";
 let original = null;
 const app = Fastify({ logger: false });
+app.addHook("preHandler", enforceInitialAdminSetup);
+let privateHandlerCalls = 0;
+for (const [method, url] of [
+  ["GET", "/api/machines"],
+  ["GET", "/api/andon-calls"],
+  ["GET", "/api/analytics/overview"],
+  ["GET", "/api/modules/access"],
+  ["GET", "/api/access/session"],
+  ["POST", "/api/workstations/register"],
+  ["PATCH", "/api/system-settings"],
+]) {
+  app.route({ method, url, handler: async () => {
+    privateHandlerCalls += 1;
+    return { privateData: true };
+  }});
+}
+app.get("/health/probe", async () => ({ status: "ok" }));
 const originalHashIsNotKnown = "123456";
 try {
   original = await db.systemSettings.findUnique({
@@ -45,11 +63,29 @@ try {
     { headers: { host: "192.0.2.55:3001" } });
   assert.equal(spoofedHost.json().setupAvailable, false);
   assert.equal(spoofedHost.json().setupToken, null);
+  for (const [method, url, payload] of [
+    ["GET", "/api/machines"],
+    ["GET", "/api/andon-calls"],
+    ["GET", "/api/analytics/overview"],
+    ["GET", "/api/modules/access"],
+    ["GET", "/api/access/session"],
+    ["POST", "/api/workstations/register", {}],
+    ["PATCH", "/api/system-settings", {}],
+    ["POST", "/api/admin-auth/recover", {}],
+    ["GET", "/api/admin-auth/workstation-attendance-diagnostic"],
+  ]) {
+    const denied = await req(method, url, payload);
+    assert.equal(denied.statusCode, 428, `${method} ${url}: ${denied.body}`);
+    assert.equal(denied.json().error, "initial_admin_setup_required");
+    assert.equal(denied.headers["cache-control"], "no-store");
+  }
+  assert.equal(privateHandlerCalls, 0, "No private route handler should execute before setup");
+  assert.equal((await req("GET", "/health/probe")).statusCode, 200);
   assert.equal(await verifyAdminPassword(originalHashIsNotKnown), false,
     "No hardcoded default must authenticate when database has no password");
   const oldLogin = await req("POST", "/api/admin-auth/login",
     { username: "admin", password: originalHashIsNotKnown });
-  assert.equal(oldLogin.statusCode, 401);
+  assert.equal(oldLogin.statusCode, 428);
 
   const badToken = await req("POST", "/api/admin-auth/initialize",
     { setupToken: "0".repeat(64), password: "A6@rX2p!" });
@@ -82,6 +118,10 @@ try {
   assert.equal(secondTokenStatus.json().passwordConfigured, true);
   assert.equal(secondTokenStatus.json().setupToken, undefined);
 
+  const accessibleAfterSetup = await req("GET", "/api/machines");
+  assert.equal(accessibleAfterSetup.statusCode, 200, accessibleAfterSetup.body);
+  assert.equal(privateHandlerCalls, 1, "Configured installations must not be blocked by bootstrap guard");
+
   const login = await req("POST", "/api/admin-auth/login",
     { username: "admin", password: "A6@rX2p!" });
   assert.equal(login.statusCode, 200, login.body);
@@ -91,7 +131,7 @@ try {
   });
   assert.equal(audit.actorLogin, "admin");
   assert(!JSON.stringify(audit).includes("A6@rX2p!"));
-  console.log("First-run Admin: no preset, localhost+origin+nonce only, single setup, hashed password and audit PASS");
+  console.log("First-run Admin: API reads/writes locked until localhost setup; no preset, token, hash and audit PASS");
 } finally {
   await app.close();
   if (original) await db.systemSettings.update({
