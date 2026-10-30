@@ -310,11 +310,20 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
-    assert.equal(await centralNav.getByRole("link").count(), 3);
+    assert.equal(await centralNav.getByRole("link").count(), 4);
+    assert.equal(await centralNav.getByRole("link", { name: "Configurações do ANDON" }).count(), 1);
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
+
+    // The central-only ANDON area is visible only after server validation.
+    // It may display a blocked settings write while its backend flag is OFF.
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
+    await page.getByRole("heading", { name: "Configurações operacionais do ANDON" }).waitFor();
+    assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
+    assert.equal(await page.getByRole("link", { name: "Sons do ANDON" }).count(), 0);
+    await noOverflow();
 
     await page.goto("https://127.0.0.1:4188/hub/admin?section=security");
     await page.getByText(
@@ -329,7 +338,7 @@ try {
     await noOverflow();
 
     assert.deepEqual(errors, []);
-    results.push({ viewport, navigationSections: 5, centralSections: 3, screenshots: 5, noOverflow: true, modalFirst: true });
+    results.push({ viewport, navigationSections: 5, centralSections: 4, screenshots: 5, noOverflow: true, modalFirst: true });
     await context.close();
   }
   await writeFile(
