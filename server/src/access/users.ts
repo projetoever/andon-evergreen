@@ -151,6 +151,10 @@ export async function initializeUserAdmin(
   const settings = await db.systemSettings.findUnique({ where: { id: "global" } });
   if (!(await verifyAdminPassword(currentPassword)))
     throw new AccessError("invalid_credentials", 401);
+  // The two authentication paths coexist during the controlled migration.
+  // Reusing the legacy secret would weaken that separation.
+  if (newPassword === currentPassword)
+    throw new AccessError("password_reuse_denied", 400);
   const passwordHash = await hashAccessPassword(newPassword);
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-access:initialize'))::text`;
