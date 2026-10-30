@@ -21,6 +21,8 @@ test("operational actions distinguish read, creation, maintenance and diagnostic
   assert.equal(classifyCentralRouteAction("POST", "/api/andon-calls/batch")?.scope, "machine_from_body");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/attend")?.permission, "calls.attend");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/finish-maintenance")?.permission, "calls.finishMaintenance");
+  assert.equal(classifyCentralRouteAction("POST", "/api/technicians/identify")?.scope,
+    "machine_from_call_record");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/failure-details")?.permission, "diagnosis.edit");
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/cancel")?.permission, null);
 });

@@ -17,6 +17,11 @@ import {
   toPublicTechnician,
 } from "../services/technicianIdentity.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { runCentralTechnicianIdentification } from "../access/centralTechnicianIdentity.js";
+import { isAuthorizedCentralTechnicianIdentity } from "../security/centralTechnicianIdentityHttp.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
 
 type TechnicianQuery = {
   active?: string;
@@ -40,6 +45,7 @@ type UpdateTechnicianBody = CreateTechnicianBody;
 type IdentifyTechnicianBody = {
   method?: unknown;
   value?: unknown;
+  callId?: unknown;
 };
 
 class TechnicianCredentialConflictError extends Error {}
@@ -173,6 +179,27 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
   app.post<{ Body: IdentifyTechnicianBody }>(
     "/api/technicians/identify",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralTechnicianIdentity(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some((key) => !["method", "value", "callId"].includes(key)) ||
+            typeof body.callId !== "string")
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralTechnicianIdentification(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: body.callId,
+            method: body.method, value: body.value,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const credential = normalizeCredential(request.body?.method, request.body?.value);
       if (!credential) {
         return badRequest(

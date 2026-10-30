@@ -154,6 +154,7 @@ export function TechnicianIdentificationModal({
     if (
       (method !== "pin" && method !== "rfid") ||
       !credentialValue.trim() ||
+      !call ||
       submittingRef.current
     ) {
       return;
@@ -166,6 +167,7 @@ export function TechnicianIdentificationModal({
       const technician = await identifyTechnicianConfig(
         method as TechnicianCredentialMethod,
         value,
+        call.id,
       );
       validateTechnician(technician);
       const activeAssignment = getTechnicianActiveAssignment(technician, activeAssignments);

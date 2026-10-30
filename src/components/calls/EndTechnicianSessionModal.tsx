@@ -159,7 +159,8 @@ export function EndTechnicianSessionModal({
     setIsSubmitting(true);
     try {
       const value = credentialValue.trim();
-      const technician = await identifyTechnicianConfig(method, value);
+      if (!callId) throw new Error("Chamado não identificado");
+      const technician = await identifyTechnicianConfig(method, value, callId);
       const target = activeSessions.find(
         (session) =>
           session.technicianId === technician.id ||
