@@ -28,6 +28,9 @@ const oldEnv = {
 let app, userId, sessionId, original;
 try {
   original = await db.systemSettings.findUnique({ where: { id: "global" } });
+  await db.systemSettings.upsert({
+    where: { id: "global" }, update: {}, create: { id: "global" },
+  });
   await db.workstation.create({ data: {
     id: workstationId, active: true, pendingApproval: false, allowOperational: true,
   } });
@@ -152,6 +155,7 @@ try {
       andonVisualPaletteRevision: original.andonVisualPaletteRevision,
     },
   });
+  else await db.systemSettings.deleteMany({ where: { id: "global" } });
   if (userId) {
     await db.accessSession.deleteMany({ where: { userId } });
     await db.accessPermission.deleteMany({ where: { userId } });
