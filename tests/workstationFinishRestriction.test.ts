@@ -455,13 +455,18 @@ test("backend protege apenas finish-maintenance e mantém PATCH finish sem trava
     "utf8",
   );
   const occurrences = source.match(/assertMaintenanceCompletionWorkstation/g) ?? [];
+  const domainStart = source.indexOf("export async function applyMaintenanceCompletionDomainTransition");
+  const domainEnd = source.indexOf("export async function registerAndonCallRoutes");
   const finishMaintenanceIndex = source.indexOf('"/api/andon-calls/:id/finish-maintenance"');
   const finalFinishIndex = source.indexOf('"/api/andon-calls/:id/finish"');
-  const assertionIndex = source.lastIndexOf("assertMaintenanceCompletionWorkstation");
-
+  assert.ok(domainStart >= 0 && domainEnd > domainStart,
+    "a regra deve continuar no mesmo domínio transacional usado pelo legado e pelo central");
   assert.equal(occurrences.length, 2, "uma importação e uma aplicação da regra são esperadas");
-  assert.ok(assertionIndex > finishMaintenanceIndex);
-  assert.ok(assertionIndex < finalFinishIndex);
+  assert.match(source.slice(domainStart, domainEnd), /await assertMaintenanceCompletionWorkstation\(tx/);
+  assert.match(source.slice(finishMaintenanceIndex, finalFinishIndex),
+    /applyMaintenanceCompletionDomainTransition\(tx/);
+  assert.doesNotMatch(source.slice(finalFinishIndex),
+    /assertMaintenanceCompletionWorkstation/);
 });
 
 test("Admin persiste a configuração no SystemSettings existente", async () => {
