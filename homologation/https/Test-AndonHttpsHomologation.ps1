@@ -105,4 +105,25 @@ foreach ($flag in $forbiddenOperationalGates) {
     }
 }
 
+# Exercise port isolation without requiring Docker, npm, mkcert or the API.
+# The port guard is deliberately before any external command or filesystem work.
+$startScript = $scripts[0]
+foreach ($ports in @(
+    @{ FrontendPort = 8080; ApiPort = 3443; PostgresPort = 55432 },
+    @{ FrontendPort = 8443; ApiPort = 3001; PostgresPort = 55432 },
+    @{ FrontendPort = 8443; ApiPort = 3443; PostgresPort = 5432 },
+    @{ FrontendPort = 8443; ApiPort = 8443; PostgresPort = 55432 }
+)) {
+    $blocked = $false
+    try {
+        & $startScript -EnableCentralOperationalWrites @ports | Out-Null
+    } catch {
+        if ($_.Exception.Message -notmatch "Portas") {
+            throw "O teste saiu por motivo diferente da guarda de portas: $($_.Exception.Message)"
+        }
+        $blocked = $true
+    }
+    if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
+}
+
 Write-Host "Scripts HTTPS de homologacao: sintaxe e controles basicos aprovados."
