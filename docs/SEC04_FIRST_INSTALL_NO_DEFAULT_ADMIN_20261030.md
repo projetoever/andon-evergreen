@@ -36,6 +36,22 @@ O fluxo local:
 
 ## Integracao ao instalador (REFINE 4)
 
-Na instalacao limpa, apos iniciar os servicos e executar o health check, `installer/install-andon-server.ps1` apresenta uma etapa **PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL**. O operador pode abrir o navegador local em `http://localhost:8080/hub`, onde a tela protegida existente solicita a criacao da senha. O instalador nao solicita, recebe, registra ou armazena a senha.
+Na instalacao limpa, apos iniciar os servicos e executar o health check, `installer/install-andon-server.ps1` apresenta uma etapa **PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL**. O operador pode abrir o navegador local em `http://localhost:8080/hub` (ou `https://localhost:8080/hub` quando o transporte HTTPS estiver configurado e houver certificado confiavel com SAN localhost), onde a tela protegida existente solicita a criacao da senha. O instalador nao solicita, recebe, registra ou armazena a senha.
 
 Esta integracao automatiza **a abertura do assistente**, nao a configuracao silenciosa da senha. Se o operador dispensar a abertura, a instalacao continua sem credencial de fabrica, e o cadastro local permanece pendente. A homologacao comercial deve verificar o bloqueio das APIs antes do setup, a inicializacao por HTTPS com SAN localhost, e o comportamento no modo kiosk. Nenhum deploy produtivo esta autorizado por esta etapa.
+
+## Bloqueio de acesso direto antes da configuracao (REFINE 4)
+
+O hook `enforceInitialAdminSetup` atua no backend **antes** da autorizacao por workstation, Admin e modulo. Enquanto `SystemSettings.adminPasswordHash` estiver vazio, todas as rotas `/api/*` negam GET/HEAD e mutacoes com HTTP 428 (`initial_admin_setup_required`, `Cache-Control: no-store`), salvo:
+
+- `GET /api/admin-auth/status` para o Hub descobrir o estado, com token de configuracao entregue apenas no contexto local confiavel;
+- `POST /api/admin-auth/initialize` com protecoes de IP/Host/Origin e token temporario;
+- `OPTIONS` preflight, sem execucao de handler de negocio.
+
+Rotas tecnicas `/health`, `/health/db`, `/health/ready` permanecem acessiveis ao instalador/watchdog. O metodo de recuperacao de senha, login, listagem de maquinas, modulos, chamados, BI e operacoes de escrita **nao** sao excecoes ao bloqueio. O hook consulta a existencia do hash no banco a cada requisicao elegivel: apos configurar a senha, a autorizacao operacional anterior volta a valer, sem cache de liberacao que sobreviva a um reset administrativo.
+
+O health check completo do instalador consulta `/api/admin-auth/status` **antes** de listar maquinas ou tentar criar chamado temporario. Quando ainda falta a senha, classifica a escrita como `SKIP` esperado, e nao como falha critica da instalacao. Instalacoes ja configuradas continuam com o health check anterior.
+
+Os testes unitarios cobrem a politica de whitelist e os testes PostgreSQL isolados fazem injecao real de requisicoes em um Fastify com o hook registrado, verificando HTTP 428, ausencia de execucao dos handlers privados e desbloqueio depois da criacao do hash. Testes estaticos verificam o procedimento de primeira abertura e a precedencia da verificacao do instalador. A CI e a homologacao manual do Windows/HTTPS ainda sao criterios obrigatorios antes de usar em cliente.
+
+**Limites operacionais:** este bloqueio nao substitui segmentacao de rede, controle de proxies reversos, TLS confiavel, autenticacao central por perfil e teste de endurecimento da distribuicao comercial. Nunca usar um proxy local que permita a clientes remotos simular a origem de bootstrap confiavel.
