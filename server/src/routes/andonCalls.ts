@@ -1926,7 +1926,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         }
 
         const createdCallWithSessions = await findCallWithSessions(tx, createdCall.id);
-        return attachAssetSnapshots(createdCallWithSessions, machineSet, machineSubset);
+        const response = attachAssetSnapshots(createdCallWithSessions, machineSet, machineSubset);
+        if (!response || typeof response !== "object" ||
+            !("id" in response) || typeof response.id !== "string" ||
+            !("status" in response) || typeof response.status !== "string")
+          throw new AndonCallValidationError("Chamado não encontrado após abertura");
+        return response;
       };
       const call = centralOpen
         ? await runCentralOpenCallWrite(prisma, {
