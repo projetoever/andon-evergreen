@@ -166,6 +166,7 @@ export function TechnicianIdentificationModal({
       const technician = await identifyTechnicianConfig(
         method as TechnicianCredentialMethod,
         value,
+        call.id,
       );
       validateTechnician(technician);
       const activeAssignment = getTechnicianActiveAssignment(technician, activeAssignments);
