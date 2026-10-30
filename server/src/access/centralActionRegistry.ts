@@ -17,7 +17,9 @@ export type ResourceScope =
   | "machine_from_set_record"
   | "machine_from_subset_record"
   | "module_global"
-  | "needs_call_ownership";
+  | "needs_call_ownership"
+  | "own_workstation"
+  | "own_workstation_machine";
 
 export type CentralRouteAction = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -29,6 +31,11 @@ export type CentralRouteAction = {
 };
 
 export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
+  // Personal runtime choices: the server always checks that the target
+  // workstation equals the workstation bound to this user's session.
+  { method: "GET", route: "/api/workstations/:id/runtime-preferences", permission: "andon.read", scope: "own_workstation", module: "operational" },
+  { method: "PATCH", route: "/api/workstations/:id/screen-lock", permission: "andon.read", scope: "own_workstation_machine", module: "operational" },
+  { method: "PUT", route: "/api/workstations/:id/machine-sound/:machineId", permission: "andon.read", scope: "own_workstation_machine", module: "operational" },
   { method: "GET", route: "/api/machines", permission: "andon.read", scope: "collection_filter", module: "operational" },
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
