@@ -28,6 +28,7 @@ import { isCentralFinishCallMutation, markCentralFinishCallAuthorized } from "./
 import { isCentralCancelCallMutation, markCentralCancelCallAuthorized } from "./centralCancelCallHttp.js";
 import { isCentralTechnicianEndMutation, markCentralTechnicianEndAuthorized } from "./centralTechnicianEndHttp.js";
 import { isCentralTechnicianAddMutation, markCentralTechnicianAddAuthorized } from "./centralTechnicianAddHttp.js";
+import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized } from "./centralOwnWorkstationPrefsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -121,7 +122,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralFinishCallMutation(request.method, path) &&
           !isCentralCancelCallMutation(request.method, path) &&
           !isCentralTechnicianEndMutation(request.method, path) &&
-          !isCentralTechnicianAddMutation(request.method, path))
+          !isCentralTechnicianAddMutation(request.method, path) &&
+          !isCentralOwnWorkstationPreference(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -166,6 +168,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianAddMutation(request.method, path)) {
           markCentralTechnicianAddAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralOwnWorkstationPreference(request.method, path)) {
+          markCentralOwnWorkstationPreferenceAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralPriorityWrite(request.method, path)) {
