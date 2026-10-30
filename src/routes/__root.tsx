@@ -17,6 +17,7 @@ import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 import { Toaster } from "@/components/ui/sonner";
 import { WorkstationAccessGate } from "@/components/security/WorkstationAccessGate";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
+import { ThemeProvider } from "@/theme/ThemeProvider";
 import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
 
 import appCss from "../styles.css?url";
@@ -95,12 +96,12 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className="dark">
       <head>
         <HeadContent />
       </head>
       <body>
-        <LanguageProvider>{children}</LanguageProvider>
+        <ThemeProvider><LanguageProvider>{children}</LanguageProvider></ThemeProvider>
         <Scripts />
       </body>
     </html>
