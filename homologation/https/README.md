@@ -17,8 +17,7 @@ Feche navegadores que usem uma instância anterior e execute na raiz do reposit�
 .\homologation\https\Start-AndonHttpsHomologation.ps1
 ```
 
-Abra `https://localhost:8443/hub`. No primeiro acesso, identifique a workstation, use a senha Admin
-legada **de teste** `123456` apenas para habilitar a gestão central isolada e crie uma senha pessoal de **8 a 128 caracteres** (12 ou mais recomendados). A senha legada de teste e a nova conta Admin central são credenciais diferentes. Em seguida,
+Abra `https://localhost:8443/hub` no próprio notebook. A instalação inicia **sem qualquer senha Admin padrão**. Na primeira abertura, configure a senha Admin global (8–128 caracteres, recomendado 12+). Depois, identifique a workstation e cadastre a conta Admin central conforme o roteiro de migração. A senha global temporariamente atende somente os recursos legados. Em seguida,
 é possível cadastrar usuários, testar a troca obrigatória de senha e aprovar ou rejeitar estações.
 O certificado é validado pelo navegador porque o `mkcert` instala uma CA local; não aceite alertas
 de certificado e não use opções para ignorar erros TLS.
