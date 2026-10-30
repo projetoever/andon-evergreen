@@ -9,9 +9,10 @@ import { appendAudit, actorFromPrincipal } from "./audit.js";
 import { identifyTechnician } from "../services/technicianIdentity.js";
 import { normalizePin } from "../security/technicianCredentials.js";
 import { applyFailureDiagnosisDomainTransition } from "../routes/andonCalls.js";
+import { diagnosisSnapshot } from "../analytics/eligibility.js";
 
 /**
- * SEC-04/2N: a central principal needs both history.read and diagnosis.edit.
+ * SEC-04/2N: requires history.read + diagnosis.edit and conditional\n * analytics.reclassify when changing classification, BI responsibility or disposition.
  * An independently verified technician PIN signs the detailed diagnosis log.
  * Lock order: user -> workstation -> machine -> technician -> call row.
  * The shared domain + technician audit + central principal audit are atomic.
@@ -90,6 +91,33 @@ export function runCentralDiagnosisEdit(
       throw new AccessError("call_not_found", 404);
     if (call.isSystemTest) throw new AccessError("system_test_transition_denied");
     if (call.status !== "finished") throw new AccessError("call_state_changed", 409);
+
+    // A correction that changes the classification or its BI treatment is a
+    // reclassification, not merely text editing. The Admin-granted
+    // analytics.reclassify permission is independent of diagnosis.edit.
+    // Check the live database snapshot after the machine lock, before writes.
+    const existingDiagnosis = await tx.andonCall.findUnique({
+      where: { id: input.callId },
+      select: {
+        failureClassification: true, failureResponsibility: true,
+        analyticsDisposition: true,
+      },
+    });
+    const catalog = await tx.failureClassification.findUnique({
+      where: { value: input.classification },
+      select: {
+        value: true, responsibility: true, analyticsDisposition: true,
+      },
+    });
+    if (catalog) {
+      const expected = diagnosisSnapshot(catalog);
+      const reclassifies =
+        existingDiagnosis?.failureClassification !== input.classification ||
+        existingDiagnosis.failureResponsibility !== expected.failureResponsibility ||
+        existingDiagnosis.analyticsDisposition !== expected.analyticsDisposition;
+      if (reclassifies)
+        assertPermission(latest, "analytics.reclassify", reference.machineId);
+    }
 
     const original = await identifyTechnician({ method: "pin", value: input.pin }, tx);
     if (!original) throw new AccessError("invalid_technician_pin", 401);
