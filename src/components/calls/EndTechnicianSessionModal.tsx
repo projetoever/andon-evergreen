@@ -183,6 +183,7 @@ export function EndTechnicianSessionModal({
   }
 
   function handleNameSubmit() {
+    if (centralAttendance) return;
     const target = activeSessions.find((session) => session.id === sessionId);
     if (target) void finishSession(target);
   }
