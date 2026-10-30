@@ -147,9 +147,11 @@ export function registerAccessRoutes(
           ? error.code
           : e.code === "P2002"
             ? "user_conflict"
-            : status === 400
-              ? "invalid_input"
-              : "access_unavailable";
+            : e.message === "password_policy_failed"
+              ? "password_policy_failed"
+              : status === 400
+                ? "invalid_input"
+                : "access_unavailable";
       // Never log exception objects, request bodies or query parameters in this subsystem.
       if ((req.raw.socket as TLSSocket).encrypted && status < 500) {
         let actor: AuditActor = {
