@@ -436,3 +436,16 @@
 .andon-palette-operation-button {
   box-shadow: inset 0 0 0 2px var(--andon-palette-operation-accent, transparent);
 }
+.machine-sector-action[data-call-state="selected"]::after {
+  content: "";
+  position: absolute;
+  inset: -0.2rem;
+  border-radius: inherit;
+  border: 2px solid var(--andon-palette-sector-selection, transparent);
+  pointer-events: none;
+}
+.machine-sector-action[data-call-state="selected"] [data-selected-inset="true"] {
+  outline: 2px solid var(--andon-palette-selected-card-border, transparent);
+  outline-offset: 1px;
+}
+
