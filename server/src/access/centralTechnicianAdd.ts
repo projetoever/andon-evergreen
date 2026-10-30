@@ -113,11 +113,14 @@ export function runCentralTechnicianAdd(
       callId: call.id, technicians: original,
     });
     // Re-identify after locks to catch changes/revocations made by Admin.
+    // Persist the post-lock technician/shift snapshot rather than stale input.
+    const verifiedTechnicians: IdentifiedTechnician[] = [];
     for (let i = 0; i < credentials.length; i++) {
       const verified = await identifyTechnician(credentials[i]!, tx);
       if (!verified || verified.id !== original[i].id ||
           !getTechnicianTechnicalAreas(verified).includes(call.subtype!))
         throw new AccessError("technician_credential_invalid");
+      verifiedTechnicians.push(verified);
     }
     if (missing.length !== original.length)
       throw new AccessError("technician_already_attending", 409);
@@ -140,8 +143,8 @@ export function runCentralTechnicianAdd(
           !getTechnicianTechnicalAreas(tech).includes(call.subtype!)))
       throw new AccessError("call_state_changed", 409);
     const updated = await persistAddedTechnicianSessions(tx, {
-      currentCall: call, technicians: original,
-      missingTechnicians: missing, workstationId: input.workstationId,
+      currentCall: call, technicians: verifiedTechnicians,
+      missingTechnicians: verifiedTechnicians, workstationId: input.workstationId,
     });
     await appendAudit(tx, {
       ...actorFromPrincipal(latest),
