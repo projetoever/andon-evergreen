@@ -31,12 +31,8 @@ function parseCorsOrigins(value: string | undefined) {
 export function getAllowedCorsOrigins() {
   const configuredOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
 
-  // Installer setup is only permitted from an actual loopback connection.
-  // Keep the localhost browser origin usable even if the network frontend
-  // hostname is the sole CORS_ORIGINS entry. Central session requests still
-  // require their separate exact ANDON_ACCESS_ORIGIN authorization.
   return Array.from(
-    new Set([...configuredOrigins, ...DEFAULT_CORS_ORIGINS]),
+    new Set(configuredOrigins.length > 0 ? configuredOrigins : DEFAULT_CORS_ORIGINS),
   );
 }
 
