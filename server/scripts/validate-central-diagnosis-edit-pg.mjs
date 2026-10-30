@@ -183,6 +183,8 @@ try {
     if (prev[prop] === undefined) delete process.env[env];
     else process.env[env] = prev[prop];
   }
+  await db.failureDiagnosisAudit.deleteMany({ where: { callId: { in: callIds } } });
+  await db.auditEvent.deleteMany({ where: { resourceType: "andon_call", resourceId: { in: callIds } } });
   if (eventId) await db.failureEvent.deleteMany({ where: { id: eventId } });
   await db.andonCall.deleteMany({ where: { id: { in: callIds } } });
   if (userId) {
