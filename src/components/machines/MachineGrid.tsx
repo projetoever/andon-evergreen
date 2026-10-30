@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Factory } from "lucide-react";
 import type { Machine } from "@/types/machine";
 import type { DashboardMachineOrderMode } from "@/types/systemSettings";
+import type { DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { cn } from "@/lib/utils";
 import { useAndon } from "@/context/AndonProvider";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -27,14 +28,17 @@ interface MachineGridProps {
   machines: Machine[];
   className?: string;
   orderMode?: DashboardMachineOrderMode;
+  attentionMode?: DashboardAttentionMode;
 }
 
 function MachinePageGrid({
   machines,
   priorityRanks,
+  attentionMode,
 }: {
   machines: Machine[];
   priorityRanks: Map<string, number>;
+  attentionMode: DashboardAttentionMode;
 }) {
   useInterfaceLanguage();
   const groupedPriorityMachines = machines.filter((machine) => priorityRanks.has(machine.id));
@@ -49,6 +53,7 @@ function MachinePageGrid({
         key={machine.id}
         machine={machine}
         productionPriorityRank={priorityRanks.get(machine.id) ?? null}
+        attentionMode={attentionMode}
       />
     );
   }
@@ -80,7 +85,7 @@ function MachinePageGrid({
   );
 }
 
-export function MachineGrid({ machines, className, orderMode = "default" }: MachineGridProps) {
+export function MachineGrid({ machines, className, orderMode = "default", attentionMode = "discreet" }: MachineGridProps) {
   const { calls } = useAndon();
   const { t } = useLanguage();
   const [pageIndex, setPageIndex] = useState(0);
@@ -154,7 +159,7 @@ export function MachineGrid({ machines, className, orderMode = "default" }: Mach
   if (!hasOverflow) {
     return (
       <div className={cn("h-full min-h-0", className)}>
-        <MachinePageGrid machines={orderedMachines} priorityRanks={priorityRanks} />
+        <MachinePageGrid machines={orderedMachines} priorityRanks={priorityRanks} attentionMode={attentionMode} />
       </div>
     );
   }
@@ -194,7 +199,7 @@ export function MachineGrid({ machines, className, orderMode = "default" }: Mach
         >
           {pages.map((page, index) => (
             <div key={index} className={cn("min-h-0 w-full min-w-full shrink-0 lg:h-full", index !== pageIndex && "max-lg:h-0 max-lg:overflow-hidden")}>
-              <MachinePageGrid machines={page} priorityRanks={priorityRanks} />
+              <MachinePageGrid machines={page} priorityRanks={priorityRanks} attentionMode={attentionMode} />
             </div>
           ))}
         </div>
