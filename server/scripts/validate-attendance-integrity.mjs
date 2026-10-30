@@ -101,13 +101,21 @@ export async function validateAttendanceIntegrity(request, prisma) {
       json("PATCH", { credentials: [{ method: "pin", value: "90837261" }] }),
     );
     assert.equal(attended.technicianSessions[0].workstationId, a);
-    await request(
+    const lastTechnicianAttempt = await request(
       `/api/andon-calls/${call.id}/technicians/end`,
       json("PATCH", {
         credential: { method: "pin", value: "90837261" },
         reason: "support_finished",
       }),
+      400,
     );
+    assert.match(lastTechnicianAttempt.message, /último mantenedor/);
+    const stillAttending = await prisma.andonCall.findUniqueOrThrow({
+      where: { id: call.id }, include: { technicianSessions: true },
+    });
+    assert.equal(stillAttending.status, "in_progress");
+    assert.equal(stillAttending.technicianSessions.filter(s => !s.endedAt).length, 1,
+      "rejected individual end must not orphan the call or change session timestamps");
     await request(`/api/andon-calls/${call.id}/finish-maintenance`, json("PATCH", {}, b), 400);
     const completed = await request(
       `/api/andon-calls/${call.id}/finish-maintenance`,
@@ -121,7 +129,7 @@ export async function validateAttendanceIntegrity(request, prisma) {
     assert.equal(saved.failureClassification, null);
     assert.equal(saved.failureDescription, null);
     assert.ok(saved.technicianSessions.every((s) => s.workstationId === a));
-    console.log("Aprovação, permissões e conclusão após encerramento individual: OK");
+    console.log("Aprovação, permissões e conclusão com último técnico protegido: OK");
   } finally {
     await request("/api/modules/settings", json("PATCH", { requireWorkstationApproval: false }));
     await request(
