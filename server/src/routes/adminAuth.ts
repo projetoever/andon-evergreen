@@ -12,10 +12,10 @@ import {
 } from "../security/adminAuthorization.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
+import { initializeGlobalAdminPassword, isLocalInitialAdminRequest, issueInitialAdminSetupToken, InitialAdminSetupError } from "../security/initialAdminSetup.js";
 
 const GLOBAL_SETTINGS_ID = "global";
 const ADMIN_USER = "admin";
-const DEFAULT_ADMIN_PASSWORD = "123456";
 const MIN_PASSWORD_LENGTH = 6;
 const MAX_PASSWORD_LENGTH = 128;
 
@@ -71,7 +71,7 @@ async function getAdminCredentialState() {
 export async function verifyAdminPassword(password: string) {
   const settings = await getAdminCredentialState();
   if (!settings?.adminPasswordHash) {
-    return password === DEFAULT_ADMIN_PASSWORD;
+    return false; // A fresh installation never accepts a factory password.
   }
   return verifyCredential(password, settings.adminPasswordHash);
 }
@@ -155,15 +155,39 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get("/api/admin-auth/status", async () => {
+  app.get("/api/admin-auth/status", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
     const settings = await getAdminCredentialState();
+    const passwordConfigured = Boolean(settings?.adminPasswordHash);
     return {
       username: ADMIN_USER,
-      passwordConfigured: Boolean(settings?.adminPasswordHash),
+      passwordConfigured,
+      setupAvailable: !passwordConfigured && isLocalInitialAdminRequest(request),
+      ...(!passwordConfigured ? {
+        setupToken: issueInitialAdminSetupToken(request),
+      } : {}),
       recoveryConfigured: Boolean(settings?.adminRecoveryCodeHash),
       recoveryCodeIssuedAt: settings?.adminRecoveryCodeIssuedAt ?? null,
     };
   });
+
+  app.post<{ Body: { setupToken?: unknown; password?: unknown } }>(
+    "/api/admin-auth/initialize",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!request.body || typeof request.body !== "object" ||
+          Array.isArray(request.body) ||
+          Object.keys(request.body).some(key => !["setupToken", "password"].includes(key)))
+        return reply.status(400).send({ error: "invalid_input" });
+      try {
+        return await initializeGlobalAdminPassword(prisma, request, request.body);
+      } catch (error) {
+        if (error instanceof InitialAdminSetupError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
 
   app.post<{ Body: LoginBody }>("/api/admin-auth/login", async (request, reply) => {
     const username = typeof request.body?.username === "string" ? request.body.username.trim() : "";
