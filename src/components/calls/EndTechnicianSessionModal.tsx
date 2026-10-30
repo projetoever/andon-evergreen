@@ -53,7 +53,9 @@ export function EndTechnicianSessionModal({
   const { endTechnicianSession } = useAndon();
   const activeSessions = sessions.filter((session) => !session.endedAt);
   const isFollowUp =
-    phase === "follow_up" || activeSessions.some((session) => session.phase === "follow_up");
+    phase !== undefined
+      ? phase === "follow_up"
+      : activeSessions.some((session) => session.phase === "follow_up");
   // The dialog must explain why the final individual exit is disabled.
   // The backend repeats this check under the machine transaction lock.
   const lastActiveMaintenanceTechnician = !isFollowUp && activeSessions.length === 1;
