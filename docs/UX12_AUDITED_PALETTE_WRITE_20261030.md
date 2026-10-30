@@ -25,3 +25,7 @@ Corpo aceito: `{ "palette": { "version": 1, "cardBorder": "slate", "selectedCard
 - Homologação em notebook isolado e autorização específica, backup do banco e implantação controlada. **Não alterar a fábrica/Node-RED/PLC/GPIO**.
 
 Ver `docs/UX12_GLOBAL_PALETTE_ROADMAP_20261030.md` e `docs/PLANO_DOCUMENTACAO_RELEASE_ANDON_20261030.md`.
+
+## Ordem de integração
+
+O PR #302 (schema e GET sanitizado) é pré-requisito da implementação desta branch. O PR #303 está temporariamente dirigido à `main` apenas para que a CI verifique o conjunto completo. O merge do #303 deve ocorrer somente após o #302 e após nova revisão do diff, com a flag de escrita permanecendo OFF.
