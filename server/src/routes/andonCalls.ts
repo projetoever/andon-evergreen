@@ -51,6 +51,8 @@ import { runCentralTechnicianEnd } from "../access/centralTechnicianEnd.js";
 import { isAuthorizedCentralTechnicianEnd } from "../security/centralTechnicianEndHttp.js";
 import { runCentralTechnicianAdd } from "../access/centralTechnicianAdd.js";
 import { isAuthorizedCentralTechnicianAdd } from "../security/centralTechnicianAddHttp.js";
+import { runCentralDiagnosisEdit } from "../access/centralDiagnosisEdit.js";
+import { isAuthorizedCentralDiagnosisEdit } from "../security/centralDiagnosisEditHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -2152,6 +2154,87 @@ export async function applyCancellationDomainTransition(
           return findCallWithSessions(tx, currentCall.id);
 }
 
+/**
+ * Shared legacy/central failure-diagnosis transition. Call row and event
+ * updates, the existing detailed technician audit and the optional central
+ * actor audit must all be in the caller's transaction.
+ */
+export async function applyFailureDiagnosisDomainTransition(
+  tx: Prisma.TransactionClient,
+  input: {
+    callId: string; classification: string; description: string;
+    technician: { id: string; name: string };
+    workstationId?: string | null; ipAddress?: string;
+  },
+) {
+  await tx.$queryRaw`SELECT id FROM andon_calls WHERE id = ${input.callId} FOR UPDATE`;
+  const call = await tx.andonCall.findUnique({ where: { id: input.callId } });
+  if (!call) return { error: "Chamado não encontrado", status: 404 } as const;
+  if (call.status !== "finished" || call.isSystemTest)
+    return { error: "Apenas chamados reais finalizados podem ter o diagnóstico editado", status: 400 } as const;
+
+  const linkedEvent = (await tx.failureEvent.findFirst({
+    where: { callId: call.id, endedAt: null }, orderBy: { startedAt: "desc" },
+  })) ?? (await tx.failureEvent.findFirst({
+    where: { callId: call.id }, orderBy: { startedAt: "desc" },
+  }));
+  const catalogClassification = await tx.failureClassification.findUnique({
+    where: { value: input.classification },
+  });
+  if (!catalogClassification || (
+      !catalogClassification.active &&
+      linkedEvent?.classification !== input.classification &&
+      call.failureClassification !== input.classification))
+    return { error: "Classificação da falha inválida ou inativa", status: 400 } as const;
+
+  const snapshot = diagnosisSnapshot(catalogClassification);
+  if (call.failureClassification === input.classification &&
+      call.failureDescription === input.description &&
+      call.failureResponsibility === snapshot.failureResponsibility &&
+      call.analyticsDisposition === snapshot.analyticsDisposition)
+    return { call: await findCallWithSessions(tx, call.id), changed: false } as const;
+
+  await tx.andonCall.update({
+    where: { id: call.id },
+    data: {
+      failureClassification: input.classification,
+      failureDescription: input.description, ...snapshot,
+    },
+  });
+  await tx.failureDiagnosisAudit.create({
+    data: {
+      callId: call.id, failureEventId: linkedEvent?.id ?? null,
+      machineId: call.machineId,
+      technicianId: input.technician.id,
+      technicianName: input.technician.name,
+      workstationId: input.workstationId ?? null,
+      ipAddress: input.ipAddress,
+      previousResponsibility: call.failureResponsibility,
+      newResponsibility: snapshot.failureResponsibility,
+      previousDisposition: call.analyticsDisposition,
+      newDisposition: snapshot.analyticsDisposition,
+      previousClassification: call.failureClassification,
+      newClassification: input.classification,
+      previousDescription: call.failureDescription,
+      newDescription: input.description,
+    },
+  });
+  if (linkedEvent) await tx.failureEvent.update({
+    where: { id: linkedEvent.id },
+    data: {
+      classification: input.classification,
+      notes: input.description, ...snapshot,
+    },
+  });
+  return {
+    call: await findCallWithSessions(tx, call.id), changed: true,
+    previousClassification: call.failureClassification,
+    previousResponsibility: call.failureResponsibility,
+    currentClassification: input.classification,
+    currentResponsibility: snapshot.failureResponsibility,
+  } as const;
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
@@ -3239,93 +3322,57 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: EditFailureDetailsBody }>(
     "/api/andon-calls/:id/failure-details",
     async (request, reply) => {
-      const classification = optionalString(request.body?.failureClassification);
-      const description = optionalString(request.body?.failureDescription);
+      const central = centralAccessEnabled();
+      if (central && !isAuthorizedCentralDiagnosisEdit(request))
+        throw new AccessError("central_action_not_supported");
+      const body = request.body ?? {};
+      if (central && Object.keys(body).some(key =>
+          !["failureClassification", "failureDescription", "pin"].includes(key)))
+        return reply.status(400).send({ error: "invalid_input" });
+
+      const classification = optionalString(body.failureClassification);
+      const description = optionalString(body.failureDescription);
       if (!classification) return badRequest(reply, "Classificação da falha é obrigatória");
-      if (GENERIC_FAILURE_CLASSIFICATIONS.has(classification)) {
+      if (GENERIC_FAILURE_CLASSIFICATIONS.has(classification))
         return badRequest(reply, "Selecione uma classificação específica da falha");
-      }
       if (!description) return badRequest(reply, "Descrição da falha é obrigatória");
-      const pin = normalizePin(request.body?.pin);
+      if (central && (classification.length > 160 || description.length > 4000))
+        return reply.status(400).send({ error: "invalid_input" });
+      const pin = normalizePin(body.pin);
       if (!pin) return badRequest(reply, "Informe o PIN do mantenedor (4 a 8 números)");
-      const technician = await identifyTechnician({ method: "pin", value: pin });
-      if (!technician) return reply.status(401).send({ error: "invalid_technician_pin", message: "PIN do mantenedor inválido ou inativo" });
 
-      const result = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM andon_calls WHERE id = ${request.params.id} FOR UPDATE`;
-        const call = await tx.andonCall.findUnique({ where: { id: request.params.id } });
-        if (!call) return { error: "Chamado não encontrado", status: 404 } as const;
-        if (call.status !== "finished" || call.isSystemTest) {
-          return {
-            error: "Apenas chamados reais finalizados podem ter o diagnóstico editado",
-            status: 400,
-          } as const;
-        }
-
-        const linkedEvent =
-          (await tx.failureEvent.findFirst({
-            where: { callId: call.id, endedAt: null },
-            orderBy: { startedAt: "desc" },
-          })) ??
-          (await tx.failureEvent.findFirst({
-            where: { callId: call.id },
-            orderBy: { startedAt: "desc" },
-          }));
-        const catalogClassification = await tx.failureClassification.findUnique({
-          where: { value: classification },
-        });
-        if (
-          !catalogClassification ||
-          (!catalogClassification.active &&
-            linkedEvent?.classification !== classification &&
-            call.failureClassification !== classification)
-        ) {
-          return { error: "Classificação da falha inválida ou inativa", status: 400 } as const;
-        }
-
-        const snapshot = diagnosisSnapshot(catalogClassification);
-        if (call.failureClassification === classification && call.failureDescription === description && call.failureResponsibility === snapshot.failureResponsibility && call.analyticsDisposition === snapshot.analyticsDisposition) {
-          return { call: await findCallWithSessions(tx, call.id) };
-        }
-
-        await tx.andonCall.update({
-          where: { id: call.id },
-          data: { failureClassification: classification, failureDescription: description, ...snapshot },
-        });
-        await tx.failureDiagnosisAudit.create({
-          data: {
-            callId: call.id,
-            failureEventId: linkedEvent?.id ?? null,
-            machineId: call.machineId,
-            technicianId: technician.id,
-            technicianName: technician.name,
-            workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
-              ? request.headers["x-andon-workstation-id"] : null,
-            ipAddress: request.ip.replace(/^::ffff:/, ""),
-            previousResponsibility: call.failureResponsibility,
-            newResponsibility: snapshot.failureResponsibility,
-            previousDisposition: call.analyticsDisposition,
-            newDisposition: snapshot.analyticsDisposition,
-            previousClassification: call.failureClassification,
-            newClassification: classification,
-            previousDescription: call.failureDescription,
-            newDescription: description,
-          },
-        });
-        if (linkedEvent) {
-          await tx.failureEvent.update({
-            where: { id: linkedEvent.id },
-            data: { classification, notes: description, ...snapshot },
+      if (central) {
+        try {
+          return await runCentralDiagnosisEdit(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id, classification, description, pin,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
           });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
         }
-        return { call: await findCallWithSessions(tx, call.id) };
-      });
+      }
 
-      if ("error" in result && result.error) {
+      const technician = await identifyTechnician({ method: "pin", value: pin });
+      if (!technician)
+        return reply.status(401).send({
+          error: "invalid_technician_pin", message: "PIN do mantenedor inválido ou inativo",
+        });
+      const result = await prisma.$transaction(tx =>
+        applyFailureDiagnosisDomainTransition(tx, {
+          callId: request.params.id, classification, description,
+          technician: { id: technician.id, name: technician.name },
+          workstationId: typeof request.headers["x-andon-workstation-id"] === "string"
+            ? request.headers["x-andon-workstation-id"] : null,
+          ipAddress: request.ip.replace(/^::ffff:/, ""),
+        }));
+      if ("error" in result && result.error)
         return result.status === 404
           ? notFound(reply, result.error)
           : badRequest(reply, result.error);
-      }
       return result.call;
     },
   );
