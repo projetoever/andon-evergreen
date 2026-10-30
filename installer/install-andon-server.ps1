@@ -105,7 +105,11 @@ try {
                 Write-Host "Nao existe senha administrativa padrao nesta instalacao."
                 Write-Host "O primeiro cadastro deve ocorrer no navegador do proprio servidor."
                 Write-Host "Ate a configuracao, o Hub nao libera a navegacao normal."
-                $firstSetupUrl = "http://localhost:$Global:AndonFrontendPort/hub"
+                $firstSetupScheme = if ($Global:AndonTransportMode -eq "https") { "https" } else { "http" }
+                $firstSetupUrl = "${firstSetupScheme}://localhost:$Global:AndonFrontendPort/hub"
+                if ($firstSetupScheme -eq "https") {
+                    Write-AndonWarn "HTTPS local requer certificado confiavel e valido para localhost (SAN). Nao ignore erros do navegador."
+                }
                 Write-Host "Endereco local: $firstSetupUrl"
                 if (Read-AndonYesNo "Abrir configuracao inicial segura neste servidor agora?" $true) {
                     try {
