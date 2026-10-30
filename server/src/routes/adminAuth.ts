@@ -16,7 +16,8 @@ import { initializeGlobalAdminPassword, isLocalInitialAdminRequest, issueInitial
 
 const GLOBAL_SETTINGS_ID = "global";
 const ADMIN_USER = "admin";
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 6; // Accept existing legacy passwords without forcing a reset.
+const MIN_NEW_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
 type LoginBody = {
@@ -44,6 +45,12 @@ function normalizePassword(value: unknown) {
   return normalized.length >= MIN_PASSWORD_LENGTH && normalized.length <= MAX_PASSWORD_LENGTH
     ? normalized
     : null;
+}
+
+function normalizeNewAdminPassword(value: unknown) {
+  const password = normalizePassword(value);
+  return password && [...password].length >= MIN_NEW_PASSWORD_LENGTH
+    ? password : null;
 }
 
 function normalizeRecoveryCode(value: unknown) {
@@ -202,7 +209,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
 
   app.put<{ Body: ChangePasswordBody }>("/api/admin-auth/password", async (request, reply) => {
     const currentPassword = normalizePassword(request.body?.currentPassword);
-    const newPassword = normalizePassword(request.body?.newPassword);
+    const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
     if (!currentPassword || !(await verifyAdminPassword(currentPassword))) {
       return reply.status(401).send({
@@ -214,7 +221,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     if (!newPassword) {
       return badRequest(
         reply,
-        `A nova senha deve possuir entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.`,
+        `A nova senha deve possuir entre ${MIN_NEW_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres.`,
       );
     }
 
@@ -267,7 +274,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
 
   app.post<{ Body: RecoverPasswordBody }>("/api/admin-auth/recover", async (request, reply) => {
     const recoveryCode = normalizeRecoveryCode(request.body?.recoveryCode);
-    const newPassword = normalizePassword(request.body?.newPassword);
+    const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
     if (!recoveryCode || !newPassword) {
       return badRequest(reply, "Informe um código de recuperação válido e a nova senha.");
