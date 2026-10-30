@@ -103,8 +103,9 @@ export function runCentralTechnicianAdd(
     }
     if (new Set(original.map(tech => tech.id)).size !== original.length)
       throw new AccessError("duplicate_technician", 409);
-    if (!call.subtype || original.some(tech =>
-        !getTechnicianTechnicalAreas(tech).includes(call.subtype!)))
+    const expectedSubtype = call.subtype;
+    if (!expectedSubtype || original.some(tech =>
+        !getTechnicianTechnicalAreas(tech).includes(expectedSubtype)))
       throw new AccessError("technician_area_denied");
 
     // The legacy helper acquires technician locks in stable ID order, checks
@@ -118,7 +119,7 @@ export function runCentralTechnicianAdd(
     for (let i = 0; i < credentials.length; i++) {
       const verified = await identifyTechnician(credentials[i]!, tx);
       if (!verified || verified.id !== original[i].id ||
-          !getTechnicianTechnicalAreas(verified).includes(call.subtype!))
+          !getTechnicianTechnicalAreas(verified).includes(expectedSubtype))
         throw new AccessError("technician_credential_invalid");
       verifiedTechnicians.push(verified);
     }
@@ -137,10 +138,11 @@ export function runCentralTechnicianAdd(
     });
     if (!call || call.machineId !== reference.machineId)
       throw new AccessError("call_not_found", 404);
+    const freshSubtype = call.subtype;
     if (call.isSystemTest || call.category !== "maintenance" ||
         (call.status !== "in_progress" && call.status !== "post_maintenance") ||
-        !call.subtype || original.some(tech =>
-          !getTechnicianTechnicalAreas(tech).includes(call.subtype!)))
+        !freshSubtype || original.some(tech =>
+          !getTechnicianTechnicalAreas(tech).includes(freshSubtype)))
       throw new AccessError("call_state_changed", 409);
     const updated = await persistAddedTechnicianSessions(tx, {
       currentCall: call, technicians: verifiedTechnicians,
