@@ -37,6 +37,8 @@ import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttenda
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
 import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
 import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
+import { runCentralReturnToMaintenance } from "../access/centralReturnToMaintenance.js";
+import { isAuthorizedCentralReturnToMaintenance } from "../security/centralReturnToMaintenanceHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -2548,6 +2550,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: ReturnToMaintenanceBody }>(
     "/api/andon-calls/:id/return-to-maintenance",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralReturnToMaintenance(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some((key) => key !== "reason"))
+          return reply.status(400).send({ error: "invalid_input" });
+        try {
+          return await runCentralReturnToMaintenance(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id,
+            reason: body.reason,
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({ where: { id: request.params.id } });
       if (!call) return notFound(reply, "Chamado não encontrado");
       if (call.category !== "maintenance") {
