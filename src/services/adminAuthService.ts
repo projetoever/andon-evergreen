@@ -19,6 +19,8 @@ export const ADMIN_PASSWORD_MIN_LENGTH = 6;
 export interface AdminAuthStatus {
   username: string;
   passwordConfigured: boolean;
+  setupAvailable?: boolean;
+  setupToken?: string | null;
   recoveryConfigured: boolean;
   recoveryCodeIssuedAt: string | null;
 }
@@ -67,6 +69,14 @@ export async function getAdminAuthStatus(): Promise<AdminAuthStatus> {
   }
 
   return apiClient.get<AdminAuthStatus>("/api/admin-auth/status");
+}
+
+/** One-time local-server setup; never uses a shared factory password. */
+export async function initializeGlobalAdmin(password: string, setupToken: string) {
+  if (CONFIGURED_DATA_MODE !== "api") throw new Error("setup_unavailable");
+  return apiClient.post<{ ok: true; passwordConfigured: true }>(
+    "/api/admin-auth/initialize", { password, setupToken },
+  );
 }
 
 export async function loginAdmin(username: string, password: string) {
