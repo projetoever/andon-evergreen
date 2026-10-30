@@ -188,7 +188,7 @@ try {
       if (path === "/api/access/initialize") {
         assert.equal(data.login, "quality.admin");
         assert.equal(data.currentPassword, "Existing fixture Admin");
-        assert.equal(data.newPassword, "Admin pessoal de homologacao");
+        assert.equal(data.newPassword, "A6@rX2p!");
         initialized = true;
         principal = {
           userId: "admin",
@@ -316,7 +316,7 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "Habilitar gestão de usuários", exact: true }).waitFor();
     await page.getByText("Etapa 1 de 2 · Configuração do administrador", { exact: true }).waitFor();
-    await page.getByText("A senha Admin existente confirma sua identidade atual. A nova senha pessoal é criada uma única vez para a conta Admin central, separada da conta legada. Não será necessário criar outra senha do Admin ao cadastrar colaboradores.",{exact:true}).waitFor();
+    await page.getByText("Você criará uma única conta Admin principal central. A senha Admin existente apenas confirma sua identidade e não será alterada. Durante a migração, haverá duas senhas: a antiga para funções legadas e a nova para o login central do Hub, ANDON e BI.",{exact:true}).waitFor();
     await page.getByText(
       "Próxima etapa: abrir o painel de colaboradores para cadastrar usuários, escolher máquinas e definir permissões. O acesso operacional central não será ativado nesta configuração.",
       { exact: true },
@@ -346,8 +346,14 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}-admin-initialization.png`, fullPage: true });
     await page.getByLabel("Usuário administrador", { exact: true }).fill("quality.admin");
     await page.getByLabel("Senha Admin existente", { exact: true }).fill("Existing fixture Admin");
-    await page.getByLabel("Nova senha pessoal", { exact: true }).fill("Admin pessoal de homologacao");
-    await page.getByLabel("Confirmar nova senha", { exact: true }).fill("Admin pessoal de homologacao");
+    assert.equal(await page.getByLabel("Nova senha pessoal", { exact: true }).getAttribute("minlength"), "8");
+    assert.equal(await page.getByLabel("Confirmar nova senha", { exact: true }).getAttribute("minlength"), "8");
+    await page.getByText(
+      "Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Ela é exclusiva do login central e não altera a senha Admin legada nem as senhas dos módulos.",
+      { exact: true },
+    ).waitFor();
+    await page.getByLabel("Nova senha pessoal", { exact: true }).fill("A6@rX2p!");
+    await page.getByLabel("Confirmar nova senha", { exact: true }).fill("A6@rX2p!");
     await page.getByRole("button", { name: "Criar administrador e abrir painel", exact: true }).click();
     await page.getByRole("heading", { name: "Painel de colaboradores", exact: true }).waitFor();
     await page.getByRole("button", { name: "Cadastrar usuário", exact: true }).waitFor();

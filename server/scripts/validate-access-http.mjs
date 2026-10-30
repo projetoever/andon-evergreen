@@ -133,24 +133,39 @@ try {
   assert.equal((await call(admin, "/session")).initialized, false);
   await call(admin, "/initialize", "POST", {
     currentPassword: "Existing isolated Admin",
-    newPassword: "Admin personal phrase test",
+    newPassword: "A6@rX2p!",
   }, 400);
   await call(admin, "/initialize", "POST", {
     login: "bad username",
     currentPassword: "Existing isolated Admin",
-    newPassword: "Admin personal phrase test",
+    newPassword: "A6@rX2p!",
   }, 400);
   await call(
     admin,
     "/initialize",
     "POST",
-    { login: adminLogin, currentPassword: "123456", newPassword: "Admin personal phrase test" },
+    { login: adminLogin, currentPassword: "123456", newPassword: "A6@rX2p!" },
     401,
   );
   await call(admin, "/initialize", "POST", {
+    login: adminLogin,
+    currentPassword: "Existing isolated Admin",
+    newPassword: "Seven#7",
+  }, 400);
+  await call(admin, "/initialize", "POST", {
+    login: adminLogin,
+    currentPassword: "Existing isolated Admin",
+    newPassword: "12345678",
+  }, 400);
+  await call(admin, "/initialize", "POST", {
+    login: adminLogin,
+    currentPassword: "Existing isolated Admin",
+    newPassword: "Existing isolated Admin",
+  }, 400);
+  await call(admin, "/initialize", "POST", {
     login: adminLogin.toUpperCase(),
     currentPassword: "Existing isolated Admin",
-    newPassword: "Admin personal phrase test",
+    newPassword: "A6@rX2p!",
   });
   const a = (await call(admin, "/session")).principal;
   adminId = a.userId;
@@ -159,13 +174,20 @@ try {
   assert.equal(a.displayName, "Admin");
   assert.equal(
     (await db.systemSettings.findUnique({ where: { id: "global" } })).adminPasswordHash,
-    hash,
+    hash, // Legacy secret is still preserved for isolated compatibility.
   );
+  const legacyIsNotCentral = {};
+  await call(legacyIsNotCentral, "/session"); // Obtain guest CSRF before proving password rejection.
+  await call(legacyIsNotCentral, "/login", "POST", {
+    login: adminLogin, password: "Existing isolated Admin",
+  }, 401);
+  assert.equal((await db.accessUser.count({ where: { isPrimaryAdmin: true } })), 1,
+    "one primary Admin identity after enrollment");
   await call(
     admin,
     "/initialize",
     "POST",
-    { login: "replacement.admin", currentPassword: "Existing isolated Admin", newPassword: "Admin personal phrase test" },
+    { login: "replacement.admin", currentPassword: "Existing isolated Admin", newPassword: "A6@rX2p!" },
     409,
   );
   await call(admin, "/catalog"); // No operational module grant required.
@@ -268,7 +290,7 @@ try {
     { reason: "Expired reauthentication" },
     401,
   );
-  await call(admin, "/login", "POST", { login: adminLogin, password: "Admin personal phrase test" });
+  await call(admin, "/login", "POST", { login: adminLogin, password: "A6@rX2p!" });
   const reset = await call(admin, `/users/${created.user.id}/reset`, "POST", {
     reason: "Requested by user",
   });

@@ -48,12 +48,17 @@ test("secret filtering applies recursively to audit snapshots", () => {
     { name: "User", nested: { state: "active" }, session: [{ id: "public" }] },
   );
 });
-test("password policy preserves spaces and accepts long passphrases", () => {
+test("central personal password policy accepts 8-128 chars, preserves passphrases, rejects common values", () => {
   assert.equal(normalizeLogin(" Leader.One "), "leader.one");
   assert.throws(() => normalizeLogin("bad user"));
+  assert.doesNotThrow(() => validatePersonalPassword("A6@rX2p!")); // Exactly 8
   assert.doesNotThrow(() => validatePersonalPassword("Uma frase de acesso longa"));
-  assert.throws(() => validatePersonalPassword("123456"));
-  assert.throws(() => validatePersonalPassword("passwordpassword"));
+  assert.doesNotThrow(() => validatePersonalPassword("X".repeat(127) + "7"));
+  for (const value of ["Seven#7", "123456", "12345678", "passwordpassword",
+    "senha1234", "AAAAAAAA", "1".repeat(10), "X".repeat(129)]) {
+    assert.throws(() => validatePersonalPassword(value),
+      `must reject invalid or weak password: ${value.length} chars`);
+  }
   assert.match(temporaryPassword(), /^[a-f0-9]{20}$/);
 });
 test("CSRF proof is bound to the session secret", () => {

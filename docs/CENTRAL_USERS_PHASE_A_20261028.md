@@ -1,5 +1,8 @@
 # Gestão central de usuários — Fase A (2026-10-28)
 
+> **Atualização SEC-04/2T — 30/10/2026:** o mínimo de senha **pessoal central** passou de 15 para **8 caracteres** (máximo 128), com bloqueio de senhas muito comuns/repetitivas e recomendação visual de 12 ou mais. Esta atualização não modifica hashes já criados nem a senha do Admin legado, cuja política permanece própria. Na inicialização, a nova senha deve diferir da senha legada fornecida. A conta Admin principal central é criada uma única vez com o login escolhido; não se cria uma segunda conta Admin central. Durante a migração, continuam coexistindo **duas credenciais independentes**: Admin legado (somente funções anteriores ainda não migradas) e Admin central (Hub, ANDON e BI no modo central). A credencial legada só poderá ser desativada após migração, verificação de recuperação de acesso, teste no notebook e autorização de rollout. A alteração não habilita a flag `ANDON_CENTRAL_ACCESS_ENABLED`, não migra dados industriais e não ativa funções sensíveis.
+
+
 ## Escopo deste PR
 
 Início da evolução de login único do ANDON Web Industrial. Esta fase prepara o cadastro,
