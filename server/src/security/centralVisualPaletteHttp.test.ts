@@ -49,7 +49,7 @@ test("UX-12: dedicated palette write always OFF unless central mode and separate
     denied(() => markCentralVisualPaletteAuthorized(req("bad"), admin, station), "csrf_denied");
     denied(() => markCentralVisualPaletteAuthorized(req(), { ...admin, isPrimaryAdmin: false }, station), "permission_denied");
     denied(() => markCentralVisualPaletteAuthorized(req(), { ...admin, machineScope: "selected" }, station), "scoped_query_required");
-    denied(() => markCentralVisualPaletteAuthorized(req(), { ...admin, purpose: "password_change" }, station), "permission_denied");
+    denied(() => markCentralVisualPaletteAuthorized(req(), { ...admin, purpose: "password_change" }, station), "password_change_required");
     denied(() => markCentralVisualPaletteAuthorized(req(), admin, { ...station, allowOperational: false }), "workstation_module_denied");
     process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED = "0";
     assert.equal(isAuthorizedCentralVisualPalette(accepted), false);
