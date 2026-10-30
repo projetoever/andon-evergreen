@@ -28,7 +28,7 @@ import { isCentralFinishCallMutation, markCentralFinishCallAuthorized } from "./
 import { isCentralCancelCallMutation, markCentralCancelCallAuthorized } from "./centralCancelCallHttp.js";
 import { isCentralTechnicianEndMutation, markCentralTechnicianEndAuthorized } from "./centralTechnicianEndHttp.js";
 import { isCentralTechnicianAddMutation, markCentralTechnicianAddAuthorized } from "./centralTechnicianAddHttp.js";
-import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized } from "./centralOwnWorkstationPrefsHttp.js";
+import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized, centralOwnWorkstationPreferenceReadTarget, centralOwnWorkstationPreferencesEnabled } from "./centralOwnWorkstationPrefsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -111,6 +111,14 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
+      const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
+      if (ownPreferencesReadTarget) {
+        if (!centralOwnWorkstationPreferencesEnabled() ||
+            ownPreferencesReadTarget !== principal.workstationId)
+          throw new AccessError("workstation_scope_denied");
+        assertModule(principal, workstation, "operational");
+        return;
+      }
       // Only the machine GET handlers currently implement database-enforced
       // selected-machine filtering. Other restricted reads still fail closed.
       if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path) &&
