@@ -32,6 +32,7 @@ import { isCentralDiagnosisEditMutation, markCentralDiagnosisEditAuthorized } fr
 import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized, centralOwnWorkstationPreferenceReadTarget, centralOwnWorkstationPreferencesEnabled } from "./centralOwnWorkstationPrefsHttp.js";
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
+import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -147,7 +148,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralDiagnosisEditMutation(request.method, path) &&
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
-          !isCentralOperationalSettingsMutation(request.method, path))
+          !isCentralOperationalSettingsMutation(request.method, path) &&
+          !isCentralVisualPaletteMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -208,6 +210,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralOperationalSettingsMutation(request.method, path)) {
           markCentralOperationalSettingsAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralVisualPaletteMutation(request.method, path)) {
+          markCentralVisualPaletteAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralPriorityWrite(request.method, path)) {
