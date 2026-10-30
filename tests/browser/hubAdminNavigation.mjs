@@ -383,12 +383,12 @@ try {
     const cardBorder = appearance.getByRole("combobox", { name: "Contorno padrão dos cards" });
     await cardBorder.selectOption("ocean");
     await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
-    await appearance.getByText("Paleta salva globalmente. Os terminais receberão a atualização.").waitFor();
+    await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 1.").waitFor();
     assert.equal(paletteRevision, 1);
     assert.equal(globalPalette.cardBorder, "ocean");
     await appearance.getByRole("button", { name: "Restaurar padrão global" }).click();
     await appearance.getByRole("button", { name: "Confirmar restauração global" }).click();
-    await appearance.getByText("Paleta salva globalmente. Os terminais receberão a atualização.").waitFor();
+    await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 2.").waitFor();
     assert.equal(paletteRevision, 2);
     assert.equal(globalPalette.cardBorder, "slate");
     // A competing Admin update must return 409 and prevent silent overwrite.
