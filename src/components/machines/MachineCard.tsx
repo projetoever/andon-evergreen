@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Machine } from "@/types/machine";
+import type { DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { useAndon } from "@/context/AndonProvider";
 import { useTicker } from "@/hooks/useTicker";
 import { MachineStatusBadge } from "./MachineStatusBadge";
@@ -36,9 +37,10 @@ import {
 interface MachineCardProps {
   machine: Machine;
   productionPriorityRank?: number | null;
+  attentionMode?: DashboardAttentionMode;
 }
 
-export function MachineCard({ machine, productionPriorityRank = null }: MachineCardProps) {
+export function MachineCard({ machine, productionPriorityRank = null, attentionMode = "discreet" }: MachineCardProps) {
   const { calls, settings } = useAndon();
   const { t } = useLanguage();
   const [operatorNoteOpen, setOperatorNoteOpen] = useState(false);
@@ -127,7 +129,9 @@ export function MachineCard({ machine, productionPriorityRank = null }: MachineC
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
+        "relative isolate flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
+        attentionMode === "highlighted" && cardAttentionTone === "danger" && "andon-card-highlighted-danger",
+        attentionMode === "highlighted" && cardAttentionTone === "warning" && "andon-card-highlighted-warning",
         machine.machineStatus === "stopped" && !isNotScheduled
           ? "border-danger/60"
           : "border-border",
@@ -143,8 +147,12 @@ export function MachineCard({ machine, productionPriorityRank = null }: MachineC
           className={cn(
             "pointer-events-none absolute -inset-1.5 rounded-[1rem] border-2",
             cardAttentionTone === "danger"
-              ? "border-danger/80 text-danger animate-andon-card-halo-danger"
-              : "border-warning/80 text-warning animate-andon-card-halo-warning",
+              ? (attentionMode === "highlighted"
+                  ? "border-danger text-danger animate-andon-card-halo-danger-strong"
+                  : "border-danger/80 text-danger animate-andon-card-halo-danger")
+              : (attentionMode === "highlighted"
+                  ? "border-warning text-warning animate-andon-card-halo-warning-strong"
+                  : "border-warning/80 text-warning animate-andon-card-halo-warning"),
           )}
         />
       )}
