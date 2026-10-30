@@ -51,7 +51,7 @@ test("UX-12: global save is accessible only to Hub primary Admin when server fla
   ]);
   assert.match(legacy, /<AppearanceSettingsPreview \/>/);
   assert.match(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
-  assert.match(preview, /!allowGlobalSave \\|\\| !canWrite/);
+  assert.match(preview, /!allowGlobalSave \|\| !canWrite/);
   assert.match(preview, /disabled=\{!canWrite \|\| !changed/);
   assert.match(preview, /Confirmar restauração global/);
   assert.match(service, /expectedRevision/);
@@ -71,8 +71,9 @@ test("UX-12: global colors target non-critical components and never override dan
     source("src/theme/GlobalVisualPaletteProvider.tsx"),
   ]);
   assert.match(card, /cardAttentionTone === null && !isCritical && !isWarning && "andon-palette-machine-card"/);
-  assert.match(sector, /--andon-palette-sector-selection/);
-  assert.match(sector, /--andon-palette-selected-card-border/);
+  assert.match(sector, /borderColor: !activeCall \|\| selected \? accentColor : undefined/);
+  assert.match(css, /--andon-palette-sector-selection/);
+  assert.match(css, /--andon-palette-selected-card-border/);
   assert.match(css, /\.andon-palette-machine-card \{/);
   assert.match(css, /\.andon-palette-operation-button \{/);
   assert.match(provider, /--andon-palette-card-border/);
