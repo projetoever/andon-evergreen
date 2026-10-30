@@ -100,7 +100,7 @@ export function runCentralOwnWorkstationPreference(
         }, {
           action: "workstation.screen.lock",
           resourceType: "workstation", resourceId: input.workstationId,
-          machineId: machineId ?? previous,
+          machineId: machineId ?? previous ?? undefined,
           before: { lockedMachineId: previous },
           after: { lockedMachineId: machineId },
         });
