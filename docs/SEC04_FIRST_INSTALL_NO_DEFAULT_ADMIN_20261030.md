@@ -33,3 +33,9 @@ O fluxo local:
 - Regressão do teste PR com senha isolada provisionada e SEM `123456`.
 - CI Windows PowerShell/instalador, backend, PostgreSQL, HTTPS, frontend, navegador e i18n.
 - Testar manualmente no notebook com rede desconectada antes da distribuição comercial. **Nenhum deploy** no servidor da Evergreen ou Máquina 37 durante esta fase.
+
+## Integracao ao instalador (REFINE 4)
+
+Na instalacao limpa, apos iniciar os servicos e executar o health check, `installer/install-andon-server.ps1` apresenta uma etapa **PRIMEIRO ACESSO - ADMINISTRADOR GLOBAL**. O operador pode abrir o navegador local em `http://localhost:8080/hub`, onde a tela protegida existente solicita a criacao da senha. O instalador nao solicita, recebe, registra ou armazena a senha.
+
+Esta integracao automatiza **a abertura do assistente**, nao a configuracao silenciosa da senha. Se o operador dispensar a abertura, a instalacao continua sem credencial de fabrica, e o cadastro local permanece pendente. A homologacao comercial deve verificar o bloqueio das APIs antes do setup, a inicializacao por HTTPS com SAN localhost, e o comportamento no modo kiosk. Nenhum deploy produtivo esta autorizado por esta etapa.
