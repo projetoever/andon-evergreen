@@ -14,7 +14,7 @@ const DEFAULT_ADMIN_PASSWORD = "123456";
 const LOCAL_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 let localAdminPassword = DEFAULT_ADMIN_PASSWORD;
 let localRecoveryCode: string | null = null;
-export const ADMIN_PASSWORD_MIN_LENGTH = 6;
+export const ADMIN_PASSWORD_MIN_LENGTH = 8;
 
 export interface AdminAuthStatus {
   username: string;
