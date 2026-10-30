@@ -1,5 +1,14 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Configurações do ANDON",
+    "ANDON Settings",
+    "ANDON 設定"],
+  ["Configurações operacionais do ANDON",
+    "ANDON Operational Settings",
+    "ANDON 操作設定"],
+  ["Estas regras são globais e exigem uma sessão de Admin principal. Sons, cadastros e credenciais mantêm controles separados.",
+    "These rules apply globally and require a primary Admin session. Sound, catalogs, and credentials retain separate controls.",
+    "這些規則適用於所有終端，且需要主要管理員工作階段。聲音、資料目錄與登入憑證仍採用獨立的存取控制。"],
   ["No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.",
     "With central login, identify the technician using PIN or tag. Name selection remains available only in legacy mode.",
     "使用集中式登入時，請透過 PIN 或識別標籤確認維修人員身分。依姓名選擇僅適用於舊版模式。"],
