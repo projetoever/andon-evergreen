@@ -1077,7 +1077,7 @@ export async function endActiveTechnicianSession(
   return findCallWithSessions(tx, call.id);
 }
 
-async function lockAndFindMissingActiveTechnicians(
+export async function lockAndFindMissingActiveTechnicians(
   tx: Prisma.TransactionClient,
   params: {
     callId: string;
