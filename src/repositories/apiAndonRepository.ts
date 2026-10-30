@@ -396,8 +396,10 @@ export class ApiAndonRepository implements AndonRepository {
 
   async addTechnicianSessions(_machines: Machine[], _calls: AndonCall[], params: AddTechnicianSessionsParams) {
     await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
-      technicianNames: params.technicians.map((technician) => technician.name),
-      technicianArea: params.technicians[0]?.technicalArea,
+      ...(!isCentralMode() ? {
+        technicianNames: params.technicians.map((technician) => technician.name),
+        technicianArea: params.technicians[0]?.technicalArea,
+      } : {}),
       credentials: params.technicians
         .map((technician) => technician.credential)
         .filter(Boolean),

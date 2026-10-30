@@ -49,6 +49,8 @@ import { runCentralCancelCall } from "../access/centralCancelCallWrite.js";
 import { isAuthorizedCentralCancelCall } from "../security/centralCancelCallHttp.js";
 import { runCentralTechnicianEnd } from "../access/centralTechnicianEnd.js";
 import { isAuthorizedCentralTechnicianEnd } from "../security/centralTechnicianEndHttp.js";
+import { runCentralTechnicianAdd } from "../access/centralTechnicianAdd.js";
+import { isAuthorizedCentralTechnicianAdd } from "../security/centralTechnicianAddHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
 
 type AndonCallQuery = {
@@ -1077,7 +1079,7 @@ export async function endActiveTechnicianSession(
   return findCallWithSessions(tx, call.id);
 }
 
-async function lockAndFindMissingActiveTechnicians(
+export async function lockAndFindMissingActiveTechnicians(
   tx: Prisma.TransactionClient,
   params: {
     callId: string;
@@ -1202,6 +1204,46 @@ async function createTechnicianSessions(
 type AttendanceCallWithMachine = Prisma.AndonCallGetPayload<{
   include: { machine: true };
 }>;
+
+/**
+ * Shared post-verification technician-add transition for both legacy and
+ * central sessions. Caller must hold the machine and technician locks and
+ * verify credential identity, permissions, exclusivity and current status.
+ */
+export async function persistAddedTechnicianSessions(
+  tx: Prisma.TransactionClient,
+  input: {
+    currentCall: AttendanceCallWithMachine;
+    technicians: IdentifiedTechnician[];
+    missingTechnicians: IdentifiedTechnician[];
+    workstationId: string | null;
+  },
+) {
+  const { currentCall, technicians, missingTechnicians, workstationId } = input;
+  const transitionAt = new Date();
+  const names = technicians.map(technician => technician.name);
+  await createTechnicianSessions(tx, {
+    callId: currentCall.id,
+    machineId: currentCall.machineId,
+    technicians: missingTechnicians,
+    startedAt: transitionAt,
+    productionModeAtStart: currentCall.machine.productionMode,
+    machineStatusAtStart: currentCall.machine.machineStatus,
+    workstationId,
+    technicalArea: currentCall.subtype,
+    phase: currentCall.status === "post_maintenance" ? "follow_up" : "maintenance",
+    cycleIndex: currentCall.maintenanceReturnCount + 1,
+  });
+  await tx.andonCall.update({
+    where: { id: currentCall.id },
+    data: {
+      technicianName: currentCall.technicianName ?? names[0],
+      technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
+      technicianArea: currentCall.technicianArea ?? currentCall.subtype,
+    },
+  });
+  return findCallWithSessions(tx, currentCall.id);
+}
 
 /**
  * One transaction-scoped business transition for both legacy and future central
@@ -2810,6 +2852,34 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: AddTechnicianBody }>(
     "/api/andon-calls/:id/technicians",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralTechnicianAdd(request))
+          throw new AccessError("central_action_not_supported");
+        const body = request.body ?? {};
+        if (Object.keys(body).some(key => key !== "credentials") ||
+            !Array.isArray(body.credentials) || body.credentials.length < 1 ||
+            body.credentials.length > 6 ||
+            body.credentials.some(credential => !credential ||
+              typeof credential !== "object" || Array.isArray(credential) ||
+              Object.keys(credential).some(key => !["method", "value"].includes(key))))
+          return reply.status(400).send({ error: "technician_credentials_invalid" });
+        try {
+          const updated = await runCentralTechnicianAdd(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            callId: request.params.id, credentials: body.credentials,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return reply.status(201).send(updated);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (error instanceof AndonCallValidationError ||
+              error instanceof WorkstationAuthorizationError)
+            return badRequest(reply, error.message);
+          throw error;
+        }
+      }
       const call = await prisma.andonCall.findUnique({
         include: { machine: true },
         where: { id: request.params.id },
@@ -2862,32 +2932,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             throw new AndonCallValidationError("Chamado não está em atendimento ou acompanhamento");
           }
 
-          const transitionAt = new Date();
-          const names = technicians.map((technician) => technician.name);
-
-          await createTechnicianSessions(tx, {
-            callId: currentCall.id,
-            machineId: currentCall.machineId,
-            technicians: missingTechnicians,
-            startedAt: transitionAt,
-            productionModeAtStart: currentCall.machine.productionMode,
-            machineStatusAtStart: currentCall.machine.machineStatus,
-            workstationId,
-            technicalArea: currentCall.subtype,
-            phase: currentCall.status === "post_maintenance" ? "follow_up" : "maintenance",
-            cycleIndex: currentCall.maintenanceReturnCount + 1,
+          return persistAddedTechnicianSessions(tx, {
+            currentCall, technicians, missingTechnicians, workstationId,
           });
-
-          await tx.andonCall.update({
-            where: { id: currentCall.id },
-            data: {
-              technicianName: currentCall.technicianName ?? names[0],
-              technicianNames: uniqueNames([...currentCall.technicianNames, ...names]),
-              technicianArea: currentCall.technicianArea ?? currentCall.subtype,
-            },
-          });
-
-          return findCallWithSessions(tx, currentCall.id);
         });
 
         return reply.status(201).send(updatedCall);
