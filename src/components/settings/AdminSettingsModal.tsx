@@ -6,6 +6,7 @@ import {
   Clock3,
   Factory,
   Headphones,
+  Palette,
   ListChecks,
   LogOut,
   Search,
@@ -40,6 +41,7 @@ import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
+import { AppearanceSettingsPreview } from "./AppearanceSettingsPreview";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
 import { SoundsSettingsTab } from "./SoundsSettingsTab";
 
@@ -64,6 +66,13 @@ const tabs: AdminNavigationItem[] = [
     },
     group: "Sistema",
     icon: Settings2,
+  },
+  {
+    id: "appearance",
+    get label() { return ui("Aparência e cores"); },
+    get description() { return ui("Prévia das cores de contorno e seleção, sem alterar alertas."); },
+    group: "Sistema",
+    icon: Palette,
   },
   {
     id: "sounds",
@@ -186,6 +195,7 @@ export function AdminSettingsModal({
 
   const renderTab = () => {
     if (tab === "general") return <GeneralSettingsTab />;
+    if (tab === "appearance") return <AppearanceSettingsPreview />;
     if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
