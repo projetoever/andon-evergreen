@@ -1671,6 +1671,23 @@ async function run() {
   assert.ok(endedSupportSession.endedAt);
   assert.equal(endedSupportSession.endReason, "support_finished");
 
+  // Never allow individual termination of the final active maintainer.
+  const blockedLastEnd = await request(
+    `/api/andon-calls/${electricalCall.id}/technicians/end`,
+    json("PATCH", {
+      credential: { method: "rfid", value: "TAG-ELECTRICAL-47" },
+      reason: "support_finished",
+    }),
+    400,
+  );
+  assert.match(blockedLastEnd.message, /último mantenedor/);
+  const afterBlockedLastEnd = await prisma.andonCall.findUniqueOrThrow({
+    where: { id: electricalCall.id },
+    include: { technicianSessions: true },
+  });
+  assert.equal(afterBlockedLastEnd.status, "in_progress");
+  assert.equal(afterBlockedLastEnd.technicianSessions.filter(s => !s.endedAt).length, 1);
+
   const firstAttendanceStartedAt = new Date(Date.now() - 11 * 1000);
   await prisma.andonCall.update({
     where: { id: electricalCall.id },
@@ -2540,10 +2557,19 @@ async function run() {
   });
   assert.equal(sessionCallCAfterConflict, 1);
 
-  await request(
+  const blockedOnlySessionA = await request(
     `/api/andon-calls/${sessionCallA.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "4821" } }),
+    400,
   );
+  assert.match(blockedOnlySessionA.message, /último mantenedor/);
+  // The supported way to end the last technician's work is a maintenance
+  // completion, not an individual exit that leaves an orphaned active call.
+  const concludedSessionCallA = await request(
+    `/api/andon-calls/${sessionCallA.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [] }),
+  );
+  assert.equal(concludedSessionCallA.status, "post_maintenance");
   const addedAfterEnd = await request(
     `/api/andon-calls/${sessionCallC.id}/technicians`,
     json("POST", { credentials: [{ method: "rfid", value: "TAG-ELECTRICAL-47" }] }),
@@ -2560,10 +2586,17 @@ async function run() {
     `/api/andon-calls/${sessionCallC.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "4821" } }),
   );
-  await request(
+  const blockedOnlySessionC = await request(
     `/api/andon-calls/${sessionCallC.id}/technicians/end`,
     json("PATCH", { credential: { method: "pin", value: "6943" } }),
+    400,
   );
+  assert.match(blockedOnlySessionC.message, /último mantenedor/);
+  const concludedSessionCallC = await request(
+    `/api/andon-calls/${sessionCallC.id}/finish-maintenance`,
+    json("PATCH", { followUpSessionIds: [] }),
+  );
+  assert.equal(concludedSessionCallC.status, "post_maintenance");
 
   const concurrentSessionCallD = await request(
     "/api/andon-calls",
@@ -3472,24 +3505,6 @@ async function run() {
     "follow_up -> maintenance deve usar timestamp posterior ao lock do técnico",
   );
 
-  const endedAfterTechnicianLock = await runAfterAdvisoryLockWait(
-    `andon-technician-session:${electrical.id}`,
-    () =>
-      request(
-        `/api/andon-calls/${concurrentCallB.id}/technicians/${encodeURIComponent(electrical.name)}/end`,
-        json("PATCH", { reason: "support_finished" }),
-      ),
-  );
-  const endedConcurrentMaintenanceB = endedAfterTechnicianLock.result.technicianSessions.find(
-    (session) => session.id === returnedConcurrentMaintenanceB.id,
-  );
-  assert.ok(endedConcurrentMaintenanceB?.endedAt);
-  assert.ok(
-    new Date(endedConcurrentMaintenanceB.endedAt).getTime() >=
-      new Date(endedAfterTechnicianLock.barrierAt).getTime(),
-    "encerramento individual deve gerar endedAt somente depois do lock do técnico",
-  );
-
   const addedAfterTechnicianLock = await runAfterAdvisoryLockWait(
     `andon-technician-session:${electricalSupport.id}`,
     () =>
@@ -3511,6 +3526,31 @@ async function run() {
       new Date(addedAfterTechnicianLock.barrierAt).getTime(),
     "adição de mantenedor deve gerar startedAt somente depois do lock do técnico",
   );
+
+  const endedAfterTechnicianLock = await runAfterAdvisoryLockWait(
+    `andon-technician-session:${electrical.id}`,
+    () =>
+      request(
+        `/api/andon-calls/${concurrentCallB.id}/technicians/${encodeURIComponent(electrical.name)}/end`,
+        json("PATCH", { reason: "support_finished" }),
+      ),
+  );
+  const endedConcurrentMaintenanceB = endedAfterTechnicianLock.result.technicianSessions.find(
+    (session) => session.id === returnedConcurrentMaintenanceB.id,
+  );
+  assert.ok(endedConcurrentMaintenanceB?.endedAt);
+  const blockedLastAfterLock = await request(
+    `/api/andon-calls/${concurrentCallB.id}/technicians/${encodeURIComponent(electricalSupport.name)}/end`,
+    json("PATCH", { reason: "support_finished" }),
+    400,
+  );
+  assert.match(blockedLastAfterLock.message, /último mantenedor/);
+  assert.ok(
+    new Date(endedConcurrentMaintenanceB.endedAt).getTime() >=
+      new Date(endedAfterTechnicianLock.barrierAt).getTime(),
+    "encerramento individual deve gerar endedAt somente depois do lock do técnico",
+  );
+
 
   const concurrentSessions = await prisma.technicianSession.findMany({
     where: { callId: { in: [concurrentCallA.id, concurrentCallB.id] } },

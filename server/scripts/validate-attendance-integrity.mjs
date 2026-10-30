@@ -8,6 +8,7 @@ export async function validateAttendanceIntegrity(request, prisma) {
   const machineId = "ci-attendance-integrity",
     shiftId = "ci-attendance-integrity-shift";
   let technicianId;
+  let secondaryTechnicianId;
   const json = (method, body, id = a) => ({
     method,
     headers: { "x-andon-workstation-id": id },
@@ -101,13 +102,55 @@ export async function validateAttendanceIntegrity(request, prisma) {
       json("PATCH", { credentials: [{ method: "pin", value: "90837261" }] }),
     );
     assert.equal(attended.technicianSessions[0].workstationId, a);
-    await request(
+    const lastTechnicianAttempt = await request(
       `/api/andon-calls/${call.id}/technicians/end`,
       json("PATCH", {
         credential: { method: "pin", value: "90837261" },
         reason: "support_finished",
       }),
+      400,
     );
+    assert.match(lastTechnicianAttempt.message, /último mantenedor/);
+    const stillAttending = await prisma.andonCall.findUniqueOrThrow({
+      where: { id: call.id }, include: { technicianSessions: true },
+    });
+    assert.equal(stillAttending.status, "in_progress");
+    assert.equal(stillAttending.technicianSessions.filter(s => !s.endedAt).length, 1,
+      "rejected individual end must not orphan the call or change session timestamps");
+
+    // Concurrent departures of TWO maintainers: machine lock must serialize
+    // the transactions, so exactly one can end and one must remain active.
+    const secondTech = await request("/api/technicians", json("POST", {
+      name: "Segundo técnico integridade CI", employeeId: "CI-INTEGRITY-2",
+      technicalArea: "mechanical", technicalAreas: ["mechanical"],
+      shiftId, active: true, pin: "90837262",
+    }), 201);
+    secondaryTechnicianId = secondTech.id;
+    await request(`/api/andon-calls/${call.id}/technicians`, json("POST", {
+      credentials: [{ method: "pin", value: "90837262" }],
+    }), 201);
+    const endPath = `/api/andon-calls/${call.id}/technicians/end`;
+    const simultaneous = await Promise.allSettled([
+      request(endPath, json("PATCH", {
+        credential: { method: "pin", value: "90837261" },
+        reason: "support_finished",
+      })),
+      request(endPath, json("PATCH", {
+        credential: { method: "pin", value: "90837262" },
+        reason: "support_finished",
+      })),
+    ]);
+    assert.equal(simultaneous.filter(result => result.status === "fulfilled").length, 1,
+      "exactly one concurrent individual departure must succeed");
+    const rejected = simultaneous.find(result => result.status === "rejected");
+    assert.ok(rejected);
+    assert.match(String(rejected.reason), /recebido 400.*último mantenedor/);
+    const afterConcurrentExit = await prisma.andonCall.findUniqueOrThrow({
+      where: { id: call.id }, include: { technicianSessions: true },
+    });
+    assert.equal(afterConcurrentExit.status, "in_progress");
+    assert.equal(afterConcurrentExit.technicianSessions.filter(s => !s.endedAt).length, 1);
+
     await request(`/api/andon-calls/${call.id}/finish-maintenance`, json("PATCH", {}, b), 400);
     const completed = await request(
       `/api/andon-calls/${call.id}/finish-maintenance`,
@@ -121,7 +164,7 @@ export async function validateAttendanceIntegrity(request, prisma) {
     assert.equal(saved.failureClassification, null);
     assert.equal(saved.failureDescription, null);
     assert.ok(saved.technicianSessions.every((s) => s.workstationId === a));
-    console.log("Aprovação, permissões e conclusão após encerramento individual: OK");
+    console.log("Aprovação, permissões e conclusão com último técnico protegido: OK");
   } finally {
     await request("/api/modules/settings", json("PATCH", { requireWorkstationApproval: false }));
     await request(
@@ -143,6 +186,7 @@ export async function validateAttendanceIntegrity(request, prisma) {
     await prisma.machinePriorityHistory.deleteMany({ where: { machineId } });
     await prisma.machine.deleteMany({ where: { id: machineId } });
     if (technicianId) await prisma.technician.deleteMany({ where: { id: technicianId } });
+    if (secondaryTechnicianId) await prisma.technician.deleteMany({ where: { id: secondaryTechnicianId } });
     await prisma.shift.deleteMany({ where: { id: shiftId } });
     await prisma.workstation.deleteMany({ where: { id: { in: [a, b, c] } } });
   }

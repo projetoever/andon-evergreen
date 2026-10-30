@@ -53,7 +53,12 @@ export function EndTechnicianSessionModal({
   const { endTechnicianSession } = useAndon();
   const activeSessions = sessions.filter((session) => !session.endedAt);
   const isFollowUp =
-    phase === "follow_up" || activeSessions.some((session) => session.phase === "follow_up");
+    phase !== undefined
+      ? phase === "follow_up"
+      : activeSessions.some((session) => session.phase === "follow_up");
+  // The dialog must explain why the final individual exit is disabled.
+  // The backend repeats this check under the machine transaction lock.
+  const lastActiveMaintenanceTechnician = !isFollowUp && activeSessions.length === 1;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
@@ -109,6 +114,10 @@ export function EndTechnicianSessionModal({
     submissionAlreadyStarted = false,
   ) {
     if (!callId || (!submissionAlreadyStarted && submittingRef.current)) return;
+    if (lastActiveMaintenanceTechnician) {
+      toast.error(ui("Não é possível encerrar o último mantenedor enquanto o chamado estiver em atendimento. Adicione outro mantenedor ou conclua a manutenção para iniciar o acompanhamento."));
+      return;
+    }
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -141,7 +150,8 @@ export function EndTechnicianSessionModal({
     if (
       (method !== "pin" && method !== "rfid") ||
       !credentialValue.trim() ||
-      submittingRef.current
+      submittingRef.current ||
+      lastActiveMaintenanceTechnician
     ) {
       return;
     }
@@ -263,6 +273,11 @@ export function EndTechnicianSessionModal({
         {loadFailed && (
           <p className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
             {ui("Não foi possível validar o modo de atendimento. Feche e abra novamente.")}
+          </p>
+        )}
+        {lastActiveMaintenanceTechnician && (
+          <p role="alert" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm font-semibold text-foreground">
+            {ui("Não é possível encerrar o último mantenedor enquanto o chamado estiver em atendimento. Adicione outro mantenedor ou conclua a manutenção para iniciar o acompanhamento.")}
           </p>
         )}
         {settings && activeSessions.length === 0 && (
@@ -387,6 +402,7 @@ export function EndTechnicianSessionModal({
               !settings ||
               loadFailed ||
               activeSessions.length === 0 ||
+              lastActiveMaintenanceTechnician ||
               isSubmitting ||
               (method === "name" ? !sessionId : !credentialValue.trim())
             }

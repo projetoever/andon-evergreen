@@ -1036,6 +1036,21 @@ async function endActiveTechnicianSession(
     }
   }
 
+  // A call in maintenance must never remain in_progress without anyone
+  // attending. The machine flow lock above serializes simultaneous individual
+  // endings, so the second request cannot remove the final technician.
+  if (call.category === "maintenance" && call.status === "in_progress") {
+    const activeCount = await tx.technicianSession.count({
+      where: { callId: call.id, endedAt: null },
+    });
+    if (activeCount <= 1) {
+      throw new AndonCallValidationError(
+        "Não é possível encerrar o último mantenedor enquanto o chamado estiver em atendimento. " +
+        "Adicione outro mantenedor ou conclua a manutenção para iniciar o acompanhamento.",
+      );
+    }
+  }
+
   const transitionAt = new Date();
 
   const updated = await tx.technicianSession.updateMany({
@@ -2861,6 +2876,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }),
         );
       } catch (error) {
+        if (error instanceof AndonCallValidationError)
+          return badRequest(reply, error.message);
         if (
           error instanceof ActiveTechnicianSessionNotFoundError ||
           error instanceof FinishCallNotFoundError
@@ -2904,6 +2921,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }),
         );
       } catch (error) {
+        if (error instanceof AndonCallValidationError)
+          return badRequest(reply, error.message);
         if (
           error instanceof ActiveTechnicianSessionNotFoundError ||
           error instanceof FinishCallNotFoundError

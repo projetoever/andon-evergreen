@@ -71,6 +71,68 @@ function startCall(
   return { machines: attended.machines, calls: attended.calls, call };
 }
 
+test("último mantenedor não pode encerrar individualmente e deixar manutenção sem atendimento", () => {
+  const started = startCall([machine("m-last")], [], [technician("a")]);
+  const active = started.call.technicianSessions?.find(s => !s.endedAt);
+  assert.ok(active);
+  assert.throws(() => endTechnicianSession(started.machines, started.calls, {
+    callId: started.call.id, sessionId: active.id,
+    endReason: "support_finished",
+  }), /último mantenedor/);
+  assert.equal(started.call.status, "in_progress");
+  assert.equal(started.call.technicianSessions?.filter(s => !s.endedAt).length, 1);
+
+  const completed = completeMaintenanceAttendance(started.machines, started.calls, started.call.id);
+  assert.equal(completed.call.status, "post_maintenance",
+    "maintenance completion must remain available as the correct workflow");
+  const followUp = completed.call.technicianSessions?.find(s => !s.endedAt && s.phase === "follow_up");
+  assert.ok(followUp);
+  // Follow-up can legitimately end without an active maintenance attendance,
+  // because the call is already post-maintenance and can be finally closed.
+  const endedFollowUp = endTechnicianSession(completed.machines, completed.calls, {
+    callId: started.call.id, sessionId: followUp.id, endReason: "follow_up_finished",
+  });
+  assert.equal(endedFollowUp.calls[0].technicianSessions?.filter(s => !s.endedAt).length, 0);
+});
+
+test("dois mantenedores podem virar um, mas o último não pode sair individualmente", () => {
+  const started = startCall([machine("m-two")], [], [technician("a"), technician("b")]);
+  const active = started.call.technicianSessions?.filter(s => !s.endedAt) ?? [];
+  assert.equal(active.length, 2);
+  const firstEnded = endTechnicianSession(started.machines, started.calls, {
+    callId: started.call.id, sessionId: active[0].id, endReason: "support_finished",
+  });
+  const firstCall = firstEnded.calls.find(c => c.id === started.call.id);
+  assert.equal(firstCall?.technicianSessions?.filter(s => !s.endedAt).length, 1);
+  assert.throws(() => endTechnicianSession(firstEnded.machines, firstEnded.calls, {
+    callId: started.call.id, sessionId: active[1].id, endReason: "support_finished",
+  }), /último mantenedor/);
+});
+
+test("interface informa motivo e desabilita saída do último técnico em atendimento", async () => {
+  const modal = await readFile(
+    new URL("../src/components/calls/EndTechnicianSessionModal.tsx", import.meta.url),
+    "utf8",
+  );
+  const server = await readFile(
+    new URL("../server/src/routes/andonCalls.ts", import.meta.url),
+    "utf8",
+  );
+  const translations = await readFile(
+    new URL("../src/i18n/messages.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(modal, /lastActiveMaintenanceTechnician = !isFollowUp && activeSessions\.length === 1/);
+  assert.match(modal, /lastActiveMaintenanceTechnician \|\|\s*isSubmitting/);
+  assert.match(modal, /role="alert"/);
+  assert.match(translations, /The last active maintenance technician cannot end/);
+  const machineLock = server.indexOf("await lockMachineCallFlow(tx, callReference.machineId)");
+  const count = server.indexOf("const activeCount = await tx.technicianSession.count", machineLock);
+  const mutation = server.indexOf("const updated = await tx.technicianSession.updateMany", count);
+  assert.ok(machineLock >= 0 && count > machineLock && mutation > count,
+    "count and last-maintainer guard must run after machine lock and before updating session");
+});
+
 test("conclusão encerra três manutenções no mesmo instante e acompanha somente o escolhido", () => {
   const started = startCall(
     [machine("m1")],

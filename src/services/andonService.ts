@@ -916,6 +916,13 @@ export function endTechnicianSession(
         : session.technicianName === params.technicianName),
   );
   if (!targetSession) throw new Error("Sessão ativa do mantenedor não encontrada");
+  if (call.category === "maintenance" && call.status === "in_progress" &&
+      (call.technicianSessions ?? []).filter((session) => !session.endedAt).length <= 1) {
+    throw new Error(
+      "Não é possível encerrar o último mantenedor enquanto o chamado estiver em atendimento. " +
+      "Adicione outro mantenedor ou conclua a manutenção para iniciar o acompanhamento.",
+    );
+  }
   const newCalls = calls.map((c) =>
     c.id === params.callId
       ? {
