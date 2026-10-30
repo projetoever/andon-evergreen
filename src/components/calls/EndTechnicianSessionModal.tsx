@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
 import { cn } from "@/lib/utils";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { allowedAttendanceModes, effectiveAttendanceMode } from "@/utils/attendanceModePolicy";
 import {
   identifyTechnicianConfig,
   type TechnicianCredentialMethod,
@@ -59,6 +61,8 @@ export function EndTechnicianSessionModal({
   // The dialog must explain why the final individual exit is disabled.
   // The backend repeats this check under the machine transaction lock.
   const lastActiveMaintenanceTechnician = !isFollowUp && activeSessions.length === 1;
+  const { access } = useModuleAccess();
+  const centralAttendance = access?.centralAccessEnabled === true;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [method, setMethod] = useState<AttendanceMode>("name");
@@ -93,7 +97,7 @@ export function EndTechnicianSessionModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(systemSettings.attendanceMode);
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -103,7 +107,7 @@ export function EndTechnicianSessionModal({
             : "Não foi possível carregar o modo de atendimento",
         );
       });
-  }, [activeSessions, callId, isFollowUp, open]);
+  }, [activeSessions, callId, isFollowUp, open, centralAttendance]);
 
   async function finishSession(
     target: TechnicianAttendanceSession,
@@ -179,6 +183,7 @@ export function EndTechnicianSessionModal({
   }
 
   function handleNameSubmit() {
+    if (centralAttendance) return;
     const target = activeSessions.find((session) => session.id === sessionId);
     if (target) void finishSession(target);
   }
@@ -204,8 +209,9 @@ export function EndTechnicianSessionModal({
     submitFixedLengthCredential,
   ]);
 
-  const allowedMethods: AttendanceMode[] =
-    settings?.attendanceMode === "name" ? ["name", "pin", "rfid"] : ["pin", "rfid"];
+  const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
+    settings?.attendanceMode, centralAttendance,
+  );
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
@@ -237,6 +243,12 @@ export function EndTechnicianSessionModal({
             </button>
           </div>
         </DialogHeader>
+
+        {centralAttendance && settings?.attendanceMode === "name" && (
+          <p role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm font-semibold text-foreground">
+            {ui("No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.")}
+          </p>
+        )}
 
         {showAlternatives && (
           <div className="grid gap-2 rounded-xl border border-info/30 bg-info/10 p-2 sm:grid-cols-3">

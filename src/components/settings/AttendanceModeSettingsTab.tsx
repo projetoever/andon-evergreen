@@ -7,6 +7,7 @@ import { toast } from "@/i18n/toast";
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
 import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import type { AttendanceMode, RfidInputTerminator, SystemSettings } from "@/types/systemSettings";
 
 const MODE_OPTIONS: Array<{
@@ -49,6 +50,8 @@ const MODE_OPTIONS: Array<{
 
 export function AttendanceModeSettingsTab() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralAttendance = access?.centralAccessEnabled === true;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,6 +94,10 @@ export function AttendanceModeSettingsTab() {
 
   async function handleSave() {
     if (!settings || !hasUnsavedChanges) return;
+    if (centralAttendance && settings.attendanceMode === "name") {
+      toast.error(ui("Com login central, use PIN ou tag para identificar o mantenedor."));
+      return;
+    }
 
     if (
       settings.rfidInputTerminator === "fixed_length" &&
@@ -156,6 +163,12 @@ export function AttendanceModeSettingsTab() {
         </p>
       </div>
 
+      {centralAttendance && (
+        <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
+          {ui("No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.")}
+        </div>
+      )}
+
       <div className="grid gap-3 lg:grid-cols-3">
         {MODE_OPTIONS.map((option) => {
           const Icon = option.icon;
@@ -165,6 +178,7 @@ export function AttendanceModeSettingsTab() {
               key={option.id}
               type="button"
               aria-pressed={selected}
+              disabled={centralAttendance && option.id === "name"}
               onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",
