@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { PrismaClient } from "@prisma/client";
+import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { validateBiCausalQuality } from "./validate-bi-causal-quality.mjs";
 import { validateAttendanceIntegrity } from "./validate-attendance-integrity.mjs";
 import { validateHubEntry } from "./validate-hub-entry.mjs";
@@ -237,10 +238,16 @@ async function run() {
   await waitForApi();
   await request("/health/db");
   await cleanup();
+  // The integration fixture must provision its own Admin password.
+  // A commercial installation never ships with a shared factory password.
+  const fixtureAdminPassword = "CI-Admin-Only#37";
+  await prisma.systemSettings.create({
+    data: { id: "global", adminPasswordHash: await hashCredential(fixtureAdminPassword) },
+  });
 
   const adminSession = await request(
     "/api/admin-auth/login",
-    json("POST", { username: "admin", password: "123456" }),
+    json("POST", { username: "admin", password: fixtureAdminPassword }),
   );
   assert.ok(adminSession.token, "login Admin deve emitir token de sessão");
   adminAuthorization = `Bearer ${adminSession.token}`;
