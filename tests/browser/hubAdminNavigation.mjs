@@ -62,6 +62,12 @@ try {
     let centralMode = false;
     let primaryAdmin = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
+    let paletteWriteEnabled = false;
+    let paletteRevision = 0;
+    let globalPalette = {
+      version: 1, cardBorder: "slate", selectedCardBorder: "evergreen",
+      sectorSelection: "evergreen", operationAccent: "evergreen", focusAccent: "evergreen",
+    };
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/api/**", async (route) => {
       const req = route.request();
@@ -106,7 +112,28 @@ try {
           const change = req.postDataJSON();
           customerIdentity = { ...customerIdentity, ...change };
         }
-        return send(customerIdentity);
+        return send({
+          ...customerIdentity,
+          andonVisualPalette: globalPalette,
+          andonVisualPaletteRevision: paletteRevision,
+          andonVisualPaletteWriteEnabled: paletteWriteEnabled,
+        });
+      }
+      if (path === "/api/andon-visual-palette") {
+        if (req.method() !== "PATCH" || !paletteWriteEnabled)
+          return send({ error: "central_action_not_supported" }, 403);
+        if (req.headers()["x-andon-csrf"] !== "a".repeat(64))
+          return send({ error: "csrf_denied" }, 403);
+        const { palette, expectedRevision } = req.postDataJSON();
+        if (expectedRevision !== paletteRevision)
+          return send({ error: "palette_revision_conflict" }, 409);
+        if (palette?.version !== 1 || !["slate","evergreen","ocean","indigo","violet"].includes(palette.cardBorder))
+          return send({ error: "invalid_input" }, 400);
+        if (JSON.stringify(globalPalette) === JSON.stringify(palette))
+          return send({ palette: globalPalette, revision: paletteRevision, changed: false });
+        globalPalette = palette;
+        paletteRevision += 1;
+        return send({ palette: globalPalette, revision: paletteRevision, changed: true });
       }
       if (path === "/api/modules/settings") return send({ hubEnabled: true });
       if (path === "/api/workstations" && req.method() === "GET") {
@@ -150,7 +177,7 @@ try {
       if (path === "/api/access/session")
         return send({
           initialized: true,
-          csrf: "visual-csrf",
+          csrf: "a".repeat(64),
           principal: {
             userId: "admin",
             login: "admin.central",
@@ -345,6 +372,37 @@ try {
     await page.getByRole("heading", { name: "Configurações operacionais do ANDON" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     assert.equal(await page.getByRole("link", { name: "Sons do ANDON" }).count(), 0);
+    // UX-12: the global save must fail closed until a server-side flag allows it.
+    let appearance = page.getByRole("region", { name: "Aparência e cores" });
+    await appearance.waitFor();
+    assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
+    paletteWriteEnabled = true;
+    await page.reload();
+    appearance = page.getByRole("region", { name: "Aparência e cores" });
+    await appearance.getByRole("button", { name: "Salvar globalmente" }).waitFor();
+    const cardBorder = appearance.getByRole("combobox", { name: "Contorno padrão dos cards" });
+    await cardBorder.selectOption("ocean");
+    await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
+    await appearance.getByText("Paleta salva globalmente. Os terminais receberão a atualização.").waitFor();
+    assert.equal(paletteRevision, 1);
+    assert.equal(globalPalette.cardBorder, "ocean");
+    await appearance.getByRole("button", { name: "Restaurar padrão global" }).click();
+    await appearance.getByRole("button", { name: "Confirmar restauração global" }).click();
+    await appearance.getByText("Paleta salva globalmente. Os terminais receberão a atualização.").waitFor();
+    assert.equal(paletteRevision, 2);
+    assert.equal(globalPalette.cardBorder, "slate");
+    // A competing Admin update must return 409 and prevent silent overwrite.
+    paletteRevision += 1;
+    globalPalette = { ...globalPalette, cardBorder: "violet" };
+    await cardBorder.selectOption("indigo");
+    await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
+    await appearance.getByText("A paleta foi modificada por outro administrador. Recarregue antes de salvar.").waitFor();
+    assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
+    await appearance.getByRole("button", { name: "Recarregar paleta" }).click();
+    await page.waitForFunction(() => !!document.querySelector('select[aria-label="Contorno padrão dos cards"][value="violet"]') ||
+      Array.from(document.querySelectorAll('select')).some(s => s.getAttribute("aria-label") === "Contorno padrão dos cards" && s.value === "violet"));
+    assert.equal(await cardBorder.inputValue(), "violet");
+    paletteWriteEnabled = false;
     await noOverflow();
 
     await page.goto("https://127.0.0.1:4188/hub/admin?section=security");
