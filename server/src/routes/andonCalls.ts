@@ -2013,6 +2013,103 @@ export async function applyFinalCallDomainTransition(
           return completed;
 }
 
+/** Shared cancellation domain for legacy and centrally authorized users.
+ * Call cannot be cancelled after attendance. Stop-owner handoff, impact and
+ * history stay in the caller-owned transaction.
+ */
+export async function applyCancellationDomainTransition(
+  tx: Prisma.TransactionClient,
+  input: { callId: string; reason: string; cancellationNote?: string },
+) {
+  const reference = await tx.andonCall.findUnique({
+    where: { id: input.callId }, select: { machineId: true },
+  });
+  if (!reference) throw new AndonCallValidationError("Chamado não encontrado");
+
+          await lockMachineCallFlow(tx, reference.machineId);
+
+          const currentCall = await tx.andonCall.findUnique({
+            include: { technicianSessions: true },
+            where: { id: input.callId },
+          });
+          if (!currentCall) {
+            throw new AndonCallValidationError("Chamado não encontrado");
+          }
+
+          const currentHasTechnician = Boolean(
+            currentCall.technicianName ||
+              currentCall.technicianNames.length ||
+              currentCall.technicianArea,
+          );
+          const currentHasAttendance = Boolean(
+            currentCall.attendedAt ||
+              currentCall.currentAttendanceStartedAt ||
+              currentCall.technicianSessions.length,
+          );
+          if (
+            currentCall.status !== "open" ||
+            currentHasTechnician ||
+            currentHasAttendance
+          ) {
+            throw new AndonCallValidationError(
+              "Não é possível cancelar chamado já atendido.",
+            );
+          }
+
+          const now = new Date();
+          const currentMachine = await tx.machine.findUnique({
+            where: { id: currentCall.machineId },
+            select: { machineStatus: true },
+          });
+          if (!currentMachine) {
+            throw new AndonCallValidationError("Máquina não encontrada");
+          }
+
+          const finalMachineStatus = currentCall.isSystemTest
+            ? currentCall.machineStatusAtOpen
+            : await resumeMachineWhenFinishingOwnedStop(tx, {
+                callId: currentCall.id,
+                machineId: currentCall.machineId,
+                currentMachineStatus: currentMachine.machineStatus,
+                finishedAt: now,
+                requireStatusConfirmation: false,
+              });
+          const machineStoppedMinutes = currentCall.isSystemTest
+            ? 0
+            : currentCall.impactTrackingVersion === 1
+              ? await calculateCallImpactMinutes(tx, currentCall.id, now)
+              : await calculateStoppedMinutesForPeriod(
+                  tx,
+                  currentCall.machineId,
+                  currentCall.openedAt,
+                  now,
+                );
+
+          await tx.andonCall.update({
+            where: { id: currentCall.id },
+            data: {
+              status: "cancelled",
+              finishedAt: now,
+              currentAttendanceStartedAt: null,
+              callWaitingMinutes: diffMinutes(currentCall.openedAt, now),
+              attendanceMinutes: 0,
+              postMaintenanceMinutes: 0,
+              totalCallMinutes: diffMinutes(currentCall.openedAt, now),
+              machineStoppedMinutes,
+              productionModeAtFinish: currentCall.productionModeAtOpen,
+              machineStatusAtFinish: finalMachineStatus,
+              cancelReason: input.reason,
+              notes: appendNote(currentCall.notes, input.cancellationNote, "Cancelamento"),
+            },
+          });
+
+          if (!currentCall.isSystemTest) {
+            await syncMachineOperationalState(tx, currentCall.machineId);
+          }
+
+          return findCallWithSessions(tx, currentCall.id);
+}
+
 export async function registerAndonCallRoutes(app: FastifyInstance) {
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls", async (request, reply) => {
     const { machineId, status, criticality } = request.query;
@@ -2657,90 +2754,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
       let updatedCall;
       try {
-        updatedCall = await prisma.$transaction(async (tx) => {
-          await lockMachineCallFlow(tx, call.machineId);
-
-          const currentCall = await tx.andonCall.findUnique({
-            include: { technicianSessions: true },
-            where: { id: call.id },
-          });
-          if (!currentCall) {
-            throw new AndonCallValidationError("Chamado não encontrado");
-          }
-
-          const currentHasTechnician = Boolean(
-            currentCall.technicianName ||
-              currentCall.technicianNames.length ||
-              currentCall.technicianArea,
-          );
-          const currentHasAttendance = Boolean(
-            currentCall.attendedAt ||
-              currentCall.currentAttendanceStartedAt ||
-              currentCall.technicianSessions.length,
-          );
-          if (
-            currentCall.status !== "open" ||
-            currentHasTechnician ||
-            currentHasAttendance
-          ) {
-            throw new AndonCallValidationError(
-              "Não é possível cancelar chamado já atendido.",
-            );
-          }
-
-          const now = new Date();
-          const currentMachine = await tx.machine.findUnique({
-            where: { id: currentCall.machineId },
-            select: { machineStatus: true },
-          });
-          if (!currentMachine) {
-            throw new AndonCallValidationError("Máquina não encontrada");
-          }
-
-          const finalMachineStatus = currentCall.isSystemTest
-            ? currentCall.machineStatusAtOpen
-            : await resumeMachineWhenFinishingOwnedStop(tx, {
-                callId: currentCall.id,
-                machineId: currentCall.machineId,
-                currentMachineStatus: currentMachine.machineStatus,
-                finishedAt: now,
-                requireStatusConfirmation: false,
-              });
-          const machineStoppedMinutes = currentCall.isSystemTest
-            ? 0
-            : currentCall.impactTrackingVersion === 1
-              ? await calculateCallImpactMinutes(tx, currentCall.id, now)
-              : await calculateStoppedMinutesForPeriod(
-                  tx,
-                  currentCall.machineId,
-                  currentCall.openedAt,
-                  now,
-                );
-
-          await tx.andonCall.update({
-            where: { id: currentCall.id },
-            data: {
-              status: "cancelled",
-              finishedAt: now,
-              currentAttendanceStartedAt: null,
-              callWaitingMinutes: diffMinutes(currentCall.openedAt, now),
-              attendanceMinutes: 0,
-              postMaintenanceMinutes: 0,
-              totalCallMinutes: diffMinutes(currentCall.openedAt, now),
-              machineStoppedMinutes,
-              productionModeAtFinish: currentCall.productionModeAtOpen,
-              machineStatusAtFinish: finalMachineStatus,
-              cancelReason: reason,
-              notes: appendNote(currentCall.notes, cancellationNote, "Cancelamento"),
-            },
-          });
-
-          if (!currentCall.isSystemTest) {
-            await syncMachineOperationalState(tx, currentCall.machineId);
-          }
-
-          return findCallWithSessions(tx, currentCall.id);
-        });
+        updatedCall = await prisma.$transaction((tx) =>
+          applyCancellationDomainTransition(tx, {
+            callId: call.id, reason, cancellationNote,
+          }),
+        );
       } catch (error) {
         if (error instanceof AndonCallValidationError) {
           return badRequest(reply, error.message);
