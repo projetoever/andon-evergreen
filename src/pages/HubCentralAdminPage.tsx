@@ -164,7 +164,7 @@ export function HubCentralAdminPage() {
               </p>
             </section>
             <GeneralSettingsTab />
-            <AppearanceSettingsPreview />
+            <AppearanceSettingsPreview allowGlobalSave />
             <section className="rounded-xl border border-border bg-card p-4 md:p-5">
               <AttendanceModeSettingsTab />
             </section>
