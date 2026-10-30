@@ -21,6 +21,10 @@ export function HubPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  // The server has no access to the browser's saved locale. Keep the first
+  // hydration frame deterministic, then translate after the client mounts.
+  const [clientHydrated, setClientHydrated] = useState(false);
+  useEffect(() => { setClientHydrated(true); }, []);
   const [initialStatus, setInitialStatus] = useState<AdminAuthStatus | null>(null);
   const [initialStatusError, setInitialStatusError] = useState("");
   const [initialStatusPending, setInitialStatusPending] = useState(
@@ -62,7 +66,9 @@ export function HubPage() {
   if (CONFIGURED_DATA_MODE === "api") {
     if (initialStatusPending) return (
       <main className="min-h-dvh bg-background p-6 text-foreground" role="status">
-        {ui("Verificando a configuração inicial do administrador...")}
+        {clientHydrated
+          ? ui("Verificando a configuração inicial do administrador...")
+          : "Verificando a configuração inicial do administrador..."}
       </main>
     );
     if (initialStatusError || !initialStatus) return (
