@@ -423,3 +423,16 @@
   .andon-screen-enter,
   .andon-panel-enter { animation: none !important; }
 }
+
+/* UX-12: globally approved non-critical accents only. Never override danger,
+ * warning, real machine stop, alert rings, status badges or category colors. */
+.andon-palette-machine-card {
+  border-color: var(--andon-palette-card-border, var(--border));
+}
+.machine-sector-action:focus-visible {
+  outline: 2px solid var(--andon-palette-focus-accent, var(--ring));
+  outline-offset: 2px;
+}
+.andon-palette-operation-button {
+  box-shadow: inset 0 0 0 2px var(--andon-palette-operation-accent, transparent);
+}
