@@ -25,6 +25,18 @@ test("operational actions distinguish read, creation, maintenance and diagnostic
   assert.equal(classifyCentralRouteAction("PATCH", "/api/andon-calls/id-123/cancel")?.permission, null);
 });
 
+test("personal workstation settings require own-station scope, not admin rights", () => {
+  assert.equal(classifyCentralRouteAction("GET",
+    "/api/workstations/ws_00000000-0000-4000-8000-000000000001/runtime-preferences")?.scope,
+    "own_workstation");
+  assert.equal(classifyCentralRouteAction("PATCH",
+    "/api/workstations/ws_00000000-0000-4000-8000-000000000001/screen-lock")?.permission,
+    "andon.read");
+  assert.equal(classifyCentralRouteAction("PUT",
+    "/api/workstations/ws_00000000-0000-4000-8000-000000000001/machine-sound/M37")?.scope,
+    "own_workstation_machine");
+});
+
 test("BI requires filtered aggregates and priority edits differ from reads", () => {
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/overview?period=week")?.scope, "aggregate_filter");
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/filter-options")?.scope, "collection_filter");
