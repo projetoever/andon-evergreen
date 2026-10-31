@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Workstation ainda não aprovada", "Workstation not yet approved", "工作站尚未核准"],
+  ["A configuração inicial do Admin principal exige uma workstation ativa e aprovada.", "Initial primary Admin setup requires an active, approved workstation.", "初次設定主要管理員需要使用已啟用且核准的工作站。"],
+  ["Primeiro acesso — Admin principal", "First access — Primary Admin", "首次存取 — 主要管理員"],
+  ["Crie a conta central com a senha Admin global existente. As configurações e os módulos permanecem bloqueados até autenticar a conta principal.", "Create the central account using the existing global Admin password. Settings and modules remain locked until the primary account is authenticated.", "請使用現有的全域管理員密碼建立中央帳號。主要帳號完成驗證前，設定與模組仍將保持鎖定。"],
   ["Prévia da paleta global. Alterações entram em vigor somente após Salvar globalmente com acesso autorizado.","Global palette preview. Changes take effect only after authorized Save globally.","全域配色預覽。僅限授權使用者按下全域儲存後套用。"],
   ["Prévia local sem aplicação global. Utilize o Admin principal do Hub para salvar com auditoria.","Local-only preview. Use Hub primary Admin for audited saving.","僅本機預覽。請使用 Hub 主要管理員進行可稽核的儲存。"],
   ["Não foi possível consultar a paleta global.","Unable to read the global palette.","無法讀取全域配色。"],
