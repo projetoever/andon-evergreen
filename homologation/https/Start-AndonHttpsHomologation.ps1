@@ -17,6 +17,7 @@ $processPath = Join-Path $statePath "processes.json"
 $containerName = "andon-https-hml-postgres"
 $databaseName = "andon_https_hml"
 $databaseUser = "andon_hml"
+. (Join-Path $PSScriptRoot "Test-AndonHttpsDockerContainerExists.ps1")
 
 # SEC-04 notebook-only opt-in: exclude physical downtime events, global siren,
 # industrial identities, legacy passwords, and catalog-admin mutations.
@@ -103,8 +104,7 @@ if (!(Test-Path $certPath) -or !(Test-Path $keyPath)) {
     & icacls.exe $keyPath "/inheritance:r" "/grant:r" "$($env:USERNAME):(R,W)" | Out-Null
 }
 
-& docker.exe container inspect $containerName 1>$null 2>$null
-$containerExists = $LASTEXITCODE -eq 0
+$containerExists = Test-AndonHttpsDockerContainerExists -ContainerName $containerName
 if ($containerExists) {
     if (!(Test-Path $configPath)) {
         throw "Container isolado existe sem configuracao local. Remova-o manualmente ou use Stop-AndonHttpsHomologation.ps1 -RemoveData."
