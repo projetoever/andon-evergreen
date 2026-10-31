@@ -66,6 +66,14 @@ Para apagar deliberadamente apenas o container e os arquivos locais dessa homolo
 .\homologation\https\Stop-AndonHttpsHomologation.ps1 -RemoveData
 ```
 
+## Diagnóstico: container de homologação ausente ou renomeado
+
+O launcher e o encerramento consultam a lista de **nomes exatos** dos containers. A ausência de `andon-https-hml-postgres` (por exemplo, depois de renomeá-lo para backup) não é mais tratada como erro `No such container` no Windows PowerShell 5.1. Falhas reais ao consultar o Docker Desktop continuam bloqueando a inicialização.
+
+Se um container antigo existir **sem** `.andon-homologation/config.json`, **não é possível presumir que a senha anterior é recuperável**. Preserve-o, confirme a identidade, e só então renomeie como backup se for realmente o banco local sintético de homologação. Nunca use `-RemoveData`, `docker rm` ou limpeza de volumes para corrigir esse problema sem autorização específica.
+
+Depois de `git pull --ff-only origin main`, repita `Test-AndonHttpsHomologation.ps1` e `Start-AndonHttpsHomologation.ps1`; o novo container de homologação será criado separadamente do backup. O script de testes simula container ausente, somente backup renomeado, nome exato existente e falha real do daemon sem acessar dados industriais.
+
 ## Controles aplicados
 
 - API Fastify usa TLS nativo em `https://localhost:3443`;
