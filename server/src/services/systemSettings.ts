@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma.js";
 import { publicVisualPalette, publicVisualPaletteRevision } from "./andonVisualPalette.js";
+import { centralVisualPaletteWritesEnabled } from "../security/centralVisualPaletteHttp.js";
 
 export const GLOBAL_SYSTEM_SETTINGS_ID = "global";
 export const ATTENDANCE_MODES = ["name", "pin", "rfid"] as const;
@@ -44,6 +45,7 @@ export async function getSystemSettings() {
     ...settings,
     andonVisualPalette: publicVisualPalette(settings.andonVisualPalette),
     andonVisualPaletteRevision: publicVisualPaletteRevision(settings.andonVisualPaletteRevision),
+    andonVisualPaletteWriteEnabled: centralVisualPaletteWritesEnabled(),
   };
 }
 

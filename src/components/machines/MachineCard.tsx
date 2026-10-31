@@ -130,6 +130,7 @@ export function MachineCard({ machine, productionPriorityRank = null, attentionM
     <div
       className={cn(
         "relative isolate flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
+        cardAttentionTone === null && !isCritical && !isWarning && "andon-palette-machine-card",
         attentionMode === "highlighted" && cardAttentionTone === "danger" && "andon-card-highlighted-danger",
         attentionMode === "highlighted" && cardAttentionTone === "warning" && "andon-card-highlighted-warning",
         machine.machineStatus === "stopped" && !isNotScheduled

@@ -423,3 +423,29 @@
   .andon-screen-enter,
   .andon-panel-enter { animation: none !important; }
 }
+
+/* UX-12: globally approved non-critical accents only. Never override danger,
+ * warning, real machine stop, alert rings, status badges or category colors. */
+.andon-palette-machine-card {
+  border-color: var(--andon-palette-card-border, var(--border));
+}
+.machine-sector-action:focus-visible {
+  outline: 2px solid var(--andon-palette-focus-accent, var(--ring));
+  outline-offset: 2px;
+}
+.andon-palette-operation-button {
+  box-shadow: inset 0 0 0 2px var(--andon-palette-operation-accent, transparent);
+}
+.machine-sector-action[data-call-state="selected"]::after {
+  content: "";
+  position: absolute;
+  inset: -0.2rem;
+  border-radius: inherit;
+  border: 2px solid var(--andon-palette-sector-selection, transparent);
+  pointer-events: none;
+}
+.machine-sector-action[data-call-state="selected"] [data-selected-inset="true"] {
+  outline: 2px solid var(--andon-palette-selected-card-border, transparent);
+  outline-offset: 1px;
+}
+

@@ -28,6 +28,7 @@ export interface SystemSettings {
   /** Read-only in UX-12/2A: centrally stored only after a future audited write API is enabled. */
   andonVisualPalette?: VisualPaletteDraft;
   andonVisualPaletteRevision?: number;
+  andonVisualPaletteWriteEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

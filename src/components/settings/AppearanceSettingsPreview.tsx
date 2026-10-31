@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
+import { AndonApiError } from "@/api/andonApiClient";
+import { readGlobalVisualPalette, saveGlobalVisualPalette } from "@/services/visualPaletteService";
 import { Button } from "@/components/ui/button";
 import { ui } from "@/i18n/translate";
 import {
@@ -28,10 +31,68 @@ const accentLabels: Readonly<Record<VisualAccent, string>> = {
   violet: "Violeta",
 };
 
-/** Deliberately a draft-only, isolated preview: NO persistence/API call. */
-export function AppearanceSettingsPreview() {
+/**
+ * Preview remains draft-only in the legacy settings modal. Central Admin
+ * can save only if the server explicitly exposes its protected feature flag.
+ */
+export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGlobalSave?: boolean }) {
   const [draft, setDraft] = useState<VisualPaletteDraft>(restoreDefaultVisualPalette);
-  const changed = VISUAL_PALETTE_KEYS.some(key => draft[key] !== DEFAULT_VISUAL_PALETTE[key]);
+  const [saved, setSaved] = useState<VisualPaletteDraft>(restoreDefaultVisualPalette);
+  const [revision, setRevision] = useState(0);
+  const [canWrite, setCanWrite] = useState(false);
+  const [loading, setLoading] = useState(allowGlobalSave);
+  const [busy, setBusy] = useState(false);
+  const [restorePending, setRestorePending] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [message, setMessage] = useState("");
+  const changed = VISUAL_PALETTE_KEYS.some(key => draft[key] !== saved[key]);
+
+  const reload = useCallback(async () => {
+    if (!allowGlobalSave) return;
+    setLoading(true);
+    try {
+      const latest = await readGlobalVisualPalette();
+      setSaved(latest.palette);
+      setDraft(latest.palette);
+      setRevision(latest.revision);
+      setCanWrite(latest.canWrite);
+      setConflict(false);
+      setRestorePending(false);
+      setMessage("");
+    } catch {
+      setCanWrite(false);
+      setMessage("Não foi possível consultar a paleta global.");
+    } finally {
+      setLoading(false);
+    }
+  }, [allowGlobalSave]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  async function persist(palette: VisualPaletteDraft) {
+    if (!allowGlobalSave || !canWrite || busy || conflict) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const updated = await saveGlobalVisualPalette(palette, revision);
+      setSaved(updated.palette);
+      setDraft(updated.palette);
+      setRevision(updated.revision);
+      setRestorePending(false);
+      window.dispatchEvent(new CustomEvent("andon:global-palette-changed"));
+      setMessage("Paleta salva globalmente. Os terminais receberão a atualização.");
+    } catch (error) {
+      if (error instanceof AndonApiError && error.status === 409) {
+        setConflict(true);
+        setMessage("A paleta foi modificada por outro administrador. Recarregue antes de salvar.");
+      } else {
+        setMessage("Não foi possível salvar a paleta. As alterações globais foram preservadas.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   return (
     <section className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"
@@ -39,7 +100,9 @@ export function AppearanceSettingsPreview() {
       <div>
         <h3 className="text-lg font-bold text-foreground">{ui("Aparência e cores")}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          {ui("Prévia local sem aplicação global. A gravação auditável e as permissões serão disponibilizadas após a integração segura ao servidor.")}
+          {allowGlobalSave
+            ? ui("Prévia da paleta global. Alterações entram em vigor somente após Salvar globalmente com acesso autorizado.")
+            : ui("Prévia local sem aplicação global. Utilize o Admin principal do Hub para salvar com auditoria.")}
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -109,13 +172,55 @@ export function AppearanceSettingsPreview() {
           );
         })}
       </div>
+      {allowGlobalSave && (
+        <div className="space-y-3 rounded-lg border border-border bg-background/60 p-3">
+          <p className="text-xs text-muted-foreground">
+            {loading ? ui("Carregando paleta global...") :
+              canWrite ? ui("Paleta global autorizada para esta sessão. Revisão {0}.", { 0: revision }) :
+              ui("Gravação global desabilitada no servidor ou nesta sessão. Prévia disponível.") }
+          </p>
+          {message && <p role={conflict ? "alert" : "status"} className="flex items-center gap-2 text-sm text-foreground">
+            {conflict && <AlertCircle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />}
+            {ui(message)}
+          </p>}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => void persist(draft)}
+              disabled={!canWrite || !changed || busy || loading || conflict || restorePending}>
+              {busy ? ui("Salvando...") : ui("Salvar globalmente")}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setRestorePending(true)}
+              disabled={!canWrite || busy || loading || conflict || restorePending}>
+              {ui("Restaurar padrão global")}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => void reload()} disabled={busy || loading}>
+              {ui("Recarregar paleta")}
+            </Button>
+          </div>
+          {restorePending && (
+            <div role="group" aria-label={ui("Confirmar restauração global")} className="space-y-2 rounded-md border border-warning/50 bg-warning/5 p-3">
+              <p className="text-sm text-foreground">
+                {ui("Confirma restaurar o padrão de cores para todos os terminais?")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="destructive"
+                  disabled={busy} onClick={() => void persist(restoreDefaultVisualPalette())}>
+                  {ui("Confirmar restauração global")}
+                </Button>
+                <Button type="button" variant="outline" disabled={busy} onClick={() => setRestorePending(false)}>
+                  {ui("Cancelar")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant="outline" disabled={!changed}
           onClick={() => setDraft(restoreDefaultVisualPalette())}>
           {ui("Restaurar padrão da prévia")}
         </Button>
         <p role="status" className="text-xs text-muted-foreground">
-          {changed ? ui("Alterações apenas na prévia, sem salvar.") : ui("Preset padrão atual selecionado.")}
+          {changed ? ui("Alterações apenas na prévia, sem salvar.") : ui("Paleta carregada sem alterações pendentes.")}
         </p>
       </div>
     </section>

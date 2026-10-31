@@ -289,7 +289,7 @@ export function MachineActionPanel({
       {currentCall && (
         <div className="flex flex-wrap items-stretch justify-center gap-1.5 border-t border-border pt-1.5">
           {currentCall.status === "open" && (
-            <BigButton tone="info" size="md" className={workflowActionClass} onClick={onAttend}>
+            <BigButton tone="info" size="md" className={cn(workflowActionClass, "andon-palette-operation-button")} onClick={onAttend}>
               <Wrench className="h-4 w-4" /> {t("Atender selecionado")}
             </BigButton>
           )}
