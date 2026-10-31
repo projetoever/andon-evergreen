@@ -66,7 +66,7 @@ export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
   const section = requestedSection ?? "overview";
   const navigate = useNavigate();
-  const { refresh: refreshModules } = useModuleAccess();
+  const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
   const [loading, setLoading] = useState(true);
   const refresh = useCallback(async () => {
@@ -89,6 +89,39 @@ export function HubCentralAdminPage() {
     session.principal.isPrimaryAdmin === true;
   if (loading)
     return <main className="min-h-dvh bg-background" aria-label={ui("Verificando sessão administrativa")} />;
+  // Installation bootstrap is the ONE exception to the central Admin gate.
+  // Server /api/access/initialize still requires approved workstation, HTTPS,
+  // CSRF, the existing legacy Admin secret, and an uninitialized DB.
+  // Do not mount overview, workstations or operational settings before login.
+  if (session && !session.initialized) {
+    if (!access?.workstation.active || access.workstation.pendingApproval)
+      return (
+        <main className="min-h-dvh bg-background p-6">
+          <div role="alert" className="mx-auto max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
+            <h1 className="text-lg font-bold">{ui("Workstation ainda não aprovada")}</h1>
+            <p>{ui("A configuração inicial do Admin principal exige uma workstation ativa e aprovada.")}</p>
+            <Button asChild variant="outline"><Link to="/hub">{ui("Voltar ao Hub")}</Link></Button>
+          </div>
+        </main>
+      );
+    return (
+      <main className="min-h-dvh bg-background p-4 md:p-6">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4 md:p-6">
+            <h1 className="text-xl font-bold">{ui("Primeiro acesso — Admin principal")}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {ui("Crie a conta central com a senha Admin global existente. As configurações e os módulos permanecem bloqueados até autenticar a conta principal.")}
+            </p>
+          </div>
+          <UsersAccessSettings onSessionInitialized={async () => {
+            await refresh();
+            await refreshModules();
+          }} />
+          <Button asChild variant="outline"><Link to="/hub">{ui("Voltar ao Hub")}</Link></Button>
+        </div>
+      </main>
+    );
+  }
   if (!primaryAdmin)
     return (
       <main className="min-h-dvh bg-background p-6">

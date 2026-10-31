@@ -53,7 +53,7 @@ const errorLabels: Record<string, string> = {
   invalid_user: "Confira os campos e mantenha contas kiosk inativas.",
   invalid_machine_scope: "Uma máquina selecionada não está mais disponível.",
 };
-export function UsersAccessSettings() {
+export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitialized?: () => Promise<void> } = {}) {
   useLanguage();
   const [session, setSession] = useState<AccessState | null>(null);
   const [error, setError] = useState("");
@@ -188,6 +188,7 @@ export function UsersAccessSettings() {
       else await accessRequest("/login", "POST", { login: loginName, password });
       setReauth(false);
       await refreshSession();
+      if (!session?.initialized) await onSessionInitialized?.();
       form.reset();
     });
   };

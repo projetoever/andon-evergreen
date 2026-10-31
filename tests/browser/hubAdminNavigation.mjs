@@ -61,6 +61,8 @@ try {
     let delayModules = false;
     let centralMode = false;
     let primaryAdmin = true;
+    let centralInitialized = true;
+    let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
     let paletteRevision = 0;
@@ -101,7 +103,7 @@ try {
         return send({
           id: requestedWorkstationId,
           name: "Notebook de validação",
-          active: true,
+          active: centralWorkstationActive,
           pendingApproval: false,
           allowOperational: true,
           allowBi: true,
@@ -157,7 +159,7 @@ try {
           workstation: {
             id: requestedWorkstationId,
             name: "Estação de validação",
-            active: true,
+            active: centralWorkstationActive,
             allowOperational: true,
             allowBi: true,
             allowPriorities: true,
@@ -175,17 +177,30 @@ try {
           expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         });
       }
+      if (path === "/api/access/initialize" && req.method() === "POST") {
+        if (centralInitialized || !centralWorkstationActive)
+          return send({ error: "workstation_denied" }, 403);
+        const body = req.postDataJSON();
+        if (req.headers()["x-andon-csrf"] !== "a".repeat(64) ||
+            body.login !== "admin.central" ||
+            body.currentPassword !== "fixture-legacy-secret" ||
+            body.newPassword !== "fixture-central-secret")
+          return send({ error: "invalid_credentials" }, 401);
+        centralInitialized = true;
+        primaryAdmin = true;
+        return send({ csrf: "a".repeat(64), purpose: "normal" });
+      }
       if (path === "/api/access/session")
         return send({
-          initialized: true,
+          initialized: centralInitialized,
           csrf: "a".repeat(64),
-          principal: {
+          principal: centralInitialized ? {
             userId: "admin",
             login: "admin.central",
             displayName: "Admin Central",
             isPrimaryAdmin: primaryAdmin,
             purpose: "normal",
-          },
+          } : null,
         });
       if (path === "/api/access/catalog")
         return send({ permissions: [], roles: [], machines: [] });
@@ -358,6 +373,31 @@ try {
     // Central mode uses server-owned cookie identity, not the legacy Admin
     // session. Direct URL, limited tabs and role revocation are exercised.
     centralMode = true;
+    centralInitialized = false;
+    centralWorkstationActive = false;
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.getByRole("heading", { name: "Workstation ainda não aprovada" }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Criar administrador e abrir painel" }).count(), 0);
+    // Even an uninitialized installation cannot bootstrap from an unapproved station.
+    centralWorkstationActive = true;
+    await page.reload();
+    await page.getByRole("heading", { name: "Primeiro acesso — Admin principal" }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    assert.equal(await page.getByRole("heading", { name: "Resumo administrativo" }).count(), 0);
+    await page.getByLabel("Usuário administrador").fill("admin.central");
+    await page.getByLabel("Senha Admin existente").fill("fixture-legacy-secret");
+    await page.getByLabel("Nova senha pessoal").fill("fixture-central-secret");
+    await page.getByLabel("Confirmar nova senha").fill("fixture-central-secret");
+    await page.getByRole("button", { name: "Criar administrador e abrir painel" }).click();
+    await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).waitFor();
+    assert.equal(centralInitialized, true);
+    // The first-run form is gone; account validation now controls Admin access.
+    primaryAdmin = false;
+    await page.reload();
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Criar administrador e abrir painel" }).count(), 0);
+    primaryAdmin = true;
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
