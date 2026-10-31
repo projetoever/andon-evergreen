@@ -58,3 +58,22 @@ test("central global rules do not consult legacy Priority passwords and cannot e
   assert.match(central, /Sons, cadastros e credenciais mantêm controles separados/);
   assert.doesNotMatch(central, /<DashboardSoundMuteSettings|<SoundsSettingsTab/);
 });
+
+test("Central Admin first-run is an isolated bootstrap form, not a privilege bypass", async () => {
+  const [page, users, entry] = await Promise.all([
+    read("../src/pages/HubCentralAdminPage.tsx"),
+    read("../src/components/settings/UsersAccessSettings.tsx"),
+    read("../src/pages/HubAdminPage.tsx"),
+  ]);
+  const firstRun = page.indexOf('if (session && !session.initialized)');
+  const privilegeGate = page.indexOf('if (!primaryAdmin)');
+  assert.ok(firstRun > 0 && privilegeGate > firstRun);
+  const firstRunBlock = page.slice(firstRun, privilegeGate);
+  assert.match(firstRunBlock, /access\?\.workstation\.active/);
+  assert.match(firstRunBlock, /access\.workstation\.pendingApproval/);
+  assert.match(firstRunBlock, /<UsersAccessSettings onSessionInitialized=/);
+  assert.doesNotMatch(firstRunBlock, /<WorkstationsSettingsTab|<GeneralSettingsTab|<AppearanceSettingsPreview|<CentralOverview/);
+  assert.match(users, /await accessRequest\("\/initialize", "POST"/);
+  assert.match(users, /if \(!session\?\.initialized\) await onSessionInitialized\?\.\(\)/);
+  assert.match(entry, /if \(access\?\.centralAccessEnabled\) return <HubCentralAdminPage \/>/);
+});
