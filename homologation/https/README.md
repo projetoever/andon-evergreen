@@ -34,6 +34,20 @@ Para testar os fluxos centrais migrados em um **notebook de homologação exclus
 
 A opção aciona somente 15 guardas centrais já implementadas para a API isolada: classificação, abertura de chamado, atendimento, múltiplos mantenedores, conclusão, cancelamento, diagnóstico histórico, preferências da própria estação, identificação PIN/RFID, prioridades e configurações operacionais de Admin. **Não libera** edição de catálogos antigos, eventos físicos de parada, sirene/mute global ou credenciais legadas. É necessário autenticar o usuário, aprovar a workstation e possuir permissões de cada ação; a flag, sozinha, não autoriza ninguém. Não usar a opção na máquina da fábrica, em servidor da Evergreen ou em processos que se comuniquem com Node-RED, PLC ou GPIO.
 
+## UX-12 — Homologação independente da paleta global
+
+A personalização de cores possui autorização **separada** das 15 operações centrais. O launcher força `ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED=0` tanto no modo padrão quanto no modo `-EnableCentralOperationalWrites`, independentemente do valor herdado do PowerShell. Ao finalizar, a variável de ambiente anterior é restaurada.
+
+Para testar **somente no notebook isolado**, com banco, certificados e dados de teste, use ambos os switches:
+
+```powershell
+.\homologation\https\Start-AndonHttpsHomologation.ps1 -EnableCentralOperationalWrites -EnableGlobalPaletteWrites
+```
+
+A flag da paleta sozinha é recusada antes da inicialização, bem como qualquer porta produtiva ou duplicada. Os dados globais só poderão ser alterados pelo Admin principal autenticado, com workstation aprovada, HTTPS, Origin permitido, CSRF, escopo completo, validação da revisão, auditoria e transação com rollback. **Não transportar a opção para o servidor industrial.**
+
+Roteiro de verificação: confirmar opção indisponível com flag OFF; salvar com Admin principal; atualizar duas workstations com temas independentes (até 30 segundos); rejeitar gravação com papel menor, token revogado, CSRF ausente e revisão antiga; restaurar o padrão mediante confirmação; verificar que status de parada, cores de emergência e sons permanecem inalterados.
+
 O modo com escritas é rejeitado nas portas produtivas `8080`, `3001`, `5432` e em portas duplicadas ou inválidas. Este script conecta-se exclusivamente ao Docker de teste `andon-https-hml-postgres`, com banco `andon_https_hml`, PostgreSQL em `127.0.0.1`; não recebe endereço de banco remoto nem importa credenciais da fábrica.
 
 Para desativar as flags, encerre a instância e inicie novamente **sem** `-EnableCentralOperationalWrites`. O script restaura todas as variáveis anteriores no PowerShell chamador, inclusive em falhas de inicialização. O log `.andon-homologation/processes.json` registra apenas o estado booleano do perfil, não senhas.

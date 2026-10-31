@@ -43,6 +43,22 @@ if ($start -match 'NODE_TLS_REJECT_UNAUTHORIZED|ignoreHTTPSErrors|rejectUnauthor
 }
 
 
+# UX-12 has an independent gate. Operational opt-in must never
+# implicitly enable it or inherit a parent-shell value.
+foreach ($required in @(
+    '[switch]$EnableGlobalPaletteWrites',
+    '$visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"',
+    'if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites)',
+    ') + $centralHomologationFlags + @($visualPaletteFlag)',
+    '$visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")',
+    'isolatedGlobalPaletteWrites = [bool]$EnableGlobalPaletteWrites',
+    'SetEnvironmentVariable($name, $previousEnvironment[$name], "Process")'
+)) {
+    if (!$start.Contains($required)) {
+        throw "Isolamento de escrita global ausente no launcher: $required"
+    }
+}
+
 # SEC-04: require the exact tested set of central write gates, never an
 # undisclosed privilege, physical event, siren, or legacy credential bypass.
 $requiredCentralGates = @(
@@ -105,6 +121,20 @@ foreach ($flag in $forbiddenOperationalGates) {
     }
 }
 
+# This opt-in combination must fail BEFORE Docker, files or external tools.
+$paletteOnlyBlocked = $false
+try {
+    & $scripts[0] -EnableGlobalPaletteWrites | Out-Null
+} catch {
+    if ($_.Exception.Message -notmatch "paleta global requer") {
+        throw "Paleta global isolada bloqueada por motivo inesperado: $($_.Exception.Message)"
+    }
+    $paletteOnlyBlocked = $true
+}
+if (!$paletteOnlyBlocked) {
+    throw "Escrita de paleta habilitada sem opt-in operacional isolado."
+}
+
 # Exercise port isolation without requiring Docker, npm, mkcert or the API.
 # The port guard is deliberately before any external command or filesystem work.
 $startScript = $scripts[0]
@@ -116,7 +146,7 @@ foreach ($ports in @(
 )) {
     $blocked = $false
     try {
-        & $startScript -EnableCentralOperationalWrites @ports | Out-Null
+        & $startScript -EnableCentralOperationalWrites -EnableGlobalPaletteWrites @ports | Out-Null
     } catch {
         if ($_.Exception.Message -notmatch "Portas") {
             throw "O teste saiu por motivo diferente da guarda de portas: $($_.Exception.Message)"

@@ -3,7 +3,8 @@ param(
     [int]$FrontendPort = 8443,
     [int]$ApiPort = 3443,
     [int]$PostgresPort = 55432,
-    [switch]$EnableCentralOperationalWrites
+    [switch]$EnableCentralOperationalWrites,
+    [switch]$EnableGlobalPaletteWrites
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +37,12 @@ $centralHomologationFlags = @(
     "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
     "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
 )
+# UX-12 has a separate global-write capability. It is never inherited from
+# a parent PowerShell and is never enabled by operational writes alone.
+$visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"
+if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites) {
+    throw "A paleta global requer -EnableCentralOperationalWrites no notebook isolado."
+}
 if ($EnableCentralOperationalWrites) {
     # This launcher always binds to localhost and uses its own Docker database.
     if ($FrontendPort -eq 8080 -or $ApiPort -eq 3001 -or $PostgresPort -eq 5432) {
@@ -149,7 +156,7 @@ $environmentNames = @(
     "ANDON_CENTRAL_ACCESS_ENABLED", "VITE_ANDON_DATA_MODE", "VITE_ANDON_API_BASE_URL",
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT"
-) + $centralHomologationFlags
+) + $centralHomologationFlags + @($visualPaletteFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
@@ -183,11 +190,14 @@ $env:CORS_ORIGINS = $origin
 $env:ANDON_ACCESS_ORIGIN = $origin
 $env:ANDON_CENTRAL_ACCESS_ENABLED = "1"
 # No accidental inheritance of feature flags from the launching shell.
-# With no switch, all 15 write adapters are forced OFF in child processes.
+# With no switch, all 15 operational write adapters are forced OFF in child processes.
+# Palette writes are independently OFF even with -EnableCentralOperationalWrites.
 foreach ($flag in $centralHomologationFlags) {
     [Environment]::SetEnvironmentVariable(
         $flag, $(if ($EnableCentralOperationalWrites) { "1" } else { "0" }), "Process")
 }
+[Environment]::SetEnvironmentVariable(
+    $visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")
 $apiProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
     -WorkingDirectory (Join-Path $repoRoot "server") -PassThru `
     -RedirectStandardOutput (Join-Path $statePath "api.log") `
@@ -209,6 +219,7 @@ $frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
     frontendPid = $frontendProcess.Id
     startedAt = (Get-Date).ToUniversalTime().ToString("o")
     isolatedCentralWrites = [bool]$EnableCentralOperationalWrites
+    isolatedGlobalPaletteWrites = [bool]$EnableGlobalPaletteWrites
 } | ConvertTo-Json | Set-Content -Encoding UTF8 $processPath
 
 try {
@@ -231,5 +242,6 @@ Write-Host "  API: $apiUrl"
 Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
 Write-Host "  Primeiro acesso local: crie a senha Admin global (SEM senha predefinida)."
 Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
+Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO NOTEBOOK' } else { 'DESLIGADA (padrao, independente)' })"
 Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"
