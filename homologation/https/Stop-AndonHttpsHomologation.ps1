@@ -6,6 +6,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $statePath = Join-Path $repoRoot ".andon-homologation"
 $processPath = Join-Path $statePath "processes.json"
 $containerName = "andon-https-hml-postgres"
+. (Join-Path $PSScriptRoot "Test-AndonHttpsDockerContainerExists.ps1")
 
 if (Test-Path $processPath) {
     $processes = Get-Content $processPath -Raw | ConvertFrom-Json
@@ -22,17 +23,21 @@ if ($RemoveData -and !(Get-Command docker.exe -ErrorAction SilentlyContinue)) {
 }
 
 if (Get-Command docker.exe -ErrorAction SilentlyContinue) {
-    & docker.exe stop $containerName 1>$null 2>$null
+    $containerExists = Test-AndonHttpsDockerContainerExists -ContainerName $containerName
+    if ($containerExists) {
+        & docker.exe stop $containerName | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Nao foi possivel encerrar o container de homologacao. Os dados foram preservados."
+        }
+    }
     if ($RemoveData) {
-        & docker.exe container inspect $containerName 1>$null 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            & docker.exe rm -f $containerName 1>$null 2>$null
+        if ($containerExists) {
+            & docker.exe rm -f $containerName | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 throw "Falha ao remover o container. Os dados e as credenciais locais foram preservados."
             }
         }
-        & docker.exe container inspect $containerName 1>$null 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        if (Test-AndonHttpsDockerContainerExists -ContainerName $containerName) {
             throw "O container ainda existe. Os dados e as credenciais locais foram preservados."
         }
     }
