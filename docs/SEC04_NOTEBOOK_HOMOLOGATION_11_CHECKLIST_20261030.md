@@ -1,6 +1,6 @@
 # SEC-04 — Homologação consolidada dos 11 cenários no notebook
 
-**Data:** 30/10/2026. **Ambiente permitido:** notebook Windows 10/11, banco Docker local fictício, `https://localhost:8443` e API `https://localhost:3443`. Este roteiro não é autorização para implantação no servidor industrial nem para alterar a Máquina 37.
+**Data:** 30/10/2026. **Atualizado após UX-12/3 (PR #304).** **Ambiente permitido:** notebook Windows 10/11, banco Docker local fictício, `https://localhost:8443` e API `https://localhost:3443`. Este roteiro não é autorização para implantação no servidor industrial nem para alterar a Máquina 37.
 
 ## Condições obrigatórias antes do teste
 
@@ -44,8 +44,16 @@
 | Notebook, `-EnableCentralOperationalWrites` | ON | 15 guardas ON, sob ACL individual | Proibida | Teste funcional controlado |
 | Servidor Evergreen/Máquina 37 | Sem mudança por este roteiro | Sem mudança | Intocada | Rollout futuro e autorização específica |
 
-## Fora do pacote de 11
+## Evoluções visuais complementares — integradas no código, pendentes de homologação física
 
-As três evoluções visuais **continuam apenas na fila**: #288 (tema claro/escuro individual), #289 (paleta global com preset atual), #291 (alerta discreto/destacado por estação). O modo destacado é **visual** e não autoriza acionar PLC, sirene ou evento físico.
+- **UX-11 (#288):** tema claro/escuro local por navegador, escuro como padrão industrial.
+- **UX-13 (#291):** modo Discreto/Destacado local por terminal. Testar estados vermelho/amarelo, máquina não programada, status de acompanhamento, múltiplos chamados, redução de movimento e ausência de sons novos.
+- **UX-12 (#289):** paleta global no PostgreSQL, cinco acentos não críticos, prévia claro/escuro, rota independente de escrita protegida e auditada. No ambiente industrial a flag segue OFF; os componentes não críticos reconsultam a versão a cada 30 segundos.
+- Na execução padrão do launcher e também em `-EnableCentralOperationalWrites` sem o segundo switch, `ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED=0` é **forçado pelo processo filho**. Verificar que o botão de salvamento aparece desativado.
+- **Somente notebook isolado:** reiniciar com `.\\homologation\\https\\Start-AndonHttpsHomologation.ps1 -EnableCentralOperationalWrites -EnableGlobalPaletteWrites` para testar o gravador. A segunda opção não é permitida isoladamente nem em portas produtivas.
+- Em duas workstations distintas, aplicar paleta com Admin principal e verificar sincronização em até 30 segundos, preservando temas e intensidades independentes; testar falha 409 por revisão concorrente, sessões revogadas, workstation pendente, permissões e CSRF; restaurar o preset mediante confirmação.
+- Registrar evidências sem senhas, PINs, tokens, certificados privados ou endereços sensíveis. O modo destacado é exclusivamente visual e não autoriza PLC, sirene ou evento físico.
+
+**Não confundir:** merge e CI aprovados no GitHub não significam homologação no notebook, e homologação no notebook não significa autorização de deploy industrial.
 
 **Aprovação final:** CI validada **não substitui** homologação manual no notebook e esta **não substitui** autorização de deploy industrial. Registrar aceite/pendências no roadmap #232 antes de considerar rollout.
