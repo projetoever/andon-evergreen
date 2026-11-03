@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
+import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
 import { AppearanceSettingsPreview } from "@/components/settings/AppearanceSettingsPreview";
@@ -144,6 +145,7 @@ export function HubCentralAdminPage() {
           <p className="text-sm text-muted-foreground">
             {ui("Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.")}
           </p>
+          {!session?.principal && <CentralAdminRecoveryForm onRecovered={refresh} />}
           <Button asChild variant="outline"><Link to="/hub">{ui("Voltar ao Hub")}</Link></Button>
         </div>
       </main>
