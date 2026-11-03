@@ -6,7 +6,7 @@ import { enforceWorkstationAccess } from "./workstationAccess.js";
 import { enforceModuleAuthorization } from "./moduleAuthorization.js";
 import { ACCESS_COOKIE } from "../access/http.js";
 import { registerAdminAuthRoutes } from "../routes/adminAuth.js";
-import { hashCredential } from "./technicianCredentials.js";
+import { hashCredential, verifyCredential } from "./technicianCredentials.js";
 
 const stationId = "ws_00000000-0000-4000-8000-000000000037";
 const token = "a".repeat(64);
@@ -131,4 +131,72 @@ test("S1 central mode refuses legacy Admin bearer issuance while legacy mode ret
     payload: { username: "admin", password: "Invalid-2026-Password" },
   });
   assert.equal(invalid.statusCode, 401);
+});
+
+test("S1/2 recovery does not mint a legacy bearer when central access is enabled", async (t) => {
+  const previousFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const originalFindUnique = prisma.systemSettings.findUnique;
+  const originalUpsert = prisma.systemSettings.upsert;
+  const code = "ABCDEF123456";
+  const formattedCode = "ADM-ABCD-EF12-3456";
+  const newPassword = "SafeGlobalCredential#2026";
+  let adminPasswordHash = await hashCredential("PreviousGlobalCredential#2026");
+  let recoveryCodeHash: string | null = await hashCredential(code);
+  let writes = 0;
+
+  prisma.systemSettings.findUnique = (async () => ({
+    adminPasswordHash, adminRecoveryCodeHash: recoveryCodeHash,
+    adminRecoveryCodeIssuedAt: recoveryCodeHash ? new Date() : null,
+  })) as unknown as typeof originalFindUnique;
+  prisma.systemSettings.upsert = (async (options: { update: {
+    adminPasswordHash: string; adminRecoveryCodeHash: null; adminRecoveryCodeIssuedAt: null;
+  } }) => {
+    assert.equal(options.update.adminRecoveryCodeHash, null);
+    assert.equal(options.update.adminRecoveryCodeIssuedAt, null);
+    adminPasswordHash = options.update.adminPasswordHash;
+    recoveryCodeHash = null;
+    writes += 1;
+    return { id: "global" };
+  }) as unknown as typeof originalUpsert;
+  t.after(() => {
+    prisma.systemSettings.findUnique = originalFindUnique;
+    prisma.systemSettings.upsert = originalUpsert;
+    if (previousFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousFlag;
+  });
+
+  const app = Fastify();
+  t.after(() => app.close());
+  registerAdminAuthRoutes(app);
+  const payload = { recoveryCode: formattedCode, newPassword };
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  const invalid = await app.inject({
+    method: "POST", url: "/api/admin-auth/recover",
+    payload: { recoveryCode: "ADM-0000-0000-0000", newPassword },
+  });
+  assert.equal(invalid.statusCode, 401);
+  assert.equal(invalid.headers["cache-control"], "no-store");
+  assert.equal(writes, 0);
+
+  const central = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
+  assert.equal(central.statusCode, 200);
+  assert.equal(central.headers["cache-control"], "no-store");
+  assert.equal(central.json().ok, true);
+  assert.equal(central.json().token, undefined, "no second Admin token in central mode");
+  assert.equal(central.json().expiresAt, undefined);
+  assert.equal(writes, 1);
+  assert.equal(await verifyCredential(newPassword, adminPasswordHash), true);
+  const replay = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
+  assert.equal(replay.statusCode, 401, "recovery code is single use");
+  assert.equal(writes, 1);
+
+  // Preserve the existing legacy-mode recovery contract for installed pilots.
+  recoveryCodeHash = await hashCredential(code);
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const legacy = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
+  assert.equal(legacy.statusCode, 200);
+  assert.match(legacy.json().token, /^[a-f0-9]{64}$/);
+  assert.equal(legacy.headers["cache-control"], "no-store");
+  assert.equal(writes, 2);
 });
