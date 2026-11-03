@@ -5,6 +5,8 @@ import { prisma } from "../db/prisma.js";
 import { enforceWorkstationAccess } from "./workstationAccess.js";
 import { enforceModuleAuthorization } from "./moduleAuthorization.js";
 import { ACCESS_COOKIE } from "../access/http.js";
+import { registerAdminAuthRoutes } from "../routes/adminAuth.js";
+import { hashCredential } from "./technicianCredentials.js";
 
 const stationId = "ws_00000000-0000-4000-8000-000000000037";
 const token = "a".repeat(64);
@@ -89,4 +91,44 @@ test("SEC-04 single central login bypasses only legacy module passwords, not cen
   assert.equal(write.statusCode, 403, "central write gate must remain closed");
   assert.equal(write.json().error, "central_action_not_supported");
   assert.equal(legacyLookup, 0);
+});
+
+test("S1 central mode refuses legacy Admin bearer issuance while legacy mode retains valid login", async (t) => {
+  const priorFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const originalSettings = prisma.systemSettings.findUnique;
+  const password = "Pilot-Strong-2026!";
+  const adminPasswordHash = await hashCredential(password);
+  let dbReads = 0;
+  prisma.systemSettings.findUnique = (async () => {
+    dbReads += 1;
+    return { adminPasswordHash, adminRecoveryCodeHash: null, adminRecoveryCodeIssuedAt: null };
+  }) as unknown as typeof originalSettings;
+  t.after(() => {
+    prisma.systemSettings.findUnique = originalSettings;
+    if (priorFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = priorFlag;
+  });
+
+  const app = Fastify();
+  t.after(() => app.close());
+  registerAdminAuthRoutes(app);
+  const payload = { username: "admin", password };
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  const rejected = await app.inject({ url: "/api/admin-auth/login", method: "POST", payload });
+  assert.equal(rejected.statusCode, 403);
+  assert.equal(rejected.json().error, "legacy_admin_login_disabled");
+  assert.equal(rejected.headers["cache-control"], "no-store");
+  assert.equal(rejected.json().token, undefined);
+  assert.equal(dbReads, 0, "central requests must not verify or query the legacy secret");
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const allowed = await app.inject({ url: "/api/admin-auth/login", method: "POST", payload });
+  assert.equal(allowed.statusCode, 200, "industrial/legacy mode keeps the existing login");
+  assert.match(allowed.json().token, /^[a-f0-9]{64}$/);
+  assert.ok(dbReads > 0);
+  const invalid = await app.inject({
+    url: "/api/admin-auth/login", method: "POST",
+    payload: { username: "admin", password: "Invalid-2026-Password" },
+  });
+  assert.equal(invalid.statusCode, 401);
 });
