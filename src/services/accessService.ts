@@ -48,6 +48,8 @@ export interface AccessCatalog {
   machines: { id: string; name: string; isActive: boolean }[];
 }
 export interface ManagedWorkstation extends Workstation {
+  presence: "online" | "offline" | "unknown";
+  lastHeartbeatAt?: string | null;
   admission: {
     status: "pending" | "approved" | "rejected";
     requestedAt: string;
