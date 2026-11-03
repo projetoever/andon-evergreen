@@ -29,6 +29,8 @@ export interface SystemSettings {
   andonVisualPalette?: VisualPaletteDraft;
   andonVisualPaletteRevision?: number;
   andonVisualPaletteWriteEnabled?: boolean;
+  /** Runtime capability only; every PATCH still needs its own ACL/CSRF. */
+  centralOperationalSettingsWriteEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
