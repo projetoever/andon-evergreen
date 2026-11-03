@@ -27,6 +27,7 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { deriveWorkstationPresence } from "../access/workstationPresence.js";
 import {
   INDUSTRIAL_SERVICE_SCOPES,
   createIndustrialService,
@@ -213,6 +214,33 @@ export function registerAccessRoutes(
           await db.accessUser.findFirst({ where: { isPrimaryAdmin: true }, select: { id: true } }),
         ),
       };
+    });
+    // Heartbeat reports a visible, authenticated browser. It does NOT extend
+    // lastInteractionAt, expiresAt, or the five-minute Admin step-up window.
+    app.post(`${PREFIX}/heartbeat`, { schema: schema({}, []) }, async (req) => {
+      const identity = requestAccess(req);
+      return db.$transaction(async (tx) => {
+        const initial = await resolveSession(tx, identity);
+        if (initial.purpose !== "normal")
+          throw new AccessError("authentication_required", 401);
+        await lockUser(tx, initial.userId);
+        const principal = await resolveSession(tx, identity);
+        if (principal.userId !== initial.userId ||
+            principal.sessionId !== initial.sessionId ||
+            principal.purpose !== "normal")
+          throw new AccessError("authentication_required", 401);
+        const now = new Date();
+        const changed = await tx.workstation.updateMany({
+          where: {
+            id: principal.workstationId,
+            active: true,
+            pendingApproval: false,
+          },
+          data: { lastHeartbeatAt: now },
+        });
+        if (changed.count !== 1) throw new AccessError("workstation_denied");
+        return { ok: true };
+      });
     });
     app.post<{ Body: { login: string; password: string } }>(
       `${PREFIX}/login`,
@@ -521,6 +549,12 @@ export function registerAccessRoutes(
           ...station,
           linkedAccount: station.admission?.requester ?? null,
           authenticatedAccount: valid ? latest?.user : null,
+          presence: deriveWorkstationPresence({
+            lastHeartbeatAt: station.lastHeartbeatAt,
+            active: station.active,
+            pendingApproval: station.pendingApproval,
+            hasValidCentralSession: valid,
+          }, now),
           lastLogin: latest
             ? {
                 account: latest.user,
