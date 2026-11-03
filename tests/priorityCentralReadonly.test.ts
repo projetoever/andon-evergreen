@@ -15,8 +15,12 @@ test("central priority editor remains read-only while writes are denied", async 
 test("priority GET requires bound central principal before waiving legacy password", async () => {
   const route = await readFile(new URL("../server/src/routes/dashboardPriority.ts", import.meta.url), "utf8");
   const scope = route.indexOf("const allowedIds = scopedMachineReadIds(request);");
-  const sso = route.indexOf("if (!centralAccessEnabled() || request.industrialService)");
+  // Central service identities are already authorized and scoped by the
+  // preceding workstation hook; a second Priority password is forbidden.
+  const sso = route.indexOf("if (!centralAccessEnabled())");
   assert(scope >= 0 && sso > scope);
+  assert.match(route, /sessions\.clear\(\);[\s\S]*legacy_priority_login_disabled/);
+  assert.match(route, /scopedMachineReadIds\(request\)/);
   const writes = await readFile(new URL("../server/src/security/workstationAccess.ts", import.meta.url), "utf8");
   assert.match(writes, /central_action_not_supported/);
 });
