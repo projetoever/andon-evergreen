@@ -90,3 +90,25 @@ test("Hub mandatory personal-password change follows the same 8-to-128 character
   assert.equal((panel.match(/maxLength=\{128\}/g) ?? []).length >= 2, true);
   assert.doesNotMatch(panel, /minLength=\{15\}|Use uma frase de acesso de 15/);
 });
+
+test("Manager console relies on explicit full-scope grants, never the display role label", async () => {
+  const [admin, manager, accessRoutes, presets] = await Promise.all([
+    read("../src/pages/HubCentralAdminPage.tsx"),
+    read("../src/pages/HubCentralManagerPage.tsx"),
+    read("../server/src/routes/access.ts"),
+    read("../src/services/accessRolePresets.ts"),
+  ]);
+  assert.match(admin, /session\.principal\.permissions\?\.includes\("workstations.read"\)/);
+  assert.match(admin, /session\.principal\.permissions\?\.includes\("andon.read"\)/);
+  assert.match(admin, /session\.principal\.machineScope === "all"/);
+  assert.match(admin, /access\?\.workstation\.active === true/);
+  assert.match(admin, /<HubCentralManagerPage section=\{section\}/);
+  assert.doesNotMatch(manager, /<UsersAccessSettings|<WorkstationsSettingsTab|<GeneralSettingsTab|<AttendanceModeSettingsTab|<AppearanceSettingsPreview/);
+  assert.doesNotMatch(manager, /\/users|\/service-identities|\/workstations\/.*decision/);
+  assert.match(manager, /availableSections\.some\(\(item\) => item\.id === section\)/);
+  assert.match(manager, /getSystemSettings\(\)/);
+  assert.match(manager, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
+  assert.match(accessRoutes, /assertPermission\(principal, "workstations.read"\);\s+\/\/ Global workstations list includes identities from every terminal\.\s+assertFullMachineScope\(principal\)/);
+  assert.match(presets, /"workstations.read"/);
+  assert.doesNotMatch(manager, /"POST"\s*,\s*\{[^}]*\}(?=\s*,)/);
+});
