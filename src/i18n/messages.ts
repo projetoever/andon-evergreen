@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Não foi possível encerrar a sessão. Tente novamente.", "Could not sign out. Please try again.", "無法結束工作階段。請重試。"],
   ["Prioridade", "Priority", "優先順序"],
   ["Ordem das máquinas", "Machine order", "機台排序"],
   ["Restrição de conclusão por estação", "Completion restricted to assigned workstation", "僅限指定工作站完成作業"],
