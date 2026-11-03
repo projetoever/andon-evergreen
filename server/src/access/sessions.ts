@@ -58,7 +58,7 @@ export async function resolveSession(
     sessionId: row.id,
     workstationId: row.workstationId,
     purpose: row.purpose,
-    authenticatedAt: row.createdAt,
+    authenticatedAt: row.lastAuthenticatedAt ?? row.createdAt,
   };
 }
 export async function lockUser(tx: Prisma.TransactionClient, id: string) {
@@ -177,6 +177,60 @@ export async function login(
     return session;
   });
   return result ?? denied();
+}
+/**
+ * Refresh only the five-minute proof for sensitive Admin actions.
+ * Keep the same session token, workstation, idle deadline and absolute expiry.
+ */
+export async function reauthenticateAdmin(
+  db: PrismaClient,
+  request: AccessRequest,
+  password: string,
+  context: Pick<AuditActor, "ipAddress" | "requestId"> = {},
+) {
+  const initial = await resolveSession(db, request);
+  if (!initial.isPrimaryAdmin || initial.purpose !== "normal" ||
+      initial.accountType !== "person") throw new AccessError("admin_required");
+  const account = await db.accessUser.findUnique({
+    where: { id: initial.userId }, select: { passwordHash: true },
+  });
+  if (!account || !password || [...password].length > 128 ||
+      !(await verifyAccessPassword(password, account.passwordHash)))
+    throw new AccessError("invalid_credentials", 401);
+
+  await db.$transaction(async (tx) => {
+    await lockUser(tx, initial.userId);
+    const current = await resolveSession(tx, request);
+    if (current.sessionId !== initial.sessionId || current.userId !== initial.userId ||
+        !current.isPrimaryAdmin || current.purpose !== "normal")
+      throw new AccessError("authentication_required", 401);
+    const fresh = await tx.accessUser.findUniqueOrThrow({
+      where: { id: current.userId }, select: { passwordHash: true },
+    });
+    if (fresh.passwordHash !== account.passwordHash)
+      throw new AccessError("authentication_required", 401);
+    const now = new Date();
+    const updated = await tx.accessSession.updateMany({
+      where: {
+        id: current.sessionId,
+        userId: current.userId,
+        workstationId: current.workstationId,
+        revokedAt: null,
+        expiresAt: { gt: now },
+        lastInteractionAt: { gt: new Date(now.getTime() - IDLE) },
+      },
+      data: { lastAuthenticatedAt: now },
+    });
+    if (updated.count !== 1) throw new AccessError("authentication_required", 401);
+    await appendAudit(tx, {
+      ...actorFromPrincipal(current), ...context,
+    }, {
+      action: "access.admin.reauthenticated",
+      resourceType: "access_session",
+      resourceId: current.sessionId,
+    });
+  });
+  return { ok: true };
 }
 export async function changePassword(
   db: PrismaClient,
