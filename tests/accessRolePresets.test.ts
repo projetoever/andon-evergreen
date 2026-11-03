@@ -12,6 +12,7 @@ const catalog = [
   "andon.read",
   "history.read",
   "calls.open",
+  "calls.cancel.own",
   "calls.attend",
   "calls.technicians.manage",
   "calls.finishMaintenance",
