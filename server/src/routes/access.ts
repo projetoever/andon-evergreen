@@ -28,6 +28,8 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
+import { issueCentralAdminRecoveryCode, recoverCentralAdmin } from "../access/adminRecovery.js";
+import { isLocalInitialAdminRequest } from "../security/initialAdminSetup.js";
 import {
   INDUSTRIAL_SERVICE_SCOPES,
   createIndustrialService,
@@ -126,7 +128,7 @@ export function registerAccessRoutes(
         throw new AccessError("workstation_denied");
       if (
         req.method === "POST" &&
-        /\/(login|initialize|password|reset|reauthenticate)$/.test(req.routeOptions.url ?? "")
+        /\/(login|initialize|password|reset|reauthenticate|admin-recover)$/.test(req.routeOptions.url ?? "")
       ) {
         limited(`credential:${req.ip}`, 20, 15 * 60000);
         const body = req.body as { login?: string };
@@ -253,6 +255,29 @@ export function registerAccessRoutes(
             req.body.newPassword,
           ),
         ),
+    );
+    // Issuance requires a recent primary Admin step-up. Only the returned
+    // plaintext code can restore the central password; it is never persisted.
+    app.post(`${PREFIX}/admin-recovery-code`, { schema: schema({}, []) }, async (req) => {
+      limited(`recovery-issue:${req.ip}`, 3, 15 * 60_000);
+      return issueCentralAdminRecoveryCode(db, requestAccess(req));
+    });
+    // Recovery never signs the browser in. Physical loopback, exact allowed
+    // local Origin, HTTPS, workstation approval, preauth CSRF and rate limit
+    // must all pass before a one-time recovery code can be consumed.
+    app.post<{ Body: { recoveryCode: string; newPassword: string } }>(
+      `${PREFIX}/admin-recover`,
+      { schema: schema({ recoveryCode: string(80), newPassword: string(256) }) },
+      async (req, reply) => {
+        if (!isLocalInitialAdminRequest(req))
+          throw new AccessError("recovery_local_only");
+        const recovered = await recoverCentralAdmin(db, req.body, {
+          ipAddress: req.ip, requestId: req.id,
+          workstationId: requestAccess(req).workstationId,
+        });
+        setCookie(reply, ACCESS_COOKIE, "", 0);
+        return recovered;
+      },
     );
     app.post<{ Body: { password: string } }>(
       `${PREFIX}/reauthenticate`,
