@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
 import { checkCsrf } from "../access/credentials.js";
-import { AccessError, assertFullMachineScope, assertModule, type Principal } from "../access/policy.js";
+import { AccessError, assertFullMachineScope, assertModule, assertPermission, type Principal } from "../access/policy.js";
 
 const authorized = new WeakSet<FastifyRequest>();
 export const CENTRAL_OPERATIONAL_SETTINGS_FLAG = "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED";
@@ -11,10 +11,21 @@ export function centralOperationalSettingsEnabled() {
 export function isCentralOperationalSettingsMutation(method: string, path: string) {
   return method === "PATCH" && path === "/api/system-settings";
 }
-export function assertCentralOperationalSettingsPrivilege(principal: Principal) {
-  if (principal.purpose !== "normal" || !principal.isPrimaryAdmin)
-    throw new AccessError("permission_denied");
+const MANAGER_PRESENTATION_FIELDS = new Set([
+  "virtualKeyboardEnabled", "dashboardMachineOrderMode",
+]);
+
+export function assertCentralOperationalSettingsPrivilege(principal: Principal, patch?: unknown) {
+  if (principal.purpose !== "normal") throw new AccessError("permission_denied");
   assertFullMachineScope(principal);
+  if (principal.isPrimaryAdmin) return;
+  // Field-specific grant: a Manager cannot modify OS requirements, completion
+  // restrictions, identities, RFID, policies or client credentials.
+  assertPermission(principal, "hub.settings.presentation.write");
+  if (!patch || typeof patch !== "object" || Array.isArray(patch) ||
+      !Object.keys(patch).length ||
+      Object.keys(patch).some(key => !MANAGER_PRESENTATION_FIELDS.has(key)))
+    throw new AccessError("permission_denied");
 }
 export function markCentralOperationalSettingsAuthorized(
   request: FastifyRequest, principal: Principal,
@@ -24,7 +35,7 @@ export function markCentralOperationalSettingsAuthorized(
       !isCentralOperationalSettingsMutation(request.method, request.url.split("?", 1)[0] ?? ""))
     throw new AccessError("central_action_not_supported");
   assertModule(principal, station, "operational");
-  assertCentralOperationalSettingsPrivilege(principal);
+  assertCentralOperationalSettingsPrivilege(principal, request.body);
   if (!checkCsrf(readSecureCookie(request, ACCESS_COOKIE), request.headers["x-andon-csrf"]))
     throw new AccessError("csrf_denied");
   authorized.add(request);
