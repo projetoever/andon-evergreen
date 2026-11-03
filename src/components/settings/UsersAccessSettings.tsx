@@ -574,7 +574,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           : PILOT_SIMPLE_ROLES.filter((role) => catalog.roles.includes(role))
                         ).map((role) => (
                           <option key={role} value={role}>
-                            {ui(role)}
+                            {!advancedPermissions && role === "Gestor/Gerente"
+                              ? ui("Gerente")
+                              : ui(role)}
                           </option>
                         ))}
                       </select>
