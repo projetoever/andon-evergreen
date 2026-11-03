@@ -33,6 +33,7 @@ export function createModuleSession(
   username: string,
   credentialVersion: number,
 ) {
+  if (centralAccessEnabled()) throw new Error("legacy_module_session_disabled");
   for (const [token, session] of sessions)
     if (session.expiresAt <= Date.now()) sessions.delete(token);
   const token = randomBytes(32).toString("hex");
@@ -46,6 +47,10 @@ export function hasModuleSession(
   module: PasswordModule,
   policy: ModulePolicy,
 ) {
+  if (centralAccessEnabled()) {
+    sessions.clear();
+    return false; // Legacy module tokens cannot authenticate in central mode.
+  }
   if (!policy.passwordRequired) return true;
   const token = moduleToken(request, module);
   const session = token ? sessions.get(token) : undefined;
@@ -88,7 +93,10 @@ export async function enforceModuleAuthorization(request: FastifyRequest, reply:
   // This is only a removal of duplicated READ authentication: central HTTP
   // writes remain fail-closed in enforceWorkstationAccess.
   // CRITICAL: keep the hook registration order in server.ts unchanged.
-  if (centralAccessEnabled()) return;
+  if (centralAccessEnabled()) {
+    sessions.clear();
+    return;
+  }
   const policy = await prisma.moduleCredential.findUnique({
     where: { id: module },
     select: { passwordRequired: true, credentialVersion: true },
