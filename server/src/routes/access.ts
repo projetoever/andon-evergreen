@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { appendAudit, actorFromPrincipal, type AuditActor } from "../access/audit.js";
-import { AccessError, PERMISSIONS, assertPermission } from "../access/policy.js";
+import { AccessError, PERMISSIONS, assertPermission, assertFullMachineScope } from "../access/policy.js";
 import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
 import {
   login,
@@ -453,6 +453,8 @@ export function registerAccessRoutes(
     app.get(`${PREFIX}/workstations`, async (req) => {
       const principal = await resolveSession(db, requestAccess(req));
       assertPermission(principal, "workstations.read");
+      // Global workstations list includes identities from every terminal.
+      assertFullMachineScope(principal);
       const now = new Date();
       const rows = await db.workstation.findMany({
         include: {
