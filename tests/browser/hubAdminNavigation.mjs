@@ -567,8 +567,15 @@ try {
       const control = document.querySelector('input[aria-label="Habilitar teclado virtual"]');
       return control && !control.disabled;
     });
-    await keyboard.uncheck();
-    await page.getByText("Preferência operacional atualizada.").waitFor();
+    const [keyboardSaved] = await Promise.all([
+      page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/system-settings" &&
+        response.request().method() === "PATCH" && response.ok()),
+      keyboard.click(),
+    ]);
+    assert.equal((await keyboardSaved.json()).virtualKeyboardEnabled, false);
+    await page.waitForFunction(() =>
+      document.querySelector('input[aria-label="Habilitar teclado virtual"]')?.checked === false);
     assert.equal(keyboardSetting, false);
     const order = page.getByRole("combobox", { name: "Ordem visual do Dashboard" });
     const [orderSaved] = await Promise.all([
