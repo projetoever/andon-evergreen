@@ -47,7 +47,7 @@ const errorLabels: Record<string, string> = {
   already_initialized: "Admin já habilitado. Atualize a página e entre.",
   primary_admin_protected: "O Admin principal está protegido contra alterações nesta tela.",
   admin_required: "Somente o Admin principal pode gerenciar usuários nesta etapa.",
-  reauthentication_required: "Entre novamente como Admin antes de redefinir a senha.",
+  reauthentication_required: "Sua sessão continua ativa. Confirme a senha central para executar esta operação sensível.",
   current_password_required: "Informe a senha atual correta.",
   invalid_input: "Confira os campos. A senha pessoal deve ter de 8 a 128 caracteres.",
   password_reuse_denied: "A nova senha central deve ser diferente da senha Admin legada.",
@@ -279,7 +279,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     : personalPassword
                       ? "Crie sua senha pessoal"
                       : reauth
-                        ? "Confirme seu acesso Admin"
+                        ? "Confirmação de segurança"
                         : "Entrar em Usuários e Acessos",
                 )}
               </h3>
