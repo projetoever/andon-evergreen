@@ -190,7 +190,7 @@ export function HubIdentityPanel({
       {principal?.purpose === "password_change" && (
         <form className="space-y-4" onSubmit={changePassword}>
           <p className="text-sm text-muted-foreground">
-            {ui("Use uma frase de acesso de 15 a 128 caracteres.")}
+            {ui("Use uma senha de 8 a 128 caracteres; recomendamos 12 ou mais.")}
           </p>
           <Label className="block space-y-2">
             {ui("Nova senha pessoal")}
@@ -199,7 +199,7 @@ export function HubIdentityPanel({
               type="password"
               autoComplete="new-password"
               required
-              minLength={15}
+              minLength={8}
               maxLength={128}
             />
           </Label>
@@ -210,7 +210,7 @@ export function HubIdentityPanel({
               type="password"
               autoComplete="new-password"
               required
-              minLength={15}
+              minLength={8}
               maxLength={128}
             />
           </Label>
