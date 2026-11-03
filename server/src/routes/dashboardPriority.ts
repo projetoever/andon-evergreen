@@ -64,6 +64,12 @@ function getBearerToken(request: FastifyRequest) {
 }
 
 async function getPrioritySession(request: FastifyRequest, reply: FastifyReply) {
+  if (centralAccessEnabled()) {
+    sessions.clear();
+    reply.status(403).header("Cache-Control", "no-store")
+      .send({ error: "legacy_priority_session_disabled" });
+    return null;
+  }
   const policy = await prisma.dashboardPriorityConfig.findUnique({ where: { id: GLOBAL_PRIORITY_CONFIG_ID }, select: { passwordRequired: true } });
   if (policy?.passwordRequired === false) {
     const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
@@ -186,6 +192,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   app.post<{ Body: CredentialsBody }>(
     "/api/dashboard-priority/login",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled()) {
+        sessions.clear();
+        return reply.status(403).send({ error: "legacy_priority_login_disabled" });
+      }
       const username = normalizeUsername(request.body?.username);
       const password = normalizePassword(request.body?.password);
 
