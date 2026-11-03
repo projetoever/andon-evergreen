@@ -42,6 +42,13 @@ Esta primeira entrega **não ativa o modo central na fábrica**, não migra nem 
 
 Inventário e migração de ANDON/BI/Prioridades com teste negativo de acesso por URL direto, versão e credencial legadas. A aba `Módulos e senhas` é removida somente após comprovar que nenhuma rota ou cliente industrial depende dela.
 
+### S3/1 — Desativação da emissão das sessões redundantes no modo central
+
+- `POST /api/modules/operational/login`, `POST /api/modules/bi/login` e `POST /api/dashboard-priority/login` respondem `403` sem ler senhas nem gerar tokens se `ANDON_CENTRAL_ACCESS_ENABLED=1`.
+- Sessões de ANDON e BI anteriores são invalidadas em memória quando o modo central é observado. O backend impede criar novas sessões redundantes no modo central, inclusive por chamadas internas. O modo legado OFF conserva o comportamento existente para as máquinas instaladas.
+- O consumo das leituras `/api/dashboard-priority/order` no modo central preserva as identidades de serviço autorizadas; não exige Bearer de Prioridades de clientes industriais com escopo válido.
+- **Não exclui** ainda credenciais gravadas de módulos, não libera configuração/escrita legada, não elimina os componentes do modo industrial e não autoriza deploy. A remoção física de UI, hashes e rotas requer a migração integral do S1 e teste no notebook / integradores reais.
+
 ### S4 — Integrações não humanas (bloqueio obrigatório antes da fábrica)
 
 Identidades de serviço separadas para Node-RED M37 e mini PC GPIO. `docs/INDUSTRIAL_SERVICE_IDENTITY.md` já cobre `machines.read`, `calls.read`, `sound.read`, credencial cliente com rotação e token de 8 h. **Não se conhece ainda a compatibilidade completa do cliente real**, que não está neste repo. Inventariar exatamente os payloads 7–12, estado de sirene, falhas/reconexões e quais operações fazem escritas; ampliar escopos individualmente somente se autorizado. Preservar o modo industrial atual até testes físicos.
