@@ -78,12 +78,14 @@ test("pilot registration defaults to Production, with an explicit advanced path"
 test("Manager and maintenance templates are operational, never user or service administration", () => {
   const fullCatalog = [
     ...catalog,
-    "workstations.read", "audit.read", "analytics.policy.manage",
+    "workstations.read", "hub.settings.presentation.write", "audit.read", "analytics.policy.manage",
     "catalog.assets.manage", "production.schedule.write", "machines.status.write",
   ];
   const manager = suggestedPermissions("Gestor/Gerente", fullCatalog);
   const maintenance = suggestedPermissions("Manutenção", fullCatalog);
   assert(manager.includes("bi.read") && manager.includes("workstations.read"));
+  assert(manager.includes("hub.settings.presentation.write"));
+  assert(!maintenance.includes("hub.settings.presentation.write"));
   assert(manager.includes("calls.open") && manager.includes("priorities.write"));
   assert(!manager.includes("users.create") && !manager.includes("workstations.manage"));
   assert(!manager.includes("analytics.policy.manage") && !manager.includes("catalog.assets.manage"));

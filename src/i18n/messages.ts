@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Não foi possível atualizar a preferência. Confira sua autorização.", "Could not update the preference. Check your authorization.", "無法更新偏好設定。請檢查您的權限。"],
+  ["Preferência operacional atualizada.", "Operational preference updated.", "操作偏好設定已更新。"],
+  ["Ordem visual do Dashboard", "Dashboard visual order", "儀表板顯示順序"],
+  ["A alteração de apresentação exige permissão explícita e liberação segura no servidor. As demais configurações são somente leitura.", "Display changes require an explicit permission and secure server enablement. Other settings remain read-only.", "顯示設定變更需要明確權限與伺服器安全啟用。其他設定仍為唯讀。"],
+  ["Somente teclado virtual e ordem visual do Dashboard podem ser alterados pelo Gerente.", "Managers may change only the virtual keyboard and Dashboard visual machine order.", "經理僅能變更虛擬鍵盤與儀表板機台顯示順序。"],
+  ["Hub: aparência operacional (teclado e ordem)", "Hub: operational display (keyboard and order)", "Hub：操作顯示（鍵盤與排序）"],
   ["Habilitado", "Enabled", "已啟用"],
   ["Não foi possível encerrar a sessão. Tente novamente.", "Could not sign out. Please try again.", "無法結束工作階段。請重試。"],
   ["Prioridade", "Priority", "優先順序"],

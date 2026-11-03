@@ -22,8 +22,8 @@ const admin: Principal = {
   workstationId: "ws", purpose: "normal", authenticatedAt: new Date(),
 };
 const station = { allowOperational: true, allowBi: false, allowPriorities: false };
-const req = (csrf = csrfToken(token)) => ({
-  method: "PATCH", url: "/api/system-settings",
+const req = (csrf = csrfToken(token), body: unknown = { virtualKeyboardEnabled: true }) => ({
+  method: "PATCH", url: "/api/system-settings", body,
   headers: { cookie: "__Host-andon-access=" + token, "x-andon-csrf": csrf },
 }) as unknown as FastifyRequest;
 const denied = (callback: () => unknown, code: string) =>
@@ -81,5 +81,50 @@ test("operational settings strict whitelist excludes siren, global mute, credent
     { rfidInputTerminator: "shell" }, { rfidCodeLength: 900 },
   ]) {
     assert.throws(() => parseCentralOperationalSettingsPatch(patch));
+  }
+});
+
+test("Manager presentation grant permits only two safe fields, with flag, full scope, CSRF and transaction-time checks", () => {
+  const central = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const flag = process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+  const manager = {
+    ...admin, isPrimaryAdmin: false,
+    roleLabel: "Gestor/Gerente",
+    permissions: ["andon.read", "hub.settings.presentation.write"],
+  };
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = "1";
+    for (const body of [
+      { virtualKeyboardEnabled: false },
+      { dashboardMachineOrderMode: "priority" },
+      { virtualKeyboardEnabled: true, dashboardMachineOrderMode: "default" },
+    ]) {
+      const request = req(csrfToken(token), body);
+      markCentralOperationalSettingsAuthorized(request, manager, station);
+      assert.equal(isAuthorizedCentralOperationalSettings(request), true);
+    }
+    for (const body of [
+      {}, { requireWorkOrderAtOpen: false },
+      { restrictMaintenanceCompletionToAttendanceWorkstation: false },
+      { clientName: "Another brand" },
+      { attendanceMode: "name" },
+      { rfidReaderMode: "keyboard_hid" },
+      { dashboardSoundMuted: true },
+      { adminPasswordHash: "unsafe" },
+      { virtualKeyboardEnabled: true, requireWorkOrderAtOpen: false },
+    ]) {
+      denied(() => markCentralOperationalSettingsAuthorized(req(csrfToken(token), body), manager, station), "permission_denied");
+    }
+    denied(() => markCentralOperationalSettingsAuthorized(req(), { ...manager, permissions: ["andon.read"] }, station), "permission_denied");
+    denied(() => markCentralOperationalSettingsAuthorized(req(), { ...manager, machineScope: "selected" }, station), "scoped_query_required");
+    denied(() => markCentralOperationalSettingsAuthorized(req("0".repeat(64)), manager, station), "csrf_denied");
+    process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = "0";
+    denied(() => markCentralOperationalSettingsAuthorized(req(), manager, station), "central_action_not_supported");
+  } finally {
+    if (central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = central;
+    if (flag === undefined) delete process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = flag;
   }
 });

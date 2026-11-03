@@ -47,6 +47,7 @@ const suggestions: Readonly<Record<string, readonly string[]>> = {
     "priorities.read",
     "priorities.write",
     "workstations.read",
+    "hub.settings.presentation.write",
     "audit.read",
   ],
   // Existing Leader accounts are preserved, but this profile belongs to the

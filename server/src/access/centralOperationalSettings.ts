@@ -102,7 +102,7 @@ export function runCentralOperationalSettingsUpdate(
     if (!station?.active || station.pendingApproval)
       throw new AccessError("workstation_inactive");
     assertModule(principal, station, "operational");
-    assertCentralOperationalSettingsPrivilege(principal);
+    assertCentralOperationalSettingsPrivilege(principal, patch);
 
     // Lock global policy row, then revalidate session/grants immediately
     // before mutating a setting that affects every machine/workstation.
@@ -122,7 +122,7 @@ export function runCentralOperationalSettingsUpdate(
     if (!fresh?.active || fresh.pendingApproval)
       throw new AccessError("workstation_inactive");
     assertModule(latest, fresh, "operational");
-    assertCentralOperationalSettingsPrivilege(latest);
+    assertCentralOperationalSettingsPrivilege(latest, patch);
 
     const before = await tx.systemSettings.findUniqueOrThrow({
       where: { id: GLOBAL_SYSTEM_SETTINGS_ID },

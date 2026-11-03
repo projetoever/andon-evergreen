@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { accessRequest, type ManagedWorkstation } from "@/services/accessService";
-import { getSystemSettings } from "@/services/systemSettingsService";
-import type { SystemSettings } from "@/types/systemSettings";
+import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
+import type { SystemSettings, SystemSettingsPatch } from "@/types/systemSettings";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
@@ -15,9 +15,11 @@ import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 export function HubCentralManagerPage({
   section,
   displayName,
+  canEditPresentation,
 }: {
   section: string;
   displayName: string;
+  canEditPresentation: boolean;
 }) {
   useInterfaceLanguage();
   const navigate = useNavigate();
@@ -26,6 +28,9 @@ export function HubCentralManagerPage({
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
+  const [savingPresentation, setSavingPresentation] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const canSavePresentation = canEditPresentation && settings?.centralOperationalSettingsWriteEnabled === true;
 
   const refresh = useCallback(async () => {
     setLoadError(false);
@@ -45,6 +50,23 @@ export function HubCentralManagerPage({
     }
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const savePresentation = async (patch: Pick<SystemSettingsPatch, "virtualKeyboardEnabled" | "dashboardMachineOrderMode">) => {
+    if (!canSavePresentation || savingPresentation) return;
+    setSavingPresentation(true);
+    setSaveMessage("");
+    try {
+      // The server applies field-scoped permission checks before and inside
+      // the transaction. Never send a generic settings object from here.
+      const latest = await updateSystemSettings(patch);
+      setSettings(latest);
+      setSaveMessage(ui("Preferência operacional atualizada."));
+    } catch {
+      setSaveMessage(ui("Não foi possível atualizar a preferência. Confira sua autorização."));
+    } finally {
+      setSavingPresentation(false);
+    }
+  };
 
   const availableSections = [
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
@@ -169,7 +191,35 @@ export function HubCentralManagerPage({
         {section === "andon" && (
           <section className="space-y-3 rounded-xl border border-border bg-card p-4 md:p-5">
             <h2 className="text-lg font-bold">{ui("Configurações operacionais — consulta")}</h2>
-            <p className="text-sm text-muted-foreground">{ui("As alterações estarão disponíveis após migração das autorizações individuais no servidor.")}</p>
+            <p className="text-sm text-muted-foreground">
+              {canSavePresentation
+                ? ui("Somente teclado virtual e ordem visual do Dashboard podem ser alterados pelo Gerente.")
+                : ui("A alteração de apresentação exige permissão explícita e liberação segura no servidor. As demais configurações são somente leitura.")}
+            </p>
+            {settings && <div className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
+              <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                <span>{ui("Habilitar teclado virtual")}</span>
+                <input type="checkbox"
+                  aria-label={ui("Habilitar teclado virtual")}
+                  checked={settings.virtualKeyboardEnabled}
+                  disabled={!canSavePresentation || savingPresentation}
+                  onChange={(event) => void savePresentation({ virtualKeyboardEnabled: event.target.checked })} />
+              </label>
+              <label className="flex flex-col gap-2 text-sm">
+                <span>{ui("Ordem visual do Dashboard")}</span>
+                <select className="min-h-11 rounded-md border border-border bg-background p-2"
+                  aria-label={ui("Ordem visual do Dashboard")}
+                  value={settings.dashboardMachineOrderMode}
+                  disabled={!canSavePresentation || savingPresentation}
+                  onChange={(event) => void savePresentation({
+                    dashboardMachineOrderMode: event.target.value === "priority" ? "priority" : "default",
+                  })}>
+                  <option value="default">{ui("Padrão")}</option>
+                  <option value="priority">{ui("Prioridade")}</option>
+                </select>
+              </label>
+            </div>}
+            {saveMessage && <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p>}
             {settings && <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div><dt className="text-muted-foreground">{ui("Teclado virtual")}</dt><dd>{settings.virtualKeyboardEnabled ? ui("Habilitado") : ui("Inativo")}</dd></div>
               <div><dt className="text-muted-foreground">{ui("OS obrigatória na abertura")}</dt><dd>{settings.requireWorkOrderAtOpen ? ui("Sim") : ui("Não")}</dd></div>

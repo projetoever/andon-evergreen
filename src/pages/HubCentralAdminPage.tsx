@@ -133,7 +133,8 @@ export function HubCentralAdminPage() {
     access.workstation.pendingApproval !== true;
   if (!primaryAdmin) {
     if (managerReadOnly && session?.principal) {
-      return <HubCentralManagerPage section={section} displayName={session.principal.displayName} />;
+      return <HubCentralManagerPage section={section} displayName={session.principal.displayName}
+        canEditPresentation={session.principal.permissions?.includes("hub.settings.presentation.write") === true} />;
     }
     return (
       <main className="min-h-dvh bg-background p-6">

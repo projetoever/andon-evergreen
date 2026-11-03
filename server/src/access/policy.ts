@@ -25,6 +25,7 @@ export const PERMISSIONS = [
   "catalog.technicians.manage",
   "workstations.read",
   "workstations.manage",
+  "hub.settings.presentation.write",
   "users.create",
   "audit.read",
   "audit.export",

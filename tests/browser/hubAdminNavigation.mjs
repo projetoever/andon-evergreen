@@ -67,6 +67,9 @@ try {
     let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
+    let operationalSettingsWriteEnabled = false;
+    let keyboardSetting = true;
+    let machineOrderSetting = "default";
     let paletteRevision = 0;
     let globalPalette = {
       version: 1, cardBorder: "slate", selectedCardBorder: "evergreen",
@@ -115,10 +118,26 @@ try {
       if (path === "/api/system-settings") {
         if (req.method() === "PATCH") {
           const change = req.postDataJSON();
+          if (centralMode) {
+            if (!operationalSettingsWriteEnabled)
+              return send({ error: "central_action_not_supported" }, 403);
+            if (req.headers()["x-andon-csrf"] !== "a".repeat(64))
+              return send({ error: "csrf_denied" }, 403);
+            if (!primaryAdmin) {
+              if (!managerPermissions.includes("hub.settings.presentation.write") ||
+                  Object.keys(change).some(key => !["virtualKeyboardEnabled", "dashboardMachineOrderMode"].includes(key)))
+                return send({ error: "permission_denied" }, 403);
+            }
+          }
           customerIdentity = { ...customerIdentity, ...change };
+          if (typeof change.virtualKeyboardEnabled === "boolean") keyboardSetting = change.virtualKeyboardEnabled;
+          if (["default", "priority"].includes(change.dashboardMachineOrderMode)) machineOrderSetting = change.dashboardMachineOrderMode;
         }
         return send({
           ...customerIdentity,
+          virtualKeyboardEnabled: keyboardSetting,
+          dashboardMachineOrderMode: machineOrderSetting,
+          centralOperationalSettingsWriteEnabled: operationalSettingsWriteEnabled,
           andonVisualPalette: globalPalette,
           andonVisualPaletteRevision: paletteRevision,
           andonVisualPaletteWriteEnabled: paletteWriteEnabled,
@@ -534,6 +553,51 @@ try {
     await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Salvar globalmente" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Salvar" }).count(), 0);
+    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
+    assert.equal(await page.getByRole("combobox", { name: "Ordem visual do Dashboard" }).isDisabled(), true);
+    operationalSettingsWriteEnabled = true;
+    await page.reload();
+    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true,
+      "server flag alone does not grant a Manager permission");
+    managerPermissions = ["workstations.read", "andon.read", "hub.settings.presentation.write"];
+    await page.reload();
+    const keyboard = page.getByRole("checkbox", { name: "Habilitar teclado virtual" });
+    await keyboard.waitFor();
+    await page.waitForFunction(() => {
+      const control = document.querySelector('input[aria-label="Habilitar teclado virtual"]');
+      return control && !control.disabled;
+    });
+    const [keyboardSaved] = await Promise.all([
+      page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/system-settings" &&
+        response.request().method() === "PATCH" && response.ok()),
+      keyboard.click(),
+    ]);
+    assert.equal((await keyboardSaved.json()).virtualKeyboardEnabled, false);
+    await page.waitForFunction(() =>
+      document.querySelector('input[aria-label="Habilitar teclado virtual"]')?.checked === false);
+    assert.equal(keyboardSetting, false);
+    const order = page.getByRole("combobox", { name: "Ordem visual do Dashboard" });
+    const [orderSaved] = await Promise.all([
+      page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/system-settings" &&
+        response.request().method() === "PATCH" && response.ok()),
+      order.selectOption("priority"),
+    ]);
+    assert.equal((await orderSaved.json()).dashboardMachineOrderMode, "priority");
+    assert.equal(machineOrderSetting, "priority");
+    const illicit = await page.evaluate(async () => {
+      const res = await fetch("/api/system-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
+        body: JSON.stringify({ virtualKeyboardEnabled: true, requireWorkOrderAtOpen: false }),
+      });
+      return res.status;
+    });
+    assert.equal(illicit, 403, "mixed operational policy writes must fail for Manager");
+    operationalSettingsWriteEnabled = false;
+    await page.reload();
+    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
     await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
