@@ -196,6 +196,8 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
         });
       else if (principal?.purpose === "password_change")
         await accessRequest("/password", "POST", { newPassword });
+      else if (reauth && principal?.isPrimaryAdmin && principal.purpose === "normal")
+        await accessRequest("/reauthenticate", "POST", { password });
       else await accessRequest("/login", "POST", { login: loginName, password });
       setReauth(false);
       await refreshSession();
@@ -283,6 +285,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         : "Entrar em Usuários e Acessos",
                 )}
               </h3>
+              {reauth && principal?.isPrimaryAdmin && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {ui("Sua sessão de trabalho continua ativa. Confirme sua senha central para autorizar operações sensíveis pelos próximos 5 minutos. Esta confirmação não reinicia a validade de 12 horas da sessão.")}
+                </p>
+              )}
               {!session.initialized && (
                 <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-foreground">

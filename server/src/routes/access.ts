@@ -8,6 +8,7 @@ import { AccessError, PERMISSIONS, assertPermission, assertFullMachineScope } fr
 import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
 import {
   login,
+  reauthenticateAdmin,
   changePassword,
   resolveSession,
   resetPassword,
@@ -124,7 +125,7 @@ export function registerAccessRoutes(
         throw new AccessError("workstation_denied");
       if (
         req.method === "POST" &&
-        /\/(login|initialize|password|reset)$/.test(req.routeOptions.url ?? "")
+        /\/(login|initialize|password|reset|reauthenticate)$/.test(req.routeOptions.url ?? "")
       ) {
         limited(`credential:${req.ip}`, 20, 15 * 60000);
         const body = req.body as { login?: string };
@@ -246,6 +247,14 @@ export function registerAccessRoutes(
             req.body.newPassword,
           ),
         ),
+    );
+    app.post<{ Body: { password: string } }>(
+      `${PREFIX}/reauthenticate`,
+      { schema: schema({ password: string(128) }) },
+      async (req) =>
+        reauthenticateAdmin(db, requestAccess(req), req.body.password, {
+          ipAddress: req.ip, requestId: req.id,
+        }),
     );
     app.post<{ Body: { newPassword: string; currentPassword?: string } }>(
       `${PREFIX}/password`,

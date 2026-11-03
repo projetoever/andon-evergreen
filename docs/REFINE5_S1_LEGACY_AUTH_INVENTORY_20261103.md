@@ -51,6 +51,19 @@ A existência de uma rota no inventário **não** significa que esteja migrada. 
 - Teste automatizado cobre código inválido, sucesso central sem token, consumo único sob concorrência, novo hash salvo e compatibilidade da recuperação legada.
 - **Atenção:** este passo NÃO elimina a senha global, NÃO recupera a senha da conta humana central e NÃO resolve a duplicidade do bootstrap. Isso continua no S1/3, com mecanismo central de recuperação e migração por rota, antes de qualquer implantação.
 
+## Continuidade S1/3 — reautenticação curta sem expirar a sessão central
+
+**Cenário:** ao exigir confirmação para edição de usuários, revogação ou outra ação sensível, a verificação de cinco minutos deixa de depender exclusivamente da criação da sessão. Confirmar a senha atual no Hub não cria outra sessão nem renova as doze horas máximas.
+
+- Migration **aditiva** `access_sessions.lastAuthenticatedAt TIMESTAMP(3) NULL`, com fallback de leitura para `createdAt` em sessões existentes.
+- `POST /api/access/reauthenticate` usa o mesmo cookie HttpOnly e CSRF central, obriga HTTPS, Origin exato, workstation aprovada, sessão normal e Admin principal, além do limitador de tentativas de credencial. Sem resposta contendo token ou nova cookie.
+- Revalida usuário, hash e sessão sob lock de usuário; `updateMany` condicional impede revalidar sessão revogada, inativa ou expirada. Apenas `lastAuthenticatedAt` é alterado na transação, com auditoria `access.admin.reauthenticated` e rollback diante de falhas.
+- `assertRecentAdmin` considera o carimbo da última confirmação; **inatividade de 30 minutos, expiração absoluta de 12 horas, autorização do usuário, sessão e workstation não são ampliadas**.
+- A tela de Usuários/Acessos passa a chamar o endpoint de confirmação ao receber `reauthentication_required`, em vez de reexecutar `/api/access/login` e criar uma nova sessão.
+- Cobertura automatizada para senha incorreta, não-Admin, revogação durante lock, troca concorrente de senha, atualização recusada, falha de auditoria e imutabilidade da expiração.
+
+**Limitações:** esta etapa não unifica a credencial global legada com a conta central; não migra bootstrap, catálogos ou senhas de módulos. Migration somente no repositório até validação e autorização de deploy. Para notebook isolado, testar reautenticação após mais de cinco minutos, confirmar que a mesma cookie/sessão permanece, e verificar revogação, escopo e a validade absoluta. Não alterar a fábrica.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.
