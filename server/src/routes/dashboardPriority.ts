@@ -252,7 +252,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     // Access without that hook fails closed in scopedMachineReadIds above.
     // In central mode, a read does not need a second legacy password.
     // PUT still fails closed before reaching this router.
-    if (!centralAccessEnabled() || request.industrialService) {
+    if (!centralAccessEnabled()) {
       const auth = await getPrioritySession(request, reply);
       if (!auth) return;
     }
