@@ -71,6 +71,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [editing, setEditing] = useState<string | null>(null);
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
+  const [adminRecoveryCode, setAdminRecoveryCode] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<AccessUser | null>(null);
   const [reauth, setReauth] = useState(false);
   const listVersion = useRef(0);
@@ -84,6 +85,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
       setSession((s) => (s ? { ...s, principal: null } : null));
       setDraft(null);
       setSecret(null);
+      setAdminRecoveryCode(null);
       setResetTarget(null);
       setUsers([]);
     }
@@ -231,6 +233,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                 void run(async () => {
                   await accessRequest("/logout", "POST", {});
                   setSecret(null);
+                   setAdminRecoveryCode(null);
                   setDraft(null);
                   setUsers([]);
                   setResetTarget(null);
@@ -400,6 +403,34 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
       )}
       {admin && !authForm && (
         <>
+          <Card className="space-y-3 p-5">
+            <h3 className="font-bold">{ui("Recuperação da conta Admin central")}</h3>
+            <p className="text-sm text-muted-foreground">
+              {ui("Gere e guarde um código de recuperação fora do ANDON. Ele permite redefinir a senha central somente no navegador local do servidor. Gerar outro código invalida o anterior.")}
+            </p>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void run(async () => {
+                setAdminRecoveryCode(null);
+                const result = await accessRequest<{ recoveryCode: string }>(
+                  "/admin-recovery-code", "POST", {},
+                );
+                setAdminRecoveryCode(result.recoveryCode);
+              })}
+            >
+              {ui("Gerar novo código de recuperação")}
+            </Button>
+            {adminRecoveryCode && (
+              <div role="status" className="space-y-2 rounded-lg border border-warning/40 p-3">
+                <p className="text-sm font-semibold">{ui("Código secreto — exibição única")}</p>
+                <code className="block select-all break-all font-mono text-sm">{adminRecoveryCode}</code>
+                <Button size="sm" variant="outline" onClick={() => setAdminRecoveryCode(null)}>
+                  {ui("Já guardei o código")}
+                </Button>
+              </div>
+            )}
+          </Card>
           {secret && (
             <Card className="space-y-3 border-primary p-5" role="status">
               <h3 className="font-bold">{ui("Senha provisória — exibição única")}</h3>
