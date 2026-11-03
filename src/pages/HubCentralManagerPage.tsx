@@ -8,7 +8,8 @@ import { accessRequest, type ManagedWorkstation } from "@/services/accessService
 import { getSystemSettings } from "@/services/systemSettingsService";
 import type { SystemSettings } from "@/types/systemSettings";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { ui } from "@/i18n/translate";
+import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 
 /** Only read-side features live here. Never mount the central Admin editor. */
 export function HubCentralManagerPage({
@@ -18,6 +19,7 @@ export function HubCentralManagerPage({
   section: string;
   displayName: string;
 }) {
+  useInterfaceLanguage();
   const navigate = useNavigate();
   const { refresh: refreshModules } = useModuleAccess();
   const [stations, setStations] = useState<ManagedWorkstation[] | null>(null);
@@ -153,7 +155,7 @@ export function HubCentralManagerPage({
                   <p className="font-semibold">{station.name ?? ui("Workstation não identificada")}</p>
                   <p className="text-xs text-muted-foreground">{station.id.slice(-8)} · {station.lastIpAddress ?? "—"}</p>
                   <p className="text-xs">{ui("Usuário atual")}: {station.authenticatedAccount?.displayName ?? ui("Nenhuma sessão válida")}</p>
-                  <p className="text-xs text-muted-foreground">{ui("Último contato")}: {station.lastSeenAt ? new Date(station.lastSeenAt).toLocaleString() : "—"}</p>
+                  <p className="text-xs text-muted-foreground">{ui("Último contato")}: {station.lastSeenAt ? new Date(station.lastSeenAt).toLocaleString(getInterfaceLocale()) : "—"}</p>
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs">
                   {station.pendingApproval ? ui("Aguardando aprovação") : station.active ? ui("Ativa") : ui("Bloqueada")}
