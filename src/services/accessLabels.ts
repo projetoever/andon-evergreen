@@ -25,6 +25,7 @@ export const permissionLabels: Record<string, string> = {
   "catalog.technicians.manage": "Catálogos: mantenedores",
   "workstations.read": "Estações: visualizar",
   "workstations.manage": "Estações: gerenciar",
+  "hub.settings.presentation.write": "Hub: aparência operacional (teclado e ordem)",
   "users.create": "Usuários: criação delegada (etapa futura)",
   "audit.read": "Auditoria: visualizar",
   "audit.export": "Auditoria: exportar",
