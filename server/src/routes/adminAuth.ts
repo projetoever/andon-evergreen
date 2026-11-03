@@ -197,6 +197,12 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   );
 
   app.post<{ Body: LoginBody }>("/api/admin-auth/login", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    // Central users must never receive a second, legacy bearer session.
+    // The global password is still verified directly by the assisted first
+    // Admin setup until S1 migrates that dependency; legacy mode is unchanged.
+    if (centralAccessEnabled())
+      return reply.status(403).send({ error: "legacy_admin_login_disabled" });
     const username = typeof request.body?.username === "string" ? request.body.username.trim() : "";
     const password = normalizePassword(request.body?.password);
 
