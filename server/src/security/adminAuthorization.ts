@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { centralAccessEnabled } from "../access/http.js";
 import { isAuthorizedCentralClassificationRequest } from "./centralClassificationHttp.js";
 import { isAuthorizedCentralOperationalSettings } from "./centralOperationalSettingsHttp.js";
 
@@ -28,6 +29,8 @@ function matchesIdRoute(path: string, prefix: string) {
 }
 
 export function createAdminSession(username: string) {
+  // A central human session must never be downgraded to a legacy Bearer.
+  if (centralAccessEnabled()) throw new Error("legacy_admin_session_disabled");
   const token = randomBytes(32).toString("hex");
   const expiresAt = Date.now() + ADMIN_SESSION_TTL_MS;
   sessions.set(token, { username, expiresAt });
@@ -44,6 +47,12 @@ export function revokeAdminSession(token: string | null) {
 }
 
 export function readAdminSession(request: FastifyRequest) {
+  if (centralAccessEnabled()) {
+    // Tokens issued before switching to central mode must not authenticate,
+    // including after a later rollback to legacy mode in the same process.
+    sessions.clear();
+    return null;
+  }
   const token = getBearerToken(request);
   if (!token) return null;
 
