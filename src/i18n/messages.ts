@@ -33,6 +33,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Use uma senha de 8 a 128 caracteres; recomendamos 12 ou mais.", "Use an 8–128 character password; we recommend at least 12.", "請使用 8 至 128 個字元的密碼；建議至少 12 個字元。"],
   ["Gerente", "Manager", "經理"],
   ["Sua sessão continua ativa. Confirme a senha central para executar esta operação sensível.", "Your session is still active. Confirm your central password for this sensitive action.", "您的工作階段仍有效。請確認中央帳號密碼以執行此敏感操作。"],
+  ["Sua sessão de trabalho continua ativa. Confirme sua senha central para autorizar operações sensíveis pelos próximos 5 minutos. Esta confirmação não reinicia a validade de 12 horas da sessão.", "Your work session is still active. Confirm your central password to authorize sensitive actions for the next 5 minutes. This confirmation does not restart the 12-hour session lifetime.", "您的工作階段仍有效。請確認中央帳號密碼，以在接下來 5 分鐘內授權敏感操作。此確認不會重新計算工作階段 12 小時的有效期限。"],
   ["Confirmação de segurança", "Security confirmation", "安全性確認"],
   ["Aplicar perfil e voltar ao modo simples", "Apply profile and return to simple mode", "套用角色設定並返回簡易模式"],
   ["Configuração avançada de permissões", "Advanced permissions configuration", "進階權限設定"],
