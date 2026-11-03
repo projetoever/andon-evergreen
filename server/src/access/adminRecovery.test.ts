@@ -118,8 +118,9 @@ test("S1/5: only primary Admin step-up can issue a new 128-bit offline recovery 
   assert(fixtureDb.issuedAt instanceof Date);
   const code = result.recoveryCode.replace(/^HUB-/, "").replaceAll("-", "");
   assert.equal(await verifyAccessPassword(code, fixtureDb.codeHash!), true);
-  assert.deepEqual(fixtureDb.log.slice(-4), ["issue-code", "audit", "commit"].slice(-3)
-    .length === 3 ? ["user-lock", "issue-code", "audit", "commit"] : []);
+  assert.deepEqual(fixtureDb.log.slice(-4), [
+    "session-read", "issue-code", "audit", "commit",
+  ]);
   assert.equal(fixtureDb.issued, 1);
 });
 
