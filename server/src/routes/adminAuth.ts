@@ -242,6 +242,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   app.post<{ Body: RecoveryCodeBody }>(
     "/api/admin-auth/recovery-code",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
       const currentPassword = normalizePassword(request.body?.currentPassword);
 
       if (!currentPassword || !(await verifyAdminPassword(currentPassword))) {
@@ -279,6 +280,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   );
 
   app.post<{ Body: RecoverPasswordBody }>("/api/admin-auth/recover", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
     const recoveryCode = normalizeRecoveryCode(request.body?.recoveryCode);
     const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
@@ -287,11 +289,9 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     }
 
     const settings = await getAdminCredentialState();
-    const validRecoveryCode =
-      settings?.adminRecoveryCodeHash &&
-      (await verifyCredential(recoveryCode, settings.adminRecoveryCodeHash));
-
-    if (!validRecoveryCode) {
+    const expectedRecoveryHash = settings?.adminRecoveryCodeHash;
+    if (!expectedRecoveryHash ||
+        !(await verifyCredential(recoveryCode, expectedRecoveryHash))) {
       return reply.status(401).send({
         error: "admin_recovery_code_invalid",
         message: "Código de recuperação inválido.",
@@ -299,24 +299,33 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     }
 
     const adminPasswordHash = await hashCredential(newPassword);
-    await prisma.systemSettings.upsert({
-      where: { id: GLOBAL_SETTINGS_ID },
-      update: {
+    // Compare-and-swap consumes the recovery code atomically. Concurrent
+    // recovery requests must never both succeed against the same code.
+    const consumed = await prisma.systemSettings.updateMany({
+      where: { id: GLOBAL_SETTINGS_ID, adminRecoveryCodeHash: expectedRecoveryHash },
+      data: {
         adminPasswordHash,
         adminRecoveryCodeHash: null,
         adminRecoveryCodeIssuedAt: null,
       },
-      create: {
-        id: GLOBAL_SETTINGS_ID,
-        adminPasswordHash,
-      },
     });
+    if (consumed.count !== 1) {
+      return reply.status(401).send({
+        error: "admin_recovery_code_invalid",
+        message: "Código de recuperação inválido.",
+      });
+    }
 
+    // A recovery code repairs the global bootstrap credential, not the
+    // central human identity. Never mint another legacy Admin bearer when
+    // central access is enabled; legacy-mode recovery stays compatible.
+    const central = centralAccessEnabled();
     return {
       ok: true,
-      ...createAdminSession(ADMIN_USER),
-      message:
-        "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
+      ...(!central ? createAdminSession(ADMIN_USER) : {}),
+      message: central
+        ? "Senha global redefinida. O acesso central mantém suas credenciais próprias."
+        : "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
     };
   });
 
