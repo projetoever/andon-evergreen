@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { loadModuleAccess } from "@/services/moduleService";
-import { accessRequest } from "@/services/accessService";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
 
 const ModuleAccessContext = createContext<{
@@ -76,6 +76,43 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("keydown", record);
     };
   }, [access?.centralAccessEnabled, access?.principal?.purpose, refresh]);
+
+  useEffect(() => {
+    if (!access?.centralAccessEnabled || access.principal?.purpose !== "normal") return;
+    // Presence polling observes a visible terminal; it must NEVER call /interaction
+    // or extend the human session's 30-minute idle / 12-hour absolute limits.
+    let mounted = true;
+    let inFlight = false;
+    let csrfLoaded = false;
+    const heartbeat = async () => {
+      if (!mounted || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        if (!csrfLoaded) {
+          const current = await accessRequest<AccessState>("/session");
+          if (!mounted || current.principal?.purpose !== "normal") return;
+          csrfLoaded = true;
+        }
+        if (mounted) await accessRequest("/heartbeat", "POST", {});
+      } catch {
+        // Loss of connectivity must naturally degrade presence to offline.
+        // Never silently reauthenticate or keep a revoked session alive.
+      } finally {
+        inFlight = false;
+      }
+    };
+    void heartbeat();
+    const timer = window.setInterval(() => void heartbeat(), 15_000);
+    const onVisible = () => void heartbeat();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [access?.centralAccessEnabled, access?.principal?.purpose]);
 
   return (
     <ModuleAccessContext.Provider
