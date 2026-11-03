@@ -64,6 +64,16 @@ A existência de uma rota no inventário **não** significa que esteja migrada. 
 
 **Limitações:** esta etapa não unifica a credencial global legada com a conta central; não migra bootstrap, catálogos ou senhas de módulos. Migration somente no repositório até validação e autorização de deploy. Para notebook isolado, testar reautenticação após mais de cinco minutos, confirmar que a mesma cookie/sessão permanece, e verificar revogação, escopo e a validade absoluta. Não alterar a fábrica.
 
+## S1/4 — revogação preventiva das sessões Admin legadas
+
+Na ativação do modo central, `readAdminSession` **recusa todos os Bearers legados** e limpa o cache em memória de sessões emitidas antes da ativação. Isso também impede que tokens antigos voltem a funcionar caso a aplicação retorne posteriormente ao modo legado sem reiniciar o processo. `createAdminSession` falha fechado enquanto `ANDON_CENTRAL_ACCESS_ENABLED=1`, impedindo que novos handlers emitam Bearers por engano.
+
+- Protege as rotas administrativas existentes independentemente de a interface ocultá-las; em modo central uma rota ainda não migrada continua sem acesso por Bearer.
+- O modo legado desligado mantém emissão de **novas** sessões pelo fluxo autenticado de costume. Os tokens anteriores à ativação central precisam de novo login após a reversão.
+- A revogação é em memória do processo. Não confundir com revogação global de tokens persistidos de terceiros ou com a remoção do hash da senha antiga.
+- Regressão: Bearer válido com central OFF, negado com central ON, não ressuscita após retorno a OFF, uma nova sessão autenticada no modo legado continua possível.
+- **Ainda não é unificação final:** o primeiro cadastro central requer comprovação da senha global legada; recuperação central e migração assistida dessa credencial permanecem para S1/5+.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.
