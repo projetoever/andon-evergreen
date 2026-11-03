@@ -32,11 +32,12 @@ function CentralOverview() {
       <section className="space-y-3 rounded-xl border border-border bg-card p-4 md:p-5">
         <h2 className="text-lg font-bold">{ui("Resumo administrativo")}</h2>
         <p className="text-sm text-muted-foreground">
-          {ui("Estatísticas consultadas pela sessão central. Último contato não comprova presença online.")}
+          {ui("Online exige heartbeat recente e sessão válida. O último contato registrado é apenas histórico.")}
         </p>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {([
             [ui("Registradas"), stations?.length],
+            [ui("Online agora"), stations?.filter(s => s.presence === "online").length],
             [ui("Aguardando aprovação"), stations?.filter(s => s.pendingApproval).length],
             [ui("Bloqueadas"), stations?.filter(s => !s.active && !s.pendingApproval).length],
           ] as const).map(([label, value]) => (

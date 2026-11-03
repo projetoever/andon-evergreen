@@ -57,6 +57,15 @@ Identidades de serviço separadas para Node-RED M37 e mini PC GPIO. `docs/INDUST
 
 Presença observada com heartbeat curto (hipótese de 15 s, degradar após 45 s) distinta de sessão humana e do `lastSeenAt` histórico de 15 min. UI identifica usuário válido, estação, IP, módulo, versão, revogação, e arquivamento lógico. Não arquivar máquina com atendimentos, kiosk/estação vinculada ou cliente industrial em uso; reter logs e UUID. Não associar workstation automaticamente por IP.
 
+### S5/1 — Presença online comprovada por heartbeat (implementação aditiva)
+
+- `workstations.lastHeartbeatAt` é opcional e **não é preenchido artificialmente** a partir do `lastSeenAt` antigo; equipamentos legados sem heartbeat aparecem como presença desconhecida.
+- `POST /api/access/heartbeat` exige HTTPS/origem autorizada, CSRF da sessão central, workstation ativa/aprovada e conta pessoal com sessão normal válida. A escrita condicional é serializada com a identidade do usuário e atualiza **apenas** `lastHeartbeatAt`; não atualiza `lastInteractionAt`, não renova as 12 horas nem a confirmação Admin.
+- O navegador em modo central, quando visível e autenticado, envia batimentos a cada 15 segundos. Ao ficar oculto, perder a rede, expirar sessão ou revogar conta, para de reportar; **online** exige heartbeat com até 45 segundos, sessão central válida e workstation aprovada. Não inferir presença por IP, nome da estação ou último login.
+- Lista de workstations e resumo Admin apresentam online / offline / desconhecido, último heartbeat e usuário central válido em campos distintos; textos localizados PT/EN/ZH-TW.
+- Como todo heartbeat é uma observação, não é criado evento de auditoria a cada 15 s. O histórico de login e as ações administrativas continuam auditados nos endpoints próprios.
+- **Pendente**: S5/2 arquivamento lógico seguro, presença de clientes industriais não humanos, homologação multi-terminais e testes de perda de rede/retorno no notebook. A migração SQL deste PR **não** foi aplicada na fábrica.
+
 ### S6 — Entrega industrial
 
 CI Windows, backend/PG, Playwright, matriz de ACLs e fontes PT/EN/ZH; homologação notebook e dois terminais; validação dos indicadores BI, HTTPS e contratos Node-RED/GPIO; backup e rollback; autorização expressa para implantação. **Nenhum merge é um deploy.**

@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Online agora", "Online now", "目前在線"],
+  ["Online exige heartbeat recente e sessão válida. O último contato registrado é apenas histórico.", "Online requires a recent heartbeat and a valid session. Last contact is historical only.", "在線狀態需要近期心跳訊號及有效工作階段。最後聯絡時間僅供歷史參考。"],
+  ["Online — heartbeat recente", "Online — recent heartbeat", "在線 — 近期心跳"],
+  ["Offline — sem presença válida", "Offline — no valid presence", "離線 — 沒有有效在線訊號"],
+  ["Presença ainda desconhecida", "Presence not yet known", "目前尚無在線狀態資訊"],
+  ["Último heartbeat confirmado", "Last confirmed heartbeat", "最後確認的心跳"],
+  ["Nunca recebido", "Never received", "從未收到"],
   ["Não foi possível atualizar a preferência. Confira sua autorização.", "Could not update the preference. Check your authorization.", "無法更新偏好設定。請檢查您的權限。"],
   ["Preferência operacional atualizada.", "Operational preference updated.", "操作偏好設定已更新。"],
   ["Ordem visual do Dashboard", "Dashboard visual order", "儀表板顯示順序"],

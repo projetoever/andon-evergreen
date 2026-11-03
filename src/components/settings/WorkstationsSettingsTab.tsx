@@ -585,6 +585,15 @@ export function WorkstationsSettingsTab() {
                               ? ui("Liberado")
                               : ui("Bloqueado")}
                         </Badge>
+                        {centralAccess && (
+                          <Badge variant={workstation.presence === "online" ? "secondary" : "outline"}>
+                            {ui(
+                              workstation.presence === "online" ? "Online — heartbeat recente" :
+                              workstation.presence === "offline" ? "Offline — sem presença válida" :
+                              "Presença ainda desconhecida",
+                            )}
+                          </Badge>
+                        )}
                       </span>
                     </span>
                     <span className="min-w-0 text-xs">
@@ -661,6 +670,12 @@ export function WorkstationsSettingsTab() {
                           {workstation.admission.requestedName ?? ui("Não informado")}
                         </p>
                       </div>
+                    )}
+                    {centralAccess && (
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Último heartbeat confirmado")}: {workstation.lastHeartbeatAt
+                          ? formatLastSeen(workstation.lastHeartbeatAt) : ui("Nunca recebido")}
+                      </p>
                     )}
                     {centralAccess && workstation.lastLogin && (
                       <div className="grid gap-2 rounded-lg border border-border p-3 text-xs md:grid-cols-2">

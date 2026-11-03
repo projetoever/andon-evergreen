@@ -27,6 +27,7 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import {
   INDUSTRIAL_SERVICE_SCOPES,
   createIndustrialService,
@@ -214,6 +215,11 @@ export function registerAccessRoutes(
         ),
       };
     });
+    // Only a valid central normal session may report workstation presence.
+    // Never use this endpoint to keep the human session alive.
+    app.post(`${PREFIX}/heartbeat`, { schema: schema({}, []) }, async (req) =>
+      recordWorkstationHeartbeat(db, requestAccess(req)),
+    );
     app.post<{ Body: { login: string; password: string } }>(
       `${PREFIX}/login`,
       { schema: schema({ login: string(120), password: string(256) }) },
@@ -521,6 +527,12 @@ export function registerAccessRoutes(
           ...station,
           linkedAccount: station.admission?.requester ?? null,
           authenticatedAccount: valid ? latest?.user : null,
+          presence: deriveWorkstationPresence({
+            lastHeartbeatAt: station.lastHeartbeatAt,
+            active: station.active,
+            pendingApproval: station.pendingApproval,
+            hasValidCentralSession: valid,
+          }, now),
           lastLogin: latest
             ? {
                 account: latest.user,
