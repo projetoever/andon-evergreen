@@ -41,6 +41,15 @@ A existência de uma rota no inventário **não** significa que esteja migrada. 
 
 **Observação:** `/api/admin-auth/recover` ainda permite redefinir a senha global sob código de recuperação e pode retornar um token legado. Nesta fatia esse caminho não é modificado: deve ser explicitamente redesenhado e coberto por testes negativos na próxima fase. Não anunciar autenticação única completa.
 
+
+## Continuidade S1/2 — recuperação global sem token Admin duplicado
+
+- No modo central, `POST /api/admin-auth/recover` conserva o uso do código de recuperação global e invalida o código utilizado, **mas não emite token Bearer Admin legado**, nem horário de expiração dessa sessão. A credencial central permanece independente.
+- Em modo legado, recuperação válida continua retornando a sessão antiga para não interromper o piloto instalado.
+- `/api/admin-auth/recover` e `/api/admin-auth/recovery-code` agora respondem com `Cache-Control: no-store` para impedir caching de respostas sensíveis.
+- Teste automatizado cobre código inválido, sucesso central sem token, código de uso único, novo hash salvo e compatibilidade da recuperação legada.
+- **Atenção:** este passo NÃO elimina a senha global, NÃO recupera a senha da conta humana central e NÃO resolve a duplicidade do bootstrap. Isso continua no S1/3, com mecanismo central de recuperação e migração por rota, antes de qualquer implantação.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.
