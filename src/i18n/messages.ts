@@ -1,11 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Habilitado", "Enabled", "已啟用"],
   ["Não foi possível encerrar a sessão. Tente novamente.", "Could not sign out. Please try again.", "無法結束工作階段。請重試。"],
   ["Prioridade", "Priority", "優先順序"],
   ["Ordem das máquinas", "Machine order", "機台排序"],
   ["Restrição de conclusão por estação", "Completion restricted to assigned workstation", "僅限指定工作站完成作業"],
   ["OS obrigatória na abertura", "Work order required when opening", "建立呼叫時必須填寫工單"],
-  ["Ativo", "Enabled", "已啟用"],
   ["As alterações estarão disponíveis após migração das autorizações individuais no servidor.", "Changes will be available after individual server-side permissions have been migrated.", "完成伺服器端個別權限遷移後，才能進行變更。"],
   ["Configurações operacionais — consulta", "Operational settings — read only", "操作設定 — 唯讀"],
   ["Atualizar", "Refresh", "重新整理"],
