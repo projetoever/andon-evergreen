@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Gerente", "Manager", "經理"],
   ["Sua sessão continua ativa. Confirme a senha central para executar esta operação sensível.", "Your session is still active. Confirm your central password for this sensitive action.", "您的工作階段仍有效。請確認中央帳號密碼以執行此敏感操作。"],
   ["Confirmação de segurança", "Security confirmation", "安全性確認"],
   ["Aplicar perfil e voltar ao modo simples", "Apply profile and return to simple mode", "套用角色設定並返回簡易模式"],
