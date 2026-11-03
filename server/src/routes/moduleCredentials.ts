@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db/prisma.js";
+import { centralAccessEnabled } from "../access/http.js";
 import {
   createModuleSession,
   isPasswordModule,
@@ -88,6 +89,9 @@ export async function registerModuleCredentialRoutes(app: FastifyInstance) {
   app.post<{ Params: ModuleParams; Body: CredentialBody }>(
     "/api/modules/:module/login",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled())
+        return reply.status(403).send({ error: "legacy_module_login_disabled" });
       const { module } = request.params;
       if (!isPasswordModule(module)) return badRequest(reply, "Módulo inválido.");
       const id = parseWorkstationId(request.headers["x-andon-workstation-id"]);
