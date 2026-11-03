@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Fastify from "fastify";
 
 import {
   createAdminSession,
   isAdminProtectedMutation,
+  enforceAdminAuthorization,
   readAdminSession,
   revokeAdminSession,
 } from "./adminAuthorization.js";
@@ -88,4 +90,39 @@ test("sessão administrativa emitida pelo servidor pode ser validada e revogada"
 
   revokeAdminSession(session.token);
   assert.equal(readAdminSession(request), null);
+});
+
+test("REFINE 5 S1/4: previously issued bearer cannot authenticate after central mode is enabled", async (t) => {
+  const old = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  t.after(() => {
+    if (old === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = old;
+  });
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const session = createAdminSession("admin");
+  const headers = { authorization: `Bearer ${session.token}` };
+  const request = { headers } as never;
+  assert.equal(readAdminSession(request)?.session.username, "admin");
+
+  const app = Fastify();
+  t.after(() => app.close());
+  app.addHook("preHandler", enforceAdminAuthorization);
+  app.get("/api/workstations", async () => ({ ok: true }));
+  assert.equal((await app.inject({ url: "/api/workstations", headers })).statusCode, 200);
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  assert.equal(readAdminSession(request), null, "central mode clears legacy Bearer sessions");
+  assert.throws(() => createAdminSession("admin"), /legacy_admin_session_disabled/);
+  const blocked = await app.inject({ url: "/api/workstations", headers });
+  assert.equal(blocked.statusCode, 401);
+  assert.equal(blocked.json().error, "admin_auth_required");
+
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  assert.equal(readAdminSession(request), null, "old token must stay revoked on rollback");
+  assert.equal((await app.inject({ url: "/api/workstations", headers })).statusCode, 401);
+  const fresh = createAdminSession("admin");
+  assert.equal(readAdminSession({ headers: { authorization: `Bearer ${fresh.token}` } } as never)
+    ?.session.username, "admin", "new legacy authentication remains usable after rollback");
+  revokeAdminSession(fresh.token);
 });
