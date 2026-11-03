@@ -17,14 +17,16 @@ import {
 import { permissionLabels } from "@/services/accessLabels";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
+  isExactRolePreset,
   suggestedPermissions,
 } from "@/services/accessRolePresets";
 
 const emptyDraft = (): UserDraft => ({
   login: "",
   displayName: "",
-  roleLabel: "Gestor/Gerente",
+  roleLabel: "Produção",
   accountType: "person",
   active: true,
   machineScope: "selected",
@@ -45,7 +47,7 @@ const errorLabels: Record<string, string> = {
   already_initialized: "Admin já habilitado. Atualize a página e entre.",
   primary_admin_protected: "O Admin principal está protegido contra alterações nesta tela.",
   admin_required: "Somente o Admin principal pode gerenciar usuários nesta etapa.",
-  reauthentication_required: "Entre novamente como Admin antes de redefinir a senha.",
+  reauthentication_required: "Sua sessão continua ativa. Confirme a senha central para executar esta operação sensível.",
   current_password_required: "Informe a senha atual correta.",
   invalid_input: "Confira os campos. A senha pessoal deve ter de 8 a 128 caracteres.",
   password_reuse_denied: "A nova senha central deve ser diferente da senha Admin legada.",
@@ -65,6 +67,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [draft, setDraft] = useState<UserDraft | null>(null);
+  const [advancedPermissions, setAdvancedPermissions] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
@@ -147,7 +150,15 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
           machineIds: user.machines.map((m) => m.machineId),
           version: user.authorizationVersion,
         }
-      : emptyDraft();
+      : {
+          ...emptyDraft(),
+          permissions: suggestedPermissions("Produção", catalog?.permissions ?? []),
+        };
+    setAdvancedPermissions(Boolean(user) && (
+      user!.accountType !== "person" ||
+      !PILOT_SIMPLE_ROLES.some((role) => role === user!.roleLabel) ||
+      !isExactRolePreset(user!.roleLabel, value.permissions, catalog?.permissions ?? [])
+    ));
     setEditing(user?.id ?? null);
     setDraft(value);
     setOriginal(JSON.stringify(value));
@@ -268,7 +279,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     : personalPassword
                       ? "Crie sua senha pessoal"
                       : reauth
-                        ? "Confirme seu acesso Admin"
+                        ? "Confirmação de segurança"
                         : "Entrar em Usuários e Acessos",
                 )}
               </h3>
@@ -488,6 +499,38 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   {ui(editing ? "Editar usuário" : "Cadastrar usuário")}
                 </h3>
                 <fieldset disabled={busy} className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      aria-expanded={advancedPermissions}
+                      onClick={() => {
+                        if (!advancedPermissions) {
+                          setAdvancedPermissions(true);
+                        } else if (draft.accountType === "person" &&
+                          PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel)) {
+                          // Explicit transition: administrator chooses to replace custom grants.
+                          setDraft({
+                            ...draft,
+                            permissions: suggestedPermissions(draft.roleLabel, catalog.permissions),
+                          });
+                          setAdvancedPermissions(false);
+                        }
+                      }}
+                      disabled={advancedPermissions &&
+                        (draft.accountType !== "person" ||
+                          !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel))}
+                    >
+                      {ui(advancedPermissions
+                        ? "Aplicar perfil e voltar ao modo simples"
+                        : "Configuração avançada de permissões")}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {ui(advancedPermissions
+                        ? "Permissões personalizadas: alterações não são descartadas sem sua confirmação."
+                        : "Modo simples: escolha o perfil e as máquinas.")}
+                    </span>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Label className="space-y-2">
                       {ui("Nome")}
@@ -515,16 +558,30 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         aria-label={ui("Perfil")}
                         className="block min-h-11 w-full rounded-md border bg-background p-2"
                         value={draft.roleLabel}
-                        onChange={(e) => setDraft({ ...draft, roleLabel: e.target.value })}
+                        onChange={(e) => {
+                          const roleLabel = e.target.value;
+                          setDraft({
+                            ...draft,
+                            roleLabel,
+                            ...(!advancedPermissions && draft.accountType === "person"
+                              ? { permissions: suggestedPermissions(roleLabel, catalog.permissions) }
+                              : {}),
+                          });
+                        }}
                       >
-                        {catalog.roles.map((role) => (
+                        {(advancedPermissions
+                          ? catalog.roles.filter((role) => role !== "Admin")
+                          : PILOT_SIMPLE_ROLES.filter((role) => catalog.roles.includes(role))
+                        ).map((role) => (
                           <option key={role} value={role}>
-                            {ui(role)}
+                            {!advancedPermissions && role === "Gestor/Gerente"
+                              ? ui("Gerente")
+                              : ui(role)}
                           </option>
                         ))}
                       </select>
                     </Label>
-                    <Label className="space-y-2">
+                    {advancedPermissions && <Label className="space-y-2">
                       {ui("Tipo de conta")}
                       <select
                         aria-label={ui("Tipo de conta")}
@@ -542,12 +599,12 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         <option value="person">{ui("Pessoa")}</option>
                         <option value="kiosk">{ui("Kiosk — cadastro inativo")}</option>
                       </select>
-                    </Label>
+                    </Label>}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {ui(
-                      "O perfil é uma identificação. Nenhuma permissão é concedida automaticamente. Kiosks permanecem inativos até o provisionamento específico.",
-                    )}
+                    {advancedPermissions
+                      ? ui("O perfil identifica a função, mas somente as permissões marcadas autorizam as ações. Kiosks ficam inativos até o provisionamento.")
+                      : ui("O perfil aplica automaticamente uma seleção de permissões. O servidor continua verificando cada ação, workstation e máquina.")}
                   </p>
                   <Label className="flex min-h-11 items-center gap-3">
                     <input
@@ -608,7 +665,21 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       )}
                     </p>
                   </fieldset>
-                  <fieldset className="space-y-3">
+                  {!advancedPermissions && <div role="status" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                    <h4 className="font-bold">{ui("Permissões do perfil")}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {ui("As permissões do perfil são aplicadas ao salvar. Acesso restrito pela workstation e pelo escopo de máquinas.")}
+                    </p>
+                    <p className="text-sm">
+                      {MODULE_ENTRY_PERMISSIONS
+                        .filter((entry) => draft.permissions.includes(entry.key))
+                        .map((entry) => ui(entry.label)).join(" · ") || ui("Nenhum módulo liberado")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {ui("Ações autorizadas pelo perfil")}: {draft.permissions.length}
+                    </p>
+                  </div>}
+                  {advancedPermissions && <fieldset className="space-y-3">
                     <legend className="font-bold">{ui("Permissões por módulo e ação")}</legend>
                     {draft.accountType === "person" && hasRoleSuggestion(draft.roleLabel) && (
                       <div className="flex flex-wrap items-center gap-3">
@@ -671,7 +742,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     <p className="text-sm text-muted-foreground">
                       {ui("As permissões serão aplicadas às operações após a ativação segura do controle central.")}
                     </p>
-                  </fieldset>
+                  </fieldset>}
                   <div className="flex flex-wrap gap-3">
                     <Button
                       type="submit"

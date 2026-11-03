@@ -231,6 +231,15 @@ try {
     assert.equal(await page.getByText("Ana — Gerência Industrial", { exact: true }).count(), 0);
     await page.getByRole("textbox", { name: "Pesquisar usuários" }).fill("");
     await page.getByRole("button", { name: "Cadastrar usuário", exact: true }).click();
+    assert.equal(await page.getByLabel("Perfil", { exact: true }).inputValue(), "Produção");
+    assert.equal(await page.getByRole("checkbox", { name: "Chamados: atender", exact: true }).count(), 0,
+      "simple mode must not flood the factory Admin with granular permission checkboxes");
+    assert.equal(await page.getByRole("button", { name: "Aplicar permissões sugeridas" }).count(), 0);
+    await page.getByLabel("Perfil", { exact: true }).selectOption("Manutenção");
+    await page.getByText("Permissões do perfil", { exact: true }).waitFor();
+    await page.getByLabel("Perfil", { exact: true }).selectOption("Gestor/Gerente");
+    await page.getByRole("button", { name: "Configuração avançada de permissões" }).click();
+    assert.equal(await page.getByRole("checkbox", { name: "Chamados: atender", exact: true }).isChecked(), true);
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
     await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
     await page.getByLabel("Perfil", { exact: true }).selectOption("Líder");
@@ -260,6 +269,11 @@ try {
       .locator("xpath=../..")
       .getByRole("button", { name: "Editar", exact: true });
     await editButton.click();
+    // Leader and customized accounts are opened in advanced mode, preserving
+    // every stored grant rather than silently overwriting them with a pilot preset.
+    assert.equal(await page.getByLabel("Perfil", { exact: true }).inputValue(), "Líder");
+    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("button", { name: "Aplicar perfil e voltar ao modo simples" }).isDisabled(), true);
     assert.equal(
       await page.getByRole("button", { name: "Salvar usuário", exact: true }).isDisabled(),
       true,

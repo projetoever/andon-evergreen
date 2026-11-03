@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
+  isExactRolePreset,
   suggestedPermissions,
 } from "../src/services/accessRolePresets";
 
@@ -10,6 +12,7 @@ const catalog = [
   "andon.read",
   "history.read",
   "calls.open",
+  "calls.cancel.own",
   "calls.attend",
   "calls.technicians.manage",
   "calls.finishMaintenance",
@@ -59,4 +62,31 @@ test("suggestions are strictly limited to the permitted catalog", () => {
     MODULE_ENTRY_PERMISSIONS.map((item) => item.key),
     ["andon.read", "bi.read", "priorities.read"],
   );
+});
+
+test("pilot registration defaults to Production, with an explicit advanced path", () => {
+  assert.deepEqual([...PILOT_SIMPLE_ROLES], ["Produção", "Manutenção", "Gestor/Gerente"]);
+  assert.deepEqual(suggestedPermissions("Produção", [
+    "andon.read", "history.read", "calls.open", "calls.cancel.own",
+    "calls.attend", "bi.read", "users.create",
+  ]), ["andon.read", "calls.open", "calls.cancel.own"]);
+  assert(isExactRolePreset("Produção", ["calls.cancel.own", "andon.read", "calls.open"], catalog));
+  assert(!isExactRolePreset("Produção", ["andon.read"], catalog));
+  assert(!isExactRolePreset("Produção", ["andon.read", "calls.open", "calls.cancel.own", "users.create"], catalog));
+  assert(!isExactRolePreset("Líder desconhecido", [], catalog));
+});
+test("Manager and maintenance templates are operational, never user or service administration", () => {
+  const fullCatalog = [
+    ...catalog,
+    "workstations.read", "audit.read", "analytics.policy.manage",
+    "catalog.assets.manage", "production.schedule.write", "machines.status.write",
+  ];
+  const manager = suggestedPermissions("Gestor/Gerente", fullCatalog);
+  const maintenance = suggestedPermissions("Manutenção", fullCatalog);
+  assert(manager.includes("bi.read") && manager.includes("workstations.read"));
+  assert(manager.includes("calls.open") && manager.includes("priorities.write"));
+  assert(!manager.includes("users.create") && !manager.includes("workstations.manage"));
+  assert(!manager.includes("analytics.policy.manage") && !manager.includes("catalog.assets.manage"));
+  assert(maintenance.includes("bi.read") && maintenance.includes("calls.attend"));
+  assert(!maintenance.includes("workstations.read") && !maintenance.includes("users.create"));
 });

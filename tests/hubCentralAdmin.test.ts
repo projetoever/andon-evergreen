@@ -77,3 +77,16 @@ test("Central Admin first-run is an isolated bootstrap form, not a privilege byp
   assert.match(users, /if \(!session\?\.initialized\) await onSessionInitialized\?\.\(\)/);
   assert.match(entry, /if \(access\?\.centralAccessEnabled\) return <HubCentralAdminPage \/>/);
 });
+
+test("Hub mandatory personal-password change follows the same 8-to-128 character policy as the backend", async () => {
+  const [panel, backend] = await Promise.all([
+    read("../src/components/security/HubIdentityPanel.tsx"),
+    read("../server/src/access/credentials.ts"),
+  ]);
+  assert.match(backend, /MIN_PERSONAL_PASSWORD_LENGTH = 8/);
+  assert.match(backend, /MAX_PERSONAL_PASSWORD_LENGTH = 128/);
+  assert.match(panel, /Use uma senha de 8 a 128 caracteres/);
+  assert.equal((panel.match(/minLength=\{8\}/g) ?? []).length, 2);
+  assert.equal((panel.match(/maxLength=\{128\}/g) ?? []).length >= 2, true);
+  assert.doesNotMatch(panel, /minLength=\{15\}|Use uma frase de acesso de 15/);
+});
