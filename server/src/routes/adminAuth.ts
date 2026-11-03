@@ -242,6 +242,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   app.post<{ Body: RecoveryCodeBody }>(
     "/api/admin-auth/recovery-code",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
       const currentPassword = normalizePassword(request.body?.currentPassword);
 
       if (!currentPassword || !(await verifyAdminPassword(currentPassword))) {
@@ -279,6 +280,7 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   );
 
   app.post<{ Body: RecoverPasswordBody }>("/api/admin-auth/recover", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
     const recoveryCode = normalizeRecoveryCode(request.body?.recoveryCode);
     const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
@@ -312,11 +314,16 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
       },
     });
 
+    // A recovery code repairs the global bootstrap credential, not the
+    // central human identity. Never mint another legacy Admin bearer when
+    // central access is enabled; legacy-mode recovery stays compatible.
+    const central = centralAccessEnabled();
     return {
       ok: true,
-      ...createAdminSession(ADMIN_USER),
-      message:
-        "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
+      ...(!central ? createAdminSession(ADMIN_USER) : {}),
+      message: central
+        ? "Senha global redefinida. O acesso central mantém suas credenciais próprias."
+        : "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
     };
   });
 
