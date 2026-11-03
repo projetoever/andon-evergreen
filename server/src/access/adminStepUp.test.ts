@@ -72,6 +72,7 @@ function fixture(storedHash: string, options: Case = {}) {
       assert.equal(input.where.userId, "user-admin-37");
       assert.equal(input.where.workstationId, "ws-37");
       assert.equal(input.where.revokedAt, null);
+      assert.deepEqual(Object.keys(input.data), ["lastAuthenticatedAt"]);
       assert(input.where.expiresAt.gt < expiresAt);
       assert(input.where.lastInteractionAt.gt < lastInteractionAt);
       if (options.updateCount === 0) return { count: 0 };
@@ -135,8 +136,10 @@ test("S1/3 Admin step-up refreshes only recent proof, not the 12-hour session or
   assert.equal(after.sessionId, before.sessionId);
   assert.equal(after.workstationId, before.workstationId);
   assert.equal(f.createdAt.getTime(), before.authenticatedAt.getTime());
-  assert.equal(f.expiresAt.getTime(), before.authenticatedAt.getTime() + 14 * 60 * 60_000
-    ? 0 : f.expiresAt.getTime(), "session expiry must not be replaced");
+  assert.equal(after.authenticatedAt.getTime(), f.lastAuthenticatedAt!.getTime());
+  assert.equal(f.createdAt.getTime(), before.authenticatedAt.getTime());
+  assert.equal(f.expiresAt.getTime() - f.createdAt.getTime(), 4 * 60 * 60_000 + 10 * 60_000,
+    "absolute expiration remains measured from the initial session");
   assert.deepEqual(f.actions.filter((action) => action === "conditional-update"), ["conditional-update"]);
   assert.deepEqual(f.actions.slice(-4), ["conditional-update", "audit", "commit", "session-read-4"]);
 });
