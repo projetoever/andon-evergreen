@@ -23,6 +23,7 @@ export function HubCentralManagerPage({
   const [stations, setStations] = useState<ManagedWorkstation[] | null>(null);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoadError(false);
@@ -80,10 +81,14 @@ export function HubCentralManagerPage({
           <LanguageSelector compact />
           <Button variant="outline" onClick={() => {
             void (async () => {
-              try { await accessRequest("/logout", "POST", {}); }
-              finally {
+              setLogoutError(false);
+              try {
+                await accessRequest("/logout", "POST", {});
                 await refreshModules();
                 void navigate({ to: "/hub", replace: true });
+              } catch {
+                // Stay on the page; failed revocation is not a successful logout.
+                setLogoutError(true);
               }
             })();
           }}>
@@ -104,6 +109,9 @@ export function HubCentralManagerPage({
             </Button>;
           })}
         </nav>
+        {logoutError && <div role="alert" className="rounded-lg border border-danger p-3 text-sm text-danger">
+          {ui("Não foi possível encerrar a sessão. Tente novamente.")}
+        </div>}
         <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
           {ui("Acesso gerencial somente leitura nesta etapa. Usuários, credenciais, aprovações e alterações globais exigem Admin principal.")}
         </div>
