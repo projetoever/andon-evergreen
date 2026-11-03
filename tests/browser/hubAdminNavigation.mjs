@@ -571,8 +571,13 @@ try {
     await page.getByText("Preferência operacional atualizada.").waitFor();
     assert.equal(keyboardSetting, false);
     const order = page.getByRole("combobox", { name: "Ordem visual do Dashboard" });
-    await order.selectOption("priority");
-    await page.getByText("Preferência operacional atualizada.").waitFor();
+    const [orderSaved] = await Promise.all([
+      page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/system-settings" &&
+        response.request().method() === "PATCH" && response.ok()),
+      order.selectOption("priority"),
+    ]);
+    assert.equal((await orderSaved.json()).dashboardMachineOrderMode, "priority");
     assert.equal(machineOrderSetting, "priority");
     const illicit = await page.evaluate(async () => {
       const res = await fetch("/api/system-settings", {
