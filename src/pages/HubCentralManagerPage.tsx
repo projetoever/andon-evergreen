@@ -169,7 +169,7 @@ export function HubCentralManagerPage({
             <h2 className="text-lg font-bold">{ui("Configurações operacionais — consulta")}</h2>
             <p className="text-sm text-muted-foreground">{ui("As alterações estarão disponíveis após migração das autorizações individuais no servidor.")}</p>
             {settings && <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div><dt className="text-muted-foreground">{ui("Teclado virtual")}</dt><dd>{settings.virtualKeyboardEnabled ? ui("Ativo") : ui("Inativo")}</dd></div>
+              <div><dt className="text-muted-foreground">{ui("Teclado virtual")}</dt><dd>{settings.virtualKeyboardEnabled ? ui("Habilitado") : ui("Inativo")}</dd></div>
               <div><dt className="text-muted-foreground">{ui("OS obrigatória na abertura")}</dt><dd>{settings.requireWorkOrderAtOpen ? ui("Sim") : ui("Não")}</dd></div>
               <div><dt className="text-muted-foreground">{ui("Restrição de conclusão por estação")}</dt><dd>{settings.restrictMaintenanceCompletionToAttendanceWorkstation ? ui("Ativa") : ui("Inativa")}</dd></div>
               <div><dt className="text-muted-foreground">{ui("Ordem das máquinas")}</dt><dd>{settings.dashboardMachineOrderMode === "priority" ? ui("Prioridade") : ui("Padrão")}</dd></div>
