@@ -61,6 +61,8 @@ try {
     let delayModules = false;
     let centralMode = false;
     let primaryAdmin = true;
+    let managerPermissions = [];
+    let managerScope = "all";
     let centralInitialized = true;
     let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
@@ -199,13 +201,27 @@ try {
             login: "admin.central",
             displayName: "Admin Central",
             isPrimaryAdmin: primaryAdmin,
+            permissions: managerPermissions,
+            machineScope: managerScope,
             purpose: "normal",
           } : null,
         });
       if (path === "/api/access/catalog")
         return send({ permissions: [], roles: [], machines: [] });
       if (path === "/api/access/users") return send({ users: [], total: 0 });
-      if (path === "/api/access/workstations") return send([]);
+      if (path === "/api/access/workstations")
+        return send([
+          { id: requestedWorkstationId, name: "Notebook de validação",
+            active: true, pendingApproval: false, allowOperational: true,
+            allowBi: true, allowPriorities: true, lastIpAddress: "127.0.0.1",
+            lastSeenAt: new Date().toISOString(),
+            authenticatedAccount: { id: "manager", login: "vini", displayName: "Vini", roleLabel: "Gestor/Gerente" } },
+          { id: "ws_00000000-0000-4000-8000-000000000003", name: "Kiosk bloqueado",
+            active: false, pendingApproval: false, allowOperational: false,
+            allowBi: false, allowPriorities: false, lastIpAddress: null,
+            lastSeenAt: new Date(Date.now()-86400000).toISOString(),
+            authenticatedAccount: null },
+        ]);
       if (path === "/api/modules/credentials") return send([]);
       if (path === "/api/dashboard-priority/access-status")
         return send({ passwordRequired: false, configured: false });
@@ -496,6 +512,39 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    await noOverflow();
+
+    // S2B: a full-scope account with explicit read grants sees a restricted
+    // Manager view. Neither a display role nor an old Admin token grants it.
+    managerPermissions = ["workstations.read", "andon.read"];
+    managerScope = "all";
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.getByRole("heading", { name: "Painel do gerente" }).waitFor();
+    const managerNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
+    assert.equal(await managerNav.getByRole("link").count(), 3);
+    assert.equal(await managerNav.getByRole("link", { name: "Usuários e Acessos" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Cadastrar usuário" }).count(), 0);
+    assert.equal(await page.getByRole("heading", { name: "Resumo gerencial" }).count(), 1);
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=workstations");
+    await page.getByRole("heading", { name: "Workstations — consulta" }).waitFor();
+    await page.getByText("Notebook de validação", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Aprovar" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Salvar alterações" }).count(), 0);
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
+    await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Salvar globalmente" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Salvar" }).count(), 0);
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    managerScope = "selected";
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    managerScope = "all";
+    managerPermissions = [];
+    await page.reload();
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Painel do gerente" }).count(), 0);
     await noOverflow();
 
     assert.deepEqual(errors, []);

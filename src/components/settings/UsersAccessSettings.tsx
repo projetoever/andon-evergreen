@@ -564,7 +564,12 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                             ...draft,
                             roleLabel,
                             ...(!advancedPermissions && draft.accountType === "person"
-                              ? { permissions: suggestedPermissions(roleLabel, catalog.permissions) }
+                              ? {
+                                  permissions: suggestedPermissions(roleLabel, catalog.permissions),
+                                  ...(roleLabel === "Gestor/Gerente"
+                                    ? { machineScope: "all" as const, machineIds: [] }
+                                    : {}),
+                                }
                               : {}),
                           });
                         }}

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
+import { HubCentralManagerPage } from "./HubCentralManagerPage";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
@@ -122,7 +123,18 @@ export function HubCentralAdminPage() {
       </main>
     );
   }
-  if (!primaryAdmin)
+  // The server grants a Manager's read access explicitly; the role label
+  // alone never unlocks the Hub. Scoped accounts cannot list all workstations.
+  const managerReadOnly = session?.principal?.purpose === "normal" &&
+    session.principal.permissions?.includes("workstations.read") === true &&
+    session.principal.permissions?.includes("andon.read") === true &&
+    session.principal.machineScope === "all" &&
+    access?.workstation.active === true &&
+    access.workstation.pendingApproval !== true;
+  if (!primaryAdmin) {
+    if (managerReadOnly && session?.principal) {
+      return <HubCentralManagerPage section={section} displayName={session.principal.displayName} />;
+    }
     return (
       <main className="min-h-dvh bg-background p-6">
         <div role="alert" className="mx-auto max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
@@ -134,6 +146,7 @@ export function HubCentralAdminPage() {
         </div>
       </main>
     );
+  }
 
   const sections = [
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
