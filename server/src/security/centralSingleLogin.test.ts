@@ -133,7 +133,7 @@ test("S1 central mode refuses legacy Admin bearer issuance while legacy mode ret
   assert.equal(invalid.statusCode, 401);
 });
 
-test("S1/2 recovery does not mint a legacy bearer when central access is enabled", async (t) => {
+test("S1/7 central mode cannot restore or change retired global credential; legacy OFF retains recovery", async (t) => {
   const previousFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   const originalFindUnique = prisma.systemSettings.findUnique;
   const originalUpdateMany = prisma.systemSettings.updateMany;
@@ -143,11 +143,15 @@ test("S1/2 recovery does not mint a legacy bearer when central access is enabled
   let adminPasswordHash = await hashCredential("PreviousGlobalCredential#2026");
   let recoveryCodeHash: string | null = await hashCredential(code);
   let writes = 0;
+  let reads = 0;
 
-  prisma.systemSettings.findUnique = (async () => ({
-    adminPasswordHash, adminRecoveryCodeHash: recoveryCodeHash,
-    adminRecoveryCodeIssuedAt: recoveryCodeHash ? new Date() : null,
-  })) as unknown as typeof originalFindUnique;
+  prisma.systemSettings.findUnique = (async () => {
+    reads += 1;
+    return {
+      adminPasswordHash, adminRecoveryCodeHash: recoveryCodeHash,
+      adminRecoveryCodeIssuedAt: recoveryCodeHash ? new Date() : null,
+    };
+  }) as unknown as typeof originalFindUnique;
   prisma.systemSettings.updateMany = (async (options: {
     where: { id: string; adminRecoveryCodeHash: string };
     data: { adminPasswordHash: string; adminRecoveryCodeHash: null; adminRecoveryCodeIssuedAt: null };
@@ -174,41 +178,38 @@ test("S1/2 recovery does not mint a legacy bearer when central access is enabled
   const payload = { recoveryCode: formattedCode, newPassword };
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
-  const invalid = await app.inject({
-    method: "POST", url: "/api/admin-auth/recover",
-    payload: { recoveryCode: "ADM-0000-0000-0000", newPassword },
-  });
-  assert.equal(invalid.statusCode, 401);
-  assert.equal(invalid.headers["cache-control"], "no-store");
-  assert.equal(writes, 0);
+  for (const [url, method, body] of [
+    ["/api/admin-auth/recover", "POST", payload],
+    ["/api/admin-auth/recover", "POST", { recoveryCode: "ADM-0000-0000-0000", newPassword }],
+    ["/api/admin-auth/recovery-code", "POST", { currentPassword: newPassword }],
+    ["/api/admin-auth/password", "PUT", {
+      currentPassword: "PreviousGlobalCredential#2026", newPassword,
+    }],
+  ] as const) {
+    const forbidden = await app.inject({ method, url, payload: body });
+    assert.equal(forbidden.statusCode, 403);
+    assert.equal(forbidden.json().error, "legacy_admin_credential_disabled");
+    assert.equal(forbidden.headers["cache-control"], "no-store");
+    assert.equal(forbidden.json().token, undefined);
+  }
+  assert.equal(writes, 0, "central request cannot rewrite global credential");
+  assert.equal(reads, 0, "central request must not look up old recovery code or hash");
 
-  const central = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
-  assert.equal(central.statusCode, 200);
-  assert.equal(central.headers["cache-control"], "no-store");
-  assert.equal(central.json().ok, true);
-  assert.equal(central.json().token, undefined, "no second Admin token in central mode");
-  assert.equal(central.json().expiresAt, undefined);
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const legacy = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
+  assert.equal(legacy.statusCode, 200);
+  assert.match(legacy.json().token, /^[a-f0-9]{64}$/);
   assert.equal(writes, 1);
   assert.equal(await verifyCredential(newPassword, adminPasswordHash), true);
   const replay = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
-  assert.equal(replay.statusCode, 401, "recovery code is single use");
+  assert.equal(replay.statusCode, 401);
   assert.equal(writes, 1);
 
-  // Simulate two simultaneous attempts with one newly issued code.
   recoveryCodeHash = await hashCredential(code);
   const raced = await Promise.all([
     app.inject({ method: "POST", url: "/api/admin-auth/recover", payload }),
     app.inject({ method: "POST", url: "/api/admin-auth/recover", payload }),
   ]);
   assert.deepEqual(raced.map((response) => response.statusCode).sort(), [200, 401]);
-  assert.equal(writes, 2, "at most one concurrent request consumes the code");
-
-  // Preserve the existing legacy-mode recovery contract for installed pilots.
-  recoveryCodeHash = await hashCredential(code);
-  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
-  const legacy = await app.inject({ method: "POST", url: "/api/admin-auth/recover", payload });
-  assert.equal(legacy.statusCode, 200);
-  assert.match(legacy.json().token, /^[a-f0-9]{64}$/);
-  assert.equal(legacy.headers["cache-control"], "no-store");
-  assert.equal(writes, 3);
+  assert.equal(writes, 2);
 });
