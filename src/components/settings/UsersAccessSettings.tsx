@@ -601,26 +601,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       type="button"
                       variant="outline"
                       aria-expanded={advancedPermissions}
-                      onClick={() => {
-                        if (!advancedPermissions) {
-                          setAdvancedPermissions(true);
-                        } else if (draft.accountType === "person" &&
-                          PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel)) {
-                          // Explicit transition: administrator chooses to replace custom grants.
-                          setDraft({
-                            ...draft,
-                            permissions: suggestedPermissions(draft.roleLabel, catalog.permissions),
-                          });
-                          setAdvancedPermissions(false);
-                        }
-                      }}
-                      disabled={advancedPermissions &&
-                        (draft.accountType !== "person" ||
-                          !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel))}
+                      onClick={() => setAdvancedPermissions((current) => !current)}
                     >
                       {ui(advancedPermissions
-                        ? "Aplicar perfil e voltar ao modo simples"
-                        : "Configuração avançada de permissões")}
+                        ? "Ocultar opções avançadas"
+                        : "Permissões avançadas (opcional)")}
                     </Button>
                     <span className="text-xs text-muted-foreground">
                       {ui(advancedPermissions
