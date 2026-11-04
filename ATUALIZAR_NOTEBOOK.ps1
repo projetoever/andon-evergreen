@@ -67,6 +67,12 @@ try {
         -EnableCentralOperationalWrites -EnableGlobalPaletteWrites `
         -NotebookStandardPorts
 
+    # Once this test profile has actually passed HTTPS readiness, remember
+    # the operator's choice. Future menu option 2 updates reuse the notebook
+    # workflow; Windows Server never reads this marker.
+    $profileMarker = Join-Path $repoRoot ".andon-homologation\notebook-standard-ports.enabled"
+    Set-Content -Path $profileMarker -Value "https://localhost:8080/hub" -Encoding ASCII
+
     Write-Host ""
     Write-Host "Notebook: https://localhost:8080/hub" -ForegroundColor Green
     Write-Host "API HTTPS: https://localhost:3001" -ForegroundColor Green
