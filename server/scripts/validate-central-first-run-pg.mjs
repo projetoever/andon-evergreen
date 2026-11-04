@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import Fastify from "fastify";
 import { registerAdminAuthRoutes } from "../dist/routes/adminAuth.js";
+import { registerWorkstationRoutes } from "../dist/routes/workstations.js";
 import { enforceInitialAdminSetup } from "../dist/security/initialAdminSetupGuard.js";
 import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
 import { verifyAccessPassword } from "../dist/access/credentials.js";
@@ -17,6 +18,8 @@ process.env.CORS_ORIGINS = "https://localhost:8080";
 const db = new PrismaClient();
 let original = null;
 let createdAdminId = null;
+const localStationId = `ws_${crypto.randomUUID()}`;
+const remoteStationId = `ws_${crypto.randomUUID()}`;
 const app = Fastify({ logger: false });
 app.addHook("onRequest", async (request) => {
   Object.defineProperty(request.raw.socket, "encrypted", { value: true, configurable: true });
@@ -42,14 +45,15 @@ try {
   assert.equal(accounts, 0, "S1/6 test must run before any access user fixtures");
   assert.equal(stations, 0, "S1/6 test must run before any workstation fixtures");
   original = await db.systemSettings.findUnique({
-    where: { id: "global" }, select: { adminPasswordHash: true },
+    where: { id: "global" }, select: { adminPasswordHash: true, requireWorkstationApproval: true },
   });
   await db.systemSettings.upsert({
     where: { id: "global" },
-    create: { id: "global", adminPasswordHash: null },
-    update: { adminPasswordHash: null },
+    create: { id: "global", adminPasswordHash: null, requireWorkstationApproval: false },
+    update: { adminPasswordHash: null, requireWorkstationApproval: false },
   });
   await registerAdminAuthRoutes(app);
+  await registerWorkstationRoutes(app);
   const blocked = await request("GET", "/api/first-run-test");
   assert.equal(blocked.statusCode, 428, blocked.body);
   assert.equal(blocked.json().error, "initial_admin_setup_required");
@@ -67,18 +71,22 @@ try {
   assert.equal(forbiddenGlobal.statusCode, 428, forbiddenGlobal.body);
 
   const remote = await request("POST", "/api/admin-auth/initialize-central",
-    { setupToken: token, password: "OneAdmin#Safe2026" },
+    { setupToken: token, password: "OneAdmin#Safe2026", workstationId: localStationId },
     { remoteAddress: "192.0.2.44" });
   assert.equal(remote.statusCode, 403, remote.body);
   const invalid = await request("POST", "/api/admin-auth/initialize-central",
-    { setupToken: "0".repeat(64), password: "OneAdmin#Safe2026" });
+    { setupToken: "0".repeat(64), password: "OneAdmin#Safe2026", workstationId: localStationId });
   assert.equal(invalid.statusCode, 403, invalid.body);
   const weak = await request("POST", "/api/admin-auth/initialize-central",
-    { setupToken: token, password: "12345678" });
+    { setupToken: token, password: "12345678", workstationId: localStationId });
   assert.equal(weak.statusCode, 400, weak.body);
 
+  const malformedStation = await request("POST", "/api/admin-auth/initialize-central",
+    { setupToken: token, password: "OneAdmin#Safe2026", workstationId: "not-a-uuid" });
+  assert.equal(malformedStation.statusCode, 400, malformedStation.body);
+
   const result = await request("POST", "/api/admin-auth/initialize-central",
-    { setupToken: token, password: "OneAdmin#Safe2026" });
+    { setupToken: token, password: "OneAdmin#Safe2026", workstationId: localStationId });
   assert.equal(result.statusCode, 200, result.body);
   assert.equal(result.json().centralAccessInitialized, true);
   assert.equal(result.json().token, undefined);
@@ -89,16 +97,33 @@ try {
   createdAdminId = primary.id;
   assert.equal(settings.adminPasswordHash, null,
     "Fresh central setup MUST NOT create another global Admin credential");
+  assert.equal(settings.requireWorkstationApproval, true,
+    "Central mode must approve later workstations explicitly");
+  const localStation = await db.workstation.findUniqueOrThrow({
+    where: { id: localStationId },
+  });
+  assert.equal(localStation.active, true);
+  assert.equal(localStation.pendingApproval, false);
+  assert.equal(localStation.allowOperational, false);
+  assert.equal(localStation.allowBi, false);
+  assert.equal(localStation.allowPriorities, false);
+  assert.equal(localStation.lastIpAddress, "127.0.0.1");
   assert.equal(primary.login, "admin");
   assert.equal(primary.mustChangePassword, false);
   assert.equal(await verifyAccessPassword("OneAdmin#Safe2026", primary.passwordHash), true);
+
+  const registeredOther = await request("POST", "/api/workstations/register",
+    { id: remoteStationId }, { remoteAddress: "192.0.2.44" });
+  assert.equal(registeredOther.statusCode, 200, registeredOther.body);
+  assert.equal(registeredOther.json().active, false);
+  assert.equal(registeredOther.json().pendingApproval, true);
 
   const after = await request("GET", "/api/admin-auth/status");
   assert.equal(after.json().passwordConfigured, true);
   assert.equal(after.json().centralFirstRun, false);
   assert.equal(after.json().setupToken, undefined);
   const reused = await request("POST", "/api/admin-auth/initialize-central",
-    { setupToken: token, password: "OtherAdmin#Safe2026" });
+    { setupToken: token, password: "OtherAdmin#Safe2026", workstationId: localStationId });
   assert.equal(reused.statusCode, 403, reused.body);
   const stillLegacyDisabled = await request("POST", "/api/admin-auth/initialize",
     { setupToken: token, password: "OtherAdmin#Safe2026" });
@@ -117,12 +142,21 @@ try {
     orderBy: { occurredAt: "desc" },
   });
   assert(!JSON.stringify(audit).includes("OneAdmin#Safe2026"));
+  assert.equal(audit.after?.workstationApprovalRequired, true);
+  assert.equal(audit.after?.initialAdminWorkstationRegistered, true);
   console.log("S1/6 central bootstrap: one human Admin, no legacy global password, no token, guarded local-only, audit PASS");
 } finally {
   await app.close();
   if (createdAdminId) await db.accessUser.delete({ where: { id: createdAdminId } });
+  await db.workstation.deleteMany({
+    where: { id: { in: [localStationId, remoteStationId] } },
+  });
   if (original) await db.systemSettings.update({
-    where: { id: "global" }, data: { adminPasswordHash: original.adminPasswordHash },
+    where: { id: "global" },
+    data: {
+      adminPasswordHash: original.adminPasswordHash,
+      requireWorkstationApproval: original.requireWorkstationApproval,
+    },
   });
   else await db.systemSettings.deleteMany({ where: { id: "global" } });
   if (previousMode === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
