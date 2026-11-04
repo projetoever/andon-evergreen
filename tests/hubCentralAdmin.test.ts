@@ -24,11 +24,12 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   const page = await read("../src/pages/HubCentralAdminPage.tsx");
   assert.match(page, /<UsersAccessSettings \/>/);
   assert.match(page, /<WorkstationsSettingsTab \/>/);
+  assert.match(page, /<ServiceIdentitiesSettings \/>/);
   assert.match(page, /<HubBuildVersionCard \/>/);
   assert.match(page, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.doesNotMatch(page, /<HubSecuritySettings \/>/);
   assert.doesNotMatch(page, /<ModuleCredentialSettings \/>/);
-  assert.match(page, /!\["overview","users","workstations","andon"\]\.includes\(section\)/);
+  assert.match(page, /!\["overview","users","workstations","andon","integrations"\]\.includes\(section\)/);
   assert.match(page, /Configuração indisponível na administração central/);
 });
 
