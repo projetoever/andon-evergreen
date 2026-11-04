@@ -323,6 +323,31 @@ try {
   await db.workstation.update({ where: { id: workstationId }, data: { pendingApproval: true } });
   await call(admin, "/users", "GET", undefined, 403);
   await db.workstation.update({ where: { id: workstationId }, data: { pendingApproval: false } });
+  // Retiring an old global password must never be implicit. Require a central
+  // offline recovery code, recent primary Admin proof, and one-time consent.
+  assert.deepEqual(await call(admin, "/legacy-admin/status"), {
+    legacyPasswordPresent: true,
+    centralRecoveryConfigured: false,
+  });
+  await call(admin, "/legacy-admin/retire", "POST", { confirmed: true }, 409);
+  const offlineRecovery = await call(admin, "/admin-recovery-code", "POST", {});
+  assert.match(offlineRecovery.recoveryCode, /^HUB-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}$/);
+  await call(admin, "/legacy-admin/retire", "POST", { confirmed: false }, 400);
+  await call(person, "/legacy-admin/status", "GET", undefined, 403);
+  const retired = await call(admin, "/legacy-admin/retire", "POST", { confirmed: true });
+  assert.deepEqual(retired, { ok: true, legacyPasswordPresent: false });
+  const afterRetirement = await db.systemSettings.findUniqueOrThrow({ where: { id: "global" } });
+  assert.equal(afterRetirement.adminPasswordHash, null);
+  assert.equal(afterRetirement.adminRecoveryCodeHash, null);
+  assert.equal(afterRetirement.adminRecoveryCodeIssuedAt, null);
+  assert.deepEqual(await call(admin, "/legacy-admin/status"), {
+    legacyPasswordPresent: false, centralRecoveryConfigured: true,
+  });
+  assert.equal((await call(admin, "/session")).principal.isPrimaryAdmin, true);
+  await call(admin, "/legacy-admin/retire", "POST", { confirmed: true }, 409);
+  assert.equal(await db.auditEvent.count({
+    where: { action: "access.admin.legacy_credential.retired", resourceId: "global" },
+  }), 1);
   const events = await db.auditEvent.findMany({ where: { resourceId: created.user.id } });
   for (const action of [
     "access.user.created",
@@ -392,7 +417,11 @@ try {
     });
   await db.systemSettings.update({
     where: { id: "global" },
-    data: { adminPasswordHash: oldSettings?.adminPasswordHash ?? null },
+    data: {
+      adminPasswordHash: oldSettings?.adminPasswordHash ?? null,
+      adminRecoveryCodeHash: oldSettings?.adminRecoveryCodeHash ?? null,
+      adminRecoveryCodeIssuedAt: oldSettings?.adminRecoveryCodeIssuedAt ?? null,
+    },
   });
   await app.close();
   await plain.close();
