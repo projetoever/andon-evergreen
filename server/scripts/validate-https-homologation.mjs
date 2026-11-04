@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
+import { hashCredential } from "../dist/security/technicianCredentials.js";
 import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
@@ -90,16 +91,20 @@ let legacy;
 const db = new PrismaClient();
 let originalSettings;
 try {
-  // No hardcoded password: exercise the same first-run path a customer sees.
-  // This script is guarded above and must never mutate a non-test database.
+  // The clean central-only first-run is exercised separately by
+  // validate-central-first-run-pg.mjs on an empty fixture DB.
+  // This test intentionally represents a legacy installation upgraded
+  // to HTTPS with an existing global Admin secret. Never manufacture
+  // a second password through the forbidden central bootstrap route.
   originalSettings = await db.systemSettings.findUnique({
     where: { id: "global" },
     select: { adminPasswordHash: true },
   });
+  const legacyPasswordHash = await hashCredential("Hml#T9xB7");
   await db.systemSettings.upsert({
     where: { id: "global" },
-    update: { adminPasswordHash: null },
-    create: { id: "global", adminPasswordHash: null },
+    update: { adminPasswordHash: legacyPasswordHash },
+    create: { id: "global", adminPasswordHash: legacyPasswordHash },
   });
   const tlsPort = await unusedPort();
   api = spawn(process.execPath, ["dist/server.js"], {
@@ -135,27 +140,29 @@ try {
   });
   assert.equal(status.status, 200);
   const initialState = JSON.parse(status.body);
-  assert.equal(initialState.passwordConfigured, false);
-  assert.equal(initialState.setupAvailable, true);
-  assert.match(initialState.setupToken ?? "", /^[a-f0-9]{64}$/);
+  assert.equal(initialState.passwordConfigured, true,
+    "An existing installation retains its protected global credential");
+  assert.equal(initialState.setupToken, undefined,
+    "A configured legacy installation cannot get a fresh setup token");
 
-  const beforeSetup = await request(httpsRequest, {
+  const missingStation = await request(httpsRequest, {
     hostname: "localhost", port: tlsPort, path: "/api/access/session",
     ca: cert(), headers: bootstrapHeaders,
   });
-  assert.equal(beforeSetup.status, 428);
-  assert.equal(JSON.parse(beforeSetup.body).error, "initial_admin_setup_required");
+  assert.equal(missingStation.status, 403);
+  assert.equal(JSON.parse(missingStation.body).error, "workstation_denied");
 
   const password = "Hml#T9xB7";
-  const setupBody = JSON.stringify({ setupToken: initialState.setupToken, password });
-  const setup = await request(httpsRequest, {
+  const setupBody = JSON.stringify({ setupToken: "0".repeat(64), password });
+  const legacySetup = await request(httpsRequest, {
     hostname: "localhost", port: tlsPort, path: "/api/admin-auth/initialize",
     method: "POST", ca: cert(),
     headers: { ...bootstrapHeaders, "Content-Type": "application/json",
       "Content-Length": Buffer.byteLength(setupBody) },
   }, setupBody);
-  assert.equal(setup.status, 200, setup.body);
-  assert.equal(JSON.parse(setup.body).passwordConfigured, true);
+  assert.equal(legacySetup.status, 403, legacySetup.body);
+  assert.equal(JSON.parse(legacySetup.body).error, "legacy_bootstrap_disabled",
+    "Central mode must not create or replace a global legacy credential");
 
   const readyStatus = await request(httpsRequest, {
     hostname: "localhost", port: tlsPort, path: "/api/admin-auth/status",
@@ -241,7 +248,7 @@ try {
   }
   assert.equal(legacyHealth?.status, 200);
   console.log(
-    "HTTPS homologation runtime PASS: native TLS, no default password, first-run local setup, HTTP refusal, strict origin and legacy HTTP isolation.",
+    "HTTPS homologation runtime PASS: native TLS, protected existing legacy setup, central duplicate bootstrap denied, HTTP refusal, strict origin and legacy HTTP isolation.",
   );
 } finally {
   api?.kill("SIGKILL");

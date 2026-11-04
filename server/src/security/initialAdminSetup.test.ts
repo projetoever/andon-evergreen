@@ -83,3 +83,16 @@ test("fresh install permits only its bootstrap endpoints, CORS preflight and hea
     assert.equal(isBlockedBeforeAdminSetup(method, path), true, `${method} ${path}`);
   }
 });
+
+test("S1/6 clean central bootstrap permits exactly one local setup endpoint", () => {
+  assert.equal(isBlockedBeforeAdminSetup("GET", "/api/admin-auth/status", true), false);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/admin-auth/initialize-central", true), false);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/admin-auth/initialize", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/admin-auth/initialize-central/", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("GET", "/api/admin-auth/initialize-central", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/access/initialize", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/workstations/register", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("GET", "/api/modules/access", true), true);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/admin-auth/initialize-central", false), true);
+  assert.equal(isBlockedBeforeAdminSetup("POST", "/api/admin-auth/initialize", false), false);
+});

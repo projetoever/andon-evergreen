@@ -40,6 +40,7 @@ const ALLOWED_API_PATHS = new Set([
   "/api/admin-auth/recover",
   "/api/admin-auth/status",
   "/api/admin-auth/initialize",
+  "/api/admin-auth/initialize-central",
   "/api/service-auth/token",
 ]);
 

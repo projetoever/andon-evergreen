@@ -84,6 +84,17 @@ O código de recuperação deve ser guardado fora do sistema e testado previamen
 
 **Ainda não equivale ao S1 completo:** a senha global do instalador/bootstrap e as configurações legadas continuam independentes; somente após migrar cada rota, revisar rollback e comprovar recuperação será possível descontinuar esse segredo sem indisponibilidade. Não habilitar o modo central na fábrica com base apenas neste PR.
 
+## S1/6 — primeiro acesso limpo, Admin central único (sem senha global)
+
+Apenas com `ANDON_CENTRAL_ACCESS_ENABLED=1`, em **instalação realmente nova** (sem hash global, contas humanas cadastradas nem workstations), a tela local de configuração poderá cadastrar diretamente o Admin principal com uma senha de 8–128 caracteres, política forte e token local temporário. Uma única transação cria a conta humana `admin`, com hash scrypt e auditoria, **sem** persistir senha global legada, criar sessão automaticamente ou emitir Bearer.
+
+- `/api/admin-auth/status` distingue instalações centrais virgens de instalações migradas; o setup central utiliza `POST /api/admin-auth/initialize-central`.
+- O guard do servidor continua negando todas as outras APIs enquanto não existir Admin configurado. O setup central é permitido apenas a socket/Host/Origin localhost reais, com token de bootstrap de uma vez; a workstation só pode ser registrada depois da criação do Admin.
+- Existindo qualquer senha global anterior, conta ou workstation, o novo setup recusa a operação. A migração de uma fábrica legada **continua exigindo prova da senha anterior**; nunca criar Admin de modo remoto ou encurtar o fluxo de migração.
+- Com central ON, `/api/admin-auth/initialize` não gera a senha global paralela. Com central OFF, o bootstrap legado permanece exatamente como antes.
+- **Rollback explícito**: se uma instalação nova, criada apenas com Admin central, voltar para `ANDON_CENTRAL_ACCESS_ENABLED=0`, o guard bloqueará APIs até a criação de uma nova senha legada **local e segura**. Não alegar reversão operacional instantânea: documentar, ensaiar e aceitar esse procedimento no notebook antes do piloto.
+- Não instalar em produção antes de testar a condição de partida totalmente vazia, concorrência, senha inválida, reset, guarda inicial, duas workstations, recuperações e rollback.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.

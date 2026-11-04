@@ -4,7 +4,8 @@ import type { PrismaClient } from "@prisma/client";
 import { getAllowedCorsOrigins } from "../config/cors.js";
 import { hashCredential } from "../security/technicianCredentials.js";
 import { appendAudit } from "../access/audit.js";
-import { validatePersonalPassword } from "../access/credentials.js";
+import { hashAccessPassword, validatePersonalPassword } from "../access/credentials.js";
+import { centralAccessEnabled } from "../access/http.js";
 
 const activeSetupTokens = new Map<string, { origin: string; expiresAt: number }>();
 const TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -107,4 +108,70 @@ export async function initializeGlobalAdminPassword(
   });
   activeSetupTokens.delete(digest(input.setupToken as string));
   return { ok: true, passwordConfigured: true };
+}
+
+/**
+ * A clean installation in central mode creates its human primary Admin
+ * directly, without first requiring or persisting a legacy global password.
+ * No workstation, default password, bearer token or session is provisioned.
+ * Existing installations must take the assisted migration path instead.
+ */
+export async function initializeCentralAdminFirstRun(
+  db: PrismaClient,
+  request: FastifyRequest,
+  input: { setupToken?: unknown; password?: unknown },
+) {
+  if (!centralAccessEnabled())
+    throw new InitialAdminSetupError("central_mode_required", 403);
+  assertInitialSetupToken(request, input.setupToken);
+  if (typeof input.password !== "string")
+    throw new InitialAdminSetupError("invalid_input", 400);
+  try {
+    validatePersonalPassword(input.password);
+  } catch {
+    throw new InitialAdminSetupError("password_policy_failed", 400);
+  }
+  const passwordHash = await hashAccessPassword(input.password);
+  await db.$transaction(async tx => {
+    // Match the existing assisted central enrollment lock order.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-access:initialize'))::text`;
+    await tx.systemSettings.upsert({
+      where: { id: "global" }, update: {}, create: { id: "global" },
+    });
+    await tx.$queryRaw`SELECT id FROM system_settings WHERE id = 'global' FOR UPDATE`;
+    const [settings, previousAccount, previousWorkstation] = await Promise.all([
+      tx.systemSettings.findUnique({
+        where: { id: "global" }, select: { adminPasswordHash: true },
+      }),
+      tx.accessUser.findFirst({ select: { id: true } }),
+      tx.workstation.findFirst({ select: { id: true } }),
+    ]);
+    if (settings?.adminPasswordHash || previousAccount || previousWorkstation)
+      throw new InitialAdminSetupError("existing_installation_requires_migration", 409);
+    const user = await tx.accessUser.create({
+      data: {
+        login: "admin",
+        displayName: "Admin",
+        roleLabel: "Admin",
+        accountType: "person",
+        active: true,
+        isPrimaryAdmin: true,
+        machineScope: "all",
+        passwordHash,
+        mustChangePassword: false,
+      },
+      select: { id: true },
+    });
+    await appendAudit(tx, {
+      actorType: "legacy_unidentified", actorLogin: "admin",
+      ipAddress: request.ip, requestId: request.id,
+    }, {
+      action: "access.admin.initialized.local",
+      resourceType: "access_user",
+      resourceId: user.id,
+      after: { central: true, legacyGlobalPasswordConfigured: false },
+    });
+  });
+  activeSetupTokens.delete(digest(input.setupToken as string));
+  return { ok: true, passwordConfigured: true, centralAccessInitialized: true };
 }

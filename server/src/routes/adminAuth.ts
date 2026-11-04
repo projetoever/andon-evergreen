@@ -12,7 +12,7 @@ import {
 } from "../security/adminAuthorization.js";
 import { hashCredential, verifyCredential } from "../security/technicianCredentials.js";
 import { badRequest } from "./routeUtils.js";
-import { initializeGlobalAdminPassword, isLocalInitialAdminRequest, issueInitialAdminSetupToken, InitialAdminSetupError } from "../security/initialAdminSetup.js";
+import { initializeGlobalAdminPassword, initializeCentralAdminFirstRun, isLocalInitialAdminRequest, issueInitialAdminSetupToken, InitialAdminSetupError } from "../security/initialAdminSetup.js";
 
 const GLOBAL_SETTINGS_ID = "global";
 const ADMIN_USER = "admin";
@@ -165,10 +165,15 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   app.get("/api/admin-auth/status", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const settings = await getAdminCredentialState();
-    const passwordConfigured = Boolean(settings?.adminPasswordHash);
+    const centralMode = centralAccessEnabled();
+    const primary = centralMode
+      ? await prisma.accessUser.findFirst({ where: { isPrimaryAdmin: true }, select: { id: true } })
+      : null;
+    const passwordConfigured = Boolean(settings?.adminPasswordHash || primary);
     return {
       username: ADMIN_USER,
       passwordConfigured,
+      centralFirstRun: centralMode && !settings?.adminPasswordHash && !primary,
       setupAvailable: !passwordConfigured && isLocalInitialAdminRequest(request),
       ...(!passwordConfigured ? {
         setupToken: issueInitialAdminSetupToken(request),
@@ -182,12 +187,32 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     "/api/admin-auth/initialize",
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled())
+        return reply.status(403).send({ error: "legacy_bootstrap_disabled" });
       if (!request.body || typeof request.body !== "object" ||
           Array.isArray(request.body) ||
           Object.keys(request.body).some(key => !["setupToken", "password"].includes(key)))
         return reply.status(400).send({ error: "invalid_input" });
       try {
         return await initializeGlobalAdminPassword(prisma, request, request.body);
+      } catch (error) {
+        if (error instanceof InitialAdminSetupError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
+  app.post<{ Body: { setupToken?: unknown; password?: unknown } }>(
+    "/api/admin-auth/initialize-central",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!request.body || typeof request.body !== "object" ||
+          Array.isArray(request.body) ||
+          Object.keys(request.body).some(key => !["setupToken", "password"].includes(key)))
+        return reply.status(400).send({ error: "invalid_input" });
+      try {
+        return await initializeCentralAdminFirstRun(prisma, request, request.body);
       } catch (error) {
         if (error instanceof InitialAdminSetupError)
           return reply.status(error.statusCode).send({ error: error.code });
