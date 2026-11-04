@@ -192,10 +192,8 @@ try {
   if (app) await app.close();
   await db.callReasonOption.deleteMany({ where: { reasonId } });
   await db.callReason.deleteMany({ where: { id: reasonId } });
-  await db.auditEvent.deleteMany({ where: { OR: [
-    { resourceType: "call_reason", resourceId: reasonId },
-    { resourceType: "call_reason_option", resourceId: optionId },
-  ] } });
+  // audit_events is intentionally APPEND-ONLY. Never delete or tamper with
+  // synthetic audit evidence, even during test fixture cleanup.
   await db.andonCategory.deleteMany({ where: { id: areaId } });
   if (userId) {
     await db.accessSession.deleteMany({ where: { userId } });
