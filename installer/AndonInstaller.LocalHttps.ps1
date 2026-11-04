@@ -4,7 +4,13 @@
 function Test-AndonLocalHttpsProfile {
     param([Parameter(Mandatory = $true)][string]$ProjectRoot)
 
-    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    # Failure to query Windows product type must never switch the industrial
+    # server into the local synthetic database profile.
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    } catch {
+        return $false
+    }
     if ([int]$os.ProductType -ne 1) { return $false }
 
     $stateRoot = Join-Path $ProjectRoot ".andon-homologation"
