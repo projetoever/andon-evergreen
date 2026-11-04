@@ -26,6 +26,12 @@ if (!(Get-Command docker.exe -ErrorAction SilentlyContinue)) {
 if (!(Test-AndonHttpsDockerContainerExists -ContainerName $containerName)) {
     throw "Container exato de homologacao ausente. Outros containers nao serao acessados."
 }
+# Refuse Docker contexts targeting other machines, even if the container has
+# the expected name. Windows Docker Desktop must use a local named pipe.
+$dockerEndpoint = (& docker.exe context inspect --format "{{.Endpoints.docker.Host}}" | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or !$dockerEndpoint.StartsWith("npipe:////./pipe/")) {
+    throw "Docker deve apontar para o Docker Desktop LOCAL (named pipe Windows)."
+}
 $config = Get-Content $configPath -Raw | ConvertFrom-Json
 if ($config.initialized -ne $true -or
     [int]$config.postgresPort -lt 1024 -or
@@ -56,11 +62,13 @@ $nonce = [Guid]::NewGuid().ToString("N").Substring(0, 12)
 $timestamp = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $cloneName = "andon_hml_restore_$nonce"
 $containerDump = "/tmp/andon-hml-$nonce.dump"
+$restoredContainerDump = "/tmp/andon-hml-restored-$nonce.dump"
 $backupPath = Join-Path $backupDirectory "andon-hml-$timestamp-$nonce.dump"
 $manifestPath = "$backupPath.manifest.json"
 $startedByScript = $false
 $createdClone = $false
 $containerDumpCreated = $false
+$uploadedDumpCreated = $false
 $completed = $false
 
 function Assert-DockerSuccess([string]$Stage) {
@@ -121,6 +129,10 @@ try {
     Assert-DockerSuccess "validacao do formato do dump"
 
     New-Item -ItemType Directory -Force -Path $backupDirectory | Out-Null
+    # Backup contains credentials and call history even on a test DB.
+    # Do not create the archive under an inherited shared ACL.
+    & icacls.exe $backupDirectory "/inheritance:r" "/grant:r" "$($env:USERNAME):(OI)(CI)(F)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Nao foi possivel proteger o diretorio de backup." }
     if (Test-Path $backupPath) { throw "Backup existente nao pode ser sobrescrito." }
     $containerCopySource = $containerName + ":" + $containerDump
     & docker.exe cp $containerCopySource $backupPath | Out-Null
@@ -128,13 +140,26 @@ try {
     $backupFile = Get-Item $backupPath
     if ($backupFile.Length -lt 1024) { throw "Backup incompleto ou inesperadamente pequeno." }
     $sha256 = (Get-FileHash -Algorithm SHA256 -Path $backupPath).Hash
+    & icacls.exe $backupPath "/inheritance:r" "/grant:r" "$($env:USERNAME):(F)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Nao foi possivel proteger o dump local." }
+    $containerChecksum = (& docker.exe exec $containerName sha256sum $containerDump | Out-String).Trim()
+    Assert-DockerSuccess "checksum do dump no Docker"
+    if ($containerChecksum -notmatch "^[a-fA-F0-9]{64}\s+" -or
+        $containerChecksum.Substring(0,64).ToUpperInvariant() -ne $sha256) {
+        throw "O dump copiado para Windows divergiu do arquivo original."
+    }
+    # Restore specifically from the host-side backup, not the source dump.
+    $restoreTarget = $containerName + ":" + $restoredContainerDump
+    & docker.exe cp $backupPath $restoreTarget | Out-Null
+    Assert-DockerSuccess "retorno do backup Windows ao container isolado"
+    $uploadedDumpCreated = $true
 
     # The restore target is a newly generated, short-lived clone.
     # NEVER restore into andon_https_hml or a user-supplied database.
     & docker.exe exec $containerName createdb -U $databaseUser -T template0 $cloneName | Out-Null
     Assert-DockerSuccess "criacao do banco descartavel"
     $createdClone = $true
-    & docker.exe exec $containerName pg_restore -U $databaseUser -d $cloneName --no-owner --no-privileges --exit-on-error $containerDump | Out-Null
+    & docker.exe exec $containerName pg_restore -U $databaseUser -d $cloneName --no-owner --no-privileges --exit-on-error $restoredContainerDump | Out-Null
     Assert-DockerSuccess "pg_restore apenas no clone"
 
     $restoredFingerprint = [ordered]@{}
@@ -157,6 +182,8 @@ try {
         productionTouched = $false
     }
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
+    & icacls.exe $manifestPath "/inheritance:r" "/grant:r" "$($env:USERNAME):(F)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Nao foi possivel proteger o manifesto." }
     $completed = $true
     Write-Host "BACKUP E RESTORE ISOLADOS VALIDADOS" -ForegroundColor Green
     Write-Host "Arquivo: $backupPath"
@@ -167,6 +194,10 @@ try {
     if ($createdClone) {
         & docker.exe exec $containerName dropdb -U $databaseUser --if-exists $cloneName | Out-Null
         if ($LASTEXITCODE -ne 0) { Write-Warning "Nao foi possivel apagar o clone $cloneName." }
+    }
+    if ($uploadedDumpCreated) {
+        & docker.exe exec $containerName rm -f $restoredContainerDump | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Warning "Dump reenviado ainda existe em $restoredContainerDump." }
     }
     if ($containerDumpCreated) {
         & docker.exe exec $containerName rm -f $containerDump | Out-Null
