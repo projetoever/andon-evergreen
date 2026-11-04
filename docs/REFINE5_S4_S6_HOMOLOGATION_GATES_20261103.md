@@ -31,9 +31,9 @@ Uma CI verde demonstra regressão automatizada, **não** compatibilidade com o c
 
 ## S6-02 — rotina de backup/restore isolada disponível para execução manual
 
-Foi acrescentado `homologation/https/Test-AndonHttpsBackupRestore.ps1` para **notebook Windows**. A rotina só aceita o PostgreSQL `andon_https_hml` no container exato do launcher, Docker local via named pipe e porta loopback. Exige que o launcher esteja encerrado; exporta um dump binário `pg_dump -Fc`, copia e compara SHA-256, reenviando o arquivo exportado para **restore em banco temporário novo**. Verifica contagem/hash de dez tabelas críticas e gera manifesto protegido. Não aceita parâmetros de banco/host externos e não restaura sobre `andon_https_hml`.
+Foi acrescentado `homologation/https/Test-AndonHttpsBackupRestore.ps1` para **notebook Windows**. A rotina só aceita o PostgreSQL `andon_https_hml` no container exato do launcher, Docker local via named pipe e porta loopback. Exige que o launcher esteja encerrado; exporta um dump binário `pg_dump -Fc`, copia e compara SHA-256, reenviando o arquivo exportado para **restore em banco temporário novo**. Verifica contagem/hash de **13 tabelas críticas** e, na mesma janela fixa, compara indicadores calculados pelas **funções oficiais do BI** sobre fonte e clone. Diferença aborta aprovação; a ausência de eventos gera o estado `kpi_parity_empty_cohort` e não conclui a homologação funcional. Gera manifesto protegido com evidências agregadas. Não aceita parâmetros de banco/host externos e não restaura sobre `andon_https_hml`.
 
-**Não marcar S6-02 como concluído só por CI verde:** o teste Windows da CI apenas valida sintaxe e travas estáticas; resta executar o ensaio real no notebook e comparar os indicadores BI com dados fictícios. Procedimento e evidências: `docs/REFINE5_S6_NOTEBOOK_BACKUP_RESTORE_20261104.md`.
+**Não marcar S6-02 como concluído só por CI verde:** a CI valida o script Windows e uma execução isolada dos cálculos oficiais do BI no banco de testes, mas não realiza o dump/restore real do notebook. Ainda é necessário testar com dados fictícios representativos, rever os KPIs na interface e registrar o resultado da restauração no notebook. Procedimento e evidências: `docs/REFINE5_S6_NOTEBOOK_BACKUP_RESTORE_20261104.md`.
 
 ## Sequência para homologar no notebook sem tocar a fábrica
 
