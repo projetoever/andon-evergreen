@@ -76,9 +76,20 @@ function Show-AndonMenu {
                     "Instalacao limpa"
             }
             "2" {
-                Invoke-AndonMenuScript `
-                    "$Global:AndonInstallerPath\update-andon-server.ps1" `
-                    "Atualizar pela main"
+                # Keep the industrial installer untouched. A Windows client
+                # only reuses the notebook workflow after the operator has
+                # successfully completed its first HTTPS central setup.
+                $notebookMarker = Join-Path $Global:AndonProjectPath ".andon-homologation\notebook-standard-ports.enabled"
+                $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+                if ([int]$os.ProductType -eq 1 -and (Test-Path $notebookMarker)) {
+                    Invoke-AndonMenuScript `
+                        "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
+                        "Atualizar main e reiniciar HTTPS central no notebook (8080/3001)"
+                } else {
+                    Invoke-AndonMenuScript `
+                        "$Global:AndonInstallerPath\update-andon-server.ps1" `
+                        "Atualizar pela main"
+                }
             }
             "3" {
                 Invoke-AndonMenuScript `
