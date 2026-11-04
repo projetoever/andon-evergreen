@@ -106,6 +106,12 @@ try {
   const privateAfter = await request("GET", "/api/first-run-test");
   assert.notEqual(privateAfter.statusCode, 428, "bootstrap guard must recognize central primary Admin");
 
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  const rollbackRequiresLegacyLocalSetup = await request("GET", "/api/first-run-test");
+  assert.equal(rollbackRequiresLegacyLocalSetup.statusCode, 428,
+    "Returning to legacy mode without a global password must fail closed");
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+
   const audit = await db.auditEvent.findFirstOrThrow({
     where: { action: "access.admin.initialized.local", resourceId: primary.id },
     orderBy: { occurredAt: "desc" },
