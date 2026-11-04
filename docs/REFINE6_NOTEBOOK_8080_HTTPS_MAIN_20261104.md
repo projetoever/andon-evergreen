@@ -23,7 +23,7 @@ Os testes automatizados da CI não substituem o primeiro ensaio manual no notebo
 
 **Primeiro uso:** se as portas 8080 ou 3001 estiverem ocupadas pelo ANDON antigo do notebook, **pare o ANDON antigo no menu, opção 5**, e então execute o comando acima. Não apague nenhum banco. O script não mata processos desconhecidos, não modifica tarefas automáticas e não desliga o servidor da fábrica. Se houver watchdog local que reinicie a instância antiga, desative-o apenas no notebook pelo menu antes do teste.
 
-**Se você usa o menu de instalação no notebook:** após trazer a atualização, poderá selecionar **opção 15 — Notebook: atualizar main + testar HTTPS central em 8080/3001**. A opção 2 tradicional permanece segura para a fábrica e não muda configurações de instalação automaticamente.
+**Se você usa o menu de instalação no notebook:** após trazer a atualização pela opção 2 pela primeira vez, pare a instância HTTP antiga (opção 5) e selecione **opção 15 — Notebook: atualizar main + testar HTTPS central em 8080/3001**. Depois que o HTTPS funcionar, a rotina grava uma preferência local não secreta; **da próxima vez, a própria opção 2 atualizará a main e reiniciará este perfil de notebook**. No Windows Server, a opção 2 continua obrigatoriamente no atualizador industrial, sem ativar o perfil de testes.
 
 ## O que aparece na tela
 
