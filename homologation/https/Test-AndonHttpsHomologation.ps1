@@ -234,6 +234,9 @@ foreach ($required in @(
     'DOCKER_CONTEXT',
     'DOCKER_TLS_VERIFY',
     'DOCKER_CERT_PATH',
+    '@127.0.0.1:$($config.postgresPort)/$($Database)?schema=public',
+    'Get-BiParitySnapshot',
+    'SetEnvironmentVariable($name, $previous[$name], "Process")',
     'POSTGRES_DB=$databaseName',
     'POSTGRES_USER=$databaseUser',
     '$exposure[0].HostIp -ne "127.0.0.1"',
@@ -287,7 +290,7 @@ foreach ($forbidden in @(
     'dropdb -U $databaseUser --if-exists $databaseName',
     'docker.exe rm -f $containerName',
     'pg_dump -d postgres',
-    'DATABASE_URL'
+    'pg_restore -U $databaseUser -d postgres'
 )) {
     if ($backupSource.Contains($forbidden)) {
         throw "Backup/restore contem comando ou fonte de dados nao permitida: $forbidden"
