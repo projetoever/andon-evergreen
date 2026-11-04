@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["ID", "ID", "識別碼"],
   ["Pendentes","Pending approval","待核准"],
   ["Integrações API","API integrations","API 整合"],
   ["Integrações API industriais","Industrial API integrations","工業 API 整合"],
