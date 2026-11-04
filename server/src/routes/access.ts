@@ -28,6 +28,7 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
+import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
 import {
   INDUSTRIAL_SERVICE_SCOPES,
   createIndustrialService,
@@ -546,6 +547,15 @@ export function registerAccessRoutes(
         };
       });
     });
+
+    app.get<{ Params: { id: string } }>(
+      `${PREFIX}/workstations/:id/archive-preflight`,
+      async (req) => {
+        const id = parseWorkstationId(req.params.id);
+        if (!id) throw new AccessError("invalid_input", 400);
+        return inspectWorkstationArchive(db, requestAccess(req), id);
+      },
+    );
 
     app.patch<{
       Params: { id: string };
