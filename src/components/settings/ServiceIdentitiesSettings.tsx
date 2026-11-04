@@ -146,11 +146,11 @@ export function ServiceIdentitiesSettings() {
           <h3 className="font-bold">{ui("Credencial emitida — exibição única")}</h3>
           <p className="text-sm">{ui("Guarde os valores num cofre seguro. O segredo não será exibido novamente.")}</p>
           <Label className="block space-y-1">
-            <span>clientId</span>
+            <span>{"clientId"}</span>
             <code className="block select-all break-all rounded bg-muted p-3">{issued.clientId}</code>
           </Label>
           <Label className="block space-y-1">
-            <span>clientSecret</span>
+            <span>{"clientSecret"}</span>
             <code className="block select-all break-all rounded bg-muted p-3">{issued.clientSecret}</code>
           </Label>
           <Button type="button" variant="outline" onClick={() => setIssued(null)}>
@@ -162,10 +162,10 @@ export function ServiceIdentitiesSettings() {
         <h3 className="font-bold">{ui("Emitir credencial de teste")}</h3>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => choosePreset("node-red")} disabled={busy}>
-            Node-RED
+            {"Node-RED"}
           </Button>
           <Button type="button" variant="outline" onClick={() => choosePreset("gpio")} disabled={busy}>
-            Mini PC GPIO
+            {"Mini PC GPIO"}
           </Button>
         </div>
         <form onSubmit={(e) => void create(e)} className="space-y-4">
@@ -213,7 +213,7 @@ export function ServiceIdentitiesSettings() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-semibold">{service.name}</p>
-                <p className="break-all text-xs text-muted-foreground">ID: {service.id}</p>
+                <p className="break-all text-xs text-muted-foreground">{ui("ID")}: {service.id}</p>
                 <p className="text-xs text-muted-foreground">
                   {service.scopes.join(" · ")} · {ui("Validade")}: {new Date(service.secretExpiresAt).toLocaleDateString()}
                 </p>
