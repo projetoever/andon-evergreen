@@ -50,6 +50,28 @@ function Test-AndonPrismaClientArtifacts {
     return $true
 }
 
+function Test-AndonPrismaSchemaMatchesGenerated {
+    param([Parameter(Mandatory = $true)][string]$ServerRoot)
+
+    $schemaPath = Join-Path $ServerRoot "prisma\schema.prisma"
+    $generatedPath = Join-Path $ServerRoot "node_modules\.prisma\client\schema.prisma"
+    if (!(Test-Path $schemaPath -PathType Leaf) -or
+        !(Test-Path $generatedPath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        # Normalize encoding BOM and line endings ONLY. Do not ignore changed
+        # models, fields or generator directives when bootstrapping a stamp.
+        $source = [System.IO.File]::ReadAllText($schemaPath).TrimStart([char]0xFEFF)
+        $generated = [System.IO.File]::ReadAllText($generatedPath).TrimStart([char]0xFEFF)
+        $source = $source.Replace("`r`n", "`n").Replace("`r", "`n").TrimEnd()
+        $generated = $generated.Replace("`r`n", "`n").Replace("`r", "`n").TrimEnd()
+        return ($source -ceq $generated)
+    } catch {
+        return $false
+    }
+}
+
 function Test-AndonPrismaClientCurrent {
     param(
         [Parameter(Mandatory = $true)][string]$ServerRoot,
