@@ -104,7 +104,7 @@ function Get-BiParitySnapshot([string]$Database) {
     }
     try {
         $encodedPassword = [Uri]::EscapeDataString([string]$config.databasePassword)
-        $env:DATABASE_URL = "postgresql://$($databaseUser):$encodedPassword@127.0.0.1:$($config.postgresPort)/$Database?schema=public"
+        $env:DATABASE_URL = "postgresql://$($databaseUser):$($encodedPassword)@127.0.0.1:$($config.postgresPort)/$($Database)?schema=public"
         $env:ANDON_HML_BI_COMPARE = "1"
         $env:ANDON_HML_BI_PERIOD_START = $biPeriodStartIso
         $env:ANDON_HML_BI_PERIOD_END = $biPeriodEndIso
@@ -131,7 +131,8 @@ function Assert-DockerSuccess([string]$Stage) {
 function Get-TableFingerprint([string]$Database, [string]$Table) {
     $allowedTables = @(
         "system_settings", "machines", "workstations", "andon_calls",
-        "technician_sessions", "failure_events", "failure_classifications",
+        "technician_sessions", "technician_time_allocations", "failure_events",
+        "failure_classifications", "call_impact_intervals", "machine_production_events",
         "access_users", "access_sessions", "audit_events"
     )
     if ($Database -notin @($databaseName, $cloneName) -or $Table -notin $allowedTables) {
@@ -165,7 +166,8 @@ try {
 
     $tables = @(
         "system_settings", "machines", "workstations", "andon_calls",
-        "technician_sessions", "failure_events", "failure_classifications",
+        "technician_sessions", "technician_time_allocations", "failure_events",
+        "failure_classifications", "call_impact_intervals", "machine_production_events",
         "access_users", "access_sessions", "audit_events"
     )
     $sourceFingerprint = [ordered]@{}
