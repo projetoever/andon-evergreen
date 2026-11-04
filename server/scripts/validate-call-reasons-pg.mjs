@@ -66,7 +66,7 @@ try {
         nature: "planned_setup", maintenanceKpiPolicy: "eligible",
       },
     }),
-    (err) => err?.code === "P2004",
+    (err) => /call_reasons_no_false_corrective_check/.test(String(err?.message ?? "")),
     "the database cannot admit planned setup as a corrective KPI candidate",
   );
   await assert.rejects(
