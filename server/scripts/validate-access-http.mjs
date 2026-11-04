@@ -357,6 +357,23 @@ try {
   // S6: make the otherwise irreversible credential removal recoverable via
   // the separate, offline *central* code. Exercise real HTTPS, CSRF, session
   // revocation and PostgreSQL writes rather than only mocked unit handlers.
+  // A service restart clears in-memory request throttling but MUST NOT
+  // remove persisted Admin sessions, recovery codes or the retired global
+  // credential. Use a fresh HTTPS server with the SAME isolated PostgreSQL
+  // to test the recovery path without diluting production rate limits.
+  const originalAddress = address;
+  const recoveryService = Fastify({
+    https: { cert, key: readFileSync(join(temp, "key.pem")) },
+    logger: false,
+  });
+  registerCorsSupport(recoveryService);
+  recoveryService.addHook("preHandler", enforceWorkstationAccess);
+  recoveryService.addHook("preHandler", enforceAdminAuthorization);
+  recoveryService.addHook("preHandler", enforceModuleAuthorization);
+  try {
+    await registerAccessRoutes(recoveryService, db, origin);
+    address = await recoveryService.listen({ host: "127.0.0.1", port: 0 });
+
   const priorAdminSession = (await call(admin, "/session")).principal;
   assert.equal(priorAdminSession.isPrimaryAdmin, true);
   const oldAccount = await db.accessUser.findUniqueOrThrow({ where: { id: adminId } });
@@ -440,8 +457,12 @@ try {
     await rollbackProbe.close();
   }
   console.log(
-    "REFINE5 S6 recovery/rollback PASS: retired legacy hash, offline central HTTPS recovery, stale session revocation, code replay denial, one-password relogin, legacy rollback closed.",
+    "REFINE5 S6 recovery/rollback PASS: persisted across HTTPS service restart, retired legacy hash, offline central recovery, stale session revocation, code replay denial, one-password relogin, legacy rollback closed.",
   );
+  } finally {
+    address = originalAddress;
+    await recoveryService.close();
+  }
   } finally {
     if (previousCentralMode === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentralMode;
