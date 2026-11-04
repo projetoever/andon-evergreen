@@ -157,7 +157,9 @@ try {
   for (const [changes, payload, expected] of [
     [{ "x-andon-csrf": "0".repeat(64) }, create, 403],
     [{ origin: "https://evil.test" }, create, 403],
-    [{ cookie: "__Host-andon-access=" + "0".repeat(64) }, create, 403],
+    // Invalid central cookies are authentication failures (401), while
+    // CSRF, Origin and workstation denials are authorization failures (403).
+    [{ cookie: "__Host-andon-access=" + "0".repeat(64) }, create, 401],
     [{ "x-andon-workstation-id": "ws_" + randomUUID() }, create, 403],
   ]) {
     const res = await send("POST", "/api/call-reasons", payload, changes);
