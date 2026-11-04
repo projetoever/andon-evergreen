@@ -286,7 +286,7 @@ $localProfileSource = Get-Content (Join-Path $PSScriptRoot "..\..\installer\Ando
 foreach ($guard in @(
     'if ([int]$os.ProductType -ne 1)',
     '$config.postgresPort -eq 55432',
-    '-Action',
+    '[ValidateSet("Start", "Stop", "Health")]',
     'https://localhost:3001/health',
     'https://localhost:8080/hub',
     '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
