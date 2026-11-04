@@ -246,6 +246,14 @@ foreach ($required in @(
     'dropdb -U $databaseUser --if-exists $cloneName',
     'Get-TableFingerprint -Database $cloneName -Table $table',
     '$restoredFingerprint[$table] -ne $sourceFingerprint[$table]',
+    'Get-BiParitySnapshot -Database $databaseName',
+    'Get-BiParitySnapshot -Database $cloneName',
+    '$sourceBiSnapshot -cne $restoredBiSnapshot',
+    '"machine_production_events"',
+    '"call_impact_intervals"',
+    '"technician_time_allocations"',
+    'biParity = [ordered]@{',
+    'kpi_parity_empty_cohort',
     'icacls.exe $backupDirectory',
     'icacls.exe $backupPath',
     'icacls.exe $manifestPath',
@@ -255,6 +263,25 @@ foreach ($required in @(
         throw "Backup/restore sem controle de isolamento obrigatorio: $required"
     }
 }
+$biScript = Join-Path $PSScriptRoot "..\..\server\scripts\bi-restore-parity-snapshot.mjs"
+$biScript = [System.IO.Path]::GetFullPath($biScript)
+$biSource = Get-Content $biScript -Raw
+foreach ($required in @(
+    'analyticsEligibility(catalog)',
+    'buildExecutiveOverview({',
+    'buildPlannedProductionKpis({',
+    'buildCausalEpisodes(failureEvents,',
+    'summarizeCausalDowntime(causalEpisodes,',
+    'ANDON_HML_BI_COMPARE',
+    'ANDON_INTEGRATION_TEST',
+    '127.0.0.1',
+    'refine5-s6-bi-parity-v1'
+)) {
+    if (!$biSource.Contains($required)) {
+        throw "O comparador BI nao usa os calculos oficiais ou nao esta isolado: $required"
+    }
+}
+
 foreach ($forbidden in @(
     'pg_restore -U $databaseUser -d $databaseName',
     'dropdb -U $databaseUser --if-exists $databaseName',
