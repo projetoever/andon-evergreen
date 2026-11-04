@@ -8,7 +8,9 @@ $scripts = @(
     $containerHelperPath,
     (Join-Path $PSScriptRoot "..\..\ATUALIZAR_NOTEBOOK.ps1"),
     (Join-Path $PSScriptRoot "Stop-AndonHttpsTrackedProcess.ps1"),
-    (Join-Path $PSScriptRoot "Test-AndonHttpsTrackedProcess.ps1")
+    (Join-Path $PSScriptRoot "Test-AndonHttpsTrackedProcess.ps1"),
+    (Join-Path $PSScriptRoot "Clear-AndonLocalHttpsPorts.ps1"),
+    (Join-Path $PSScriptRoot "Test-AndonLocalHttpsPorts.ps1")
 )
 
 foreach ($script in $scripts) {
@@ -49,6 +51,7 @@ if ($stop.Contains('& taskkill.exe')) {
     throw "Stop HTTPS nao pode chamar taskkill diretamente sem verificar o PID."
 }
 & $scripts[5]
+& $scripts[7]
 
 if ($start -match 'NODE_TLS_REJECT_UNAUTHORIZED|ignoreHTTPSErrors|rejectUnauthorized') {
     throw "O launcher nao pode desabilitar a validacao TLS."
@@ -231,6 +234,7 @@ foreach ($required in @(
     'git.exe pull --ff-only origin main',
     'Test-Path $stateFile',
     'notebook-standard-ports.enabled',
+    'Clear-AndonLocalHttpsPorts -ProjectRoot $repoRoot -StateRoot $stateRoot',
     '-FrontendPort 8080 -ApiPort 3001 -PostgresPort 55432',
     '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
     '-NotebookStandardPorts'
