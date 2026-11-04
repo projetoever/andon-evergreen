@@ -172,6 +172,8 @@ Cobertura: criação/edição/inativação de cadastros; acessos e permissões; 
 
 ## 7. Categorias, subcategorias e tratamento analítico
 
+> **Andamento em 04/11/2026 — REFINE 6 / fase 1:** a fundação aditiva `CallReason` e `CallReasonOption`, resolução conservadora de política e testes de banco foi implementada no código. Sem cadastro automático, endpoints, botões novos, alterações nos cálculos BI ou implantação industrial. As etapas de API autenticada/auditável, seleção de subcategorias e `CallPolicyInterval` permanecem pendentes. Consulte `docs/REFINE6_CALL_REASONS_KPI_FOUNDATION_20261104.md`.
+
 ### 7.1 Modelo funcional
 
 Na interface, **categoria** representa o motivo: Manutenção, Setup, Apoio à produção etc. **Subcategoria** escolhe a especialidade/destino: Elétrica, Mecânica, Afiação etc. Internamente, `CallReason` e `CallReasonOption` são novos; a especialidade mantém o ID de `AndonCategory` e seu vínculo com os mantenedores.
