@@ -203,13 +203,13 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     },
   );
 
-  app.post<{ Body: { setupToken?: unknown; password?: unknown } }>(
+  app.post<{ Body: { setupToken?: unknown; password?: unknown; workstationId?: unknown } }>(
     "/api/admin-auth/initialize-central",
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
       if (!request.body || typeof request.body !== "object" ||
           Array.isArray(request.body) ||
-          Object.keys(request.body).some(key => !["setupToken", "password"].includes(key)))
+          Object.keys(request.body).some(key => !["setupToken", "password", "workstationId"].includes(key)))
         return reply.status(400).send({ error: "invalid_input" });
       try {
         return await initializeCentralAdminFirstRun(prisma, request, request.body);
