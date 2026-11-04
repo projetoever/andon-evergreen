@@ -67,6 +67,12 @@ function Show-AndonMenu {
         Write-Host ""
 
         $option = Read-Host "Escolha uma opcao"
+        if ([string]::IsNullOrWhiteSpace($option)) {
+            # If stdin is closed (or Read-Host immediately returns an empty
+            # value), the old do/while repainted the screen indefinitely.
+            Write-AndonWarn "Nenhuma opcao informada. Menu encerrado para evitar recarga continua."
+            return
+        }
 
         switch ($option) {
             "1" {
