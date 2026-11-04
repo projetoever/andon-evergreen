@@ -91,6 +91,17 @@ jobs:
           npm run test:installer --prefix server
           npm run test:plc --prefix server
 
+      - name: Validar snapshot read-only dos KPIs oficiais do BI
+        run: |
+          export ANDON_INTEGRATION_TEST=1 ANDON_HML_BI_COMPARE=1
+          export ANDON_HML_BI_PERIOD_END="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          export ANDON_HML_BI_PERIOD_START="$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S.000Z)"
+          node --check server/scripts/bi-restore-parity-snapshot.mjs
+          node server/scripts/bi-restore-parity-snapshot.mjs > /tmp/andon-bi-snapshot-first.json
+          node server/scripts/bi-restore-parity-snapshot.mjs > /tmp/andon-bi-snapshot-second.json
+          cmp /tmp/andon-bi-snapshot-first.json /tmp/andon-bi-snapshot-second.json
+          node -e 'const s=require("/tmp/andon-bi-snapshot-first.json"); if(s.schema!=="refine5-s6-bi-parity-v1" || !s.kpis || !s.production || !s.metricDefinitionVersion) process.exit(1)'
+
       - name: Validar API e fluxos críticos
         run: |
           npm run start --prefix server > /tmp/andon-api.log 2>&1 &
