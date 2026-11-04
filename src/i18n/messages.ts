@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Criar senha do Admin central", "Create central Admin password", "建立中央管理員密碼"],
+  ["A instalação nova utilizará somente esta senha para o Admin central. Nenhuma senha global legada será cadastrada.", "This new installation will use only this central Admin password. No legacy global password will be created.", "此全新安裝僅使用這組中央管理員密碼，不會建立舊版全域密碼。"],
   ["Verificação de segurança para arquivamento", "Archive safety check", "封存安全檢查"],
   ["Esta análise não arquiva nem altera a workstation. A validação física de Node-RED, GPIO e clientes industriais ainda é obrigatória.", "This check does not archive or change the workstation. Physical verification of Node-RED, GPIO and industrial clients is still required.", "此檢查不會封存或變更工作站。仍須現場確認 Node-RED、GPIO 及工業用戶端。"],
   ["Verificar impedimentos", "Check archive blockers", "檢查封存限制"],
