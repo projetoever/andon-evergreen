@@ -239,6 +239,8 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
   });
 
   app.put<{ Body: ChangePasswordBody }>("/api/admin-auth/password", async (request, reply) => {
+    if (centralAccessEnabled())
+      return reply.status(403).header("Cache-Control", "no-store").send({ error: "legacy_admin_credential_disabled" });
     const currentPassword = normalizePassword(request.body?.currentPassword);
     const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
@@ -268,6 +270,8 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
     "/api/admin-auth/recovery-code",
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled())
+        return reply.status(403).send({ error: "legacy_admin_credential_disabled" });
       const currentPassword = normalizePassword(request.body?.currentPassword);
 
       if (!currentPassword || !(await verifyAdminPassword(currentPassword))) {
@@ -306,6 +310,8 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
 
   app.post<{ Body: RecoverPasswordBody }>("/api/admin-auth/recover", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
+    if (centralAccessEnabled())
+      return reply.status(403).send({ error: "legacy_admin_credential_disabled" });
     const recoveryCode = normalizeRecoveryCode(request.body?.recoveryCode);
     const newPassword = normalizeNewAdminPassword(request.body?.newPassword);
 
@@ -341,16 +347,12 @@ export function registerAdminAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    // A recovery code repairs the global bootstrap credential, not the
-    // central human identity. Never mint another legacy Admin bearer when
-    // central access is enabled; legacy-mode recovery stays compatible.
-    const central = centralAccessEnabled();
+    // Only legacy mode reaches this handler; no central workflow can
+    // recreate the shared credential after explicit retirement.
     return {
       ok: true,
-      ...(!central ? createAdminSession(ADMIN_USER) : {}),
-      message: central
-        ? "Senha global redefinida. O acesso central mantém suas credenciais próprias."
-        : "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
+      ...createAdminSession(ADMIN_USER),
+      message: "Senha administrativa redefinida. O código utilizado foi invalidado; gere um novo código no painel Admin.",
     };
   });
 

@@ -30,6 +30,7 @@ import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
 import { issueCentralAdminRecoveryCode, recoverCentralAdmin } from "../access/adminRecovery.js";
+import { legacyAdminRetirementStatus, retireLegacyAdminPassword } from "../access/legacyAdminRetirement.js";
 import { isLocalInitialAdminRequest } from "../security/initialAdminSetup.js";
 import {
   INDUSTRIAL_SERVICE_SCOPES,
@@ -256,6 +257,16 @@ export function registerAccessRoutes(
             req.body.newPassword,
           ),
         ),
+    );
+    // A separately confirmed migration retires the old global Admin hash
+    // only AFTER central offline recovery is configured.
+    app.get(`${PREFIX}/legacy-admin/status`, async (req) =>
+      legacyAdminRetirementStatus(db, requestAccess(req)),
+    );
+    app.post<{ Body: { confirmed: boolean } }>(
+      `${PREFIX}/legacy-admin/retire`,
+      { schema: schema({ confirmed: { type: "boolean" } }) },
+      async (req) => retireLegacyAdminPassword(db, requestAccess(req), req.body.confirmed),
     );
     // Issuance requires a recent primary Admin step-up. Only the returned
     // plaintext code can restore the central password; it is never persisted.

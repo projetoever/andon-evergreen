@@ -332,8 +332,8 @@ try {
     principal = null;
     await page.reload();
     await page.getByRole("heading", { name: "Habilitar gestão de usuários", exact: true }).waitFor();
-    await page.getByText("Etapa 1 de 2 · Configuração do administrador", { exact: true }).waitFor();
-    await page.getByText("Você criará uma única conta Admin principal central. A senha Admin existente apenas confirma sua identidade e não será alterada. Durante a migração, haverá duas senhas: a antiga para funções legadas e a nova para o login central do Hub, ANDON e BI.",{exact:true}).waitFor();
+    await page.getByText("Migração do administrador existente", { exact: true }).waitFor();
+    await page.getByText("Confirme a senha Admin existente uma última vez e crie a senha central do Hub. Depois, gere e guarde o código de recuperação central para poder desativar a senha antiga com segurança.",{exact:true}).waitFor();
     await page.getByText(
       "Próxima etapa: abrir o painel de colaboradores para cadastrar usuários, escolher máquinas e definir permissões. O acesso operacional central não será ativado nesta configuração.",
       { exact: true },
@@ -366,7 +366,7 @@ try {
     assert.equal(await page.getByLabel("Nova senha pessoal", { exact: true }).getAttribute("minlength"), "8");
     assert.equal(await page.getByLabel("Confirmar nova senha", { exact: true }).getAttribute("minlength"), "8");
     await page.getByText(
-      "Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Ela é exclusiva do login central e não altera a senha Admin legada nem as senhas dos módulos.",
+      "Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Depois de desativar a senha Admin antiga, somente a senha central será usada para esse administrador.",
       { exact: true },
     ).waitFor();
     await page.getByLabel("Nova senha pessoal", { exact: true }).fill("A6@rX2p!");

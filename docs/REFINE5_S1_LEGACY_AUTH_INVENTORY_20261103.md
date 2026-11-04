@@ -95,6 +95,19 @@ Apenas com `ANDON_CENTRAL_ACCESS_ENABLED=1`, em **instalação realmente nova** 
 - **Rollback explícito**: se uma instalação nova, criada apenas com Admin central, voltar para `ANDON_CENTRAL_ACCESS_ENABLED=0`, o guard bloqueará APIs até a criação de uma nova senha legada **local e segura**. Não alegar reversão operacional instantânea: documentar, ensaiar e aceitar esse procedimento no notebook antes do piloto.
 - Não instalar em produção antes de testar a condição de partida totalmente vazia, concorrência, senha inválida, reset, guarda inicial, duas workstations, recuperações e rollback.
 
+## S1/7 — aposentadoria voluntária da senha global legada (instalação existente)
+
+**A criação inicial da conta Admin central continua exigindo a senha Admin antiga, apenas como prova de posse na migração.** Após criar a nova conta central, o Admin principal pode emitir e guardar fora do sistema um **código de recuperação central de 128 bits**, que é requisito para a retirada definitiva.
+
+- `GET /api/access/legacy-admin/status`: somente Admin principal humano com sessão normal, retorna **apenas** dois booleanos — existência da senha global legada e existência de recuperação central configurada. Não retorna hashes, códigos ou valores secretos.
+- `POST /api/access/legacy-admin/retire`: exige HTTPS, Origin exato, CSRF, workstation aprovada, sessão Admin principal, reautenticação recente (5 min), `{ "confirmed": true }` e recuperação central configurada. A interface exige aceite explícito sobre backup e recuperação, sem executar a retirada ao entrar no Hub.
+- A transação bloqueia o usuário e a linha global, revalida sessão e identidade, aplica compare-and-swap e limpa **somente** `SystemSettings.adminPasswordHash`, `adminRecoveryCodeHash` e `adminRecoveryCodeIssuedAt`. Preserva conta Admin central, código de recuperação central, usuários, sessões centrais, workstations, máquinas, chamados e demais configurações. Auditoria `access.admin.legacy_credential.retired` dentro da mesma transação. Código, senha e hashes não entram na trilha de auditoria.
+- Em `ANDON_CENTRAL_ACCESS_ENABLED=1`, `PUT /api/admin-auth/password`, `POST /api/admin-auth/recovery-code` e `POST /api/admin-auth/recover` passam a recusar explicitamente com `403 legacy_admin_credential_disabled`, mesmo se alguém possuir o código legado anterior. O login e emissão de Bearer legado já estavam bloqueados. **Não existe rota central que recrie a senha antiga.**
+- Em `ANDON_CENTRAL_ACCESS_ENABLED=0`, as credenciais e a recuperação antigas continuam funcionando enquanto não forem aposentadas. Se houver retirada e for necessário rollback para OFF, todas as APIs serão negadas pelo guard inicial até **recriar uma senha global em procedimento local protegido, com operador autorizado**. Portanto o operador deve conservar o backup, plano de rollback e evidências de teste antes de confirmar a retirada.
+- A aposentadoria é um **ato administrativo com confirmação explícita após a implantação**. Este PR, seu merge, testes automatizados e atualizações na `main` **não retiram automaticamente senha de nenhum servidor**, muito menos da Evergreen.
+
+A homologação de S1/7 inclui concorrência, falha de auditoria (rollback), código não configurado, usuário não Admin, expiração de sessão e step-up, recuperação central pós-retirada, reentrada do Admin com senha central, negação de métodos legados, e reconfiguração local protegida para eventual rollback OFF. A compatibilidade industrial S4 e liberação S6 continuam pendentes; nenhuma alteração foi implantada na fábrica.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.
