@@ -434,6 +434,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               disabled={busy}
               onClick={() => void run(async () => {
                 setAdminRecoveryCode(null);
+                setLegacyRetirementConfirmed(false);
                 const result = await accessRequest<{ recoveryCode: string }>(
                   "/admin-recovery-code", "POST", {},
                 );
