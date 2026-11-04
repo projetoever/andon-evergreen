@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Pendentes","Pending approval","待核准"],
   ["Integrações API","API integrations","API 整合"],
   ["Integrações API industriais","Industrial API integrations","工業 API 整合"],
   ["Credenciais específicas para Node-RED e mini PC GPIO. Esta tela não configura nem conecta equipamentos automaticamente.","Dedicated credentials for Node-RED and the GPIO mini PC. This page does not configure or connect equipment automatically.","為 Node-RED 與 GPIO 迷你電腦建立專用憑證。此頁面不會自動設定或連接設備。"],
