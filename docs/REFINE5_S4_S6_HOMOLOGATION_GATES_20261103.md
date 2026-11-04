@@ -29,6 +29,12 @@ Uma CI verde demonstra regressão automatizada, **não** compatibilidade com o c
 | S6-02 | Exportar backup verificável, ensaiar reversão e comprovar integridade dos KPIs MTTR/MTTA/MTBF, disponibilidade e downtime | relatório de backup, restauração e amostras de BI sem dados reais | Validação automatizada de **recuperação Admin/negação no rollback** acrescentada; **backup/restauração e BI no notebook pendentes** |
 | S6-03 | Gestor autoriza janela de implantação **separadamente**, depois dos testes e do parecer de manutenção | aceite expresso com SHA, risco e plano de rollback | **NÃO AUTORIZADO** |
 
+## S6-02 — rotina de backup/restore isolada disponível para execução manual
+
+Foi acrescentado `homologation/https/Test-AndonHttpsBackupRestore.ps1` para **notebook Windows**. A rotina só aceita o PostgreSQL `andon_https_hml` no container exato do launcher, Docker local via named pipe e porta loopback. Exige que o launcher esteja encerrado; exporta um dump binário `pg_dump -Fc`, copia e compara SHA-256, reenviando o arquivo exportado para **restore em banco temporário novo**. Verifica contagem/hash de dez tabelas críticas e gera manifesto protegido. Não aceita parâmetros de banco/host externos e não restaura sobre `andon_https_hml`.
+
+**Não marcar S6-02 como concluído só por CI verde:** o teste Windows da CI apenas valida sintaxe e travas estáticas; resta executar o ensaio real no notebook e comparar os indicadores BI com dados fictícios. Procedimento e evidências: `docs/REFINE5_S6_NOTEBOOK_BACKUP_RESTORE_20261104.md`.
+
 ## Sequência para homologar no notebook sem tocar a fábrica
 
 1. Usar apenas PostgreSQL de testes, dados fictícios, certificados HTTPS do próprio notebook e conta central de testes. Registrar SHA e variáveis de configuração **sem** copiar senhas, secrets, certificados privados ou dados da fábrica.
