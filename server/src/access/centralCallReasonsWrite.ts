@@ -47,7 +47,7 @@ export function runCentralCallReasonWrite(
       : input.operation === "option.create"
         ? `/api/call-reasons/${reasonId}/options`
         : `/api/call-reasons/${reasonId}/options/${optionId}`;
-  return runCentralGlobalCatalogTransaction(db, {
+  return runCentralGlobalCatalogTransaction<CallReason | CallReasonOption>(db, {
     token: input.token,
     workstationId: input.workstationId,
     method: input.operation.endsWith("create") ? "POST" : "PATCH",
