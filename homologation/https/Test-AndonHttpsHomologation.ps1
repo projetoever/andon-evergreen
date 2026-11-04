@@ -10,7 +10,9 @@ $scripts = @(
     (Join-Path $PSScriptRoot "Stop-AndonHttpsTrackedProcess.ps1"),
     (Join-Path $PSScriptRoot "Test-AndonHttpsTrackedProcess.ps1"),
     (Join-Path $PSScriptRoot "Clear-AndonLocalHttpsPorts.ps1"),
-    (Join-Path $PSScriptRoot "Test-AndonLocalHttpsPorts.ps1")
+    (Join-Path $PSScriptRoot "Test-AndonLocalHttpsPorts.ps1"),
+    (Join-Path $PSScriptRoot "Test-AndonPrismaClientCurrent.ps1"),
+    (Join-Path $PSScriptRoot "Test-AndonPrismaClientFreshness.ps1")
 )
 
 foreach ($script in $scripts) {
@@ -25,7 +27,15 @@ if ($errors.Count -gt 0) {
     throw ($errors | ForEach-Object { $_.Message } | Out-String)
 }
 
+& $scripts[9]
 $start = Get-Content $scripts[0] -Raw
+if (!$start.Contains('if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot)')) {
+    throw "Prisma Client existente nao esta protegido contra geracao redundante e DLL em uso."
+}
+if (!$start.Contains('if (!(Test-AndonPrismaClientCurrent -ServerRoot $serverRoot))')) {
+    throw "Novo Prisma Client precisa de validacao pos-geracao."
+}
+
 foreach ($required in @(
     'ANDON_CENTRAL_ACCESS_ENABLED = "1"',
     'ANDON_ACCESS_ORIGIN = $origin',

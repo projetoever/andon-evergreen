@@ -198,8 +198,20 @@ foreach ($name in $environmentNames) {
 try {
 $env:DATABASE_URL = $databaseUrl
 $env:ANDON_INSTALL_PROFILE = "starter"
-& npm.cmd run db:generate --prefix (Join-Path $repoRoot "server")
-if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar o Prisma Client." }
+. (Join-Path $PSScriptRoot "Test-AndonPrismaClientCurrent.ps1")
+$serverRoot = Join-Path $repoRoot "server"
+if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot) {
+    Write-Host "Prisma Client ja corresponde ao schema atual. Geracao repetida dispensada (DLL Windows preservada)." -ForegroundColor Green
+} else {
+    Write-Host "Schema Prisma alterado ou client ausente: geracao obrigatoria." -ForegroundColor Yellow
+    & npm.cmd run db:generate --prefix $serverRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao gerar Prisma Client atualizado. Verifique processo Node antigo que ainda usa query_engine-windows.dll.node; o schema nao sera ignorado."
+    }
+    if (!(Test-AndonPrismaClientCurrent -ServerRoot $serverRoot)) {
+        throw "Prisma generate encerrou sem erro, mas o client/schema gerado nao foi validado."
+    }
+}
 & npm.cmd run db:migrate --prefix (Join-Path $repoRoot "server")
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar migrations somente no banco de homologacao." }
 if ($seedRequired) {
