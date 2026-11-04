@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient, CallReason, CallReasonOption } from "@prisma/client";
 import { AccessError } from "./policy.js";
 import { runCentralGlobalCatalogTransaction } from "./centralGlobalCatalogTransaction.js";
 import {
