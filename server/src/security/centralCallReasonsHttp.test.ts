@@ -81,8 +81,15 @@ test("R6/S2: permissions, primary Admin, machine scope, module, CSRF and marker 
     const w = fake("POST", "/api/call-reasons");
     denied(() => markCentralCallReasonAuthorized(w, { ...admin, machineScope: "selected" }, station), "scoped_query_required");
     denied(() => markCentralCallReasonAuthorized(w, { ...admin, isPrimaryAdmin: false }, station), "primary_admin_required");
-    denied(() => markCentralCallReasonAuthorized(w, { ...admin, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralCallReasonAuthorized(w, { ...admin, permissions: ["andon.read", "catalog.reasons.manage"] }, station), "permission_denied");
+    // Primary Admin is a deliberate superuser in the existing access model:
+    // assertPermission() grants all permissions to isPrimaryAdmin=true.
+    // Check explicit-grant failures on a nonprimary account instead.
+    denied(() => markCentralCallReasonAuthorized(w, {
+      ...admin, isPrimaryAdmin: false, permissions: ["andon.read"],
+    }, station), "permission_denied");
+    denied(() => markCentralCallReasonAuthorized(w, {
+      ...admin, isPrimaryAdmin: false, permissions: ["andon.read", "catalog.reasons.manage"],
+    }, station), "primary_admin_required");
     denied(() => markCentralCallReasonAuthorized(w, { ...admin, purpose: "password_change" }, station), "password_change_required");
     denied(() => markCentralCallReasonAuthorized(w, admin, { ...station, allowOperational: false }), "workstation_module_denied");
     denied(() => markCentralCallReasonAuthorized(fake("POST", "/api/call-reasons", "0".repeat(64)), admin, station), "csrf_denied");
