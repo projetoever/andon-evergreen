@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
 import { AccessError } from "./policy.js";
+import { centralAccessEnabled } from "./http.js";
 import { assertRecentAdmin, lockUser, resolveSession, type AccessRequest } from "./sessions.js";
 
 /**
@@ -9,6 +10,7 @@ import { assertRecentAdmin, lockUser, resolveSession, type AccessRequest } from 
  * separate offline central recovery code. Read-only status never returns hashes.
  */
 export async function legacyAdminRetirementStatus(db: PrismaClient, request: AccessRequest) {
+  if (!centralAccessEnabled()) throw new AccessError("central_mode_required");
   const principal = await resolveSession(db, request);
   if (!principal.isPrimaryAdmin || principal.purpose !== "normal" ||
       principal.accountType !== "person")
@@ -39,6 +41,7 @@ export async function legacyAdminRetirementStatus(db: PrismaClient, request: Acc
 export async function retireLegacyAdminPassword(
   db: PrismaClient, request: AccessRequest, confirmed: boolean,
 ) {
+  if (!centralAccessEnabled()) throw new AccessError("central_mode_required");
   if (confirmed !== true) throw new AccessError("retirement_confirmation_required", 400);
   const initial = await resolveSession(db, request);
   assertRecentAdmin(initial);
