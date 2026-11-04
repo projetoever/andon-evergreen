@@ -19,6 +19,7 @@ export const ADMIN_PASSWORD_MIN_LENGTH = 8;
 export interface AdminAuthStatus {
   username: string;
   passwordConfigured: boolean;
+  centralFirstRun?: boolean;
   setupAvailable?: boolean;
   setupToken?: string | null;
   recoveryConfigured: boolean;
@@ -76,6 +77,14 @@ export async function initializeGlobalAdmin(password: string, setupToken: string
   if (CONFIGURED_DATA_MODE !== "api") throw new Error("setup_unavailable");
   return apiClient.post<{ ok: true; passwordConfigured: true }>(
     "/api/admin-auth/initialize", { password, setupToken },
+  );
+}
+
+/** Clean central-mode setup is authorized only from trusted localhost with a one-time setup token. */
+export async function initializeCentralFirstAdmin(password: string, setupToken: string) {
+  if (CONFIGURED_DATA_MODE !== "api") throw new Error("setup_unavailable");
+  return apiClient.post<{ ok: true; passwordConfigured: true; centralAccessInitialized: true }>(
+    "/api/admin-auth/initialize-central", { password, setupToken },
   );
 }
 
