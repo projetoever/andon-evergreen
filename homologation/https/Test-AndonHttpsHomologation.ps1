@@ -238,6 +238,17 @@ foreach ($required in @(
 )) {
     if (!$menu.Contains($required)) { throw "Menu do notebook/servidor sem guarda: $required" }
 }
+# Public menu must describe the environment, not a particular device.
+# Keep the Windows-client-only execution guard unchanged.
+if (!$menu.Contains('15 - Ambiente de testes: atualizar main e iniciar HTTPS (8080/3001)')) {
+    throw "O menu deve usar uma descricao neutra da homologacao HTTPS."
+}
+if (!$menu.Contains('Atualizar e testar HTTPS central (8080/3001)')) {
+    throw "A opcao 15 deve exibir o mesmo titulo no cabecalho."
+}
+if ($menu -match '(?m)^\s*Write-Host\s+"[^"]*Notebook[^"]*"') {
+    throw "O menu nao deve exibir a palavra Notebook como rotulo."
+}
 if ($notebookScript -match 'RemoveData|git.exe reset --hard|Docker.*rm -f') {
     throw "O atualizador de notebook nao pode apagar dados ou reescrever historico."
 }
