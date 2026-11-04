@@ -234,48 +234,84 @@ foreach ($ports in @(
     if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
 }
 
-# Notebook standard ports are allowed only via explicit Windows-client,
-# loopback-only isolated profile. Incompatible combinations must fail before
-# Docker, npm, certificate issuance or filesystem writes.
+# HTTPS isolation belongs to the local testing profile; the normal
+# installer menu now owns start/stop/health and no longer exposes option 15.
 $notebookScript = Get-Content $scripts[3] -Raw
 foreach ($required in @(
     'Get-CimInstance Win32_OperatingSystem',
     'if ([int]$os.ProductType -ne 1)',
     'git.exe pull --ff-only origin main',
     'Test-Path $stateFile',
-    'notebook-standard-ports.enabled',
-    'Clear-AndonLocalHttpsPorts -ProjectRoot $repoRoot -StateRoot $stateRoot',
-    '-FrontendPort 8080 -ApiPort 3001 -PostgresPort 55432',
-    '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
-    '-NotebookStandardPorts'
+    'menu-andon-installer.ps1',
+    'start-andon.ps1',
+    'stop-andon.ps1',
+    'health-check-andon.ps1',
+    'Get-FileHash',
+    'Encerre o menu antigo e abra-o novamente'
 )) {
-    if (!$notebookScript.Contains($required)) { throw "Atualizacao do notebook sem controle: $required" }
+    if (!$notebookScript.Contains($required)) {
+        throw "Atualizador local precisa sincronizar menu e proteger dados: $required"
+    }
 }
-$menu = Get-Content (Join-Path $PSScriptRoot "..\..\installer\menu-andon-installer.ps1") -Raw
+$menuPath = Join-Path $PSScriptRoot "..\..\installer\menu-andon-installer.ps1"
+$menu = Get-Content $menuPath -Raw
 foreach ($required in @(
-    'notebook-standard-ports.enabled',
-    'if ($isWindowsClient -and (Test-Path $notebookMarker))',
+    'Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath',
     '$Global:AndonInstallerPath\update-andon-server.ps1',
     '$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1',
-    '"15" {'
+    '$Global:AndonInstallerPath\start-andon.ps1',
+    '$Global:AndonInstallerPath\stop-andon.ps1',
+    '$Global:AndonInstallerPath\health-check-andon.ps1'
 )) {
-    if (!$menu.Contains($required)) { throw "Menu do notebook/servidor sem guarda: $required" }
+    if (!$menu.Contains($required)) { throw "Menu HTTP/HTTPS integrado sem guarda: $required" }
 }
-# Public menu must describe the environment, not a particular device.
-# Keep the Windows-client-only execution guard unchanged.
-$publicMenuLabels = @($menu -split "\r?\n" | Where-Object { $_ -match '^\s*Write-Host\s+"' })
-$publicMenuText = $publicMenuLabels -join "\n"
-if ($publicMenuText -notmatch '15\s+-\s+Ambiente de testes: atualizar main \+ iniciar HTTPS \(8080/3001\)') {
-    throw "O menu deve usar uma descricao neutra da homologacao HTTPS."
-}
-if ($menu -notmatch 'Atualizar e testar HTTPS central \(8080/3001\)') {
-    throw "A opcao 15 deve exibir o mesmo titulo no cabecalho."
+if ($menu -match '(?m)^\s*Write-Host\s+"15\s*-|(?m)^\s*"15"\s*\{') {
+    throw "A opcao 15 deve ter sido removida do menu principal."
 }
 if ($menu -match '(?m)^\s*Write-Host\s+"[^"]*Notebook[^"]*"') {
-    throw "O menu nao deve exibir a palavra Notebook como rotulo."
+    throw "O menu nao deve exibir um rotulo especifico de dispositivo."
+}
+foreach ($file in @(
+    "start-andon.ps1", "stop-andon.ps1", "health-check-andon.ps1"
+)) {
+    $source = Get-Content (Join-Path $PSScriptRoot ("..\..\installer\" + $file)) -Raw
+    foreach ($guard in @(
+        'Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath',
+        'Invoke-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath'
+    )) {
+        if (!$source.Contains($guard)) { throw "Fluxo do menu $file sem roteamento HTTPS." }
+    }
+}
+$localProfileSource = Get-Content (Join-Path $PSScriptRoot "..\..\installer\AndonInstaller.LocalHttps.ps1") -Raw
+foreach ($guard in @(
+    'if ([int]$os.ProductType -ne 1)',
+    '$config.postgresPort -eq 55432',
+    '-Action',
+    'https://localhost:3001/health',
+    'https://localhost:8080/hub',
+    '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
+    '-NotebookStandardPorts',
+    'notebook-standard-ports.enabled'
+)) {
+    if (!$localProfileSource.Contains($guard)) {
+        throw "Perfil local sem guarda de seguranca: $guard"
+    }
 }
 if ($notebookScript -match 'RemoveData|git.exe reset --hard|Docker.*rm -f') {
-    throw "O atualizador de notebook nao pode apagar dados ou reescrever historico."
+    throw "O atualizador local nao pode apagar dados ou reescrever historico."
+}
+# The HTTPS profile now starts compiled Node entrypoints directly; npm dev
+# wrappers are no longer treated as persistent service processes.
+if ($start -match 'Start-Process npm.cmd') {
+    throw "Launcher local nao deve usar npm dev como processo persistente."
+}
+foreach ($marker in @(
+    'Start-Process -FilePath $nodeExe',
+    'npm.cmd run build --prefix',
+    'Start-Sleep -Seconds 3',
+    '$apiProcess.HasExited -or $frontendProcess.HasExited'
+)) {
+    if (!$start.Contains($marker)) { throw "Launcher compilado sem readiness: $marker" }
 }
 foreach ($required in @(
     '[switch]$NotebookStandardPorts',
