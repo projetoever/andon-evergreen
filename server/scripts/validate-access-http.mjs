@@ -325,6 +325,9 @@ try {
   await db.workstation.update({ where: { id: workstationId }, data: { pendingApproval: false } });
   // Retiring an old global password must never be implicit. Require a central
   // offline recovery code, recent primary Admin proof, and one-time consent.
+  const previousCentralMode = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  try {
   assert.deepEqual(await call(admin, "/legacy-admin/status"), {
     legacyPasswordPresent: true,
     centralRecoveryConfigured: false,
@@ -349,6 +352,10 @@ try {
   assert.equal(await db.auditEvent.count({
     where: { action: "access.admin.legacy_credential.retired", resourceId: "global" },
   }), 1);
+  } finally {
+    if (previousCentralMode === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentralMode;
+  }
   const events = await db.auditEvent.findMany({ where: { resourceId: created.user.id } });
   for (const action of [
     "access.user.created",
