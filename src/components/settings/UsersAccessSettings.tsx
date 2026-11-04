@@ -177,11 +177,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
           ...emptyDraft(),
           permissions: suggestedPermissions("Produção", catalog?.permissions ?? []),
         };
-    setAdvancedPermissions(Boolean(user) && (
-      user!.accountType !== "person" ||
-      !PILOT_SIMPLE_ROLES.some((role) => role === user!.roleLabel) ||
-      !isExactRolePreset(user!.roleLabel, value.permissions, catalog?.permissions ?? [])
-    ));
+    // Existing custom grants remain intact. A historical user must never open
+    // directly into the exhaustive ACL grid (pilot UX) or lose permissions.
+    setAdvancedPermissions(false);
     setEditing(user?.id ?? null);
     setDraft(value);
     setOriginal(JSON.stringify(value));
@@ -603,31 +601,16 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       type="button"
                       variant="outline"
                       aria-expanded={advancedPermissions}
-                      onClick={() => {
-                        if (!advancedPermissions) {
-                          setAdvancedPermissions(true);
-                        } else if (draft.accountType === "person" &&
-                          PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel)) {
-                          // Explicit transition: administrator chooses to replace custom grants.
-                          setDraft({
-                            ...draft,
-                            permissions: suggestedPermissions(draft.roleLabel, catalog.permissions),
-                          });
-                          setAdvancedPermissions(false);
-                        }
-                      }}
-                      disabled={advancedPermissions &&
-                        (draft.accountType !== "person" ||
-                          !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel))}
+                      onClick={() => setAdvancedPermissions((current) => !current)}
                     >
                       {ui(advancedPermissions
-                        ? "Aplicar perfil e voltar ao modo simples"
-                        : "Configuração avançada de permissões")}
+                        ? "Ocultar opções avançadas"
+                        : "Permissões avançadas (opcional)")}
                     </Button>
                     <span className="text-xs text-muted-foreground">
                       {ui(advancedPermissions
                         ? "Permissões personalizadas: alterações não são descartadas sem sua confirmação."
-                        : "Modo simples: escolha o perfil e as máquinas.")}
+                        : "Modo simples: selecione o perfil, máquinas e salve.")}
                     </span>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -673,6 +656,12 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           });
                         }}
                       >
+                        {!advancedPermissions &&
+                          !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel) && (
+                            <option value={draft.roleLabel}>
+                              {ui(draft.roleLabel)} — {ui("Perfil existente (personalizado)")}
+                            </option>
+                          )}
                         {(advancedPermissions
                           ? catalog.roles.filter((role) => role !== "Admin")
                           : PILOT_SIMPLE_ROLES.filter((role) => catalog.roles.includes(role))
@@ -769,6 +758,14 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       )}
                     </p>
                   </fieldset>
+                  {!advancedPermissions && editing && (
+                    !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel) ||
+                    !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions)
+                  ) && (
+                    <p role="status" className="rounded-lg border border-warning/40 p-3 text-sm text-muted-foreground">
+                      {ui("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.")}
+                    </p>
+                  )}
                   {!advancedPermissions && <div role="status" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
                     <h4 className="font-bold">{ui("Permissões do perfil")}</h4>
                     <p className="text-sm text-muted-foreground">

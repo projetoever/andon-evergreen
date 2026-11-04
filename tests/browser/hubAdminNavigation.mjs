@@ -436,8 +436,9 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
-    assert.equal(await centralNav.getByRole("link").count(), 4);
+    assert.equal(await centralNav.getByRole("link").count(), 5);
     assert.equal(await centralNav.getByRole("link", { name: "Configurações do ANDON" }).count(), 1);
+    assert.equal(await centralNav.getByRole("link", { name: "Integrações API" }).count(), 1);
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();

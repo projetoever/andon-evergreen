@@ -4,6 +4,7 @@ export const HUB_ADMIN_SECTIONS = [
   "users",
   "workstations",
   "andon",
+  "integrations",
   "security",
   "modules",
 ] as const;

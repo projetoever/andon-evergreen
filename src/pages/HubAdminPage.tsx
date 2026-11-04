@@ -173,6 +173,9 @@ export function HubAdminPage() {
             )}
           </div>
         </header>
+        <section role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+          {ui("Modo de administração legado ativo. O acesso central, as integrações API e a senha única só aparecem no ambiente HTTPS de homologação com gestão central habilitada. Não ative essas funções no servidor industrial sem homologação.")}
+        </section>
         <nav
           aria-label={ui("Seções administrativas do Hub")}
           className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-3 lg:grid-cols-5"

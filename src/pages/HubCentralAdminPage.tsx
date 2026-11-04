@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
+import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
 import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
@@ -157,6 +158,7 @@ export function HubCentralAdminPage() {
     { id: "users", name: ui("Usuários e Acessos"), icon: ShieldCheck },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
     { id: "andon", name: ui("Configurações do ANDON"), icon: Factory },
+    { id: "integrations", name: ui("Integrações API"), icon: Plug },
   ] as const;
   return (
     <main className="andon-screen-enter min-h-dvh bg-background p-4 md:p-6">
@@ -189,7 +191,7 @@ export function HubCentralAdminPage() {
           </Button>
         </header>
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-5">
           {sections.map(item => {
             const Icon = item.icon;
             return <Button asChild key={item.id}
@@ -205,6 +207,7 @@ export function HubCentralAdminPage() {
         {section === "overview" && <CentralOverview />}
         {section === "users" && <UsersAccessSettings />}
         {section === "workstations" && <WorkstationsSettingsTab />}
+        {section === "integrations" && <ServiceIdentitiesSettings />}
         {section === "andon" && (
           <div className="space-y-4">
             <section className="rounded-xl border border-border bg-card p-4 md:p-5">
@@ -220,7 +223,7 @@ export function HubCentralAdminPage() {
             </section>
           </div>
         )}
-        {!["overview","users","workstations","andon"].includes(section) && (
+        {!["overview","users","workstations","andon","integrations"].includes(section) && (
           <div role="status" className="rounded-xl border border-border bg-card p-5">
             {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
           </div>
