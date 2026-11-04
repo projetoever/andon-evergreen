@@ -7,14 +7,22 @@ $statePath = Join-Path $repoRoot ".andon-homologation"
 $processPath = Join-Path $statePath "processes.json"
 $containerName = "andon-https-hml-postgres"
 . (Join-Path $PSScriptRoot "Test-AndonHttpsDockerContainerExists.ps1")
+. (Join-Path $PSScriptRoot "Stop-AndonHttpsTrackedProcess.ps1")
 
 if (Test-Path $processPath) {
     $processes = Get-Content $processPath -Raw | ConvertFrom-Json
+    $startedAtUtc = [datetime]::Parse(
+        [string]$processes.startedAt,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::RoundtripKind
+    )
     foreach ($processId in @($processes.frontendPid, $processes.apiPid)) {
         if ($processId) {
-            & taskkill.exe /PID ([int]$processId) /T /F 1>$null 2>$null
+            Stop-AndonHttpsTrackedProcess -ProcessId ([int]$processId) -StartedAtUtc $startedAtUtc
         }
     }
+    # Delete only the stale process metadata. The PostgreSQL test volume,
+    # its credentials and the notebook test-profile marker are preserved.
     Remove-Item $processPath -Force
 }
 
