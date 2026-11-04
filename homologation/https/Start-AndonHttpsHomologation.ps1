@@ -43,7 +43,7 @@ $centralHomologationFlags = @(
 # a parent PowerShell and is never enabled by operational writes alone.
 $visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"
 if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites) {
-    throw "A paleta global requer -EnableCentralOperationalWrites no notebook isolado."
+    throw "A paleta global requer -EnableCentralOperationalWrites no ambiente local isolado."
 }
 # Same familiar frontend/API ports are permitted ONLY through an explicit
 # notebook-only path, never through the industrial launcher or generic profile.
@@ -53,10 +53,10 @@ $standardNotebookPorts = (
     $ApiPort -eq 3001 -and $PostgresPort -eq 55432
 )
 if ($NotebookStandardPorts -and !$standardNotebookPorts) {
-    throw "Portas de notebook invalidas. Use exclusivamente 8080, 3001 e 55432."
+    throw "Portas do ambiente local invalidas. Use exclusivamente 8080, 3001 e 55432."
 }
 if ($NotebookStandardPorts -and !$EnableCentralOperationalWrites) {
-    throw "O perfil de notebook requer ativacao explicita das escritas centrais isoladas."
+    throw "O perfil local requer ativacao explicita das escritas centrais isoladas."
 }
 if ($EnableCentralOperationalWrites) {
     # This launcher always binds to localhost and uses its own Docker database.
@@ -76,14 +76,14 @@ if ($NotebookStandardPorts) {
     # outside the factory repository. Fail before touching Docker or TLS.
     $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
     if ([int]$os.ProductType -ne 1) {
-        throw "Perfil de notebook proibido no Windows Server. Nenhuma configuracao foi alterada."
+        throw "Perfil local proibido no Windows Server. Nenhuma configuracao foi alterada."
     }
     # Never stop unknown listeners or reuse an HTTP service already running
     # on a familiar port. The operator must close the previous notebook runtime.
     $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
     foreach ($port in @($FrontendPort, $ApiPort)) {
         if (@($listeners | Where-Object { $_.Port -eq $port }).Count -gt 0) {
-            throw "Porta $port ja ocupada. Pare o ANDON anterior no notebook antes de iniciar HTTPS central. Nenhum processo foi encerrado."
+            throw "Porta $port ja ocupada. Pare o ANDON anterior no ambiente local antes de iniciar HTTPS central. Nenhum processo foi encerrado."
         }
     }
 }
@@ -319,12 +319,12 @@ try {
 
 Write-Host ""
 Write-Host "ANDON HTTPS de homologacao pronto:" -ForegroundColor Green
-if ($NotebookStandardPorts) { Write-Host "  PERFIL NOTEBOOK: HTTPS central nas portas habituais 8080/3001; SEM acesso ao banco industrial." -ForegroundColor Yellow }
+if ($NotebookStandardPorts) { Write-Host "  AMBIENTE LOCAL: HTTPS central nas portas habituais 8080/3001; SEM acesso ao banco industrial." -ForegroundColor Yellow }
 Write-Host "  Hub: $origin/hub"
 Write-Host "  API: $apiUrl"
 Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
 Write-Host "  Primeiro acesso central: no Hub local, cadastre uma unica senha Admin (SEM senha predefinida)."
 Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
-Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO NOTEBOOK' } else { 'DESLIGADA (padrao, independente)' })"
+Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO AMBIENTE LOCAL' } else { 'DESLIGADA (padrao, independente)' })"
 Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"
