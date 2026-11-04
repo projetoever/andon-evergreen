@@ -240,7 +240,7 @@ try {
     await page.getByLabel("Perfil", { exact: true }).selectOption("Gestor/Gerente");
     assert.equal(await page.getByLabel("Escopo de máquinas").inputValue(), "all",
       "Manager profile explicitly selects full-machine scope");
-    await page.getByRole("button", { name: "Configuração avançada de permissões" }).click();
+    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
     assert.equal(await page.getByRole("checkbox", { name: "Chamados: atender", exact: true }).isChecked(), true);
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
     await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
@@ -272,11 +272,17 @@ try {
       .locator("xpath=../..")
       .getByRole("button", { name: "Editar", exact: true });
     await editButton.click();
-    // Leader and customized accounts are opened in advanced mode, preserving
-    // every stored grant rather than silently overwriting them with a pilot preset.
+    // Historical custom permissions remain intact, but are not shown in the
+    // ordinary factory workflow until Admin explicitly opens advanced options.
     assert.equal(await page.getByLabel("Perfil", { exact: true }).inputValue(), "Líder");
+    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).count(), 0);
+    await page.getByText("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
     assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
-    assert.equal(await page.getByRole("button", { name: "Aplicar perfil e voltar ao modo simples" }).isDisabled(), true);
+    await page.getByRole("button", { name: "Ocultar opções avançadas" }).click();
+    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).count(), 0);
+    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
+    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
     assert.equal(
       await page.getByRole("button", { name: "Salvar usuário", exact: true }).isDisabled(),
       true,
