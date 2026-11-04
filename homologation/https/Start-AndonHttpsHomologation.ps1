@@ -188,7 +188,7 @@ $environmentNames = @(
     "ANDON_CENTRAL_ACCESS_ENABLED", "VITE_ANDON_DATA_MODE", "VITE_ANDON_API_BASE_URL",
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT",
-    "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER"
+    "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER", "ANDON_PROJECT_PATH", "ANDON_TLS_HOST"
 ) + $centralHomologationFlags + @($visualPaletteFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -254,18 +254,37 @@ foreach ($flag in $centralHomologationFlags) {
 }
 [Environment]::SetEnvironmentVariable(
     $visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")
-$apiProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
-    -WorkingDirectory (Join-Path $repoRoot "server") -PassThru `
-    -RedirectStandardOutput (Join-Path $statePath "api.log") `
-    -RedirectStandardError (Join-Path $statePath "api-error.log")
-
+# Use stable, compiled Node runtimes instead of npm/vite dev wrappers.
+# The old wrappers could exit or detach children after the menu script ended.
+# Build every activation in the isolated profile until a versioned build cache
+# is introduced; never report success for a stale source tree.
 $env:VITE_ANDON_DATA_MODE = "api"
 $env:VITE_ANDON_API_BASE_URL = $apiUrl
 $env:ANDON_HOMOLOGATION_TLS_CERT = $certPath
 $env:ANDON_HOMOLOGATION_TLS_KEY = $keyPath
 $env:ANDON_HOMOLOGATION_HOST = "127.0.0.1"
 $env:ANDON_HOMOLOGATION_FRONTEND_PORT = "$FrontendPort"
-$frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
+& npm.cmd run build --prefix $serverRoot
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a API HTTPS local." }
+& npm.cmd run build --prefix $repoRoot
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a interface HTTPS local." }
+
+$apiBuild = Join-Path $serverRoot "dist\\server.js"
+$frontendBuild = Join-Path $repoRoot "scripts\\serve-frontend.mjs"
+if (!(Test-Path $apiBuild -PathType Leaf) -or
+    !(Test-Path (Join-Path $repoRoot "dist\\server\\server.js") -PathType Leaf) -or
+    !(Test-Path (Join-Path $repoRoot "dist\\client") -PathType Container)) {
+    throw "Compilacao nao produziu a API e o Hub. Nenhum servico sera iniciado."
+}
+$nodeExe = (Get-Command node.exe -ErrorAction Stop).Source
+$apiProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $apiBuild + '"') `
+    -WorkingDirectory $serverRoot -PassThru `
+    -RedirectStandardOutput (Join-Path $statePath "api.log") `
+    -RedirectStandardError (Join-Path $statePath "api-error.log")
+
+$env:ANDON_PROJECT_PATH = $repoRoot
+$env:ANDON_TLS_HOST = "localhost"
+$frontendProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $frontendBuild + '"') `
     -WorkingDirectory $repoRoot -PassThru `
     -RedirectStandardOutput (Join-Path $statePath "frontend.log") `
     -RedirectStandardError (Join-Path $statePath "frontend-error.log")
@@ -280,6 +299,12 @@ $frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
 } | ConvertTo-Json | Set-Content -Encoding UTF8 $processPath
 
 try {
+    Wait-Url "$apiUrl/health"
+    Wait-Url "$origin/hub"
+    Start-Sleep -Seconds 3
+    if ($apiProcess.HasExited -or $frontendProcess.HasExited) {
+        throw "API ou interface encerrou logo apos iniciar. Consulte .andon-homologation/api-error.log e frontend-error.log."
+    }
     Wait-Url "$apiUrl/health"
     Wait-Url "$origin/hub"
 } catch {
