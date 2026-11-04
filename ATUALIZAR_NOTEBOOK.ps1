@@ -7,7 +7,9 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $startScript = Join-Path $repoRoot "homologation\https\Start-AndonHttpsHomologation.ps1"
 $stopScript = Join-Path $repoRoot "homologation\https\Stop-AndonHttpsHomologation.ps1"
-$stateFile = Join-Path $repoRoot ".andon-homologation\processes.json"
+$portTransitionScript = Join-Path $repoRoot "homologation\https\Clear-AndonLocalHttpsPorts.ps1"
+$stateRoot = Join-Path $repoRoot ".andon-homologation"
+$stateFile = Join-Path $stateRoot "processes.json"
 
 # This is NOT the Windows Server installer. An explicit local workstation
 # guard prevents accidentally switching the production host to a test profile.
@@ -59,6 +61,15 @@ try {
     if (!(Test-Path $startScript -PathType Leaf)) {
         throw "Launcher HTTPS nao encontrado depois da atualizacao da main."
     }
+
+    # The legacy ANDON service may remain on 3001 after the former HTTPS
+    # launcher PID exits. Stop only verified local ANDON processes and suspend
+    # their verified watchdog tasks; never kill an unrelated port owner.
+    if (!(Test-Path $portTransitionScript -PathType Leaf)) {
+        throw "Rotina segura de transicao de portas nao encontrada."
+    }
+    . $portTransitionScript
+    Clear-AndonLocalHttpsPorts -ProjectRoot $repoRoot -StateRoot $stateRoot
 
     # Synthetic Docker database and real TLS, but exactly the usual ports.
     # All central operational + palette write gates are ON only in this
