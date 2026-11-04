@@ -29,10 +29,10 @@ if ($errors.Count -gt 0) {
 
 & $scripts[9]
 $start = Get-Content $scripts[0] -Raw
-if (!$start.Contains('if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot)')) {
+if (!$start.Contains('if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot -StateRoot $statePath)')) {
     throw "Prisma Client existente nao esta protegido contra geracao redundante e DLL em uso."
 }
-if (!$start.Contains('if (!(Test-AndonPrismaClientCurrent -ServerRoot $serverRoot))')) {
+if (!$start.Contains('Save-AndonPrismaClientFingerprint -ServerRoot $serverRoot -StateRoot $statePath')) {
     throw "Novo Prisma Client precisa de validacao pos-geracao."
 }
 
