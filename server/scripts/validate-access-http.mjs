@@ -333,7 +333,8 @@ try {
   const offlineRecovery = await call(admin, "/admin-recovery-code", "POST", {});
   assert.match(offlineRecovery.recoveryCode, /^HUB-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}$/);
   await call(admin, "/legacy-admin/retire", "POST", { confirmed: false }, 400);
-  await call(person, "/legacy-admin/status", "GET", undefined, 403);
+  // The unrelated user's session was deliberately expired above.
+  await call(person, "/legacy-admin/status", "GET", undefined, 401);
   const retired = await call(admin, "/legacy-admin/retire", "POST", { confirmed: true });
   assert.deepEqual(retired, { ok: true, legacyPasswordPresent: false });
   const afterRetirement = await db.systemSettings.findUniqueOrThrow({ where: { id: "global" } });
