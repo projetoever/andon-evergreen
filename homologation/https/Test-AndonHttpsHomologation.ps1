@@ -6,7 +6,9 @@ $scripts = @(
     (Join-Path $PSScriptRoot "Start-AndonHttpsHomologation.ps1"),
     (Join-Path $PSScriptRoot "Stop-AndonHttpsHomologation.ps1"),
     $containerHelperPath,
-    (Join-Path $PSScriptRoot "..\..\ATUALIZAR_NOTEBOOK.ps1")
+    (Join-Path $PSScriptRoot "..\..\ATUALIZAR_NOTEBOOK.ps1"),
+    (Join-Path $PSScriptRoot "Stop-AndonHttpsTrackedProcess.ps1"),
+    (Join-Path $PSScriptRoot "Test-AndonHttpsTrackedProcess.ps1")
 )
 
 foreach ($script in $scripts) {
@@ -40,6 +42,13 @@ $stop = Get-Content $scripts[1] -Raw
 if (!$stop.Contains('Docker nao encontrado. Os dados e as credenciais locais foram preservados.')) {
     throw "A remocao deve preservar credenciais quando o Docker estiver indisponivel."
 }
+if (!$stop.Contains('Stop-AndonHttpsTrackedProcess -ProcessId')) {
+    throw "Stop HTTPS deve ignorar PID obsoleto usando a guarda de identidade."
+}
+if ($stop.Contains('& taskkill.exe')) {
+    throw "Stop HTTPS nao pode chamar taskkill diretamente sem verificar o PID."
+}
+& $scripts[5]
 
 if ($start -match 'NODE_TLS_REJECT_UNAUTHORIZED|ignoreHTTPSErrors|rejectUnauthorized') {
     throw "O launcher nao pode desabilitar a validacao TLS."
