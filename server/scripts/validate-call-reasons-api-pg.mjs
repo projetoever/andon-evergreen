@@ -171,12 +171,17 @@ try {
   const nonAdmin = await send("GET", "/api/call-reasons");
   assert.equal(nonAdmin.statusCode, 403, nonAdmin.body);
   await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: true } });
+  // Primary Admin is the existing system superuser, so deleting an explicit
+  // permission from that role does not remove its inherited authority.
+  // Test a nonprimary account without analytics permission instead.
   await db.accessPermission.delete({ where: {
     userId_key: { userId, key: "analytics.policy.manage" },
   } });
+  await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: false } });
   const unprivileged = await send("PATCH", "/api/call-reasons/" + reasonId,
     { expectedRevision: after.revision, displayName: "Denied" });
   assert.equal(unprivileged.statusCode, 403, unprivileged.body);
+  await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: true } });
   await db.accessPermission.create({ data: { userId, key: "analytics.policy.manage" } });
 
   process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
