@@ -187,7 +187,8 @@ $environmentNames = @(
     "ANDON_TLS_CERT", "ANDON_TLS_KEY", "CORS_ORIGINS", "ANDON_ACCESS_ORIGIN",
     "ANDON_CENTRAL_ACCESS_ENABLED", "VITE_ANDON_DATA_MODE", "VITE_ANDON_API_BASE_URL",
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
-    "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT"
+    "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT",
+    "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER"
 ) + $centralHomologationFlags + @($visualPaletteFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -221,6 +222,9 @@ $env:ANDON_TLS_KEY = $keyPath
 $env:CORS_ORIGINS = $origin
 $env:ANDON_ACCESS_ORIGIN = $origin
 $env:ANDON_CENTRAL_ACCESS_ENABLED = "1"
+# No physical PLC adapter may be inherited from server/.env or the shell.
+$env:PLC_INTEGRATION_ENABLED = "0"
+$env:PLC_ADAPTER = "mock"
 # No accidental inheritance of feature flags from the launching shell.
 # With no switch, all 15 operational write adapters are forced OFF in child processes.
 # Palette writes are independently OFF even with -EnableCentralOperationalWrites.
