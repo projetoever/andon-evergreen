@@ -76,9 +76,11 @@ export function ServiceIdentitiesSettings() {
 
   function choosePreset(kind: "node-red" | "gpio") {
     setName(kind === "node-red" ? "Node-RED — homologação" : "Mini PC GPIO — homologação");
+    // The GPIO preset gets the least scope necessary to read machine/sound
+    // state; operators can explicitly opt in to calls.read if needed.
     setScopes(kind === "node-red"
       ? ["machines.read", "calls.read", "sound.read"]
-      : ["machines.read", "calls.read", "sound.read"]);
+      : ["machines.read", "sound.read"]);
     setReason("Homologação isolada no notebook");
   }
 
