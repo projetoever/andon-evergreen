@@ -47,6 +47,21 @@ export interface AccessCatalog {
   roles: string[];
   machines: { id: string; name: string; isActive: boolean }[];
 }
+export type WorkstationArchiveBlocker =
+  | "own_workstation" | "station_active" | "approval_pending"
+  | "locked_machine" | "modules_enabled" | "recent_heartbeat"
+  | "recent_contact" | "active_maintenance" | "active_access_session"
+  | "kiosk_linked";
+
+export interface WorkstationArchivePreflight {
+  workstationId: string;
+  blockers: WorkstationArchiveBlocker[];
+  canArchiveFromSystemChecks: boolean;
+  requiresPhysicalReview: true;
+  archiveActionAvailable: false;
+  quietPeriodMinutes: number;
+}
+
 export interface ManagedWorkstation extends Workstation {
   presence: "online" | "offline" | "unknown";
   lastHeartbeatAt?: string | null;

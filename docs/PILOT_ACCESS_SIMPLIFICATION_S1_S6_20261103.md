@@ -66,6 +66,12 @@ Presença observada com heartbeat curto (hipótese de 15 s, degradar após 45 s)
 - Como todo heartbeat é uma observação, não é criado evento de auditoria a cada 15 s. O histórico de login e as ações administrativas continuam auditados nos endpoints próprios.
 - **Pendente**: S5/2 arquivamento lógico seguro, presença de clientes industriais não humanos, homologação multi-terminais e testes de perda de rede/retorno no notebook. A migração SQL deste PR **não** foi aplicada na fábrica.
 
+### S5/2 — pré-verificação de arquivamento (somente leitura)
+
+Antes de criar qualquer ação destrutiva, o Admin principal dispõe de `GET /api/access/workstations/:id/archive-preflight` sob sessão central HTTPS/origem validada e workstation aprovada. A interface lista os impeditivos observados no banco: própria estação administrativa, estação ativa, admissão pendente, tela fixada, módulos liberados, heartbeat/registro nos últimos **15 minutos**, manutenção ativa, sessão central ainda válida e vínculo histórico de kiosk.
+
+Mesmo sem impeditivos de banco, o retorno informa `archiveActionAvailable: false` e `requiresPhysicalReview: true`: **não se comprova pelo banco que o Node-RED, GPIO ou cliente físico industrial abandonou aquele UUID**. Nem a API nem a UI deste PR arquivam, desativam, reativam, excluem, restauram, revogam sessões ou alteram UUIDs. O resultado é diagnóstico, não autorização, e pode ficar obsoleto antes da ação: o futuro arquivamento deverá revalidar cada condição sob os locks apropriados, exigir aprovação física e preservar auditoria/histórico.
+
 ### S6 — Entrega industrial
 
 CI Windows, backend/PG, Playwright, matriz de ACLs e fontes PT/EN/ZH; homologação notebook e dois terminais; validação dos indicadores BI, HTTPS e contratos Node-RED/GPIO; backup e rollback; autorização expressa para implantação. **Nenhum merge é um deploy.**
