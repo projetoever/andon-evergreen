@@ -74,6 +74,16 @@ Na ativação do modo central, `readAdminSession` **recusa todos os Bearers lega
 - Regressão: Bearer válido com central OFF, negado com central ON, não ressuscita após retorno a OFF, uma nova sessão autenticada no modo legado continua possível.
 - **Ainda não é unificação final:** o primeiro cadastro central requer comprovação da senha global legada; recuperação central e migração assistida dessa credencial permanecem para S1/5+.
 
+## S1/5 — recuperação da identidade central (fatia isolada)
+
+Para não depender de uma segunda senha global no dia a dia, foi preparado um mecanismo **separado** de recuperação do Admin principal, sem reutilizar a recuperação legada. Um Admin principal autenticado com confirmação recente emite um código de 128 bits, mostrado uma única vez. Somente seu hash scrypt é persistido no próprio registro do Admin; a nova emissão substitui a anterior.
+
+A recuperação exige que a requisição chegue pelo **socket de loopback real**, com Host localhost, Origin local autorizado, HTTPS, CSRF e workstation ativa/aprovada. Ela não aceita cabeçalhos X-Forwarded como prova de origem local. O código é verificado novamente sob lock de usuário dentro de transação; o consumo é condicionado ao hash atual, troca a senha central, incrementa a versão de autorização, revoga todas as sessões existentes e registra a ação na auditoria. **Não emite cookie nem token de login**. O navegador deverá autenticar-se normalmente com a nova senha.
+
+O código de recuperação deve ser guardado fora do sistema e testado previamente no notebook isolado. Uma instalação existente sem código gerado não passa a ter recuperação automática e precisa de procedimento autorizado. Nenhum caminho de recuperação ignora o bloqueio de workstation ou habilita automaticamente permissões.
+
+**Ainda não equivale ao S1 completo:** a senha global do instalador/bootstrap e as configurações legadas continuam independentes; somente após migrar cada rota, revisar rollback e comprovar recuperação será possível descontinuar esse segredo sem indisponibilidade. Não habilitar o modo central na fábrica com base apenas neste PR.
+
 ## Separação operacional
 
 `main` e PR integrados são código; CI é validação automatizada; notebook HTTPS é homologação; servidor Evergreen/M37 exige autorização de deploy independente. Esta mudança não altera PostgreSQL, migrations, PLC, Node-RED, GPIO, IPs, portas, flags instaladas nem dados reais.
