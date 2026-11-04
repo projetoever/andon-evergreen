@@ -758,8 +758,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       )}
                     </p>
                   </fieldset>
-                  {!advancedPermissions && editing && !isExactRolePreset(
-                    draft.roleLabel, draft.permissions, catalog.permissions,
+                  {!advancedPermissions && editing && (
+                    !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel) ||
+                    !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions)
                   ) && (
                     <p role="status" className="rounded-lg border border-warning/40 p-3 text-sm text-muted-foreground">
                       {ui("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.")}
