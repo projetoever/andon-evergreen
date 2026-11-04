@@ -240,10 +240,12 @@ foreach ($required in @(
 }
 # Public menu must describe the environment, not a particular device.
 # Keep the Windows-client-only execution guard unchanged.
-if (!$menu.Contains('15 - Ambiente de testes: atualizar main e iniciar HTTPS (8080/3001)')) {
+$publicMenuLabels = @($menu -split "\r?\n" | Where-Object { $_ -match '^\s*Write-Host\s+"' })
+$publicMenuText = $publicMenuLabels -join "\n"
+if ($publicMenuText -notmatch '15\s+-\s+Ambiente de testes: atualizar main \+ iniciar HTTPS \(8080/3001\)') {
     throw "O menu deve usar uma descricao neutra da homologacao HTTPS."
 }
-if (!$menu.Contains('Atualizar e testar HTTPS central (8080/3001)')) {
+if ($menu -notmatch 'Atualizar e testar HTTPS central \(8080/3001\)') {
     throw "A opcao 15 deve exibir o mesmo titulo no cabecalho."
 }
 if ($menu -match '(?m)^\s*Write-Host\s+"[^"]*Notebook[^"]*"') {
