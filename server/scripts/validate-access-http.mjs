@@ -9,6 +9,7 @@ import Fastify from "fastify";
 import { registerAccessRoutes } from "../dist/routes/access.js";
 import { registerCorsSupport } from "../dist/config/cors.js";
 import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
+import { enforceInitialAdminSetup } from "../dist/security/initialAdminSetupGuard.js";
 import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.js";
 import { enforceModuleAuthorization } from "../dist/security/moduleAuthorization.js";
 import { hashCredential } from "../dist/security/technicianCredentials.js";
@@ -352,6 +353,116 @@ try {
   assert.equal(await db.auditEvent.count({
     where: { action: "access.admin.legacy_credential.retired", resourceId: "global" },
   }), 1);
+
+  // S6: make the otherwise irreversible credential removal recoverable via
+  // the separate, offline *central* code. Exercise real HTTPS, CSRF, session
+  // revocation and PostgreSQL writes rather than only mocked unit handlers.
+  // A service restart clears in-memory request throttling but MUST NOT
+  // remove persisted Admin sessions, recovery codes or the retired global
+  // credential. Use a fresh HTTPS server with the SAME isolated PostgreSQL
+  // to test the recovery path without diluting production rate limits.
+  const originalAddress = address;
+  const recoveryService = Fastify({
+    https: { cert, key: readFileSync(join(temp, "key.pem")) },
+    logger: false,
+  });
+  registerCorsSupport(recoveryService);
+  recoveryService.addHook("preHandler", enforceWorkstationAccess);
+  recoveryService.addHook("preHandler", enforceAdminAuthorization);
+  recoveryService.addHook("preHandler", enforceModuleAuthorization);
+  try {
+    await registerAccessRoutes(recoveryService, db, origin);
+    address = await recoveryService.listen({ host: "127.0.0.1", port: 0 });
+
+  const priorAdminSession = (await call(admin, "/session")).principal;
+  assert.equal(priorAdminSession.isPrimaryAdmin, true);
+  const oldAccount = await db.accessUser.findUniqueOrThrow({ where: { id: adminId } });
+  const nextPassword = "RecoveredAdmin#Safe2026";
+  const recoveryBody = { recoveryCode: offlineRecovery.recoveryCode, newPassword: nextPassword };
+
+  const wrongOrigin = await call(admin, "/admin-recover", "POST",
+    recoveryBody, 403, { Origin: "https://untrusted.example" });
+  assert.equal(wrongOrigin.error, "origin_denied");
+  const wrongCsrf = await call(admin, "/admin-recover", "POST",
+    recoveryBody, 403, { "X-Andon-CSRF": "invalid-csrf" });
+  assert.equal(wrongCsrf.error, "csrf_denied");
+  const untouchedAccount = await db.accessUser.findUniqueOrThrow({ where: { id: adminId } });
+  assert.equal(untouchedAccount.adminRecoveryCodeHash, oldAccount.adminRecoveryCodeHash,
+    "Rejected recovery attempts must not consume the offline code");
+
+  const recovered = await call(admin, "/admin-recover", "POST", recoveryBody);
+  assert.deepEqual(recovered, { ok: true });
+  assert.equal(recovered.token, undefined);
+  assert.equal(recovered.csrf, undefined);
+  const [recoveredAccount, revokedSession, unchangedGlobal] = await Promise.all([
+    db.accessUser.findUniqueOrThrow({ where: { id: adminId } }),
+    db.accessSession.findUniqueOrThrow({ where: { id: priorAdminSession.sessionId } }),
+    db.systemSettings.findUniqueOrThrow({ where: { id: "global" } }),
+  ]);
+  assert.notEqual(recoveredAccount.passwordHash, oldAccount.passwordHash);
+  assert.equal(recoveredAccount.authorizationVersion, oldAccount.authorizationVersion + 1);
+  assert.equal(recoveredAccount.adminRecoveryCodeHash, null);
+  assert.equal(recoveredAccount.adminRecoveryCodeIssuedAt, null);
+  assert(revokedSession.revokedAt instanceof Date,
+    "Offline recovery must revoke every previously issued Admin session");
+  assert.equal(unchangedGlobal.adminPasswordHash, null,
+    "Recovering central Admin must never recreate the old global credential");
+  assert.equal(unchangedGlobal.adminRecoveryCodeHash, null);
+
+  // Recovery response clears the central cookie; /session supplies a new,
+  // unauthenticated preauth cookie for the next explicit human login.
+  assert.equal((await call(admin, "/session")).principal, null);
+  await call(admin, "/login", "POST",
+    { login: adminLogin, password: "A6@rX2p!" }, 401);
+  await call(admin, "/login", "POST",
+    { login: adminLogin, password: nextPassword });
+  assert.equal((await call(admin, "/session")).principal.isPrimaryAdmin, true);
+  const replay = await call(admin, "/admin-recover", "POST", recoveryBody, 401);
+  assert.equal(replay.error, "invalid_recovery_code");
+  assert.equal((await db.systemSettings.findUniqueOrThrow({
+    where: { id: "global" },
+  })).adminPasswordHash, null);
+  const recoveryAudit = await db.auditEvent.findFirstOrThrow({
+    where: { action: "access.admin.password.recovered", resourceId: adminId },
+    orderBy: { occurredAt: "desc" },
+  });
+  const auditText = JSON.stringify(recoveryAudit);
+  assert(!auditText.includes(offlineRecovery.recoveryCode));
+  assert(!auditText.includes(nextPassword));
+
+  // Verify the actual initial-admin preflight guard against the same isolated
+  // PostgreSQL: central ON remains operational, but toggling OFF must fail
+  // closed until a new, separately authorized local legacy setup.
+  const rollbackProbe = Fastify({ logger: false });
+  rollbackProbe.addHook("preHandler", enforceInitialAdminSetup);
+  rollbackProbe.get("/api/refine5-rollback-probe", async () => ({ ok: true }));
+  try {
+    const centralAllowed = await rollbackProbe.inject({
+      method: "GET", url: "/api/refine5-rollback-probe",
+    });
+    assert.equal(centralAllowed.statusCode, 200, centralAllowed.body);
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+    const legacyDenied = await rollbackProbe.inject({
+      method: "GET", url: "/api/refine5-rollback-probe",
+    });
+    assert.equal(legacyDenied.statusCode, 428, legacyDenied.body);
+    assert.equal(legacyDenied.json().error, "initial_admin_setup_required");
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    const centralRestored = await rollbackProbe.inject({
+      method: "GET", url: "/api/refine5-rollback-probe",
+    });
+    assert.equal(centralRestored.statusCode, 200, centralRestored.body);
+  } finally {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    await rollbackProbe.close();
+  }
+  console.log(
+    "REFINE5 S6 recovery/rollback PASS: persisted across HTTPS service restart, retired legacy hash, offline central recovery, stale session revocation, code replay denial, one-password relogin, legacy rollback closed.",
+  );
+  } finally {
+    address = originalAddress;
+    await recoveryService.close();
+  }
   } finally {
     if (previousCentralMode === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentralMode;

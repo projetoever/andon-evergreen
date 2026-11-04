@@ -11,8 +11,8 @@ Uma CI verde demonstra regressão automatizada, **não** compatibilidade com o c
 
 | Código | Teste / resultado obrigatório | Evidência mínima | Estado antes do teste |
 |---|---|---|---|
-| S1-01 | Administrador de instalação existente migra com senha anterior válida e acessa com a central, sem login paralelo | vídeo ou relatório do notebook, tentativas aceitas/negadas e auditoria | **PENDENTE:** migrar dependências do hash global |
-| S1-02 | Primeiro acesso comercial exige apenas uma credencial humana, sem senha padrão, com recuperação ensaiada | instalação limpa em banco fictício e repetição após rollback | **PENDENTE:** unificar bootstrap global/central |
+| S1-01 | Administrador de instalação existente migra com senha anterior válida, gera recuperação central e retira a senha legada somente após confirmação | vídeo ou relatório do notebook, tentativas aceitas/negadas e auditoria | Fluxo S1/7 implementado e ensaiado em PostgreSQL isolado; **homologação manual pendente** |
+| S1-02 | Primeiro acesso comercial central cria uma senha humana e workstation local aprovada, com demais workstations pendentes | instalação limpa em banco fictício e repetição após rollback | Fluxos S1/6 e S1/8 implementados; **homologação no notebook pendente** |
 | S1-03 | Sessão central: inatividade 30 min; duração máxima 12 h; operações críticas exigem confirmação após 5 min sem reiniciar a sessão | relógio, logs de autenticação e testes após expiração | Implementado; homologação manual pendente |
 | S1-04 | Recuperação central em loopback/HTTPS: código de uso único, revoga todas as sessões, não entrega novo token | testes local/remoto e negação de código já usado | Código implementado; testar notebook |
 | S2-01 | Produção, Manutenção, Gerente e Admin têm somente as permissões aprovadas, inclusive por URL direta | matriz ACL HTTP 200/401/403 e UI PT/EN/ZH-TW | Código implementado; homologação pendente |
@@ -26,7 +26,7 @@ Uma CI verde demonstra regressão automatizada, **não** compatibilidade com o c
 | S5-02 | Pré-verificação de arquivamento bloqueia estações em manutenção, com kiosk, sessão, tela fixada ou contato recente | resposta do preflight e identificação física/UUID | Pré-verificação desenvolvida; ação de arquivo indisponível |
 | S5-03 | Arquivamento lógico retém UUID e auditoria, só é liberado após validar vínculos industriais físicos | aprovação operacional documentada e teste de restauração | **PENDENTE:** bloqueio intencional |
 | S6-01 | CI Windows/PowerShell, backend, PostgreSQL isolado, HTTPS e testes UI desktop/mobile verdes no mesmo commit | URL do workflow e SHA exato | Executar após última alteração |
-| S6-02 | Exportar backup verificável, ensaiar reversão e comprovar integridade dos KPIs MTTR/MTTA/MTBF, disponibilidade e downtime | relatório de backup, restauração e amostras de BI sem dados reais | **PENDENTE** |
+| S6-02 | Exportar backup verificável, ensaiar reversão e comprovar integridade dos KPIs MTTR/MTTA/MTBF, disponibilidade e downtime | relatório de backup, restauração e amostras de BI sem dados reais | Validação automatizada de **recuperação Admin/negação no rollback** acrescentada; **backup/restauração e BI no notebook pendentes** |
 | S6-03 | Gestor autoriza janela de implantação **separadamente**, depois dos testes e do parecer de manutenção | aceite expresso com SHA, risco e plano de rollback | **NÃO AUTORIZADO** |
 
 ## Sequência para homologar no notebook sem tocar a fábrica
@@ -38,6 +38,12 @@ Uma CI verde demonstra regressão automatizada, **não** compatibilidade com o c
 5. Somente após um ensaio Node-RED/GPIO acompanhado fisicamente, comparar contratos dos payloads 7–12 e confirmar que leitura autorizada não implica permissão de escrita. Registrar qual cliente/versão foi testado.
 6. Conferir indicadores BI com chamados de manutenção classificados, testes excluídos, chamadas concorrentes e separação de categorias não manutenção. Conservar evidências de antes/depois e validar que não houve regressão.
 7. Fechar cada critério com data, evidência, responsável e decisão. Com qualquer bloqueio, **não implantar**.
+
+## Evidência S1/S6 adicional — recuperação após retirar a senha legada
+
+O teste `server/scripts/validate-access-http.mjs`, executado na CI em **PostgreSQL isolado `andon_test` e HTTPS local**, agora prossegue após o opt-in de retirada da senha global. Para separar os limites de tentativa acumulados durante a prova anterior, ele abre **uma segunda instância HTTPS apontando para o mesmo banco isolado**, sem afrouxar o limitador de produção e verificando a persistência das credenciais/sessões entre instâncias: confirma que não há hash legado, testa rejeições por Origin e CSRF, recupera a senha central uma única vez, demonstra revogação da sessão anterior, nega reutilização do código, impede login com a senha central antiga, autoriza nova autenticação com a senha central redefinida e comprova que a conta global não reaparece. O guard de primeiro acesso é exercitado com a mesma base em modo central ON, rollback para OFF e retorno a ON, incluindo a negação **428** no modo legado sem senha global.
+
+Essas verificações provam **apenas a lógica de autenticação e rollback do banco de testes**, sem restaurar um backup real, medir KPIs ou validar clientes físicos. Continuam obrigatórios a execução acompanhada no notebook, a restauração completa verificada, o aceite de manutenção para Node-RED/GPIO e a autorização industrial separada.
 
 ## Cenários negativos obrigatórios
 
