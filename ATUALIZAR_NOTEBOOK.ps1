@@ -5,9 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$startScript = Join-Path $repoRoot "homologation\https\Start-AndonHttpsHomologation.ps1"
 $stopScript = Join-Path $repoRoot "homologation\https\Stop-AndonHttpsHomologation.ps1"
-$portTransitionScript = Join-Path $repoRoot "homologation\https\Clear-AndonLocalHttpsPorts.ps1"
 $stateRoot = Join-Path $repoRoot ".andon-homologation"
 $stateFile = Join-Path $stateRoot "processes.json"
 
@@ -15,14 +13,14 @@ $stateFile = Join-Path $stateRoot "processes.json"
 # guard prevents accidentally switching the production host to a test profile.
 $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
 if ([int]$os.ProductType -ne 1) {
-    throw "Esta rotina e exclusiva para notebook/Windows cliente. No servidor industrial, utilize o instalador e o procedimento de homologacao da fabrica."
+    throw "Esta rotina e exclusiva para Windows cliente local. No servidor industrial, utilize o instalador e o procedimento de homologacao da fabrica."
 }
 
 if (!(Get-Command git.exe -ErrorAction SilentlyContinue)) {
     throw "Git nao encontrado. A atualizacao automatica da main nao pode prosseguir."
 }
 if (!(Test-Path (Join-Path $repoRoot ".git"))) {
-    throw "Execute a rotina na copia Git do ANDON no notebook, nao em uma pasta de instalacao sem repositorio."
+    throw "Execute a rotina na copia Git do ANDON no ambiente local, nao em uma pasta de instalacao sem repositorio."
 }
 
 Push-Location $repoRoot
@@ -49,46 +47,76 @@ try {
     }
 
     $commit = (& git.exe rev-parse --short HEAD | Out-String).Trim()
-    Write-Host "Codigo do notebook: main ($commit)" -ForegroundColor Cyan
+    Write-Host "Codigo main atualizado: $commit" -ForegroundColor Cyan
 
-    # Only stop a prior HTTPS test instance identified by its own state file.
-    # Neither the industrial installer nor arbitrary processes are killed.
-    if (Test-Path $stateFile) {
+    # Option 2 applies code only. Stop a tracked local HTTPS test process if
+    # it is still present so option 4 can start the new commit cleanly.
+    if (Test-Path $stateFile -PathType Leaf) {
         & $stopScript
-        if ($LASTEXITCODE -ne 0) { throw "Nao foi possivel encerrar a homologacao anterior com seguranca." }
     }
 
-    if (!(Test-Path $startScript -PathType Leaf)) {
-        throw "Launcher HTTPS nao encontrado depois da atualizacao da main."
+    # The installer menu runs from a DIFFERENT directory than the Git clone.
+    # Synchronize it as part of option 2, otherwise an old menu keeps showing
+    # option 15 and uses outdated scripts even though 'git pull' succeeds.
+    $installerPath = "C:\web-andon-industrial\installer"
+    if (!(Test-Path $installerPath -PathType Container)) {
+        throw "Instalador local nao encontrado em $installerPath. Codigo atualizado, mas nenhum menu foi substituido."
     }
+    $names = @(
+        "menu-andon-installer.ps1",
+        "start-andon.ps1",
+        "stop-andon.ps1",
+        "health-check-andon.ps1",
+        "AndonInstaller.LocalHttps.ps1"
+    )
+    $backupRoot = Join-Path $stateRoot ("installer-menu-backup-" + [guid]::NewGuid().ToString("N"))
+    $stageRoot = Join-Path $backupRoot "staging"
+    $savedRoot = Join-Path $backupRoot "original"
+    New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $savedRoot -Force | Out-Null
 
-    # The legacy ANDON service may remain on 3001 after the former HTTPS
-    # launcher PID exits. Stop only verified local ANDON processes and suspend
-    # their verified watchdog tasks; never kill an unrelated port owner.
-    if (!(Test-Path $portTransitionScript -PathType Leaf)) {
-        throw "Rotina segura de transicao de portas nao encontrada."
+    # Prepare all sources before updating the first installed file.
+    foreach ($name in $names) {
+        $source = Join-Path $repoRoot ("installer\" + $name)
+        $destination = Join-Path $installerPath $name
+        if (!(Test-Path $source -PathType Leaf)) { throw "Script da main ausente: $name" }
+        Copy-Item -LiteralPath $source -Destination (Join-Path $stageRoot $name) -Force
+        if (Test-Path $destination -PathType Leaf) {
+            Copy-Item -LiteralPath $destination -Destination (Join-Path $savedRoot $name) -Force
+        }
     }
-    . $portTransitionScript
-    Clear-AndonLocalHttpsPorts -ProjectRoot $repoRoot -StateRoot $stateRoot
-
-    # Synthetic Docker database and real TLS, but exactly the usual ports.
-    # All central operational + palette write gates are ON only in this
-    # loopback, Windows-client test process. PLC/GPIO write channels stay OFF.
-    & $startScript -FrontendPort 8080 -ApiPort 3001 -PostgresPort 55432 `
-        -EnableCentralOperationalWrites -EnableGlobalPaletteWrites `
-        -NotebookStandardPorts
-
-    # Once this test profile has actually passed HTTPS readiness, remember
-    # the operator's choice. Future menu option 2 updates reuse the notebook
-    # workflow; Windows Server never reads this marker.
-    $profileMarker = Join-Path $repoRoot ".andon-homologation\notebook-standard-ports.enabled"
-    Set-Content -Path $profileMarker -Value "https://localhost:8080/hub" -Encoding ASCII
+    $updated = @()
+    try {
+        foreach ($name in $names) {
+            $destination = Join-Path $installerPath $name
+            Copy-Item -LiteralPath (Join-Path $stageRoot $name) -Destination $destination -Force
+            $updated += $name
+        }
+    } catch {
+        foreach ($name in $updated) {
+            $saved = Join-Path $savedRoot $name
+            $destination = Join-Path $installerPath $name
+            if (Test-Path $saved -PathType Leaf) {
+                Copy-Item -LiteralPath $saved -Destination $destination -Force
+            } else {
+                Remove-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+            }
+        }
+        throw "Falha ao sincronizar menu. Cópias anteriores preservadas em $savedRoot. Erro: $($_.Exception.Message)"
+    }
+    foreach ($name in $names) {
+        $sourceHash = (Get-FileHash (Join-Path $repoRoot ("installer\" + $name)) -Algorithm SHA256).Hash
+        $installedHash = (Get-FileHash (Join-Path $installerPath $name) -Algorithm SHA256).Hash
+        if ($sourceHash -ne $installedHash) {
+            throw "Falha na verificacao do menu instalado: $name. Backups mantidos em $savedRoot"
+        }
+    }
 
     Write-Host ""
-    Write-Host "Notebook: https://localhost:8080/hub" -ForegroundColor Green
-    Write-Host "API HTTPS: https://localhost:3001" -ForegroundColor Green
-    Write-Host "Identidades Node-RED/GPIO: somente API de leitura; nenhum hardware conectado." -ForegroundColor Yellow
-    Write-Host "Banco de homologacao preservado. Nenhuma alteracao aplicada ao servidor Evergreen." -ForegroundColor Yellow
+    Write-Host "Menu e comandos sincronizados com main ($commit)." -ForegroundColor Green
+    Write-Host "Encerre o menu antigo e abra-o novamente. Depois use 4 - Iniciar ANDON." -ForegroundColor Green
+    Write-Host "HTTPS local: https://localhost:8080/hub | API: https://localhost:3001" -ForegroundColor Green
+    Write-Host "Banco e certificados de testes preservados. Nenhuma mudanca na Evergreen." -ForegroundColor Yellow
 } finally {
     Pop-Location
 }

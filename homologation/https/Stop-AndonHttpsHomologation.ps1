@@ -18,7 +18,7 @@ if (Test-Path $processPath) {
     )
     foreach ($processId in @($processes.frontendPid, $processes.apiPid)) {
         if ($processId) {
-            Stop-AndonHttpsTrackedProcess -ProcessId ([int]$processId) -StartedAtUtc $startedAtUtc
+            Stop-AndonHttpsTrackedProcess -ProcessId ([int]$processId) -StartedAtUtc $startedAtUtc -ProjectRoot $repoRoot
         }
     }
     # Delete only the stale process metadata. The PostgreSQL test volume,

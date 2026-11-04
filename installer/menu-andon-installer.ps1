@@ -57,7 +57,6 @@ function Show-AndonMenu {
         Write-Host "12 - Configurar IP/rede do servidor"
         Write-Host "13 - Configurar PostgreSQL/porta do banco"
         Write-Host "14 - Configurar HTTPS (assistente)"
-        Write-Host "15 - Ambiente de testes: atualizar main + iniciar HTTPS (8080/3001)"
         Write-Host "0  - Sair"
         Write-Host ""
 
@@ -68,6 +67,12 @@ function Show-AndonMenu {
         Write-Host ""
 
         $option = Read-Host "Escolha uma opcao"
+        if ([string]::IsNullOrWhiteSpace($option)) {
+            # If stdin is closed (or Read-Host immediately returns an empty
+            # value), the old do/while repainted the screen indefinitely.
+            Write-AndonWarn "Nenhuma opcao informada. Menu encerrado para evitar recarga continua."
+            return
+        }
 
         switch ($option) {
             "1" {
@@ -76,19 +81,16 @@ function Show-AndonMenu {
                     "Instalacao limpa"
             }
             "2" {
-                # Keep the industrial installer untouched. A Windows client
-                # only reuses the notebook workflow after the operator has
-                # successfully completed its first HTTPS central setup.
-                $notebookMarker = Join-Path $Global:AndonProjectPath ".andon-homologation\notebook-standard-ports.enabled"
-                $isWindowsClient = $false
-                try {
-                    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
-                    $isWindowsClient = ([int]$os.ProductType -eq 1)
-                } catch {
-                    # Never block the server updater if CIM discovery fails.
-                    $isWindowsClient = $false
+                # A configured local HTTPS profile updates its code through
+                # the same option 2, then starts through option 4. Windows
+                # Server always retains the official industrial updater.
+                $localHttpsProfile = $false
+                $localProfileScript = Join-Path $Global:AndonProjectPath "installer\AndonInstaller.LocalHttps.ps1"
+                if (Test-Path $localProfileScript -PathType Leaf) {
+                    . $localProfileScript
+                    $localHttpsProfile = Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath
                 }
-                if ($isWindowsClient -and (Test-Path $notebookMarker)) {
+                if ($localHttpsProfile) {
                     Invoke-AndonMenuScript `
                         "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
                         "Atualizar main e reiniciar HTTPS central (8080/3001)"
@@ -155,11 +157,6 @@ function Show-AndonMenu {
                 Invoke-AndonMenuScript `
                     "$Global:AndonInstallerPath\configure-andon-https.ps1" `
                     "Configurar transporte HTTP/HTTPS"
-            }
-            "15" {
-                Invoke-AndonMenuScript `
-                    "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
-                    "Atualizar e testar HTTPS central (8080/3001)"
             }
             "0" {
                 return

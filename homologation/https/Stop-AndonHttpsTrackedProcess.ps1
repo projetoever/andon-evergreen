@@ -4,7 +4,8 @@ function Stop-AndonHttpsTrackedProcess {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][int]$ProcessId,
-        [Parameter(Mandatory = $true)][datetime]$StartedAtUtc
+        [Parameter(Mandatory = $true)][datetime]$StartedAtUtc,
+        [string]$ProjectRoot = ""
     )
 
     if ($ProcessId -le 0) { return }
@@ -16,7 +17,18 @@ function Stop-AndonHttpsTrackedProcess {
     }
 
     $command = [string]$running.CommandLine
+    $normalizedCommand = $command.Replace("/", "\").ToLowerInvariant()
+    $normalizedRoot = $ProjectRoot.Replace("/", "\").TrimEnd("\").ToLowerInvariant()
+    $compiledApi = if ($normalizedRoot) { "$normalizedRoot\server\dist\server.js" } else { "" }
+    $compiledFrontend = if ($normalizedRoot) { "$normalizedRoot\scripts\serve-frontend.mjs" } else { "" }
+    $isCompiled = (
+        ([string]$running.Name -ieq "node.exe") -and
+        (![string]::IsNullOrWhiteSpace($normalizedRoot)) -and
+        ($normalizedCommand.Contains($compiledApi) -or
+         $normalizedCommand.Contains($compiledFrontend))
+    )
     $isLauncher = (
+        $isCompiled -or
         ([string]$running.Name -ieq "cmd.exe" -and $command -match '(?i)npm(?:\.cmd)?"?\s+run\s+dev') -or
         ([string]$running.Name -ieq "node.exe" -and $command -match '(?i)npm-cli\.js"?\s+run\s+dev\b')
     )

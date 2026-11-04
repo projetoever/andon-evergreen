@@ -43,7 +43,7 @@ $centralHomologationFlags = @(
 # a parent PowerShell and is never enabled by operational writes alone.
 $visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"
 if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites) {
-    throw "A paleta global requer -EnableCentralOperationalWrites no notebook isolado."
+    throw "A paleta global requer -EnableCentralOperationalWrites no ambiente local isolado."
 }
 # Same familiar frontend/API ports are permitted ONLY through an explicit
 # notebook-only path, never through the industrial launcher or generic profile.
@@ -53,10 +53,10 @@ $standardNotebookPorts = (
     $ApiPort -eq 3001 -and $PostgresPort -eq 55432
 )
 if ($NotebookStandardPorts -and !$standardNotebookPorts) {
-    throw "Portas de notebook invalidas. Use exclusivamente 8080, 3001 e 55432."
+    throw "Portas do ambiente local invalidas. Use exclusivamente 8080, 3001 e 55432."
 }
 if ($NotebookStandardPorts -and !$EnableCentralOperationalWrites) {
-    throw "O perfil de notebook requer ativacao explicita das escritas centrais isoladas."
+    throw "O perfil local requer ativacao explicita das escritas centrais isoladas."
 }
 if ($EnableCentralOperationalWrites) {
     # This launcher always binds to localhost and uses its own Docker database.
@@ -76,14 +76,14 @@ if ($NotebookStandardPorts) {
     # outside the factory repository. Fail before touching Docker or TLS.
     $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
     if ([int]$os.ProductType -ne 1) {
-        throw "Perfil de notebook proibido no Windows Server. Nenhuma configuracao foi alterada."
+        throw "Perfil local proibido no Windows Server. Nenhuma configuracao foi alterada."
     }
     # Never stop unknown listeners or reuse an HTTP service already running
     # on a familiar port. The operator must close the previous notebook runtime.
     $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
     foreach ($port in @($FrontendPort, $ApiPort)) {
         if (@($listeners | Where-Object { $_.Port -eq $port }).Count -gt 0) {
-            throw "Porta $port ja ocupada. Pare o ANDON anterior no notebook antes de iniciar HTTPS central. Nenhum processo foi encerrado."
+            throw "Porta $port ja ocupada. Pare o ANDON anterior no ambiente local antes de iniciar HTTPS central. Nenhum processo foi encerrado."
         }
     }
 }
@@ -188,7 +188,7 @@ $environmentNames = @(
     "ANDON_CENTRAL_ACCESS_ENABLED", "VITE_ANDON_DATA_MODE", "VITE_ANDON_API_BASE_URL",
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT",
-    "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER"
+    "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER", "ANDON_PROJECT_PATH", "ANDON_TLS_HOST"
 ) + $centralHomologationFlags + @($visualPaletteFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -254,18 +254,37 @@ foreach ($flag in $centralHomologationFlags) {
 }
 [Environment]::SetEnvironmentVariable(
     $visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")
-$apiProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
-    -WorkingDirectory (Join-Path $repoRoot "server") -PassThru `
-    -RedirectStandardOutput (Join-Path $statePath "api.log") `
-    -RedirectStandardError (Join-Path $statePath "api-error.log")
-
+# Use stable, compiled Node runtimes instead of npm/vite dev wrappers.
+# The old wrappers could exit or detach children after the menu script ended.
+# Build every activation in the isolated profile until a versioned build cache
+# is introduced; never report success for a stale source tree.
 $env:VITE_ANDON_DATA_MODE = "api"
 $env:VITE_ANDON_API_BASE_URL = $apiUrl
 $env:ANDON_HOMOLOGATION_TLS_CERT = $certPath
 $env:ANDON_HOMOLOGATION_TLS_KEY = $keyPath
 $env:ANDON_HOMOLOGATION_HOST = "127.0.0.1"
 $env:ANDON_HOMOLOGATION_FRONTEND_PORT = "$FrontendPort"
-$frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
+& npm.cmd run build --prefix $serverRoot
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a API HTTPS local." }
+& npm.cmd run build --prefix $repoRoot
+if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a interface HTTPS local." }
+
+$apiBuild = Join-Path $serverRoot "dist\server.js"
+$frontendBuild = Join-Path $repoRoot "scripts\serve-frontend.mjs"
+if (!(Test-Path $apiBuild -PathType Leaf) -or
+    !(Test-Path (Join-Path $repoRoot "dist\server\server.js") -PathType Leaf) -or
+    !(Test-Path (Join-Path $repoRoot "dist\client") -PathType Container)) {
+    throw "Compilacao nao produziu a API e o Hub. Nenhum servico sera iniciado."
+}
+$nodeExe = (Get-Command node.exe -ErrorAction Stop).Source
+$apiProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $apiBuild + '"') `
+    -WorkingDirectory $serverRoot -PassThru `
+    -RedirectStandardOutput (Join-Path $statePath "api.log") `
+    -RedirectStandardError (Join-Path $statePath "api-error.log")
+
+$env:ANDON_PROJECT_PATH = $repoRoot
+$env:ANDON_TLS_HOST = "localhost"
+$frontendProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $frontendBuild + '"') `
     -WorkingDirectory $repoRoot -PassThru `
     -RedirectStandardOutput (Join-Path $statePath "frontend.log") `
     -RedirectStandardError (Join-Path $statePath "frontend-error.log")
@@ -282,6 +301,12 @@ $frontendProcess = Start-Process npm.cmd -ArgumentList "run", "dev" `
 try {
     Wait-Url "$apiUrl/health"
     Wait-Url "$origin/hub"
+    Start-Sleep -Seconds 3
+    if ($apiProcess.HasExited -or $frontendProcess.HasExited) {
+        throw "API ou interface encerrou logo apos iniciar. Consulte .andon-homologation/api-error.log e frontend-error.log."
+    }
+    Wait-Url "$apiUrl/health"
+    Wait-Url "$origin/hub"
 } catch {
     & (Join-Path $PSScriptRoot "Stop-AndonHttpsHomologation.ps1")
     throw
@@ -294,12 +319,12 @@ try {
 
 Write-Host ""
 Write-Host "ANDON HTTPS de homologacao pronto:" -ForegroundColor Green
-if ($NotebookStandardPorts) { Write-Host "  PERFIL NOTEBOOK: HTTPS central nas portas habituais 8080/3001; SEM acesso ao banco industrial." -ForegroundColor Yellow }
+if ($NotebookStandardPorts) { Write-Host "  AMBIENTE LOCAL: HTTPS central nas portas habituais 8080/3001; SEM acesso ao banco industrial." -ForegroundColor Yellow }
 Write-Host "  Hub: $origin/hub"
 Write-Host "  API: $apiUrl"
 Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
 Write-Host "  Primeiro acesso central: no Hub local, cadastre uma unica senha Admin (SEM senha predefinida)."
 Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
-Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO NOTEBOOK' } else { 'DESLIGADA (padrao, independente)' })"
+Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO AMBIENTE LOCAL' } else { 'DESLIGADA (padrao, independente)' })"
 Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"

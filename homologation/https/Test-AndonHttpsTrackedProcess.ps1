@@ -62,12 +62,34 @@ try {
     Stop-AndonHttpsTrackedProcess -ProcessId 24488 -StartedAtUtc $base
     if ($script:kills -ne 1) { throw "Launcher valido nao recebeu taskkill." }
 
+    # Compiled Node processes started by menu option 4 are also stoppable,
+    # but only when their absolute entrypoint belongs to this Git project.
+    $compiled = [pscustomobject]@{
+        Name = "node.exe"
+        CommandLine = '"C:\Program Files\nodejs\node.exe" "C:\web-andon-industrial\andon\server\dist\server.js"'
+        CreationDate = $base.AddSeconds(-2)
+    }
+    $otherNode = [pscustomobject]@{
+        Name = "node.exe"
+        CommandLine = '"C:\Program Files\nodejs\node.exe" "C:\other-service\server\dist\server.js"'
+        CreationDate = $base.AddSeconds(-2)
+    }
+    $script:queried = 0
+    $script:beforeKill = $otherNode
+    Stop-AndonHttpsTrackedProcess -ProcessId 24488 -StartedAtUtc $base -ProjectRoot 'C:\web-andon-industrial\andon'
+    if ($script:kills -ne 1) { throw "Processo Node externo foi encerrado." }
+
+    $script:queried = 0
+    $script:beforeKill = $compiled
+    Stop-AndonHttpsTrackedProcess -ProcessId 24488 -StartedAtUtc $base -ProjectRoot 'C:\web-andon-industrial\andon'
+    if ($script:kills -ne 2) { throw "Processo Node compilado do ANDON nao foi encerrado." }
+
     $script:queried = 0
     $script:beforeKill = $owned
     $script:afterKill = $null
     $script:exitCode = 128
     Stop-AndonHttpsTrackedProcess -ProcessId 24488 -StartedAtUtc $base
-    if ($script:kills -ne 2) { throw "Corrida de finalizacao nao foi testada." }
+    if ($script:kills -ne 3) { throw "Corrida de finalizacao nao foi testada." }
 
     $script:queried = 0
     $script:beforeKill = $owned
