@@ -21,7 +21,7 @@ import type { Workstation } from "@/types/workstation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
 import { toast } from "@/i18n/toast";
-import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
+import { accessRequest, type AccessState, type ManagedWorkstation, type WorkstationArchivePreflight, type WorkstationArchiveBlocker } from "@/services/accessService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 
 function workstationLabel(workstation: Workstation) {
@@ -54,6 +54,19 @@ function sessionStateLabel(state: NonNullable<ManagedWorkstation["lastLogin"]>["
   }
 }
 
+const archiveBlockerLabels: Record<WorkstationArchiveBlocker, string> = {
+  own_workstation: "Não é possível arquivar a estação administrativa atual.",
+  station_active: "A workstation ainda está ativa.",
+  approval_pending: "Existe uma aprovação de workstation pendente.",
+  locked_machine: "Existe uma tela fixada em máquina.",
+  modules_enabled: "Ainda existem módulos autorizados nesta estação.",
+  recent_heartbeat: "Um heartbeat recente indica possível utilização.",
+  recent_contact: "A estação teve contato com o servidor nos últimos 15 minutos.",
+  active_maintenance: "Existe atendimento de manutenção ativo.",
+  active_access_session: "Existe sessão de acesso central ainda válida.",
+  kiosk_linked: "Há histórico de vínculo com conta kiosk.",
+};
+
 export function WorkstationsSettingsTab() {
   useInterfaceLanguage();
   const { access, checking, refresh } = useModuleAccess();
@@ -69,6 +82,9 @@ export function WorkstationsSettingsTab() {
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [archiveChecks, setArchiveChecks] = useState<Record<string, WorkstationArchivePreflight>>({});
+  const [archiveErrors, setArchiveErrors] = useState<Record<string, string>>({});
+  const [archiveCheckingId, setArchiveCheckingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -177,6 +193,29 @@ export function WorkstationsSettingsTab() {
     )
       void load();
   }, [accessSession, centralAccess, load]);
+
+  async function inspectArchive(workstationId: string) {
+    if (!centralAccess || !accessSession?.principal?.isPrimaryAdmin || archiveCheckingId) return;
+    setArchiveCheckingId(workstationId);
+    setArchiveErrors(current => ({ ...current, [workstationId]: "" }));
+    try {
+      const result = await accessRequest<WorkstationArchivePreflight>(
+        `/workstations/${encodeURIComponent(workstationId)}/archive-preflight`,
+      );
+      setArchiveChecks(current => ({ ...current, [workstationId]: result }));
+    } catch (e) {
+      setArchiveChecks(current => {
+        const next = { ...current };
+        delete next[workstationId];
+        return next;
+      });
+      setArchiveErrors(current => ({
+        ...current, [workstationId]: e instanceof Error ? e.message : "access_unavailable",
+      }));
+    } finally {
+      setArchiveCheckingId(null);
+    }
+  }
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -644,6 +683,43 @@ export function WorkstationsSettingsTab() {
                     <p className="break-all font-mono text-xs text-muted-foreground">
                       {ui("UUID:")} {workstation.id}
                     </p>
+                    {centralAccess && accessSession?.principal?.isPrimaryAdmin && (
+                      <section className="space-y-2 rounded-lg border border-border p-3 text-xs">
+                        <p className="font-bold">{ui("Verificação de segurança para arquivamento")}</p>
+                        <p className="text-muted-foreground">
+                          {ui("Esta análise não arquiva nem altera a workstation. A validação física de Node-RED, GPIO e clientes industriais ainda é obrigatória.")}
+                        </p>
+                        <Button type="button" size="sm" variant="outline"
+                          disabled={archiveCheckingId !== null}
+                          onClick={() => void inspectArchive(workstation.id)}>
+                          {ui("Verificar impedimentos")}
+                        </Button>
+                        {archiveErrors[workstation.id] && (
+                          <p role="alert" className="text-danger">
+                            {ui("Não foi possível verificar o arquivamento.")} {systemMessage(archiveErrors[workstation.id])}
+                          </p>
+                        )}
+                        {archiveChecks[workstation.id] && (
+                          <div role="status" className="space-y-2">
+                            <p className="font-semibold">
+                              {ui(archiveChecks[workstation.id].canArchiveFromSystemChecks
+                                ? "Sem impedimentos identificados no banco — revisão física pendente"
+                                : "Arquivamento bloqueado pelas condições abaixo")}
+                            </p>
+                            {archiveChecks[workstation.id].blockers.length > 0 && (
+                              <ul className="list-disc space-y-1 pl-5">
+                                {archiveChecks[workstation.id].blockers.map(reason => (
+                                  <li key={reason}>{ui(archiveBlockerLabels[reason])}</li>
+                                ))}
+                              </ul>
+                            )}
+                            <p className="font-semibold text-muted-foreground">
+                              {ui("O arquivamento permanece indisponível até a homologação industrial.")}
+                            </p>
+                          </div>
+                        )}
+                      </section>
+                    )}
                     {centralAccess && workstation.admission && (
                       <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs md:grid-cols-2">
                         <p>
