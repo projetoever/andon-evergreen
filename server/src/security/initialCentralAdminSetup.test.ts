@@ -8,6 +8,7 @@ import {
 } from "./initialAdminSetup.js";
 
 const PASSWORD = "Initial-Admin#Safe2026";
+const LOCAL_WS = "ws_00000000-0000-4000-8000-00000000a001";
 
 function localRequest(remoteAddress = "127.0.0.1") {
   return {
@@ -28,6 +29,11 @@ function fixture(options: { legacyHash?: string; previousAccount?: boolean;
     systemSettings: {
       upsert: async () => { calls.push("global-settings-row"); return { id: "global" }; },
       findUnique: async () => ({ adminPasswordHash: options.legacyHash ?? null }),
+      update: async (args: { data: { requireWorkstationApproval: boolean } }) => {
+        assert.equal(args.data.requireWorkstationApproval, true);
+        calls.push("enforce-approval");
+        return { id: "global", requireWorkstationApproval: true };
+      },
     },
     accessUser: {
       findFirst: async () => options.previousAccount ? { id: "existing" } : null,
@@ -45,12 +51,26 @@ function fixture(options: { legacyHash?: string; previousAccount?: boolean;
     },
     workstation: {
       findFirst: async () => options.previousWorkstation ? { id: "existing-station" } : null,
+      create: async (args: { data: Record<string, unknown>; select: Record<string, unknown> }) => {
+        calls.push("create-local-station");
+        assert.equal(args.data.id, LOCAL_WS);
+        assert.equal(args.data.active, true);
+        assert.equal(args.data.pendingApproval, false);
+        assert.equal(args.data.allowOperational, false);
+        assert.equal(args.data.allowBi, false);
+        assert.equal(args.data.allowPriorities, false);
+        assert.equal(args.data.lastIpAddress, "127.0.0.1");
+        assert.deepEqual(args.select, { id: true });
+        return { id: LOCAL_WS };
+      },
     },
     auditEvent: {
       create: async (data: { data: Record<string, unknown> }) => {
         calls.push("audit");
         assert.equal(data.data.action, "access.admin.initialized.local");
         assert.equal(data.data.resourceId, "new-admin");
+        assert.equal((data.data.after as Record<string, unknown>).initialAdminWorkstationRegistered, true);
+        assert.equal((data.data.after as Record<string, unknown>).workstationApprovalRequired, true);
         assert(!JSON.stringify(data).includes(PASSWORD));
         if (options.failAudit) throw Error("audit_failed");
         return { id: "audit-setup" };
@@ -91,16 +111,18 @@ test("S1/6 one-pass clean central bootstrap stores human Admin, never global sec
   const token = issueInitialAdminSetupToken(req);
   assert.match(token ?? "", /^[a-f0-9]{64}$/);
   const f = fixture();
-  const result = await initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD });
+  const result = await initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS });
   assert.deepEqual(result, { ok: true, passwordConfigured: true, centralAccessInitialized: true });
   assert.equal(f.commits, 1);
   assert(f.passwordHash);
   assert.equal(await verifyAccessPassword(PASSWORD, f.passwordHash!), true);
   assert.equal(f.calls.filter(x => x === "create-primary").length, 1);
+  assert.equal(f.calls.filter(x => x === "create-local-station").length, 1);
+  assert.equal(f.calls.filter(x => x === "enforce-approval").length, 1);
   assert(!f.calls.includes("issue-session"));
   assert.equal(f.calls.at(-1), "transaction-commit");
   await assert.rejects(
-    initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD }),
+    initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS }),
     (err) => err instanceof InitialAdminSetupError && err.code === "setup_token_invalid",
   );
 });
@@ -125,7 +147,7 @@ test("S1/6 old installations and remote calls never create a central bootstrap a
     const token = issueInitialAdminSetupToken(req);
     const f = fixture(options);
     await assert.rejects(
-      initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD }),
+      initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS }),
       (err) => err instanceof InitialAdminSetupError &&
         err.code === "existing_installation_requires_migration",
     );
@@ -136,13 +158,13 @@ test("S1/6 old installations and remote calls never create a central bootstrap a
   const f = fixture();
   await assert.rejects(
     initializeCentralAdminFirstRun(f.db, localRequest("192.0.2.99"),
-      { setupToken: token, password: PASSWORD }),
+      { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS }),
     (err) => err instanceof InitialAdminSetupError && err.code === "setup_local_only",
   );
   assert.equal(f.calls.length, 0);
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
   await assert.rejects(
-    initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD }),
+    initializeCentralAdminFirstRun(f.db, req, { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS }),
     (err) => err instanceof InitialAdminSetupError && err.code === "central_mode_required",
   );
   assert.equal(f.commits, 0);
@@ -163,15 +185,41 @@ test("S1/6 weak passwords or audit failure fail closed before successful enrollm
   const token = issueInitialAdminSetupToken(req);
   const weak = fixture();
   await assert.rejects(
-    initializeCentralAdminFirstRun(weak.db, req, { setupToken: token, password: "12345678" }),
+    initializeCentralAdminFirstRun(weak.db, req, { setupToken: token, password: "12345678", workstationId: LOCAL_WS }),
     (err) => err instanceof InitialAdminSetupError && err.code === "password_policy_failed",
   );
   assert.equal(weak.commits, 0);
   const failed = fixture({ failAudit: true });
   await assert.rejects(
-    initializeCentralAdminFirstRun(failed.db, req, { setupToken: token, password: PASSWORD }),
+    initializeCentralAdminFirstRun(failed.db, req, { setupToken: token, password: PASSWORD, workstationId: LOCAL_WS }),
     /audit_failed/,
   );
   assert.equal(failed.commits, 0);
   assert.equal(failed.calls.at(-1), "transaction-rollback");
+});
+
+test("S1/6 central bootstrap rejects invalid workstation identity before transaction", async (t) => {
+  const oldMode = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const oldCors = process.env.CORS_ORIGINS;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+  process.env.CORS_ORIGINS = "https://localhost:8080";
+  t.after(() => {
+    if (oldMode === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = oldMode;
+    if (oldCors === undefined) delete process.env.CORS_ORIGINS;
+    else process.env.CORS_ORIGINS = oldCors;
+  });
+  const req = localRequest();
+  const token = issueInitialAdminSetupToken(req);
+  const f = fixture();
+  for (const invalid of ["station-37", "ws-not-a-uuid", "", null, undefined]) {
+    await assert.rejects(
+      initializeCentralAdminFirstRun(f.db, req, {
+        setupToken: token, password: PASSWORD, workstationId: invalid,
+      }),
+      (err) => err instanceof InitialAdminSetupError && err.code === "invalid_workstation_id",
+    );
+  }
+  assert.equal(f.commits, 0);
+  assert.deepEqual(f.calls, []);
 });
