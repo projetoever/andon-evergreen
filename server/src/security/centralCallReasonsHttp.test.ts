@@ -116,7 +116,7 @@ test("R6/S2: standalone route never reads or writes database without trusted mar
     { method: "POST", url: "/api/call-reasons/setup/options", payload: { id: "mech" } },
     { method: "PATCH", url: "/api/call-reasons/setup/options/mech", payload: { expectedRevision: 1 } },
   ]) {
-    const res = await app.inject({ method, url, ...(payload ? { payload } : {}) });
+    const res = await app.inject({ method: method as "GET" | "POST" | "PATCH", url, ...(payload ? { payload } : {}) });
     assert.equal(res.statusCode, 403, method + " " + url);
     assert.equal(res.json().error, "central_action_not_supported");
     assert.equal(res.headers["cache-control"], "no-store");
