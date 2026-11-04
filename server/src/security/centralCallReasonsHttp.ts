@@ -7,6 +7,7 @@ import {
 } from "../access/policy.js";
 
 const validated = new WeakSet<FastifyRequest>();
+const validatedReads = new WeakSet<FastifyRequest>();
 const ID = "[a-z0-9_]{2,40}";
 
 /** Independent feature gate, OFF on every existing installation by default. */
@@ -33,8 +34,16 @@ function assertReasonAdmin(principal: Principal, station: Station) {
   assertPermission(principal, "catalog.reasons.manage");
   if (!principal.isPrimaryAdmin) throw new AccessError("primary_admin_required");
 }
-export function authorizeCentralCallReasonRead(principal: Principal, station: Station) {
+export function authorizeCentralCallReasonRead(
+  request: FastifyRequest, principal: Principal, station: Station,
+) {
+  if (!isCentralCallReasonRead(request.method, request.url.split("?", 1)[0] ?? ""))
+    throw new AccessError("central_route_not_supported");
   assertReasonAdmin(principal, station);
+  validatedReads.add(request);
+}
+export function isAuthorizedCentralCallReasonRead(request: FastifyRequest) {
+  return centralCallReasonsHttpEnabled() && validatedReads.has(request);
 }
 export function markCentralCallReasonAuthorized(
   request: FastifyRequest, principal: Principal, station: Station,
