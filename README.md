@@ -22,6 +22,16 @@ A solução foi desenhada para ambientes industriais que precisam de implantaç�
 
 As funcionalidades entregues abaixo descrevem o estado da `main`. Candidatas em revisão e recursos planejados são identificados separadamente.
 
+## Desenvolvimento no notebook — HTTPS central nas portas usuais
+
+O fluxo recomendado para atualizar e testar a `main` **no notebook Windows (não no servidor industrial)** usa um único comando na raiz do repositório:
+
+```powershell
+.\ATUALIZAR_NOTEBOOK.ps1
+```
+
+A rotina valida o computador, atualiza a `main` sem sobrescrever mudanças locais e abre **`https://localhost:8080/hub`**, com API HTTPS na porta **3001** e banco de homologação exclusivo em **55432**. Na primeira execução, pare a instância antiga que estiver usando 8080/3001 (menu, opção 5) e preserve os dados. O procedimento **não** configura a Evergreen e não conecta equipamentos físicos. O `git pull` isolado não reinicia a aplicação nem ativa HTTPS: use a rotina acima para ambos. Consulte [guia REFINE 6 — notebook 8080/3001](docs/REFINE6_NOTEBOOK_8080_HTTPS_MAIN_20261104.md).
+
 ## Hub — evolução em revisão
 
 O [PR #199](https://github.com/projetoever/andon-evergreen/pull/199) entregou a base do Hub na `main`. Esta evolução torna o Hub a entrada de `http://IP:8080/`, move o painel operacional para `/andon`, oculta os módulos não autorizados e adiciona três permissões independentes por estação. Senhas de entrada configuráveis por módulo e a segurança administrativa ficam no Hub; cadastros e regras industriais permanecem no ANDON.
