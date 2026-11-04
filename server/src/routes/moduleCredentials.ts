@@ -33,7 +33,10 @@ const normalize = (value: unknown, min: number, max: number) =>
     : null;
 
 export async function registerModuleCredentialRoutes(app: FastifyInstance) {
-  app.get("/api/modules/credentials", async () => {
+  app.get("/api/modules/credentials", async (_request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    if (centralAccessEnabled())
+      return reply.status(403).send({ error: "legacy_module_credentials_disabled" });
     const rows = await prisma.moduleCredential.findMany({ select: publicSelect });
     return ["operational", "bi"].map((id) => {
       const row = rows.find((item) => item.id === id);
@@ -46,6 +49,9 @@ export async function registerModuleCredentialRoutes(app: FastifyInstance) {
   app.put<{ Params: ModuleParams; Body: CredentialBody }>(
     "/api/modules/:module/credentials",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled())
+        return reply.status(403).send({ error: "legacy_module_credentials_disabled" });
       const { module } = request.params;
       if (!isPasswordModule(module)) return badRequest(reply, "Módulo inválido.");
       if (typeof request.body?.passwordRequired !== "boolean")

@@ -114,6 +114,9 @@ function machineOrderValue(machine: {
 
 export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   app.patch<{ Body: { passwordRequired?: unknown } }>("/api/dashboard-priority/access-policy", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    if (centralAccessEnabled())
+      return reply.status(403).send({ error: "legacy_priority_credentials_disabled" });
     if (typeof request.body?.passwordRequired !== "boolean") return badRequest(reply, "Informe se Prioridades exige senha.");
     const config = await prisma.dashboardPriorityConfig.findUnique({ where: { id: GLOBAL_PRIORITY_CONFIG_ID } });
     if (request.body.passwordRequired && (!config?.managerUsername || !config.managerPasswordHash)) return badRequest(reply, "Configure as credenciais de Prioridades antes de exigir senha.");
@@ -150,6 +153,9 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
   app.put<{ Body: CredentialsBody }>(
     "/api/dashboard-priority/credentials",
     async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (centralAccessEnabled())
+        return reply.status(403).send({ error: "legacy_priority_credentials_disabled" });
       const username = normalizeUsername(request.body?.username);
       const password = normalizePassword(request.body?.password);
 
