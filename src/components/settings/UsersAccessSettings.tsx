@@ -317,11 +317,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               {!session.initialized && (
                 <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-foreground">
-                    {ui("Etapa 1 de 2 · Configuração do administrador")}
+                    {ui("Migração do administrador existente")}
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
                     {ui(
-                      "Você criará uma única conta Admin principal central. A senha Admin existente apenas confirma sua identidade e não será alterada. Durante a migração, haverá duas senhas: a antiga para funções legadas e a nova para o login central do Hub, ANDON e BI.",
+                      "Confirme a senha Admin existente uma última vez e crie a senha central do Hub. Depois, gere e guarde o código de recuperação central para poder desativar a senha antiga com segurança.",
                     )}
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
@@ -370,7 +370,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               {personalPassword && (
                 <div className="flex min-w-0 flex-col gap-5">
                   <p id="central-user-password-help" className="text-sm leading-5 text-muted-foreground">
-                    {ui("Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Ela é exclusiva do login central e não altera a senha Admin legada nem as senhas dos módulos.")}
+                    {ui("Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Depois de desativar a senha Admin antiga, somente a senha central será usada para esse administrador.")}
                   </p>
                   <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
                     <span className="block font-semibold leading-5">
