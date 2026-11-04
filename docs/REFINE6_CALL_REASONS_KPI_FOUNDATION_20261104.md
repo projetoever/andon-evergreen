@@ -38,7 +38,7 @@ Os exemplos **não são criados automaticamente** em nenhuma instalação. A fá
 
 Esta fase **não implementa os botões hierárquicos** e não possui endpoints de leitura/gravação do catálogo. Isso é intencional: novos motivos ainda não podem ser usados para abrir chamados, impedir atendimento nem alterar os indicadores; o piloto antigo permanece compatível.
 
-**Fase 2**: API `/api/call-reasons` com leitura por workstation autorizada, escrita Admin `catalog.reasons.manage` e `analytics.policy.manage`, CSRF, versionamento, auditoria transacional e negação a usuários não autorizados. Sem alterar instalações até homologação.
+**Fase 2 — implementação HTTP adicionada, homologação manual pendente:** API `/api/call-reasons` com leitura somente pelo Admin principal em workstation autorizada, gravação com `catalog.reasons.manage` e `analytics.policy.manage`, CSRF, versionamento, auditoria transacional e negação a usuários não autorizados. Requer `ANDON_CENTRAL_ACCESS_ENABLED=1` e `ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=1` (flag específica OFF por padrão). Sem UI, ativação industrial ou mudanças em KPI/chamados. Manual em `docs/REFINE6_S2_CALL_REASONS_API_20261104.md`.
 
 **Fase 3**: componentes de UI e seleção pai→subcategoria, controle de edição/cancelamento/um único chamado, snapshots na abertura, regras de idempotência e vínculos entre motivo e setor legado.
 
