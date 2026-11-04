@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ui } from "@/i18n/translate";
 import {
-  getAdminAuthStatus, initializeGlobalAdmin, type AdminAuthStatus,
+  getAdminAuthStatus, initializeGlobalAdmin, initializeCentralFirstAdmin, type AdminAuthStatus,
 } from "@/services/adminAuthService";
 
 export function InitialAdminSetup({
@@ -34,7 +34,8 @@ export function InitialAdminSetup({
     setBusy(true);
     setError("");
     try {
-      await initializeGlobalAdmin(password, setupToken);
+      if (status.centralFirstRun) await initializeCentralFirstAdmin(password, setupToken);
+      else await initializeGlobalAdmin(password, setupToken);
       setPassword("");
       setConfirm("");
       setSetupToken("");
@@ -70,7 +71,7 @@ export function InitialAdminSetup({
         ) : (
           <form className="space-y-4" onSubmit={(event) => void submit(event)}>
             <Label className="block space-y-2">
-              <span>{ui("Nova senha global do administrador")}</span>
+              <span>{ui(status.centralFirstRun ? "Criar senha do Admin central" : "Nova senha global do administrador")}</span>
               <Input type="password" required autoComplete="new-password"
                 minLength={8} maxLength={128} value={password}
                 onChange={event => setPassword(event.target.value)} />
@@ -82,7 +83,9 @@ export function InitialAdminSetup({
                 onChange={event => setConfirm(event.target.value)} />
             </Label>
             <p className="text-xs text-muted-foreground">
-              {ui("Use entre 8 e 128 caracteres. Recomendamos pelo menos 12, sem senhas comuns. Esta senha será usada nas funções administrativas legadas durante a migração para o login central.")}
+              {ui(status.centralFirstRun
+                ? "A instalação nova utilizará somente esta senha para o Admin central. Nenhuma senha global legada será cadastrada."
+                : "Use entre 8 e 128 caracteres. Recomendamos pelo menos 12, sem senhas comuns. Esta senha será usada nas funções administrativas legadas durante a migração para o login central.")}
             </p>
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <Button type="submit" disabled={busy || !setupToken}>
