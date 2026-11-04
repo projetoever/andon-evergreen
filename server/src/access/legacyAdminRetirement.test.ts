@@ -5,6 +5,12 @@ import { tokenHash } from "./credentials.js";
 import { AccessError } from "./policy.js";
 import { legacyAdminRetirementStatus, retireLegacyAdminPassword } from "./legacyAdminRetirement.js";
 
+const previousCentralFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+test.before(() => { process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1"; });
+test.after(() => {
+  if (previousCentralFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentralFlag;
+});
 const TOKEN = "d".repeat(64);
 const request = { token: TOKEN, workstationId: "ws-37" };
 function fixture(opts: {
@@ -174,4 +180,26 @@ test("S1/7 a failed audit causes the transaction to reject, never reports retire
   await assert.rejects(retireLegacyAdminPassword(f.db, request, true), /audit_failed/);
   assert.equal(f.committed, 0);
   assert.equal(f.actions.at(-1), "rollback");
+});
+
+test("S1/7 central OFF must not allow even an authenticated central Admin to retire an industrial password", async () => {
+  const previous = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  try {
+    const f = fixture();
+    await assert.rejects(
+      legacyAdminRetirementStatus(f.db, request),
+      (error) => error instanceof AccessError && error.code === "central_mode_required",
+    );
+    await assert.rejects(
+      retireLegacyAdminPassword(f.db, request, true),
+      (error) => error instanceof AccessError && error.code === "central_mode_required",
+    );
+    assert.equal(f.committed, 0);
+    assert.equal(f.writes, 0);
+    assert.deepEqual(f.actions, []);
+  } finally {
+    if (previous === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previous;
+  }
 });
