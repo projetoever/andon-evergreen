@@ -87,7 +87,7 @@ export function WorkstationsSettingsTab() {
   const [archiveCheckingId, setArchiveCheckingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "pending" | "online">("all");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [diagnosticCallId, setDiagnosticCallId] = useState("");
   const [diagnosticBusy, setDiagnosticBusy] = useState(false);
@@ -111,7 +111,9 @@ export function WorkstationsSettingsTab() {
     return items
       .filter((workstation) => {
         if (statusFilter === "active" && !workstation.active) return false;
-        if (statusFilter === "inactive" && workstation.active) return false;
+        if (statusFilter === "inactive" && (workstation.active || workstation.pendingApproval)) return false;
+        if (statusFilter === "pending" && !workstation.pendingApproval) return false;
+        if (statusFilter === "online" && (!centralAccess || workstation.presence !== "online")) return false;
         if (!normalizedQuery) return true;
 
         const haystack =
@@ -125,9 +127,10 @@ export function WorkstationsSettingsTab() {
       .sort((a, b) => {
         if (a.id === currentWorkstationId) return -1;
         if (b.id === currentWorkstationId) return 1;
+        if (a.pendingApproval !== b.pendingApproval) return a.pendingApproval ? -1 : 1;
         return workstationLabel(a).localeCompare(workstationLabel(b), "pt-BR");
       });
-  }, [currentWorkstationId, items, searchQuery, statusFilter]);
+  }, [centralAccess, currentWorkstationId, items, searchQuery, statusFilter]);
 
   const refreshAccessSession = useCallback(async () => {
     if (CONFIGURED_DATA_MODE === "local" || !centralAccess) return;
@@ -518,7 +521,7 @@ export function WorkstationsSettingsTab() {
         </div>
 
         <div
-          className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+          className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/20 p-1 sm:grid-cols-3 lg:grid-cols-5"
           aria-label={ui("Filtrar workstations por status")}
         >
           {(
@@ -526,6 +529,8 @@ export function WorkstationsSettingsTab() {
               ["all", ui("Todas")],
               ["active", ui("Ativas")],
               ["inactive", ui("Inativas")],
+              ["pending", ui("Pendentes")],
+              ...(centralAccess ? [["online", ui("Online agora")] as const] : []),
             ] as const
           ).map(([value, label]) => (
             <button
