@@ -41,14 +41,14 @@ O launcher retorna `https://localhost:8443/hub` no padrão atual. Não execute `
 2. Usa `pg_dump --format=custom` **dentro do container**; evita redirecionar o binário por pipelines do Windows PowerShell 5.1.
 3. Copia o arquivo para o notebook, compara seu SHA-256 com o original no Docker e o envia de volta ao container **para restaurar a cópia realmente exportada**.
 4. Restaura apenas numa base nova com nome aleatório e `pg_restore --exit-on-error`. Não existe parâmetro que aceite outro banco ou hostname.
-5. Compara contagem de registros e hash determinístico de conteúdo das tabelas: configurações globais, máquinas, workstations, chamados, sessões de técnicos, eventos de falha, classificações, usuários, sessões de acesso e eventos de auditoria.
-6. Produz manifesto (sem segredos em claro) e tenta limpar a base temporária e os arquivos temporários do container, preservando o backup local.
+5. Compara contagem de registros e hash determinístico de conteúdo de **13 tabelas**, incluindo configurações, máquinas, workstations, chamados, sessões e alocações de técnicos, eventos de falha, intervalos de impacto, programação da produção, classificações, usuários, sessões de acesso e auditoria.
+6. Compara os **KPIs usando as funções oficiais do BI** nos dois bancos, na mesma janela UTC fixa de 30 dias: MTTA, MTTR, downtime, MTBF estimado, MTBF programado e disponibilidade programada, além da cobertura, exclusões e distribuição temporal. Um resultado diferente aborta a aprovação. Produz manifesto sem segredos em claro e elimina a base temporária e os arquivos temporários do container, preservando o backup local.
 7. Se alguma etapa de verificação falhar, encerra com erro; **não** altera o conteúdo do banco original. Se a remoção da base temporária falhar, o terminal emite um alerta com seu nome exato para remoção **após análise**.
 
 ## Limites e aceite
 
-- A **CI do GitHub** valida apenas sintaxe, restrições de segurança e regressões do script. Ela **não** executa o teste real de backup Docker no notebook do usuário.
-- Para dar S6-02 como completo também é necessário examinar os KPIs de manutenção no BI antes/depois, o perfil de teste de migração legada, a recuperação do Admin com dados sintéticos e a restauração em um cenário operacional controlado.
+- A **CI do GitHub** valida sintaxe e controles do script Windows e executa o comparador real do BI em PostgreSQL de testes, mas **não** executa dump/restore reais no notebook. O manifesto do notebook separa `kpi_parity_pass` de `kpi_parity_empty_cohort` para impedir aprovação funcional quando não houver eventos representativos.
+- Para dar S6-02 como completo é necessário executar a rotina de verdade no notebook, usar chamados sintéticos representativos (incluindo episódios físicos de manutenção, chamadas de teste e programação de produção) e confirmar visualmente o BI e os métodos de exclusão. **Paridade de dois cálculos não prova que os registros de programação refletem a fábrica.**
 - O arquivo gerado é um **backup do notebook**, não uma cópia de produção, não um plano automático de recuperação do Windows Server e não uma autorização para atualizar a Evergreen.
 - Em caso de falha, preserve o erro (sem senha ou conteúdo sensível) e o manifesto. **Não** tente compensar executando `prisma migrate reset`, `pg_restore` manual sobre o banco original ou `Stop-... -RemoveData`.
 
@@ -59,7 +59,7 @@ O launcher retorna `https://localhost:8443/hub` no padrão atual. Não execute `
 | Container Docker e porta local verificadas | Terminal sem falhas de identidade ou exposição |
 | Dump e SHA-256 | Caminho `.dump` e valor SHA-256 |
 | Restore em clone descartável | Saída `BACKUP E RESTORE ISOLADOS VALIDADOS` |
-| Conteúdo restaurado | Manifesto com dez assinaturas de tabelas iguais |
+| Conteúdo restaurado | Manifesto com 13 assinaturas de tabelas e KPIs iguais |
 | Base original preservada | Relação de workstations/chamados e autenticação igual antes e depois |
-| Comparação BI | Relatório de MTTR/MTTA/MTBF/downtime/disponibilidade separado (ainda pendente) |
+| Comparação BI | Manifesto `biParity` com os cálculos reais repetidos após o restore. Se `hasData=false`, não há amostra suficiente e a validação funcional permanece pendente |
 | Testes Node-RED/GPIO e deploy | **Pendentes de validação física e autorização específica** |
