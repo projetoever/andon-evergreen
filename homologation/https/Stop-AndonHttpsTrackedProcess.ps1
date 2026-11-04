@@ -17,8 +17,8 @@ function Stop-AndonHttpsTrackedProcess {
 
     $command = [string]$running.CommandLine
     $isLauncher = (
-        ([string]$running.Name -ieq "cmd.exe" -and $command -match '(?i)npm(?:\.cmd)?\s+run\s+dev') -or
-        ([string]$running.Name -ieq "node.exe" -and $command -match '(?i)npm-cli\.js.*\brun\s+dev\b')
+        ([string]$running.Name -ieq "cmd.exe" -and $command -match '(?i)npm(?:\.cmd)?"?\s+run\s+dev') -or
+        ([string]$running.Name -ieq "node.exe" -and $command -match '(?i)npm-cli\.js"?\s+run\s+dev\b')
     )
 
     $createdUtc = ([datetime]$running.CreationDate).ToUniversalTime()
