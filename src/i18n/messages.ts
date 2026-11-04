@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Ocultar opções avançadas","Hide advanced options","隱藏進階選項"],
+  ["Permissões avançadas (opcional)","Advanced permissions (optional)","進階權限（選用）"],
   ["ID", "ID", "識別碼"],
   ["Pendentes","Pending approval","待核准"],
   ["Integrações API","API integrations","API 整合"],
