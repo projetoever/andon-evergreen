@@ -221,11 +221,22 @@ foreach ($required in @(
     'if ([int]$os.ProductType -ne 1)',
     'git.exe pull --ff-only origin main',
     'Test-Path $stateFile',
+    'notebook-standard-ports.enabled',
     '-FrontendPort 8080 -ApiPort 3001 -PostgresPort 55432',
     '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
     '-NotebookStandardPorts'
 )) {
     if (!$notebookScript.Contains($required)) { throw "Atualizacao do notebook sem controle: $required" }
+}
+$menu = Get-Content (Join-Path $PSScriptRoot "..\..\installer\menu-andon-installer.ps1") -Raw
+foreach ($required in @(
+    'notebook-standard-ports.enabled',
+    'if ($isWindowsClient -and (Test-Path $notebookMarker))',
+    '$Global:AndonInstallerPath\update-andon-server.ps1',
+    '$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1',
+    '"15" {'
+)) {
+    if (!$menu.Contains($required)) { throw "Menu do notebook/servidor sem guarda: $required" }
 }
 if ($notebookScript -match 'RemoveData|git.exe reset --hard|Docker.*rm -f') {
     throw "O atualizador de notebook nao pode apagar dados ou reescrever historico."
