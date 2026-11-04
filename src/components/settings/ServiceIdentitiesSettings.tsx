@@ -215,7 +215,7 @@ export function ServiceIdentitiesSettings() {
                 <p className="font-semibold">{service.name}</p>
                 <p className="break-all text-xs text-muted-foreground">{ui("ID")}: {service.id}</p>
                 <p className="text-xs text-muted-foreground">
-                  {service.scopes.join(" · ")} · {ui("Validade")}: {new Date(service.secretExpiresAt).toLocaleDateString()}
+                  {service.scopes.join(" · ")} · {ui("Validade")}: {service.secretExpiresAt.slice(0, 10)}
                 </p>
               </div>
               <span className="text-sm font-semibold">{ui(service.active ? "Ativa" : "Revogada")}</span>
