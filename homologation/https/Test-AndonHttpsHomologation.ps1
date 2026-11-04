@@ -5,7 +5,8 @@ $containerHelperPath = Join-Path $PSScriptRoot "Test-AndonHttpsDockerContainerEx
 $scripts = @(
     (Join-Path $PSScriptRoot "Start-AndonHttpsHomologation.ps1"),
     (Join-Path $PSScriptRoot "Stop-AndonHttpsHomologation.ps1"),
-    $containerHelperPath
+    $containerHelperPath,
+    (Join-Path $PSScriptRoot "..\..\ATUALIZAR_NOTEBOOK.ps1")
 )
 
 foreach ($script in $scripts) {
@@ -209,6 +210,62 @@ foreach ($ports in @(
         $blocked = $true
     }
     if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
+}
+
+# Notebook standard ports are allowed only via explicit Windows-client,
+# loopback-only isolated profile. Incompatible combinations must fail before
+# Docker, npm, certificate issuance or filesystem writes.
+$notebookScript = Get-Content $scripts[3] -Raw
+foreach ($required in @(
+    'Get-CimInstance Win32_OperatingSystem',
+    'if ([int]$os.ProductType -ne 1)',
+    'git.exe pull --ff-only origin main',
+    'Test-Path $stateFile',
+    'notebook-standard-ports.enabled',
+    '-FrontendPort 8080 -ApiPort 3001 -PostgresPort 55432',
+    '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
+    '-NotebookStandardPorts'
+)) {
+    if (!$notebookScript.Contains($required)) { throw "Atualizacao do notebook sem controle: $required" }
+}
+$menu = Get-Content (Join-Path $PSScriptRoot "..\..\installer\menu-andon-installer.ps1") -Raw
+foreach ($required in @(
+    'notebook-standard-ports.enabled',
+    'if ($isWindowsClient -and (Test-Path $notebookMarker))',
+    '$Global:AndonInstallerPath\update-andon-server.ps1',
+    '$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1',
+    '"15" {'
+)) {
+    if (!$menu.Contains($required)) { throw "Menu do notebook/servidor sem guarda: $required" }
+}
+if ($notebookScript -match 'RemoveData|git.exe reset --hard|Docker.*rm -f') {
+    throw "O atualizador de notebook nao pode apagar dados ou reescrever historico."
+}
+foreach ($required in @(
+    '[switch]$NotebookStandardPorts',
+    '$standardNotebookPorts = (',
+    'if ($NotebookStandardPorts -and !$standardNotebookPorts)',
+    'if ($NotebookStandardPorts -and !$EnableCentralOperationalWrites)',
+    '$os.ProductType -ne 1',
+    'GetActiveTcpListeners()',
+    'PLC_INTEGRATION_ENABLED = "0"',
+    'PLC_ADAPTER = "mock"',
+    '127.0.0.1'
+)) {
+    if (!$start.Contains($required)) { throw "Launcher 8080 do notebook sem controle: $required" }
+}
+foreach ($parameters in @(
+    @{ NotebookStandardPorts = $true; EnableCentralOperationalWrites = $true; FrontendPort = 8443; ApiPort = 3001; PostgresPort = 55432 },
+    @{ NotebookStandardPorts = $true; EnableCentralOperationalWrites = $true; FrontendPort = 8080; ApiPort = 3443; PostgresPort = 55432 },
+    @{ NotebookStandardPorts = $true; EnableCentralOperationalWrites = $true; FrontendPort = 8080; ApiPort = 3001; PostgresPort = 5432 },
+    @{ NotebookStandardPorts = $true; FrontendPort = 8080; ApiPort = 3001; PostgresPort = 55432 }
+)) {
+    $blocked = $false
+    try { & $scripts[0] @parameters | Out-Null } catch {
+        if ($_.Exception.Message -notmatch "Portas|requer ativacao") { throw }
+        $blocked = $true
+    }
+    if (!$blocked) { throw "Porta ou perfil inseguro aceito no notebook." }
 }
 
 # S6: validate backup/restore script safety without running Docker, dumps or
