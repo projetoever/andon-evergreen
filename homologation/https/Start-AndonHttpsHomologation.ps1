@@ -269,11 +269,11 @@ if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a API HTTPS local." }
 & npm.cmd run build --prefix $repoRoot
 if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar a interface HTTPS local." }
 
-$apiBuild = Join-Path $serverRoot "dist\\server.js"
-$frontendBuild = Join-Path $repoRoot "scripts\\serve-frontend.mjs"
+$apiBuild = Join-Path $serverRoot "dist\server.js"
+$frontendBuild = Join-Path $repoRoot "scripts\serve-frontend.mjs"
 if (!(Test-Path $apiBuild -PathType Leaf) -or
-    !(Test-Path (Join-Path $repoRoot "dist\\server\\server.js") -PathType Leaf) -or
-    !(Test-Path (Join-Path $repoRoot "dist\\client") -PathType Container)) {
+    !(Test-Path (Join-Path $repoRoot "dist\server\server.js") -PathType Leaf) -or
+    !(Test-Path (Join-Path $repoRoot "dist\client") -PathType Container)) {
     throw "Compilacao nao produziu a API e o Hub. Nenhum servico sera iniciado."
 }
 $nodeExe = (Get-Command node.exe -ErrorAction Stop).Source
