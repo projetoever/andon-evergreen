@@ -200,17 +200,25 @@ $env:DATABASE_URL = $databaseUrl
 $env:ANDON_INSTALL_PROFILE = "starter"
 . (Join-Path $PSScriptRoot "Test-AndonPrismaClientCurrent.ps1")
 $serverRoot = Join-Path $repoRoot "server"
-if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot) {
-    Write-Host "Prisma Client ja corresponde ao schema atual. Geracao repetida dispensada (DLL Windows preservada)." -ForegroundColor Green
+# When a client is already generated and corresponds to the current schema,
+# do not replace its locked Windows DLL on every start. The local marker is
+# committed only after a successful generate or exact schema comparison.
+if (!(Test-AndonPrismaClientCurrent -ServerRoot $serverRoot -StateRoot $statePath) -and
+    (Test-AndonPrismaClientArtifacts -ServerRoot $serverRoot) -and
+    (Test-AndonPrismaSchemaMatchesGenerated -ServerRoot $serverRoot)) {
+    Save-AndonPrismaClientFingerprint -ServerRoot $serverRoot -StateRoot $statePath
+}
+if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot -StateRoot $statePath) {
+    Write-Host "Prisma Client atual e validado. Sem regenerar DLL Windows." -ForegroundColor Green
 } else {
-    Write-Host "Schema Prisma alterado ou client ausente: geracao obrigatoria." -ForegroundColor Yellow
+    Write-Host "Prisma Client desatualizado: geracao necessaria." -ForegroundColor Yellow
     & npm.cmd run db:generate --prefix $serverRoot
     if ($LASTEXITCODE -ne 0) {
-        throw "Falha ao gerar Prisma Client atualizado. Verifique processo Node antigo que ainda usa query_engine-windows.dll.node; o schema nao sera ignorado."
+        throw "Falha ao gerar Prisma Client. Verifique processos Node locais que usam query_engine-windows.dll.node."
     }
-    if (!(Test-AndonPrismaClientCurrent -ServerRoot $serverRoot)) {
-        throw "Prisma generate encerrou sem erro, mas o client/schema gerado nao foi validado."
-    }
+    # Prisma's own successful generator and actual executable artifacts are
+    # the postcondition, not the byte-level hash of its normalized schema.
+    Save-AndonPrismaClientFingerprint -ServerRoot $serverRoot -StateRoot $statePath
 }
 & npm.cmd run db:migrate --prefix (Join-Path $repoRoot "server")
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar migrations somente no banco de homologacao." }
