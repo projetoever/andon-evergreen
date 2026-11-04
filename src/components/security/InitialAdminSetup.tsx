@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ui } from "@/i18n/translate";
+import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 import {
   getAdminAuthStatus, initializeGlobalAdmin, initializeCentralFirstAdmin, type AdminAuthStatus,
 } from "@/services/adminAuthService";
@@ -34,8 +35,14 @@ export function InitialAdminSetup({
     setBusy(true);
     setError("");
     try {
-      if (status.centralFirstRun) await initializeCentralFirstAdmin(password, setupToken);
-      else await initializeGlobalAdmin(password, setupToken);
+      if (status.centralFirstRun) {
+        const workstationId = getCurrentWorkstationId();
+        if (!workstationId)
+          throw new Error(ui("Não foi possível persistir a workstation administrativa. Habilite cookies ou armazenamento do navegador."));
+        await initializeCentralFirstAdmin(password, setupToken, workstationId);
+      } else {
+        await initializeGlobalAdmin(password, setupToken);
+      }
       setPassword("");
       setConfirm("");
       setSetupToken("");
@@ -64,6 +71,11 @@ export function InitialAdminSetup({
         <p className="text-sm text-muted-foreground">
           {ui("Esta instalação ainda não possui senha administrativa. Não existe senha padrão. A configuração deve ser concluída no próprio servidor antes de liberar o ANDON na rede.")}
         </p>
+        {status.centralFirstRun && (
+          <p className="text-sm text-muted-foreground">
+            {ui("Este navegador local será registrado como terminal Admin inicial. As demais workstations precisarão de aprovação antes de acessar os módulos.")}
+          </p>
+        )}
         {!status.setupAvailable ? (
           <div role="status" className="rounded-lg border border-warning/40 p-4 text-sm">
             {ui("Por segurança, abra o Hub diretamente no navegador do servidor usando localhost para cadastrar a primeira senha. Outros dispositivos não podem realizar esta etapa.")}
