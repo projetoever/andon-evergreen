@@ -80,8 +80,15 @@ function Show-AndonMenu {
                 # only reuses the notebook workflow after the operator has
                 # successfully completed its first HTTPS central setup.
                 $notebookMarker = Join-Path $Global:AndonProjectPath ".andon-homologation\notebook-standard-ports.enabled"
-                $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
-                if ([int]$os.ProductType -eq 1 -and (Test-Path $notebookMarker)) {
+                $isWindowsClient = $false
+                try {
+                    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+                    $isWindowsClient = ([int]$os.ProductType -eq 1)
+                } catch {
+                    # Never block the server updater if CIM discovery fails.
+                    $isWindowsClient = $false
+                }
+                if ($isWindowsClient -and (Test-Path $notebookMarker)) {
                     Invoke-AndonMenuScript `
                         "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
                         "Atualizar main e reiniciar HTTPS central no notebook (8080/3001)"
