@@ -1,5 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Retirar a senha Admin antiga", "Retire the old Admin password", "停用舊版管理員密碼"],
+  ["A conta Admin central já possui sua própria senha. A retirada apaga a senha global antiga e o código de recuperação legado. As credenciais dos módulos não são alteradas.", "The central Admin account already has its own password. Retirement deletes the old global password and its legacy recovery code. Module credentials remain unchanged.", "中央管理員帳號已有專用密碼。停用將刪除舊版全域密碼及其復原碼，但不影響各模組憑證。"],
+  ["Antes de continuar, gere e guarde o código de recuperação da conta Admin central acima.", "Before continuing, generate and securely save the central Admin account recovery code above.", "繼續前，請先產生並安全保存上方的中央管理員帳號復原碼。"],
+  ["Confirmei o backup e guardei o código central. Entendo que retornar ao modo legado exigirá uma nova configuração local da senha.", "I verified the backup and saved the central code. I understand returning to legacy mode requires configuring a new password locally.", "我已確認備份並保存中央復原碼，且了解返回舊版模式需要在本機重新設定密碼。"],
+  ["Desativar definitivamente a senha Admin antiga", "Permanently retire the old Admin password", "永久停用舊版管理員密碼"],
+  ["Gere e guarde um código de recuperação central antes de retirar a senha antiga.", "Generate and save a central recovery code before retiring the old password.", "停用舊密碼前，請產生並保存中央復原碼。"],
+  ["A senha global antiga já foi retirada. Atualize o painel.", "The old global password has already been retired. Refresh the panel.", "舊版全域密碼已停用。請重新整理面板。"],
+  ["Confirme a retirada da senha legada.", "Confirm retirement of the legacy password.", "請確認停用舊版密碼。"],
   ["Criar senha do Admin central", "Create central Admin password", "建立中央管理員密碼"],
   ["A instalação nova utilizará somente esta senha para o Admin central. Nenhuma senha global legada será cadastrada.", "This new installation will use only this central Admin password. No legacy global password will be created.", "此全新安裝僅使用這組中央管理員密碼，不會建立舊版全域密碼。"],
   ["Verificação de segurança para arquivamento", "Archive safety check", "封存安全檢查"],
