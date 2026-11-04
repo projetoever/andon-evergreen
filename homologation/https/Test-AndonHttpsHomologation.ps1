@@ -211,4 +211,56 @@ foreach ($ports in @(
     if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
 }
 
+# S6: validate backup/restore script safety without running Docker, dumps or
+# changing the notebook. The real roundtrip is opt-in after launcher shutdown.
+$backupRestoreScript = Join-Path $PSScriptRoot "Test-AndonHttpsBackupRestore.ps1"
+$backupTokens = $null
+$backupErrors = @()
+[void][System.Management.Automation.Language.Parser]::ParseFile(
+    $backupRestoreScript, [ref]$backupTokens, [ref]$backupErrors
+)
+if ($backupErrors.Count -gt 0) {
+    throw ($backupErrors | ForEach-Object { $_.Message } | Out-String)
+}
+$backupSource = Get-Content $backupRestoreScript -Raw
+foreach ($required in @(
+    '$containerName = "andon-https-hml-postgres"',
+    '$databaseName = "andon_https_hml"',
+    '$databaseUser = "andon_hml"',
+    'if (Test-Path $processPath)',
+    'Test-AndonHttpsDockerContainerExists -ContainerName $containerName',
+    'npipe:////./pipe/',
+    'POSTGRES_DB=$databaseName',
+    'POSTGRES_USER=$databaseUser',
+    '$exposure[0].HostIp -ne "127.0.0.1"',
+    '--format=custom',
+    'Get-FileHash -Algorithm SHA256',
+    'sha256sum $containerDump',
+    'docker.exe cp $backupPath $restoreTarget',
+    'createdb -U $databaseUser -T template0 $cloneName',
+    'pg_restore -U $databaseUser -d $cloneName',
+    'dropdb -U $databaseUser --if-exists $cloneName',
+    'Get-TableFingerprint -Database $cloneName -Table $table',
+    '$restoredFingerprint[$table] -ne $sourceFingerprint[$table]',
+    'icacls.exe $backupDirectory',
+    'icacls.exe $backupPath',
+    'icacls.exe $manifestPath',
+    'if ($startedByScript)'
+)) {
+    if (!$backupSource.Contains($required)) {
+        throw "Backup/restore sem controle de isolamento obrigatorio: $required"
+    }
+}
+foreach ($forbidden in @(
+    'pg_restore -U $databaseUser -d $databaseName',
+    'dropdb -U $databaseUser --if-exists $databaseName',
+    'docker.exe rm -f $containerName',
+    'pg_dump -d postgres',
+    'DATABASE_URL'
+)) {
+    if ($backupSource.Contains($forbidden)) {
+        throw "Backup/restore contem comando ou fonte de dados nao permitida: $forbidden"
+    }
+}
+
 Write-Host "Scripts HTTPS de homologacao: sintaxe e controles basicos aprovados."
