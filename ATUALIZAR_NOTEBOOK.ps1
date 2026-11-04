@@ -13,14 +13,14 @@ $stateFile = Join-Path $stateRoot "processes.json"
 # guard prevents accidentally switching the production host to a test profile.
 $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
 if ([int]$os.ProductType -ne 1) {
-    throw "Esta rotina e exclusiva para notebook/Windows cliente. No servidor industrial, utilize o instalador e o procedimento de homologacao da fabrica."
+    throw "Esta rotina e exclusiva para Windows cliente local. No servidor industrial, utilize o instalador e o procedimento de homologacao da fabrica."
 }
 
 if (!(Get-Command git.exe -ErrorAction SilentlyContinue)) {
     throw "Git nao encontrado. A atualizacao automatica da main nao pode prosseguir."
 }
 if (!(Test-Path (Join-Path $repoRoot ".git"))) {
-    throw "Execute a rotina na copia Git do ANDON no notebook, nao em uma pasta de instalacao sem repositorio."
+    throw "Execute a rotina na copia Git do ANDON no ambiente local, nao em uma pasta de instalacao sem repositorio."
 }
 
 Push-Location $repoRoot
