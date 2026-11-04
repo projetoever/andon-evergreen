@@ -23,6 +23,13 @@ if (!(Test-Path $configPath)) {
 if (!(Get-Command docker.exe -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop indisponivel. Nenhum dado foi alterado."
 }
+# An exported remote Docker endpoint or non-default context may override the
+# local CLI context. Refuse ambiguity instead of trusting context inspect alone.
+foreach ($override in @("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH")) {
+    if (![string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($override, "Process"))) {
+        throw "Remova a variavel $override e confirme Docker Desktop local antes do backup."
+    }
+}
 if (!(Test-AndonHttpsDockerContainerExists -ContainerName $containerName)) {
     throw "Container exato de homologacao ausente. Outros containers nao serao acessados."
 }
