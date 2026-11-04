@@ -57,7 +57,7 @@ function Show-AndonMenu {
         Write-Host "12 - Configurar IP/rede do servidor"
         Write-Host "13 - Configurar PostgreSQL/porta do banco"
         Write-Host "14 - Configurar HTTPS (assistente)"
-        Write-Host "15 - Notebook: atualizar main + testar HTTPS central em 8080/3001"
+        Write-Host "15 - Ambiente de testes: atualizar main + iniciar HTTPS (8080/3001)"
         Write-Host "0  - Sair"
         Write-Host ""
 
@@ -91,7 +91,7 @@ function Show-AndonMenu {
                 if ($isWindowsClient -and (Test-Path $notebookMarker)) {
                     Invoke-AndonMenuScript `
                         "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
-                        "Atualizar main e reiniciar HTTPS central no notebook (8080/3001)"
+                        "Atualizar main e reiniciar HTTPS central (8080/3001)"
                 } else {
                     Invoke-AndonMenuScript `
                         "$Global:AndonInstallerPath\update-andon-server.ps1" `
@@ -159,7 +159,7 @@ function Show-AndonMenu {
             "15" {
                 Invoke-AndonMenuScript `
                     "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
-                    "Atualizar e testar HTTPS central no notebook (8080/3001)"
+                    "Atualizar e testar HTTPS central (8080/3001)"
             }
             "0" {
                 return
