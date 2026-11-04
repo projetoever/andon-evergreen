@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import {
@@ -52,6 +53,9 @@ const errorLabels: Record<string, string> = {
   invalid_input: "Confira os campos. A senha pessoal deve ter de 8 a 128 caracteres.",
   password_reuse_denied: "A nova senha central deve ser diferente da senha Admin legada.",
   password_policy_failed: "Use 8 a 128 caracteres e evite senhas comuns ou repetitivas.",
+  central_recovery_required: "Gere e guarde um código de recuperação central antes de retirar a senha antiga.",
+  legacy_admin_already_retired: "A senha global antiga já foi retirada. Atualize o painel.",
+  retirement_confirmation_required: "Confirme a retirada da senha legada.",
   invalid_user: "Confira os campos e mantenha contas kiosk inativas.",
   invalid_machine_scope: "Uma máquina selecionada não está mais disponível.",
 };
@@ -72,6 +76,10 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
   const [adminRecoveryCode, setAdminRecoveryCode] = useState<string | null>(null);
+  const [legacyStatus, setLegacyStatus] = useState<{
+    legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+  } | null>(null);
+  const [legacyRetirementConfirmed, setLegacyRetirementConfirmed] = useState(false);
   const [resetTarget, setResetTarget] = useState<AccessUser | null>(null);
   const [reauth, setReauth] = useState(false);
   const listVersion = useRef(0);
@@ -126,6 +134,19 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
     if (!admin) return;
     void accessRequest<AccessCatalog>("/catalog").then(setCatalog).catch(report);
   }, [admin, report]);
+  useEffect(() => {
+    if (!admin) {
+      setLegacyStatus(null);
+      setLegacyRetirementConfirmed(false);
+      return;
+    }
+    let disposed = false;
+    void accessRequest<{ legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean }>(
+      "/legacy-admin/status",
+    ).then((value) => { if (!disposed) setLegacyStatus(value); })
+      .catch(() => { if (!disposed) setLegacyStatus(null); });
+    return () => { disposed = true; };
+  }, [admin]);
   useEffect(() => {
     if (!admin) return;
     const timer = window.setTimeout(() => {
@@ -417,6 +438,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   "/admin-recovery-code", "POST", {},
                 );
                 setAdminRecoveryCode(result.recoveryCode);
+                setLegacyStatus(await accessRequest<{
+                  legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+                }>("/legacy-admin/status"));
               })}
             >
               {ui("Gerar novo código de recuperação")}
@@ -431,6 +455,42 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               </div>
             )}
           </Card>
+          {legacyStatus?.legacyPasswordPresent && (
+            <Card className="space-y-3 p-5">
+              <h3 className="font-bold">{ui("Retirar a senha Admin antiga")}</h3>
+              <p className="text-sm text-muted-foreground">
+                {ui("A conta Admin central já possui sua própria senha. A retirada apaga a senha global antiga e o código de recuperação legado. As credenciais dos módulos não são alteradas.")}
+              </p>
+              {!legacyStatus.centralRecoveryConfigured && (
+                <p className="text-sm font-semibold">
+                  {ui("Antes de continuar, gere e guarde o código de recuperação da conta Admin central acima.")}
+                </p>
+              )}
+              <label className="flex items-start gap-3 text-sm leading-6">
+                <Checkbox
+                  checked={legacyRetirementConfirmed}
+                  onCheckedChange={(value) => setLegacyRetirementConfirmed(value === true)}
+                  disabled={!legacyStatus.centralRecoveryConfigured || busy}
+                />
+                <span>
+                  {ui("Confirmei o backup e guardei o código central. Entendo que retornar ao modo legado exigirá uma nova configuração local da senha.")}
+                </span>
+              </label>
+              <Button
+                variant="outline"
+                disabled={!legacyStatus.centralRecoveryConfigured || !legacyRetirementConfirmed || busy}
+                onClick={() => void run(async () => {
+                  await accessRequest("/legacy-admin/retire", "POST", { confirmed: true });
+                  setLegacyRetirementConfirmed(false);
+                  setLegacyStatus(await accessRequest<{
+                    legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+                  }>("/legacy-admin/status"));
+                })}
+              >
+                {ui("Desativar definitivamente a senha Admin antiga")}
+              </Button>
+            </Card>
+          )}
           {secret && (
             <Card className="space-y-3 border-primary p-5" role="status">
               <h3 className="font-bold">{ui("Senha provisória — exibição única")}</h3>
