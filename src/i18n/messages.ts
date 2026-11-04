@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Este navegador local será registrado como terminal Admin inicial. As demais workstations precisarão de aprovação antes de acessar os módulos.", "This local browser will be registered as the first Admin workstation. Other workstations will require approval before using modules.", "此本機瀏覽器將登錄為初始管理員工作站。其他工作站須獲得核准才能存取模組。"],
+  ["Não foi possível persistir a workstation administrativa. Habilite cookies ou armazenamento do navegador.", "Could not retain the Admin workstation identity. Enable cookies or browser storage.", "無法持續保存管理員工作站識別資料。請啟用 Cookie 或瀏覽器儲存空間。"],
   ["Criar senha do Admin central", "Create central Admin password", "建立中央管理員密碼"],
   ["A instalação nova utilizará somente esta senha para o Admin central. Nenhuma senha global legada será cadastrada.", "This new installation will use only this central Admin password. No legacy global password will be created.", "此全新安裝僅使用這組中央管理員密碼，不會建立舊版全域密碼。"],
   ["Verificação de segurança para arquivamento", "Archive safety check", "封存安全檢查"],
