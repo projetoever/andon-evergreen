@@ -102,6 +102,9 @@ jobs:
           cmp /tmp/andon-bi-snapshot-first.json /tmp/andon-bi-snapshot-second.json
           node -e 'const s=require("/tmp/andon-bi-snapshot-first.json"); if(s.schema!=="refine5-s6-bi-parity-v1" || !s.kpis || !s.production || !s.metricDefinitionVersion) process.exit(1)'
 
+      - name: Validar catálogo de motivos/subcategorias no PostgreSQL isolado
+        run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-call-reasons-pg.mjs
+
       - name: Validar API e fluxos críticos
         run: |
           npm run start --prefix server > /tmp/andon-api.log 2>&1 &

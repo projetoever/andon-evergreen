@@ -102,10 +102,55 @@ model AndonCategory {
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
   technicianTechnicalAreas  TechnicianTechnicalArea[]
+  callReasonOptions         CallReasonOption[]
 
   @@index([active])
   @@index([displayOrder])
   @@map("andon_categories")
+}
+
+// REFINE 6: reason (why requested) is independent from technical area
+// (who attends). This additive catalog is inert until an authorized release.
+model CallReason {
+  id                      String             @id
+  displayName             String
+  color                   String             @default("#64748B")
+  active                  Boolean            @default(true)
+  displayOrder            Int                @default(0)
+  nature                  String             @default("unclassified")
+  suggestedResponsibility String             @default("unassigned")
+  maintenanceKpiPolicy    String             @default("pending")
+  analyticsDisposition    String             @default("include")
+  revision                Int                @default(1)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  options                 CallReasonOption[]
+
+  @@index([active, displayOrder])
+  @@map("call_reasons")
+}
+
+model CallReasonOption {
+  id                              String        @id
+  reasonId                        String
+  technicalAreaId                 String
+  displayName                     String?
+  active                          Boolean       @default(true)
+  displayOrder                    Int           @default(0)
+  natureOverride                  String?
+  suggestedResponsibilityOverride String?
+  maintenanceKpiPolicyOverride    String?
+  analyticsDispositionOverride    String?
+  revision                        Int           @default(1)
+  createdAt                       DateTime      @default(now())
+  updatedAt                       DateTime      @updatedAt
+  reason                          CallReason    @relation(fields: [reasonId], references: [id], onDelete: Restrict)
+  technicalArea                   AndonCategory @relation(fields: [technicalAreaId], references: [id], onDelete: Restrict)
+
+  @@unique([reasonId, technicalAreaId])
+  @@index([reasonId, active, displayOrder])
+  @@index([technicalAreaId])
+  @@map("call_reason_options")
 }
 
 model Machine {
