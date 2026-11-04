@@ -77,6 +77,7 @@ $createdClone = $false
 $containerDumpCreated = $false
 $uploadedDumpCreated = $false
 $completed = $false
+$cleanupFailed = $false
 
 function Assert-DockerSuccess([string]$Stage) {
     if ($LASTEXITCODE -ne 0) {
@@ -129,9 +130,9 @@ try {
     }
 
     # Never redirect binary pg_dump stdout through Windows PowerShell 5.1.
+    $containerDumpCreated = $true
     & docker.exe exec $containerName pg_dump -U $databaseUser -d $databaseName --format=custom --no-owner --no-privileges --file=$containerDump | Out-Null
     Assert-DockerSuccess "pg_dump isolado"
-    $containerDumpCreated = $true
     & docker.exe exec $containerName pg_restore --list $containerDump | Out-Null
     Assert-DockerSuccess "validacao do formato do dump"
 
@@ -157,15 +158,15 @@ try {
     }
     # Restore specifically from the host-side backup, not the source dump.
     $restoreTarget = $containerName + ":" + $restoredContainerDump
+    $uploadedDumpCreated = $true
     & docker.exe cp $backupPath $restoreTarget | Out-Null
     Assert-DockerSuccess "retorno do backup Windows ao container isolado"
-    $uploadedDumpCreated = $true
 
     # The restore target is a newly generated, short-lived clone.
     # NEVER restore into andon_https_hml or a user-supplied database.
+    $createdClone = $true
     & docker.exe exec $containerName createdb -U $databaseUser -T template0 $cloneName | Out-Null
     Assert-DockerSuccess "criacao do banco descartavel"
-    $createdClone = $true
     & docker.exe exec $containerName pg_restore -U $databaseUser -d $cloneName --no-owner --no-privileges --exit-on-error $restoredContainerDump | Out-Null
     Assert-DockerSuccess "pg_restore apenas no clone"
 
@@ -200,19 +201,37 @@ try {
 } finally {
     if ($createdClone) {
         & docker.exe exec $containerName dropdb -U $databaseUser --if-exists $cloneName | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Nao foi possivel apagar o clone $cloneName." }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Nao foi possivel apagar o clone $cloneName."
+            $cleanupFailed = $true
+        }
     }
     if ($uploadedDumpCreated) {
         & docker.exe exec $containerName rm -f $restoredContainerDump | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Dump reenviado ainda existe em $restoredContainerDump." }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Dump reenviado ainda existe em $restoredContainerDump."
+            $cleanupFailed = $true
+        }
     }
     if ($containerDumpCreated) {
         & docker.exe exec $containerName rm -f $containerDump | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Dump temporario ainda existe em $containerDump." }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Dump temporario ainda existe em $containerDump."
+            $cleanupFailed = $true
+        }
     }
     if ($startedByScript) {
         & docker.exe stop $containerName | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Container isolado permaneceu ligado." }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Container isolado permaneceu ligado."
+            $cleanupFailed = $true
+        }
+    }
+    if ($cleanupFailed) {
+        # No success manifest may claim that a temporary clone was deleted
+        # when cleanup was incomplete. Preserve the backup for investigation.
+        if (Test-Path $manifestPath) { Remove-Item $manifestPath -Force }
+        throw "Restore verificado, mas limpeza incompleta. Revisar o container isolado antes de aprovar o ensaio."
     }
     if (!$completed) {
         Write-Warning "Teste NAO APROVADO. Nenhum comando de restore foi aplicado ao banco original."
