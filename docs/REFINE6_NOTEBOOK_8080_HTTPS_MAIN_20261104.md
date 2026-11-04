@@ -1,53 +1,33 @@
-# REFINE 6 — Notebook: atualizar a main e testar HTTPS nas portas habituais
+# REFINE 7 — Fluxo normal do Menu ANDON com HTTPS
 
-**Data:** 04/11/2026. Escopo estrito: Windows cliente local com banco Docker exclusivo de homologação. Não altera a Evergreen, suas estações ou a Máquina 37.
+Data: 04/11/2026. Atualiza o roteiro anterior REFINE 6. **A opcao 15 foi eliminada.** O ambiente local de testes usa o mesmo menu cotidiano da instalacao industrial: 2 atualiza, 4 inicia, 5 para, 6 verifica a saude. Nenhum perfil HTTPS de testes e ativado no Windows Server da Evergreen.
 
-## Um único comando para os próximos updates
+## Computador local de homologacao (Windows cliente)
 
-A partir do PR deste roteiro, na raiz do **clone Git do notebook** (PowerShell), execute:
+- **2 — Atualizar pela main:** valida origem Git e working tree, atualiza com fast-forward, para somente o perfil local identificado e sincroniza menu/start/stop/health instalados em `C:\web-andon-industrial\installer` com verificacao SHA-256 e backups. A opcao 2 nao inicia uma segunda instancia; apos atualizacao, **feche e abra novamente o menu** para carregar os scripts novos.
+- **4 — Iniciar ANDON:** se o perfil HTTPS local isolado ja estiver configurado (arquivos `.andon-homologation/config.json` e certificados locais validos), usa `https://localhost:8080/hub` e `https://localhost:3001/health`. Caso contrario, usa o transporte que estiver em `andon-config.json` (nao ativa HTTPS automaticamente).
+- **5 — Parar ANDON:** encerra o perfil ativo sem apagar bancos/certificados, ou usa o fluxo tradicional se o perfil de homologacao nao existir.
+- **6 — Verificar saude:** exige resposta do Hub e da API HTTPS. Nao declara sucesso apenas por um processo ter iniciado.
+- **14 — Configurar HTTPS:** assistente existente para a instalacao habitual. Nao cria chaves de CA corporativa nem modifica o DNS.
 
-```powershell
-.\ATUALIZAR_NOTEBOOK.ps1
-```
+O perfil local isolado e **sempre** Windows cliente e usa PostgreSQL `andon_https_hml` em `127.0.0.1:55432`, Node compilado, loopback para API/frontend e certificado local mkcert. O proprio perfil ativa as operacoes centrais e paleta somente no banco de homologacao; nao conecta hardware nem habilita integracao fisica PLC/Node-RED/GPIO. O banco da instalacao anterior nao e substituido e seus dados nao migram automaticamente.
 
-O script valida que é Windows cliente (não Windows Server), confirma o repositório esperado, não sobrescreve alterações locais, muda para `main`, faz `git pull --ff-only origin main`, encerra **somente** a instância de homologação identificada pelo próprio arquivo de estado, preserva o banco de teste e inicia:
+Para nao repetir o problema de que a opcao 15 retornava sucesso mas nao deixava nada acessivel, o launcher foi alterado: `npm run build` gera a API e o frontend, **processos node.exe compilados** ficam rastreados individualmente, a inicializacao valida as duas URLs duas vezes e nao declara sucesso se API/frontend morrerem logo apos subir. Falha de bind, TLS, migracoes ou build nao e mascarada; consultar `.andon-homologation\api-error.log` e `frontend-error.log`.
 
-- **Hub:** `https://localhost:8080/hub`
-- **API:** `https://localhost:3001`
-- **Banco de teste:** `andon_https_hml` em `127.0.0.1:55432`
-- **Sessão Admin central e HTTPS:** ligados para teste
-- **Operações centrais e paleta:** ligadas **somente** no banco isolado local
-- **PLC, Node-RED e GPIO físicos:** não conectados, operações físicas desabilitadas
+## Servidor industrial Evergreen (Windows Server)
 
-Os testes automatizados da CI não substituem o primeiro ensaio manual no notebook. O certificado localhost é provisionado via mkcert, com consentimento para instalar sua CA; nenhuma verificação TLS é desativada.
+- **2** preserva o atualizador industrial existente; possui backup, sincronizacao, build, migrations controladas, reinicio, health e regras proprias.
+- **14** configura HTTPS de rede com certificado que os clientes de fabrica confiem, host/IP validado, TLS e transacao de rollback. Credenciais admin/Node-RED/GPIO devem ser homologadas separadamente antes da ativacao central industrial.
+- **4** ja usa `transportMode=http|https` da configuracao industrial e inicia pelo watchdog oficial (API e frontend compilados), sem usar o banco de testes local.
+- **5 e 6** preservam a parada e verificacao oficiais.
 
-**Primeiro uso:** se as portas 8080 ou 3001 estiverem ocupadas pelo ANDON antigo do notebook, **pare o ANDON antigo no menu, opção 5**, e então execute o comando acima. Não apague nenhum banco. O script não mata processos desconhecidos, não modifica tarefas automáticas e não desliga o servidor da fábrica. Se houver watchdog local que reinicie a instância antiga, desative-o apenas no notebook pelo menu antes do teste.
+**Nao ha deploy automatico.** Nenhum dado, workstation, Maquina 37, mini PC, Node-RED, GPIO, CLP ou servico na fabrica foi alterado.
 
-**Se você usa o menu de instalação no notebook:** após trazer a atualização pela opção 2 pela primeira vez, pare a instância HTTP antiga (opção 5) e selecione **opção 15 — Notebook: atualizar main + testar HTTPS central em 8080/3001**. Depois que o HTTPS funcionar, a rotina grava uma preferência local não secreta; **da próxima vez, a própria opção 2 atualizará a main e reiniciará este perfil de notebook**. No Windows Server, a opção 2 continua obrigatoriamente no atualizador industrial, sem ativar o perfil de testes.
+## Aceite rapido no Windows cliente
 
-## O que aparece na tela
+1. Opcao 2, conferir SHA da main e copia dos scripts, sair completamente do menu e abri-lo de novo. Opcao 15 deve desaparecer.
+2. Opcao 4, aguardar compilacao e checks HTTPS, entrar em `https://localhost:8080/hub`, verificar `https://localhost:3001/health`.
+3. Opcao 6: ambas as URLs prontas; opcao 5 para; opcao 4 reinicia sem Git pull.
+4. Autenticacao central, usuarios e acessos, workstations, integracoes API de leitura, dashboard, BI, i18n e perfis visuais. Confirmar que nao ha chamadas/BI em banco de fabrica.
 
-1. Abra `https://localhost:8080/hub` (não `http://`). Na primeira instalação deste banco, crie a senha Admin central, sem senha-padrão.
-2. Em Administração → Usuários e Acessos, escolha Produção, Manutenção ou Gerente; permissões individuais ficam ocultas, com acesso avançado opcional. Usuários legados não perdem grants ao editar.
-3. Em Workstations, filtre Pendentes ou Online, inspecione dados sem atribuir presença indevida ao último acesso.
-4. Em Integrações API, emita, rotacione e revogue uma credencial fictícia para Node-RED ou mini PC GPIO. Só há leituras, nenhuma escrita física, e o segredo é mostrado uma vez.
-5. Teste chamados e BI **no banco de homologação**, verificando ACL, sessões, temporizações, históricos e KPIs. Os dados desta base podem diferir dos dados anteriores do notebook, que ficam preservados e não são migrados automaticamente.
-
-## O que NÃO acontece só com git pull
-
-`git pull` traz os arquivos. **Não** reinicia o processo já aberto e **não** muda seu transporte HTTP/senha legada. Por isso, use `ATUALIZAR_NOTEBOOK.ps1` como rotina de atualização + inicialização do **notebook**. Não marque a instalação industrial como homologada só por CI verde.
-
-## Encerrar teste (sem apagar banco)
-
-```powershell
-.\homologation\https\Stop-AndonHttpsHomologation.ps1
-```
-
-O perfil técnico antigo em 8443/3443 permanece disponível para regressões paralelas quando necessário, **mas não faz parte do fluxo diário do notebook**. Não é possível manter duas instâncias nas mesmas portas simultaneamente; este roteiro usa **apenas 8080/3001** para a interface e API visíveis.
-
-## Restrições de implantação
-
-- Não execute `ATUALIZAR_NOTEBOOK.ps1` no Windows Server nem em computadores industriais.
-- Nunca ajuste `ANDON_CENTRAL_ACCESS_ENABLED=1` manualmente na Evergreen para imitar o notebook.
-- O certificado local mkcert é adequado à homologação localhost, não à CA corporativa.
-- Integrações físicas Node-RED/GPIO, recuperação da senha de instalações existentes, migração para o banco real, backup/restore e rollback ainda exigem ensaios controlados antes do deploy da fábrica.
+Se a opcao 4 falhar, **nao** executar instalacao limpa, reset Prisma, `taskkill` generico ou sobrescrever `andon-config.json`; usar as mensagens do launcher e logs para uma correcao cirurgica.
