@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Migração do administrador existente", "Existing administrator migration", "現有管理員遷移"],
+  ["Confirme a senha Admin existente uma última vez e crie a senha central do Hub. Depois, gere e guarde o código de recuperação central para poder desativar a senha antiga com segurança.", "Confirm the existing Admin password one last time and create your central Hub password. Then generate and save the central recovery code before securely retiring the old password.", "最後一次確認舊版管理員密碼，並建立 Hub 中央密碼。接著產生並妥善保存中央復原碼，再安全停用舊密碼。"],
+  ["Use uma senha de 8 a 128 caracteres (recomendamos 12 ou mais). Depois de desativar a senha Admin antiga, somente a senha central será usada para esse administrador.", "Use 8 to 128 characters (12 or more recommended). After retiring the old Admin password, this administrator will use only the central password.", "請使用 8 至 128 個字元（建議至少 12 個）。停用舊版管理員密碼後，此管理員只需使用中央密碼。"],
   ["Retirar a senha Admin antiga", "Retire the old Admin password", "停用舊版管理員密碼"],
   ["A conta Admin central já possui sua própria senha. A retirada apaga a senha global antiga e o código de recuperação legado. As credenciais dos módulos não são alteradas.", "The central Admin account already has its own password. Retirement deletes the old global password and its legacy recovery code. Module credentials remain unchanged.", "中央管理員帳號已有專用密碼。停用將刪除舊版全域密碼及其復原碼，但不影響各模組憑證。"],
   ["Antes de continuar, gere e guarde o código de recuperação da conta Admin central acima.", "Before continuing, generate and securely save the central Admin account recovery code above.", "繼續前，請先產生並安全保存上方的中央管理員帳號復原碼。"],
