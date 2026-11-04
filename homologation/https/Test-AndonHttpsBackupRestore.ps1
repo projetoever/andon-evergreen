@@ -12,6 +12,7 @@ $backupDirectory = Join-Path $statePath "backups"
 $containerName = "andon-https-hml-postgres"
 $databaseName = "andon_https_hml"
 $databaseUser = "andon_hml"
+$biSnapshotScript = Join-Path $repoRoot "server\scripts\bi-restore-parity-snapshot.mjs"
 . (Join-Path $PSScriptRoot "Test-AndonHttpsDockerContainerExists.ps1")
 
 if (Test-Path $processPath) {
@@ -22,6 +23,9 @@ if (!(Test-Path $configPath)) {
 }
 if (!(Get-Command docker.exe -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop indisponivel. Nenhum dado foi alterado."
+}
+if (!(Get-Command node.exe -ErrorAction SilentlyContinue) -or !(Test-Path $biSnapshotScript)) {
+    throw "O ensaio exige Node.js 22 e script BI da versao atual do repositório."
 }
 # An exported remote Docker endpoint or non-default context may override the
 # local CLI context. Refuse ambiguity instead of trusting context inspect alone.
@@ -78,6 +82,46 @@ $containerDumpCreated = $false
 $uploadedDumpCreated = $false
 $completed = $false
 $cleanupFailed = $false
+# Use the SAME report period for source and restored clone. Never compare
+# rolling "now" values, since time would advance between the two reads.
+$biPeriodEnd = [DateTime]::UtcNow
+$biPeriodEndIso = $biPeriodEnd.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+$biPeriodStartIso = $biPeriodEnd.AddDays(-30).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+
+function Get-BiParitySnapshot([string]$Database) {
+    if ($Database -notin @($databaseName, $cloneName)) {
+        throw "Fonte BI fora das bases temporarias isoladas."
+    }
+    # Pass the password in the CHILD process environment, never command-line
+    # arguments, stdout, logs or the manifest.
+    $names = @(
+        "DATABASE_URL", "ANDON_HML_BI_COMPARE", "ANDON_HML_BI_PERIOD_START",
+        "ANDON_HML_BI_PERIOD_END"
+    )
+    $previous = @{}
+    foreach ($name in $names) {
+        $previous[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+    }
+    try {
+        $encodedPassword = [Uri]::EscapeDataString([string]$config.databasePassword)
+        $env:DATABASE_URL = "postgresql://$($databaseUser):$encodedPassword@127.0.0.1:$($config.postgresPort)/$Database?schema=public"
+        $env:ANDON_HML_BI_COMPARE = "1"
+        $env:ANDON_HML_BI_PERIOD_START = $biPeriodStartIso
+        $env:ANDON_HML_BI_PERIOD_END = $biPeriodEndIso
+        $snapshot = (& node.exe $biSnapshotScript | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Falha no calculo isolado dos indicadores BI." }
+        $parsed = $snapshot | ConvertFrom-Json
+        if ($parsed.schema -ne "refine5-s6-bi-parity-v1" -or
+            !$parsed.metricDefinitionVersion -or !$parsed.kpis -or !$parsed.production) {
+            throw "Resultado BI inesperado, sem garantia de paridade."
+        }
+        return $snapshot
+    } finally {
+        foreach ($name in $names) {
+            [Environment]::SetEnvironmentVariable($name, $previous[$name], "Process")
+        }
+    }
+}
 
 function Assert-DockerSuccess([string]$Stage) {
     if ($LASTEXITCODE -ne 0) {
@@ -128,6 +172,7 @@ try {
     foreach ($table in $tables) {
         $sourceFingerprint[$table] = Get-TableFingerprint -Database $databaseName -Table $table
     }
+    $sourceBiSnapshot = Get-BiParitySnapshot -Database $databaseName
 
     # Never redirect binary pg_dump stdout through Windows PowerShell 5.1.
     $containerDumpCreated = $true
@@ -174,9 +219,14 @@ try {
     foreach ($table in $tables) {
         $restoredFingerprint[$table] = Get-TableFingerprint -Database $cloneName -Table $table
         if ($restoredFingerprint[$table] -ne $sourceFingerprint[$table]) {
-            throw "Divergencia no restore da tabela $Table."
+            throw "Divergencia no restore da tabela $table."
         }
     }
+    $restoredBiSnapshot = Get-BiParitySnapshot -Database $cloneName
+    if ($sourceBiSnapshot -cne $restoredBiSnapshot) {
+        throw "Indicadores oficiais do BI divergiram entre banco isolado e clone restaurado."
+    }
+    $biEvidence = $restoredBiSnapshot | ConvertFrom-Json
     $manifest = [ordered]@{
         validatedUtc = [DateTime]::UtcNow.ToString("o")
         source = "localhost/Docker:$containerName/$databaseName"
@@ -186,6 +236,15 @@ try {
         backupBytes = $backupFile.Length
         sha256 = $sha256
         tableFingerprints = $restoredFingerprint
+        biParity = [ordered]@{
+            metricDefinitionVersion = $biEvidence.metricDefinitionVersion
+            period = $biEvidence.period
+            kpis = $biEvidence.kpis
+            production = $biEvidence.production
+            excludedCallCount = $biEvidence.excludedCallCount
+            hasData = [bool]$biEvidence.hasData
+            result = $(if ($biEvidence.hasData) { "kpi_parity_pass" } else { "kpi_parity_empty_cohort" })
+        }
         result = "validated"
         productionTouched = $false
     }
@@ -196,6 +255,7 @@ try {
     Write-Host "BACKUP E RESTORE ISOLADOS VALIDADOS" -ForegroundColor Green
     Write-Host "Arquivo: $backupPath"
     Write-Host "SHA256: $sha256"
+    Write-Host "Paridade BI: $(if ($biEvidence.hasData) { 'APROVADA (dados de teste)' } else { 'IGUAL, MAS SEM EVENTOS NA JANELA; KPIs AINDA NAO HOMOLOGADOS' })"
     Write-Host "Manifesto: $manifestPath"
     Write-Host "Clone descartavel: $cloneName (sera removido)."
 } finally {
