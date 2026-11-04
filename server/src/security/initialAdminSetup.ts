@@ -6,6 +6,7 @@ import { hashCredential } from "../security/technicianCredentials.js";
 import { appendAudit } from "../access/audit.js";
 import { hashAccessPassword, validatePersonalPassword } from "../access/credentials.js";
 import { centralAccessEnabled } from "../access/http.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
 
 const activeSetupTokens = new Map<string, { origin: string; expiresAt: number }>();
 const TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -119,11 +120,14 @@ export async function initializeGlobalAdminPassword(
 export async function initializeCentralAdminFirstRun(
   db: PrismaClient,
   request: FastifyRequest,
-  input: { setupToken?: unknown; password?: unknown },
+  input: { setupToken?: unknown; password?: unknown; workstationId?: unknown },
 ) {
   if (!centralAccessEnabled())
     throw new InitialAdminSetupError("central_mode_required", 403);
   assertInitialSetupToken(request, input.setupToken);
+  const workstationId = parseWorkstationId(input.workstationId);
+  if (!workstationId)
+    throw new InitialAdminSetupError("invalid_workstation_id", 400);
   if (typeof input.password !== "string")
     throw new InitialAdminSetupError("invalid_input", 400);
   try {
@@ -148,6 +152,24 @@ export async function initializeCentralAdminFirstRun(
     ]);
     if (settings?.adminPasswordHash || previousAccount || previousWorkstation)
       throw new InitialAdminSetupError("existing_installation_requires_migration", 409);
+    // Enrollment is closed by default in central installations. Only this
+    // proven same-server workstation is trusted to administer the Hub.
+    await tx.systemSettings.update({
+      where: { id: "global" }, data: { requireWorkstationApproval: true },
+    });
+    const station = await tx.workstation.create({
+      data: {
+        id: workstationId,
+        name: "Admin local inicial",
+        active: true,
+        pendingApproval: false,
+        allowOperational: false,
+        allowBi: false,
+        allowPriorities: false,
+        lastIpAddress: request.raw.socket.remoteAddress?.replace(/^::ffff:/, "") ?? null,
+      },
+      select: { id: true },
+    });
     const user = await tx.accessUser.create({
       data: {
         login: "admin",
@@ -169,7 +191,12 @@ export async function initializeCentralAdminFirstRun(
       action: "access.admin.initialized.local",
       resourceType: "access_user",
       resourceId: user.id,
-      after: { central: true, legacyGlobalPasswordConfigured: false },
+      after: {
+        central: true,
+        legacyGlobalPasswordConfigured: false,
+        initialAdminWorkstationRegistered: station.id === workstationId,
+        workstationApprovalRequired: true,
+      },
     });
   });
   activeSetupTokens.delete(digest(input.setupToken as string));
