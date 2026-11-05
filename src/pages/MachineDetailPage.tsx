@@ -743,7 +743,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         <CentralMachineScreenUnlockModal
           open={unlockLoginOpen}
           machineId={machineId}
-          defaultLogin={access.principal?.login}
+          defaultLogin={access?.principal?.login}
           onOpenChange={setUnlockLoginOpen}
           onSuccess={handleUnlockSuccess}
         />
