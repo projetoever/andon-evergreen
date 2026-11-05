@@ -86,7 +86,7 @@ function CentralOverview() {
  */
 export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = ["andon", "hub"].includes(String(requestedSection)) ? "overview" : requestedSection ?? "overview";
+
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
@@ -109,6 +109,11 @@ export function HubCentralAdminPage() {
 
   const primaryAdmin = session?.principal?.purpose === "normal" &&
     session.principal.isPrimaryAdmin === true;
+  // Historic Hub settings links are only aliases for the authenticated primary
+  // Admin. Never translate a manager's forbidden deep link into an allowed tab.
+  const section = primaryAdmin && ["andon", "hub"].includes(String(requestedSection))
+    ? "overview"
+    : requestedSection ?? "overview";
   if (loading)
     return <main className="min-h-dvh bg-background" aria-label={ui("Verificando sessão administrativa")} />;
   // Installation bootstrap is the ONE exception to the central Admin gate.
