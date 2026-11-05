@@ -1420,7 +1420,8 @@ function Invoke-AndonNodePipeline {
     param(
         [bool]$RunSeed = $false,
         [bool]$InstallDependencies = $true,
-        [string]$SeedProfile = ""
+        [string]$SeedProfile = "",
+        [string]$BuildCommit = ""
     )
     $config = Import-AndonConfig
     if (!(Test-AndonDedicatedNodeRuntime)) {
@@ -1462,16 +1463,20 @@ function Invoke-AndonNodePipeline {
     Remove-Item Env:\VITE_ANDON_API_BASE_URL -ErrorAction SilentlyContinue
     $env:VITE_ANDON_DATA_MODE = "api"
     $env:VITE_ANDON_API_PORT = "$($config.apiPort)"
-    # The installer has already pinned the working tree's SHA before build.
-    # Inject it explicitly: git.exe may be unavailable on the runtime PATH.
+    # The build must carry the SHA of the sources actually compiled.
+    # Repair keeps installedCommit unchanged until final health succeeds; using
+    # the old config value here would stamp new code with the old SHA.
     $previousBuildCommit = $env:ANDON_BUILD_COMMIT
     $previousBuildBranch = $env:ANDON_BUILD_BRANCH
-    $pinnedFrontendCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
-    if ($pinnedFrontendCommit -match '^[0-9a-f]{40}$') {
-        $env:ANDON_BUILD_COMMIT = $pinnedFrontendCommit
+    $pinnedFrontendCommit = if (![string]::IsNullOrWhiteSpace($BuildCommit)) {
+        $BuildCommit.Trim().ToLowerInvariant()
     } else {
-        Remove-Item Env:\ANDON_BUILD_COMMIT -ErrorAction SilentlyContinue
+        "$($config.installedCommit)".Trim().ToLowerInvariant()
     }
+    if ($pinnedFrontendCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "Build do frontend recusado: commit fonte nao validado."
+    }
+    $env:ANDON_BUILD_COMMIT = $pinnedFrontendCommit
     if ($Global:AndonBranch -match '^[a-zA-Z0-9_./-]{1,120}$') {
         $env:ANDON_BUILD_BRANCH = "$Global:AndonBranch"
     } else {

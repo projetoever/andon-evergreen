@@ -33,7 +33,9 @@ test("Vite injects validated SHA from pinned installer or local Git, not a hard-
   assert.match(vite, /process\.env\.ANDON_BUILD_BRANCH/);
   assert.match(vite, /GITHUB_REF/);
   assert.match(vite, /packageInfo\.version/);
-  assert.match(ps, /\$pinnedFrontendCommit = "\$\(\$config\.installedCommit\)"/);
+  assert.match(ps, /\$pinnedFrontendCommit = if \(!\[string\]::IsNullOrWhiteSpace\(\$BuildCommit\)\)/);
+  assert.match(ps, /\$BuildCommit\.Trim\(\)\.ToLowerInvariant\(\)/);
+  assert.match(ps, /"\$\(\$config\.installedCommit\)"\.Trim\(\)\.ToLowerInvariant\(\)/);
   assert.match(ps, /\$env:ANDON_BUILD_COMMIT = \$pinnedFrontendCommit/);
   assert.match(ps, /\$env:ANDON_BUILD_BRANCH = "\$Global:AndonBranch"/);
   assert.match(ps, /\$env:ANDON_BUILD_COMMIT = \$previousBuildCommit/);
