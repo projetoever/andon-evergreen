@@ -8,7 +8,7 @@ import { accessRequest } from "@/services/accessService";
 /** Recovery is verified by the API against physical loopback, HTTPS, CSRF
  * and a 128-bit offline secret. No legacy Bearer or automatic sign-in.
  */
-export function CentralAdminRecoveryForm({ onRecovered }: { onRecovered: () => Promise<void> }) {
+export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onRecovered: () => Promise<void>; triggerLabel?: string }) {
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recovered, setRecovered] = useState(false);
@@ -57,7 +57,7 @@ export function CentralAdminRecoveryForm({ onRecovered }: { onRecovered: () => P
       ) : (
         <>
           <Button type="button" variant="outline" onClick={() => setExpanded(!expanded)}>
-            {ui("Recuperar conta Admin central")}
+            {triggerLabel ?? ui("Recuperar conta Admin central")}
           </Button>
           {expanded && (
             <form className="space-y-3" onSubmit={(event) => void submit(event)}>
