@@ -551,13 +551,14 @@ try {
     };
     // UX-12 still fails closed until the server authorizes palette writes.
     let appearance = await openAndonAppearance();
-    await appearance.waitFor();
+    await appearance.getByText("Gravação global desabilitada no servidor ou nesta sessão. Prévia disponível.").waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
     paletteWriteEnabled = true;
     appearance = await openAndonAppearance();
-    await appearance.getByRole("button", { name: "Salvar globalmente" }).waitFor();
+    await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
     const cardBorder = appearance.getByRole("combobox", { name: "Contorno padrão dos cards" });
     await cardBorder.selectOption("ocean");
+    assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isEnabled(), true);
     await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 1.").waitFor();
     assert.equal(paletteRevision, 1);
