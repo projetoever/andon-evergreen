@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { appendAudit, actorFromPrincipal, type AuditActor } from "./audit.js";
 import { AccessError, type Principal } from "./policy.js";
+import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { mayAutoApprovePrimaryAdminStation } from "./primaryAdminWorkstationAdmission.js";
 import {
   hashAccessPassword,
   normalizeLogin,
@@ -120,6 +122,10 @@ export async function login(
   const result = await db.$transaction(async (tx) => {
     await lockUser(tx, user.id);
     const current = await tx.accessUser.findUniqueOrThrow({ where: { id: user.id } });
+    // Order for central writes: actor user -> target workstation. The verified
+    // Admin may admit ONLY the current pending device, never a blocked station.
+    if (current.isPrimaryAdmin && !current.mustChangePassword)
+      await lockWorkstationFlow(tx, input.workstationId);
     const station = await tx.workstation.findUnique({
       where: { id: input.workstationId },
       include: { admission: { select: { status: true } } },
@@ -135,8 +141,61 @@ export async function login(
           current.temporaryConsumedAt))
     )
       return null;
-    const admission = station.pendingApproval || station.admission?.status === "rejected";
-    if (!station.active && !admission) return null;
+    const adminAutoApproval = mayAutoApprovePrimaryAdminStation(current, station);
+    if (adminAutoApproval) {
+      // Explicit previous rejection/lock-out is NEVER overridden. Rechecking
+      // the state via conditional UPDATE prevents an outdated admission race.
+      const changed = await tx.workstation.updateMany({
+        where: { id: station.id, active: false, pendingApproval: true },
+        data: {
+          active: true, pendingApproval: false,
+          // Central module grants remain user-owned. Preserve the normal
+          // approved-terminal flags because guarded operational transitions
+          // still require allowOperational to be true.
+          allowOperational: true, allowBi: true, allowPriorities: true,
+          name: station.name || `Admin — ${station.id.slice(-8)}`,
+        },
+      });
+      if (changed.count !== 1) throw new AccessError("workstation_state_changed", 409);
+      const reason = "Admin principal autenticado aprovou automaticamente esta estação";
+      await tx.workstationAdmission.upsert({
+        where: { workstationId: station.id },
+        create: {
+          workstationId: station.id,
+          requesterUserId: current.id,
+          requestedName: station.name || `Admin — ${station.id.slice(-8)}`,
+          requestIpAddress: context.ipAddress ?? null,
+          status: "approved", requestedAt: now,
+          decidedAt: now, decidedByUserId: current.id, decisionReason: reason,
+        },
+        update: {
+          status: "approved", decidedAt: now,
+          decidedByUserId: current.id, decisionReason: reason,
+        },
+      });
+      // Admission-only sessions from other users must not become operational
+      // when this workstation is approved.
+      await tx.accessSession.updateMany({
+        where: { workstationId: station.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      await appendAudit(tx, {
+        actorType: "user",
+        actorUserId: current.id,
+        actorLogin: current.login,
+        actorName: current.displayName,
+        actorRole: current.roleLabel,
+        workstationId: station.id, ...context,
+      }, {
+        action: "workstation.admission.auto_approved_by_primary_admin",
+        resourceType: "workstation", resourceId: station.id, reason,
+        before: { active: false, pendingApproval: true, admissionStatus: station.admission?.status ?? null },
+        after: { active: true, pendingApproval: false, admissionStatus: "approved" },
+      });
+    }
+    const admission = !adminAutoApproval &&
+      (station.pendingApproval || station.admission?.status === "rejected");
+    if (!station.active && !admission && !adminAutoApproval) return null;
     if (admission && current.mustChangePassword) return null;
     const effective = current.mustChangePassword
       ? await tx.accessUser.update({
@@ -310,11 +369,13 @@ export async function revokeUserSessions(
 }
 export async function logout(db: PrismaClient, request: AccessRequest) {
   return db.$transaction(async (tx) => {
+    // Logout is allowed for a pending-admission or password-change session too:
+    // only that exact, still-valid cookie may revoke itself, not any other user.
     // Align logout with authorization-version changes and guarded attendance:
     // always acquire the user's advisory lock before the final session read.
-    const initial = await resolveSession(tx, request);
+    const initial = await resolveSession(tx, request, new Date(), true);
     await lockUser(tx, initial.userId);
-    const principal = await resolveSession(tx, request);
+    const principal = await resolveSession(tx, request, new Date(), true);
     if (principal.userId !== initial.userId ||
         principal.sessionId !== initial.sessionId)
       throw new AccessError("authentication_required", 401);

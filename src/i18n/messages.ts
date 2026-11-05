@@ -1,5 +1,18 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Confirme a senha Admin para alterar a política", "Confirm the Admin password to change the policy", "請輸入管理員密碼以變更政策"],
+
+  ["Admissão de novas workstations", "New workstation admission", "新工作站准入"],
+  ["Não foi possível consultar a política de workstations.", "Could not read the workstation approval policy.", "無法讀取工作站核准政策。"],
+  ["Não foi possível salvar a política de workstations.", "Could not save the workstation approval policy.", "無法儲存工作站核准政策。"],
+  ["Esta regra vale apenas para novos dispositivos. Workstations pendentes ou recusadas continuam bloqueadas até decisão explícita.", "This rule applies only to new devices. Pending or rejected workstations remain blocked until an explicit decision.", "此規則僅適用於新裝置。待核准或遭拒絕的工作站會持續封鎖，直到明確決定為止。"],
+  ["LAB isolado: novas workstations são liberadas por padrão para facilitar testes. Fora do LAB, a aprovação é obrigatória por padrão.", "Isolated LAB: new workstations are allowed by default for testing. Outside the LAB, approval is required by default.", "隔離測試環境：為方便測試，新工作站預設允許。測試環境之外預設需要核准。"],
+  ["Exigir aprovação administrativa para novas workstations", "Require Admin approval for new workstations", "新工作站須經管理員核准"],
+  ["Ex.: Teste controlado de dispositivos no LAB", "Example: Controlled device testing in the LAB", "例如：在測試環境中進行受控裝置測試"],
+  ["Salvar política de workstations", "Save workstation policy", "儲存工作站政策"],
+  ["Desativar a aprovação não dispensa login, autorização por perfil ou auditoria.", "Disabling approval does not bypass sign-in, role authorization, or auditing.", "停用核准不代表可以略過登入、角色授權或稽核。"],
+  ["Não foi possível encerrar a sessão.", "Could not sign out.", "無法登出。"],
+  ["Liberar esta workstation como Admin (LAB)", "Approve this workstation as Admin (LAB)", "以管理員身分核准此工作站（測試環境）"],
   ["Estado da autenticação do Hub", "Hub authentication status", "Hub 身分驗證狀態"],
   ["Identifique-se para acessar o Hub", "Sign in to access the Hub", "請登入以存取 Hub"],
   ["Autenticação necessária para liberar os módulos autorizados nesta workstation.", "Authentication is required to unlock modules authorized for this workstation.", "必須完成身分驗證，才能啟用此工作站獲授權的模組。"],

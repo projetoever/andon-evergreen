@@ -1,7 +1,7 @@
 import { systemMessage, ui } from "@/i18n/translate";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Settings } from "lucide-react";
+import { LayoutGrid, LogOut, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { getSystemSettings } from "@/services/systemSettingsService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { getAdminAuthStatus, type AdminAuthStatus } from "@/services/adminAuthService";
 import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function HubPage() {
@@ -22,6 +23,8 @@ export function HubPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const centralIdentityRequired = access?.centralAccessEnabled === true &&
     (!access.workstation.active || access.workstation.pendingApproval ||
       access.principal?.purpose !== "normal");
@@ -58,6 +61,25 @@ export function HubPage() {
     }).catch(() => { /* Keep explicit default rather than inventing new values. */ });
     return () => { mounted = false; };
   }, []);
+  const endOwnCentralSession = async () => {
+    if (logoutBusy || !access?.centralAccessEnabled || !access.principal) return;
+    setLogoutBusy(true);
+    setLogoutError("");
+    try {
+      // A refreshed browser session may have an HttpOnly cookie but no CSRF
+      // token in memory yet. Retrieve server-bound CSRF before the mutation.
+      const current = await accessRequest<AccessState>("/session");
+      if (current.principal?.purpose !== "normal" ||
+          current.principal.userId !== access.principal.userId)
+        throw new Error("authentication_required");
+      await accessRequest("/logout", "POST", {});
+      await refresh();
+    } catch (cause) {
+      setLogoutError(cause instanceof Error ? systemMessage(cause.message) : ui("Não foi possível encerrar a sessão."));
+    } finally {
+      setLogoutBusy(false);
+    }
+  };
   const enterAdministration = () => {
     if (access?.centralAccessEnabled) {
       void navigate({ to: "/hub/admin" });
@@ -108,12 +130,22 @@ export function HubPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <LanguageSelector />
+
             <Button variant="outline" onClick={enterAdministration}>
               <Settings className="mr-2 h-4 w-4" />
               {t("Administração do Hub")}
             </Button>
+            {access?.centralAccessEnabled && access.principal?.purpose === "normal" && (
+              <Button variant="outline" disabled={logoutBusy}
+                aria-label={ui("Sair desta sessão")} title={ui("Sair desta sessão")}
+                onClick={() => void endOwnCentralSession()}>
+                <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+                {ui("Sair")}
+              </Button>
+            )}
           </div>
         </header>
+        {logoutError && <p role="alert" className="text-sm text-danger">{logoutError}</p>}
         <section className="space-y-3 py-4">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             {t("Central de módulos")}

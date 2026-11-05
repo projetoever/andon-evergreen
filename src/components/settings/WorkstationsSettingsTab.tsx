@@ -20,6 +20,7 @@ import {
 import type { Workstation } from "@/types/workstation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
+import { CentralWorkstationAdmissionPolicySettings } from "./CentralWorkstationAdmissionPolicySettings";
 import { toast } from "@/i18n/toast";
 import { accessRequest, type AccessState, type ManagedWorkstation, type WorkstationArchivePreflight, type WorkstationArchiveBlocker } from "@/services/accessService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
@@ -398,6 +399,8 @@ export function WorkstationsSettingsTab() {
         </p>
       )}
       {!centralAccess && <WorkstationAdmissionSettings />}
+      {centralAccess && accessSession?.principal?.isPrimaryAdmin &&
+        <CentralWorkstationAdmissionPolicySettings />}
       {!centralAccess && CONFIGURED_DATA_MODE === "api" && (
         <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Diagnóstico de conclusão da manutenção")}>
           <div className="space-y-1">

@@ -140,7 +140,9 @@ foreach ($required in @(
     '[switch]$EnableGlobalPaletteWrites',
     '$visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"',
     'if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites)',
-    ') + $centralHomologationFlags + @($visualPaletteFlag)',
+    ') + $centralHomologationFlags + @($visualPaletteFlag, $hmlAdmissionFlag)',
+    '$hmlAdmissionFlag = "ANDON_HML_OPEN_NEW_WORKSTATIONS_DEFAULT"',
+    '$hmlAdmissionFlag, $(if ($standardNotebookPorts -and $EnableCentralOperationalWrites) { "1" } else { "0" }), "Process")',
     '$visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")',
     'isolatedGlobalPaletteWrites = [bool]$EnableGlobalPaletteWrites',
     'SetEnvironmentVariable($name, $previousEnvironment[$name], "Process")'

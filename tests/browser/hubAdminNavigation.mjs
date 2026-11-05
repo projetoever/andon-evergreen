@@ -65,6 +65,7 @@ try {
     let managerScope = "all";
     let centralInitialized = true;
     let centralHasPrincipal = true;
+    let logoutShouldFail = false;
     let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
@@ -246,6 +247,11 @@ try {
             purpose: "normal",
           } : null,
         });
+      if (path === "/api/access/logout" && req.method() === "POST") {
+        if (logoutShouldFail) return send({ error: "access_unavailable" }, 503);
+        centralHasPrincipal = false;
+        return send({ ok: true });
+      }
       if (path === "/api/access/catalog")
         return send({ permissions: [], roles: [], machines: [] });
       if (path === "/api/access/users") return send({ users: [], total: 0 });
@@ -472,6 +478,27 @@ try {
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
+    // R9.2: a non-Admin user can sign out without leaving a functional
+    // workstation, and a failing backend revocation NEVER claims logout.
+    primaryAdmin = false;
+    managerPermissions = ["andon.read"];
+    await page.goto("https://127.0.0.1:4188/hub");
+    const humanLogout = page.getByRole("button", { name: "Sair desta sessão" });
+    await humanLogout.waitFor();
+    logoutShouldFail = true;
+    await humanLogout.click();
+    await page.getByRole("alert").waitFor();
+    assert.equal(centralHasPrincipal, true);
+    assert.equal(await humanLogout.count(), 1);
+    logoutShouldFail = false;
+    await humanLogout.click();
+    await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
+    assert.equal(centralHasPrincipal, false);
+    // Restore the isolated fixture before subsequent Admin/appearance checks.
+    // Login/logout test has already asserted the real transition.
+    centralHasPrincipal = true;
+    primaryAdmin = true;
+    managerPermissions = [];
     // REFINE 9.1: central login is a required modal over the three locked
     // modules, not an inline card that pushes the Hub layout down.
     centralHasPrincipal = false;

@@ -9,6 +9,7 @@ import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
 import {
   login,
   reauthenticateAdmin,
+  assertRecentAdmin,
   changePassword,
   resolveSession,
   resetPassword,
@@ -27,6 +28,7 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
 import { issueCentralAdminRecoveryCode, recoverCentralAdmin } from "../access/adminRecovery.js";
@@ -125,6 +127,8 @@ export function registerAccessRoutes(
       const admissionRoute =
         route === `${PREFIX}/session` ||
         route === `${PREFIX}/login` ||
+        route === `${PREFIX}/logout` || // Allow an admission-only cookie to revoke itself.
+        route === `${PREFIX}/admission/approve-self-in-lab` ||
         route === `${PREFIX}/admission/request`;
       if (!station || ((!station.active || station.pendingApproval) && !admissionRoute))
         throw new AccessError("workstation_denied");
@@ -211,8 +215,32 @@ export function registerAccessRoutes(
         token = randomBytes(32).toString("hex");
         setCookie(reply, PREAUTH_COOKIE, token, 600);
       }
+      // Show the isolated LAB recovery action ONLY for an actually pending,
+      // non-rejected station. A rejected or explicitly locked station must
+      // never display a self-approval shortcut.
+      const labStation = principal?.purpose === "workstation_admission" &&
+        principal.isPrimaryAdmin && isolatedNotebookHmlAutoAdmissionEnabled()
+        ? await db.workstation.findUnique({
+            where: { id: principal.workstationId },
+            select: {
+              active: true, pendingApproval: true,
+              admission: { select: { status: true } },
+            },
+          })
+        : null;
+      const labSelfAdmissionAvailable = Boolean(
+        labStation && !labStation.active && labStation.pendingApproval &&
+        labStation.admission?.status !== "rejected" &&
+        !centralWorkstationApprovalRequired(
+          (await db.systemSettings.findUnique({
+            where: { id: "global" },
+            select: { centralRequireWorkstationApproval: true },
+          }))?.centralRequireWorkstationApproval,
+        ),
+      );
       return {
         principal,
+        labSelfAdmissionAvailable,
         csrf: csrfToken(token),
         initialized: Boolean(
           await db.accessUser.findFirst({ where: { isPrimaryAdmin: true }, select: { id: true } }),
@@ -320,6 +348,71 @@ export function registerAccessRoutes(
       setCookie(reply, ACCESS_COOKIE, "", 0);
       return { ok: true };
     });
+    // A separate policy applies only to newly registered CENTRAL workstations.
+    // It is never writable through the public legacy /api/modules/settings.
+    app.get(`${PREFIX}/workstations/admission-policy`, async (req) => {
+      const principal = await resolveSession(db, requestAccess(req));
+      if (!principal.isPrimaryAdmin || principal.purpose !== "normal")
+        throw new AccessError("admin_required");
+      assertFullMachineScope(principal);
+      const settings = await db.systemSettings.findUnique({
+        where: { id: "global" },
+        select: { centralRequireWorkstationApproval: true },
+      });
+      const stored = settings?.centralRequireWorkstationApproval;
+      return {
+        requireApproval: centralWorkstationApprovalRequired(stored),
+        isolatedHmlDefault: stored === null || stored === undefined
+          ? isolatedNotebookHmlAutoAdmissionEnabled() : false,
+      };
+    });
+    app.patch<{ Body: { requireApproval: boolean; reason: string } }>(
+      `${PREFIX}/workstations/admission-policy`,
+      {
+        schema: schema({
+          requireApproval: { type: "boolean" }, reason: string(500),
+        }),
+      },
+      async (req) => {
+        const initial = await resolveSession(db, requestAccess(req));
+        assertRecentAdmin(initial);
+        assertFullMachineScope(initial);
+        const reason = req.body.reason.trim().replace(/\s+/g, " ");
+        if (!reason) throw new AccessError("reason_required", 400);
+        return db.$transaction(async (tx) => {
+          await lockUser(tx, initial.userId);
+          await lockWorkstationFlow(tx, initial.workstationId);
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
+          const principal = await resolveSession(tx, requestAccess(req));
+          if (principal.sessionId !== initial.sessionId ||
+              principal.userId !== initial.userId)
+            throw new AccessError("authentication_required", 401);
+          assertRecentAdmin(principal);
+          assertFullMachineScope(principal);
+          const before = await tx.systemSettings.upsert({
+            where: { id: "global" }, create: { id: "global" }, update: {},
+            select: { centralRequireWorkstationApproval: true },
+          });
+          await tx.systemSettings.update({
+            where: { id: "global" },
+            data: { centralRequireWorkstationApproval: req.body.requireApproval },
+          });
+          await appendAudit(tx, {
+            ...actorFromPrincipal(principal), ipAddress: req.ip, requestId: req.id,
+          }, {
+            action: "workstation.central_admission_policy.updated",
+            resourceType: "system_settings",
+            resourceId: "global",
+            reason,
+            before: {
+              requireApproval: centralWorkstationApprovalRequired(before.centralRequireWorkstationApproval),
+            },
+            after: { requireApproval: req.body.requireApproval },
+          });
+          return { requireApproval: req.body.requireApproval, isolatedHmlDefault: false };
+        });
+      },
+    );
     app.post(`${PREFIX}/interaction`, async (req) => {
       await recordInteraction(db, requestAccess(req));
       return { ok: true };
@@ -426,6 +519,88 @@ export function registerAccessRoutes(
         });
         if (!user || user.accountType !== "person") throw new AccessError("invalid_user", 400);
         return resetPassword(db, requestAccess(req), req.params.id, req.body.reason);
+      },
+    );
+    // Only the CURRENT pending Admin workstation in the isolated LAB.
+    app.post<{ Body: { requestedName: string } }>(
+      `${PREFIX}/admission/approve-self-in-lab`,
+      { schema: schema({ requestedName: string(120) }) },
+      async (req, reply) => {
+        if (!isolatedNotebookHmlAutoAdmissionEnabled())
+          throw new AccessError("lab_only", 403);
+        const initial = await resolveSession(db, requestAccess(req), new Date(), true);
+        if (initial.purpose !== "workstation_admission" || !initial.isPrimaryAdmin ||
+            initial.accountType !== "person")
+          throw new AccessError("admin_required", 403);
+        const name = req.body.requestedName.trim().replace(/\s+/g, " ");
+        if (!name) throw new AccessError("invalid_input", 400);
+        await db.$transaction(async tx => {
+          await lockUser(tx, initial.userId);
+          await lockWorkstationFlow(tx, initial.workstationId);
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
+          const principal = await resolveSession(tx, requestAccess(req), new Date(), true);
+          if (principal.sessionId !== initial.sessionId ||
+              principal.userId !== initial.userId ||
+              principal.purpose !== "workstation_admission" ||
+              !principal.isPrimaryAdmin)
+            throw new AccessError("authentication_required", 401);
+          const settings = await tx.systemSettings.findUnique({
+            where: { id: "global" },
+            select: { centralRequireWorkstationApproval: true },
+          });
+          if (centralWorkstationApprovalRequired(settings?.centralRequireWorkstationApproval))
+            throw new AccessError("approval_required", 403);
+          const station = await tx.workstation.findUnique({
+            where: { id: principal.workstationId }, include: { admission: true },
+          });
+          if (!station || station.active || !station.pendingApproval ||
+              station.admission?.status === "rejected")
+            throw new AccessError("admission_not_pending", 409);
+          const now = new Date();
+          await tx.workstation.update({
+            where: { id: station.id },
+            data: {
+              name: station.name || name,
+              active: true, pendingApproval: false,
+              allowOperational: true, allowBi: true, allowPriorities: true,
+            },
+          });
+          await tx.workstationAdmission.upsert({
+            where: { workstationId: station.id },
+            create: {
+              workstationId: station.id,
+              requesterUserId: principal.userId,
+              requestedName: name,
+              requestIpAddress: req.ip.replace(/^::ffff:/, ""),
+              status: "approved",
+              requestedAt: now,
+              decidedAt: now,
+              decidedByUserId: principal.userId,
+              decisionReason: "Aprovação explícita do Admin no LAB isolado",
+            },
+            update: {
+              status: "approved",
+              decidedAt: now,
+              decidedByUserId: principal.userId,
+              decisionReason: "Aprovação explícita do Admin no LAB isolado",
+            },
+          });
+          await tx.accessSession.updateMany({
+            where: { workstationId: station.id, revokedAt: null },
+            data: { revokedAt: now },
+          });
+          await appendAudit(tx, {
+            ...actorFromPrincipal(principal), ipAddress: req.ip, requestId: req.id,
+          }, {
+            action: "workstation.lab_self_approval",
+            resourceType: "workstation",
+            resourceId: station.id,
+            before: { active: station.active, pendingApproval: station.pendingApproval },
+            after: { active: true, pendingApproval: false, requiresNewLogin: true },
+          });
+        });
+        setCookie(reply, ACCESS_COOKIE, "", 0);
+        return { ok: true, requiresNewLogin: true };
       },
     );
     app.post<{ Body: { requestedName: string; reason?: string } }>(

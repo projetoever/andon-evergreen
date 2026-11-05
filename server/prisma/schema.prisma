@@ -13,6 +13,8 @@ model SystemSettings {
   clientUnit                                           String   @default("") @db.VarChar(100)
   hubEnabled                                           Boolean  @default(false)
   requireWorkstationApproval                           Boolean  @default(false)
+  // Central access: null uses safe production approval default, HML may opt into open enrollment.
+  centralRequireWorkstationApproval                    Boolean?
   allowWholeSetCalls                                   Boolean  @default(true)
   virtualKeyboardEnabled                               Boolean  @default(true)
   requireWorkOrderAtOpen                               Boolean  @default(false)

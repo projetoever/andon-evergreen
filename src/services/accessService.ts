@@ -40,6 +40,7 @@ export interface AccessPrincipal {
 export interface AccessState {
   csrf: string;
   initialized: boolean;
+  labSelfAdmissionAvailable?: boolean;
   principal: AccessPrincipal | null;
 }
 export interface AccessCatalog {
