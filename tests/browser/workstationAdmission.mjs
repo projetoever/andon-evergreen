@@ -303,7 +303,9 @@ try {
     await page.getByLabel("Usuário").fill("lider.producao");
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
-    await page.getByText("ANDON BI", { exact: true }).waitFor();
+    // The title was already visible while locked; wait for the granted Link
+    // rather than mistaking the pre-login informational card for authorization.
+    await page.getByRole("link", { name: /ANDON BI/ }).waitFor();
     // REFINE9: forbidden modules remain visible as locked, non-navigable cards.
     const lockedAndon = page.getByRole("heading", { name: "ANDON operacional", exact: true })
       .locator('xpath=ancestor::div[@aria-disabled="true"][1]');
