@@ -419,6 +419,23 @@ foreach ($required in @(
         throw "Backup/restore sem controle de isolamento obrigatorio: $required"
     }
 }
+# A JSON array returned by docker inspect must be flattened before
+# exact comparison in Windows PowerShell 5.1 (never print DB password).
+if (!$backupSource.Contains('foreach ($entry in ($envJson | ConvertFrom-Json))') -or
+    $backupSource.Contains('$containerEnv = @($envJson | ConvertFrom-Json)')) {
+    throw "Backup/restore deve enumerar o array Docker de forma compativel com PowerShell 5.1."
+}
+$fakeEnvJson = '["POSTGRES_DB=andon_https_hml","POSTGRES_USER=andon_hml","POSTGRES_PASSWORD=unused-fixture"]'
+$fakeEnv = [string[]]@()
+foreach ($entry in ($fakeEnvJson | ConvertFrom-Json)) {
+    if ($entry -isnot [string]) { throw "Array Docker inesperado." }
+    $fakeEnv += $entry
+}
+if ($fakeEnv -notcontains "POSTGRES_DB=andon_https_hml" -or
+    $fakeEnv -notcontains "POSTGRES_USER=andon_hml" -or
+    $fakeEnv -contains "POSTGRES_DB=andon_db") {
+    throw "Regressao: identidade Docker de LAB nao identificada corretamente."
+}
 $biScript = Join-Path $PSScriptRoot "..\..\server\scripts\bi-restore-parity-snapshot.mjs"
 $biScript = [System.IO.Path]::GetFullPath($biScript)
 $biSource = Get-Content $biScript -Raw
