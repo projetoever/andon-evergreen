@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { personalPasswordHint } from "@/services/personalPasswordHint";
 import {
   accessRequest,
   type AccessState,
@@ -65,6 +66,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [newPasswordDraft, setNewPasswordDraft] = useState("");
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [catalog, setCatalog] = useState<AccessCatalog | null>(null);
   const [query, setQuery] = useState("");
@@ -203,6 +205,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
     const password = String(values.get("password") ?? "");
     const newPassword = String(values.get("newPassword") ?? "");
     const confirm = String(values.get("confirm") ?? "");
+    const weakness = newPassword ? personalPasswordHint(newPassword) : null;
+    if (weakness) {
+      setError(ui(weakness));
+      return;
+    }
     if (newPassword && newPassword !== confirm) {
       setError("As senhas precisam ser iguais.");
       return;
@@ -224,6 +231,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
       await refreshSession();
       if (!session?.initialized) await onSessionInitialized?.();
       form.reset();
+      setNewPasswordDraft("");
     });
   };
   const authForm = !principal || principal.purpose === "password_change" || reauth;
@@ -379,12 +387,17 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       name="newPassword"
                       type="password"
                       autoComplete="new-password"
-                      aria-describedby="central-user-password-help"
+                      aria-describedby="central-user-password-help central-user-password-feedback"
+                      onChange={(event) => setNewPasswordDraft(event.target.value)}
                       required
                       minLength={8}
                       maxLength={128}
                     />
                   </Label>
+                  <p id="central-user-password-feedback" aria-live="polite" className="text-xs text-danger">
+                    {newPasswordDraft && personalPasswordHint(newPasswordDraft)
+                      ? ui(personalPasswordHint(newPasswordDraft)!) : ""}
+                  </p>
                   <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
                     <span className="block font-semibold leading-5">
                       {ui("Confirmar nova senha")}
