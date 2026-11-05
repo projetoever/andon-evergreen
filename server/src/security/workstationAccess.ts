@@ -32,6 +32,7 @@ import { isCentralDiagnosisEditMutation, markCentralDiagnosisEditAuthorized } fr
 import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized, centralOwnWorkstationPreferenceReadTarget, centralOwnWorkstationPreferencesEnabled } from "./centralOwnWorkstationPrefsHttp.js";
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
+import { isCentralMachineSettingsMutation, markCentralMachineSettingsAuthorized } from "./centralMachineSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -164,6 +165,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
+          !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralVisualPaletteMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
@@ -221,6 +223,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianIdentityMutation(request.method, path)) {
           markCentralTechnicianIdentityAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralMachineSettingsMutation(request.method, path)) {
+          markCentralMachineSettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralOperationalSettingsMutation(request.method, path)) {
