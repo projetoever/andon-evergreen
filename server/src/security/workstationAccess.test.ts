@@ -152,6 +152,7 @@ test("central access binds scoped machine/call reads and protects history with a
   const originalSession = prisma.accessSession.findUnique;
   let machineScope = "all";
   let canReadHistory = false;
+  let canManageSettings = false;
   let canReadBi = false;
   let canReadPriorities = false;
   let sessionWorkstationId = id;
@@ -185,6 +186,7 @@ test("central access binds scoped machine/call reads and protects history with a
       permissions: [
         { key: "andon.read" },
         ...(canReadHistory ? [{ key: "history.read" }] : []),
+        ...(canManageSettings ? [{ key: "andon.settings.open" }] : []),
         ...(canReadBi ? [{ key: "bi.read" }] : []),
         ...(canReadPriorities ? [{ key: "priorities.read" }] : []),
       ],
@@ -223,6 +225,7 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/andon-calls/history", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/failure-classifications", async () => ({ ok: true }));
   app.get("/api/analytics/filter-options", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -285,6 +288,16 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.deepEqual(liveCalls.json().allowedMachineIds, ["37"]);
   const liveCallsHead = await app.inject({ method: "HEAD", url: "/api/andon-calls", headers });
   assert.equal(liveCallsHead.statusCode, 200);
+  // ANDON settings delegation is a global catalogue capability, not
+  // permission to read historical call data or change machine scope.
+  const deniedClassification = await app.inject({ url: "/api/failure-classifications", headers });
+  assert.equal(deniedClassification.statusCode, 403);
+  assert.equal(deniedClassification.json().error, "scoped_query_required");
+  canManageSettings = true;
+  const allowedClassification = await app.inject({ url: "/api/failure-classifications", headers });
+  assert.equal(allowedClassification.statusCode, 200);
+  const stillScopedCalls = await app.inject({ url: "/api/andon-calls", headers });
+  assert.deepEqual(stillScopedCalls.json().allowedMachineIds, ["37"]);
   const historyWithoutPermission = await app.inject({ url: "/api/andon-calls/history", headers });
   assert.equal(historyWithoutPermission.statusCode, 403);
   assert.equal(historyWithoutPermission.json().error, "permission_denied");
