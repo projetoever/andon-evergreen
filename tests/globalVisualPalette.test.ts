@@ -49,7 +49,7 @@ test("UX-12: global save is accessible only to Hub primary Admin when server fla
     source("src/services/visualPaletteService.ts"),
     source("src/api/andonApiClient.ts"),
   ]);
-  assert.match(legacy, /<AppearanceSettingsPreview allowGlobalSave=\{centralAccess\} \/>/);
+  assert.match(legacy, /<AppearanceSettingsPreview allowGlobalSave=\{centralAccess && centralPrimaryAdmin\} \/>/);
   assert.doesNotMatch(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
   assert.match(preview, /!allowGlobalSave \|\| !canWrite/);
   assert.match(preview, /disabled=\{!canWrite \|\| !changed/);
