@@ -185,7 +185,27 @@ try {
             allowBi: true,
             allowPriorities: true,
           },
-          modules: [],
+          // Central grants belong to the authenticated user; the approved
+          // workstation no longer controls each module individually.
+          principal: centralMode && centralInitialized ? {
+            userId: "admin", login: "admin.central", displayName: "Admin Central",
+            roleLabel: primaryAdmin ? "Admin" : "Gestor/Gerente", purpose: "normal",
+            machineScope: managerScope, machineIds: [], isPrimaryAdmin: primaryAdmin,
+          } : null,
+          modules: centralMode && centralInitialized && centralWorkstationActive ? [
+            { id: "operational", name: "ANDON operacional", description: "Operação",
+              route: "/andon", icon: "factory", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("andon.read"),
+              authenticated: true, passwordRequired: false },
+            { id: "bi", name: "ANDON BI", description: "Indicadores",
+              route: "/bi", icon: "chart", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("bi.read"),
+              authenticated: true, passwordRequired: false },
+            { id: "priorities", name: "Prioridades", description: "Prioridades",
+              route: "/machine-priorities", icon: "priority", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("priorities.read"),
+              authenticated: true, passwordRequired: false },
+          ] : [],
         });
       }
       if (path === "/api/admin-auth/login") {
