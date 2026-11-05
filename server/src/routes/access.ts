@@ -28,6 +28,8 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
+import { centralOwnWorkstationPreferencesEnabled } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
