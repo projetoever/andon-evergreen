@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ui } from "@/i18n/translate";
+import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { personalPasswordHint } from "@/services/personalPasswordHint";
 import {
   accessRequest,
   type AccessState,
@@ -66,6 +67,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [newPasswordDraft, setNewPasswordDraft] = useState("");
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [catalog, setCatalog] = useState<AccessCatalog | null>(null);
   const [query, setQuery] = useState("");
@@ -77,8 +79,10 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
   const [adminRecoveryCode, setAdminRecoveryCode] = useState<string | null>(null);
+  const [recoveryCopyStatus, setRecoveryCopyStatus] = useState("");
   const [legacyStatus, setLegacyStatus] = useState<{
     legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+    centralRecoveryIssuedAt: string | null;
   } | null>(null);
   const [legacyRetirementConfirmed, setLegacyRetirementConfirmed] = useState(false);
   const [resetTarget, setResetTarget] = useState<AccessUser | null>(null);
@@ -142,7 +146,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
       return;
     }
     let disposed = false;
-    void accessRequest<{ legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean }>(
+    void accessRequest<{ legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean; centralRecoveryIssuedAt: string | null }>(
       "/legacy-admin/status",
     ).then((value) => { if (!disposed) setLegacyStatus(value); })
       .catch(() => { if (!disposed) setLegacyStatus(null); });
@@ -202,6 +206,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
     const password = String(values.get("password") ?? "");
     const newPassword = String(values.get("newPassword") ?? "");
     const confirm = String(values.get("confirm") ?? "");
+    const weakness = newPassword ? personalPasswordHint(newPassword) : null;
+    if (weakness) {
+      setError(ui(weakness));
+      return;
+    }
     if (newPassword && newPassword !== confirm) {
       setError("As senhas precisam ser iguais.");
       return;
@@ -223,6 +232,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
       await refreshSession();
       if (!session?.initialized) await onSessionInitialized?.();
       form.reset();
+      setNewPasswordDraft("");
     });
   };
   const authForm = !principal || principal.purpose === "password_change" || reauth;
@@ -378,12 +388,17 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       name="newPassword"
                       type="password"
                       autoComplete="new-password"
-                      aria-describedby="central-user-password-help"
+                      aria-describedby="central-user-password-help central-user-password-feedback"
+                      onChange={(event) => setNewPasswordDraft(event.target.value)}
                       required
                       minLength={8}
                       maxLength={128}
                     />
                   </Label>
+                  <p id="central-user-password-feedback" aria-live="polite" className="text-xs text-danger">
+                    {newPasswordDraft && personalPasswordHint(newPasswordDraft)
+                      ? ui(personalPasswordHint(newPasswordDraft)!) : ""}
+                  </p>
                   <Label className="flex min-w-0 flex-col gap-2 text-sm leading-normal">
                     <span className="block font-semibold leading-5">
                       {ui("Confirmar nova senha")}
@@ -431,25 +446,57 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               disabled={busy}
               onClick={() => void run(async () => {
                 setAdminRecoveryCode(null);
+                setRecoveryCopyStatus("");
                 setLegacyRetirementConfirmed(false);
-                const result = await accessRequest<{ recoveryCode: string }>(
+                const result = await accessRequest<{ recoveryCode: string; issuedAt: string }>(
                   "/admin-recovery-code", "POST", {},
                 );
+                // Authoritative timestamp was written atomically with the audit.
+                // Do not turn a successful issuance into an error on a later GET.
                 setAdminRecoveryCode(result.recoveryCode);
-                setLegacyStatus(await accessRequest<{
-                  legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
-                }>("/legacy-admin/status"));
+                setLegacyStatus(previous => ({
+                  legacyPasswordPresent: previous?.legacyPasswordPresent ?? false,
+                  centralRecoveryConfigured: true,
+                  centralRecoveryIssuedAt: result.issuedAt,
+                }));
               })}
             >
               {ui("Gerar novo código de recuperação")}
             </Button>
+            {legacyStatus?.centralRecoveryConfigured && (
+              <p className="text-xs text-muted-foreground" role="status">
+                {ui("Último código gerado em")}:{" "}
+                <strong>{legacyStatus.centralRecoveryIssuedAt &&
+                  Number.isFinite(Date.parse(legacyStatus.centralRecoveryIssuedAt))
+                  ? new Date(legacyStatus.centralRecoveryIssuedAt).toLocaleString(getInterfaceLocale())
+                  : ui("Data não disponível para este código")}</strong>
+              </p>
+            )}
             {adminRecoveryCode && (
               <div role="status" className="space-y-2 rounded-lg border border-warning/40 p-3">
                 <p className="text-sm font-semibold">{ui("Código secreto — exibição única")}</p>
                 <code className="block select-all break-all font-mono text-sm">{adminRecoveryCode}</code>
-                <Button size="sm" variant="outline" onClick={() => setAdminRecoveryCode(null)}>
-                  {ui("Já guardei o código")}
-                </Button>
+                <p className="text-xs text-muted-foreground">
+                  {ui("Copie e guarde o código em local seguro. A área de transferência poderá ser acessada por outros aplicativos.")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" type="button" variant="outline" onClick={async () => {
+                    try {
+                      if (!navigator.clipboard?.writeText) throw new Error("clipboard_unavailable");
+                      await navigator.clipboard.writeText(adminRecoveryCode);
+                      setRecoveryCopyStatus(ui("Código copiado. Guarde-o em local seguro."));
+                    } catch {
+                      setRecoveryCopyStatus(ui("Não foi possível copiar. Selecione o código manualmente."));
+                    }
+                  }}>{ui("Copiar código")}</Button>
+                  <Button size="sm" type="button" variant="outline" onClick={() => {
+                    setAdminRecoveryCode(null);
+                    setRecoveryCopyStatus("");
+                  }}>
+                    {ui("Já guardei o código")}
+                  </Button>
+                </div>
+                {recoveryCopyStatus && <p role="status" className="text-xs">{recoveryCopyStatus}</p>}
               </div>
             )}
           </Card>
@@ -482,6 +529,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   setLegacyRetirementConfirmed(false);
                   setLegacyStatus(await accessRequest<{
                     legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+                    centralRecoveryIssuedAt: string | null;
                   }>("/legacy-admin/status"));
                 })}
               >
