@@ -238,6 +238,44 @@ try {
   assert.equal(await db.auditEvent.count({
     where: { action: "calls.cancel", resourceId: otherId },
   }), 1);
+  // R10-02: read completed legacy records through the real central HTTPS
+  // middleware and PostgreSQL; no rewriting creator, attendance or KPIs.
+  // Even an allowed operational user cannot read history without history.read.
+  const historyUrl = `/api/andon-calls/history?machineId=${machineId}&limit=20`;
+  const deniedHistory = await app.inject({ method: "GET", url: historyUrl, headers });
+  assert.equal(deniedHistory.statusCode, 403, deniedHistory.body);
+  assert.equal(deniedHistory.json().error, "permission_denied");
+
+  await db.accessPermission.create({ data: { userId, key: "history.read" } });
+  const history = await app.inject({ method: "GET", url: historyUrl, headers });
+  assert.equal(history.statusCode, 200, history.body);
+  const closed = history.json();
+  assert(Array.isArray(closed));
+  const historicalOwn = closed.find(c => c.id === ownId);
+  const historicalLegacy = closed.find(c => c.id === otherId);
+  assert.equal(historicalOwn?.status, "cancelled");
+  assert.equal(historicalLegacy?.status, "cancelled");
+  assert.equal(historicalLegacy?.createdBy, "kiosk",
+    "legacy provenance remains intact; central grants do not rewrite creator");
+  assert.equal(historicalLegacy?.cancelReason, "Manager cancellation");
+  assert.equal(await db.auditEvent.count({
+    where: { action: "calls.cancel", resourceId: otherId },
+  }), 1, "historical reads must not generate or duplicate mutation audits");
+
+  const unrelated = await app.inject({
+    method: "GET",
+    url: `/api/andon-calls/history?machineId=${otherMachineId}`,
+    headers,
+  });
+  assert.equal(unrelated.statusCode, 200, unrelated.body);
+  assert.deepEqual(unrelated.json(), [], "selected-machine scope survives history reads");
+  const activeList = await app.inject({ method: "GET", url: "/api/andon-calls", headers });
+  assert.equal(activeList.statusCode, 200, activeList.body);
+  assert(activeList.json().some(c => c.id === createdCallId),
+    "active calls remain available after a historical read");
+  assert(activeList.json().some(c => c.id === otherId),
+    "history grant permits cancelled rows without altering operational status");
+
   process.env.ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED = "0";
   const cancelDisabled = await sendCancel(createdCallId);
   assert.equal(cancelDisabled.statusCode, 403);
