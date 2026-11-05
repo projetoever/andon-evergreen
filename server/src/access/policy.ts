@@ -84,10 +84,20 @@ export function isAndonSettingsDelegate(principal: Principal): boolean {
     principal.permissions.includes("andon.settings.open");
 }
 
+const DELEGATABLE_ANDON_CATALOG_GRANTS: ReadonlySet<Permission> = new Set([
+  "catalog.assets.manage",
+  "catalog.reasons.manage",
+  "catalog.classifications.manage",
+  "catalog.technicians.manage",
+]);
+
 export function assertAndonSettingsOrPermission(
   principal: Principal, permission: Permission,
 ): void {
-  if (isAndonSettingsDelegate(principal)) return;
+  // A future caller must not be able to misuse the config grant as a
+  // shortcut to Hub, security, BI, workstation or operational privileges.
+  if (DELEGATABLE_ANDON_CATALOG_GRANTS.has(permission) &&
+      isAndonSettingsDelegate(principal)) return;
   assertPermission(principal, permission);
 }
 
