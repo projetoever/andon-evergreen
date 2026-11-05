@@ -517,6 +517,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   setLegacyRetirementConfirmed(false);
                   setLegacyStatus(await accessRequest<{
                     legacyPasswordPresent: boolean; centralRecoveryConfigured: boolean;
+                    centralRecoveryIssuedAt: string | null;
                   }>("/legacy-admin/status"));
                 })}
               >
