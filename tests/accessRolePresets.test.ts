@@ -60,12 +60,12 @@ test("suggestions are strictly limited to the permitted catalog", () => {
   assert.deepEqual(suggestedPermissions("Produção", []), []);
   assert.deepEqual(
     MODULE_ENTRY_PERMISSIONS.map((item) => item.key),
-    ["andon.read", "bi.read", "priorities.read"],
+    ["andon.read", "bi.read", "priorities.read", "andon.settings.open"],
   );
 });
 
 test("pilot registration defaults to Production, with an explicit advanced path", () => {
-  assert.deepEqual([...PILOT_SIMPLE_ROLES], ["Produção", "Manutenção", "Gestor/Gerente"]);
+  assert.deepEqual([...PILOT_SIMPLE_ROLES], ["Produção", "Manutenção", "Líder", "Gestor/Gerente"]);
   assert.deepEqual(suggestedPermissions("Produção", [
     "andon.read", "history.read", "calls.open", "calls.cancel.own",
     "calls.attend", "bi.read", "users.create",
