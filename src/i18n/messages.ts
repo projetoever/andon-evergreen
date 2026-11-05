@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["O acesso às configurações permite visualizar todas as abas. Alterações continuam sujeitas às permissões específicas e à API.", "Settings access lets you view every tab. Changes still require specific permissions and API authorization.", "設定存取權允許檢視所有分頁。任何變更仍須具備特定權限並通過 API 授權。"],
   ["Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin or authorized maintenance technician for this machine. The signed-in user will not change.", "請輸入管理員或本機台授權維護人員的密碼。已登入的使用者不會變更。"],
   ["Credencial inválida ou sem permissão para desbloquear esta tela.", "Invalid credentials or not authorized to unlock this screen.", "登入資料無效或無權解除此畫面鎖定。"],
   ["Investigação de identidade da workstation", "Workstation identity investigation", "工作站身分調查"],
