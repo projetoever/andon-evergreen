@@ -33,10 +33,14 @@ test("R10-09: a config grant delegates catalog privileges regardless of profile 
       "users.create", "workstations.manage", "audit.export",
       "hub.settings.presentation.write", "priorities.write", "bi.export",
       "calls.cancel.any", "machines.status.write",
-    ]) {
-      assert.throws(() => assertPermission(principal, forbidden),
-        (e: unknown) => e instanceof Error &&
+    ] as const) {
+      for (const operation of [
+        () => assertPermission(principal, forbidden),
+        () => assertAndonSettingsOrPermission(principal, forbidden),
+      ]) {
+        assert.throws(operation, (e: unknown) => e instanceof Error &&
           "code" in e && e.code === "permission_denied");
+      }
     }
   }
 });
