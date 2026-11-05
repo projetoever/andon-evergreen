@@ -399,7 +399,7 @@ export function AdminSettingsModal({
               <div className="mx-auto w-full max-w-[1240px] space-y-4">
                 {centralAccess && !centralPrimaryAdmin && (
                   <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
-                    {ui("O acesso às configurações permite visualizar todas as abas. Alterações continuam sujeitas às permissões específicas e à API.")}
+                    {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
                   </p>
                 )}
                 {centralAccess && !["general", "appearance", "attendance"].includes(tab) && (
