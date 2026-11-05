@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, Plug, Settings2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
@@ -8,9 +8,6 @@ import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
 import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
-import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
-import { AppearanceSettingsPreview } from "@/components/settings/AppearanceSettingsPreview";
-import { AttendanceModeSettingsTab } from "@/components/settings/AttendanceModeSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
@@ -68,7 +65,7 @@ function CentralOverview() {
  */
 export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = requestedSection ?? "overview";
+  const section = requestedSection === "andon" ? "hub" : requestedSection ?? "overview";
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
@@ -157,7 +154,7 @@ export function HubCentralAdminPage() {
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
     { id: "users", name: ui("Usuários e Acessos"), icon: ShieldCheck },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
-    { id: "andon", name: ui("Configurações do ANDON"), icon: Factory },
+    { id: "hub", name: ui("Configurações gerais do Hub"), icon: Settings2 },
     { id: "integrations", name: ui("Integrações API"), icon: Plug },
   ] as const;
   return (
@@ -208,22 +205,34 @@ export function HubCentralAdminPage() {
         {section === "users" && <UsersAccessSettings />}
         {section === "workstations" && <WorkstationsSettingsTab />}
         {section === "integrations" && <ServiceIdentitiesSettings />}
-        {section === "andon" && (
+        {section === "hub" && (
           <div className="space-y-4">
-            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-              <h2 className="text-lg font-bold">{ui("Configurações operacionais do ANDON")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {ui("Estas regras são globais e exigem uma sessão de Admin principal. Sons, cadastros e credenciais mantêm controles separados.")}
+            <section className="space-y-3 rounded-xl border border-border bg-card p-4 md:p-5">
+              <h2 className="text-lg font-bold">{ui("Configurações gerais do Hub")}</h2>
+              <p className="text-sm text-muted-foreground">
+                {ui("A gestão de usuários, estações e integrações fica no Hub. Regras de chamados, máquinas, sons e aparência permanecem no painel de Configurações do ANDON operacional.")}
+              </p>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border border-border p-3">
+                  <dt className="text-muted-foreground">{ui("Autenticação central")}</dt>
+                  <dd className="mt-1 font-bold">{access?.centralAccessEnabled ? ui("Ativa") : ui("Desativada")}</dd>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <dt className="text-muted-foreground">{ui("Esta workstation")}</dt>
+                  <dd className="mt-1 font-bold">
+                    {access?.workstation.active && !access.workstation.pendingApproval
+                      ? ui("Aprovada") : ui("Aguardando aprovação")}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted-foreground">
+                {ui("Os ajustes globais de política ainda não migrados permanecem indisponíveis para edição. Nenhuma proteção é desativada por esta tela.")}
               </p>
             </section>
-            <GeneralSettingsTab />
-            <AppearanceSettingsPreview allowGlobalSave />
-            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-              <AttendanceModeSettingsTab />
-            </section>
+            <HubBuildVersionCard />
           </div>
         )}
-        {!["overview","users","workstations","andon","integrations"].includes(section) && (
+        {!["overview","users","workstations","hub","integrations"].includes(section) && (
           <div role="status" className="rounded-xl border border-border bg-card p-5">
             {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
           </div>
