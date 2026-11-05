@@ -242,7 +242,7 @@ try {
     });
 
     await page.goto("https://127.0.0.1:4188/hub");
-    await page.getByRole("heading", { name: "Identifique-se para acessar o Hub" }).waitFor();
+    await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
     await page.screenshot({
       path: `${output}/${viewport.width}-identification.png`,
       fullPage: true,
@@ -305,7 +305,7 @@ try {
     administrativeView = false;
     principal = null;
     await page.goto("https://127.0.0.1:4188/hub");
-    await page.getByRole("heading", { name: "Identifique-se para acessar o Hub" }).waitFor();
+    await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
     await page.getByLabel("Usuário").fill("lider.producao");
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
