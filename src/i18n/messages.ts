@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Sem permissão para configurar o ANDON.","Not authorized to configure ANDON.","無權設定 ANDON。"],
   ["Módulo indisponível nesta instalação.","Module unavailable in this installation.","此安裝中無法使用此模組。"],
   ["Acesso restrito ao perfil do usuário conectado.","Access restricted for the signed-in user's role.","目前登入的使用者角色無權存取。"],
   ["Nenhuma informação de módulos disponível. Tente novamente.","No module information available. Try again.","沒有可用的模組資訊。請再試一次。"],
