@@ -1771,6 +1771,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Repita a nova senha", "Repeat the new password", "再次輸入新密碼"],
   ["Voltar ao login", "Back to sign in", "返回登入"],
   ["Esqueci a senha", "Forgot password", "忘記密碼"],
+  ["Para outras contas, solicite a redefinição da senha ao Admin principal.", "For other accounts, ask the primary Admin to reset the password.", "其他帳號請聯絡主要管理員重設密碼。"],
   ["Configurações da operação", "Operation settings", "營運設定"],
   [
     "Regras de chamados, interface e apresentação do dashboard.",
