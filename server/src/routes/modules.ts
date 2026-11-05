@@ -75,15 +75,13 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       }
     }
     const permitted = (module: (typeof MODULE_REGISTRY)[number]) => {
-      if (
-        !workstation.active ||
-        workstation.pendingApproval ||
-        !isModuleAllowed(module.id, workstation)
-      )
-        return false;
-      if (!central) return true;
+      if (!workstation.active || workstation.pendingApproval) return false;
+      // Per-terminal module flags are retained ONLY for central-OFF legacy mode.
+      // With central ON the authenticated user's permissions decide each module,
+      // including all three for primary Admin, never the old workstation flags.
+      if (!central) return isModuleAllowed(module.id, workstation);
       if (!principal || principal.purpose !== "normal") return false;
-      // Selected-scope queries remain hidden until operational handlers enforce machine filters.
+      // Scoped queries remain fail-closed until their handlers filter by machine.
       if (principal.machineScope !== "all") return false;
       try {
         assertModule(principal, workstation, module.id);
