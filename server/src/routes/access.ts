@@ -215,9 +215,22 @@ export function registerAccessRoutes(
         token = randomBytes(32).toString("hex");
         setCookie(reply, PREAUTH_COOKIE, token, 600);
       }
+      // Show the isolated LAB recovery action ONLY for an actually pending,
+      // non-rejected station. A rejected or explicitly locked station must
+      // never display a self-approval shortcut.
+      const labStation = principal?.purpose === "workstation_admission" &&
+        principal.isPrimaryAdmin && isolatedNotebookHmlAutoAdmissionEnabled()
+        ? await db.workstation.findUnique({
+            where: { id: principal.workstationId },
+            select: {
+              active: true, pendingApproval: true,
+              admission: { select: { status: true } },
+            },
+          })
+        : null;
       const labSelfAdmissionAvailable = Boolean(
-        principal?.purpose === "workstation_admission" &&
-        principal.isPrimaryAdmin && isolatedNotebookHmlAutoAdmissionEnabled() &&
+        labStation && !labStation.active && labStation.pendingApproval &&
+        labStation.admission?.status !== "rejected" &&
         !centralWorkstationApprovalRequired(
           (await db.systemSettings.findUnique({
             where: { id: "global" },
