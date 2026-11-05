@@ -38,3 +38,13 @@
 Issues #351 cancelamento e #352 histórico permanecem abertas até obter requisição/status/resposta HTTP do notebook e HML com dados antigos, embora PRs #355/#356 já tenham sido mergeadas após CI.
 
 **Proibido:** merge automático desta PR, deploy, banco original `andon_db`, instalação `C:\web-andon-industrial\andon`, fábrica, CLPs, GPIO e Node-RED.
+
+
+## Fase B — schema de homologação isolado (PR dependente; NÃO habilita kiosk)
+- Novo modelo Prisma `KioskTrustLease`, tabela `kiosk_trust_leases` **nova e inicialmente vazia**, sem converter workstations/contas/sessões legadas. FK restritiva para workstation lógica, conta kiosk, máquina, aprovador Admin.
+- Um vínculo lógico por workstation e por conta kiosk (índices únicos); status inicial `pending`, sem código, sem chave, sem segredo e sem aprovação. Não unir terminais com IP igual.
+- Campos para aprovação, justificativa, validade, revogação, versão de credencial e versão de autorização, chave pública SPKI e **somente hash** do token de renovação. Chaves privadas e tokens não podem ser gravados no banco, em logs ou no localStorage.
+- Banco rejeita ativação de lease sem decisão Admin, motivo, validade futura, chave pública e hash de credencial; rejeita estado revogado sem timestamp; versões não podem ser zero/negativas.
+- Teste de integração executado **somente em `/andon_test`** na CI após migrations; cria conta/estação/máquina sintéticas, confirma lease `pending` sem segredo, prova rejeição de ativação incompleta e limpa seus registros. Não conecta no LAB real, `andon_db` ou fábrica.
+- **Não há** emissão/validação de chave pública, fluxo WebCrypto, cookie, endpoint de matrícula, autenticação kiosk ou UI. Os campos são estrutura para a futura fase C, que exigirá criptografia bem especificada, challenge anti-replay, confirmação Admin e revisão independente. A existência da tabela não equivale a confiança ativada.
+- Risco residual: uma credencial de navegador não comprova sozinha a identidade física de computador; cópia de perfil e ausência de attestation devem ser considerados no threat model. Não prometer bloqueio confiável de dispositivos móveis usando user-agent, IP, MAC ou hostname. O agente opcional #350 permanece adiado; mobile continua ANDON Web por login humano e ACL.
