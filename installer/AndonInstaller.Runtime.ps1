@@ -288,18 +288,30 @@ function Start-AndonRuntime {
     $watchdogScript = "$Global:AndonProjectPath\scripts\watchdog-andon.ps1"
     if (Test-Path $watchdogScript) {
         Write-AndonOk "Executando watchdog robusto."
-        powershell.exe -ExecutionPolicy Bypass -NoProfile -File $watchdogScript
+        & powershell.exe -ExecutionPolicy Bypass -NoProfile -File $watchdogScript
+        $watchdogExitCode = $LASTEXITCODE
+        if ($watchdogExitCode -ne 0) {
+            throw (
+                "Watchdog falhou (codigo $watchdogExitCode). " +
+                "Verifique o Docker/PostgreSQL e os logs do ANDON. " +
+                "Nenhum sucesso sera informado com API e frontend inativos."
+            )
+        }
     } else {
-        Start-ScheduledTask -TaskName $Global:AndonTaskWatchdog -ErrorAction SilentlyContinue
+        Start-ScheduledTask -TaskName $Global:AndonTaskWatchdog -ErrorAction Stop
         Write-AndonOk "Watchdog solicitado."
     }
 
-    if (Wait-AndonApiBusinessReady -TimeoutSeconds 300) {
-        Wait-AndonFrontendReady -TimeoutSeconds 240 | Out-Null
-        Invoke-AndonKioskOpen | Out-Null
-    } else {
-        Write-AndonWarn "API operacional nao ficou pronta. Kiosk nao sera aberto."
+    if (!(Wait-AndonApiBusinessReady -TimeoutSeconds 300)) {
+        throw (
+            "API nao ficou operacional em $(Get-AndonApiBaseUrl)/health/ready. " +
+            "Confira os logs do watchdog/API e o banco configurado."
+        )
     }
+    if (!(Wait-AndonFrontendReady -TimeoutSeconds 240)) {
+        throw "Frontend nao ficou acessivel em $(Get-AndonFrontendUrl). Confira os logs do frontend."
+    }
+    Invoke-AndonKioskOpen | Out-Null
 
     foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
         Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null

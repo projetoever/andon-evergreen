@@ -234,8 +234,20 @@ foreach ($ports in @(
     if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
 }
 
-# HTTPS isolation belongs to the local testing profile; the normal
-# installer menu now owns start/stop/health and no longer exposes option 15.
+# Behavioral regression in a child PowerShell process: all task/process
+# operations are mocked so CI never touches the local runtime.
+$menuOperationsTest = Join-Path $PSScriptRoot "..\..\installer\tests\installer-menu-operations-regression.ps1"
+if (!(Test-Path $menuOperationsTest -PathType Leaf)) {
+    throw "Teste comportamental das opcoes 4 e 5 ausente."
+}
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $menuOperationsTest
+if ($LASTEXITCODE -ne 0) {
+    throw "Regressao do fluxo operacional 4/5 (watchdog, API, frontend, kiosk, tarefas)."
+}
+
+# Regression: the main menu must run the established industrial
+# watchdog/kiosk/task scripts, not select a separate HTTPS launcher because
+# a local test config file happens to exist.
 $notebookScript = Get-Content $scripts[3] -Raw
 foreach ($required in @(
     'Get-CimInstance Win32_OperatingSystem',
@@ -243,6 +255,7 @@ foreach ($required in @(
     'git.exe pull --ff-only origin main',
     'Test-Path $stateFile',
     'menu-andon-installer.ps1',
+    'AndonInstaller.Runtime.ps1',
     'start-andon.ps1',
     'stop-andon.ps1',
     'health-check-andon.ps1',
@@ -250,68 +263,66 @@ foreach ($required in @(
     'Encerre o menu antigo e abra-o novamente'
 )) {
     if (!$notebookScript.Contains($required)) {
-        throw "Atualizador local precisa sincronizar menu e proteger dados: $required"
+        throw "O atualizador local deve restaurar e sincronizar o runtime oficial: $required"
     }
 }
 $menuPath = Join-Path $PSScriptRoot "..\..\installer\menu-andon-installer.ps1"
 $menu = Get-Content $menuPath -Raw
 foreach ($required in @(
-    'Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath',
     '$Global:AndonInstallerPath\update-andon-server.ps1',
-    '$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1',
     '$Global:AndonInstallerPath\start-andon.ps1',
     '$Global:AndonInstallerPath\stop-andon.ps1',
-    '$Global:AndonInstallerPath\health-check-andon.ps1'
+    '$Global:AndonInstallerPath\health-check-andon.ps1',
+    '$Global:AndonInstallerPath\configure-andon-https.ps1'
 )) {
-    if (!$menu.Contains($required)) { throw "Menu HTTP/HTTPS integrado sem guarda: $required" }
+    if (!$menu.Contains($required)) { throw "Menu oficial sem script operacional: $required" }
+}
+if ($menu.Contains('Test-AndonLocalHttpsProfile') -or
+    $menu.Contains('$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1')) {
+    throw "A opcao 2 nao pode chamar perfil de homologacao separado."
 }
 if ($menu -match '(?m)^\s*Write-Host\s+"15\s*-|(?m)^\s*"15"\s*\{') {
-    throw "A opcao 15 deve ter sido removida do menu principal."
+    throw "A opcao 15 deve permanecer removida."
 }
-if ($menu -match '(?m)^\s*Write-Host\s+"[^"]*Notebook[^"]*"') {
-    throw "O menu nao deve exibir um rotulo especifico de dispositivo."
-}
-foreach ($file in @(
-    "start-andon.ps1", "stop-andon.ps1", "health-check-andon.ps1"
-)) {
-    $source = Get-Content (Join-Path $PSScriptRoot ("..\..\installer\" + $file)) -Raw
-    foreach ($guard in @(
-        'Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath',
-        'Invoke-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath'
-    )) {
-        if (!$source.Contains($guard)) { throw "Fluxo do menu $file sem roteamento HTTPS." }
+$scriptContracts = @(
+    @{ File = "start-andon.ps1"; Required = @('Start-AndonRuntime','Invoke-AndonHealthCheck') },
+    @{ File = "stop-andon.ps1"; Required = @('Stop-AndonRuntime -PromptAutoStart') },
+    @{ File = "health-check-andon.ps1"; Required = @('Invoke-AndonHealthCheck -Full') }
+)
+foreach ($contract in $scriptContracts) {
+    $source = Get-Content (Join-Path $PSScriptRoot ("..\..\installer\" + $contract.File)) -Raw
+    if ($source.Contains('Invoke-AndonLocalHttpsProfile') -or
+        $source.Contains('Test-AndonLocalHttpsProfile')) {
+        throw "O script $($contract.File) nao pode desviar do runtime oficial."
+    }
+    foreach ($required in $contract.Required) {
+        if (!$source.Contains($required)) {
+            throw "O script $($contract.File) nao chama a rotina original: $required"
+        }
     }
 }
-$localProfileSource = Get-Content (Join-Path $PSScriptRoot "..\..\installer\AndonInstaller.LocalHttps.ps1") -Raw
-foreach ($guard in @(
-    'if ([int]$os.ProductType -ne 1)',
-    '$config.postgresPort -eq 55432',
-    '[ValidateSet("Start", "Stop", "Health")]',
-    'https://localhost:3001/health',
-    'https://localhost:8080/hub',
-    '-EnableCentralOperationalWrites -EnableGlobalPaletteWrites',
-    '-NotebookStandardPorts',
-    'notebook-standard-ports.enabled'
+$operationalRuntime = Get-Content (Join-Path $PSScriptRoot "..\..\installer\AndonInstaller.Runtime.ps1") -Raw
+foreach ($required in @(
+    'function Start-AndonRuntime',
+    'function Stop-AndonRuntime',
+    'Invoke-AndonKioskOpen',
+    'Recreate-AndonTasks',
+    'Stop-ScheduledTask',
+    'Wait-AndonApiBusinessReady -TimeoutSeconds 300',
+    'Wait-AndonFrontendReady -TimeoutSeconds 240',
+    'if ($watchdogExitCode -ne 0)',
+    'API nao ficou operacional',
+    'Frontend nao ficou acessivel'
 )) {
-    if (!$localProfileSource.Contains($guard)) {
-        throw "Perfil local sem guarda de seguranca: $guard"
+    if (!$operationalRuntime.Contains($required)) {
+        throw "Runtime industrial deve preservar todos os passos e diagnostico: $required"
     }
 }
 if ($notebookScript -match 'RemoveData|git.exe reset --hard|Docker.*rm -f') {
-    throw "O atualizador local nao pode apagar dados ou reescrever historico."
+    throw "Atualizador local nao pode apagar dados nem reescrever historico."
 }
-# The HTTPS profile now starts compiled Node entrypoints directly; npm dev
-# wrappers are no longer treated as persistent service processes.
 if ($start -match 'Start-Process npm.cmd') {
-    throw "Launcher local nao deve usar npm dev como processo persistente."
-}
-foreach ($marker in @(
-    'Start-Process -FilePath $nodeExe',
-    'npm.cmd run build --prefix',
-    'Start-Sleep -Seconds 3',
-    '$apiProcess.HasExited -or $frontendProcess.HasExited'
-)) {
-    if (!$start.Contains($marker)) { throw "Launcher compilado sem readiness: $marker" }
+    throw "Launcher de laboratorio nao deve usar npm dev como processo persistente."
 }
 foreach ($required in @(
     '[switch]$NotebookStandardPorts',

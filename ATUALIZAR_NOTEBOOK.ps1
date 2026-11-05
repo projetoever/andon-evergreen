@@ -64,6 +64,7 @@ try {
     }
     $names = @(
         "menu-andon-installer.ps1",
+        "AndonInstaller.Runtime.ps1",
         "start-andon.ps1",
         "stop-andon.ps1",
         "health-check-andon.ps1",

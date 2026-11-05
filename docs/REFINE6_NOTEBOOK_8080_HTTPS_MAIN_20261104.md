@@ -1,33 +1,67 @@
-# REFINE 7 — Fluxo normal do Menu ANDON com HTTPS
+# REFINE 7 — Restaurar menu operacional original (correcao 04/11/2026)
 
-Data: 04/11/2026. Atualiza o roteiro anterior REFINE 6. **A opcao 15 foi eliminada.** O ambiente local de testes usa o mesmo menu cotidiano da instalacao industrial: 2 atualiza, 4 inicia, 5 para, 6 verifica a saude. Nenhum perfil HTTPS de testes e ativado no Windows Server da Evergreen.
+Esta revisao **substitui** a estrategia da opcao 15 e o desvio de runtime criado no PR #337.
+O instalador nao deve selecionar rotinas operacionais alternativas a partir da mera
+presenca de arquivos de homologacao.
 
-## Computador local de homologacao (Windows cliente)
+## Contrato unico de operacao — Windows cliente e Windows Server
 
-- **2 — Atualizar pela main:** valida origem Git e working tree, atualiza com fast-forward, para somente o perfil local identificado e sincroniza menu/start/stop/health instalados em `C:\web-andon-industrial\installer` com verificacao SHA-256 e backups. A opcao 2 nao inicia uma segunda instancia; apos atualizacao, **feche e abra novamente o menu** para carregar os scripts novos.
-- **4 — Iniciar ANDON:** se o perfil HTTPS local isolado ja estiver configurado (arquivos `.andon-homologation/config.json` e certificados locais validos), usa `https://localhost:8080/hub` e `https://localhost:3001/health`. Caso contrario, usa o transporte que estiver em `andon-config.json` (nao ativa HTTPS automaticamente).
-- **5 — Parar ANDON:** encerra o perfil ativo sem apagar bancos/certificados, ou usa o fluxo tradicional se o perfil de homologacao nao existir.
-- **6 — Verificar saude:** exige resposta do Hub e da API HTTPS. Nao declara sucesso apenas por um processo ter iniciado.
-- **14 — Configurar HTTPS:** assistente existente para a instalacao habitual. Nao cria chaves de CA corporativa nem modifica o DNS.
+- **2 — Atualizar pela main:** atualizador oficial `update-andon-server.ps1`.
+  Preserva banco/configuracao e executa sincronizacao, pipeline, migrations,
+  build, tarefas e health, conforme ambiente. Nao muda transporte por conta propria.
+- **4 — Iniciar ANDON:** `start-andon.ps1` -> `Start-AndonRuntime` ->
+  watchdog oficial -> PostgreSQL -> API -> frontend -> kiosk (quando aplicavel).
+  Se watchdog/API/frontend nao ficar pronto, **retorna codigo 1** e exibe falha.
+- **5 — Parar ANDON:** `stop-andon.ps1` -> `Stop-AndonRuntime
+  -PromptAutoStart`; controla tarefas boot/watchdog/kiosk, processos do ANDON
+  e politica de reinicio temporario. Nao apaga banco.
+- **6 — Verificar saude:** `health-check-andon.ps1` ->
+  `Invoke-AndonHealthCheck -Full`, com banco, HTTPS/API, frontend, tarefas.
+- **14 — Configurar HTTPS:** assistente existente com validacao e rollback.
+  HTTPS e **persistido em `andon-config.json`**, e a opcao 4 respeita
+  automaticamente `transportMode=http|https`. Certificados locais apenas
+  para Windows cliente; no Server, usar certificado de rede confiavel.
+- **15:** removida, nao deve retornar.
 
-O perfil local isolado e **sempre** Windows cliente e usa PostgreSQL `andon_https_hml` em `127.0.0.1:55432`, Node compilado, loopback para API/frontend e certificado local mkcert. O proprio perfil ativa as operacoes centrais e paleta somente no banco de homologacao; nao conecta hardware nem habilita integracao fisica PLC/Node-RED/GPIO. O banco da instalacao anterior nao e substituido e seus dados nao migram automaticamente.
+A escolha do modo HTTPS por 14 e pontual, nao precisa ser repetida a cada
+reinicio. A opcao 4 nao usa banco isolado `55432` nem o script experimental
+`Start-AndonHttpsHomologation.ps1`, mesmo que os arquivos antigos permaneçam
+no diretorio `.andon-homologation`. Essa separacao previne acionamentos
+silenciosos e preserva o banco operacional definido pela configuracao principal.
 
-Para nao repetir o problema de que a opcao 15 retornava sucesso mas nao deixava nada acessivel, o launcher foi alterado: `npm run build` gera a API e o frontend, **processos node.exe compilados** ficam rastreados individualmente, a inicializacao valida as duas URLs duas vezes e nao declara sucesso se API/frontend morrerem logo apos subir. Falha de bind, TLS, migracoes ou build nao e mascarada; consultar `.andon-homologation\api-error.log` e `frontend-error.log`.
+## Transicao de uma instalacao local com menu antigo PR #337
 
-## Servidor industrial Evergreen (Windows Server)
+1. No menu **antigo**, a opcao 2 ainda pode entrar no atualizador local
+   `ATUALIZAR_NOTEBOOK.ps1` se existir perfil HTTPS experimental anterior.
+   Essa ultima execucao atualiza `main` e sincroniza menu, start, stop,
+   health **e AndonInstaller.Runtime.ps1** em
+   `C:\web-andon-industrial\installer`; preserva copias dos arquivos.
+2. Fechar inteiramente o menu e abrir de novo. Confirmar a ausencia de
+   opcao 15. O menu novo usa somente o atualizador oficial na opcao 2.
+3. Se `Transporte configurado` mostrar HTTP legado, usar opcao **14 → 2
+   (HTTPS LOCAL)** uma unica vez, somente no Windows cliente. Requer
+   certificados mkcert confiaveis, sem liberar rede industrial.
+4. Opcoes 5 e 4 voltam ao ciclo original. O teste de HTTPS local sera em
+   `https://127.0.0.1:8080/hub` e
+   `https://127.0.0.1:3001/health/ready`, caso HTTPS tenha sido
+   configurado e a API/backend esteja saudavel.
+5. Se o menu mostrar porta 5432 livre com `databaseMode=docker`, nao
+   concluir que o watchdog esta saudavel: o container PostgreSQL da
+   instalacao principal pode estar parado. O watchdog de 4 verifica e
+   tenta iniciar o container oficial. Se Docker nao responder, o codigo
+   de saida sera diferente de zero; conferir logs sem apagar volumes.
+6. **A seguranca central pode continuar desligada** apos habilitar HTTPS:
+   o assistente 14 deliberadamente nao habilita escrita central no piloto
+   industrial. O mecanismo de login/permissoes exige habilitacao separada
+   e homologacao isolada antes de qualquer aplicacao na Evergreen.
 
-- **2** preserva o atualizador industrial existente; possui backup, sincronizacao, build, migrations controladas, reinicio, health e regras proprias.
-- **14** configura HTTPS de rede com certificado que os clientes de fabrica confiem, host/IP validado, TLS e transacao de rollback. Credenciais admin/Node-RED/GPIO devem ser homologadas separadamente antes da ativacao central industrial.
-- **4** ja usa `transportMode=http|https` da configuracao industrial e inicia pelo watchdog oficial (API e frontend compilados), sem usar o banco de testes local.
-- **5 e 6** preservam a parada e verificacao oficiais.
+## Regressao e seguranca
 
-**Nao ha deploy automatico.** Nenhum dado, workstation, Maquina 37, mini PC, Node-RED, GPIO, CLP ou servico na fabrica foi alterado.
+O gate Windows testa comportamentalmente o runtime com mocks:
+watchdog falho -> nao inicia; API sem readiness -> nao inicia kiosk; frontend
+indisponivel -> nao inicia kiosk; sucesso -> segue ate kiosk; parada -> tarefas
+oficiais de boot/watchdog/kiosk e politica de proximo boot preservadas.
 
-## Aceite rapido no Windows cliente
-
-1. Opcao 2, conferir SHA da main e copia dos scripts, sair completamente do menu e abri-lo de novo. Opcao 15 deve desaparecer.
-2. Opcao 4, aguardar compilacao e checks HTTPS, entrar em `https://localhost:8080/hub`, verificar `https://localhost:3001/health`.
-3. Opcao 6: ambas as URLs prontas; opcao 5 para; opcao 4 reinicia sem Git pull.
-4. Autenticacao central, usuarios e acessos, workstations, integracoes API de leitura, dashboard, BI, i18n e perfis visuais. Confirmar que nao ha chamadas/BI em banco de fabrica.
-
-Se a opcao 4 falhar, **nao** executar instalacao limpa, reset Prisma, `taskkill` generico ou sobrescrever `andon-config.json`; usar as mensagens do launcher e logs para uma correcao cirurgica.
+As mudancas de `main` nao sao implantadas automaticamente na Evergreen.
+Nao fazer reset de banco, reinstalacao limpa, troca de senha ou remocao
+de certificados para contornar erros.
