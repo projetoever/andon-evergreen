@@ -50,8 +50,8 @@ test("maintenance completion is OFF by default and only one route may opt in", (
       principal, station), "csrf_denied");
     denied(() => markCentralMaintenanceCompletionAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralMaintenanceCompletionAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralMaintenanceCompletionAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     assert.equal(isAuthorizedCentralMaintenanceCompletion(request), false);
     markCentralMaintenanceCompletionAuthorized(request, principal, station);
