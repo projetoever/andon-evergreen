@@ -437,7 +437,13 @@ try {
     assert.equal(await page.getByRole("button", { name: "Criar administrador e abrir painel" }).count(), 0);
     // Even an uninitialized installation cannot bootstrap from an unapproved station.
     centralWorkstationActive = true;
-    await page.reload();
+    // The mandatory Hub login overlay must preserve a safe path to Admin
+    // initialization, without bypassing the approved-station guard.
+    await page.goto("https://127.0.0.1:4188/hub");
+    const setupDialog = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
+    await setupDialog.waitFor();
+    await setupDialog.getByRole("link", { name: "Primeiro acesso — Admin principal" }).click();
+    await page.waitForURL((url) => url.pathname === "/hub/admin");
     await page.getByRole("heading", { name: "Primeiro acesso — Admin principal" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
     assert.equal(await page.getByRole("heading", { name: "Resumo administrativo" }).count(), 0);
