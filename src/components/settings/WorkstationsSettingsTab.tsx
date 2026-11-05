@@ -454,6 +454,35 @@ export function WorkstationsSettingsTab() {
           )}
         </section>
       )}
+      {(() => {
+        const current = items.find(item => item.id === currentWorkstationId);
+        const sharedIp = current?.lastIpAddress
+          ? items.filter(item => item.id !== currentWorkstationId &&
+              item.lastIpAddress === current.lastIpAddress)
+          : [];
+        if (!current || !sharedIp.length) return null;
+        return (
+          <section aria-label={ui("Investigação de identidade da workstation")}
+            className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-3 text-sm">
+            <h3 className="font-bold">{ui("Possíveis registros anteriores desta workstation")}</h3>
+            <p className="text-muted-foreground">
+              {ui("Encontramos outros registros com o mesmo IP. O IP não comprova identidade física: navegadores diferentes, troca de portas e limpeza de cookies podem gerar IDs distintos. Nenhuma workstation será unificada automaticamente.")}
+            </p>
+            <ul className="space-y-1 text-xs">
+              {sharedIp.slice(0, 5).map(station => (
+                <li key={station.id}>
+                  {station.name || station.id.slice(-8)} · …{station.id.slice(-8)} ·
+                  {" "}{station.presence === "online" ? ui("Online — heartbeat recente") :
+                    ui("Offline ou sem presença confirmada")}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              {ui("Antes de arquivar ou substituir uma identidade, valide os vínculos de chamados, sessões e integrações. Um agente local com identidade vinculada ao dispositivo será planejado para evitar ambiguidades.")}
+            </p>
+          </section>
+        );
+      })()}
       <div className="space-y-1">
         <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
         <p className="text-sm text-muted-foreground">
