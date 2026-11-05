@@ -302,7 +302,9 @@ export function registerAccessRoutes(
     // plaintext code can restore the central password; it is never persisted.
     app.post(`${PREFIX}/admin-recovery-code`, { schema: schema({}, []) }, async (req) => {
       limited(`recovery-issue:${req.ip}`, 3, 15 * 60_000);
-      return issueCentralAdminRecoveryCode(db, requestAccess(req));
+      return issueCentralAdminRecoveryCode(db, requestAccess(req), {
+        ipAddress: req.ip, requestId: req.id,
+      });
     });
     // Recovery never signs the browser in. Physical loopback, exact allowed
     // local Origin, HTTPS, workstation approval, preauth CSRF and rate limit
