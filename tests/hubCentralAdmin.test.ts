@@ -32,6 +32,8 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   assert.match(page, /!\["overview","users","workstations","integrations"\]\.includes\(section\)/);
   assert.match(page, /<HubClientIdentitySettings \/>/);
   assert.match(page, /\["andon", "hub"\]\.includes/);
+  assert.match(page, /const section = primaryAdmin && \["andon", "hub"\]\.includes/);
+  assert.match(page, /<HubCentralManagerPage section=\{section\}/);
   assert.doesNotMatch(page, /id: "hub", name: ui\("Configurações gerais do Hub"\)/);
   assert.match(page, /Configuração indisponível na administração central/);
 });
