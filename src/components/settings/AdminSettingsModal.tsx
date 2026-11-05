@@ -203,7 +203,7 @@ export function AdminSettingsModal({
 
   const renderTab = () => {
     if (tab === "general") return <GeneralSettingsTab />;
-    if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess && centralPrimaryAdmin} />;
+    if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess} />;
     if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
