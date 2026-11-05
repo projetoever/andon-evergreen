@@ -173,7 +173,7 @@ try {
         Ensure-AndonDedicatedNodeRuntime
         $network = Ensure-AndonNetworkConfig
         Write-AndonBackendEnv -Config $config -NetworkConfig $network
-        Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true
+        Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true -BuildCommit $pinnedCommit
         Apply-AndonFirewallRules
         Prepare-AndonChromeProfileForReuse
         Recreate-AndonTasks
