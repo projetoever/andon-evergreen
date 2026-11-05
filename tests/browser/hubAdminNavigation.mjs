@@ -494,6 +494,9 @@ try {
     await humanLogout.click();
     await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
     assert.equal(centralHasPrincipal, false);
+    // Restore the isolated fixture before subsequent Admin/appearance checks.
+    // Login/logout test has already asserted the real transition.
+    centralHasPrincipal = true;
     primaryAdmin = true;
     managerPermissions = [];
     // REFINE 9.1: central login is a required modal over the three locked
