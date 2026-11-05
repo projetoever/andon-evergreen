@@ -91,6 +91,8 @@ export function HubCentralAdminPage() {
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const refresh = useCallback(async () => {
     try { setSession(await accessRequest<AccessState>("/session")); }
     catch { setSession(null); }
@@ -107,6 +109,27 @@ export function HubCentralAdminPage() {
     };
   }, [refresh]);
 
+  const endOwnSession = async () => {
+    if (logoutBusy) return;
+    setLogoutBusy(true);
+    setLogoutError("");
+    try {
+      const current = await accessRequest<AccessState>("/session");
+      if (current.principal?.purpose !== "normal" ||
+          !current.principal.isPrimaryAdmin ||
+          current.principal.userId !== session?.principal?.userId)
+        throw new Error("authentication_required");
+      await accessRequest("/logout", "POST", {});
+      setSession(null);
+      await refreshModules();
+      void navigate({ to: "/hub", replace: true });
+    } catch {
+      // Do not navigate or claim success when server revocation is unconfirmed.
+      setLogoutError(ui("Não foi possível encerrar a sessão."));
+    } finally {
+      setLogoutBusy(false);
+    }
+  };
   const primaryAdmin = session?.principal?.purpose === "normal" &&
     session.principal.isPrimaryAdmin === true;
   // Historic Hub settings links are only aliases for the authenticated primary
@@ -198,19 +221,12 @@ export function HubCentralAdminPage() {
             </div>
           </div>
           <LanguageSelector compact />
-          <Button variant="outline" onClick={() => {
-            void (async () => {
-              try { await accessRequest("/logout", "POST", {}); }
-              finally {
-                setSession(null);
-                await refreshModules();
-                void navigate({ to: "/hub", replace: true });
-              }
-            })();
-          }}>
+          <Button variant="outline" disabled={logoutBusy}
+            onClick={() => void endOwnSession()}>
             <LogOut className="mr-2 h-4 w-4" />{ui("Sair desta sessão")}
           </Button>
         </header>
+        {logoutError && <p role="alert" className="text-sm text-danger">{logoutError}</p>}
         <nav aria-label={ui("Seções administrativas do Hub")}
           className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
           {sections.map(item => {
