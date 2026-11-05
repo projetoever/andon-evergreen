@@ -41,7 +41,7 @@ test("UX-12: local theme never becomes globally shared and polling uses guarded 
   assert.match(server, /centralVisualPaletteWritesEnabled\(\)/);
 });
 
-test("UX-12: global save is accessible only to Hub primary Admin when server flag permits", async () => {
+test("UX-12/R10-09: global palette save requires central ANDON settings delegation and server flag", async () => {
   const [legacy, central, preview, service, client] = await Promise.all([
     source("src/components/settings/AdminSettingsModal.tsx"),
     source("src/pages/HubCentralAdminPage.tsx"),
@@ -49,7 +49,7 @@ test("UX-12: global save is accessible only to Hub primary Admin when server fla
     source("src/services/visualPaletteService.ts"),
     source("src/api/andonApiClient.ts"),
   ]);
-  assert.match(legacy, /<AppearanceSettingsPreview allowGlobalSave=\{centralAccess && centralPrimaryAdmin\} \/>/);
+  assert.match(legacy, /<AppearanceSettingsPreview allowGlobalSave=\{centralAccess\} \/>/);
   assert.doesNotMatch(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
   assert.match(preview, /!allowGlobalSave \|\| !canWrite/);
   assert.match(preview, /disabled=\{!canWrite \|\| !changed/);
