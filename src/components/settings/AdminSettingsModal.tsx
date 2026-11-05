@@ -194,19 +194,14 @@ export function AdminSettingsModal({
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
-  // The primary Admin sees the full original ANDON panel. A centrally granted
-  // non-Admin can inspect only the presentation/general pages; no sensitive
-  // catalog, personnel, machine or credential components may be mounted.
-  const limited = centralAccess && !centralPrimaryAdmin;
-  const visibleTabs = limited ? tabs.filter((item) => item.id === "general" || item.id === "appearance") : tabs;
-  useEffect(() => {
-    if (limited && tab !== "general" && tab !== "appearance") setTab("general");
-  }, [limited, tab]);
+  // R10-07: the authenticated Hub grant "andon.settings.open" opens the
+  // WHOLE ANDON administrative navigation. Do not infer write privileges from
+  // tab visibility; the backend still enforces each catalog/setting action.
+  const visibleTabs = tabs;
   const activeTab = visibleTabs.find((item) => item.id === tab) ?? visibleTabs[0];
   const ActiveIcon = activeTab.icon;
 
   const renderTab = () => {
-    if (limited && tab !== "general" && tab !== "appearance") return null;
     if (tab === "general") return <GeneralSettingsTab />;
     if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess && centralPrimaryAdmin} />;
     if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
@@ -402,6 +397,11 @@ export function AdminSettingsModal({
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
               <div className="mx-auto w-full max-w-[1240px] space-y-4">
+                {centralAccess && !centralPrimaryAdmin && (
+                  <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
+                    {ui("O acesso às configurações permite visualizar todas as abas. Alterações continuam sujeitas às permissões específicas e à API.")}
+                  </p>
+                )}
                 {centralAccess && !["general", "appearance", "attendance"].includes(tab) && (
                   <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
                     {ui("Este painel foi preservado. Algumas operações de cadastro ainda não foram migradas para o acesso central e permanecem bloqueadas pela API até homologação.")}
