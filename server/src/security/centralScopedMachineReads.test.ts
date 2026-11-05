@@ -30,6 +30,9 @@ test("only explicit machine GET routes are eligible for scoped central reads", (
   assert(isScopedMachineReadRoute("GET", "/api/machines"));
   assert(isScopedMachineReadRoute("GET", "/api/machines/37"));
   assert(isScopedMachineReadRoute("GET", "/api/andon-calls"));
+  assert(isScopedMachineReadRoute("GET", "/api/failure-events"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/failure-events"));
+  assert(!isScopedMachineReadRoute("POST", "/api/failure-events"));
   assert(isScopedMachineReadRoute("GET", "/api/andon-calls/history"));
   assert(isScopedMachineReadRoute("GET", "/api/dashboard-priority/order"));
   assert(isScopedMachineReadRoute("GET", "/api/analytics/filter-options"));
