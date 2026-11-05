@@ -352,7 +352,7 @@ export function registerAccessRoutes(
         const initial = await resolveSession(db, requestAccess(req));
         assertRecentAdmin(initial);
         assertFullMachineScope(initial);
-        const reason = req.body.reason.trim().replace(/\\s+/g, " ");
+        const reason = req.body.reason.trim().replace(/\s+/g, " ");
         if (!reason) throw new AccessError("reason_required", 400);
         return db.$transaction(async (tx) => {
           await lockUser(tx, initial.userId);
