@@ -32,6 +32,7 @@ import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock
 import { centralOwnWorkstationPreferencesEnabled } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
+import { kioskTrustReadSummary } from "../access/kioskTrustReadSummary.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
 import { issueCentralAdminRecoveryCode, recoverCentralAdmin } from "../access/adminRecovery.js";
 import { legacyAdminRetirementStatus, retireLegacyAdminPassword } from "../access/legacyAdminRetirement.js";
@@ -302,7 +303,9 @@ export function registerAccessRoutes(
     // plaintext code can restore the central password; it is never persisted.
     app.post(`${PREFIX}/admin-recovery-code`, { schema: schema({}, []) }, async (req) => {
       limited(`recovery-issue:${req.ip}`, 3, 15 * 60_000);
-      return issueCentralAdminRecoveryCode(db, requestAccess(req));
+      return issueCentralAdminRecoveryCode(db, requestAccess(req), {
+        ipAddress: req.ip, requestId: req.id,
+      });
     });
     // Recovery never signs the browser in. Physical loopback, exact allowed
     // local Origin, HTTPS, workstation approval, preauth CSRF and rate limit
@@ -705,6 +708,7 @@ export function registerAccessRoutes(
       const now = new Date();
       const rows = await db.workstation.findMany({
         include: {
+          kioskTrustLease: { select: { status: true, machineId: true, expiresAt: true, revokedAt: true } },
           admission: {
             include: {
               requester: { select: { id: true, login: true, displayName: true, roleLabel: true } },
@@ -730,7 +734,7 @@ export function registerAccessRoutes(
         },
         orderBy: [{ pendingApproval: "desc" }, { active: "desc" }, { lastSeenAt: "desc" }],
       });
-      return rows.map(({ accessSessions, ...station }) => {
+      return rows.map(({ accessSessions, kioskTrustLease, ...station }) => {
         const latest = accessSessions[0] ?? null;
         const valid = Boolean(
           latest &&
@@ -757,6 +761,7 @@ export function registerAccessRoutes(
                   : "workstation_blocked";
         return {
           ...station,
+          kioskTrust: kioskTrustReadSummary(kioskTrustLease, now),
           linkedAccount: station.admission?.requester ?? null,
           authenticatedAccount: valid ? latest?.user : null,
           presence: deriveWorkstationPresence({
