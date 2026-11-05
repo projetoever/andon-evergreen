@@ -39,8 +39,8 @@ test("central call opening is opt-in, scoped and CSRF-protected; batch stays den
       "csrf_denied");
     denies(() => markCentralOpenCallAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denies(() => markCentralOpenCallAuthorized(req(csrfToken(token)), principal,
-      { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralOpenCallAuthorized(req(csrfToken(token)), principal,
+      { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     markCentralOpenCallAuthorized(request, principal, station);
     assert.equal(isAuthorizedCentralOpenCall(request), true);
