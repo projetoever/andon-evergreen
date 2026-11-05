@@ -29,7 +29,10 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   assert.match(page, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.doesNotMatch(page, /<HubSecuritySettings \/>/);
   assert.doesNotMatch(page, /<ModuleCredentialSettings \/>/);
-  assert.match(page, /!\["overview","users","workstations","hub","integrations"\]\.includes\(section\)/);
+  assert.match(page, /!\["overview","users","workstations","integrations"\]\.includes\(section\)/);
+  assert.match(page, /<HubClientIdentitySettings \/>/);
+  assert.match(page, /\["andon", "hub"\]\.includes/);
+  assert.doesNotMatch(page, /id: "hub", name: ui\("Configurações gerais do Hub"\)/);
   assert.match(page, /Configuração indisponível na administração central/);
 });
 
@@ -43,7 +46,8 @@ test("Dashboard uses central session and never renders the legacy admin login in
   assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
   assert.match(page, /!access\.centralAccessEnabled && \(/);
   assert.match(page, /if \(!access\) \{/);
-  assert.match(hub, /section === "hub" && \(/);
+  assert.match(hub, /\["andon", "hub"\]\.includes/);
+  assert.doesNotMatch(hub, /section === "hub" && \(/);
   assert.doesNotMatch(hub, /<GeneralSettingsTab \/>/);
   assert.doesNotMatch(hub, /<AttendanceModeSettingsTab \/>/);
   assert.match(hub, /session\.principal\.isPrimaryAdmin === true/);
