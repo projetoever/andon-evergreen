@@ -233,6 +233,9 @@ try {
         const data = req.postDataJSON();
         assert.equal(data.reason, "Kiosk validado para a Linha 1");
         approved = data.decision === "approve";
+        assert.equal(data.allowOperational, true);
+        assert.equal(data.allowBi, true);
+        assert.equal(data.allowPriorities, true);
         return send({ ok: true });
       }
       return send({ error: `unexpected:${req.method()}:${path}` }, 404);
@@ -273,9 +276,9 @@ try {
     await page.getByText("Sem registro nos últimos 30 min — estado online desconhecido", { exact: true }).first().waitFor();
     assert.equal(await page.getByText("Registro nos últimos 30 min — não confirma conexão ativa", { exact: true }).count(), 0);
     await page.getByLabel("Motivo da decisão").fill("Kiosk validado para a Linha 1");
-    const decisionBiSwitch = page.getByRole("switch", { name: /ANDON BI/ }).first();
-    assert.equal(await decisionBiSwitch.isEnabled(), true);
-    await decisionBiSwitch.click();
+    // Pilot: the workstation approval has no per-module switches.
+    assert.equal(await page.getByText("A aprovação libera somente a workstation. O login do usuário define seus módulos e permissões.", { exact: true }).count(), 1);
+    assert.equal(await page.getByRole("switch", { name: /ANDON BI/ }).count(), 0);
     await page.screenshot({
       path: `${output}/${viewport.width}-admin-decision.png`,
       fullPage: true,
