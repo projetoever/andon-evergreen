@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Confirme a senha Admin para alterar a política", "Confirm the Admin password to change the policy", "請輸入管理員密碼以變更政策"],
+
   ["Admissão de novas workstations", "New workstation admission", "新工作站准入"],
   ["Não foi possível consultar a política de workstations.", "Could not read the workstation approval policy.", "無法讀取工作站核准政策。"],
   ["Não foi possível salvar a política de workstations.", "Could not save the workstation approval policy.", "無法儲存工作站核准政策。"],
