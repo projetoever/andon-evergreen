@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Módulo indisponível nesta instalação.","Module unavailable in this installation.","此安裝中無法使用此模組。"],
+  ["Acesso restrito ao perfil do usuário conectado.","Access restricted for the signed-in user's role.","目前登入的使用者角色無權存取。"],
+  ["Nenhuma informação de módulos disponível. Tente novamente.","No module information available. Try again.","沒有可用的模組資訊。請再試一次。"],
   ["Este painel foi preservado. Algumas operações de cadastro ainda não foram migradas para o acesso central e permanecem bloqueadas pela API até homologação.","This panel is preserved. Some registration actions have not yet migrated to central access and remain blocked by the API pending validation.","此面板已保留。部分登錄操作尚未遷移至中央存取，驗證前仍會由 API 封鎖。"],
   ["Segurança das integrações","Integration security","整合安全性"],
   ["Identidades técnicas independentes para Node-RED e mini PC GPIO. Esta página não conecta equipamentos automaticamente.","Independent service identities for Node-RED and the GPIO mini PC. This page does not automatically connect equipment.","為 Node-RED 與 GPIO 迷你電腦建立獨立服務身分。此頁面不會自動連接設備。"],
