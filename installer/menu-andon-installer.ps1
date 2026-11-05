@@ -41,6 +41,18 @@ function Show-AndonMenu {
 
         Write-AndonHeader "ANDON WEB INDUSTRIAL - INSTALADOR $Global:AndonInstallerVersion"
         Show-AndonStatus
+        $runtimeConfig = Import-AndonConfig
+        $configuredTransport = if ("$($runtimeConfig.transportMode)".Trim().ToLowerInvariant() -eq "https") {
+            "HTTPS"
+        } else {
+            "HTTP (legado)"
+        }
+        $centralAccessLabel = if ("$($runtimeConfig.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true") {
+            "habilitado"
+        } else {
+            "desabilitado"
+        }
+        Write-Host "Transporte configurado: $configuredTransport | Acesso central: $centralAccessLabel" -ForegroundColor Yellow
         Write-AndonHeader "MENU PRINCIPAL"
 
         Write-Host "1  - Instalacao limpa - PostgreSQL local recomendado"
