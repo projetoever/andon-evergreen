@@ -51,8 +51,8 @@ test("central system-settings requires explicitly enabled flag, primary Admin, a
       { ...admin, machineScope: "selected" }, station), "scoped_query_required");
     denied(() => markCentralOperationalSettingsAuthorized(req("0".repeat(64)),
       admin, station), "csrf_denied");
-    denied(() => markCentralOperationalSettingsAuthorized(req(), admin,
-      { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralOperationalSettingsAuthorized(req(), admin,
+      { ...station, allowOperational: false }));
     const request = req();
     markCentralOperationalSettingsAuthorized(request, admin, station);
     assert.equal(isAuthorizedCentralOperationalSettings(request), true);

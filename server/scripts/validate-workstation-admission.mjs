@@ -295,9 +295,14 @@ try {
     data: { machineScope: "selected" },
   });
   const scopedModuleAccess = await request(requester, pendingStation, "/api/modules/access");
-  assert.equal(
-    scopedModuleAccess.modules.some((item) => item.allowed),
-    false,
+  // R9-04: user module grants survive selected-machine scoping. The
+  // following unscoped GET MUST still be rejected by the backend.
+  assert.deepEqual(
+    scopedModuleAccess.modules
+      .filter((item) => item.allowed)
+      .map((item) => item.id)
+      .sort(),
+    ["bi", "operational"],
   );
   await request(
     requester,

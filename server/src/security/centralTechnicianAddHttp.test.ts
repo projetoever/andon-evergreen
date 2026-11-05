@@ -49,8 +49,8 @@ test("SEC-04/2M: addition requires independent flag, exact route, privilege and 
       principal, station), "csrf_denied");
     denied(() => markCentralTechnicianAddAuthorized(request(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralTechnicianAddAuthorized(request(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralTechnicianAddAuthorized(request(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const valid = request(csrfToken(token));
     markCentralTechnicianAddAuthorized(valid, principal, station);
     assert.equal(isAuthorizedCentralTechnicianAdd(valid), true);

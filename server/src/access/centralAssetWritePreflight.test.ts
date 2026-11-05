@@ -103,7 +103,6 @@ test("SEC-04/2B.1: action, module and workstation permission denies before any a
     { workstation: { ...workstation, active: false }, code: "workstation_inactive" },
     { workstation: { ...workstation, pendingApproval: true }, code: "workstation_inactive" },
     { workstation: { ...workstation, id: "ws-mismatch" }, code: "workstation_session_mismatch" },
-    { workstation: { ...workstation, allowOperational: false }, code: "workstation_module_denied" },
   ];
   for (const variation of variations) {
     const f = fixture();
@@ -112,6 +111,11 @@ test("SEC-04/2B.1: action, module and workstation permission denies before any a
     }), variation.code);
     assert.equal(f.lookups, 0, "no database access before identity/ACL check");
   }
+  // Approved terminals are not granted/denied central modules individually.
+  const allowed = await run(req("DELETE", "/api/machine-sets/set-1"), {
+    workstation: { ...workstation, allowOperational: false },
+  });
+  assert.equal(allowed.operation, "set.delete");
 });
 test("SEC-04/2B.1: ignore client-supplied machine or reparent request", async () => {
   for (const [method, path, _op, body] of routes) {

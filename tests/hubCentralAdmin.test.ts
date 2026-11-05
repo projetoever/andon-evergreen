@@ -29,7 +29,12 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   assert.match(page, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.doesNotMatch(page, /<HubSecuritySettings \/>/);
   assert.doesNotMatch(page, /<ModuleCredentialSettings \/>/);
-  assert.match(page, /!\["overview","users","workstations","andon","integrations"\]\.includes\(section\)/);
+  assert.match(page, /!\["overview","users","workstations","integrations"\]\.includes\(section\)/);
+  assert.match(page, /<HubClientIdentitySettings \/>/);
+  assert.match(page, /\["andon", "hub"\]\.includes/);
+  assert.match(page, /const section = primaryAdmin && \["andon", "hub"\]\.includes/);
+  assert.match(page, /<HubCentralManagerPage section=\{section\}/);
+  assert.doesNotMatch(page, /id: "hub", name: ui\("Configurações gerais do Hub"\)/);
   assert.match(page, /Configuração indisponível na administração central/);
 });
 
@@ -39,16 +44,18 @@ test("Dashboard uses central session and never renders the legacy admin login in
   const route = await read("../src/routes/hub.admin.tsx");
   const types = await read("../src/types/modules.ts");
   assert.match(page, /if \(access\.centralAccessEnabled\) \{/);
-  assert.match(page, /navigate\(\{ to: "\/hub\/admin", search: \{ section: "andon" \} \}\)/);
-  assert.match(page, /access && !access\.centralAccessEnabled && \(/);
+  assert.match(page, /setAdminSettingsOpen\(true\)/);
+  assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
+  assert.match(page, /!access\.centralAccessEnabled && \(/);
   assert.match(page, /if \(!access\) \{/);
-  assert.match(hub, /section === "andon" && \(/);
-  assert.match(hub, /<GeneralSettingsTab \/>/);
-  assert.match(hub, /<AttendanceModeSettingsTab \/>/);
+  assert.match(hub, /\["andon", "hub"\]\.includes/);
+  assert.doesNotMatch(hub, /section === "hub" && \(/);
+  assert.doesNotMatch(hub, /<GeneralSettingsTab \/>/);
+  assert.doesNotMatch(hub, /<AttendanceModeSettingsTab \/>/);
   assert.match(hub, /session\.principal\.isPrimaryAdmin === true/);
   assert.doesNotMatch(hub, /<AdminLoginModal|<AdminSettingsModal|<SoundsSettingsTab|<TechniciansSettingsTab/);
   assert.match(route, /HUB_ADMIN_SECTIONS\.includes/);
-  assert.match(types, /"andon"/);
+  assert.match(types, /"hub"/);
 });
 
 test("central global rules do not consult legacy Priority passwords and cannot expose global sound settings", async () => {
@@ -56,7 +63,7 @@ test("central global rules do not consult legacy Priority passwords and cannot e
   const central = await read("../src/pages/HubCentralAdminPage.tsx");
   assert.match(general, /if \(centralMode\) \{/);
   assert.match(general, /setPriorityConfigured\(priorityModuleAllowed\)/);
-  assert.match(central, /Sons, cadastros e credenciais mantêm controles separados/);
+  assert.match(central, /Regras de chamados, máquinas, sons e aparência permanecem no painel/);
   assert.doesNotMatch(central, /<DashboardSoundMuteSettings|<SoundsSettingsTab/);
 });
 
@@ -107,7 +114,7 @@ test("Manager console relies on explicit full-scope grants, never the display ro
   assert.doesNotMatch(manager, /<UsersAccessSettings|<WorkstationsSettingsTab|<GeneralSettingsTab|<AttendanceModeSettingsTab|<AppearanceSettingsPreview/);
   assert.doesNotMatch(manager, /\/users|\/service-identities|\/workstations\/.*decision/);
   assert.match(manager, /availableSections\.some\(\(item\) => item\.id === section\)/);
-  assert.match(manager, /getSystemSettings\(\)/);
+  assert.doesNotMatch(manager, /getSystemSettings\(\)/);
   assert.match(manager, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.match(accessRoutes, /assertPermission\(principal, "workstations.read"\);\s+\/\/ Global workstations list includes identities from every terminal\.\s+assertFullMachineScope\(principal\)/);
   assert.match(presets, /"workstations.read"/);

@@ -45,7 +45,7 @@ test("SEC-04/2B.2: deny wrong privilege, unapproved station, device mismatch, an
     denied(() => check(method, path, base, { ...station, active: false }), "workstation_inactive");
     denied(() => check(method, path, base, { ...station, id: "other" }), "workstation_session_mismatch");
     denied(() => check(method, path, { ...base, purpose: "password_change" }), "password_change_required");
-    denied(() => check(method, path, base, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => check(method, path, base, { ...station, allowOperational: false }));
   }
 });
 test("SEC-04/2B.2: methods and unrelated routes are unsupported", () => {

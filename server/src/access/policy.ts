@@ -1,5 +1,7 @@
 export const PERMISSIONS = [
   "andon.read",
+  // Visible access to the ANDON settings panel; field-specific writes remain guarded.
+  "andon.settings.open",
   "history.read",
   "calls.open",
   "calls.cancel.own",
@@ -74,21 +76,18 @@ export function assertFullMachineScope(principal: Principal) {
 }
 export function assertModule(
   principal: Principal,
-  station: {
+  _station: {
     allowOperational: boolean;
     allowBi: boolean;
     allowPriorities: boolean;
   },
   module: "operational" | "bi" | "priorities",
 ) {
+  // Central mode: workstation approval/active is checked separately in session
+  // and request guards. Module authorizations belong to the authenticated user.
+  // This intentionally ignores legacy per-terminal allow* flags; they are
+  // still honored by the separate legacy (central-OFF) module gate.
   const permission =
     module === "operational" ? "andon.read" : module === "bi" ? "bi.read" : "priorities.read";
-  const allowed =
-    module === "operational"
-      ? station.allowOperational
-      : module === "bi"
-        ? station.allowBi
-        : station.allowPriorities;
-  if (!allowed) throw new AccessError("workstation_module_denied");
   assertPermission(principal, permission);
 }

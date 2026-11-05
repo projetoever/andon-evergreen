@@ -45,8 +45,8 @@ test("final closure has independent OFF-by-default central gate, CSRF and calls.
       principal, station), "csrf_denied");
     denied(() => markCentralFinishCallAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralFinishCallAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralFinishCallAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     markCentralFinishCallAuthorized(request, principal, station);
     assert.equal(isAuthorizedCentralFinishCall(request), true);

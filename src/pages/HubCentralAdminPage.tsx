@@ -1,22 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
+import { HubClientIdentitySettings } from "@/components/settings/HubClientIdentitySettings";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
 import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
-import { GeneralSettingsTab } from "@/components/settings/GeneralSettingsTab";
-import { AppearanceSettingsPreview } from "@/components/settings/AppearanceSettingsPreview";
-import { AttendanceModeSettingsTab } from "@/components/settings/AttendanceModeSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { ui } from "@/i18n/translate";
 
 function CentralOverview() {
+  const { access } = useModuleAccess();
   const [stations, setStations] = useState<ManagedWorkstation[] | null>(null);
   const [error, setError] = useState(false);
   const refresh = useCallback(async () => {
@@ -56,6 +55,25 @@ function CentralOverview() {
           {ui("Atualizar resumo")}
         </Button>
       </section>
+      <section aria-label={ui("Estado da autenticação do Hub")} className="rounded-xl border border-border bg-card p-4 md:p-5">
+        <h3 className="font-bold">{ui("Estado de administração")}</h3>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div className="rounded-lg border border-border p-3">
+            <dt className="text-muted-foreground">{ui("Autenticação central")}</dt>
+            <dd className="mt-1 font-semibold">{ui(access?.centralAccessEnabled ? "Ativa" : "Não verificada")}</dd>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <dt className="text-muted-foreground">{ui("Esta workstation")}</dt>
+            <dd className="mt-1 font-semibold">
+              {ui(access?.workstation.active && !access.workstation.pendingApproval ? "Aprovada" : "Aguardando aprovação")}
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <p className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+        {ui("A gestão de usuários, estações e integrações fica no Hub. Regras de chamados, máquinas, sons e aparência permanecem no painel de Configurações do ANDON operacional.")}
+      </p>
+      <HubClientIdentitySettings />
       <HubBuildVersionCard />
     </div>
   );
@@ -68,7 +86,7 @@ function CentralOverview() {
  */
 export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = requestedSection ?? "overview";
+
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
@@ -91,6 +109,11 @@ export function HubCentralAdminPage() {
 
   const primaryAdmin = session?.principal?.purpose === "normal" &&
     session.principal.isPrimaryAdmin === true;
+  // Historic Hub settings links are only aliases for the authenticated primary
+  // Admin. Never translate a manager's forbidden deep link into an allowed tab.
+  const section = primaryAdmin && ["andon", "hub"].includes(String(requestedSection))
+    ? "overview"
+    : requestedSection ?? "overview";
   if (loading)
     return <main className="min-h-dvh bg-background" aria-label={ui("Verificando sessão administrativa")} />;
   // Installation bootstrap is the ONE exception to the central Admin gate.
@@ -136,8 +159,7 @@ export function HubCentralAdminPage() {
     access.workstation.pendingApproval !== true;
   if (!primaryAdmin) {
     if (managerReadOnly && session?.principal) {
-      return <HubCentralManagerPage section={section} displayName={session.principal.displayName}
-        canEditPresentation={session.principal.permissions?.includes("hub.settings.presentation.write") === true} />;
+      return <HubCentralManagerPage section={section} displayName={session.principal.displayName} />;
     }
     return (
       <main className="min-h-dvh bg-background p-6">
@@ -157,7 +179,6 @@ export function HubCentralAdminPage() {
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
     { id: "users", name: ui("Usuários e Acessos"), icon: ShieldCheck },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
-    { id: "andon", name: ui("Configurações do ANDON"), icon: Factory },
     { id: "integrations", name: ui("Integrações API"), icon: Plug },
   ] as const;
   return (
@@ -191,7 +212,7 @@ export function HubCentralAdminPage() {
           </Button>
         </header>
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-5">
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
           {sections.map(item => {
             const Icon = item.icon;
             return <Button asChild key={item.id}
@@ -208,22 +229,7 @@ export function HubCentralAdminPage() {
         {section === "users" && <UsersAccessSettings />}
         {section === "workstations" && <WorkstationsSettingsTab />}
         {section === "integrations" && <ServiceIdentitiesSettings />}
-        {section === "andon" && (
-          <div className="space-y-4">
-            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-              <h2 className="text-lg font-bold">{ui("Configurações operacionais do ANDON")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {ui("Estas regras são globais e exigem uma sessão de Admin principal. Sons, cadastros e credenciais mantêm controles separados.")}
-              </p>
-            </section>
-            <GeneralSettingsTab />
-            <AppearanceSettingsPreview allowGlobalSave />
-            <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-              <AttendanceModeSettingsTab />
-            </section>
-          </div>
-        )}
-        {!["overview","users","workstations","andon","integrations"].includes(section) && (
+        {!["overview","users","workstations","integrations"].includes(section) && (
           <div role="status" className="rounded-xl border border-border bg-card p-5">
             {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
           </div>

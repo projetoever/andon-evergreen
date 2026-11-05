@@ -64,6 +64,7 @@ try {
     let managerPermissions = [];
     let managerScope = "all";
     let centralInitialized = true;
+    let centralHasPrincipal = true;
     let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
@@ -185,7 +186,27 @@ try {
             allowBi: true,
             allowPriorities: true,
           },
-          modules: [],
+          // Central grants belong to the authenticated user; the approved
+          // workstation no longer controls each module individually.
+          principal: centralMode && centralInitialized && centralHasPrincipal ? {
+            userId: "admin", login: "admin.central", displayName: "Admin Central",
+            roleLabel: primaryAdmin ? "Admin" : "Gestor/Gerente", purpose: "normal",
+            machineScope: managerScope, machineIds: [], isPrimaryAdmin: primaryAdmin,
+          } : null,
+          modules: centralMode && centralInitialized && centralHasPrincipal && centralWorkstationActive ? [
+            { id: "operational", name: "ANDON operacional", description: "Operação",
+              route: "/andon", icon: "factory", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("andon.read"),
+              authenticated: true, passwordRequired: false },
+            { id: "bi", name: "ANDON BI", description: "Indicadores",
+              route: "/bi", icon: "chart", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("bi.read"),
+              authenticated: true, passwordRequired: false },
+            { id: "priorities", name: "Prioridades", description: "Prioridades",
+              route: "/machine-priorities", icon: "priority", available: true, enabled: true,
+              allowed: primaryAdmin || managerPermissions.includes("priorities.read"),
+              authenticated: true, passwordRequired: false },
+          ] : [],
         });
       }
       if (path === "/api/admin-auth/login") {
@@ -215,7 +236,7 @@ try {
         return send({
           initialized: centralInitialized,
           csrf: "a".repeat(64),
-          principal: centralInitialized ? {
+          principal: centralInitialized && centralHasPrincipal ? {
             userId: "admin",
             login: "admin.central",
             displayName: "Admin Central",
@@ -416,7 +437,13 @@ try {
     assert.equal(await page.getByRole("button", { name: "Criar administrador e abrir painel" }).count(), 0);
     // Even an uninitialized installation cannot bootstrap from an unapproved station.
     centralWorkstationActive = true;
-    await page.reload();
+    // The mandatory Hub login overlay must preserve a safe path to Admin
+    // initialization, without bypassing the approved-station guard.
+    await page.goto("https://127.0.0.1:4188/hub");
+    const setupDialog = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
+    await setupDialog.waitFor();
+    await setupDialog.getByRole("link", { name: "Primeiro acesso — Admin principal" }).click();
+    await page.waitForURL((url) => url.pathname === "/hub/admin");
     await page.getByRole("heading", { name: "Primeiro acesso — Admin principal" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
     assert.equal(await page.getByRole("heading", { name: "Resumo administrativo" }).count(), 0);
@@ -436,27 +463,57 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
-    assert.equal(await centralNav.getByRole("link").count(), 5);
-    assert.equal(await centralNav.getByRole("link", { name: "Configurações do ANDON" }).count(), 1);
+    assert.equal(await centralNav.getByRole("link").count(), 4);
+    assert.equal(await centralNav.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 0);
+    await page.getByRole("region", { name: "Identificação da empresa e unidade" }).waitFor();
+    await page.getByRole("region", { name: "Estado da autenticação do Hub" }).waitFor();
     assert.equal(await centralNav.getByRole("link", { name: "Integrações API" }).count(), 1);
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
+    // REFINE 9.1: central login is a required modal over the three locked
+    // modules, not an inline card that pushes the Hub layout down.
+    centralHasPrincipal = false;
+    await page.goto("https://127.0.0.1:4188/hub");
+    const centralLogin = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
+    await centralLogin.waitFor();
+    assert.equal(await centralLogin.getByLabel("Usuário").count(), 1);
+    assert.equal(await centralLogin.getByRole("combobox", { name: "Idioma da interface" }).count(), 1);
+    assert.equal(await page.locator('[aria-disabled="true"]').count() >= 3, true);
+    await page.keyboard.press("Escape");
+    assert.equal(await centralLogin.count(), 1);
+    await page.mouse.click(20, 20);
+    assert.equal(await centralLogin.count(), 1);
+    await noOverflow();
+    centralHasPrincipal = true;
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.getByRole("heading", { name: "Resumo administrativo" }).waitFor();
 
-    // The central-only ANDON area is visible only after server validation.
-    // It may display a blocked settings write while its backend flag is OFF.
-    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
-    await page.getByRole("heading", { name: "Configurações operacionais do ANDON" }).waitFor();
-    assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
-    assert.equal(await page.getByRole("link", { name: "Sons do ANDON" }).count(), 0);
-    // UX-12: the global save must fail closed until a server-side flag allows it.
-    let appearance = page.getByRole("region", { name: "Aparência e cores" });
+    // Pilot: the Hub owns security/user/terminal settings. The full historical
+    // ANDON panel is accessible from the dashboard under a verified central session.
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Resumo administrativo" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Configurações gerais do Hub" }).count(), 0);
+    assert.equal(await page.getByRole("region", { name: "Aparência e cores" }).count(), 0);
+    const openAndonAppearance = async () => {
+      await page.goto("https://127.0.0.1:4188/andon");
+      const button = page.getByRole("button", { name: "Configurar sons do ANDON" });
+      await button.waitFor();
+      await button.click();
+      const modal = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
+      await modal.waitFor();
+      assert.equal(await modal.getByRole("button", { name: "Sons do ANDON" }).count(), 1);
+      assert.equal(await modal.getByRole("button", { name: "Mantenedores" }).count(), 1);
+      await modal.getByRole("button", { name: "Aparência e cores" }).click();
+      return modal.getByRole("region", { name: "Aparência e cores" });
+    };
+    // UX-12 still fails closed until the server authorizes palette writes.
+    let appearance = await openAndonAppearance();
     await appearance.waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
     paletteWriteEnabled = true;
-    await page.reload();
-    appearance = page.getByRole("region", { name: "Aparência e cores" });
+    appearance = await openAndonAppearance();
     await appearance.getByRole("button", { name: "Salvar globalmente" }).waitFor();
     const cardBorder = appearance.getByRole("combobox", { name: "Contorno padrão dos cards" });
     await cardBorder.selectOption("ocean");
@@ -541,7 +598,7 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Painel do gerente" }).waitFor();
     const managerNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
-    assert.equal(await managerNav.getByRole("link").count(), 3);
+    assert.equal(await managerNav.getByRole("link").count(), 2);
     assert.equal(await managerNav.getByRole("link", { name: "Usuários e Acessos" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Cadastrar usuário" }).count(), 0);
     assert.equal(await page.getByRole("heading", { name: "Resumo gerencial" }).count(), 1);
@@ -550,55 +607,37 @@ try {
     await page.getByText("Notebook de validação", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Aprovar" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Salvar alterações" }).count(), 0);
-    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
-    await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).waitFor();
-    assert.equal(await page.getByRole("button", { name: "Salvar globalmente" }).count(), 0);
-    assert.equal(await page.getByRole("button", { name: "Salvar" }).count(), 0);
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
-    assert.equal(await page.getByRole("combobox", { name: "Ordem visual do Dashboard" }).isDisabled(), true);
+    // Managers cannot configure ANDON from the Hub, even with a presentation
+    // grant. Their central module/settings access is authorized separately.
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).count(), 0);
     operationalSettingsWriteEnabled = true;
-    await page.reload();
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true,
-      "server flag alone does not grant a Manager permission");
-    managerPermissions = ["workstations.read", "andon.read", "hub.settings.presentation.write"];
-    await page.reload();
-    const keyboard = page.getByRole("checkbox", { name: "Habilitar teclado virtual" });
-    await keyboard.waitFor();
-    await page.waitForFunction(() => {
-      const control = document.querySelector('input[aria-label="Habilitar teclado virtual"]');
-      return control && !control.disabled;
+    managerPermissions = ["workstations.read", "andon.read", "andon.settings.open", "hub.settings.presentation.write"];
+    await page.goto("https://127.0.0.1:4188/andon");
+    await page.getByRole("button", { name: "Configurar sons do ANDON" }).click();
+    const managerAndon = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
+    await managerAndon.waitFor();
+    await managerAndon.getByRole("button", { name: "Configurações da operação" }).click();
+    const safeWrite = await page.evaluate(async () => {
+      const res = await fetch("/api/system-settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
+        body: JSON.stringify({ virtualKeyboardEnabled: false }),
+      });
+      return res.status;
     });
-    const [keyboardSaved] = await Promise.all([
-      page.waitForResponse(response =>
-        new URL(response.url()).pathname === "/api/system-settings" &&
-        response.request().method() === "PATCH" && response.ok()),
-      keyboard.click(),
-    ]);
-    assert.equal((await keyboardSaved.json()).virtualKeyboardEnabled, false);
-    await page.waitForFunction(() =>
-      document.querySelector('input[aria-label="Habilitar teclado virtual"]')?.checked === false);
-    assert.equal(keyboardSetting, false);
-    const order = page.getByRole("combobox", { name: "Ordem visual do Dashboard" });
-    const [orderSaved] = await Promise.all([
-      page.waitForResponse(response =>
-        new URL(response.url()).pathname === "/api/system-settings" &&
-        response.request().method() === "PATCH" && response.ok()),
-      order.selectOption("priority"),
-    ]);
-    assert.equal((await orderSaved.json()).dashboardMachineOrderMode, "priority");
-    assert.equal(machineOrderSetting, "priority");
+    assert.equal(safeWrite, 200);
     const illicit = await page.evaluate(async () => {
       const res = await fetch("/api/system-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
+        method: "PATCH", headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
         body: JSON.stringify({ virtualKeyboardEnabled: true, requireWorkOrderAtOpen: false }),
       });
       return res.status;
     });
-    assert.equal(illicit, 403, "mixed operational policy writes must fail for Manager");
+    assert.equal(illicit, 403, "a Manager cannot edit sensitive operational fields");
     operationalSettingsWriteEnabled = false;
-    await page.reload();
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
     await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);

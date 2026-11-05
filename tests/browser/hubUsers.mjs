@@ -236,24 +236,24 @@ try {
       "simple mode must not flood the factory Admin with granular permission checkboxes");
     assert.equal(await page.getByRole("button", { name: "Aplicar permissões sugeridas" }).count(), 0);
     await page.getByLabel("Perfil", { exact: true }).selectOption("Manutenção");
-    await page.getByText("Permissões do perfil", { exact: true }).waitFor();
+    await page.getByText("Acesso aos módulos e configurações", { exact: true }).waitFor();
     await page.getByLabel("Perfil", { exact: true }).selectOption("Gestor/Gerente");
     assert.equal(await page.getByLabel("Escopo de máquinas").inputValue(), "all",
       "Manager profile explicitly selects full-machine scope");
-    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
-    assert.equal(await page.getByRole("checkbox", { name: "Chamados: atender", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).count(), 0);
+    assert.equal(await page.getByRole("checkbox", { name: "Configurações do ANDON: acessar", exact: true }).count(), 1);
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
     await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
     await page.getByLabel("Perfil", { exact: true }).selectOption("Líder");
-    await page.getByRole("button", { name: "Aplicar permissões sugeridas", exact: true }).click();
+
     await page.getByLabel("Escopo de máquinas").selectOption("selected");
     assert.equal(
       await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(),
       true,
     );
     await page.getByRole("checkbox", { name: "Máquina 37 · 37", exact: true }).check();
-    await page.getByRole("checkbox", { name: "ANDON: visualizar", exact: true }).check();
-    await page.getByRole("checkbox", { name: "Chamados: abrir", exact: true }).check();
+    assert.equal(await page.getByRole("checkbox", { name: "ANDON: visualizar", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("checkbox", { name: "Chamados: abrir", exact: true }).count(), 0);
     await page.evaluate(() => scrollTo(0, 0));
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-create.png`, fullPage: true });
@@ -272,17 +272,11 @@ try {
       .locator("xpath=../..")
       .getByRole("button", { name: "Editar", exact: true });
     await editButton.click();
-    // Historical custom permissions remain intact, but are not shown in the
-    // ordinary factory workflow until Admin explicitly opens advanced options.
+    // The ordinary pilot view keeps only module access; existing role grants
+    // are preserved when editing without a profile change.
     assert.equal(await page.getByLabel("Perfil", { exact: true }).inputValue(), "Líder");
-    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).count(), 0);
-    await page.getByText("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
     assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
-    await page.getByRole("button", { name: "Ocultar opções avançadas" }).click();
-    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).count(), 0);
-    await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).click();
-    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("checkbox", { name: "Configurações do ANDON: acessar", exact: true }).count(), 1);
     assert.equal(
       await page.getByRole("button", { name: "Salvar usuário", exact: true }).isDisabled(),
       true,

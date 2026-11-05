@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import { normalizePin } from "../security/technicianCredentials.js";
+import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 import { identifyTechnician } from "../services/technicianIdentity.js";
 import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
 
@@ -50,10 +51,14 @@ function diffSeconds(start: Date, end = new Date()) {
 export async function registerFailureEventRoutes(app: FastifyInstance) {
   app.get<{ Querystring: FailureEventQuery }>("/api/failure-events", async (request) => {
     const { machineId, classification } = request.query;
+    const allowedIds = scopedMachineReadIds(request);
     const startDate = parseDate(request.query.startDate);
     const endDate = parseDate(request.query.endDate);
     const where: Prisma.FailureEventWhereInput = {
-      ...(machineId ? { machineId } : {}),
+      // SQL-level authorization before ORDER BY and LIMIT; outside grants -> [].
+      ...(allowedIds !== null
+        ? { machineId: { in: machineId ? [machineId].filter(id => allowedIds.includes(id)) : [...allowedIds] } }
+        : machineId ? { machineId } : {}),
       ...(classification ? { classification } : {}),
       ...(startDate || endDate
         ? {

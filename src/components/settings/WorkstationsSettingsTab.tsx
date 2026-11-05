@@ -76,9 +76,6 @@ export function WorkstationsSettingsTab() {
   const [items, setItems] = useState<ManagedWorkstation[]>([]);
   const [accessSession, setAccessSession] = useState<AccessState | null>(null);
   const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
-  const [decisionModules, setDecisionModules] = useState<
-    Record<string, { allowOperational: boolean; allowBi: boolean; allowPriorities: boolean }>
-  >({});
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -150,18 +147,6 @@ export function WorkstationsSettingsTab() {
       setDraftNames(
         Object.fromEntries(
           workstations.map((workstation) => [workstation.id, workstation.name ?? ""]),
-        ),
-      );
-      setDecisionModules(
-        Object.fromEntries(
-          workstations.map((workstation) => [
-            workstation.id,
-            {
-              allowOperational: workstation.allowOperational,
-              allowBi: workstation.allowBi,
-              allowPriorities: workstation.allowPriorities,
-            },
-          ]),
         ),
       );
     } catch (error) {
@@ -327,14 +312,16 @@ export function WorkstationsSettingsTab() {
 
   async function decide(workstation: ManagedWorkstation, decision: "approve" | "reject") {
     const reason = (decisionReasons[workstation.id] ?? "").trim();
-    const modules = decisionModules[workstation.id];
-    if (!canManage || !reason || !modules || savingId) return;
+    if (!canManage || !reason || savingId) return;
     setSavingId(workstation.id);
     try {
       await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}/decision`, "POST", {
         decision,
         reason,
-        ...modules,
+        // Wire compatibility; user login defines all central module access.
+        allowOperational: decision === "approve",
+        allowBi: decision === "approve",
+        allowPriorities: decision === "approve",
       });
       setDecisionReasons((current) => ({ ...current, [workstation.id]: "" }));
       await load();
@@ -468,7 +455,9 @@ export function WorkstationsSettingsTab() {
         <h3 className="text-base font-bold">{ui("Workstations conhecidas")}</h3>
         <p className="text-sm text-muted-foreground">
           {ui(
-            "Cada navegador tem uma identidade própria. O IP é registrado pelo servidor no último acesso. A ativação geral e as permissões abaixo controlam os três módulos.",
+            centralAccess
+               ? "Cada navegador possui uma identidade. Aqui você aprova ou bloqueia o terminal; o login do usuário controla os módulos."
+               : "Cada navegador tem uma identidade própria. O IP é registrado pelo servidor no último acesso. A ativação geral e as permissões abaixo controlam os três módulos.",
           )}
         </p>
       </div>
@@ -795,40 +784,9 @@ export function WorkstationsSettingsTab() {
                               )}
                             </p>
                           </div>
-                          <div className="grid gap-3 sm:grid-cols-3">
-                            {(
-                              [
-                                ["allowOperational", ui("ANDON operacional")],
-                                ["allowBi", "ANDON BI"],
-                                ["allowPriorities", ui("Prioridades")],
-                              ] as const
-                            ).map(([field, label]) => (
-                              <label
-                                key={field}
-                                className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border p-3 text-sm font-semibold"
-                              >
-                                {label}
-                                <Switch
-                                  aria-label={`${label} · ${workstationLabel(workstation)}`}
-                                  checked={decisionModules[workstation.id]?.[field] ?? false}
-                                  disabled={savingId !== null || !canManage}
-                                  onCheckedChange={(checked) =>
-                                    setDecisionModules((current) => ({
-                                      ...current,
-                                      [workstation.id]: {
-                                        ...(current[workstation.id] ?? {
-                                          allowOperational: false,
-                                          allowBi: false,
-                                          allowPriorities: false,
-                                        }),
-                                        [field]: checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </label>
-                            ))}
-                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {ui("A aprovação libera somente a workstation. O login do usuário define seus módulos e permissões.")}
+                          </p>
                           <Label className="block space-y-2">
                             {ui("Motivo da decisão")}
                             <Input
@@ -929,6 +887,7 @@ export function WorkstationsSettingsTab() {
                             : ui("Bloqueado")}
                       </label>
                     </div>
+                    {!centralAccess && (
                     <div className="space-y-3 rounded-lg border border-border p-3">
                       <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                         {ui("Módulos autorizados")}
@@ -966,6 +925,7 @@ export function WorkstationsSettingsTab() {
                         )}
                       </p>
                     </div>
+                    )}
                   </CardContent>
                 </CollapsibleContent>
               </Card>

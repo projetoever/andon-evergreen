@@ -103,21 +103,27 @@ export function ServiceIdentitiesSettings() {
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-2 p-4 md:p-5">
-        <h2 className="text-lg font-bold">{ui("Integrações API industriais")}</h2>
+      <Card className="space-y-3 p-4 md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">{ui("Segurança das integrações")}</p>
+            <h2 className="mt-1 text-lg font-bold">{ui("Integrações API industriais")}</h2>
+          </div>
+          <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold">{ui("Somente leitura")}</span>
+        </div>
         <p className="text-sm text-muted-foreground">{ui(
-          "Credenciais específicas para Node-RED e mini PC GPIO. Esta tela não configura nem conecta equipamentos automaticamente."
+          "Identidades técnicas independentes para Node-RED e mini PC GPIO. Esta página não conecta equipamentos automaticamente."
         )}</p>
         <p className="text-sm text-muted-foreground">{ui(
           "Escopos disponíveis: leitura de máquinas, chamados e sinalização. Nenhuma escrita em máquina, chamado ou administração é concedida."
         )}</p>
         <p className="text-sm font-semibold">{ui("Somente testar com dados fictícios e HTTPS no notebook; não utilizar credenciais da fábrica.")}</p>
       </Card>
-      {error && <Card role="alert" className="border-danger p-4 text-sm text-danger">
+      {error && !requiresReauth && <Card role="alert" className="border-danger p-4 text-sm text-danger">
         {systemMessage(error)}
       </Card>}
       {requiresReauth && (
-        <Card className="space-y-3 p-4">
+        <Card className="space-y-3 border-primary/40 p-4" role="status">
           <h3 className="font-bold">{ui("Confirmação da senha Admin central")}</h3>
           <p className="text-sm text-muted-foreground">{ui(
             "É a mesma senha do Hub, solicitada novamente apenas para uma operação sensível."
@@ -160,8 +166,12 @@ export function ServiceIdentitiesSettings() {
           </Button>
         </Card>
       )}
-      <Card className="space-y-4 p-4 md:p-5">
-        <h3 className="font-bold">{ui("Emitir credencial de teste")}</h3>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <Card className="min-w-0 space-y-4 p-4 md:p-5">
+        <div className="space-y-1">
+          <h3 className="font-bold">{ui("1. Emitir credencial técnica")}</h3>
+          <p className="text-sm text-muted-foreground">{ui("Escolha uma integração, revise os acessos de leitura e registre a justificativa para auditoria.")}</p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => choosePreset("node-red")} disabled={busy}>
             {"Node-RED"}
@@ -202,9 +212,9 @@ export function ServiceIdentitiesSettings() {
           <Button type="submit" disabled={busy || !validForm}>{ui("Gerar credencial técnica")}</Button>
         </form>
       </Card>
-      <Card className="space-y-3 p-4 md:p-5">
+      <Card className="min-w-0 space-y-3 p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-bold">{ui("Credenciais cadastradas")}</h3>
+          <h3 className="font-bold">{ui("2. Credenciais cadastradas")}</h3>
           <Button variant="outline" disabled={busy} onClick={() => void run(async () => {})}>
             {ui("Atualizar lista")}
           </Button>
@@ -258,6 +268,7 @@ export function ServiceIdentitiesSettings() {
           "Para rotacionar ou revogar, informe uma justificativa no formulário acima. Nenhum cliente físico é reconfigurado automaticamente."
         )}</p>
       </Card>
+      </div>
     </div>
   );
 }

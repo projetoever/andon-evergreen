@@ -43,8 +43,8 @@ test("UX-12 stage 1: admin-only local preview, no global write or alarm mutation
   const preview = await source("src/components/settings/AppearanceSettingsPreview.tsx");
   const legacy = await source("src/components/settings/AdminSettingsModal.tsx");
   const central = await source("src/pages/HubCentralAdminPage.tsx");
-  assert.match(legacy, /if \(tab === "appearance"\) return <AppearanceSettingsPreview \/>/);
-  assert.match(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
+  assert.match(legacy, /if \(tab === "appearance"\) return <AppearanceSettingsPreview allowGlobalSave=\{centralAccess && centralPrimaryAdmin\} \/>/);
+  assert.doesNotMatch(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
   assert.match(preview, /\(\["dark", "light"\] as const\)\.map/);
   assert.match(preview, /onClick=\{\(\) => setDraft\(restoreDefaultVisualPalette\(\)\)\}/);
   assert.doesNotMatch(preview, /updateSystemSettings|fetch\(|apiClient|localStorage|sessionStorage/);

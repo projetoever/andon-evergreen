@@ -58,9 +58,8 @@ test("own kiosk preferences require explicit flag, exact self workstation and CS
     assert.throws(() => markCentralOwnWorkstationPreferenceAuthorized(request(lock),
       {...principal,permissions:[]},station),
       (e: unknown) => e instanceof AccessError && e.code === "permission_denied");
-    assert.throws(() => markCentralOwnWorkstationPreferenceAuthorized(request(lock),principal,
-      {...station,allowOperational:false}),
-      (e: unknown) => e instanceof AccessError && e.code === "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralOwnWorkstationPreferenceAuthorized(request(lock),principal,
+      {...station,allowOperational:false}));
     const ok = request(lock);
     markCentralOwnWorkstationPreferenceAuthorized(ok,principal,station);
     assert.equal(isAuthorizedCentralOwnWorkstationPreference(ok),true);

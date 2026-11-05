@@ -233,13 +233,16 @@ try {
         const data = req.postDataJSON();
         assert.equal(data.reason, "Kiosk validado para a Linha 1");
         approved = data.decision === "approve";
+        assert.equal(data.allowOperational, true);
+        assert.equal(data.allowBi, true);
+        assert.equal(data.allowPriorities, true);
         return send({ ok: true });
       }
       return send({ error: `unexpected:${req.method()}:${path}` }, 404);
     });
 
     await page.goto("https://127.0.0.1:4188/hub");
-    await page.getByRole("heading", { name: "Identifique-se para acessar o Hub" }).waitFor();
+    await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
     await page.screenshot({
       path: `${output}/${viewport.width}-identification.png`,
       fullPage: true,
@@ -251,7 +254,24 @@ try {
     await page.getByLabel("Finalidade ou localização (opcional)").fill("Produção — Linha 1");
     await page.getByRole("button", { name: "Enviar solicitação" }).click();
     await page.getByRole("heading", { name: "Solicitação aguardando aprovação" }).waitFor();
-    assert.equal(await page.getByText("ANDON BI", { exact: true }).count(), 0);
+    // REFINE 9: pending stations still see all three modules, locked and without links.
+    assert.equal(await page.getByText("ANDON BI", { exact: true }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^ANDON operacional$/ }),
+    }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^ANDON BI$/ }),
+    }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^Prioridades de produção$/ }),
+    }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON BI|ANDON operacional|Prioridades de produção/ }).count(), 0);
     await page.screenshot({ path: `${output}/${viewport.width}-pending.png`, fullPage: true });
 
     administrativeView = true;
@@ -273,9 +293,9 @@ try {
     await page.getByText("Sem registro nos últimos 30 min — estado online desconhecido", { exact: true }).first().waitFor();
     assert.equal(await page.getByText("Registro nos últimos 30 min — não confirma conexão ativa", { exact: true }).count(), 0);
     await page.getByLabel("Motivo da decisão").fill("Kiosk validado para a Linha 1");
-    const decisionBiSwitch = page.getByRole("switch", { name: /ANDON BI/ }).first();
-    assert.equal(await decisionBiSwitch.isEnabled(), true);
-    await decisionBiSwitch.click();
+    // Pilot: the workstation approval has no per-module switches.
+    assert.equal(await page.getByText("A aprovação libera somente a workstation. O login do usuário define seus módulos e permissões.", { exact: true }).count(), 1);
+    assert.equal(await page.getByRole("switch", { name: /ANDON BI/ }).count(), 0);
     await page.screenshot({
       path: `${output}/${viewport.width}-admin-decision.png`,
       fullPage: true,
@@ -285,13 +305,22 @@ try {
     administrativeView = false;
     principal = null;
     await page.goto("https://127.0.0.1:4188/hub");
-    await page.getByRole("heading", { name: "Identifique-se para acessar o Hub" }).waitFor();
+    await page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" }).waitFor();
     await page.getByLabel("Usuário").fill("lider.producao");
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
-    await page.getByText("ANDON BI", { exact: true }).waitFor();
-    assert.equal(await page.getByText("ANDON operacional", { exact: true }).count(), 0);
-    assert.equal(await page.getByText("Prioridades de produção", { exact: true }).count(), 0);
+    // The title was already visible while locked; wait for the granted Link
+    // rather than mistaking the pre-login informational card for authorization.
+    await page.getByRole("link", { name: /ANDON BI/ }).waitFor();
+    // REFINE9: forbidden modules remain visible as locked, non-navigable cards.
+    const lockedAndon = page.getByRole("heading", { name: "ANDON operacional", exact: true })
+      .locator('xpath=ancestor::div[@aria-disabled="true"][1]');
+    const lockedPriorities = page.getByRole("heading", { name: "Prioridades de produção", exact: true })
+      .locator('xpath=ancestor::div[@aria-disabled="true"][1]');
+    assert.equal(await lockedAndon.count(), 1);
+    assert.equal(await lockedPriorities.count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON BI/ }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON operacional|Prioridades de produção/ }).count(), 0);
     await page.screenshot({
       path: `${output}/${viewport.width}-approved-modules.png`,
       fullPage: true,

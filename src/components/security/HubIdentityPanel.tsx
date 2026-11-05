@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { Clock3, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -142,6 +143,9 @@ export function HubIdentityPanel({
         <p className="text-sm text-muted-foreground">
           {ui("Inicialize o Admin principal em uma workstation já aprovada.")}
         </p>
+        <Button asChild variant="outline">
+          <Link to="/hub/admin">{ui("Primeiro acesso — Admin principal")}</Link>
+        </Button>
       </Card>
     );
   const principal = session.principal;

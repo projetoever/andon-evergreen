@@ -65,9 +65,9 @@ test("SEC-04 central catalog marker requires actual session privileges, full sco
     denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
       ...principal, permissions: ["andon.read"],
     }, station), "permission_denied");
-    denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), principal, {
+    assert.doesNotThrow(() => markCentralClassificationAuthorized(fake(csrfToken(token)), principal, {
       ...station, allowOperational: false,
-    }), "workstation_module_denied");
+    }));
     const request = fake(csrfToken(token));
     assert.equal(isAuthorizedCentralClassificationRequest(request), false);
     markCentralClassificationAuthorized(request, principal, station);

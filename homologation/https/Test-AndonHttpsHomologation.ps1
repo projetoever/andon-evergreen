@@ -29,6 +29,19 @@ if ($errors.Count -gt 0) {
 
 & $scripts[9]
 $start = Get-Content $scripts[0] -Raw
+# The API and frontend must bind distinct ports. In PowerShell Start-Process,
+# both children inherit PORT at their own spawn time. Changing PORT only
+# after both have started recreates the intermittent EADDRINUSE:3001 failure.
+$apiPortAssignment = $start.IndexOf('$env:PORT = "$ApiPort"')
+$apiSpawn = $start.IndexOf('$apiProcess = Start-Process')
+$frontendPortAssignment = $start.IndexOf('$env:PORT = "$FrontendPort"')
+$frontendSpawn = $start.IndexOf('$frontendProcess = Start-Process')
+if ($apiPortAssignment -lt 0 -or
+    $apiSpawn -le $apiPortAssignment -or
+    $frontendPortAssignment -le $apiSpawn -or
+    $frontendSpawn -le $frontendPortAssignment) {
+    throw "Launcher HTTPS: API e frontend devem receber PORT separado ANTES de cada Start-Process."
+}
 if (!$start.Contains('if (Test-AndonPrismaClientCurrent -ServerRoot $serverRoot -StateRoot $statePath)')) {
     throw "Prisma Client existente nao esta protegido contra geracao redundante e DLL em uso."
 }
@@ -405,6 +418,23 @@ foreach ($required in @(
     if (!$backupSource.Contains($required)) {
         throw "Backup/restore sem controle de isolamento obrigatorio: $required"
     }
+}
+# A JSON array returned by docker inspect must be flattened before
+# exact comparison in Windows PowerShell 5.1 (never print DB password).
+if (!$backupSource.Contains('foreach ($entry in ($envJson | ConvertFrom-Json))') -or
+    $backupSource.Contains('$containerEnv = @($envJson | ConvertFrom-Json)')) {
+    throw "Backup/restore deve enumerar o array Docker de forma compativel com PowerShell 5.1."
+}
+$fakeEnvJson = '["POSTGRES_DB=andon_https_hml","POSTGRES_USER=andon_hml","POSTGRES_PASSWORD=unused-fixture"]'
+$fakeEnv = [string[]]@()
+foreach ($entry in ($fakeEnvJson | ConvertFrom-Json)) {
+    if ($entry -isnot [string]) { throw "Array Docker inesperado." }
+    $fakeEnv += $entry
+}
+if ($fakeEnv -notcontains "POSTGRES_DB=andon_https_hml" -or
+    $fakeEnv -notcontains "POSTGRES_USER=andon_hml" -or
+    $fakeEnv -contains "POSTGRES_DB=andon_db") {
+    throw "Regressao: identidade Docker de LAB nao identificada corretamente."
 }
 $biScript = Join-Path $PSScriptRoot "..\..\server\scripts\bi-restore-parity-snapshot.mjs"
 $biScript = [System.IO.Path]::GetFullPath($biScript)

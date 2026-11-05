@@ -16,6 +16,7 @@ import { stopAndonSound, unlockAudio } from "@/services/soundService";
 import { BarChart3, ListOrdered, Volume2, VolumeX, Settings, Eye } from "lucide-react";
 import { DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode, type DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
@@ -90,6 +91,7 @@ export function DashboardPage() {
     );
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [settingsPrimaryAdmin, setSettingsPrimaryAdmin] = useState(true);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
   const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
@@ -550,7 +552,21 @@ export function DashboardPage() {
                 return;
               }
               if (access.centralAccessEnabled) {
-                void navigate({ to: "/hub/admin", search: { section: "andon" } });
+                // A central primary Admin must be authenticated on the API, not
+                // inferred from an old local Admin token or a role label.
+                void accessRequest<AccessState>("/session")
+                  .then((state) => {
+                    const principal = state.principal;
+                    const canOpenSettings = principal?.purpose === "normal" &&
+                      (principal.isPrimaryAdmin || principal.permissions?.includes("andon.settings.open"));
+                    if (canOpenSettings) {
+                      setSettingsPrimaryAdmin(Boolean(principal?.isPrimaryAdmin));
+                      setAdminSettingsOpen(true);
+                    } else {
+                      toast.error(t("Sem permissão para configurar o ANDON."));
+                    }
+                  })
+                  .catch(() => toast.error(t("Não foi possível verificar o acesso central.")));
               } else {
                 isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true);
               }
@@ -562,14 +578,21 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {access && !access.centralAccessEnabled && (
+      {access && (
         <>
-          <AdminLoginModal
-            open={adminLoginOpen}
-            onOpenChange={setAdminLoginOpen}
-            onSuccess={() => setAdminSettingsOpen(true)}
+          {!access.centralAccessEnabled && (
+            <AdminLoginModal
+              open={adminLoginOpen}
+              onOpenChange={setAdminLoginOpen}
+              onSuccess={() => setAdminSettingsOpen(true)}
+            />
+          )}
+          <AdminSettingsModal
+            open={adminSettingsOpen}
+            onOpenChange={setAdminSettingsOpen}
+            centralAccess={access.centralAccessEnabled}
+            centralPrimaryAdmin={settingsPrimaryAdmin}
           />
-          <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
         </>
       )}
       <DashboardPriorityLoginModal

@@ -84,8 +84,8 @@ test("SEC-04 single central login bypasses only legacy module passwords, not cen
     "central permission stays mandatory");
   canReadBi = true;
   allowBi = false;
-  assert.equal((await app.inject({ url: "/api/analytics/overview", headers })).statusCode, 403,
-    "workstation module allowance stays mandatory");
+  assert.equal((await app.inject({ url: "/api/analytics/overview", headers })).statusCode, 200,
+    "an approved workstation cannot override central user module grants");
   allowBi = true;
   const write = await app.inject({ url: "/api/andon-calls", method: "POST", headers });
   assert.equal(write.statusCode, 403, "central write gate must remain closed");
