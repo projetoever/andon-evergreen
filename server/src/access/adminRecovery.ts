@@ -25,6 +25,7 @@ export function formatCentralRecoveryCode(raw: string): string {
 export async function issueCentralAdminRecoveryCode(
   db: PrismaClient,
   request: AccessRequest,
+  audit: Pick<AuditActor, "ipAddress" | "requestId"> = {},
 ) {
   const initial = await resolveSession(db, request);
   assertRecentAdmin(initial);
@@ -51,10 +52,11 @@ export async function issueCentralAdminRecoveryCode(
       },
     });
     if (saved.count !== 1) throw new AccessError("admin_required");
-    await appendAudit(tx, actorFromPrincipal(principal), {
+    await appendAudit(tx, { ...actorFromPrincipal(principal), ...audit }, {
       action: "access.admin.recovery_code.issued",
       resourceType: "access_user",
       resourceId: principal.userId,
+      after: { issuedAt }, // Timestamp only; never code or hash in audit.
     });
   });
   return { recoveryCode: formatCentralRecoveryCode(raw), issuedAt };
