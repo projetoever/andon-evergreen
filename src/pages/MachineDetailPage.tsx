@@ -18,6 +18,7 @@ import { MachineCurrentStatusPanel } from "@/components/machines/MachineCurrentS
 import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { ProductionSchedulePanel } from "@/components/machines/ProductionSchedulePanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
+import { CentralMachineScreenUnlockModal } from "@/components/machines/CentralMachineScreenUnlockModal";
 import { useAndon } from "@/context/AndonProvider";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import { useTicker } from "@/hooks/useTicker";
@@ -405,11 +406,20 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   async function handleUnlockSuccess() {
     try {
-      await unlockMachineScreen();
-      setScreenLock(null);
+      // The central API has already authorized and applied the unlock.
+      // Never bypass its credential check by calling the legacy PATCH route.
+      if (access?.centralAccessEnabled) {
+        const latest = await refreshMachineScreenLock();
+        if (latest?.locked) throw new Error("Desbloqueio ainda não confirmado.");
+        setScreenLock(null);
+      } else {
+        await unlockMachineScreen();
+        setScreenLock(null);
+      }
       toast.success("Tela desbloqueada. Navegação liberada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível desbloquear a tela.");
+      throw error;
     }
   }
 
@@ -729,16 +739,26 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         purpose="add"
         excludeNames={activeSessions.map((session) => session.technicianName)}
       />
-      <AdminLoginModal
-        open={unlockLoginOpen}
-        onOpenChange={setUnlockLoginOpen}
-        onSuccess={() => void handleUnlockSuccess()}
-        title={ui("Desbloquear tela fixada")}
-        description={ui(
-          "Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel.",
-        )}
-        successLabel={ui("Desbloquear")}
-      />
+      {access?.centralAccessEnabled ? (
+        <CentralMachineScreenUnlockModal
+          open={unlockLoginOpen}
+          machineId={machineId}
+          defaultLogin={access.principal?.login}
+          onOpenChange={setUnlockLoginOpen}
+          onSuccess={handleUnlockSuccess}
+        />
+      ) : (
+        <AdminLoginModal
+          open={unlockLoginOpen}
+          onOpenChange={setUnlockLoginOpen}
+          onSuccess={() => void handleUnlockSuccess()}
+          title={ui("Desbloquear tela fixada")}
+          description={ui(
+            "Informe o mesmo usuário e senha administrativos para liberar a navegação ao painel.",
+          )}
+          successLabel={ui("Desbloquear")}
+        />
+      )}
       <FinishCallModal
         key={finishCallId ?? "closed"}
         open={finishCallId !== null}
