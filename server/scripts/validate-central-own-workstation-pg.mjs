@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import Fastify from "fastify";
-import { tokenHash, csrfToken } from "../dist/access/credentials.js";
+import { tokenHash, csrfToken, hashAccessPassword } from "../dist/access/credentials.js";
 import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
 import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.js";
 import { enforceModuleAuthorization } from "../dist/security/moduleAuthorization.js";
 import { registerWorkstationRoutes } from "../dist/routes/workstations.js";
+import { registerAccessRoutes } from "../dist/routes/access.js";
 import { runCentralOwnWorkstationPreference } from "../dist/access/centralOwnWorkstationPrefs.js";
 
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://invalid/invalid");
@@ -25,7 +26,7 @@ const old = {
   flag: process.env.ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED,
   origin: process.env.ANDON_ACCESS_ORIGIN,
 };
-let app, userId, sessionId;
+let app, userId, sessionId, maintenanceId;
 try {
   await db.machine.createMany({ data: [
     { id: machineId, name: "CI preference machine", isActive: true },
@@ -43,6 +44,16 @@ try {
     machines: { create: [{ machineId }] },
   } });
   userId = user.id;
+  const credential = "Maintenance-CI-Verified#2026";
+  const maintenanceLogin = "ci.maint." + n;
+  const maintenance = await db.accessUser.create({ data: {
+    login: maintenanceLogin, displayName: "CI authorized maintenance", roleLabel: "Manutenção",
+    accountType: "person", machineScope: "selected", mustChangePassword: false,
+    passwordHash: await hashAccessPassword(credential),
+    permissions: { create: [{ key: "andon.read" }, { key: "calls.attend" }] },
+    machines: { create: [{ machineId }] },
+  } });
+  maintenanceId = maintenance.id;
   const now = new Date();
   sessionId = (await db.accessSession.create({ data: {
     tokenHash: tokenHash(token), userId, workstationId: stationId,
@@ -63,6 +74,7 @@ try {
   app.addHook("preHandler", enforceAdminAuthorization);
   app.addHook("preHandler", enforceModuleAuthorization);
   await registerWorkstationRoutes(app);
+  await registerAccessRoutes(app, db, "https://andon.test");
 
   const headers = {
     origin: "https://andon.test",
@@ -130,10 +142,20 @@ try {
   assert.equal(runtime.statusCode, 200, runtime.body);
   assert.equal(runtime.json().machineSoundPreferences[machineId], false);
 
-  const released = await lock(null);
+  // R9.3: the previous credential-free unlock path must fail closed.
+  const unsafe = await lock(null);
+  assert.equal(unsafe.statusCode, 403, unsafe.body);
+  assert.equal((await db.workstation.findUniqueOrThrow({ where: { id: stationId } })).lockedMachineId, machineId);
+  const denied = await inject("POST", "/api/access/workstations/screen-unlock",
+    { login: maintenanceLogin, password: "invalid", machineId });
+  assert.equal(denied.statusCode, 401, denied.body);
+  assert.equal((await db.workstation.findUniqueOrThrow({ where: { id: stationId } })).lockedMachineId, machineId);
+  const released = await inject("POST", "/api/access/workstations/screen-unlock",
+    { login: maintenanceLogin, password: credential, machineId });
   assert.equal(released.statusCode, 200, released.body);
   assert.equal(released.json().lockedMachineId, null);
-  assert.equal(await audit("workstation.screen.lock"), 2);
+  assert.equal(await audit("workstation.screen.lock"), 1);
+  assert.equal(await audit("workstation.screen.unlock.credential_verified"), 1);
 
   process.env.ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED = "0";
   assert.equal((await lock()).statusCode, 403);
@@ -143,7 +165,7 @@ try {
     data: { revokedAt: new Date() } });
   assert.equal((await lock()).statusCode, 401);
 
-  console.log("SEC-04 own workstation preferences PG PASS: self-only, machine scope, CSRF, no-op, audit rollback, central OFF and revocation");
+  console.log("SEC-04 own workstation preferences PG PASS: credential-verified screen unlock, unauthorized PATCH denied, scopes, CSRF and audited rollback");
 } finally {
   if (app) await app.close();
   for (const [key, env] of [
@@ -157,6 +179,12 @@ try {
   await db.workstationMachineSoundPreference.deleteMany({
     where: { workstationId: { in: [stationId, foreignStation] } },
   });
+  if (maintenanceId) {
+    await db.accessSession.deleteMany({ where: { userId: maintenanceId } });
+    await db.accessMachine.deleteMany({ where: { userId: maintenanceId } });
+    await db.accessPermission.deleteMany({ where: { userId: maintenanceId } });
+    await db.accessUser.update({ where: { id: maintenanceId }, data: { active: false } });
+  }
   if (userId) {
     await db.accessSession.deleteMany({ where: { userId } });
     await db.accessMachine.deleteMany({ where: { userId } });

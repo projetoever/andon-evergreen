@@ -28,6 +28,8 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
+import { centralOwnWorkstationPreferencesEnabled } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
@@ -317,6 +319,24 @@ export function registerAccessRoutes(
         });
         setCookie(reply, ACCESS_COOKIE, "", 0);
         return recovered;
+      },
+    );
+    // Dedicated screen unlock: uses the current session and one-time verified
+    // authorized credentials; never switches or elevates the operator session.
+    app.post<{ Body: { login: string; password: string; machineId: string } }>(
+      `${PREFIX}/workstations/screen-unlock`,
+      { schema: schema({
+        login: string(120), password: string(128), machineId: string(160),
+      }) },
+      async req => {
+        if (!centralOwnWorkstationPreferencesEnabled())
+          throw new AccessError("central_action_not_supported");
+        limited(`unlock:${req.ip}`, 8, 15 * 60_000);
+        return unlockCentralMachineScreen(db, {
+          ...requestAccess(req),
+          login: req.body.login, password: req.body.password, machineId: req.body.machineId,
+          requestId: req.id, ipAddress: req.ip,
+        });
       },
     );
     app.post<{ Body: { password: string } }>(
