@@ -461,11 +461,28 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async cancelCall(_machines: Machine[], _calls: AndonCall[], params: CancelAndonCallParams) {
-    await this.apiClient.patch(`/api/andon-calls/${params.callId}/cancel`, {
+    // R10-01: distinguish the authoritative PATCH result from the subsequent
+    // read-only refresh. A failed GET must not misreport a committed cancellation
+    // as a failed write, inviting a second cancellation of the same call.
+    const confirmed = await this.apiClient.patch<ApiAndonCall>(`/api/andon-calls/${params.callId}/cancel`, {
       reason: params.reason,
       ...(!isCentralMode() ? { cancelledBy: params.cancelledBy } : {}),
     });
-    return this.loadResult();
+    if (!confirmed || confirmed.id !== params.callId || confirmed.status !== "cancelled") {
+      throw new Error("Não foi possível confirmar o cancelamento na resposta da API. Verifique o estado do chamado.");
+    }
+    try {
+      return await this.loadResult();
+    } catch {
+      // The regular polling loop will reconcile the machine state. Remove the
+      // call locally instead of showing cancelled history without history.read.
+      // Never mutate machine telemetry, stop ownership or KPIs in the browser.
+      console.warn("Cancelamento confirmado pela API; sincronização posterior indisponível.");
+      return {
+        machines: _machines,
+        calls: _calls.filter((call) => call.id !== params.callId),
+      };
+    }
   }
 
   async updateMachineStatus(machines: Machine[], machineId: string, status: MachineStatus) {
