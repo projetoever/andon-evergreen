@@ -29,6 +29,12 @@ test("other central users require module-specific permissions, not a station tog
     (error: unknown) => error instanceof AccessError && error.code === "permission_denied");
   assert.throws(() => assertPermission(user, "andon.settings.open"),
     (error: unknown) => error instanceof AccessError && error.code === "permission_denied");
+  // Selecting a machine does not revoke the account's module grant.
+  // Data endpoints still require their own SQL-scoped query contract.
+  const scopedUser = { ...user, machineScope: "selected", machineIds: ["machine-37"] };
+  assert.doesNotThrow(() => assertModule(scopedUser, activeStationWithLegacyModulesOff, "operational"));
+  assert.throws(() => assertModule(scopedUser, activeStationWithLegacyModulesOff, "bi"),
+    (error: unknown) => error instanceof AccessError && error.code === "permission_denied");
   assert.throws(() => assertModule({ ...user, purpose: "password_change" }, activeStationWithLegacyModulesOff, "operational"),
     (error: unknown) => error instanceof AccessError && error.code === "password_change_required");
 });
