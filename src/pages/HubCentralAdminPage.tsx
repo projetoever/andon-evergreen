@@ -65,7 +65,7 @@ function CentralOverview() {
  */
 export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = requestedSection === "andon" ? "hub" : requestedSection ?? "overview";
+  const section = String(requestedSection) === "andon" ? "hub" : requestedSection ?? "overview";
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
