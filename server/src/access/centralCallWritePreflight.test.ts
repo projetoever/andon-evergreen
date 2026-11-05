@@ -66,9 +66,10 @@ test("SEC-04/2A: session, workstation, module and action authorization are cumul
   await rejects(preflightCentralCallWrite(input(open, {
     workstation: { ...workstation, pendingApproval: true },
   })), "workstation_inactive");
-  await rejects(preflightCentralCallWrite(input(open, {
+  // The workstation was already approved; central module rights now come from the user.
+  await assert.doesNotReject(preflightCentralCallWrite(input(open, {
     workstation: { ...workstation, allowOperational: false },
-  })), "workstation_module_denied");
+  })));
   await rejects(preflightCentralCallWrite(input(open, {
     principal: { ...principal, permissions: ["calls.open"] },
   })), "permission_denied");
