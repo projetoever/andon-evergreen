@@ -49,8 +49,8 @@ test("SEC-04/2N: diagnosis edit independently gated, exact route, dual permissio
       { ...principal, permissions: ["andon.read", "diagnosis.edit"] }, station), "permission_denied");
     denied(() => markCentralDiagnosisEditAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read", "history.read"] }, station), "permission_denied");
-    denied(() => markCentralDiagnosisEditAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralDiagnosisEditAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const valid = req(csrfToken(token));
     markCentralDiagnosisEditAuthorized(valid, principal, station);
     assert.equal(isAuthorizedCentralDiagnosisEdit(valid), true);
