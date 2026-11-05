@@ -81,8 +81,8 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       // including all three for primary Admin, never the old workstation flags.
       if (!central) return isModuleAllowed(module.id, workstation);
       if (!principal || principal.purpose !== "normal") return false;
-      // Scoped queries remain fail-closed until their handlers filter by machine.
-      if (principal.machineScope !== "all") return false;
+      // Module grants belong to the account, independently of machine scope.
+      // Data read handlers still filter by machine or reject unsupported routes.
       try {
         assertModule(principal, workstation, module.id);
         return true;
