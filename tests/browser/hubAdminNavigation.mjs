@@ -505,6 +505,18 @@ try {
     await page.goto("https://127.0.0.1:4188/hub");
     const centralLogin = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
     await centralLogin.waitFor();
+    // R10-03: recovery entry is accessible in the non-dismissible Hub
+    // overlay and reuses the existing central Admin recovery UI.
+    const forgottenPassword = centralLogin.getByRole("button", { name: "Esqueci a senha" });
+    assert.equal(await forgottenPassword.count(), 1);
+    await forgottenPassword.click();
+    await centralLogin.getByText("Use o código de recuperação guardado", { exact: false }).waitFor();
+    assert.equal(await centralLogin.getByText("Para outras contas, solicite a redefinição da senha ao Admin principal.").count(), 1);
+    assert.equal(await centralLogin.getByRole("textbox", { name: "Código de recuperação" }).count(), 1);
+    assert.equal(await centralLogin.getByLabel("Usuário").count(), 1);
+    await forgottenPassword.click();
+    assert.equal(await centralLogin.getByRole("textbox", { name: "Código de recuperação" }).count(), 0);
+    assert.equal(await centralLogin.count(), 1);
     assert.equal(await centralLogin.getByLabel("Usuário").count(), 1);
     assert.equal(await centralLogin.getByRole("combobox", { name: "Idioma da interface" }).count(), 1);
     assert.equal(await page.locator('[aria-disabled="true"]').count() >= 3, true);
