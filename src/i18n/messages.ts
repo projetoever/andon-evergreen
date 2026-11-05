@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
+  ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
+  ["Em preparação", "Pending setup", "設定準備中"],
+  ["Confiança revogada", "Trust revoked", "信任已撤銷"],
+  ["Confiança expirada", "Trust expired", "信任已過期"],
+  ["Configurado, mas desativado", "Configured but disabled", "已設定但未啟用"],
+  ["A operação Kiosk ainda não está habilitada.", "Kiosk operation is not yet enabled.", "Kiosk 操作尚未啟用。"],
   ["Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin or authorized maintenance technician for this machine. The signed-in user will not change.", "請輸入管理員或本機台授權維護人員的密碼。已登入的使用者不會變更。"],
   ["Credencial inválida ou sem permissão para desbloquear esta tela.", "Invalid credentials or not authorized to unlock this screen.", "登入資料無效或無權解除此畫面鎖定。"],
   ["Investigação de identidade da workstation", "Workstation identity investigation", "工作站身分調查"],
