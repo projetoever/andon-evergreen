@@ -571,7 +571,7 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Painel do gerente" }).waitFor();
     const managerNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
-    assert.equal(await managerNav.getByRole("link").count(), 3);
+    assert.equal(await managerNav.getByRole("link").count(), 2);
     assert.equal(await managerNav.getByRole("link", { name: "Usuários e Acessos" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Cadastrar usuário" }).count(), 0);
     assert.equal(await page.getByRole("heading", { name: "Resumo gerencial" }).count(), 1);
@@ -580,55 +580,37 @@ try {
     await page.getByText("Notebook de validação", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Aprovar" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Salvar alterações" }).count(), 0);
-    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
-    await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).waitFor();
-    assert.equal(await page.getByRole("button", { name: "Salvar globalmente" }).count(), 0);
-    assert.equal(await page.getByRole("button", { name: "Salvar" }).count(), 0);
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
-    assert.equal(await page.getByRole("combobox", { name: "Ordem visual do Dashboard" }).isDisabled(), true);
+    // Managers cannot configure ANDON from the Hub, even with a presentation
+    // grant. Their central module/settings access is authorized separately.
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).count(), 0);
     operationalSettingsWriteEnabled = true;
-    await page.reload();
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true,
-      "server flag alone does not grant a Manager permission");
-    managerPermissions = ["workstations.read", "andon.read", "hub.settings.presentation.write"];
-    await page.reload();
-    const keyboard = page.getByRole("checkbox", { name: "Habilitar teclado virtual" });
-    await keyboard.waitFor();
-    await page.waitForFunction(() => {
-      const control = document.querySelector('input[aria-label="Habilitar teclado virtual"]');
-      return control && !control.disabled;
+    managerPermissions = ["workstations.read", "andon.read", "andon.settings.open", "hub.settings.presentation.write"];
+    await page.goto("https://127.0.0.1:4188/andon");
+    await page.getByRole("button", { name: "Configurar sons do ANDON" }).click();
+    const managerAndon = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
+    await managerAndon.waitFor();
+    await managerAndon.getByRole("button", { name: "Configurações da operação" }).click();
+    const safeWrite = await page.evaluate(async () => {
+      const res = await fetch("/api/system-settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
+        body: JSON.stringify({ virtualKeyboardEnabled: false }),
+      });
+      return res.status;
     });
-    const [keyboardSaved] = await Promise.all([
-      page.waitForResponse(response =>
-        new URL(response.url()).pathname === "/api/system-settings" &&
-        response.request().method() === "PATCH" && response.ok()),
-      keyboard.click(),
-    ]);
-    assert.equal((await keyboardSaved.json()).virtualKeyboardEnabled, false);
-    await page.waitForFunction(() =>
-      document.querySelector('input[aria-label="Habilitar teclado virtual"]')?.checked === false);
-    assert.equal(keyboardSetting, false);
-    const order = page.getByRole("combobox", { name: "Ordem visual do Dashboard" });
-    const [orderSaved] = await Promise.all([
-      page.waitForResponse(response =>
-        new URL(response.url()).pathname === "/api/system-settings" &&
-        response.request().method() === "PATCH" && response.ok()),
-      order.selectOption("priority"),
-    ]);
-    assert.equal((await orderSaved.json()).dashboardMachineOrderMode, "priority");
-    assert.equal(machineOrderSetting, "priority");
+    assert.equal(safeWrite, 200);
     const illicit = await page.evaluate(async () => {
       const res = await fetch("/api/system-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
+        method: "PATCH", headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
         body: JSON.stringify({ virtualKeyboardEnabled: true, requireWorkOrderAtOpen: false }),
       });
       return res.status;
     });
-    assert.equal(illicit, 403, "mixed operational policy writes must fail for Manager");
+    assert.equal(illicit, 403, "a Manager cannot edit sensitive operational fields");
     operationalSettingsWriteEnabled = false;
-    await page.reload();
-    assert.equal(await page.getByRole("checkbox", { name: "Habilitar teclado virtual" }).isDisabled(), true);
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
     await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
