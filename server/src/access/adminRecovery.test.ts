@@ -22,6 +22,7 @@ function fixture(initialHash: string) {
   let commits = 0;
   let codeUses = 0;
   let issued = 0;
+  const audits: Record<string, unknown>[] = [];
   const tx = {
     accessSession: {
       findUnique: async (arg: { where: { tokenHash: string } }) => {
@@ -80,6 +81,7 @@ function fixture(initialHash: string) {
       if (auditFails) throw Error("audit_failed");
       assert(!Object.hasOwn(arg.data, "recoveryCode"));
       assert(!Object.hasOwn(arg.data, "newPassword"));
+      audits.push(arg.data);
       return { id: "audit" };
     } },
     $queryRaw: async () => { log.push("user-lock"); return [{ ok: true }]; },
@@ -107,15 +109,24 @@ function fixture(initialHash: string) {
     get commits() { return commits; },
     get codeUses() { return codeUses; },
     get issued() { return issued; },
+    get audits() { return audits; },
     set auditFails(value: boolean) { auditFails = value; },
   };
 }
 
 test("S1/5: only primary Admin step-up can issue a new 128-bit offline recovery code", async () => {
   const fixtureDb = fixture(await hashAccessPassword(OLD_PASSWORD));
-  const result = await issueCentralAdminRecoveryCode(fixtureDb.db, REQUEST);
+  const result = await issueCentralAdminRecoveryCode(fixtureDb.db, REQUEST, { ipAddress: "127.0.0.1", requestId: "req-r10-06" });
   assert.match(result.recoveryCode, /^HUB-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}$/);
   assert(fixtureDb.issuedAt instanceof Date);
+  assert.equal(result.issuedAt.toISOString(), fixtureDb.issuedAt.toISOString());
+  const issuanceAudit = fixtureDb.audits.at(-1)!;
+  assert.equal(issuanceAudit.action, "access.admin.recovery_code.issued");
+  assert.equal(issuanceAudit.ipAddress, "127.0.0.1");
+  assert.equal(issuanceAudit.requestId, "req-r10-06");
+  assert.deepEqual(issuanceAudit.after, { issuedAt: result.issuedAt.toISOString() });
+  assert(!JSON.stringify(issuanceAudit).includes(result.recoveryCode));
+  assert(!JSON.stringify(issuanceAudit).includes(fixtureDb.codeHash!));
   const code = result.recoveryCode.replace(/^HUB-/, "").replaceAll("-", "");
   assert.equal(await verifyAccessPassword(code, fixtureDb.codeHash!), true);
   assert.deepEqual(fixtureDb.log.slice(-4), [
