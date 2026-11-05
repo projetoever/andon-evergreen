@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Estado da autenticação do Hub", "Hub authentication status", "Hub 身分驗證狀態"],
+  ["Identifique-se para acessar o Hub", "Sign in to access the Hub", "請登入以存取 Hub"],
+  ["Autenticação necessária para liberar os módulos autorizados nesta workstation.", "Authentication is required to unlock modules authorized for this workstation.", "必須完成身分驗證，才能啟用此工作站獲授權的模組。"],
   ["Sem permissão para configurar o ANDON.","Not authorized to configure ANDON.","無權設定 ANDON。"],
   ["Módulo indisponível nesta instalação.","Module unavailable in this installation.","此安裝中無法使用此模組。"],
   ["Acesso restrito ao perfil do usuário conectado.","Access restricted for the signed-in user's role.","目前登入的使用者角色無權存取。"],
