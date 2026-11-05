@@ -282,6 +282,11 @@ $apiProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $apiBuild + 
     -RedirectStandardOutput (Join-Path $statePath "api.log") `
     -RedirectStandardError (Join-Path $statePath "api-error.log")
 
+# API and frontend are separate Node child processes. Start-Process captures
+# the process environment at spawn time, so the API already has PORT=$ApiPort.
+# Explicitly assign the frontend port before spawning it; otherwise both
+# children inherit PORT=$ApiPort and race to bind 127.0.0.1:3001.
+$env:PORT = "$FrontendPort"
 $env:ANDON_PROJECT_PATH = $repoRoot
 $env:ANDON_TLS_HOST = "localhost"
 $frontendProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $frontendBuild + '"') `
