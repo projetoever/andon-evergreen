@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Use pelo menos 8 caracteres.", "Use at least 8 characters.", "請至少使用 8 個字元。"],
+  ["Use no máximo 128 caracteres.", "Use no more than 128 characters.", "請勿超過 128 個字元。"],
+  ["Não repita o mesmo caractere em toda a senha.", "Do not repeat the same character throughout the password.", "請勿整組密碼都使用重複的同一字元。"],
+  ["Esta sequência numérica é muito previsível. Escolha uma senha diferente.", "This numeric sequence is too predictable. Choose a different password.", "這組數字順序太容易猜測，請選擇其他密碼。"],
+  ["Esta senha é muito comum. Escolha uma combinação menos previsível.", "This password is too common. Choose a less predictable combination.", "這組密碼太常見，請選擇更難猜測的組合。"],
+  ["Senha recusada. Evite sequências comuns ou caracteres repetidos.", "Password rejected. Avoid common sequences or repeated characters.", "密碼遭拒絕，請避免常見順序或重複字元。"],
   ["Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin or authorized maintenance technician for this machine. The signed-in user will not change.", "請輸入管理員或本機台授權維護人員的密碼。已登入的使用者不會變更。"],
   ["Credencial inválida ou sem permissão para desbloquear esta tela.", "Invalid credentials or not authorized to unlock this screen.", "登入資料無效或無權解除此畫面鎖定。"],
   ["Investigação de identidade da workstation", "Workstation identity investigation", "工作站身分調查"],
