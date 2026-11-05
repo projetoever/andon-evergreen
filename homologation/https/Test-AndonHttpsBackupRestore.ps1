@@ -55,7 +55,16 @@ if ($config.initialized -ne $true -or
 # loopback-only Docker binding without displaying secrets from Config.Env.
 $envJson = (& docker.exe inspect --format "{{json .Config.Env}}" $containerName | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw "Falha ao verificar identidade do container." }
-$containerEnv = @($envJson | ConvertFrom-Json)
+# Windows PowerShell 5.1 can preserve a JSON array as ONE nested pipeline
+# value. Explicitly enumerate strings before comparing the exact DB identity.
+# Never display the Docker env array: it also contains the database password.
+$containerEnv = [string[]]@()
+foreach ($entry in ($envJson | ConvertFrom-Json)) {
+    if ($entry -isnot [string]) {
+        throw "Docker retornou identidade de container em formato inesperado."
+    }
+    $containerEnv += $entry
+}
 if ($containerEnv -notcontains "POSTGRES_DB=$databaseName" -or
     $containerEnv -notcontains "POSTGRES_USER=$databaseUser") {
     throw "Este container nao e o banco isolado esperado."
