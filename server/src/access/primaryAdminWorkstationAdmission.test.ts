@@ -70,7 +70,7 @@ test("R9.2: correct Admin login atomically approves current pending station, rev
         assert.equal(args.where.pendingApproval, true);
         assert.equal(args.data.active, true);
         assert.equal(args.data.pendingApproval, false);
-        assert.equal(args.data.allowOperational, false);
+        assert.equal(args.data.allowOperational, true);
         approved = true;
         return { count: 1 };
       },
