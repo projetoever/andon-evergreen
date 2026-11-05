@@ -6,6 +6,22 @@ import type { ModuleDefinition } from "@/types/modules";
 
 const icons = { factory: Factory, chart: BarChart3, priority: ListOrdered };
 
+/** Never infer authorization from missing server access data. */
+const LOCKED_MODULES: readonly ModuleDefinition[] = [
+  { id: "operational", name: "ANDON operacional",
+    description: "Máquinas, chamados e atendimento em tempo real.",
+    route: "/andon", icon: "factory",
+    available: false, enabled: false, allowed: false, passwordRequired: false, authenticated: false },
+  { id: "bi", name: "ANDON BI",
+    description: "Indicadores, análises e confiabilidade industrial.",
+    route: "/bi", icon: "chart",
+    available: false, enabled: false, allowed: false, passwordRequired: false, authenticated: false },
+  { id: "priorities", name: "Prioridades de produção",
+    description: "Organização da sequência visual das máquinas.",
+    route: "/machine-priorities", icon: "priority",
+    available: false, enabled: false, allowed: false, passwordRequired: false, authenticated: false },
+];
+
 /**
  * Keep the three modules visible in the Hub, including those denied by the
  * logged-in user's central permissions. A denied module must not create a
@@ -18,15 +34,19 @@ export function ModuleCards({
 }) {
   const { access } = useModuleAccess();
   const { t } = useLanguage();
-  const modules = access?.modules ?? [];
+  const modules = LOCKED_MODULES.map((fallback) =>
+    access?.modules.find((module) => module.id === fallback.id) ?? fallback
+  );
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {modules.map((module) => {
         const Icon = icons[module.icon];
         const permitted = module.available && module.enabled && module.allowed;
-        const deniedReason = !module.available || !module.enabled
-          ? t("Módulo indisponível nesta instalação.")
-          : t("Acesso restrito ao perfil do usuário conectado.");
+        const deniedReason = !access
+          ? t("Nenhuma informação de módulos disponível. Tente novamente.")
+          : !module.available || !module.enabled
+            ? t("Módulo indisponível nesta instalação.")
+            : t("Acesso restrito ao perfil do usuário conectado.");
         const children = (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -72,11 +92,7 @@ export function ModuleCards({
           </div>
         );
       })}
-      {access && modules.length === 0 && (
-        <p role="status" className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground md:col-span-3">
-          {t("Nenhuma informação de módulos disponível. Tente novamente.")}
-        </p>
-      )}
+
     </div>
   );
 }
