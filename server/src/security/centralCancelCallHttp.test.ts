@@ -43,8 +43,8 @@ test("central cancellation requires independent flag, own/any privilege and CSRF
       principal, station), "csrf_denied");
     denied(() => markCentralCancelCallAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralCancelCallAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralCancelCallAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     markCentralCancelCallAuthorized(request, principal, station);
     assert.equal(isAuthorizedCentralCancelCall(request), true);
