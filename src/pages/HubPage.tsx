@@ -15,12 +15,16 @@ import { getSystemSettings } from "@/services/systemSettingsService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { getAdminAuthStatus, type AdminAuthStatus } from "@/services/adminAuthService";
 import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function HubPage() {
   const { access, error, checking, refresh } = useModuleAccess();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const centralIdentityRequired = access?.centralAccessEnabled === true &&
+    (!access.workstation.active || access.workstation.pendingApproval ||
+      access.principal?.purpose !== "normal");
   // The server has no access to the browser's saved locale. Keep the first
   // hydration frame deterministic, then translate after the client mounts.
   const [clientHydrated, setClientHydrated] = useState(false);
@@ -160,13 +164,23 @@ export function HubPage() {
                 )}
               </p>
             )}
-            {access.centralAccessEnabled &&
-              (!access.workstation.active ||
-                !access.principal ||
-                access.principal.purpose !== "normal") && (
-                <HubIdentityPanel access={access} onChanged={refresh} />
-              )}
             <ModuleCards />
+            {access.centralAccessEnabled && (
+              <Dialog open={centralIdentityRequired}>
+                <DialogContent
+                  hideDefaultClose
+                  className="max-h-[92dvh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto border-0 bg-transparent p-0 shadow-2xl"
+                  onEscapeKeyDown={(event) => event.preventDefault()}
+                  onInteractOutside={(event) => event.preventDefault()}
+                >
+                  <DialogTitle className="sr-only">{ui("Identifique-se para acessar o Hub")}</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    {ui("Autenticação necessária para liberar os módulos autorizados nesta workstation.")}
+                  </DialogDescription>
+                  <HubIdentityPanel access={access} onChanged={refresh} />
+                </DialogContent>
+              </Dialog>
+            )}
             <footer className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-xs text-muted-foreground">
               <span>
                 {t("Workstation")}: {access.workstation.name || access.workstation.id.slice(-8)}
