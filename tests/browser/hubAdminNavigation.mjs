@@ -64,6 +64,7 @@ try {
     let managerPermissions = [];
     let managerScope = "all";
     let centralInitialized = true;
+    let centralHasPrincipal = true;
     let centralWorkstationActive = true;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
@@ -187,12 +188,12 @@ try {
           },
           // Central grants belong to the authenticated user; the approved
           // workstation no longer controls each module individually.
-          principal: centralMode && centralInitialized ? {
+          principal: centralMode && centralInitialized && centralHasPrincipal ? {
             userId: "admin", login: "admin.central", displayName: "Admin Central",
             roleLabel: primaryAdmin ? "Admin" : "Gestor/Gerente", purpose: "normal",
             machineScope: managerScope, machineIds: [], isPrimaryAdmin: primaryAdmin,
           } : null,
-          modules: centralMode && centralInitialized && centralWorkstationActive ? [
+          modules: centralMode && centralInitialized && centralHasPrincipal && centralWorkstationActive ? [
             { id: "operational", name: "ANDON operacional", description: "Operação",
               route: "/andon", icon: "factory", available: true, enabled: true,
               allowed: primaryAdmin || managerPermissions.includes("andon.read"),
@@ -235,7 +236,7 @@ try {
         return send({
           initialized: centralInitialized,
           csrf: "a".repeat(64),
-          principal: centralInitialized ? {
+          principal: centralInitialized && centralHasPrincipal ? {
             userId: "admin",
             login: "admin.central",
             displayName: "Admin Central",
@@ -456,18 +457,37 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
-    assert.equal(await centralNav.getByRole("link").count(), 5);
-    assert.equal(await centralNav.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 1);
+    assert.equal(await centralNav.getByRole("link").count(), 4);
+    assert.equal(await centralNav.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 0);
+    await page.getByRole("region", { name: "Identificação da empresa e unidade" }).waitFor();
+    await page.getByRole("region", { name: "Estado da autenticação do Hub" }).waitFor();
     assert.equal(await centralNav.getByRole("link", { name: "Integrações API" }).count(), 1);
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
+    // REFINE 9.1: central login is a required modal over the three locked
+    // modules, not an inline card that pushes the Hub layout down.
+    centralHasPrincipal = false;
+    await page.goto("https://127.0.0.1:4188/hub");
+    const centralLogin = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
+    await centralLogin.waitFor();
+    assert.equal(await centralLogin.getByLabel("Usuário").count(), 1);
+    assert.equal(await page.locator('[aria-disabled="true"]').count() >= 3, true);
+    await page.keyboard.press("Escape");
+    assert.equal(await centralLogin.count(), 1);
+    await page.mouse.click(20, 20);
+    assert.equal(await centralLogin.count(), 1);
+    await noOverflow();
+    centralHasPrincipal = true;
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.getByRole("heading", { name: "Resumo administrativo" }).waitFor();
 
     // Pilot: the Hub owns security/user/terminal settings. The full historical
     // ANDON panel is accessible from the dashboard under a verified central session.
     await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
-    await page.getByRole("heading", { name: "Configurações gerais do Hub" }).waitFor();
+    await page.getByRole("heading", { name: "Resumo administrativo" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Configurações gerais do Hub" }).count(), 0);
     assert.equal(await page.getByRole("region", { name: "Aparência e cores" }).count(), 0);
     const openAndonAppearance = async () => {
       await page.goto("https://127.0.0.1:4188/andon");
