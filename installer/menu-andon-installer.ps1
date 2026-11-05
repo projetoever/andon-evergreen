@@ -81,24 +81,12 @@ function Show-AndonMenu {
                     "Instalacao limpa"
             }
             "2" {
-                # A configured local HTTPS profile updates its code through
-                # the same option 2, then starts through option 4. Windows
-                # Server always retains the official industrial updater.
-                $localHttpsProfile = $false
-                $localProfileScript = Join-Path $Global:AndonProjectPath "installer\AndonInstaller.LocalHttps.ps1"
-                if (Test-Path $localProfileScript -PathType Leaf) {
-                    . $localProfileScript
-                    $localHttpsProfile = Test-AndonLocalHttpsProfile -ProjectRoot $Global:AndonProjectPath
-                }
-                if ($localHttpsProfile) {
-                    Invoke-AndonMenuScript `
-                        "$Global:AndonProjectPath\ATUALIZAR_NOTEBOOK.ps1" `
-                        "Atualizar main e reiniciar HTTPS central (8080/3001)"
-                } else {
-                    Invoke-AndonMenuScript `
-                        "$Global:AndonInstallerPath\update-andon-server.ps1" `
-                        "Atualizar pela main"
-                }
+                # One authoritative update pipeline on Windows clients AND
+                # Windows Server: sync files, preserve config/database,
+                # migrations, build, tasks, runtime and health checks.
+                Invoke-AndonMenuScript `
+                    "$Global:AndonInstallerPath\update-andon-server.ps1" `
+                    "Atualizar pela main"
             }
             "3" {
                 Invoke-AndonMenuScript `
