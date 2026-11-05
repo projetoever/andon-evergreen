@@ -16,6 +16,7 @@ import { stopAndonSound, unlockAudio } from "@/services/soundService";
 import { BarChart3, ListOrdered, Volume2, VolumeX, Settings, Eye } from "lucide-react";
 import { DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode, type DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
@@ -550,7 +551,17 @@ export function DashboardPage() {
                 return;
               }
               if (access.centralAccessEnabled) {
-                void navigate({ to: "/hub/admin", search: { section: "andon" } });
+                // A central primary Admin must be authenticated on the API, not
+                // inferred from an old local Admin token or a role label.
+                void accessRequest<AccessState>("/session")
+                  .then((state) => {
+                    if (state.principal?.isPrimaryAdmin && state.principal.purpose === "normal") {
+                      setAdminSettingsOpen(true);
+                    } else {
+                      toast.error(t("Somente o Admin principal pode configurar o ANDON."));
+                    }
+                  })
+                  .catch(() => toast.error(t("Não foi possível verificar o acesso central.")));
               } else {
                 isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true);
               }
@@ -562,14 +573,20 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {access && !access.centralAccessEnabled && (
+      {access && (
         <>
-          <AdminLoginModal
-            open={adminLoginOpen}
-            onOpenChange={setAdminLoginOpen}
-            onSuccess={() => setAdminSettingsOpen(true)}
+          {!access.centralAccessEnabled && (
+            <AdminLoginModal
+              open={adminLoginOpen}
+              onOpenChange={setAdminLoginOpen}
+              onSuccess={() => setAdminSettingsOpen(true)}
+            />
+          )}
+          <AdminSettingsModal
+            open={adminSettingsOpen}
+            onOpenChange={setAdminSettingsOpen}
+            centralAccess={access.centralAccessEnabled}
           />
-          <AdminSettingsModal open={adminSettingsOpen} onOpenChange={setAdminSettingsOpen} />
         </>
       )}
       <DashboardPriorityLoginModal
