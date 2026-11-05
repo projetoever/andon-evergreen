@@ -185,19 +185,30 @@ export function AdminSettingsModal({
   open,
   onOpenChange,
   centralAccess = false,
+  centralPrimaryAdmin = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   centralAccess?: boolean;
+  centralPrimaryAdmin?: boolean;
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
-  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
+  // The primary Admin sees the full original ANDON panel. A centrally granted
+  // non-Admin can inspect only the presentation/general pages; no sensitive
+  // catalog, personnel, machine or credential components may be mounted.
+  const limited = centralAccess && !centralPrimaryAdmin;
+  const visibleTabs = limited ? tabs.filter((item) => item.id === "general" || item.id === "appearance") : tabs;
+  useEffect(() => {
+    if (limited && tab !== "general" && tab !== "appearance") setTab("general");
+  }, [limited, tab]);
+  const activeTab = visibleTabs.find((item) => item.id === tab) ?? visibleTabs[0];
   const ActiveIcon = activeTab.icon;
 
   const renderTab = () => {
+    if (limited && tab !== "general" && tab !== "appearance") return null;
     if (tab === "general") return <GeneralSettingsTab />;
-    if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess} />;
+    if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess && centralPrimaryAdmin} />;
     if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
@@ -252,12 +263,12 @@ export function AdminSettingsModal({
             </div>
 
             <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
-              {navigationGroups.map((group) => (
+              {navigationGroups.filter((group) => visibleTabs.some((item) => item.group === group)).map((group) => (
                 <div key={group} className="space-y-1">
                   <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
                     {ui(group)}
                   </p>
-                  {tabs
+                  {visibleTabs
                     .filter((item) => item.group === group)
                     .map((item) => {
                       const Icon = item.icon;
@@ -322,7 +333,7 @@ export function AdminSettingsModal({
           </header>
 
           <nav className="flex gap-2 overflow-x-auto border-b border-border bg-background px-3 py-2 lg:hidden">
-            {tabs.map((item) => {
+            {visibleTabs.map((item) => {
               const Icon = item.icon;
               const active = item.id === tab;
               return (
