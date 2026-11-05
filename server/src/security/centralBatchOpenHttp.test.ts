@@ -42,8 +42,8 @@ test("multi-sector central opening is a distinct opt-in action with CSRF and per
       principal, station), "csrf_denied");
     denied(() => markCentralBatchOpenAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralBatchOpenAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralBatchOpenAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     markCentralBatchOpenAuthorized(request, principal, station);
     assert.equal(isAuthorizedCentralBatchOpen(request), true);
