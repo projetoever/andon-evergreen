@@ -56,8 +56,17 @@ try {
     } | ConvertTo-Json
     [IO.File]::WriteAllText($fakeConfig, $sample)
     $before = (Get-FileHash -LiteralPath $fakeConfig -Algorithm SHA256).Hash
-    $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Action Enable -ConfirmIsolated -ConfigPath $fakeConfig 2>&1
-    if ($LASTEXITCODE -eq 0) { throw 'SEC17: aceitou configuracao nao oficial.' }
+    # GitHub Actions runs on Windows Server: rejecting the host is the expected
+    # fail-closed result. Treat child-process stderr as data, not a test failure.
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Action Enable -ConfirmIsolated -ConfigPath $fakeConfig 2>&1
+        $negativeExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($negativeExitCode -eq 0) { throw 'SEC17: aceitou configuracao nao oficial.' }
     $after = (Get-FileHash -LiteralPath $fakeConfig -Algorithm SHA256).Hash
     if ($before -ne $after) { throw 'SEC17: tocou configuracao indevida.' }
 } finally {
