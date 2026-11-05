@@ -123,7 +123,8 @@ try {
   console.log("R10-09 B1: central machine metadata, audit and grant revocation verified in PostgreSQL");
 } finally {
   if (app) await app.close();
-  if (userId) await db.auditEvent.deleteMany({ where: { actorUserId: userId } });
+  // Audit records are append-only by database trigger. CI /andon_test is disposable;
+  // never delete or rewrite evidence to clean up a fixture.
   if (sessionId) await db.accessSession.deleteMany({ where: { id: sessionId } });
   if (userId) {
     await db.accessPermission.deleteMany({ where: { userId } });
