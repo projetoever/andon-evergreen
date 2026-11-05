@@ -479,6 +479,7 @@ try {
     const centralLogin = page.getByRole("dialog", { name: "Identifique-se para acessar o Hub" });
     await centralLogin.waitFor();
     assert.equal(await centralLogin.getByLabel("Usuário").count(), 1);
+    assert.equal(await centralLogin.getByRole("combobox", { name: "Idioma da interface" }).count(), 1);
     assert.equal(await page.locator('[aria-disabled="true"]').count() >= 3, true);
     await page.keyboard.press("Escape");
     assert.equal(await centralLogin.count(), 1);
