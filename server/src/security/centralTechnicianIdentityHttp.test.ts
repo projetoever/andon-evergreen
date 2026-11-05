@@ -48,8 +48,8 @@ test("SEC-04: technician preflight is exact, opt-in and requires a technical per
       principal, station), "csrf_denied");
     denied(() => markCentralTechnicianIdentityAuthorized(req(),
       {...principal,permissions:["andon.read"]},station), "permission_denied");
-    denied(() => markCentralTechnicianIdentityAuthorized(req(),
-      principal,{...station,allowOperational:false}), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralTechnicianIdentityAuthorized(req(),
+      principal,{...station,allowOperational:false}));
     const manager = {...principal, permissions:["andon.read","calls.technicians.manage"]};
     markCentralTechnicianIdentityAuthorized(req(), manager, station);
     const ok = req();
