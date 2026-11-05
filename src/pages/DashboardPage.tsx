@@ -91,6 +91,7 @@ export function DashboardPage() {
     );
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
+  const [settingsPrimaryAdmin, setSettingsPrimaryAdmin] = useState(true);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
   const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
@@ -555,10 +556,14 @@ export function DashboardPage() {
                 // inferred from an old local Admin token or a role label.
                 void accessRequest<AccessState>("/session")
                   .then((state) => {
-                    if (state.principal?.isPrimaryAdmin && state.principal.purpose === "normal") {
+                    const principal = state.principal;
+                    const canOpenSettings = principal?.purpose === "normal" &&
+                      (principal.isPrimaryAdmin || principal.permissions?.includes("andon.settings.open"));
+                    if (canOpenSettings) {
+                      setSettingsPrimaryAdmin(Boolean(principal?.isPrimaryAdmin));
                       setAdminSettingsOpen(true);
                     } else {
-                      toast.error(t("Somente o Admin principal pode configurar o ANDON."));
+                      toast.error(t("Sem permissão para configurar o ANDON."));
                     }
                   })
                   .catch(() => toast.error(t("Não foi possível verificar o acesso central.")));
@@ -586,6 +591,7 @@ export function DashboardPage() {
             open={adminSettingsOpen}
             onOpenChange={setAdminSettingsOpen}
             centralAccess={access.centralAccessEnabled}
+            centralPrimaryAdmin={settingsPrimaryAdmin}
           />
         </>
       )}
