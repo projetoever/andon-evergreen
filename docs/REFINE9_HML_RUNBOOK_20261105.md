@@ -92,3 +92,13 @@ Para cada caso registrar: data/hora UTC, **SHA em execução**, usuário fictíc
 - Sem merge, deploy, alteração no original ou na fábrica.
 
 **Fontes:** [PR #342](https://github.com/projetoever/andon-evergreen/pull/342), [PR #341](https://github.com/projetoever/andon-evergreen/pull/341), [REFINE9_BACKLOG_HML_KIOSK_ACL_20261105.md](https://github.com/projetoever/andon-evergreen/blob/refine8/pilot-hub-andon-panel-ux-20261105/docs/REFINE9_BACKLOG_HML_KIOSK_ACL_20261105.md).
+
+## Ajustes adicionais REFINE 9 — preparando G1
+
+- A UX do Hub lista ANDON, BI e Prioridades também antes do login central e quando o catálogo está indisponível. Sem permissão explícita do servidor, os três cards continuam bloqueados, sem navegação.
+- O `allowed` de `/api/modules/access` representa grant do **usuário** e não se confunde com `machineScope="selected"`. Os endpoints continuam obrigados a filtrar as consultas por máquina ou negar a operação.
+- `GET /api/failure-events` agora valida o contexto central e filtra IDs autorizados em SQL antes de `ORDER BY` e `LIMIT`; consulta de máquina fora do escopo retorna vazio.
+- Somente leituras de catálogos `GET /api/andon-categories` e `GET /api/technicians` disponíveis para perfis com `andon.read`; POST/PATCH/DELETE não foram liberados.
+- Testar no LAB: três cards antes de login, Admin, Gerente, Líder, Manutenção, Produção escopo selected (uma máquina) e escopo all; URL/API diretas, GET failure-events dentro/fora do escopo, português/inglês/chinês e responsividade.
+- Quaisquer rotas de leitura não cobertas por filtro por máquina permanecem fail-closed; não aceitar R9-04 até confirmar toda a jornada de chamados.
+- O workflow .github/workflows/pr-validate.yml executa no evento PR com base em `main`; PR #343 precisa CI combinada, ainda em **draft**, sem merge/deploy.
