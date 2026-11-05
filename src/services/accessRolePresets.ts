@@ -2,7 +2,7 @@
  * by the primary Admin; the free-form role label NEVER creates authorization.
  * Do not include identity administration, secrets, or irreversible machine control.
  */
-export const PILOT_SIMPLE_ROLES = ["Produção", "Manutenção", "Gestor/Gerente"] as const;
+export const PILOT_SIMPLE_ROLES = ["Produção", "Manutenção", "Líder", "Gestor/Gerente"] as const;
 
 const suggestions: Readonly<Record<string, readonly string[]>> = {
   "Produção": [
@@ -66,6 +66,7 @@ export const MODULE_ENTRY_PERMISSIONS = [
   { key: "andon.read", label: "ANDON: visualizar" },
   { key: "bi.read", label: "BI: visualizar" },
   { key: "priorities.read", label: "Prioridades: visualizar" },
+  { key: "andon.settings.open", label: "Configurações do ANDON: acessar" },
 ] as const;
 
 export function hasRoleSuggestion(roleLabel: string) {
