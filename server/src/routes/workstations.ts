@@ -147,6 +147,11 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
             !(body.machineId === null ||
               (typeof body.machineId === "string" && body.machineId.trim())))
           return reply.status(400).send({ error: "invalid_input" });
+        if (body.machineId === null) {
+          // Central screen unlock always requires an independently verified
+          // privileged credential through /api/access/workstations/screen-unlock.
+          return reply.status(403).send({ error: "screen_unlock_requires_verified_credential" });
+        }
         try {
           return await runCentralOwnWorkstationPreference(prisma, {
             token: readSecureCookie(request, ACCESS_COOKIE),
