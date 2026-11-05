@@ -112,6 +112,7 @@ try {
         throw "Inicio valido nao executou API, frontend e kiosk na ordem esperada."
     }
 
+    $script:enabledTasks = @()
     Stop-AndonRuntime -PromptAutoStart
     if ($script:stoppedTasks.Count -ne 3 -or
         $script:disabledTasks -cnotcontains $Global:AndonTaskWatchdog -or
