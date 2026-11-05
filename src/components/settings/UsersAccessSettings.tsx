@@ -596,23 +596,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   {ui(editing ? "Editar usuário" : "Cadastrar usuário")}
                 </h3>
                 <fieldset disabled={busy} className="space-y-5">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      aria-expanded={advancedPermissions}
-                      onClick={() => setAdvancedPermissions((current) => !current)}
-                    >
-                      {ui(advancedPermissions
-                        ? "Ocultar opções avançadas"
-                        : "Permissões avançadas (opcional)")}
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      {ui(advancedPermissions
-                        ? "Permissões personalizadas: alterações não são descartadas sem sua confirmação."
-                        : "Modo simples: selecione o perfil, máquinas e salve.")}
-                    </span>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {ui("Escolha o perfil, os módulos e o acesso às configurações do ANDON. As ações internas permanecem protegidas pelo servidor.")}
+                  </p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Label className="space-y-2">
                       {ui("Nome")}
@@ -766,20 +752,31 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       {ui("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.")}
                     </p>
                   )}
-                  {!advancedPermissions && <div role="status" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-                    <h4 className="font-bold">{ui("Permissões do perfil")}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {ui("As permissões do perfil são aplicadas ao salvar. Acesso restrito pela workstation e pelo escopo de máquinas.")}
-                    </p>
-                    <p className="text-sm">
-                      {MODULE_ENTRY_PERMISSIONS
-                        .filter((entry) => draft.permissions.includes(entry.key))
-                        .map((entry) => ui(entry.label)).join(" · ") || ui("Nenhum módulo liberado")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {ui("Ações autorizadas pelo perfil")}: {draft.permissions.length}
-                    </p>
-                  </div>}
+                  {!advancedPermissions && (
+                    <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                      <legend className="px-1 font-bold">{ui("Acesso aos módulos e configurações")}</legend>
+                      <p className="text-sm text-muted-foreground">
+                        {ui("O usuário determina os módulos. A workstation precisa apenas estar aprovada. O Admin principal tem acesso automático a todos.")}
+                      </p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {MODULE_ENTRY_PERMISSIONS.filter(entry =>
+                          catalog.permissions.includes(entry.key),
+                        ).map(entry => (
+                          <Label key={entry.key} className="flex min-h-11 items-center gap-3 rounded-md border border-border bg-background p-3">
+                            <input type="checkbox"
+                              checked={draft.permissions.includes(entry.key)}
+                              onChange={(e) => togglePermission(entry.key, e.target.checked)} />
+                            {ui(entry.label)}
+                          </Label>
+                        ))}
+                      </div>
+                      {editing && !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions) && (
+                        <p className="text-xs text-muted-foreground">
+                          {ui("Outras permissões históricas são preservadas. Trocar o perfil aplica o preset de ações correspondente.")}
+                        </p>
+                      )}
+                    </fieldset>
+                  )}
                   {advancedPermissions && <fieldset className="space-y-3">
                     <legend className="font-bold">{ui("Permissões por módulo e ação")}</legend>
                     {draft.accountType === "person" && hasRoleSuggestion(draft.roleLabel) && (
