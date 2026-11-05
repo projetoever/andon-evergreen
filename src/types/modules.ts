@@ -3,7 +3,7 @@ export const HUB_ADMIN_SECTIONS = [
   "overview",
   "users",
   "workstations",
-  "andon",
+  "hub",
   "integrations",
   "security",
   "modules",
