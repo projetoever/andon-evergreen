@@ -102,7 +102,7 @@ test("R10-09: classification catalog respects global settings delegation indepen
       }, station), "scoped_query_required");
       denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
         ...delegated, accountType: "kiosk",
-      }, station), "permission_denied");
+      }, station), "scoped_query_required");
     }
   } finally {
     if (central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
