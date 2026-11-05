@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Factory, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { accessRequest, type ManagedWorkstation } from "@/services/accessService";
-import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
-import type { SystemSettings, SystemSettingsPatch } from "@/types/systemSettings";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
@@ -15,63 +13,34 @@ import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 export function HubCentralManagerPage({
   section,
   displayName,
-  canEditPresentation,
-}: {
+ }: {
   section: string;
   displayName: string;
-  canEditPresentation: boolean;
 }) {
   useInterfaceLanguage();
   const navigate = useNavigate();
   const { refresh: refreshModules } = useModuleAccess();
   const [stations, setStations] = useState<ManagedWorkstation[] | null>(null);
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
-  const [savingPresentation, setSavingPresentation] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
-  const canSavePresentation = canEditPresentation && settings?.centralOperationalSettingsWriteEnabled === true;
 
   const refresh = useCallback(async () => {
     setLoadError(false);
     try {
       // These endpoints are each checked against a central session, workstation
       // and explicit read permission by the backend. No credentials are persisted.
-      const [workstations, operational] = await Promise.all([
-        accessRequest<ManagedWorkstation[]>("/workstations"),
-        getSystemSettings(),
-      ]);
+      const workstations = await accessRequest<ManagedWorkstation[]>("/workstations");
       setStations(workstations);
-      setSettings(operational);
     } catch {
       setStations(null);
-      setSettings(null);
       setLoadError(true);
     }
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const savePresentation = async (patch: Pick<SystemSettingsPatch, "virtualKeyboardEnabled" | "dashboardMachineOrderMode">) => {
-    if (!canSavePresentation || savingPresentation) return;
-    setSavingPresentation(true);
-    setSaveMessage("");
-    try {
-      // The server applies field-scoped permission checks before and inside
-      // the transaction. Never send a generic settings object from here.
-      const latest = await updateSystemSettings(patch);
-      setSettings(latest);
-      setSaveMessage(ui("Preferência operacional atualizada."));
-    } catch {
-      setSaveMessage(ui("Não foi possível atualizar a preferência. Confira sua autorização."));
-    } finally {
-      setSavingPresentation(false);
-    }
-  };
-
   const availableSections = [
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
-    { id: "andon", name: ui("Configurações do ANDON"), icon: Factory },
   ] as const;
 
   // A direct URL to users, security or any future Admin-only section never
@@ -120,7 +89,7 @@ export function HubCentralManagerPage({
           </Button>
         </header>
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-3">
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-2">
           {availableSections.map((item) => {
             const Icon = item.icon;
             return <Button key={item.id} asChild
@@ -186,46 +155,6 @@ export function HubCentralManagerPage({
             )}
             {stations?.length === 0 && <p role="status">{ui("Nenhuma workstation cadastrada.")}</p>}
             <Button variant="outline" size="sm" onClick={() => void refresh()}>{ui("Atualizar")}</Button>
-          </section>
-        )}
-        {section === "andon" && (
-          <section className="space-y-3 rounded-xl border border-border bg-card p-4 md:p-5">
-            <h2 className="text-lg font-bold">{ui("Configurações operacionais — consulta")}</h2>
-            <p className="text-sm text-muted-foreground">
-              {canSavePresentation
-                ? ui("Somente teclado virtual e ordem visual do Dashboard podem ser alterados pelo Gerente.")
-                : ui("A alteração de apresentação exige permissão explícita e liberação segura no servidor. As demais configurações são somente leitura.")}
-            </p>
-            {settings && <div className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
-              <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                <span>{ui("Habilitar teclado virtual")}</span>
-                <input type="checkbox"
-                  aria-label={ui("Habilitar teclado virtual")}
-                  checked={settings.virtualKeyboardEnabled}
-                  disabled={!canSavePresentation || savingPresentation}
-                  onChange={(event) => void savePresentation({ virtualKeyboardEnabled: event.target.checked })} />
-              </label>
-              <label className="flex flex-col gap-2 text-sm">
-                <span>{ui("Ordem visual do Dashboard")}</span>
-                <select className="min-h-11 rounded-md border border-border bg-background p-2"
-                  aria-label={ui("Ordem visual do Dashboard")}
-                  value={settings.dashboardMachineOrderMode}
-                  disabled={!canSavePresentation || savingPresentation}
-                  onChange={(event) => void savePresentation({
-                    dashboardMachineOrderMode: event.target.value === "priority" ? "priority" : "default",
-                  })}>
-                  <option value="default">{ui("Padrão")}</option>
-                  <option value="priority">{ui("Prioridade")}</option>
-                </select>
-              </label>
-            </div>}
-            {saveMessage && <p role="status" className="text-sm text-muted-foreground">{saveMessage}</p>}
-            {settings && <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div><dt className="text-muted-foreground">{ui("Teclado virtual")}</dt><dd>{settings.virtualKeyboardEnabled ? ui("Habilitado") : ui("Inativo")}</dd></div>
-              <div><dt className="text-muted-foreground">{ui("OS obrigatória na abertura")}</dt><dd>{settings.requireWorkOrderAtOpen ? ui("Sim") : ui("Não")}</dd></div>
-              <div><dt className="text-muted-foreground">{ui("Restrição de conclusão por estação")}</dt><dd>{settings.restrictMaintenanceCompletionToAttendanceWorkstation ? ui("Ativa") : ui("Inativa")}</dd></div>
-              <div><dt className="text-muted-foreground">{ui("Ordem das máquinas")}</dt><dd>{settings.dashboardMachineOrderMode === "priority" ? ui("Prioridade") : ui("Padrão")}</dd></div>
-            </dl>}
           </section>
         )}
       </div>
