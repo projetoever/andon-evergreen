@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin or authorized maintenance technician for this machine. The signed-in user will not change.", "請輸入管理員或本機台授權維護人員的密碼。已登入的使用者不會變更。"],
+  ["Credencial inválida ou sem permissão para desbloquear esta tela.", "Invalid credentials or not authorized to unlock this screen.", "登入資料無效或無權解除此畫面鎖定。"],
+  ["Investigação de identidade da workstation", "Workstation identity investigation", "工作站身分調查"],
+  ["Possíveis registros anteriores desta workstation", "Possible previous records for this workstation", "此工作站可能的先前記錄"],
+  ["Encontramos outros registros com o mesmo IP. O IP não comprova identidade física: navegadores diferentes, troca de portas e limpeza de cookies podem gerar IDs distintos. Nenhuma workstation será unificada automaticamente.", "Other records share this IP. An IP does not prove device identity: different browsers, ports or cleared cookies may create different IDs. No workstations will be merged automatically.", "其他記錄共用此 IP。IP 無法證明實體裝置身分：不同瀏覽器、連接埠或清除 Cookie 都可能產生不同 ID。系統不會自動合併工作站。"],
+  ["Offline ou sem presença confirmada", "Offline or presence not confirmed", "離線或尚未確認在線狀態"],
+  ["Antes de arquivar ou substituir uma identidade, valide os vínculos de chamados, sessões e integrações. Um agente local com identidade vinculada ao dispositivo será planejado para evitar ambiguidades.", "Before archiving or replacing an identity, check related calls, sessions and integrations. A device-bound local agent is planned to improve tracking.", "封存或替換身分前，請檢查相關工單、工作階段與整合項目。未來規劃透過綁定裝置身分的本機代理程式改善追蹤。"],
   ["Confirme a senha Admin para alterar a política", "Confirm the Admin password to change the policy", "請輸入管理員密碼以變更政策"],
 
   ["Admissão de novas workstations", "New workstation admission", "新工作站准入"],
