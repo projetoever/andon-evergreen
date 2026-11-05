@@ -348,3 +348,26 @@ test("classificações usam o mesmo destaque de seleção das demais listas", as
 
   assert.match(source, /border-primary bg-primary\/10 ring-1 ring-primary\/30/);
 });
+
+test("R10-07: centrally granted settings access shows every ANDON tab without bypassing backend guards", async () => {
+  const [modal, dashboard, policy] = await Promise.all([
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/access/policy.ts", import.meta.url), "utf8"),
+  ]);
+  for (const tab of [
+    "general", "appearance", "sounds", "attendance", "technicians",
+    "shifts", "categories", "classifications", "assetCatalogs", "machines",
+  ]) assert.match(modal, new RegExp(`id: "${tab}"`));
+  assert.match(modal, /const visibleTabs = tabs;/);
+  assert.doesNotMatch(modal, /tabs\.filter\(\(item\) => item\.id === "general"/);
+  assert.doesNotMatch(modal, /if \(limited && tab !== "general"/);
+  // Opening is allowed only by an authenticated central session with this
+  // explicit grant (or primary Admin), never by workstation IP or role label.
+  assert.match(dashboard, /principal\.permissions\?\.includes\("andon\.settings\.open"\)/);
+  assert.match(policy, /"andon\.settings\.open"/);
+  // Tabs becoming visible does NOT elevate writes. Global color saving remains
+  // restricted and unrelated catalog routes enforce their own backend ACL.
+  assert.match(modal, /allowGlobalSave=\{centralAccess && centralPrimaryAdmin\}/);
+  assert.match(modal, /Alterações continuam sujeitas às permissões específicas e à API/);
+});
