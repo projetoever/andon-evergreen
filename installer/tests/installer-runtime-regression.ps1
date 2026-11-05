@@ -973,4 +973,21 @@ try {
 }
 
 Write-Host "Ativacao e rollback do runtime Node aprovados nos cenarios A-G."
+# REFINE 8 SEC-25: repair must stamp the Git SHA being compiled rather than the
+# stale installedCommit (the latter is intentionally updated only after health).
+$commonForBuild = Get-Content (Join-Path $repositoryRoot "installer\AndonInstaller.Common.ps1") -Raw
+$repairForBuild = Get-Content (Join-Path $repositoryRoot "installer\repair-andon-server.ps1") -Raw
+Assert-AndonTest -Condition (
+    $commonForBuild.Contains('[string]$BuildCommit = ""') -and
+    $commonForBuild.Contains('$BuildCommit.Trim().ToLowerInvariant()') -and
+    $commonForBuild.Contains("Build do frontend recusado: commit fonte nao validado.")
+) -Message "Pipeline deve aceitar e validar SHA explicito do build"
+Assert-AndonTest -Condition (
+    $repairForBuild.Contains('Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true -BuildCommit $currentCommit') -and
+    $repairForBuild.IndexOf('Invoke-AndonNodePipeline') -lt $repairForBuild.IndexOf('-Name "installedCommit"')
+) -Message "Reparo deve compilar com HEAD atual e persistir somente apos health"
+Assert-AndonTest -Condition (
+    $updateScript.Contains('Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true -BuildCommit $pinnedCommit')
+) -Message "Atualizador deve compilar com o SHA fixado"
+
 Write-Host "Todos os testes de regressao do instalador foram aprovados."
