@@ -42,6 +42,9 @@ $centralHomologationFlags = @(
 # UX-12 has a separate global-write capability. It is never inherited from
 # a parent PowerShell and is never enabled by operational writes alone.
 $visualPaletteFlag = "ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED"
+# Only the notebook HTTPS 8080/3001 isolated Docker profile may default to
+# allowing new workstation registrations. Never inherit this from the shell.
+$hmlAdmissionFlag = "ANDON_HML_OPEN_NEW_WORKSTATIONS_DEFAULT"
 if ($EnableGlobalPaletteWrites -and !$EnableCentralOperationalWrites) {
     throw "A paleta global requer -EnableCentralOperationalWrites no ambiente local isolado."
 }
@@ -189,7 +192,7 @@ $environmentNames = @(
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT",
     "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER", "ANDON_PROJECT_PATH", "ANDON_TLS_HOST"
-) + $centralHomologationFlags + @($visualPaletteFlag)
+) + $centralHomologationFlags + @($visualPaletteFlag, $hmlAdmissionFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
@@ -254,6 +257,8 @@ foreach ($flag in $centralHomologationFlags) {
 }
 [Environment]::SetEnvironmentVariable(
     $visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")
+[Environment]::SetEnvironmentVariable(
+    $hmlAdmissionFlag, $(if ($standardNotebookPorts -and $EnableCentralOperationalWrites) { "1" } else { "0" }), "Process")
 # Use stable, compiled Node runtimes instead of npm/vite dev wrappers.
 # The old wrappers could exit or detach children after the menu script ended.
 # Build every activation in the isolated profile until a versioned build cache
