@@ -69,6 +69,26 @@ export const MODULE_ENTRY_PERMISSIONS = [
   { key: "andon.settings.open", label: "Configurações do ANDON: acessar" },
 ] as const;
 
+/**
+ * Settings access is independent of the role label, but /andon still needs
+ * operational module read to expose its settings dialog. Grant this minimal
+ * prerequisite automatically in the user editor; never add calls, BI, Hub or
+ * workstation management.
+ */
+export function toggleAndonModulePermission(
+  current: readonly string[], key: string, checked: boolean,
+): string[] {
+  const next = new Set(current);
+  if (checked) {
+    next.add(key);
+    if (key === "andon.settings.open") next.add("andon.read");
+  } else {
+    next.delete(key);
+    if (key === "andon.read") next.delete("andon.settings.open");
+  }
+  return [...next];
+}
+
 export function hasRoleSuggestion(roleLabel: string) {
   return Object.hasOwn(suggestions, roleLabel);
 }
