@@ -72,6 +72,7 @@ model Workstation {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   accessSessions     AccessSession[]
+  kioskTrustLease    KioskTrustLease?
   admission          WorkstationAdmission?
   technicianSessions TechnicianSession[]
   soundPreferences   WorkstationMachineSoundPreference[]
@@ -179,6 +180,7 @@ model Machine {
   priorityHistory     MachinePriorityHistory[]
   accessUsers         AccessMachine[]
   kioskDevices        KioskDevice[]
+  kioskTrustLeases    KioskTrustLease[]
   workstationSoundPreferences WorkstationMachineSoundPreference[]
 
   @@map("machines")
@@ -631,6 +633,8 @@ model AccessUser {
   sessions                AccessSession[]
   admissionRequests       WorkstationAdmission[] @relation("WorkstationAdmissionRequester")
   admissionDecisions      WorkstationAdmission[] @relation("WorkstationAdmissionDecider")
+  kioskTrustAccounts      KioskTrustLease[] @relation("KioskTrustAccount")
+  kioskTrustApprovals     KioskTrustLease[] @relation("KioskTrustApprover")
 
   @@map("access_users")
 }
@@ -698,6 +702,39 @@ model AccessSession {
   @@index([workstationId, revokedAt])
   @@index([expiresAt])
   @@map("access_sessions")
+}
+
+// Dormant R10-04 kiosk trust foundation. No HTTP route or credential issuance
+// is enabled by this schema. Separate from browser identity, session and agent.
+model KioskTrustLease {
+  id                   String      @id @default(cuid())
+  workstationId        String      @unique
+  workstation          Workstation @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  kioskUserId          String      @unique
+  kioskUser            AccessUser  @relation("KioskTrustAccount", fields: [kioskUserId], references: [id], onDelete: Restrict)
+  machineId            String
+  machine              Machine     @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  status               String      @default("pending")
+  approvedByUserId     String?
+  approvedBy           AccessUser? @relation("KioskTrustApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+  approvalReason       String?
+  approvedAt           DateTime?
+  revokedAt            DateTime?
+  expiresAt            DateTime?
+  lastRenewedAt        DateTime?
+  authorizationVersion Int         @default(1)
+  credentialVersion    Int         @default(1)
+  // Public key is not a secret; the corresponding private key never enters DB.
+  devicePublicKeySpki  String?
+  // Only the hash, never the reusable refresh credential itself.
+  refreshTokenHash     String?     @unique
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([machineId, status])
+  @@index([approvedByUserId, approvedAt])
+  @@index([status, expiresAt])
+  @@map("kiosk_trust_leases")
 }
 
 model IndustrialServiceIdentity {
