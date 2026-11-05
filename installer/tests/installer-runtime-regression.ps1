@@ -990,4 +990,10 @@ Assert-AndonTest -Condition (
     $updateScript.Contains('Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true -BuildCommit $pinnedCommit')
 ) -Message "Atualizador deve compilar com o SHA fixado"
 
+$legacyNotebookHandoff = Get-Content (Join-Path $repositoryRoot "ATUALIZAR_NOTEBOOK.ps1") -Raw
+Assert-AndonTest -Condition (
+    $legacyNotebookHandoff.Contains('Encerre o menu antigo e abra-o novamente') -and
+    $legacyNotebookHandoff.Contains('no menu NOVO use 2 - Atualizar pela main') -and
+    !$legacyNotebookHandoff.Contains('Depois use 4 - Iniciar ANDON')
+) -Message "Sincronizacao legada nao pode chamar opcao 4 sem build completo"
 Write-Host "Todos os testes de regressao do instalador foram aprovados."
