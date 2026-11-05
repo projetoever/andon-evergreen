@@ -45,6 +45,16 @@ function hasRecentServerContact(value: string) {
   return Number.isFinite(timestamp) && timestamp <= now && now - timestamp <= 30 * 60 * 1000;
 }
 
+function kioskTrustStateLabel(state: NonNullable<ManagedWorkstation["kioskTrust"]>["state"]) {
+  switch (state) {
+    case "pending": return "Em preparação";
+    case "revoked": return "Confiança revogada";
+    case "expired": return "Confiança expirada";
+    case "provisioned_inactive": return "Configurado, mas desativado";
+    default: return "Kiosk não configurado";
+  }
+}
+
 function sessionStateLabel(state: NonNullable<ManagedWorkstation["lastLogin"]>["state"]) {
   switch (state) {
     case "valid": return "Sessão válida";
@@ -777,6 +787,15 @@ export function WorkstationsSettingsTab() {
                       <p className="text-xs text-muted-foreground">
                         {ui("Último heartbeat confirmado")}: {workstation.lastHeartbeatAt
                           ? formatLastSeen(workstation.lastHeartbeatAt) : ui("Nunca recebido")}
+                      </p>
+                    )}
+                    {centralAccess && (
+                      <p className="text-xs text-muted-foreground" data-testid="workstation-kiosk-trust-status">
+                        {ui("Confiança Kiosk")}:{" "}
+                        <strong>{ui(kioskTrustStateLabel(
+                          workstation.kioskTrust?.state ?? "not_configured",
+                        ))}</strong>
+                        {" · "}{ui("A operação Kiosk ainda não está habilitada.")}
                       </p>
                     )}
                     {centralAccess && workstation.lastLogin && (
