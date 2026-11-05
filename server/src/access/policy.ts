@@ -71,6 +71,36 @@ export function assertPermission(principal: Principal, permission: string, machi
   // Collection endpoints must apply this scope to their query, including totals.
   // Until they implement scoped aggregation, they must require this guard.
 }
+/**
+ * R10-09: explicit, role-agnostic delegation for the ANDON configuration
+ * surface only. This is NOT Hub administration or authorization for arbitrary
+ * ANDON operational writes. The caller must still validate HTTPS/session,
+ * workstation, CSRF, route-specific payload, locks and mutation audit.
+ */
+export function isAndonSettingsDelegate(principal: Principal): boolean {
+  return principal.purpose === "normal" &&
+    principal.accountType === "person" &&
+    !principal.isPrimaryAdmin &&
+    principal.permissions.includes("andon.settings.open");
+}
+
+const DELEGATABLE_ANDON_CATALOG_GRANTS: ReadonlySet<Permission> = new Set([
+  "catalog.assets.manage",
+  "catalog.reasons.manage",
+  "catalog.classifications.manage",
+  "catalog.technicians.manage",
+]);
+
+export function assertAndonSettingsOrPermission(
+  principal: Principal, permission: Permission,
+): void {
+  // A future caller must not be able to misuse the config grant as a
+  // shortcut to Hub, security, BI, workstation or operational privileges.
+  if (DELEGATABLE_ANDON_CATALOG_GRANTS.has(permission) &&
+      isAndonSettingsDelegate(principal)) return;
+  assertPermission(principal, permission);
+}
+
 export function assertFullMachineScope(principal: Principal) {
   if (principal.machineScope !== "all") throw new AccessError("scoped_query_required");
 }

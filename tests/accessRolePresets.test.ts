@@ -6,6 +6,7 @@ import {
   hasRoleSuggestion,
   isExactRolePreset,
   suggestedPermissions,
+  toggleAndonModulePermission,
 } from "../src/services/accessRolePresets";
 
 const catalog = [
@@ -91,4 +92,23 @@ test("Manager and maintenance templates are operational, never user or service a
   assert(!manager.includes("analytics.policy.manage") && !manager.includes("catalog.assets.manage"));
   assert(maintenance.includes("bi.read") && maintenance.includes("calls.attend"));
   assert(!maintenance.includes("workstations.read") && !maintenance.includes("users.create"));
+});
+
+test("R10-09: granting ANDON settings in any profile enables only minimum ANDON module read", () => {
+  for (const role of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Personalizado"]) {
+    const before = suggestedPermissions(role, catalog).filter(key => key !== "andon.read");
+    const granted = toggleAndonModulePermission(before, "andon.settings.open", true);
+    assert(granted.includes("andon.settings.open"), role);
+    assert(granted.includes("andon.read"), role);
+    assert(!granted.includes("users.create"));
+    assert(!granted.includes("workstations.manage"));
+    assert(!granted.includes("bi.export") || before.includes("bi.export"));
+    const revoked = toggleAndonModulePermission(granted, "andon.read", false);
+    assert(!revoked.includes("andon.settings.open"));
+    assert(!revoked.includes("andon.read"));
+  }
+  assert.deepEqual(toggleAndonModulePermission([], "andon.settings.open", true),
+    ["andon.settings.open", "andon.read"]);
+  assert.deepEqual(toggleAndonModulePermission(["andon.read", "andon.settings.open"],
+    "andon.settings.open", false), ["andon.read"]);
 });

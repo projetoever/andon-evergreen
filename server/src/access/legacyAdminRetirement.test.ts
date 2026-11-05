@@ -92,6 +92,7 @@ function fixture(opts: {
           isPrimaryAdmin: flags.primaryAdmin,
           active: true, accountType: "person",
           adminRecoveryCodeHash: flags.centralRecoveryHash,
+          adminRecoveryCodeIssuedAt: now,
         };
       },
     },
@@ -132,11 +133,19 @@ function fixture(opts: {
   };
 }
 
-test("S1/7 status is read-only and returns only credential readiness booleans", async () => {
+test("R10-06 status is read-only and exposes only readiness plus timestamp, never credentials", async () => {
   const f = fixture();
-  assert.deepEqual(await legacyAdminRetirementStatus(f.db, request), {
-    legacyPasswordPresent: true, centralRecoveryConfigured: true,
-  });
+  const result = await legacyAdminRetirementStatus(f.db, request);
+  assert.equal(result.legacyPasswordPresent, true);
+  assert.equal(result.centralRecoveryConfigured, true);
+  assert(result.centralRecoveryIssuedAt instanceof Date);
+  assert.deepEqual(Object.keys(result).sort(), [
+    "centralRecoveryConfigured", "centralRecoveryIssuedAt", "legacyPasswordPresent",
+  ]);
+  const noCode = fixture({ centralRecoveryHash: null });
+  const withoutCode = await legacyAdminRetirementStatus(noCode.db, request);
+  assert.equal(withoutCode.centralRecoveryConfigured, false);
+  assert.equal(withoutCode.centralRecoveryIssuedAt, null);
   assert.equal(f.writes, 0);
   assert.equal(f.committed, 0);
   assert(!f.actions.includes("append-audit"));

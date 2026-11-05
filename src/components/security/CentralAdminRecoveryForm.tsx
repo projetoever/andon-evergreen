@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ui } from "@/i18n/translate";
 import { accessRequest } from "@/services/accessService";
+import { personalPasswordHint } from "@/services/personalPasswordHint";
 
 /** Recovery is verified by the API against physical loopback, HTTPS, CSRF
  * and a 128-bit offline secret. No legacy Bearer or automatic sign-in.
@@ -13,6 +14,7 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
   const [busy, setBusy] = useState(false);
   const [recovered, setRecovered] = useState(false);
   const [error, setError] = useState("");
+  const [newPasswordDraft, setNewPasswordDraft] = useState("");
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -21,6 +23,11 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
     const recoveryCode = String(values.get("recoveryCode") ?? "");
     const newPassword = String(values.get("newPassword") ?? "");
     const confirm = String(values.get("confirm") ?? "");
+    const weakness = personalPasswordHint(newPassword);
+    if (weakness) {
+      setError(ui(weakness));
+      return;
+    }
     if (newPassword !== confirm) {
       setError(ui("As senhas precisam ser iguais."));
       return;
@@ -30,6 +37,7 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
     try {
       await accessRequest("/admin-recover", "POST", { recoveryCode, newPassword });
       form.reset();
+      setNewPasswordDraft("");
       setRecovered(true);
       await onRecovered();
     } catch (cause) {
@@ -41,6 +49,8 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
             ? "Código inválido ou já utilizado."
             : code === "rate_limited"
               ? "Muitas tentativas. Aguarde 15 minutos."
+              : code === "password_policy_failed"
+                ? "Senha recusada. Evite sequências comuns ou caracteres repetidos."
               : "Não foi possível recuperar a conta. Verifique os dados e a conexão HTTPS.",
       ));
     } finally {
@@ -72,8 +82,14 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
               <Label className="block space-y-2">
                 <span>{ui("Nova senha Admin central")}</span>
                 <Input name="newPassword" type="password" autoComplete="new-password"
+                  onChange={(event) => setNewPasswordDraft(event.target.value)}
+                  aria-describedby="recovery-password-feedback"
                   required minLength={8} maxLength={128} />
               </Label>
+              <p id="recovery-password-feedback" aria-live="polite" className="text-xs text-danger">
+                {newPasswordDraft && personalPasswordHint(newPasswordDraft)
+                  ? ui(personalPasswordHint(newPasswordDraft)!) : ""}
+              </p>
               <Label className="block space-y-2">
                 <span>{ui("Confirmar nova senha")}</span>
                 <Input name="confirm" type="password" autoComplete="new-password"

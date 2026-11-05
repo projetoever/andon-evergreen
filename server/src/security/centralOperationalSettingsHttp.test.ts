@@ -128,3 +128,46 @@ test("Manager presentation grant permits only two safe fields, with flag, full s
     else process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = flag;
   }
 });
+
+
+test("R10-09: any HUMAN profile with explicit ANDON settings grant can configure the module", () => {
+  const beforeCentral = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const beforeFlag = process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = "1";
+    for (const roleLabel of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Customizado"]) {
+      const delegated: Principal = {
+        ...admin, roleLabel, isPrimaryAdmin: false,
+        machineScope: "selected", machineIds: ["37"],
+        permissions: ["andon.read", "andon.settings.open"],
+      };
+      for (const body of [
+        { requireWorkOrderAtOpen: true },
+        { restrictMaintenanceCompletionToAttendanceWorkstation: true },
+        { clientName: "Evergreen" },
+        { attendanceMode: "pin" },
+        { rfidReaderMode: "keyboard_hid" },
+      ]) {
+        const request = req(csrfToken(token), body);
+        markCentralOperationalSettingsAuthorized(request, delegated, station);
+        assert.equal(isAuthorizedCentralOperationalSettings(request), true);
+      }
+      denied(() => markCentralOperationalSettingsAuthorized(req(), {
+        ...delegated, permissions: ["andon.read"],
+      }, station), "scoped_query_required");
+      denied(() => markCentralOperationalSettingsAuthorized(req(), {
+        ...delegated, accountType: "kiosk",
+      }, station), "permission_denied");
+      denied(() => markCentralOperationalSettingsAuthorized(req(), {
+        ...delegated, purpose: "password_change",
+      }, station), "password_change_required");
+      denied(() => markCentralOperationalSettingsAuthorized(req("0".repeat(64)), delegated, station), "csrf_denied");
+    }
+  } finally {
+    if (beforeCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = beforeCentral;
+    if (beforeFlag === undefined) delete process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = beforeFlag;
+  }
+});

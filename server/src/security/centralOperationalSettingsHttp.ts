@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
 import { checkCsrf } from "../access/credentials.js";
-import { AccessError, assertFullMachineScope, assertModule, assertPermission, type Principal } from "../access/policy.js";
+import { AccessError, assertFullMachineScope, assertModule, assertPermission, isAndonSettingsDelegate, type Principal } from "../access/policy.js";
 
 const authorized = new WeakSet<FastifyRequest>();
 export const CENTRAL_OPERATIONAL_SETTINGS_FLAG = "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED";
@@ -16,11 +16,16 @@ const MANAGER_PRESENTATION_FIELDS = new Set([
 ]);
 
 export function assertCentralOperationalSettingsPrivilege(principal: Principal, patch?: unknown) {
-  if (principal.purpose !== "normal") throw new AccessError("permission_denied");
+  if (principal.purpose !== "normal" || principal.accountType !== "person")
+    throw new AccessError("permission_denied");
+  // Explicit ANDON-settings delegation is global regardless of the human
+  // account's routine machine scope or role label. No general module/Hub
+  // permission is granted by this exception.
+  if (isAndonSettingsDelegate(principal)) return;
   assertFullMachineScope(principal);
   if (principal.isPrimaryAdmin) return;
-  // Field-specific grant: a Manager cannot modify OS requirements, completion
-  // restrictions, identities, RFID, policies or client credentials.
+  // Keep the existing narrow presentation-only grant for legacy managers
+  // who were not delegated the complete ANDON settings capability.
   assertPermission(principal, "hub.settings.presentation.write");
   if (!patch || typeof patch !== "object" || Array.isArray(patch) ||
       !Object.keys(patch).length ||

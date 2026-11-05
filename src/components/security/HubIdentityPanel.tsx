@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { ui } from "@/i18n/translate";
 import { accessRequest, type AccessState } from "@/services/accessService";
+import { personalPasswordHint } from "@/services/personalPasswordHint";
 import type { ModuleAccess } from "@/types/modules";
 
 const messages: Record<string, string> = {
@@ -18,6 +19,7 @@ const messages: Record<string, string> = {
   csrf_denied: "Sessão de segurança inválida. Atualize a página.",
   rate_limited: "Muitas tentativas. Aguarde antes de tentar novamente.",
   invalid_input: "Confira os dados informados.",
+  password_policy_failed: "Senha recusada. Evite sequências comuns ou caracteres repetidos.",
 };
 
 export function HubIdentityPanel({
@@ -30,6 +32,7 @@ export function HubIdentityPanel({
   const [session, setSession] = useState<AccessState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [newPasswordDraft, setNewPasswordDraft] = useState("");
   const admission = access.workstation.admission;
   const waiting = access.workstation.pendingApproval && admission?.status === "pending" &&
     session?.principal?.purpose === "workstation_admission";
@@ -78,11 +81,17 @@ export function HubIdentityPanel({
     const values = new FormData(event.currentTarget);
     const password = String(values.get("password") ?? "");
     const confirm = String(values.get("confirm") ?? "");
+    const weakness = personalPasswordHint(password);
+    if (weakness) {
+      setError(ui(weakness));
+      return;
+    }
     if (password !== confirm) {
       setError("As senhas precisam ser iguais.");
       return;
     }
     event.currentTarget.reset();
+    setNewPasswordDraft("");
     void run(async () => {
       await accessRequest("/password", "POST", { newPassword: password });
       await refreshSession();
@@ -240,11 +249,17 @@ export function HubIdentityPanel({
               name="password"
               type="password"
               autoComplete="new-password"
+              onChange={(event) => setNewPasswordDraft(event.target.value)}
+              aria-describedby="hub-password-feedback"
               required
               minLength={8}
               maxLength={128}
             />
           </Label>
+          <p id="hub-password-feedback" aria-live="polite" className="text-xs text-danger">
+            {newPasswordDraft && personalPasswordHint(newPasswordDraft)
+              ? ui(personalPasswordHint(newPasswordDraft)!) : ""}
+          </p>
           <Label className="block space-y-2">
             {ui("Confirmar nova senha")}
             <Input

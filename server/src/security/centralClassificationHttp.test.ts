@@ -81,3 +81,33 @@ test("SEC-04 central catalog marker requires actual session privileges, full sco
     else process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED = h;
   }
 });
+
+
+test("R10-09: classification catalog respects global settings delegation independent of role", () => {
+  const central = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const enabled = process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED;
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED = "1";
+    for (const roleLabel of ["Produção", "Manutenção", "Líder", "Gerente", "Personalizado"]) {
+      const delegated: Principal = {
+        ...principal, roleLabel, machineScope: "selected", machineIds: ["37"],
+        permissions: ["andon.read", "andon.settings.open"],
+      };
+      const r = fake(csrfToken(token));
+      markCentralClassificationAuthorized(r, delegated, station);
+      assert.equal(isAuthorizedCentralClassificationRequest(r), true);
+      denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
+        ...delegated, permissions: ["andon.read"],
+      }, station), "scoped_query_required");
+      denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
+        ...delegated, accountType: "kiosk",
+      }, station), "scoped_query_required");
+    }
+  } finally {
+    if (central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = central;
+    if (enabled === undefined) delete process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED = enabled;
+  }
+});

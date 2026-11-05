@@ -13,6 +13,11 @@ import {
 } from "../domain/machinePriorityHistory.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
+import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { AccessError } from "../access/policy.js";
+import { isAuthorizedCentralMachineSettings } from "../security/centralMachineSettingsHttp.js";
+import { updateCentralMachineMetadata } from "../access/centralMachineSettings.js";
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
@@ -199,6 +204,27 @@ export async function registerMachineRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: UpdateMachineBody }>(
     "/api/machines/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralMachineSettings(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          await updateCentralMachineMetadata(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            machineId: request.params.id,
+            body: request.body ?? {},
+            requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return await prisma.machine.findUniqueOrThrow({
+            where: { id: request.params.id }, select: machineSelect,
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const machine = await findMachineOr404(request.params.id, reply);
       if (!("id" in machine)) return machine;
       if ("productionMode" in (request.body ?? {})) {

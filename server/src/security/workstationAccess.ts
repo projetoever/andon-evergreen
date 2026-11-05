@@ -10,7 +10,7 @@ import {
 } from "../services/workstationAuthorization.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
-import { AccessError, assertModule, assertPermission } from "../access/policy.js";
+import { AccessError, assertModule, assertPermission, isAndonSettingsDelegate } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
   isScopedMachineReadRoute,
@@ -32,6 +32,7 @@ import { isCentralDiagnosisEditMutation, markCentralDiagnosisEditAuthorized } fr
 import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceAuthorized, centralOwnWorkstationPreferenceReadTarget, centralOwnWorkstationPreferencesEnabled } from "./centralOwnWorkstationPrefsHttp.js";
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
+import { isCentralMachineSettingsMutation, markCentralMachineSettingsAuthorized } from "./centralMachineSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -130,6 +131,16 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         assertModule(principal, workstation, "operational");
         return;
       }
+      // R10-09: global classification is a shared configuration catalog,
+      // not a machine's operational/history collection. A delegated settings
+      // editor with selected machine scope may read it for editing; arbitrary
+      // global reads, analytics and historical data remain scoped/denied.
+      if (request.method === "GET" &&
+          path === "/api/failure-classifications" &&
+          isAndonSettingsDelegate(principal)) {
+        assertModule(principal, workstation, "operational");
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
@@ -154,6 +165,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
+          !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralVisualPaletteMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
@@ -211,6 +223,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianIdentityMutation(request.method, path)) {
           markCentralTechnicianIdentityAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralMachineSettingsMutation(request.method, path)) {
+          markCentralMachineSettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralOperationalSettingsMutation(request.method, path)) {

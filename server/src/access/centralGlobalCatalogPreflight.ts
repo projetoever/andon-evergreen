@@ -1,6 +1,7 @@
 import { classifyCentralRouteAction } from "./centralActionRegistry.js";
 import {
-  AccessError, assertFullMachineScope, assertModule, assertPermission,
+  AccessError, assertAndonSettingsOrPermission, assertFullMachineScope, assertModule,
+  isAndonSettingsDelegate,
   type Principal, type Permission,
 } from "./policy.js";
 
@@ -30,9 +31,10 @@ export function preflightCentralGlobalCatalogWrite(input: GlobalCatalogWriteInpu
   if (!principal.workstationId || principal.workstationId !== workstation.id)
     throw new AccessError("workstation_session_mismatch");
   assertModule(principal, workstation, "operational");
-  assertPermission(principal, rule.permission);
-  // A global catalog can affect assets, calls and analytics outside an
-  // operator's visible machine set. Never elevate a scoped principal here.
-  assertFullMachineScope(principal);
+  // A specific ANDON-settings grant delegates these configuration changes
+  // globally, without lifting machine scope restrictions on operational API.
+  // Domain adapters still enforce referential checks and atomic audit.
+  assertAndonSettingsOrPermission(principal, rule.permission);
+  if (!isAndonSettingsDelegate(principal)) assertFullMachineScope(principal);
   return { route: rule.route, permission: rule.permission, scope: "module_global" };
 }
