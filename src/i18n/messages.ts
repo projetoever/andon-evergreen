@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Último código gerado em", "Last code generated on", "上次產生復原碼的時間"],
+  ["Data não disponível para este código", "Date unavailable for this code", "此復原碼沒有可用的日期"],
+  ["Copiar código", "Copy code", "複製復原碼"],
+  ["Código copiado. Guarde-o em local seguro.", "Code copied. Store it securely.", "復原碼已複製。請妥善保存。"],
+  ["Não foi possível copiar. Selecione o código manualmente.", "Could not copy. Select the code manually.", "無法複製。請手動選取復原碼。"],
+  ["Copie e guarde o código em local seguro. A área de transferência poderá ser acessada por outros aplicativos.", "Copy and store the code securely. Other applications may access your clipboard.", "請安全保存復原碼。其他應用程式可能可以存取剪貼簿。"],
   ["Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin or authorized maintenance technician for this machine. The signed-in user will not change.", "請輸入管理員或本機台授權維護人員的密碼。已登入的使用者不會變更。"],
   ["Credencial inválida ou sem permissão para desbloquear esta tela.", "Invalid credentials or not authorized to unlock this screen.", "登入資料無效或無權解除此畫面鎖定。"],
   ["Investigação de identidade da workstation", "Workstation identity investigation", "工作站身分調查"],
