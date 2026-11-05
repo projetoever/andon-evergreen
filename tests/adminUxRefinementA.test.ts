@@ -369,5 +369,5 @@ test("R10-07: centrally granted settings access shows every ANDON tab without by
   // Tabs becoming visible does NOT elevate writes. Global color saving remains
   // restricted and unrelated catalog routes enforce their own backend ACL.
   assert.match(modal, /allowGlobalSave=\{centralAccess\}/);
-  assert.match(modal, /Alterações continuam sujeitas às permissões específicas e à API/);
+  assert.match(modal, /Configurações do ANDON permite gerenciar o painel em qualquer perfil/);
 });
