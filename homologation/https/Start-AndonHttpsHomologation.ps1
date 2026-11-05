@@ -37,6 +37,8 @@ $centralHomologationFlags = @(
     "ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED",
     "ANDON_CENTRAL_TECHNICIAN_IDENTITY_HTTP_ENABLED",
     "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
+    # Only metadata name/OS, never machine status or production control.
+    "ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED",
     "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
 )
 # UX-12 has a separate global-write capability. It is never inherited from
