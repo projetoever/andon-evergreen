@@ -30,7 +30,8 @@ export function HubIdentityPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const admission = access.workstation.admission;
-  const waiting = access.workstation.pendingApproval && admission?.status === "pending";
+  const waiting = access.workstation.pendingApproval && admission?.status === "pending" &&
+    session?.principal?.purpose === "workstation_admission";
   const refreshSession = useCallback(async () => {
     const next = await accessRequest<AccessState>("/session");
     setSession(next);
@@ -87,6 +88,11 @@ export function HubIdentityPanel({
       await onChanged();
     });
   };
+  const endAdmissionSession = () => void run(async () => {
+    await accessRequest("/logout", "POST", {});
+    setSession(null);
+    await onChanged();
+  });
   const requestAdmission = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
@@ -122,6 +128,9 @@ export function HubIdentityPanel({
           }
         >
           {ui("Verificar novamente")}
+        </Button>
+        <Button variant="outline" disabled={busy} onClick={endAdmissionSession}>
+          {ui("Sair desta sessão")}
         </Button>
       </Card>
     );
@@ -220,6 +229,11 @@ export function HubIdentityPanel({
           </Label>
           <Button disabled={busy}>{ui("Salvar senha pessoal")}</Button>
         </form>
+      )}
+      {principal?.purpose === "workstation_admission" && (
+        <Button variant="outline" disabled={busy} onClick={endAdmissionSession}>
+          {ui("Sair desta sessão")}
+        </Button>
       )}
       {principal?.purpose === "workstation_admission" && (
         <form className="space-y-4" onSubmit={requestAdmission}>
