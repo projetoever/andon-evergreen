@@ -33,6 +33,10 @@ import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceA
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
+import {
+  authorizeCentralCallReasonRead, isCentralCallReasonRead,
+  isCentralCallReasonWrite, markCentralCallReasonAuthorized,
+} from "./centralCallReasonsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -126,6 +130,12 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         assertModule(principal, workstation, "operational");
         return;
       }
+      // REFINE 6: global reason catalog metadata is Admin-only and cannot
+      // leak through selected-machine reads or industrial service sessions.
+      if (isCentralCallReasonRead(request.method, path)) {
+        authorizeCentralCallReasonRead(request, principal, workstation);
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
@@ -150,13 +160,18 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
-          !isCentralVisualPaletteMutation(request.method, path))
+          !isCentralVisualPaletteMutation(request.method, path) &&
+          !isCentralCallReasonWrite(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
       // the domain adapter revalidates every grant under transactional locks.
       // All other writes still fail closed, including calls and Priorities.
       if (!["GET", "HEAD"].includes(request.method)) {
+        if (isCentralCallReasonWrite(request.method, path)) {
+          markCentralCallReasonAuthorized(request, principal, workstation);
+          return;
+        }
         if (isCentralClassificationMutation(request.method, path)) {
           markCentralClassificationAuthorized(request, principal, workstation);
           return;

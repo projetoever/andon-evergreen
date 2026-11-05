@@ -105,6 +105,9 @@ jobs:
       - name: Validar catálogo de motivos/subcategorias no PostgreSQL isolado
         run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-call-reasons-pg.mjs
 
+      - name: Validar API Admin de motivos no PostgreSQL isolado
+        run: ANDON_INTEGRATION_TEST=1 node server/scripts/validate-call-reasons-api-pg.mjs
+
       - name: Validar API e fluxos críticos
         run: |
           npm run start --prefix server > /tmp/andon-api.log 2>&1 &
