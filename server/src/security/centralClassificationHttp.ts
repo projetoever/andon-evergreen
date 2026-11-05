@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
 import { checkCsrf } from "../access/credentials.js";
-import { AccessError, assertFullMachineScope, assertModule, assertPermission, type Principal } from "../access/policy.js";
+import { AccessError, assertAndonSettingsOrPermission, assertFullMachineScope, assertModule, isAndonSettingsDelegate, type Principal } from "../access/policy.js";
 
 const validated = new WeakSet<FastifyRequest>();
 
@@ -31,8 +31,8 @@ export function markCentralClassificationAuthorized(
       !isCentralClassificationMutation(request.method, path))
     throw new AccessError("central_action_not_supported");
   assertModule(principal, station, "operational");
-  assertFullMachineScope(principal);
-  assertPermission(principal, "catalog.classifications.manage");
+  if (!isAndonSettingsDelegate(principal)) assertFullMachineScope(principal);
+  assertAndonSettingsOrPermission(principal, "catalog.classifications.manage");
   if (!checkCsrf(readSecureCookie(request, ACCESS_COOKIE), request.headers["x-andon-csrf"]))
     throw new AccessError("csrf_denied");
   validated.add(request);
