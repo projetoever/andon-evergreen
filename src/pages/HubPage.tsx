@@ -177,6 +177,9 @@ export function HubPage() {
                   <DialogDescription className="sr-only">
                     {ui("Autenticação necessária para liberar os módulos autorizados nesta workstation.")}
                   </DialogDescription>
+                  <div className="flex justify-end gap-2 px-1 pt-1" aria-label={ui("Idioma da interface")}>
+                    <LanguageSelector compact />
+                  </div>
                   <HubIdentityPanel access={access} onChanged={refresh} />
                 </DialogContent>
               </Dialog>
