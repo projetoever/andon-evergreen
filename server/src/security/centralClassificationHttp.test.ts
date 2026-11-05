@@ -99,7 +99,7 @@ test("R10-09: classification catalog respects global settings delegation indepen
       assert.equal(isAuthorizedCentralClassificationRequest(r), true);
       denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
         ...delegated, permissions: ["andon.read"],
-      }, station), "permission_denied");
+      }, station), "scoped_query_required");
       denied(() => markCentralClassificationAuthorized(fake(csrfToken(token)), {
         ...delegated, accountType: "kiosk",
       }, station), "permission_denied");
