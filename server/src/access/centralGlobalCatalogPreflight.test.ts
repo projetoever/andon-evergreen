@@ -52,3 +52,22 @@ test("SEC-04/2B.2: methods and unrelated routes are unsupported", () => {
   for (const [method, path] of [["GET", "/api/andon-categories"], ["DELETE", "/api/failure-classifications/id"], ["POST", "/api/andon-calls"], ["PUT", "/api/machine-set-types"]])
     denied(() => check(method, path), "central_action_not_supported");
 });
+
+
+test("R10-09: one explicit settings grant delegates all ANDON catalog operations to ANY human profile", () => {
+  for (const roleLabel of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Terceirizado"]) {
+    const user: Principal = {
+      ...base, roleLabel, machineScope: "selected", machineIds: ["37"],
+      permissions: ["andon.read", "andon.settings.open"],
+    };
+    for (const [method, path, permission] of routes) {
+      assert.equal(check(method, path, user).permission, permission);
+      denied(() => check(method, path, {
+        ...user, permissions: ["andon.read"],
+      }), "permission_denied");
+      denied(() => check(method, path, {
+        ...user, accountType: "kiosk",
+      }), "permission_denied");
+    }
+  }
+});
