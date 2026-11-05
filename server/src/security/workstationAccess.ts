@@ -82,7 +82,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
 
   const workstation = await prisma.workstation.findUnique({
     where: { id },
-    select: { active: true, allowOperational: true, allowBi: true, allowPriorities: true },
+    select: { active: true, pendingApproval: true, allowOperational: true, allowBi: true, allowPriorities: true },
   });
   if (!workstation) {
     return reply.status(403).send({
@@ -93,13 +93,15 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
   // Metadata remains available to explain restrictions. Admin recovery is narrowly scoped.
   if (path === "/api/modules/access" && request.method === "GET") return;
   if (!central && isRecoveryRequest(request.method, path) && readAdminSession(request)) return;
-  if (!workstation.active) {
+  if (!workstation.active || (central && workstation.pendingApproval)) {
     return reply
       .status(403)
       .send({ error: "workstation_inactive", message: WORKSTATION_INACTIVE_MESSAGE });
   }
   const module = apiModule(path);
-  if (module && !isModuleAllowed(module, workstation)) {
+  // The central ACL is owned by the authenticated user; terminal module toggles
+  // apply only to legacy mode. An inactive/pending terminal remains blocked.
+  if (!central && module && !isModuleAllowed(module, workstation)) {
     return reply.status(403).send({
       error: "module_forbidden",
       module,
