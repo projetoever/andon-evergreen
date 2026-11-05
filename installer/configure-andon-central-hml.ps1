@@ -13,7 +13,7 @@ $expectedConfigPath = 'C:\web-andon-industrial\andon-config.json'
 $backupRoot = 'C:\web-andon-industrial\backups\refine8-central'
 
 function Assert-Refine8LabConfig {
-    param([object]$Config)
+    param([object]$Config, [bool]$CheckExternal = $true)
     $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
     if ([int]$os.ProductType -ne 1) { throw 'BLOQUEADO: somente Windows cliente isolado, nunca Windows Server.' }
     if ([IO.Path]::GetFullPath($ConfigPath).TrimEnd('\') -ine $expectedConfigPath) {
@@ -29,13 +29,14 @@ function Assert-Refine8LabConfig {
         "$($Config.httpsHost)" -notin @('127.0.0.1', 'localhost')) {
         throw 'BLOQUEADO: modo central exige HTTPS local no laboratorio antes de testar rede.'
     }
-    if (!(Test-Path -LiteralPath "$($Config.tlsCertificatePath)" -PathType Leaf) -or
-        !(Test-Path -LiteralPath "$($Config.tlsPrivateKeyPath)" -PathType Leaf)) {
+    if ($CheckExternal -and (!(Test-Path -LiteralPath "$($Config.tlsCertificatePath)" -PathType Leaf) -or
+        !(Test-Path -LiteralPath "$($Config.tlsPrivateKeyPath)" -PathType Leaf))) {
         throw 'BLOQUEADO: certificado ou chave HTTPS local ausentes.'
     }
     if ("$($Config.projectPath)" -ine 'C:\web-andon-industrial\andon') {
         throw 'BLOQUEADO: use o projeto do runtime oficial dentro da VM de homologacao.'
     }
+    if (!$CheckExternal) { return }
     $bindingsJson = & docker.exe inspect --format '{{json .HostConfig.PortBindings}}' "$($Config.dockerContainer)" 2>$null
     if ($LASTEXITCODE -ne 0) { throw 'BLOQUEADO: Docker do laboratorio indisponivel.' }
     $bindings = $bindingsJson | ConvertFrom-Json
@@ -63,7 +64,7 @@ function Set-Refine8ConfigAtomically {
     param([object]$NewConfig)
     $temporary = Join-Path (Split-Path -Parent $ConfigPath) ('.refine8-' + [guid]::NewGuid().ToString('N') + '.json')
     try {
-        $utf8 = New-Object System.Text.UTF8Encoding($false)
+        $utf8 = [System.Text.UTF8Encoding]::new($false)
         [IO.File]::WriteAllText($temporary, ($NewConfig | ConvertTo-Json -Depth 20), $utf8)
         [void](Get-Content -LiteralPath $temporary -Raw | ConvertFrom-Json)
         [IO.File]::Replace($temporary, $ConfigPath, $null)
@@ -74,7 +75,8 @@ function Set-Refine8ConfigAtomically {
 
 if (!(Test-Path -LiteralPath $ConfigPath -PathType Leaf)) { throw 'Configuracao oficial nao encontrada.' }
 $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-Assert-Refine8LabConfig $config
+Assert-Refine8LabConfig $config -CheckExternal:($Action -ne 'Restore')
+if ($Action -ne 'Restore') {
 $gitHead = (& git.exe -C "$($config.projectPath)" rev-parse HEAD 2>$null | Select-Object -First 1)
 if ($LASTEXITCODE -ne 0 -or "$gitHead" -notmatch '^[0-9a-f]{40}$') { throw 'Git HEAD nao verificavel.' }
 if ("$($config.installedCommit)" -ne "$gitHead") {
@@ -88,6 +90,7 @@ if (!(Test-Path $apiBuild -PathType Leaf) -or !(Test-Path $frontBuild -PathType 
 Write-Host ('Laboratorio validado. SHA declarado: ' + $gitHead)
 Write-Host ('Banco isolado: ' + $config.databaseName + ' (127.0.0.1:55432)')
 Write-Host ('Seguranca central: ' + $config.centralAccessEnabled)
+}
 if ($Action -eq 'Check') { Write-Host 'CHECK: somente leitura, nenhuma mudanca.'; exit 0 }
 if (!$ConfirmIsolated) { throw 'BLOQUEADO: informe -ConfirmIsolated apenas apos conferir host/backup/rollback.' }
 Assert-Refine8RuntimeStopped
