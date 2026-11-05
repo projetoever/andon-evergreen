@@ -32,8 +32,9 @@ const accentLabels: Readonly<Record<VisualAccent, string>> = {
 };
 
 /**
- * Preview remains draft-only in the legacy settings modal. Central Admin
- * can save only if the server explicitly exposes its protected feature flag.
+ * Preview remains draft-only in legacy mode. An authenticated ANDON
+ * settings delegate may save only when the separately guarded server flag
+ * is enabled; the API still checks current grants, CSRF and revision.
  */
 export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGlobalSave?: boolean }) {
   const [draft, setDraft] = useState<VisualPaletteDraft>(restoreDefaultVisualPalette);
