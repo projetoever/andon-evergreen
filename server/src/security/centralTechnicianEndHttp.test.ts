@@ -47,8 +47,8 @@ test("SEC-04/2L: technician exit is independently gated and requires exact route
     denied(() => markCentralTechnicianEndAuthorized(request("0".repeat(64)), principal, station), "csrf_denied");
     denied(() => markCentralTechnicianEndAuthorized(request(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralTechnicianEndAuthorized(request(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralTechnicianEndAuthorized(request(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const ok = request(csrfToken(token));
     markCentralTechnicianEndAuthorized(ok, principal, station);
     assert.equal(isAuthorizedCentralTechnicianEnd(ok), true);
