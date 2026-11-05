@@ -146,6 +146,7 @@ export function HubPage() {
           <div role={error ? "alert" : "status"} className="space-y-3 rounded-xl border border-border bg-card p-6">
             <p>{error ? systemMessage(error) : t("Nenhuma informação de acesso disponível.")}</p>
             <Button onClick={() => void refresh()}>{t("Verificar novamente")}</Button>
+            <ModuleCards />
           </div>
         )}
         {!checking && access && (
@@ -160,13 +161,12 @@ export function HubPage() {
               </p>
             )}
             {access.centralAccessEnabled &&
-            (!access.workstation.active ||
-              !access.principal ||
-              access.principal.purpose !== "normal") ? (
-              <HubIdentityPanel access={access} onChanged={refresh} />
-            ) : (
-              <ModuleCards />
-            )}
+              (!access.workstation.active ||
+                !access.principal ||
+                access.principal.purpose !== "normal") && (
+                <HubIdentityPanel access={access} onChanged={refresh} />
+              )}
+            <ModuleCards />
             <footer className="flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-xs text-muted-foreground">
               <span>
                 {t("Workstation")}: {access.workstation.name || access.workstation.id.slice(-8)}
