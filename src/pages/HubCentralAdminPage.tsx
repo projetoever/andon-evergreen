@@ -70,6 +70,9 @@ function CentralOverview() {
           </div>
         </dl>
       </section>
+      <p className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+        {ui("A gestão de usuários, estações e integrações fica no Hub. Regras de chamados, máquinas, sons e aparência permanecem no painel de Configurações do ANDON operacional.")}
+      </p>
       <HubClientIdentitySettings />
       <HubBuildVersionCard />
     </div>
