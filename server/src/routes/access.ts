@@ -125,6 +125,7 @@ export function registerAccessRoutes(
       const admissionRoute =
         route === `${PREFIX}/session` ||
         route === `${PREFIX}/login` ||
+        route === `${PREFIX}/logout` || // Allow an admission-only cookie to revoke itself.
         route === `${PREFIX}/admission/request`;
       if (!station || ((!station.active || station.pendingApproval) && !admissionRoute))
         throw new AccessError("workstation_denied");
