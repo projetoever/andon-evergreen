@@ -34,7 +34,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["1. Emitir credencial técnica","1. Issue service credential","1. 核發服務憑證"],
   ["Escolha uma integração, revise os acessos de leitura e registre a justificativa para auditoria.","Choose an integration, review read-only access and record the audit reason.","選擇整合項目，檢查唯讀存取權限並記錄稽核理由。"],
   ["2. Credenciais cadastradas","2. Registered credentials","2. 已登錄的憑證"],
-  ["Escolha o perfil, os módulos e o acesso às configurações do ANDON. As ações internas permanecem protegidas pelo servidor.","Choose the role, modules, and ANDON settings access. Internal actions remain protected by the server.","選擇角色、模組及 ANDON 設定存取權限。內部操作仍受伺服器保護。"],
+  ["A permissão Configurações do ANDON delega a gestão do painel a qualquer perfil. O acesso à administração do Hub é separado.", "The ANDON Settings permission delegates panel management to any role. Hub administration access remains separate.", "ANDON 設定權限可委派任何角色管理該面板，Hub 管理權限則另行管控。"],
   ["Acesso aos módulos e configurações","Module and settings access","模組及設定存取權限"],
   ["O usuário determina os módulos. A workstation precisa apenas estar aprovada. O Admin principal tem acesso automático a todos.","The user account determines module access. The workstation only needs approval. The primary Admin automatically accesses all modules.","模組存取權限由使用者帳號決定。工作站只需經過核准。主要管理員自動取得所有模組的存取權限。"],
   ["Outras permissões históricas são preservadas. Trocar o perfil aplica o preset de ações correspondente.","Other existing permissions are preserved. Changing the role applies that role's action preset.","其他既有權限會保留。變更角色會套用該角色對應的操作預設。"],
