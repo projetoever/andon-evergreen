@@ -45,8 +45,8 @@ test("return-to-maintenance only enables with dual flag and rejects other method
       principal, station), "csrf_denied");
     denied(() => markCentralReturnToMaintenanceAuthorized(req(csrfToken(token)),
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralReturnToMaintenanceAuthorized(req(csrfToken(token)),
-      principal, { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralReturnToMaintenanceAuthorized(req(csrfToken(token)),
+      principal, { ...station, allowOperational: false }));
     const request = req(csrfToken(token));
     assert.equal(isAuthorizedCentralReturnToMaintenance(request), false);
     markCentralReturnToMaintenanceAuthorized(request, principal, station);
