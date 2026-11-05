@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { ui } from "@/i18n/translate";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
@@ -213,6 +214,20 @@ export function HubIdentityPanel({
           </Label>
           <Button disabled={busy}>{ui("Identificar")}</Button>
         </form>
+      )}
+      {!principal && (
+        <>
+          <CentralAdminRecoveryForm
+            triggerLabel={ui("Esqueci a senha")}
+            onRecovered={async () => {
+              await refreshSession();
+              await onChanged();
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            {ui("Para outras contas, solicite a redefinição da senha ao Admin principal.")}
+          </p>
+        </>
       )}
       {principal?.purpose === "password_change" && (
         <form className="space-y-4" onSubmit={changePassword}>
