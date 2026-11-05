@@ -73,3 +73,33 @@ test("UX-12: only revision and strict preset can be submitted, not arbitrary CSS
   ];
   for (const body of invalid) denied(() => parseCentralVisualPaletteUpdate(body), "invalid_input");
 });
+
+
+test("R10-09: any centrally delegated human profile can edit the global visual palette", () => {
+  const c = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const f = process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED;
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED = "1";
+    for (const roleLabel of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Externo"]) {
+      const user: Principal = {
+        ...admin, isPrimaryAdmin: false, roleLabel,
+        machineScope: "selected", machineIds: ["37"],
+        permissions: ["andon.read", "andon.settings.open"],
+      };
+      assert.doesNotThrow(() => markCentralVisualPaletteAuthorized(req(), user, station));
+      denied(() => markCentralVisualPaletteAuthorized(req(), {
+        ...user, permissions: ["andon.read"],
+      }, station), "scoped_query_required");
+      denied(() => markCentralVisualPaletteAuthorized(req(), {
+        ...user, accountType: "kiosk",
+      }, station), "permission_denied");
+      denied(() => markCentralVisualPaletteAuthorized(req("invalid"), user, station), "csrf_denied");
+    }
+  } finally {
+    if (c === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = c;
+    if (f === undefined) delete process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED = f;
+  }
+});
