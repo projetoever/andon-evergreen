@@ -293,8 +293,15 @@ try {
     await page.getByLabel("Senha").fill("isolated-password");
     await page.getByRole("button", { name: "Identificar" }).click();
     await page.getByText("ANDON BI", { exact: true }).waitFor();
-    assert.equal(await page.getByText("ANDON operacional", { exact: true }).count(), 0);
-    assert.equal(await page.getByText("Prioridades de produção", { exact: true }).count(), 0);
+    // REFINE9: forbidden modules remain visible as locked, non-navigable cards.
+    const lockedAndon = page.getByRole("heading", { name: "ANDON operacional", exact: true })
+      .locator('xpath=ancestor::div[@aria-disabled="true"][1]');
+    const lockedPriorities = page.getByRole("heading", { name: "Prioridades de produção", exact: true })
+      .locator('xpath=ancestor::div[@aria-disabled="true"][1]');
+    assert.equal(await lockedAndon.count(), 1);
+    assert.equal(await lockedPriorities.count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON BI/ }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON operacional|Prioridades de produção/ }).count(), 0);
     await page.screenshot({
       path: `${output}/${viewport.width}-approved-modules.png`,
       fullPage: true,
