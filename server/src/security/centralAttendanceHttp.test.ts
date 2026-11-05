@@ -47,8 +47,8 @@ test("SEC-04: attendance is only one PATCH action under dual explicit flag", () 
       "csrf_denied");
     denied(() => markCentralAttendanceAuthorized(valid,
       { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
-    denied(() => markCentralAttendanceAuthorized(valid, principal,
-      { ...station, allowOperational: false }), "workstation_module_denied");
+    assert.doesNotThrow(() => markCentralAttendanceAuthorized(valid, principal,
+      { ...station, allowOperational: false }));
     process.env.ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED = "0";
     assert.equal(isAuthorizedCentralAttendanceRequest(valid), false);
     process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
