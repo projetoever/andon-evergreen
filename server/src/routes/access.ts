@@ -9,6 +9,7 @@ import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
 import {
   login,
   reauthenticateAdmin,
+  assertRecentAdmin,
   changePassword,
   resolveSession,
   resetPassword,
@@ -27,6 +28,7 @@ import {
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
+import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
 import { inspectWorkstationArchive } from "../access/workstationArchivePreflight.js";
 import { issueCentralAdminRecoveryCode, recoverCentralAdmin } from "../access/adminRecovery.js";
@@ -321,6 +323,71 @@ export function registerAccessRoutes(
       setCookie(reply, ACCESS_COOKIE, "", 0);
       return { ok: true };
     });
+    // A separate policy applies only to newly registered CENTRAL workstations.
+    // It is never writable through the public legacy /api/modules/settings.
+    app.get(`${PREFIX}/workstations/admission-policy`, async (req) => {
+      const principal = await resolveSession(db, requestAccess(req));
+      if (!principal.isPrimaryAdmin || principal.purpose !== "normal")
+        throw new AccessError("admin_required");
+      assertFullMachineScope(principal);
+      const settings = await db.systemSettings.findUnique({
+        where: { id: "global" },
+        select: { centralRequireWorkstationApproval: true },
+      });
+      const stored = settings?.centralRequireWorkstationApproval;
+      return {
+        requireApproval: centralWorkstationApprovalRequired(stored),
+        isolatedHmlDefault: stored === null || stored === undefined
+          ? isolatedNotebookHmlAutoAdmissionEnabled() : false,
+      };
+    });
+    app.patch<{ Body: { requireApproval: boolean; reason: string } }>(
+      `${PREFIX}/workstations/admission-policy`,
+      {
+        schema: schema({
+          requireApproval: { type: "boolean" }, reason: string(500),
+        }),
+      },
+      async (req) => {
+        const initial = await resolveSession(db, requestAccess(req));
+        assertRecentAdmin(initial);
+        assertFullMachineScope(initial);
+        const reason = req.body.reason.trim().replace(/\\s+/g, " ");
+        if (!reason) throw new AccessError("reason_required", 400);
+        return db.$transaction(async (tx) => {
+          await lockUser(tx, initial.userId);
+          await lockWorkstationFlow(tx, initial.workstationId);
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
+          const principal = await resolveSession(tx, requestAccess(req));
+          if (principal.sessionId !== initial.sessionId ||
+              principal.userId !== initial.userId)
+            throw new AccessError("authentication_required", 401);
+          assertRecentAdmin(principal);
+          assertFullMachineScope(principal);
+          const before = await tx.systemSettings.upsert({
+            where: { id: "global" }, create: { id: "global" }, update: {},
+            select: { centralRequireWorkstationApproval: true },
+          });
+          await tx.systemSettings.update({
+            where: { id: "global" },
+            data: { centralRequireWorkstationApproval: req.body.requireApproval },
+          });
+          await appendAudit(tx, {
+            ...actorFromPrincipal(principal), ipAddress: req.ip, requestId: req.id,
+          }, {
+            action: "workstation.central_admission_policy.updated",
+            resourceType: "system_settings",
+            resourceId: "global",
+            reason,
+            before: {
+              requireApproval: centralWorkstationApprovalRequired(before.centralRequireWorkstationApproval),
+            },
+            after: { requireApproval: req.body.requireApproval },
+          });
+          return { requireApproval: req.body.requireApproval, isolatedHmlDefault: false };
+        });
+      },
+    );
     app.post(`${PREFIX}/interaction`, async (req) => {
       await recordInteraction(db, requestAccess(req));
       return { ok: true };
