@@ -7,7 +7,7 @@ test("R9.3 fixed machine uses central credentials when central ACL enabled, not 
   const modal = await readFile(new URL("../src/components/machines/CentralMachineScreenUnlockModal.tsx", import.meta.url), "utf8");
   const routes = await readFile(new URL("../server/src/routes/workstations.ts", import.meta.url), "utf8");
   const access = await readFile(new URL("../server/src/routes/access.ts", import.meta.url), "utf8");
-  assert.match(source, /access\?\.centralAccessEnabled \? \(/);
+  assert.match(source, /access\?\.centralAccessEnabled !== false \? \(/);
   assert.match(source, /CentralMachineScreenUnlockModal/);
   assert.match(modal, /accessRequest\("\/workstations\/screen-unlock", "POST"/);
   assert.match(modal, /await accessRequest<AccessState>\("\/session"\)/);
