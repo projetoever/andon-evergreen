@@ -71,7 +71,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
   useEffect(() => { void reload(); }, [reload]);
 
   async function persist(palette: VisualPaletteDraft) {
-    if (!allowGlobalSave || !canWrite || busy || conflict) return;
+    if (!allowGlobalSave || !canWrite || busy || loading || conflict) return;
     setBusy(true);
     setMessage("");
     try {
@@ -112,6 +112,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
             <span>{ui(fieldLabels[key])}</span>
             <select
               aria-label={ui(fieldLabels[key])}
+              disabled={loading || busy}
               className="h-11 w-full rounded-md border border-border bg-background px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={draft[key]}
               onChange={event => {
