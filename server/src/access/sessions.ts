@@ -310,11 +310,13 @@ export async function revokeUserSessions(
 }
 export async function logout(db: PrismaClient, request: AccessRequest) {
   return db.$transaction(async (tx) => {
+    // Logout is allowed for a pending-admission or password-change session too:
+    // only that exact, still-valid cookie may revoke itself, not any other user.
     // Align logout with authorization-version changes and guarded attendance:
     // always acquire the user's advisory lock before the final session read.
-    const initial = await resolveSession(tx, request);
+    const initial = await resolveSession(tx, request, new Date(), true);
     await lockUser(tx, initial.userId);
-    const principal = await resolveSession(tx, request);
+    const principal = await resolveSession(tx, request, new Date(), true);
     if (principal.userId !== initial.userId ||
         principal.sessionId !== initial.sessionId)
       throw new AccessError("authentication_required", 401);
