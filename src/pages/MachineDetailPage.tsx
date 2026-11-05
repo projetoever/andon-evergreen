@@ -408,7 +408,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     try {
       // The central API has already authorized and applied the unlock.
       // Never bypass its credential check by calling the legacy PATCH route.
-      if (access?.centralAccessEnabled) {
+      if (access?.centralAccessEnabled !== false) {
         const latest = await refreshMachineScreenLock();
         if (latest?.locked) throw new Error("Desbloqueio ainda não confirmado.");
         setScreenLock(null);
@@ -419,7 +419,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       toast.success("Tela desbloqueada. Navegação liberada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível desbloquear a tela.");
-      throw error;
+      if (access?.centralAccessEnabled !== false) throw error;
     }
   }
 
@@ -739,7 +739,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         purpose="add"
         excludeNames={activeSessions.map((session) => session.technicianName)}
       />
-      {access?.centralAccessEnabled ? (
+      {access?.centralAccessEnabled !== false ? (
         <CentralMachineScreenUnlockModal
           open={unlockLoginOpen}
           machineId={machineId}
