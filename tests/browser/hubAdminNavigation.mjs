@@ -508,6 +508,9 @@ try {
     // R10-03: recovery entry is accessible in the non-dismissible Hub
     // overlay and reuses the existing central Admin recovery UI.
     const forgottenPassword = centralLogin.getByRole("button", { name: "Esqueci a senha" });
+    // Session discovery is asynchronous after the modal mounts. Do not race
+    // the recovery button before deciding whether it is actually absent.
+    await forgottenPassword.waitFor({ state: "visible" });
     assert.equal(await forgottenPassword.count(), 1);
     await forgottenPassword.click();
     await centralLogin.getByText("Use o código de recuperação guardado", { exact: false }).waitFor();
