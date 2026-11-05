@@ -597,7 +597,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                 </h3>
                 <fieldset disabled={busy} className="space-y-5">
                   <p className="text-sm text-muted-foreground">
-                    {ui("Escolha o perfil, os módulos e o acesso às configurações do ANDON. As ações internas permanecem protegidas pelo servidor.")}
+                    {ui("A permissão Configurações do ANDON delega a gestão do painel a qualquer perfil. O acesso à administração do Hub é separado.")}
                   </p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Label className="space-y-2">
