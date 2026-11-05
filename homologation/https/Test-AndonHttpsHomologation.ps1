@@ -234,6 +234,17 @@ foreach ($ports in @(
     if (!$blocked) { throw "Porta insegura nao bloqueada pela homologacao." }
 }
 
+# Behavioral regression in a child PowerShell process: all task/process
+# operations are mocked so CI never touches the local runtime.
+$menuOperationsTest = Join-Path $PSScriptRoot "..\..\installer\tests\installer-menu-operations-regression.ps1"
+if (!(Test-Path $menuOperationsTest -PathType Leaf)) {
+    throw "Teste comportamental das opcoes 4 e 5 ausente."
+}
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $menuOperationsTest
+if ($LASTEXITCODE -ne 0) {
+    throw "Regressao do fluxo operacional 4/5 (watchdog, API, frontend, kiosk, tarefas)."
+}
+
 # Regression: the main menu must run the established industrial
 # watchdog/kiosk/task scripts, not select a separate HTTPS launcher because
 # a local test config file happens to exist.
