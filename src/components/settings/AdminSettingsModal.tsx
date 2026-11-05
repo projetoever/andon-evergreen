@@ -184,9 +184,11 @@ function CardSection({ title, children }: { title: string; children: ReactNode }
 export function AdminSettingsModal({
   open,
   onOpenChange,
+  centralAccess = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  centralAccess?: boolean;
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
@@ -195,7 +197,7 @@ export function AdminSettingsModal({
 
   const renderTab = () => {
     if (tab === "general") return <GeneralSettingsTab />;
-    if (tab === "appearance") return <AppearanceSettingsPreview />;
+    if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess} />;
     if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
@@ -208,7 +210,9 @@ export function AdminSettingsModal({
   };
 
   const handleAdminLogout = () => {
-    logoutAdmin();
+    // Central login is a server-owned HttpOnly session, never a legacy token.
+    // Closing the ANDON operational panel must not log out of the Hub.
+    if (!centralAccess) logoutAdmin();
     onOpenChange(false);
   };
 
@@ -290,7 +294,7 @@ export function AdminSettingsModal({
                 className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
               >
                 <LogOut className="h-4 w-4" />
-                {ui("Sair do modo admin")}
+                {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
               </button>
             </div>
           </aside>
@@ -386,12 +390,19 @@ export function AdminSettingsModal({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
-              <div className="mx-auto w-full max-w-[1240px]">{renderTab()}</div>
+              <div className="mx-auto w-full max-w-[1240px] space-y-4">
+                {centralAccess && !["general", "appearance", "attendance"].includes(tab) && (
+                  <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
+                    {ui("Este painel foi preservado. Algumas operações de cadastro ainda não foram migradas para o acesso central e permanecem bloqueadas pela API até homologação.")}
+                  </p>
+                )}
+                {renderTab()}
+              </div>
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
               <BigButton tone="danger" size="md" onClick={handleAdminLogout}>
-                {ui("Sair do modo admin")}
+                {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
               </BigButton>
               <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>
                 {ui("Fechar")}
