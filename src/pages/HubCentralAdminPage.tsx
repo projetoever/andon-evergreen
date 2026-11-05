@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, Plug, Settings2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, Plug, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
+import { HubClientIdentitySettings } from "@/components/settings/HubClientIdentitySettings";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
@@ -14,6 +15,7 @@ import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { ui } from "@/i18n/translate";
 
 function CentralOverview() {
+  const { access } = useModuleAccess();
   const [stations, setStations] = useState<ManagedWorkstation[] | null>(null);
   const [error, setError] = useState(false);
   const refresh = useCallback(async () => {
@@ -53,6 +55,22 @@ function CentralOverview() {
           {ui("Atualizar resumo")}
         </Button>
       </section>
+      <section aria-label={ui("Estado da autenticação do Hub")} className="rounded-xl border border-border bg-card p-4 md:p-5">
+        <h3 className="font-bold">{ui("Estado de administração")}</h3>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div className="rounded-lg border border-border p-3">
+            <dt className="text-muted-foreground">{ui("Autenticação central")}</dt>
+            <dd className="mt-1 font-semibold">{ui(access?.centralAccessEnabled ? "Ativa" : "Não verificada")}</dd>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <dt className="text-muted-foreground">{ui("Esta workstation")}</dt>
+            <dd className="mt-1 font-semibold">
+              {ui(access?.workstation.active && !access.workstation.pendingApproval ? "Aprovada" : "Aguardando aprovação")}
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <HubClientIdentitySettings />
       <HubBuildVersionCard />
     </div>
   );
@@ -65,7 +83,7 @@ function CentralOverview() {
  */
 export function HubCentralAdminPage() {
   const { section: requestedSection } = useSearch({ from: "/hub/admin" });
-  const section = String(requestedSection) === "andon" ? "hub" : requestedSection ?? "overview";
+  const section = ["andon", "hub"].includes(String(requestedSection)) ? "overview" : requestedSection ?? "overview";
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
@@ -153,7 +171,6 @@ export function HubCentralAdminPage() {
     { id: "overview", name: ui("Visão geral"), icon: LayoutGrid },
     { id: "users", name: ui("Usuários e Acessos"), icon: ShieldCheck },
     { id: "workstations", name: ui("Workstations"), icon: MonitorCog },
-    { id: "hub", name: ui("Configurações gerais do Hub"), icon: Settings2 },
     { id: "integrations", name: ui("Integrações API"), icon: Plug },
   ] as const;
   return (
@@ -187,7 +204,7 @@ export function HubCentralAdminPage() {
           </Button>
         </header>
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-5">
+          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
           {sections.map(item => {
             const Icon = item.icon;
             return <Button asChild key={item.id}
@@ -204,34 +221,7 @@ export function HubCentralAdminPage() {
         {section === "users" && <UsersAccessSettings />}
         {section === "workstations" && <WorkstationsSettingsTab />}
         {section === "integrations" && <ServiceIdentitiesSettings />}
-        {section === "hub" && (
-          <div className="space-y-4">
-            <section className="space-y-3 rounded-xl border border-border bg-card p-4 md:p-5">
-              <h2 className="text-lg font-bold">{ui("Configurações gerais do Hub")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {ui("A gestão de usuários, estações e integrações fica no Hub. Regras de chamados, máquinas, sons e aparência permanecem no painel de Configurações do ANDON operacional.")}
-              </p>
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div className="rounded-lg border border-border p-3">
-                  <dt className="text-muted-foreground">{ui("Autenticação central")}</dt>
-                  <dd className="mt-1 font-bold">{access?.centralAccessEnabled ? ui("Ativa") : ui("Desativada")}</dd>
-                </div>
-                <div className="rounded-lg border border-border p-3">
-                  <dt className="text-muted-foreground">{ui("Esta workstation")}</dt>
-                  <dd className="mt-1 font-bold">
-                    {access?.workstation.active && !access.workstation.pendingApproval
-                      ? ui("Aprovada") : ui("Aguardando aprovação")}
-                  </dd>
-                </div>
-              </dl>
-              <p className="text-xs text-muted-foreground">
-                {ui("Os ajustes globais de política ainda não migrados permanecem indisponíveis para edição. Nenhuma proteção é desativada por esta tela.")}
-              </p>
-            </section>
-            <HubBuildVersionCard />
-          </div>
-        )}
-        {!["overview","users","workstations","hub","integrations"].includes(section) && (
+        {!["overview","users","workstations","integrations"].includes(section) && (
           <div role="status" className="rounded-xl border border-border bg-card p-5">
             {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
           </div>
