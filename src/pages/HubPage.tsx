@@ -15,7 +15,7 @@ import { getSystemSettings } from "@/services/systemSettingsService";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { getAdminAuthStatus, type AdminAuthStatus } from "@/services/adminAuthService";
 import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
-import { accessRequest } from "@/services/accessService";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function HubPage() {
@@ -66,6 +66,12 @@ export function HubPage() {
     setLogoutBusy(true);
     setLogoutError("");
     try {
+      // A refreshed browser session may have an HttpOnly cookie but no CSRF
+      // token in memory yet. Retrieve server-bound CSRF before the mutation.
+      const current = await accessRequest<AccessState>("/session");
+      if (current.principal?.purpose !== "normal" ||
+          current.principal.userId !== access.principal.userId)
+        throw new Error("authentication_required");
       await accessRequest("/logout", "POST", {});
       await refresh();
     } catch (cause) {
