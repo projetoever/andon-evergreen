@@ -119,12 +119,14 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
-      // Publicly selected operational settings (not credentials) and the
-      // read-only global dashboard sound state have no machine-specific rows.
-      // Selected-machine personnel must read them to render PIN/RFID dialogs
-      // and show the actual siren state; writes remain independently blocked.
+      // Operational configuration and sanitized catalogs have no
+      // machine-specific history. Selected-machine operators need them
+      // to render dialogs and alarms; mutations keep their separate guards.
       if (request.method === "GET" &&
-          (path === "/api/system-settings" || path === "/api/dashboard-sound-state")) {
+          (path === "/api/system-settings" ||
+           path === "/api/dashboard-sound-state" ||
+           path === "/api/andon-categories" ||
+           path === "/api/technicians")) {
         assertModule(principal, workstation, "operational");
         return;
       }
