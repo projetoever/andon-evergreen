@@ -93,6 +93,15 @@ export function HubIdentityPanel({
     setSession(null);
     await onChanged();
   });
+  const approveSelfInLab = () => void run(async () => {
+    await accessRequest("/admission/approve-self-in-lab", "POST", {
+      requestedName: access.workstation.name || "Admin LAB",
+    });
+    // Approval revokes the admission-only session. A fresh password login is
+    // mandatory; this action never converts the old cookie to a normal token.
+    await refreshSession();
+    await onChanged();
+  });
   const requestAdmission = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
@@ -132,6 +141,11 @@ export function HubIdentityPanel({
         <Button variant="outline" disabled={busy} onClick={endAdmissionSession}>
           {ui("Sair desta sessão")}
         </Button>
+        {session?.labSelfAdmissionAvailable && (
+          <Button disabled={busy} onClick={approveSelfInLab}>
+            {ui("Liberar esta workstation como Admin (LAB)")}
+          </Button>
+        )}
       </Card>
     );
   if (!session)
@@ -231,9 +245,16 @@ export function HubIdentityPanel({
         </form>
       )}
       {principal?.purpose === "workstation_admission" && (
-        <Button variant="outline" disabled={busy} onClick={endAdmissionSession}>
-          {ui("Sair desta sessão")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={busy} onClick={endAdmissionSession}>
+            {ui("Sair desta sessão")}
+          </Button>
+          {session?.labSelfAdmissionAvailable && (
+            <Button disabled={busy} onClick={approveSelfInLab}>
+              {ui("Liberar esta workstation como Admin (LAB)")}
+            </Button>
+          )}
+        </div>
       )}
       {principal?.purpose === "workstation_admission" && (
         <form className="space-y-4" onSubmit={requestAdmission}>
