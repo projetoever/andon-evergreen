@@ -457,26 +457,36 @@ try {
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
     assert.equal(await centralNav.getByRole("link").count(), 5);
-    assert.equal(await centralNav.getByRole("link", { name: "Configurações do ANDON" }).count(), 1);
+    assert.equal(await centralNav.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 1);
     assert.equal(await centralNav.getByRole("link", { name: "Integrações API" }).count(), 1);
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-central-overview.png`, fullPage: true });
 
-    // The central-only ANDON area is visible only after server validation.
-    // It may display a blocked settings write while its backend flag is OFF.
-    await page.goto("https://127.0.0.1:4188/hub/admin?section=andon");
-    await page.getByRole("heading", { name: "Configurações operacionais do ANDON" }).waitFor();
-    assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
-    assert.equal(await page.getByRole("link", { name: "Sons do ANDON" }).count(), 0);
-    // UX-12: the global save must fail closed until a server-side flag allows it.
-    let appearance = page.getByRole("region", { name: "Aparência e cores" });
+    // Pilot: the Hub owns security/user/terminal settings. The full historical
+    // ANDON panel is accessible from the dashboard under a verified central session.
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
+    await page.getByRole("heading", { name: "Configurações gerais do Hub" }).waitFor();
+    assert.equal(await page.getByRole("region", { name: "Aparência e cores" }).count(), 0);
+    const openAndonAppearance = async () => {
+      await page.goto("https://127.0.0.1:4188/andon");
+      const button = page.getByRole("button", { name: "Configurar sons do ANDON" });
+      await button.waitFor();
+      await button.click();
+      const modal = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
+      await modal.waitFor();
+      assert.equal(await modal.getByRole("button", { name: "Sons do ANDON" }).count(), 1);
+      assert.equal(await modal.getByRole("button", { name: "Mantenedores" }).count(), 1);
+      await modal.getByRole("button", { name: "Aparência e cores" }).click();
+      return modal.getByRole("region", { name: "Aparência e cores" });
+    };
+    // UX-12 still fails closed until the server authorizes palette writes.
+    let appearance = await openAndonAppearance();
     await appearance.waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
     paletteWriteEnabled = true;
-    await page.reload();
-    appearance = page.getByRole("region", { name: "Aparência e cores" });
+    appearance = await openAndonAppearance();
     await appearance.getByRole("button", { name: "Salvar globalmente" }).waitFor();
     const cardBorder = appearance.getByRole("combobox", { name: "Contorno padrão dos cards" });
     await cardBorder.selectOption("ocean");
