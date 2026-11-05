@@ -22,6 +22,7 @@ import {
   hasRoleSuggestion,
   isExactRolePreset,
   suggestedPermissions,
+  toggleAndonModulePermission,
 } from "@/services/accessRolePresets";
 
 const emptyDraft = (): UserDraft => ({
@@ -191,9 +192,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
     if (!draft) return;
     setDraft({
       ...draft,
-      permissions: checked
-        ? [...draft.permissions.filter((permission) => permission !== key), key]
-        : draft.permissions.filter((permission) => permission !== key),
+      permissions: toggleAndonModulePermission(draft.permissions, key, checked),
     });
   };
   const credentials = async (event: FormEvent<HTMLFormElement>) => {
