@@ -115,7 +115,8 @@ try {
 
     Write-Host ""
     Write-Host "Menu e comandos sincronizados com main ($commit)." -ForegroundColor Green
-    Write-Host "Encerre o menu antigo e abra-o novamente. Depois use 4 - Iniciar ANDON." -ForegroundColor Green
+    Write-Host "Encerre o menu antigo e abra-o novamente. Os arquivos foram sincronizados, mas o frontend e a API NAO foram recompilados." -ForegroundColor Yellow
+    Write-Host "Com backup verificado e autorizacao para migrations, no menu NOVO use 2 - Atualizar pela main (pipeline completo). A opcao 4 apenas inicia o build existente." -ForegroundColor Yellow
     Write-Host "HTTPS local: https://localhost:8080/hub | API: https://localhost:3001" -ForegroundColor Green
     Write-Host "Banco e certificados de testes preservados. Nenhuma mudanca na Evergreen." -ForegroundColor Yellow
 } finally {
