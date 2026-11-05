@@ -149,9 +149,10 @@ export async function login(
         where: { id: station.id, active: false, pendingApproval: true },
         data: {
           active: true, pendingApproval: false,
-          // Module grants are by user when central ON. Keep legacy terminal
-          // grants disabled to avoid accidentally broadening central-OFF access.
-          allowOperational: false, allowBi: false, allowPriorities: false,
+          // Central module grants remain user-owned. Preserve the normal
+          // approved-terminal flags because guarded operational transitions
+          // still require allowOperational to be true.
+          allowOperational: true, allowBi: true, allowPriorities: true,
           name: station.name || `Admin — ${station.id.slice(-8)}`,
         },
       });
