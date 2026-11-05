@@ -257,13 +257,19 @@ try {
     // REFINE 9: pending stations still see all three modules, locked and without links.
     assert.equal(await page.getByText("ANDON BI", { exact: true }).count(), 1);
     assert.equal(await page.locator('div[aria-disabled="true"]').filter({
-      has: page.getByRole("heading", { name: "ANDON operacional", exact: true }),
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^ANDON operacional$/ }),
     }).count(), 1);
     assert.equal(await page.locator('div[aria-disabled="true"]').filter({
-      has: page.getByRole("heading", { name: "ANDON BI", exact: true }),
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^ANDON BI$/ }),
     }).count(), 1);
     assert.equal(await page.locator('div[aria-disabled="true"]').filter({
-      has: page.getByRole("heading", { name: "Prioridades de produção", exact: true }),
+      // Radix correctly marks the Hub behind the login modal inert;
+      // inspect the retained DOM card rather than the hidden accessibility tree.
+      has: page.locator("h2").filter({ hasText: /^Prioridades de produção$/ }),
     }).count(), 1);
     assert.equal(await page.getByRole("link", { name: /ANDON BI|ANDON operacional|Prioridades de produção/ }).count(), 0);
     await page.screenshot({ path: `${output}/${viewport.width}-pending.png`, fullPage: true });
