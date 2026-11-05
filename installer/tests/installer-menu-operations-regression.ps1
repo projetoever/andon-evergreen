@@ -21,6 +21,8 @@ $script:stoppedTasks = @()
 $script:disabledTasks = @()
 $script:enabledTasks = @()
 
+. (Join-Path $repoRoot "installer\AndonInstaller.Runtime.ps1")
+
 # All entrypoints involving OS process/task writes are isolated mocks.
 function Write-AndonHeader { param([string]$Title) }
 function Write-AndonOk { param([string]$Message) }
@@ -69,7 +71,6 @@ function Invoke-AndonKioskOpen {
 function Get-AndonApiBaseUrl { return "https://localhost:3001" }
 function Get-AndonFrontendUrl { return "https://localhost:8080/hub" }
 
-. (Join-Path $repoRoot "installer\AndonInstaller.Runtime.ps1")
 
 function Assert-SafeStartFails {
     param([string]$Message)
