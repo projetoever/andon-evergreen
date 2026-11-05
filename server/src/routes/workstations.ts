@@ -10,6 +10,7 @@ import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access
 import { AccessError } from "../access/policy.js";
 import { isAuthorizedCentralOwnWorkstationPreference } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { runCentralOwnWorkstationPreference } from "../access/centralOwnWorkstationPrefs.js";
+import { centralWorkstationApprovalRequired } from "../access/centralWorkstationAdmissionPolicy.js";
 
 type RegisterWorkstationBody = { id?: unknown };
 type UpdateWorkstationBody = {
@@ -52,9 +53,13 @@ export async function registerWorkstationRoutes(app: FastifyInstance) {
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('andon-enrollment-policy'))::text`;
         const policy = await tx.systemSettings.findUnique({
           where: { id: "global" },
-          select: { requireWorkstationApproval: true },
+          select: { requireWorkstationApproval: true, centralRequireWorkstationApproval: true },
         });
-        const pendingApproval = policy?.requireWorkstationApproval ?? false;
+        // Central uses a separate policy, default-closed outside isolated HML.
+        // Never auto-reopen an existing pending/rejected workstation on register.
+        const pendingApproval = centralAccessEnabled()
+          ? centralWorkstationApprovalRequired(policy?.centralRequireWorkstationApproval)
+          : policy?.requireWorkstationApproval ?? false;
         return tx.workstation.upsert({
           where: { id },
           create: {
