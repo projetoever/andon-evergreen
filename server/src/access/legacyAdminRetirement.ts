@@ -21,12 +21,13 @@ export async function legacyAdminRetirementStatus(db: PrismaClient, request: Acc
     }),
     db.accessUser.findUnique({
       where: { id: principal.userId },
-      select: { adminRecoveryCodeHash: true },
+      select: { adminRecoveryCodeHash: true, adminRecoveryCodeIssuedAt: true },
     }),
   ]);
   return {
     legacyPasswordPresent: Boolean(legacy?.adminPasswordHash),
     centralRecoveryConfigured: Boolean(central?.adminRecoveryCodeHash),
+    centralRecoveryIssuedAt: central?.adminRecoveryCodeHash ? central.adminRecoveryCodeIssuedAt : null,
   };
 }
 
