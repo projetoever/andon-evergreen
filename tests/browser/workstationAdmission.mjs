@@ -254,7 +254,18 @@ try {
     await page.getByLabel("Finalidade ou localização (opcional)").fill("Produção — Linha 1");
     await page.getByRole("button", { name: "Enviar solicitação" }).click();
     await page.getByRole("heading", { name: "Solicitação aguardando aprovação" }).waitFor();
-    assert.equal(await page.getByText("ANDON BI", { exact: true }).count(), 0);
+    // REFINE 9: pending stations still see all three modules, locked and without links.
+    assert.equal(await page.getByText("ANDON BI", { exact: true }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      has: page.getByRole("heading", { name: "ANDON operacional", exact: true }),
+    }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      has: page.getByRole("heading", { name: "ANDON BI", exact: true }),
+    }).count(), 1);
+    assert.equal(await page.locator('div[aria-disabled="true"]').filter({
+      has: page.getByRole("heading", { name: "Prioridades de produção", exact: true }),
+    }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: /ANDON BI|ANDON operacional|Prioridades de produção/ }).count(), 0);
     await page.screenshot({ path: `${output}/${viewport.width}-pending.png`, fullPage: true });
 
     administrativeView = true;
