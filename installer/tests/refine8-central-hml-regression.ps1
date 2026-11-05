@@ -73,3 +73,5 @@ try {
     if (Test-Path -LiteralPath $fakeConfig) { Remove-Item -LiteralPath $fakeConfig -Force }
 }
 Write-Host 'SEC17 PASS: parse, guardas estaticas e recusa read-only em PowerShell 5.1.' -ForegroundColor Green
+# Clear the intentional nonzero exit from the negative child process for CI.
+$global:LASTEXITCODE = 0
