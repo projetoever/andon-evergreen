@@ -332,10 +332,24 @@ try {
   assert.deepEqual(await call(admin, "/legacy-admin/status"), {
     legacyPasswordPresent: true,
     centralRecoveryConfigured: false,
+    centralRecoveryIssuedAt: null,
   });
   await call(admin, "/legacy-admin/retire", "POST", { confirmed: true }, 409);
   const offlineRecovery = await call(admin, "/admin-recovery-code", "POST", {});
   assert.match(offlineRecovery.recoveryCode, /^HUB-(?:[A-F0-9]{4}-){7}[A-F0-9]{4}$/);
+  assert(Number.isFinite(Date.parse(offlineRecovery.issuedAt)), "timestamp must be ISO date");
+  const activeRecovery = await call(admin, "/legacy-admin/status");
+  assert.equal(activeRecovery.centralRecoveryConfigured, true);
+  assert.equal(activeRecovery.centralRecoveryIssuedAt, offlineRecovery.issuedAt);
+  assert.equal(Object.hasOwn(activeRecovery, "recoveryCode"), false);
+  assert.equal(Object.hasOwn(activeRecovery, "adminRecoveryCodeHash"), false);
+  const issuanceAudit = await db.auditEvent.findFirstOrThrow({
+    where: { action: "access.admin.recovery_code.issued", resourceId: adminId },
+    orderBy: { occurredAt: "desc" },
+  });
+  assert.equal(issuanceAudit.after?.issuedAt, offlineRecovery.issuedAt);
+  assert(!JSON.stringify(issuanceAudit).includes(offlineRecovery.recoveryCode),
+    "audit cannot contain plaintext recovery code");
   await call(admin, "/legacy-admin/retire", "POST", { confirmed: false }, 400);
   // The unrelated user's session was deliberately expired above.
   await call(person, "/legacy-admin/status", "GET", undefined, 401);
@@ -347,6 +361,7 @@ try {
   assert.equal(afterRetirement.adminRecoveryCodeIssuedAt, null);
   assert.deepEqual(await call(admin, "/legacy-admin/status"), {
     legacyPasswordPresent: false, centralRecoveryConfigured: true,
+    centralRecoveryIssuedAt: offlineRecovery.issuedAt,
   });
   assert.equal((await call(admin, "/session")).principal.isPrimaryAdmin, true);
   await call(admin, "/legacy-admin/retire", "POST", { confirmed: true }, 409);
