@@ -65,6 +65,12 @@ export interface WorkstationArchivePreflight {
 
 export interface ManagedWorkstation extends Workstation {
   presence: "online" | "offline" | "unknown";
+  /** Read-only pre-enrollment metadata. Does not grant a kiosk session. */
+  kioskTrust?: {
+    state: "not_configured" | "pending" | "revoked" | "expired" | "provisioned_inactive";
+    machineId: string | null;
+    expiresAt: string | null;
+  };
   lastHeartbeatAt?: string | null;
   admission: {
     status: "pending" | "approved" | "rejected";
