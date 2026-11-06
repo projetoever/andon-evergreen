@@ -57,6 +57,7 @@ import {
   type WorkstationRestrictionContext,
 } from "@/utils/workstationAttendanceUtils";
 import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
+import { cancellationFailureMessage } from "@/utils/cancellationUtils";
 
 const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
@@ -433,9 +434,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       });
       toast.success("Chamado cancelado.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não é possível cancelar chamado já atendido.",
-      );
+      toast.error(cancellationFailureMessage(error));
       throw error;
     }
   }
