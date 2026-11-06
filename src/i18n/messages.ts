@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Não foi possível atualizar o estado de som compartilhado.", "Could not update the shared sound state.", "無法更新共用聲音狀態。"],
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],
