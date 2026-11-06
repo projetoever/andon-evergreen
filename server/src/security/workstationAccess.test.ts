@@ -300,7 +300,8 @@ test("central access binds scoped machine/call reads and protects history with a
     payload: { label: "Unsafe", value: "unsafe" },
   });
   assert.equal(deniedClassificationWrite.statusCode, 403);
-  assert.equal(deniedClassificationWrite.json().error, "central_action_not_supported");
+  assert.equal(deniedClassificationWrite.json().error, "scoped_query_required",
+    "selected-scope write must fail before reaching any legacy write handler");
   canManageSettings = true;
   const allowedClassification = await app.inject({ url: "/api/failure-classifications", headers });
   assert.equal(allowedClassification.statusCode, 200);
