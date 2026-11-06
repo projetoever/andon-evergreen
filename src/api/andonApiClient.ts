@@ -15,6 +15,8 @@ export class AndonApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
+    // Sanitized API error code for route-specific UX (never tokens or headers).
+    public readonly errorCode?: string,
   ) {
     super(message);
     this.name = "AndonApiError";
@@ -210,6 +212,11 @@ export function createAndonApiClient(
           payload,
         ),
         response.status,
+        payload && typeof payload === "object" && "error" in payload &&
+          typeof (payload as { error?: unknown }).error === "string" &&
+          /^[a-z][a-z0-9_]{1,80}$/.test((payload as { error: string }).error)
+          ? (payload as { error: string }).error
+          : undefined,
       );
     }
 
