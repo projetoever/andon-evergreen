@@ -67,6 +67,7 @@ export const MODULE_ENTRY_PERMISSIONS = [
   { key: "bi.read", label: "BI: visualizar" },
   { key: "priorities.read", label: "Prioridades: visualizar" },
   { key: "andon.settings.open", label: "Configurações do ANDON: acessar" },
+  { key: "workstations.screen.unlock", label: "Máquinas: permitir desfixar tela" },
 ] as const;
 
 /**
@@ -81,10 +82,14 @@ export function toggleAndonModulePermission(
   const next = new Set(current);
   if (checked) {
     next.add(key);
-    if (key === "andon.settings.open") next.add("andon.read");
+    if (key === "andon.settings.open" || key === "workstations.screen.unlock")
+      next.add("andon.read");
   } else {
     next.delete(key);
-    if (key === "andon.read") next.delete("andon.settings.open");
+    if (key === "andon.read") {
+      next.delete("andon.settings.open");
+      next.delete("workstations.screen.unlock");
+    }
   }
   return [...next];
 }

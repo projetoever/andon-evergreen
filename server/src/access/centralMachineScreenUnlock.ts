@@ -18,11 +18,16 @@ export function mayAuthorizeScreenUnlock(
   return user.active && user.accountType === "person" && !user.mustChangePassword &&
     (
       (user.isPrimaryAdmin && user.machineScope === "all") ||
-      (user.roleLabel === "Manutenção" &&
-        user.permissions.some(p => p.key === "andon.read") &&
-        user.permissions.some(p => p.key === "calls.attend") &&
+      (user.permissions.some(p => p.key === "andon.read") &&
         (user.machineScope === "all" ||
-          user.machines.some(m => m.machineId === machineId)))
+          user.machines.some(m => m.machineId === machineId)) &&
+        (
+          // R11: explicit individual permission for any human role, checked
+          // against a verified password and current ACL at transaction time.
+          user.permissions.some(p => p.key === "workstations.screen.unlock") ||
+          (user.roleLabel === "Manutenção" &&
+            user.permissions.some(p => p.key === "calls.attend"))
+        ))
     );
 }
 

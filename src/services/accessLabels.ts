@@ -1,5 +1,6 @@
 export const permissionLabels: Record<string, string> = {
   "andon.read": "ANDON: visualizar",
+  "workstations.screen.unlock": "Máquinas: permitir desfixar tela",
   "history.read": "Histórico: visualizar",
   "calls.open": "Chamados: abrir",
   "calls.cancel.own": "Chamados: cancelar próprios",

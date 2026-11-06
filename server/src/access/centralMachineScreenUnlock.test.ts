@@ -30,6 +30,23 @@ test("R9.3 screen release requires verified Admin or scoped maintenance; product
   }, machine), false);
 });
 
+test("R11: explicit screen-unlock permission delegates to scoped Production without granting Admin powers", () => {
+  const delegated = {
+    ...maint, roleLabel: "Produção",
+    permissions: [{ key: "andon.read" }, { key: "workstations.screen.unlock" }],
+  };
+  assert.equal(mayAuthorizeScreenUnlock(delegated, machine), true);
+  assert.equal(mayAuthorizeScreenUnlock(delegated, "37"), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...delegated, active: false }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...delegated, accountType: "kiosk" }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...delegated, mustChangePassword: true }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...delegated, permissions: [{ key: "andon.read" }] }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({
+    ...delegated, permissions: [{ key: "workstations.screen.unlock" }],
+  }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...delegated, machineScope: "all", machines: [] }, "37"), true);
+});
+
 test("R9.3 unlocking fixed machine is atomic, audited and does not switch the operator session", async () => {
   const password = "Maintenance-Central-2026";
   const passHash = await hashAccessPassword(password);
