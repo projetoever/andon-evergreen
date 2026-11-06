@@ -15,6 +15,11 @@ import {
   startDashboardSoundMuteTimer,
 } from "../src/utils/dashboardSoundMuteUtils";
 import { updateSystemSettings } from "../src/services/systemSettingsService";
+import {
+  DASHBOARD_BROWSER_SOUND_KEY,
+  readBrowserDashboardSoundState,
+  updateBrowserDashboardSoundState,
+} from "../src/services/dashboardBrowserSoundState";
 import type { SystemSettingsPatch } from "../src/types/systemSettings";
 
 const existingOpenCall = { id: "call-a", status: "open" as const, isSystemTest: false };
@@ -602,4 +607,49 @@ test("Dashboard detecta novo ID mesmo se o timestamp ainda não mudou", async ()
   assert.match(dashboard, /if \(!newCallId && !openedAfterMute\) return/);
   assert.doesNotMatch(soundService, /createFallbackAlertWav/);
   assert.match(hook, /config\?\.enabled !== false/);
+});
+
+test("REFINE 11: central browser mute is local, survives reload and never needs a GPIO API", async () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
+  };
+  const time = Date.parse("2026-11-05T20:00:00.000Z");
+  const state = updateBrowserDashboardSoundState(true, "manual", true, 3, time, storage);
+  assert.equal(state.muted, true);
+  assert.equal(state.mutedUntil, "2026-11-05T20:03:00.000Z");
+  assert.equal(readBrowserDashboardSoundState(time + 10_000, storage).muted, true);
+  assert.equal(readBrowserDashboardSoundState(time + 3 * 60_000, storage).muted, false);
+  assert.equal(values.has(DASHBOARD_BROWSER_SOUND_KEY), false);
+  assert.equal(readBrowserDashboardSoundState(time + 3 * 60_000, storage).muted, false);
+  const indefinite = updateBrowserDashboardSoundState(true, "auto", false, 3, time, storage);
+  assert.equal(indefinite.mutedUntil, null);
+  assert.equal(readBrowserDashboardSoundState(time + 3600_000, storage).muted, true);
+  assert.equal(updateBrowserDashboardSoundState(false, "manual", false, 3, time, storage).muted, false);
+  assert.equal(values.size, 0);
+});
+
+test("REFINE 11: corrupt or unavailable browser storage fails open without muting alarms", () => {
+  const values = {
+    getItem: () => "{not json",
+    setItem: () => { throw new Error("storage blocked"); },
+    removeItem: () => { throw new Error("storage blocked"); },
+  };
+  const stamp = Date.parse("2026-11-05T20:00:00.000Z");
+  assert.equal(readBrowserDashboardSoundState(stamp, values).muted, false);
+  assert.equal(updateBrowserDashboardSoundState(true, "manual", false, 3, stamp, values).muted, true);
+  assert.equal(readBrowserDashboardSoundState(stamp, null).muted, false);
+});
+
+test("REFINE 11: central path chooses browser sound, legacy still uses the shared server mute", async () => {
+  const page = await readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8");
+  const browser = await readFile(new URL("../src/services/dashboardBrowserSoundState.ts", import.meta.url), "utf8");
+  assert.match(page, /access\?\.centralAccessEnabled === true[\s\S]*updateBrowserDashboardSoundState\(/);
+  assert.match(page, /access\?\.centralAccessEnabled === true[\s\S]*readBrowserDashboardSoundState\(/);
+  assert.match(page, /return await updateDashboardSoundState\(muted, reason\)/);
+  assert.match(page, /: getDashboardSoundState\(\)/);
+  assert.match(page, /hasRealCallOpenedAfter\(calls, dashboardMutedAtRef\.current\)/);
+  assert.doesNotMatch(browser, /\/api\/|fetch\(|GPIO_ENABLED|PLC_/);
 });
