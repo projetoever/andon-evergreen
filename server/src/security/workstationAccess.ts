@@ -131,13 +131,13 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         assertModule(principal, workstation, "operational");
         return;
       }
-      // R10-09: global classification is a shared configuration catalog,
-      // not a machine's operational/history collection. A delegated settings
-      // editor with selected machine scope may read it for editing; arbitrary
-      // global reads, analytics and historical data remain scoped/denied.
+      // REFINE 11: shared failure classification labels/eligibility are
+      // operational reference data, also used by the machine call history.
+      // They do not contain machine-specific call data. Selected-machine
+      // users with andon.read may read the catalog, not mutate it; actual
+      // history remains separately gated by history.read and machine scope.
       if (request.method === "GET" &&
-          path === "/api/failure-classifications" &&
-          isAndonSettingsDelegate(principal)) {
+          path === "/api/failure-classifications") {
         assertModule(principal, workstation, "operational");
         return;
       }
