@@ -15,6 +15,7 @@ export class AndonApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "AndonApiError";
@@ -210,6 +211,11 @@ export function createAndonApiClient(
           payload,
         ),
         response.status,
+        payload && typeof payload === "object" && "error" in payload &&
+          typeof (payload as { error?: unknown }).error === "string" &&
+          /^[a-z_]{1,64}$/.test((payload as { error: string }).error)
+          ? (payload as { error: string }).error
+          : undefined,
       );
     }
 

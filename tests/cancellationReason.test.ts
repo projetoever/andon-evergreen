@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { normalizeCancellationReason } from "../src/utils/cancellationUtils";
+import { normalizeCancellationReason, cancellationFailureMessage } from "../src/utils/cancellationUtils";
 
 test("bloqueia justificativa vazia e normaliza texto válido", () => {
   assert.equal(normalizeCancellationReason(""), null);
@@ -121,4 +121,21 @@ test("cancelamento revalida atendimento depois de obter o lock da máquina", asy
   assert.ok(updatePosition > lockedStatusPosition);
   assert.match(cancelRoute, /currentHasAttendance/);
   assert.match(cancelRoute, /currentHasTechnician/);
+});
+
+test("REFINE 11: cancellation explains only explicit server errors and never suggests bypass or blind retry", async () => {
+  assert.match(cancellationFailureMessage({ status: 403, code: "permission_denied" }), /permissão/);
+  assert.match(cancellationFailureMessage({ status: 403, code: "scoped_query_required" }), /escopo/);
+  assert.match(cancellationFailureMessage({ status: 403, code: "csrf_denied" }), /Sessão/);
+  assert.match(cancellationFailureMessage({ status: 403, code: "central_action_not_supported" }), /não está autorizado/);
+  assert.match(cancellationFailureMessage({ status: 409, code: "call_state_changed" }), /Atualize/);
+  assert.equal(cancellationFailureMessage({ status: 403, code: "unknown", message: "HTTP 403" }), "HTTP 403");
+  const api = await readFile(new URL("../src/api/andonApiClient.ts", import.meta.url), "utf8");
+  assert.match(api, /public readonly code\?: string/);
+  const [machine, active] = await Promise.all([
+    readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/ActiveCallsPage.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(machine, /cancellationFailureMessage\(error\)/);
+  assert.match(active, /cancellationFailureMessage\(err\)/);
 });
