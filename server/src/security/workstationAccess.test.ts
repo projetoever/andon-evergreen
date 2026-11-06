@@ -151,6 +151,7 @@ test("central access binds scoped machine/call reads and protects history with a
   const originalStation = prisma.workstation.findUnique;
   const originalSession = prisma.accessSession.findUnique;
   let machineScope = "all";
+  let canReadAndon = true;
   let canReadHistory = false;
   let canManageSettings = false;
   let canReadBi = false;
@@ -184,7 +185,7 @@ test("central access binds scoped machine/call reads and protects history with a
       authorizationVersion: 1,
       machineScope,
       permissions: [
-        { key: "andon.read" },
+        ...(canReadAndon ? [{ key: "andon.read" }] : []),
         ...(canReadHistory ? [{ key: "history.read" }] : []),
         ...(canManageSettings ? [{ key: "andon.settings.open" }] : []),
         ...(canReadBi ? [{ key: "bi.read" }] : []),
@@ -288,14 +289,17 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.deepEqual(liveCalls.json().allowedMachineIds, ["37"]);
   const liveCallsHead = await app.inject({ method: "HEAD", url: "/api/andon-calls", headers });
   assert.equal(liveCallsHead.statusCode, 200);
-  // ANDON settings delegation is a global catalogue capability, not
-  // permission to read historical call data or change machine scope.
+  // Global classification labels are required for operational history.
+  // Read-only ANDON access does not grant history, BI or settings authority.
+  assert.equal((await app.inject({ url: "/api/failure-classifications", headers })).statusCode, 200);
+  assert.equal((await app.inject({ url: "/api/failure-classifications?active=true", headers })).statusCode, 200);
+  canReadAndon = false;
   const deniedClassification = await app.inject({ url: "/api/failure-classifications", headers });
   assert.equal(deniedClassification.statusCode, 403);
-  assert.equal(deniedClassification.json().error, "scoped_query_required");
+  assert.equal(deniedClassification.json().error, "permission_denied");
+  canReadAndon = true;
   canManageSettings = true;
-  const allowedClassification = await app.inject({ url: "/api/failure-classifications", headers });
-  assert.equal(allowedClassification.statusCode, 200);
+  assert.equal((await app.inject({ url: "/api/failure-classifications", headers })).statusCode, 200);
   const stillScopedCalls = await app.inject({ url: "/api/andon-calls", headers });
   assert.deepEqual(stillScopedCalls.json().allowedMachineIds, ["37"]);
   const historyWithoutPermission = await app.inject({ url: "/api/andon-calls/history", headers });
