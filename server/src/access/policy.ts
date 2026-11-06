@@ -2,6 +2,8 @@ export const PERMISSIONS = [
   "andon.read",
   // Visible access to the ANDON settings panel; field-specific writes remain guarded.
   "andon.settings.open",
+  // One-time credential-gated screen release, not general workstation administration.
+  "workstations.screen.unlock",
   "history.read",
   "calls.open",
   "calls.cancel.own",
