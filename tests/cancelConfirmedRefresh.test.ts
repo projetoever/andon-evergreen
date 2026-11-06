@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiAndonRepository } from "../src/repositories/apiAndonRepository";
-import type { AndonApiClient } from "../src/api/andonApiClient";
+import { AndonApiError, type AndonApiClient } from "../src/api/andonApiClient";
 import type { AndonCall } from "../src/types/andon";
 
 // R10-01 isolated frontend contract: no network/database and no credentials.
@@ -77,6 +77,39 @@ test("R10-01: rejected PATCH stays rejected and must not invoke refresh", async 
     /permission_denied/,
   );
   assert.deepEqual(client.seen, [`PATCH /api/andon-calls/${original.id}/cancel`]);
+});
+
+test("R11: actionable central 403 explains insufficient permission without retrying PATCH", async () => {
+  const client = new FakeApiClient();
+  client.patchError = new AndonApiError("Falha ao comunicar com a API ANDON (HTTP 403).", 403, "permission_denied");
+  const repository = new ApiAndonRepository(client);
+  await assert.rejects(
+    repository.cancelCall([], [original], {
+      callId: original.id, reason: "test cancellation", cancelledBy: "operador",
+    }),
+    /Cancelar próprios.*Cancelar qualquer/,
+  );
+  assert.deepEqual(client.seen, [`PATCH /api/andon-calls/${original.id}/cancel`]);
+});
+
+test("R11: CSRF denial is reported as security failure; other errors are never transformed into success", async () => {
+  for (const [code, expected] of [
+    ["csrf_denied", /CSRF/],
+    ["workstation_inactive", /workstation/],
+    ["origin_denied", /origem HTTPS/],
+    ["central_action_not_supported", /indisponível/],
+  ] as const) {
+    const client = new FakeApiClient();
+    client.patchError = new AndonApiError("HTTP 403", 403, code);
+    const repository = new ApiAndonRepository(client);
+    await assert.rejects(
+      repository.cancelCall([], [original], {
+        callId: original.id, reason: "test cancellation", cancelledBy: "operador",
+      }),
+      expected,
+    );
+    assert.deepEqual(client.seen, [`PATCH /api/andon-calls/${original.id}/cancel`]);
+  }
 });
 
 test("R10-01: incomplete PATCH response cannot be mistaken for a committed cancellation", async () => {
