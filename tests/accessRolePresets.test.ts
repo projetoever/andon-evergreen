@@ -61,7 +61,7 @@ test("suggestions are strictly limited to the permitted catalog", () => {
   assert.deepEqual(suggestedPermissions("Produção", []), []);
   assert.deepEqual(
     MODULE_ENTRY_PERMISSIONS.map((item) => item.key),
-    ["andon.read", "bi.read", "priorities.read", "andon.settings.open"],
+    ["andon.read", "bi.read", "priorities.read", "andon.settings.open", "workstations.screen.unlock"],
   );
 });
 
@@ -92,6 +92,16 @@ test("Manager and maintenance templates are operational, never user or service a
   assert(!manager.includes("analytics.policy.manage") && !manager.includes("catalog.assets.manage"));
   assert(maintenance.includes("bi.read") && maintenance.includes("calls.attend"));
   assert(!maintenance.includes("workstations.read") && !maintenance.includes("users.create"));
+});
+
+test("R11: a user can receive the independent screen release grant without machine write or Hub admin", () => {
+  const granted = toggleAndonModulePermission([], "workstations.screen.unlock", true);
+  assert.deepEqual(granted, ["workstations.screen.unlock", "andon.read"]);
+  assert(!granted.includes("workstations.manage"));
+  assert(!granted.includes("machines.status.write"));
+  assert(!granted.includes("users.create"));
+  assert.deepEqual(toggleAndonModulePermission(granted, "workstations.screen.unlock", false), ["andon.read"]);
+  assert.deepEqual(toggleAndonModulePermission(granted, "andon.read", false), []);
 });
 
 test("R10-09: granting ANDON settings in any profile enables only minimum ANDON module read", () => {

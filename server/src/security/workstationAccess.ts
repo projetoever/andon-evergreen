@@ -10,7 +10,7 @@ import {
 } from "../services/workstationAuthorization.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
-import { AccessError, assertModule, assertPermission, isAndonSettingsDelegate } from "../access/policy.js";
+import { AccessError, assertModule, assertPermission } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
   isScopedMachineReadRoute,
@@ -127,17 +127,9 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           (path === "/api/system-settings" ||
            path === "/api/dashboard-sound-state" ||
            path === "/api/andon-categories" ||
-           path === "/api/technicians")) {
-        assertModule(principal, workstation, "operational");
-        return;
-      }
-      // R10-09: global classification is a shared configuration catalog,
-      // not a machine's operational/history collection. A delegated settings
-      // editor with selected machine scope may read it for editing; arbitrary
-      // global reads, analytics and historical data remain scoped/denied.
-      if (request.method === "GET" &&
-          path === "/api/failure-classifications" &&
-          isAndonSettingsDelegate(principal)) {
+           path === "/api/technicians" ||
+           // Taxonomy labels are required to render history, not a write privilege.
+           path === "/api/failure-classifications")) {
         assertModule(principal, workstation, "operational");
         return;
       }
