@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Permissão de tela fixa", "Fixed-screen permission", "固定畫面權限"],
+  ["Permitir desfixar tela de máquina", "Allow releasing a fixed machine screen", "允許解除機台固定畫面"],
+  ["Exige usuário e senha próprios, máquina autorizada e auditoria. Não libera acesso ao Hub nem administração de workstations.", "Requires own username and password, authorized machine scope and audit. Does not grant Hub or workstation administration.", "需要本人帳號密碼、授權機台範圍及稽核記錄。不授予 Hub 或工作站管理權限。"],
+  ["Informe a senha de um Admin, mantenedor ou usuário com permissão para desfixar esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin, maintenance technician, or user explicitly allowed to release this screen. The signed-in user will not change.", "請輸入管理員、維修人員或獲明確授權解除此機台固定畫面的使用者密碼。目前登入者不會變更。"],
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],
