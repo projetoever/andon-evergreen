@@ -1,5 +1,5 @@
 import { isCentralMode } from "@/services/centralCsrf";
-import { createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient";
+import { AndonApiError, createAndonApiClient, type AndonApiClient } from "@/api/andonApiClient";
 import { DEFAULT_SETTINGS } from "@/context/defaultSettings";
 import { SOUND_CONFIGS } from "@/data/soundFiles";
 import type { AndonCall, CallImpactInterval, TechnicianAttendanceSession, TechnicianTimeAllocation } from "@/types/andon";
@@ -464,10 +464,36 @@ export class ApiAndonRepository implements AndonRepository {
     // R10-01: distinguish the authoritative PATCH result from the subsequent
     // read-only refresh. A failed GET must not misreport a committed cancellation
     // as a failed write, inviting a second cancellation of the same call.
-    const confirmed = await this.apiClient.patch<ApiAndonCall>(`/api/andon-calls/${params.callId}/cancel`, {
-      reason: params.reason,
-      ...(!isCentralMode() ? { cancelledBy: params.cancelledBy } : {}),
-    });
+    let confirmed: ApiAndonCall;
+    try {
+      confirmed = await this.apiClient.patch<ApiAndonCall>(`/api/andon-calls/${params.callId}/cancel`, {
+        reason: params.reason,
+        ...(!isCentralMode() ? { cancelledBy: params.cancelledBy } : {}),
+      });
+    } catch (error) {
+      // A 403 is not a network outage. Preserve server ACL and explain
+      // the specific reason without retrying a potentially sensitive write.
+      if (error instanceof AndonApiError && error.status === 403) {
+        const known: Record<string, string> = {
+          permission_denied:
+            "Cancelamento não autorizado. 'Cancelar próprios' exige que o chamado tenha sido aberto por seu login central; para outros autores, solicite 'Cancelar qualquer' ao Admin.",
+          workstation_inactive:
+            "Cancelamento bloqueado: esta workstation está inativa ou aguardando aprovação.",
+          origin_denied:
+            "Cancelamento bloqueado: a origem HTTPS não corresponde à origem central autorizada.",
+          csrf_denied:
+            "Cancelamento bloqueado pela verificação CSRF. Atualize o Hub e autentique-se novamente.",
+          central_action_not_supported:
+            "Cancelamento central indisponível neste ambiente. Verifique a ativação da rota específica.",
+          machine_scope_denied:
+            "Cancelamento bloqueado: máquina fora do escopo autorizado.",
+        };
+        if (error.errorCode && Object.hasOwn(known, error.errorCode)) {
+          throw new Error(known[error.errorCode]);
+        }
+      }
+      throw error;
+    }
     if (!confirmed || confirmed.id !== params.callId || confirmed.status !== "cancelled") {
       throw new Error("Não foi possível confirmar o cancelamento na resposta da API. Verifique o estado do chamado.");
     }
