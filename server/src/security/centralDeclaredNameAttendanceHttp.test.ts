@@ -106,8 +106,8 @@ test("R12-02B1: strict body rejects credentials, claimed actor, arbitrary IDs an
     { technicianNames: ["Ana"], declaredBy: "administrator" },
     { technicianNames: ["Ana"], workstationId: "foreign" },
     { technicianNames: ["Ana"], identityVerified: true },
-    { technicianNames: ["Ana", "ANA"] },
   ]) denied(() => parseDeclaredAttendanceBody(body), "technician_names_invalid");
+  denied(() => parseDeclaredAttendanceBody({ technicianNames: ["Ana", "ANA"] }), "duplicate_technician");
   assert.deepEqual(parseDeclaredAttendanceBody({
     technicianNames: [" Ana ", "Bruna"],
   }), ["Ana", "Bruna"]);
