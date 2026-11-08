@@ -5,6 +5,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+# REFINE12 / #372: this LEGACY updater synchronizes installers beneath
+# C:\web-andon-industrial\installer. It must NEVER run from an HML clone,
+# a secondary checkout, a Git worktree, or any user-provided source path.
+# This guard is before any Git, process-stop, backup or file writes.
+$legacyRoot = 'C:\web-andon-industrial\andon'
+$repoItem = Get-Item -LiteralPath $repoRoot -Force -ErrorAction Stop
+$canonicalRoot = [System.IO.Path]::GetFullPath($repoItem.FullName).TrimEnd('\')
+if (($repoItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0 -or
+    !$canonicalRoot.Equals($legacyRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'ATUALIZAR_NOTEBOOK.ps1 e rotina LEGADA do diretorio industrial local. NUNCA execute na HML. Use somente o atualizador HML seguro e independente de C:\web-andon-refine8-hml\andon.'
+}
 $stopScript = Join-Path $repoRoot "homologation\https\Stop-AndonHttpsHomologation.ps1"
 $stateRoot = Join-Path $repoRoot ".andon-homologation"
 $stateFile = Join-Path $stateRoot "processes.json"
