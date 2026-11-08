@@ -39,7 +39,7 @@ $centralHomologationFlags = @(
     "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
     # Only metadata name/OS, never machine status or production control.
     "ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED",
-    # New machine inventory only (separate flag, no physical status control).
+    # New machine inventory only - separate flag, no physical status control.
     "ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED",
     "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
 )
