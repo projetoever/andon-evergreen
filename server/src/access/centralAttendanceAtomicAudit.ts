@@ -25,6 +25,9 @@ type VerifiedAttendance<T> = {
   technicianId: string;
   /** Verified IDs in credential order for atomic multi-technician attendance. */
   technicianIds?: string[];
+  /** Explicit non-authenticated declaration; never interchangeable with PIN/RFID. */
+  identificationMethod?: "name";
+  identityVerified?: false;
 };
 
 export type GuardedAttendanceInput<T> = {
@@ -33,6 +36,8 @@ export type GuardedAttendanceInput<T> = {
   callId: string;
   requestId?: string;
   ipAddress?: string;
+  /** Internal server-only audit discriminator; default preserves verified attendance. */
+  auditIdentity?: "declared_name";
   verifyAndApplyAttendance: (
     tx: Prisma.TransactionClient,
     call: LockedAttendanceContext,
@@ -142,6 +147,10 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
          new Set(multiIds).size !== multiIds.length))
       throw new AccessError("verified_technician_required");
 
+    if (input.auditIdentity === "declared_name" &&
+        (result.identificationMethod !== "name" || result.identityVerified !== false))
+      throw new AccessError("declared_identity_audit_required", 409);
+
     // Both transition and audit are in the SAME Prisma transaction. A failure
     // to persist the audit rejects the transaction and rolls back the change.
     await appendAudit(tx, {
@@ -149,13 +158,21 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
       requestId: input.requestId,
       ipAddress: input.ipAddress,
     }, {
-      action: "calls.attend",
+      action: input.auditIdentity === "declared_name" ? "calls.attend.declared" : "calls.attend",
       resourceType: "andon_call",
       resourceId: call.callId,
       machineId: call.machineId,
-      after: multiIds
-        ? { technicianId: result.technicianId, technicianIds: multiIds }
-        : { technicianId: result.technicianId },
+      reason: input.auditIdentity === "declared_name" ? "operator_selected_name" : undefined,
+      after: input.auditIdentity === "declared_name"
+        ? {
+            technicianId: result.technicianId, technicianIds: multiIds ?? [result.technicianId],
+            identificationMethod: "name", identityVerified: false,
+            declaredByUserId: refreshed.userId, declaredBySessionId: refreshed.sessionId,
+            declaredAt: new Date(),
+          }
+        : multiIds
+          ? { technicianId: result.technicianId, technicianIds: multiIds }
+          : { technicianId: result.technicianId },
     });
     return result.value;
   });
