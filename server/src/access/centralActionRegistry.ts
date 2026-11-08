@@ -81,6 +81,9 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // call-scoped and requiring calls.attend OR calls.technicians.manage.
   // The runtime guard enforces the alternative privilege; this catalog is NOT ACL.
   { method: "POST", route: "/api/technicians/identify", permission: "calls.attend", scope: "machine_from_call_record", module: "operational" },
+  // REFINE 11: separate, human-only technician catalog enrollment. Secrets
+  // are hashed; the catalog is not a verified attendance identity.
+  { method: "POST", route: "/api/technicians", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/:technicianName/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
