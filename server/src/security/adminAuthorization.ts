@@ -4,6 +4,7 @@ import { centralAccessEnabled } from "../access/http.js";
 import { isAuthorizedCentralClassificationRequest } from "./centralClassificationHttp.js";
 import { isAuthorizedCentralOperationalSettings } from "./centralOperationalSettingsHttp.js";
 import { isAuthorizedCentralMachineSettings } from "./centralMachineSettingsHttp.js";
+import { isAuthorizedCentralMachineCreate } from "./centralMachineCreateHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -148,6 +149,7 @@ export async function enforceAdminAuthorization(
   if (isAuthorizedCentralClassificationRequest(request)) return;
   if (isAuthorizedCentralOperationalSettings(request)) return;
   if (isAuthorizedCentralMachineSettings(request)) return;
+  if (isAuthorizedCentralMachineCreate(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
