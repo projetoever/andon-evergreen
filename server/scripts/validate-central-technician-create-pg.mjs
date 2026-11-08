@@ -125,7 +125,8 @@ try {
   assert.equal(stored.active, true);
   assert.equal(stored.technicalAreas.length, 1);
   assert(await verifyCredential(rawPin, stored.pinHash));
-  assert(await verifyCredential(rawTag, stored.tagHash));
+  assert(await verifyCredential(rawTag.toUpperCase(), stored.tagHash),
+    "RFID is case-normalized before hashing and matching");
   assert.notEqual(stored.pinHash, rawPin);
   assert.notEqual(stored.tagHash, rawTag);
   const event = await db.auditEvent.findFirstOrThrow({
