@@ -19,6 +19,7 @@ import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 import { markCentralClassificationAuthorized, isCentralClassificationMutation } from "./centralClassificationHttp.js";
 import { markCentralAttendanceAuthorized, isCentralAttendanceMutation } from "./centralAttendanceHttp.js";
+import { isCentralDeclaredNameAttendanceMutation, markCentralDeclaredNameAttendanceAuthorized } from "./centralDeclaredNameAttendanceHttp.js";
 import { isCentralPriorityWrite, markCentralPriorityAuthorized } from "./centralPriorityHttp.js";
 import { isCentralMaintenanceCompletionMutation, markCentralMaintenanceCompletionAuthorized } from "./centralMaintenanceCompletionHttp.js";
 import { isCentralReturnToMaintenanceMutation, markCentralReturnToMaintenanceAuthorized } from "./centralReturnToMaintenanceHttp.js";
@@ -155,6 +156,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       // selected-machine filtering. Other restricted reads still fail closed.
       if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path) &&
           !isCentralAttendanceMutation(request.method, path) &&
+          !isCentralDeclaredNameAttendanceMutation(request.method, path) &&
           !isCentralMaintenanceCompletionMutation(request.method, path) &&
           !isCentralReturnToMaintenanceMutation(request.method, path) &&
           !isCentralOpenCallMutation(request.method, path) &&
@@ -183,6 +185,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralAttendanceMutation(request.method, path)) {
           markCentralAttendanceAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralDeclaredNameAttendanceMutation(request.method, path)) {
+          markCentralDeclaredNameAttendanceAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMaintenanceCompletionMutation(request.method, path)) {
