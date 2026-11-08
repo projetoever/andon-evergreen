@@ -62,7 +62,7 @@ test("REFINE 11 technician creation is human-only, exact and OFF by default", ()
       }, station), "permission_denied");
       denied(() => markCentralTechnicianCreateAuthorized(req(), {
         ...delegate, purpose: "password_change",
-      }, station), "permission_denied");
+      }, station), "password_change_required");
       denied(() => markCentralTechnicianCreateAuthorized(req("0".repeat(64)),
         delegate, station), "csrf_denied");
     }
