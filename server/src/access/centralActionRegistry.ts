@@ -43,6 +43,8 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // CSRF and transactional audit. Registry is NOT runtime authorization.
   { method: "PATCH", route: "/api/andon-visual-palette", permission: "andon.read", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines", permission: "andon.read", scope: "collection_filter", module: "operational" },
+  // REFINE 11: opt-in catalog-only creation; runtime ACL and audit are separate.
+  { method: "POST", route: "/api/machines", permission: "andon.settings.open", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/production-mode", permission: "production.schedule.write", scope: "machine_from_route", module: "operational" },

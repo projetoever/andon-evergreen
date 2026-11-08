@@ -11,7 +11,6 @@ export type UnmigratedWriteRoute = {
 };
 
 export const UNMIGRATED_WRITE_ROUTES: readonly UnmigratedWriteRoute[] = [
-  { source: "machines.ts", method: "POST", route: "/api/machines", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "machines.ts", method: "PATCH", route: "/api/machines/:id", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "machines.ts", method: "PATCH", route: "/api/machines/:id/active", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "dashboardPriority.ts", method: "PATCH", route: "/api/dashboard-priority/access-policy", reason: "Priority access/credential/login routes retain their separate legacy guards; central migration and audit are not designed." },

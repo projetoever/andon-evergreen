@@ -109,6 +109,7 @@ export function createAndonApiClient(
     // Only the reviewed, narrowly opted-in central mutations need the
     // derived CSRF header. The legacy API path remains unchanged.
     const needsCentralCsrf =
+      (method === "POST" && path === "/api/machines") ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/attend$/.test(path)) ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/finish-maintenance$/.test(path)) ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/return-to-maintenance$/.test(path)) ||
