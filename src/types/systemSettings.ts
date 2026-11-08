@@ -31,6 +31,8 @@ export interface SystemSettings {
   andonVisualPaletteWriteEnabled?: boolean;
   /** Runtime capability only; every PATCH still needs its own ACL/CSRF. */
   centralOperationalSettingsWriteEnabled?: boolean;
+  /** Server runtime flag. Names are declared by the operator, NOT verified credentials. */
+  centralDeclaredNameAttendanceEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -8,6 +8,7 @@ import { FinishCallModal } from "@/components/calls/FinishCallModal";
 import { StartAttendanceModal } from "@/components/calls/StartAttendanceModal";
 import { toast } from "@/i18n/toast";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
+import { cancellationFailureMessage } from "@/utils/cancellationUtils";
 
 export function ActiveCallsPage() {
   useInterfaceLanguage();
@@ -75,9 +76,7 @@ export function ActiveCallsPage() {
       await cancelCall({ callId: cancelCallId, reason, cancelledBy: "operador" });
       toast.success("Chamado cancelado.");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Não é possível cancelar chamado já atendido.",
-      );
+      toast.error(cancellationFailureMessage(err));
       throw err;
     }
   }

@@ -96,7 +96,10 @@ export function TechnicianIdentificationModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
+        setMethod(effectiveAttendanceMode(
+          systemSettings.attendanceMode, centralAttendance,
+          systemSettings.centralDeclaredNameAttendanceEnabled === true && purpose === "start",
+        ));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -221,8 +224,11 @@ export function TechnicianIdentificationModal({
     }
   }
 
+  const canDeclareName = settings?.centralDeclaredNameAttendanceEnabled === true && purpose === "start";
+
   function handleNameSubmit() {
-    if (centralAttendance) return;
+    // Central name selections are operator declarations, never PIN/RFID authentication.
+    if (centralAttendance && !canDeclareName) return;
     const technicians = names.map((name) => {
       const technician = findTechnicianByName(name);
       return {
@@ -261,7 +267,7 @@ export function TechnicianIdentificationModal({
   if (!call) return null;
 
   const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
-    settings?.attendanceMode, centralAttendance,
+    settings?.attendanceMode, centralAttendance, canDeclareName,
   );
   const actionLabel =
     purpose === "start"
@@ -298,9 +304,15 @@ export function TechnicianIdentificationModal({
           </div>
         </DialogHeader>
 
-        {centralAttendance && settings?.attendanceMode === "name" && (
+        {centralAttendance && settings?.attendanceMode === "name" && !canDeclareName && (
           <p role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm font-semibold text-foreground">
             {ui("No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.")}
+          </p>
+        )}
+
+        {centralAttendance && canDeclareName && (
+          <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-semibold text-foreground">
+            {ui("Seleção por nome: o operador declara quem está atendendo; isso não verifica PIN ou tag do mantenedor. A ação e o responsável são auditados.")}
           </p>
         )}
 
