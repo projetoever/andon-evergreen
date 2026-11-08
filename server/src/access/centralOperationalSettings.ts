@@ -7,6 +7,7 @@ import { AccessError, assertModule } from "./policy.js";
 import { assertCentralOperationalSettingsPrivilege } from "../security/centralOperationalSettingsHttp.js";
 import { GLOBAL_SYSTEM_SETTINGS_ID } from "../services/systemSettings.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { centralDeclaredNameAttendanceEnabled } from "../security/centralDeclaredNameAttendanceHttp.js";
 
 /** Only non-siren, non-credential operational policy fields, never generic JSON. */
 export const CENTRAL_OPERATIONAL_SETTINGS_FIELDS = [
@@ -49,8 +50,9 @@ export function parseCentralOperationalSettingsPatch(body: unknown) {
         throw new AccessError("invalid_input", 400);
       patch[key] = value;
     } else if (key === "attendanceMode") {
-      // Name-only is never an authenticated technician identity in central mode.
-      if (value !== "pin" && value !== "rfid")
+      // Name selection is an explicit UNVERIFIED operator declaration, guarded OFF by default.
+      if (value !== "pin" && value !== "rfid" &&
+          !(value === "name" && centralDeclaredNameAttendanceEnabled()))
         throw new AccessError("central_credential_required", 400);
       patch[key] = value;
     } else if (key === "rfidReaderMode") {
