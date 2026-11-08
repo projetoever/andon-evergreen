@@ -33,6 +33,7 @@ import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceA
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
 import { isCentralMachineSettingsMutation, markCentralMachineSettingsAuthorized } from "./centralMachineSettingsHttp.js";
+import { isCentralTechnicianCreateMutation, markCentralTechnicianCreateAuthorized } from "./centralTechnicianCatalogHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -164,6 +165,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralDiagnosisEditMutation(request.method, path) &&
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
+          !isCentralTechnicianCreateMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralVisualPaletteMutation(request.method, path))
@@ -223,6 +225,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianIdentityMutation(request.method, path)) {
           markCentralTechnicianIdentityAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralTechnicianCreateMutation(request.method, path)) {
+          markCentralTechnicianCreateAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMachineSettingsMutation(request.method, path)) {
