@@ -31,6 +31,10 @@ import {
   SYSTEM_SETTINGS_CHANGED_EVENT,
   updateDashboardSoundState,
 } from "@/services/systemSettingsService";
+import {
+  readBrowserDashboardSoundState,
+  updateBrowserDashboardSoundState,
+} from "@/services/dashboardBrowserSoundState";
 import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
@@ -143,19 +147,23 @@ export function DashboardPage() {
     async (muted: boolean, reason: "manual" | "auto" = "manual") => {
       setDashboardSoundSyncing(true);
       try {
+        // Local speaker preferences are independent from optional external
+        // siren hardware. The central browser never writes GPIO/siren state.
+        if (access?.centralAccessEnabled === true) {
+          return updateBrowserDashboardSoundState(
+            muted, reason, dashboardMuteTimerEnabled, dashboardMuteDurationMinutes,
+          );
+        }
+        // Legacy shared mute integration remains unchanged.
         return await updateDashboardSoundState(muted, reason);
       } catch {
-        toast.error(
-          muted
-            ? "Não foi possível silenciar a sirene externa"
-            : "Não foi possível reativar a sirene externa",
-        );
+        toast.error("Não foi possível atualizar o estado de som compartilhado.");
         return null;
       } finally {
         setDashboardSoundSyncing(false);
       }
     },
-    [],
+    [access?.centralAccessEnabled, dashboardMuteTimerEnabled, dashboardMuteDurationMinutes],
   );
 
   const reactivateDashboardSound = useCallback(
@@ -248,14 +256,19 @@ export function DashboardPage() {
         // Defaults preservam as configuracoes locais se a leitura falhar.
       });
 
-    void getDashboardSoundState()
+    // Central dashboard audio is per-browser, not shared with the optional
+    // siren/GPIO endpoint. Legacy mode retains its existing GET behavior.
+    const readMute = access?.centralAccessEnabled === true
+      ? Promise.resolve(readBrowserDashboardSoundState())
+      : getDashboardSoundState();
+    void readMute
       .then((soundState) => {
         if (cancelled) return;
 
         cancelDashboardMuteTimer();
         dashboardMutedAtRef.current = soundState.mutedAt;
         dashboardMuteReasonRef.current = soundState.reason;
-        knownCallsAtMuteRef.current = null; // mute restaurado: usa o carimbo do servidor
+        knownCallsAtMuteRef.current = null; // timestamp retained across reloads
         setDashboardSoundMuted(soundState.muted);
 
         if (soundState.muted) {
@@ -286,7 +299,7 @@ export function DashboardPage() {
       cancelled = true;
       window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
     };
-  }, []);
+  }, [access?.centralAccessEnabled]);
 
   useEffect(
     () => () => {

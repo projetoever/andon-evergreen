@@ -19,6 +19,7 @@ import type { TLSSocket } from "node:tls";
 import { authorizeIndustrialService } from "./industrialServiceAuthorization.js";
 import { markCentralClassificationAuthorized, isCentralClassificationMutation } from "./centralClassificationHttp.js";
 import { markCentralAttendanceAuthorized, isCentralAttendanceMutation } from "./centralAttendanceHttp.js";
+import { isCentralDeclaredNameAttendanceMutation, markCentralDeclaredNameAttendanceAuthorized } from "./centralDeclaredNameAttendanceHttp.js";
 import { isCentralPriorityWrite, markCentralPriorityAuthorized } from "./centralPriorityHttp.js";
 import { isCentralMaintenanceCompletionMutation, markCentralMaintenanceCompletionAuthorized } from "./centralMaintenanceCompletionHttp.js";
 import { isCentralReturnToMaintenanceMutation, markCentralReturnToMaintenanceAuthorized } from "./centralReturnToMaintenanceHttp.js";
@@ -33,6 +34,8 @@ import { isCentralOwnWorkstationPreference, markCentralOwnWorkstationPreferenceA
 import { isCentralTechnicianIdentityMutation, markCentralTechnicianIdentityAuthorized } from "./centralTechnicianIdentityHttp.js";
 import { isCentralOperationalSettingsMutation, markCentralOperationalSettingsAuthorized } from "./centralOperationalSettingsHttp.js";
 import { isCentralMachineSettingsMutation, markCentralMachineSettingsAuthorized } from "./centralMachineSettingsHttp.js";
+import { isCentralMachineCreateMutation, markCentralMachineCreateAuthorized } from "./centralMachineCreateHttp.js";
+import { isCentralTechnicianCreateMutation, markCentralTechnicianCreateAuthorized } from "./centralTechnicianCatalogHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -131,13 +134,13 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         assertModule(principal, workstation, "operational");
         return;
       }
-      // R10-09: global classification is a shared configuration catalog,
-      // not a machine's operational/history collection. A delegated settings
-      // editor with selected machine scope may read it for editing; arbitrary
-      // global reads, analytics and historical data remain scoped/denied.
+      // REFINE 11: shared failure classification labels/eligibility are
+      // operational reference data, also used by the machine call history.
+      // They do not contain machine-specific call data. Selected-machine
+      // users with andon.read may read the catalog, not mutate it; actual
+      // history remains separately gated by history.read and machine scope.
       if (request.method === "GET" &&
-          path === "/api/failure-classifications" &&
-          isAndonSettingsDelegate(principal)) {
+          path === "/api/failure-classifications") {
         assertModule(principal, workstation, "operational");
         return;
       }
@@ -153,6 +156,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       // selected-machine filtering. Other restricted reads still fail closed.
       if (principal.machineScope !== "all" && !isScopedMachineReadRoute(request.method, path) &&
           !isCentralAttendanceMutation(request.method, path) &&
+          !isCentralDeclaredNameAttendanceMutation(request.method, path) &&
           !isCentralMaintenanceCompletionMutation(request.method, path) &&
           !isCentralReturnToMaintenanceMutation(request.method, path) &&
           !isCentralOpenCallMutation(request.method, path) &&
@@ -164,8 +168,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralDiagnosisEditMutation(request.method, path) &&
           !isCentralOwnWorkstationPreference(request.method, path) &&
           !isCentralTechnicianIdentityMutation(request.method, path) &&
+          !isCentralTechnicianCreateMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
+          !isCentralMachineCreateMutation(request.method, path) &&
           !isCentralVisualPaletteMutation(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
@@ -179,6 +185,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralAttendanceMutation(request.method, path)) {
           markCentralAttendanceAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralDeclaredNameAttendanceMutation(request.method, path)) {
+          markCentralDeclaredNameAttendanceAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMaintenanceCompletionMutation(request.method, path)) {
@@ -225,8 +235,16 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           markCentralTechnicianIdentityAuthorized(request, principal, workstation);
           return;
         }
+        if (isCentralTechnicianCreateMutation(request.method, path)) {
+          markCentralTechnicianCreateAuthorized(request, principal, workstation);
+          return;
+        }
         if (isCentralMachineSettingsMutation(request.method, path)) {
           markCentralMachineSettingsAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralMachineCreateMutation(request.method, path)) {
+          markCentralMachineCreateAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralOperationalSettingsMutation(request.method, path)) {

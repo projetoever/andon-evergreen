@@ -226,6 +226,7 @@ test("central access binds scoped machine/call reads and protects history with a
     allowedMachineIds: scopedMachineReadIds(request),
   }));
   app.get("/api/failure-classifications", async () => ({ ok: true }));
+  app.post("/api/failure-classifications", async () => ({ forbidden: false }));
   app.get("/api/analytics/filter-options", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -288,11 +289,19 @@ test("central access binds scoped machine/call reads and protects history with a
   assert.deepEqual(liveCalls.json().allowedMachineIds, ["37"]);
   const liveCallsHead = await app.inject({ method: "HEAD", url: "/api/andon-calls", headers });
   assert.equal(liveCallsHead.statusCode, 200);
-  // ANDON settings delegation is a global catalogue capability, not
-  // permission to read historical call data or change machine scope.
-  const deniedClassification = await app.inject({ url: "/api/failure-classifications", headers });
-  assert.equal(deniedClassification.statusCode, 403);
-  assert.equal(deniedClassification.json().error, "scoped_query_required");
+  // Shared classification labels are reference data needed by operational
+  // dialogs/history even for a selected-machine user without settings grant.
+  const classificationWithoutDelegation = await app.inject({ url: "/api/failure-classifications", headers });
+  assert.equal(classificationWithoutDelegation.statusCode, 200);
+  assert.deepEqual(classificationWithoutDelegation.json(), { ok: true });
+  // Same user cannot write classification without an explicit central adapter.
+  const deniedClassificationWrite = await app.inject({
+    method: "POST", url: "/api/failure-classifications", headers,
+    payload: { label: "Unsafe", value: "unsafe" },
+  });
+  assert.equal(deniedClassificationWrite.statusCode, 403);
+  assert.equal(deniedClassificationWrite.json().error, "scoped_query_required",
+    "selected-scope write must fail before reaching any legacy write handler");
   canManageSettings = true;
   const allowedClassification = await app.inject({ url: "/api/failure-classifications", headers });
   assert.equal(allowedClassification.statusCode, 200);

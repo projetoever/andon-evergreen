@@ -31,6 +31,7 @@ type Options = {
   transitionThrows?: boolean;
   missingPermission?: boolean;
   multiple?: boolean;
+  declared?: boolean;
 };
 
 function fixture(opts: Options = {}) {
@@ -97,14 +98,25 @@ function fixture(opts: Options = {}) {
         log.push("audit");
         if (opts.auditThrows) throw new Error("audit database write failed");
         assert.equal(args.data.actorUserId, baseUser.id);
-        assert.equal(args.data.action, "calls.attend");
+        assert.equal(args.data.action, opts.declared ? "calls.attend.declared" : "calls.attend");
         assert.equal(args.data.machineId, "37");
         assert.equal(args.data.resourceId, "call-37");
         assert.equal(args.data.actorType, "user");
         assert.equal(args.data.workstationId, baseStation.id);
-        assert.deepEqual(args.data.after, opts.multiple
-          ? { technicianId: "tech-1", technicianIds: ["tech-1", "tech-2"] }
-          : { technicianId: "tech-1" });
+        if (opts.declared) {
+          const after = args.data.after as Record<string, unknown>;
+          assert.equal(after.identificationMethod, "name");
+          assert.equal(after.identityVerified, false);
+          assert.equal(after.declaredByUserId, baseUser.id);
+          assert.equal(after.declaredBySessionId, "session-37");
+          assert.deepEqual(after.technicianIds, opts.multiple ? ["tech-1", "tech-2"] : ["tech-1"]);
+          assert.equal(args.data.reason, "operator_selected_name");
+          assert.equal(typeof after.declaredAt, "string");
+        } else {
+          assert.deepEqual(args.data.after, opts.multiple
+            ? { technicianId: "tech-1", technicianIds: ["tech-1", "tech-2"] }
+            : { technicianId: "tech-1" });
+        }
         staged.push("audit");
         return { id: "audit-1" };
       },
@@ -128,6 +140,7 @@ function fixture(opts: Options = {}) {
   const run = (overrides: Partial<Parameters<typeof runCentralAttendanceWithAtomicAudit>[1]> = {}) =>
     runCentralAttendanceWithAtomicAudit(db, {
       token: TOKEN, workstationId: "station-37", callId: "call-37",
+      ...(opts.declared ? { auditIdentity: "declared_name" as const } : {}),
       verifyAndApplyAttendance: async (_, context) => {
         log.push("domain-verify-and-transition");
         assert.deepEqual(context, {
@@ -138,6 +151,7 @@ function fixture(opts: Options = {}) {
         return {
           value: { ok: true }, technicianId: "tech-1",
           ...(opts.multiple ? { technicianIds: ["tech-1", "tech-2"] } : {}),
+          ...(opts.declared ? { identificationMethod: "name" as const, identityVerified: false as const } : {}),
         };
       },
       ...overrides,
@@ -242,4 +256,28 @@ test("SEC-04/2A.9b2a: malformed multi-technician audit attribution rolls back", 
     assert(!f.committed);
     assert(!f.log.includes("audit"));
   }
+});
+
+
+test("R12-02B1: declared operator name is never audited as verified PIN or RFID", async () => {
+  const f = fixture({ declared: true, multiple: true });
+  assert.deepEqual(await f.run(), { ok: true });
+  assert.deepEqual(f.staged, ["transition", "audit"]);
+  assert.equal(f.committed, true);
+});
+
+test("R12-02B1: missing nonverified declaration marker rejects and rolls back", async () => {
+  const f = fixture({ declared: true });
+  await deny(f.run({ verifyAndApplyAttendance: async () => ({
+    value: { ok: true }, technicianId: "tech-1",
+  }) }), "declared_identity_audit_required", 409);
+  assert.equal(f.committed, false);
+  assert.equal(f.log.includes("audit"), false);
+});
+
+test("R12-02B1: audit failure rolls back name-declared maintenance transition", async () => {
+  const f = fixture({ declared: true, auditThrows: true });
+  await assert.rejects(f.run(), /audit database write failed/);
+  assert.equal(f.committed, false);
+  assert.deepEqual(f.staged, []);
 });
