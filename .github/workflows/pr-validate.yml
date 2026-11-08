@@ -23,6 +23,10 @@ jobs:
         shell: powershell
         run: .\installer\tests\installer-runtime-regression.ps1
 
+      - name: Impedir atualizador legado fora do instalador original
+        shell: powershell
+        run: .\installer\tests\installer-lab-updater-isolation.ps1
+
       - name: Validar transação reversível HTTP e HTTPS
         shell: powershell
         run: .\installer\tests\https-transport-transaction-regression.ps1
