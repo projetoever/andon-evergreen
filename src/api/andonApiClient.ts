@@ -118,6 +118,8 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/technicians\/end$/.test(path)) ||
       (method === "PATCH" && /^\/api\/andon-calls\/[^/]+\/failure-details$/.test(path)) ||
       (method === "POST" && /^\/api\/andon-calls\/[^/]+\/technicians$/.test(path)) ||
+      (method === "POST" && path === "/api/machines") ||
+      (method === "POST" && path === "/api/technicians") ||
       (method === "POST" && path === "/api/technicians/identify") ||
       (method === "PATCH" && path === "/api/system-settings") ||
       (method === "PATCH" && path === "/api/andon-visual-palette") ||
