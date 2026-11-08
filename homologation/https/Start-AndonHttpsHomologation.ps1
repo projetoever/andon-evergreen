@@ -36,6 +36,8 @@ $centralHomologationFlags = @(
     "ANDON_CENTRAL_DIAGNOSIS_EDIT_HTTP_ENABLED",
     "ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED",
     "ANDON_CENTRAL_TECHNICIAN_IDENTITY_HTTP_ENABLED",
+    # New technician enrollment is a separate OFF-by-default catalog gate.
+    "ANDON_CENTRAL_TECHNICIAN_CREATE_HTTP_ENABLED",
     "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
     # Only metadata name/OS, never machine status or production control.
     "ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED",

@@ -22,6 +22,8 @@ import { AccessError } from "../access/policy.js";
 import { runCentralTechnicianIdentification } from "../access/centralTechnicianIdentity.js";
 import { isAuthorizedCentralTechnicianIdentity } from "../security/centralTechnicianIdentityHttp.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralTechnicianCreate } from "../security/centralTechnicianCatalogHttp.js";
+import { createCentralTechnician } from "../access/centralTechnicianCatalogCreate.js";
 
 type TechnicianQuery = {
   active?: string;
@@ -218,6 +220,25 @@ export async function registerTechnicianRoutes(app: FastifyInstance) {
   );
 
   app.post<{ Body: CreateTechnicianBody }>("/api/technicians", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralTechnicianCreate(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        const technician = await createCentralTechnician(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          body: request.body ?? {},
+          requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        return reply.status(201).send(technician);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        if (isUniqueConstraintError(error))
+          return reply.status(409).send({ error: "technician_employee_id_in_use" });
+        throw error;
+      }
+    }
     const name = requiredString(request.body?.name);
     const employeeId = normalizeEmployeeId(request.body?.employeeId);
     const technicalArea = requiredString(request.body?.technicalArea);
