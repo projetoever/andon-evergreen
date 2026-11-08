@@ -67,7 +67,7 @@ test("REFINE 11 machine create is opt-in and restricted to exact POST path", () 
       }, station), "permission_denied");
       denied(() => markCentralMachineCreateAuthorized(req(), {
         ...delegate, purpose: "password_change",
-      }, station), "permission_denied");
+      }, station), "password_change_required");
       denied(() => markCentralMachineCreateAuthorized(req("0".repeat(64)),
         delegate, station), "csrf_denied");
     }
