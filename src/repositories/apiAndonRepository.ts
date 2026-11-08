@@ -362,6 +362,14 @@ export class ApiAndonRepository implements AndonRepository {
   async attendCall(_machines: Machine[], _calls: AndonCall[], params: string | StartAttendanceParams) {
     const callId = typeof params === "string" ? params : params.callId;
     const technicians = typeof params === "string" ? [] : params.technicians;
+    if (isCentralMode() && technicians.length > 0 &&
+        technicians.every((technician) => !technician.credential)) {
+      // Only the server can authorize this independently gated, UNVERIFIED name path.
+      await this.apiClient.patch(`/api/andon-calls/${callId}/attend-declared`, {
+        technicianNames: technicians.map((technician) => technician.name),
+      });
+      return this.loadResult();
+    }
     await this.apiClient.patch(`/api/andon-calls/${callId}/attend`, {
       technicianName: technicians[0]?.name,
       technicianNames: technicians.map((technician) => technician.name),
