@@ -10,7 +10,7 @@ if (!$root.Equals($legacyRoot, [StringComparison]::OrdinalIgnoreCase)) {
     if (@($errors).Count -gt 0) { throw "Legacy updater PowerShell parse error." }
     $src = Get-Content -LiteralPath $path -Raw
     foreach ($required in @(
-        "$legacyRoot = 'C:\web-andon-industrial\andon'",
+        '$legacyRoot = ''C:\web-andon-industrial\andon''',
         "'ATUALIZAR_NOTEBOOK.ps1 e rotina LEGADA",
         'Get-Item -LiteralPath $repoRoot -Force',
         '$canonicalRoot.Equals($legacyRoot, [System.StringComparison]::OrdinalIgnoreCase)'
