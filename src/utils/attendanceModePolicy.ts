@@ -8,14 +8,16 @@ import type { AttendanceMode } from "@/types/systemSettings";
  * Do not mutate the global setting: turning central access OFF restores the
  * exact legacy behavior and its previously saved preference.
  */
-export function effectiveAttendanceMode(configured: AttendanceMode, central: boolean): AttendanceMode {
-  return central && configured === "name" ? "pin" : configured;
+export function effectiveAttendanceMode(
+  configured: AttendanceMode, central: boolean, declaredNameEnabled = false,
+): AttendanceMode {
+  return central && configured === "name" && !declaredNameEnabled ? "pin" : configured;
 }
 
 export function allowedAttendanceModes(
-  configured: AttendanceMode | undefined, central: boolean,
+  configured: AttendanceMode | undefined, central: boolean, declaredNameEnabled = false,
 ): AttendanceMode[] {
-  return !central && configured === "name"
+  return (central && declaredNameEnabled) || (!central && configured === "name")
     ? ["name", "pin", "rfid"]
     : ["pin", "rfid"];
 }
