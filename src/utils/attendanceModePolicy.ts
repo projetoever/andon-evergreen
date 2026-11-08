@@ -1,12 +1,12 @@
 import type { AttendanceMode } from "@/types/systemSettings";
 
 /**
- * The pre-central installation may persist "name" as its legacy attendance
- * setting. Central writes require a verified PIN/RFID credential, so name
- * selection must never be offered as an actionable central path.
- *
- * Do not mutate the global setting: turning central access OFF restores the
- * exact legacy behavior and its previously saved preference.
+ * Legacy may persist "name". In central mode this is a separate OPERATOR
+ * DECLARATION, never verified PIN/RFID identity. Names are available only
+ * when the central server responds with an explicit, OFF-by-default runtime
+ * capability. This policy is presentation only: the backend route has its
+ * own session, workstation, scope, CSRF, flag and transaction guards.
+ * Preserve the exact stored legacy preference when central access is OFF.
  */
 export function effectiveAttendanceMode(
   configured: AttendanceMode, central: boolean, declaredNameEnabled = false,
