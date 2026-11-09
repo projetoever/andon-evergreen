@@ -10,6 +10,7 @@ import { isAuthorizedCentralTechnicianUpdate } from "./centralTechnicianCatalogU
 import { isAuthorizedCentralShiftUpdate } from "./centralShiftSettingsHttp.js";
 import { isAuthorizedCentralCategorySettings } from "./centralCategorySettingsHttp.js";
 import { isAuthorizedCentralMachineSetSettings } from "./centralMachineSetSettingsHttp.js";
+import { isAuthorizedCentralMachineSubsetSettings } from "./centralMachineSubsetSettingsHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -169,6 +170,8 @@ export async function enforceAdminAuthorization(
   // Specific machine-set metadata write prevalidated by Hub, workstation,
   // CSRF and explicit settings grant; never unlock arbitrary asset actions.
   if (isAuthorizedCentralMachineSetSettings(request)) return;
+  // Only separately approved subset metadata changes bypass legacy Admin.
+  if (isAuthorizedCentralMachineSubsetSettings(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
