@@ -55,7 +55,7 @@ export function CentralMachineScreenUnlockModal({
         <DialogHeader>
           <DialogTitle>{ui("Desbloquear tela fixada")}</DialogTitle>
           <DialogDescription>
-            {ui("Informe a senha de um Admin ou mantenedor autorizado para esta máquina. O usuário conectado não será alterado.")}
+            {ui("Informe a senha de um Admin, mantenedor ou usuário com permissão para desfixar esta máquina. O usuário conectado não será alterado.")}
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={event => void submit(event)}>
