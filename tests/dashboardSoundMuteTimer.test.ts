@@ -354,12 +354,12 @@ test("dashboard volta a delegar reprodução ao hook normal após reativação",
   assert.match(dashboard, /dashboardMuteReasonRef/);
   assert.match(dashboard, /hasDashboardAlertCall/);
   assert.match(dashboard, /SYSTEM_SETTINGS_CHANGED_EVENT/);
-  assert.match(dashboard, /updateDashboardSoundState\(muted, reason\)/);
-  assert.match(dashboard, /getDashboardSoundState\(\)/);
+  assert.match(dashboard, /updateBrowserDashboardSoundState\(/);
+  assert.match(dashboard, /readBrowserDashboardSoundState\(\)/);
   assert.match(dashboard, /persistDashboardSoundMuted/);
 });
 
-test("API dedicada publica o estado operacional mute/desmute para o Agent", async () => {
+test("API operacional compartilhada segue disponível para Agent sem dependência do botão no navegador", async () => {
   const [dashboard, route, service] = await Promise.all([
     readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/src/routes/systemSettings.ts", import.meta.url), "utf8"),
@@ -372,8 +372,8 @@ test("API dedicada publica o estado operacional mute/desmute para o Agent", asyn
   assert.match(service, /getDashboardSoundState/);
   assert.match(service, /updateDashboardSoundState/);
   assert.match(service, /\/api\/dashboard-sound-state/);
-  assert.match(dashboard, /updateDashboardSoundState\(muted, reason\)/);
-  assert.match(dashboard, /getDashboardSoundState\(\)/);
+  assert.doesNotMatch(dashboard, /\bupdateDashboardSoundState\b/);
+  assert.doesNotMatch(dashboard, /\bgetDashboardSoundState\b/);
 });
 
 
@@ -643,13 +643,33 @@ test("REFINE 11: corrupt or unavailable browser storage fails open without mutin
   assert.equal(readBrowserDashboardSoundState(stamp, null).muted, false);
 });
 
-test("REFINE 11: central path chooses browser sound, legacy still uses the shared server mute", async () => {
+test("R12-04G2: dashboard in central AND legacy modes changes only browser audio, no shared GPIO API", async () => {
   const page = await readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8");
   const browser = await readFile(new URL("../src/services/dashboardBrowserSoundState.ts", import.meta.url), "utf8");
-  assert.match(page, /access\?\.centralAccessEnabled === true[\s\S]*updateBrowserDashboardSoundState\(/);
-  assert.match(page, /access\?\.centralAccessEnabled === true[\s\S]*readBrowserDashboardSoundState\(/);
-  assert.match(page, /return await updateDashboardSoundState\(muted, reason\)/);
-  assert.match(page, /: getDashboardSoundState\(\)/);
+  assert.match(page, /return updateBrowserDashboardSoundState\(/);
+  assert.match(page, /const readMute = Promise\.resolve\(readBrowserDashboardSoundState\(\)\)/);
+  assert.match(page, /stopAndonSound\(undefined, "dashboard"\)/);
   assert.match(page, /hasRealCallOpenedAfter\(calls, dashboardMutedAtRef\.current\)/);
+  assert.doesNotMatch(page, /\bgetDashboardSoundState\b|\bupdateDashboardSoundState\b/);
   assert.doesNotMatch(browser, /\/api\/|fetch\(|GPIO_ENABLED|PLC_/);
+});
+
+test("R12-04G2: each browser can mute/unmute independently while the external agent is disconnected", () => {
+  const one = new Map<string, string>();
+  const two = new Map<string, string>();
+  const storage = (map: Map<string, string>) => ({
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => { map.set(key, value); },
+    removeItem: (key: string) => { map.delete(key); },
+  });
+  const t = Date.parse("2026-11-09T20:00:00.000Z");
+  const kiosk = storage(one);
+  const office = storage(two);
+  assert.equal(updateBrowserDashboardSoundState(true, "manual", true, 3, t, kiosk).muted, true);
+  assert.equal(readBrowserDashboardSoundState(t + 5_000, office).muted, false);
+  assert.equal(updateBrowserDashboardSoundState(true, "auto", false, 3, t, office).muted, true);
+  assert.equal(updateBrowserDashboardSoundState(false, "manual", true, 3, t + 10_000, kiosk).muted, false);
+  assert.equal(readBrowserDashboardSoundState(t + 10_000, office).muted, true);
+  assert.equal(readBrowserDashboardSoundState(t + 3 * 60_000, kiosk).muted, false);
+  assert.equal(readBrowserDashboardSoundState(t + 3 * 60_000, office).muted, true);
 });
