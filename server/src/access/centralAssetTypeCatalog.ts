@@ -186,7 +186,6 @@ export function updateCentralAssetType(
   if (!ID.test(input.typeId)) throw new AccessError("invalid_action_resource", 400);
   const patch = parseCentralAssetTypePatch(input.body, "update");
   return runTypeTransaction(db, input, async tx => {
-    const table = input.kind === "set" ? "machine_set_types" : "machine_subset_types";
     // Only constant table names from the enum are used, never raw user values.
     if (input.kind === "set") {
       await tx.$queryRaw(Prisma.sql`SELECT id FROM machine_set_types
