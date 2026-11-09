@@ -4,6 +4,11 @@ import type { Prisma } from "@prisma/client";
 import { lockAndonCategoryFlow } from "../db/andonCategoryFlowLock.js";
 import { prisma } from "../db/prisma.js";
 import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralCategorySettings } from "../security/centralCategorySettingsHttp.js";
+import { createCentralCategory, updateCentralCategory } from "../access/centralCategorySettings.js";
 
 const CATEGORY_GROUPS = new Set(["maintenance", "production"]);
 const CATEGORY_ID_PATTERN = /^[a-z0-9_]{2,40}$/;
@@ -56,6 +61,23 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: CategoryBody }>("/api/andon-categories", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralCategorySettings(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        const category = await createCentralCategory(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          body: request.body, requestId: request.id,
+          ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        return reply.status(201).send(category);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    }
     const id = requiredString(request.body?.id)?.toLowerCase();
     const displayName = requiredString(request.body?.displayName);
     const categoryGroup = requiredString(request.body?.categoryGroup);
@@ -88,6 +110,22 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: CategoryBody }>(
     "/api/andon-categories/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralCategorySettings(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await updateCentralCategory(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            categoryId: request.params.id, body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const current = await prisma.andonCategory.findUnique({ where: { id: request.params.id } });
       if (!current) return notFound(reply, "Setor não encontrado");
 
