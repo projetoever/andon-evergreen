@@ -124,6 +124,8 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/shifts\/[a-zA-Z0-9_-]{1,160}$/.test(path)) ||
       (method === "POST" && path === "/api/andon-categories") ||
       (method === "PATCH" && /^\/api\/andon-categories\/[a-z0-9_]{2,40}$/.test(path)) ||
+      (method === "POST" && /^\/api\/machines\/[A-Za-z0-9_-]{1,160}\/sets$/.test(path)) ||
+      (method === "PATCH" && /^\/api\/machine-sets\/[A-Za-z0-9_-]{1,160}$/.test(path)) ||
       (method === "POST" && path === "/api/technicians/identify") ||
       (method === "PATCH" && path === "/api/system-settings") ||
       (method === "PATCH" && path === "/api/andon-visual-palette") ||
