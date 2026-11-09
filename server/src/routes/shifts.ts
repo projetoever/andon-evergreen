@@ -2,6 +2,11 @@ import type { FastifyInstance } from "fastify";
 
 import { prisma } from "../db/prisma.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralShiftUpdate } from "../security/centralShiftSettingsHttp.js";
+import { updateCentralShift } from "../access/centralShiftSettingsUpdate.js";
 
 type ShiftBody = {
   name?: unknown;
@@ -26,6 +31,23 @@ export async function registerShiftRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: ShiftBody }>(
     "/api/shifts/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralShiftUpdate(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await updateCentralShift(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            shiftId: request.params.id,
+            body: request.body, requestId: request.id,
+            ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          throw error;
+        }
+      }
       const current = await prisma.shift.findUnique({
         where: { id: request.params.id },
       });
