@@ -47,7 +47,7 @@ export function parseDeclaredTechnicianNames(raw: unknown): string[] {
 }
 
 /** Fail closed for missing, ambiguous or inactive names; never pick the first hit. */
-async function resolveActiveNames(
+export async function resolveActiveNames(
   tx: Prisma.TransactionClient,
   names: readonly string[],
 ): Promise<IdentifiedTechnician[]> {
