@@ -37,6 +37,7 @@ import { isCentralMachineCreateMutation, markCentralMachineCreateAuthorized } fr
 import { isCentralTechnicianCreateMutation, markCentralTechnicianCreateAuthorized } from "./centralTechnicianCatalogHttp.js";
 import { isCentralTechnicianUpdateMutation, markCentralTechnicianUpdateAuthorized } from "./centralTechnicianCatalogUpdateHttp.js";
 import { isCentralShiftUpdateMutation, markCentralShiftUpdateAuthorized } from "./centralShiftSettingsHttp.js";
+import { isCentralCategorySettingsMutation, markCentralCategorySettingsAuthorized } from "./centralCategorySettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -172,6 +173,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralTechnicianCreateMutation(request.method, path) &&
           !isCentralTechnicianUpdateMutation(request.method, path) &&
           !isCentralShiftUpdateMutation(request.method, path) &&
+          !isCentralCategorySettingsMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralMachineCreateMutation(request.method, path) &&
@@ -244,6 +246,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralShiftUpdateMutation(request.method, path)) {
           markCentralShiftUpdateAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralCategorySettingsMutation(request.method, path)) {
+          markCentralCategorySettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMachineSettingsMutation(request.method, path)) {
