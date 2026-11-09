@@ -403,6 +403,17 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async addTechnicianSessions(_machines: Machine[], _calls: AndonCall[], params: AddTechnicianSessionsParams) {
+    const declared = params.technicians.filter(technician => !technician.credential);
+    if (isCentralMode() && declared.length > 0) {
+      if (declared.length !== params.technicians.length)
+        throw new Error("Não misture mantenedores declarados por nome com PIN/RFID na mesma operação.");
+      // Only the dedicated server capability can authorize this. The names
+      // are NOT a verified human identity and audit records this explicitly.
+      await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians-declared`, {
+        technicianNames: params.technicians.map(technician => technician.name),
+      });
+      return this.loadResult();
+    }
     await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
       ...(!isCentralMode() ? {
         technicianNames: params.technicians.map((technician) => technician.name),
