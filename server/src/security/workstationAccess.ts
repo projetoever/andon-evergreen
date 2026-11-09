@@ -39,6 +39,7 @@ import { isCentralTechnicianUpdateMutation, markCentralTechnicianUpdateAuthorize
 import { isCentralShiftUpdateMutation, markCentralShiftUpdateAuthorized } from "./centralShiftSettingsHttp.js";
 import { isCentralCategorySettingsMutation, markCentralCategorySettingsAuthorized } from "./centralCategorySettingsHttp.js";
 import { centralMachineSetSettingsEnabled, isCentralMachineSetSettingsMutation, markCentralMachineSetSettingsAuthorized, isCentralMachineSetSettingsRead, authorizeCentralMachineSetSettingsRead } from "./centralMachineSetSettingsHttp.js";
+import { centralMachineSubsetSettingsEnabled, isCentralMachineSubsetSettingsMutation, markCentralMachineSubsetSettingsAuthorized, isCentralMachineSubsetSettingsRead, authorizeCentralMachineSubsetSettingsRead } from "./centralMachineSubsetSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -153,6 +154,11 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         authorizeCentralMachineSetSettingsRead(principal, workstation);
         return;
       }
+      if (isCentralMachineSubsetSettingsRead(request.method, path) &&
+          isAndonSettingsDelegate(principal) && centralMachineSubsetSettingsEnabled()) {
+        authorizeCentralMachineSubsetSettingsRead(principal, workstation);
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
@@ -181,6 +187,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralShiftUpdateMutation(request.method, path) &&
           !isCentralCategorySettingsMutation(request.method, path) &&
           !isCentralMachineSetSettingsMutation(request.method, path) &&
+          !isCentralMachineSubsetSettingsMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralMachineCreateMutation(request.method, path) &&
@@ -261,6 +268,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralMachineSetSettingsMutation(request.method, path)) {
           markCentralMachineSetSettingsAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralMachineSubsetSettingsMutation(request.method, path)) {
+          markCentralMachineSubsetSettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMachineSettingsMutation(request.method, path)) {
