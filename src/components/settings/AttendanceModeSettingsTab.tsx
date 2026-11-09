@@ -94,7 +94,8 @@ export function AttendanceModeSettingsTab() {
 
   async function handleSave() {
     if (!settings || !hasUnsavedChanges) return;
-    if (centralAttendance && settings.attendanceMode === "name") {
+    if (centralAttendance && settings.attendanceMode === "name" &&
+        settings.centralDeclaredNameAttendanceEnabled !== true) {
       toast.error(ui("Com login central, use PIN ou tag para identificar o mantenedor."));
       return;
     }
@@ -165,7 +166,11 @@ export function AttendanceModeSettingsTab() {
 
       {centralAttendance && (
         <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
-          {ui("No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.")}
+          {settings.centralDeclaredNameAttendanceEnabled === true
+            ? settings.centralDeclaredNameTechnicianAddEnabled === true
+              ? ui("A seleção por nome declara quem atende ou entra no acompanhamento, sem verificar PIN ou RFID. O servidor autoriza e audita cada inclusão de mantenedor separadamente.")
+              : ui("A seleção por nome é uma declaração registrada pelo operador, não uma verificação de PIN ou RFID. No acesso central, esta opção exige autorização específica do servidor; adicionar mantenedor ao acompanhamento continua exigindo PIN ou tag.")
+            : ui("No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.")}
         </div>
       )}
 
@@ -178,7 +183,8 @@ export function AttendanceModeSettingsTab() {
               key={option.id}
               type="button"
               aria-pressed={selected}
-              disabled={centralAttendance && option.id === "name"}
+              disabled={centralAttendance && option.id === "name" &&
+                settings.centralDeclaredNameAttendanceEnabled !== true}
               onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",

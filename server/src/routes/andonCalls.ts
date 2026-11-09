@@ -34,6 +34,10 @@ import { callMachineReadWhere } from "../security/callReadScope.js";
 import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
+import { isAuthorizedCentralDeclaredNameAttendance, parseDeclaredAttendanceBody } from "../security/centralDeclaredNameAttendanceHttp.js";
+import { runCentralDeclaredNameAttendance } from "../access/centralDeclaredNameAttendance.js";
+import { runCentralDeclaredNameTechnicianAdd } from "../access/centralDeclaredNameTechnicianAdd.js";
+import { isAuthorizedCentralDeclaredNameTechnicianAdd, parseDeclaredTechnicianAddBody } from "../security/centralDeclaredNameTechnicianAddHttp.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
 import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
 import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
@@ -2755,6 +2759,32 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     }
   });
 
+  // REFINE 12 / #345: name is a declared technician, NOT an authenticated PIN/RFID.
+  // Completely separate, OFF-by-default endpoint. Existing /attend is unchanged.
+  app.patch<{ Params: { id: string }; Body: unknown }>(
+    "/api/andon-calls/:id/attend-declared",
+    async (request, reply) => {
+      if (!centralAccessEnabled() || !isAuthorizedCentralDeclaredNameAttendance(request))
+        throw new AccessError("central_action_not_supported");
+      const technicianNames = parseDeclaredAttendanceBody(request.body);
+      try {
+        const updated = await runCentralDeclaredNameAttendance(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          callId: request.params.id,
+          technicianNames,
+          requestId: request.id,
+          ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        return reply.status(200).send(updated);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
   app.patch<{ Params: { id: string }; Body: AttendAndonCallBody }>(
     "/api/andon-calls/:id/attend",
     async (request, reply) => {
@@ -2929,6 +2959,36 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           cancelledBy,
         },
       );
+    },
+  );
+
+  // REFINE 12 / #345: names entered during an existing maintenance/follow-up
+  // call are operator declarations, NOT PIN/RFID verification. Independent
+  // OFF-by-default route and atomic audit; the verified add route is unchanged.
+  app.post<{ Params: { id: string }; Body: unknown }>(
+    "/api/andon-calls/:id/technicians-declared",
+    async (request, reply) => {
+      if (!centralAccessEnabled() || !isAuthorizedCentralDeclaredNameTechnicianAdd(request))
+        throw new AccessError("central_action_not_supported");
+      const technicianNames = parseDeclaredTechnicianAddBody(request.body);
+      try {
+        const updated = await runCentralDeclaredNameTechnicianAdd(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          callId: request.params.id,
+          technicianNames,
+          requestId: request.id,
+          ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        return reply.status(201).send(updated);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        if (error instanceof AndonCallValidationError ||
+            error instanceof WorkstationAuthorizationError)
+          return badRequest(reply, error.message);
+        throw error;
+      }
     },
   );
 

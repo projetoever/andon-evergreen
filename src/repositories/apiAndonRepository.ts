@@ -362,6 +362,14 @@ export class ApiAndonRepository implements AndonRepository {
   async attendCall(_machines: Machine[], _calls: AndonCall[], params: string | StartAttendanceParams) {
     const callId = typeof params === "string" ? params : params.callId;
     const technicians = typeof params === "string" ? [] : params.technicians;
+    if (isCentralMode() && technicians.length > 0 &&
+        technicians.every((technician) => !technician.credential)) {
+      // Only the server can authorize this independently gated, UNVERIFIED name path.
+      await this.apiClient.patch(`/api/andon-calls/${callId}/attend-declared`, {
+        technicianNames: technicians.map((technician) => technician.name),
+      });
+      return this.loadResult();
+    }
     await this.apiClient.patch(`/api/andon-calls/${callId}/attend`, {
       technicianName: technicians[0]?.name,
       technicianNames: technicians.map((technician) => technician.name),
@@ -395,6 +403,17 @@ export class ApiAndonRepository implements AndonRepository {
   }
 
   async addTechnicianSessions(_machines: Machine[], _calls: AndonCall[], params: AddTechnicianSessionsParams) {
+    const declared = params.technicians.filter(technician => !technician.credential);
+    if (isCentralMode() && declared.length > 0) {
+      if (declared.length !== params.technicians.length)
+        throw new Error("Não misture mantenedores declarados por nome com PIN/RFID na mesma operação.");
+      // Only the dedicated server capability can authorize this. The names
+      // are NOT a verified human identity and audit records this explicitly.
+      await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians-declared`, {
+        technicianNames: params.technicians.map(technician => technician.name),
+      });
+      return this.loadResult();
+    }
     await this.apiClient.post<ApiAndonCall>(`/api/andon-calls/${params.callId}/technicians`, {
       ...(!isCentralMode() ? {
         technicianNames: params.technicians.map((technician) => technician.name),

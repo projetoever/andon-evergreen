@@ -62,6 +62,9 @@ const suggestions: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
+/** Opt-in, never in a role preset: re-authentication still required server-side. */
+export const SCREEN_UNLOCK_PERMISSION = "workstations.screen.unlock" as const;
+
 export const MODULE_ENTRY_PERMISSIONS = [
   { key: "andon.read", label: "ANDON: visualizar" },
   { key: "bi.read", label: "BI: visualizar" },
@@ -81,10 +84,13 @@ export function toggleAndonModulePermission(
   const next = new Set(current);
   if (checked) {
     next.add(key);
-    if (key === "andon.settings.open") next.add("andon.read");
+    if (key === "andon.settings.open" || key === SCREEN_UNLOCK_PERMISSION) next.add("andon.read");
   } else {
     next.delete(key);
-    if (key === "andon.read") next.delete("andon.settings.open");
+    if (key === "andon.read") {
+      next.delete("andon.settings.open");
+      next.delete(SCREEN_UNLOCK_PERMISSION);
+    }
   }
   return [...next];
 }

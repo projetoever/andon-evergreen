@@ -171,3 +171,37 @@ test("R10-09: any HUMAN profile with explicit ANDON settings grant can configure
     else process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = beforeFlag;
   }
 });
+
+
+test("REFINE12 #345: name mode is writable only with two explicit OFF-by-default central flags", () => {
+  const central = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const operational = process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+  const names = process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED;
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+    process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = "1";
+    process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED = "1";
+    denied(() => parseCentralOperationalSettingsPatch({ attendanceMode: "name" }),
+      "central_credential_required");
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED = "0";
+    denied(() => parseCentralOperationalSettingsPatch({ attendanceMode: "name" }),
+      "central_credential_required");
+    process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED = "1";
+    assert.deepEqual(parseCentralOperationalSettingsPatch({ attendanceMode: "name" }),
+      { attendanceMode: "name" });
+    process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = "0";
+    // Parsing may accept a proposed policy, but the route still cannot write it
+    // without its separate config flag and user + workstation + CSRF privilege.
+    denied(() => markCentralOperationalSettingsAuthorized(req(
+      csrfToken(token), { attendanceMode: "name" }), admin, station),
+      "central_action_not_supported");
+  } finally {
+    if (central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = central;
+    if (operational === undefined) delete process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED = operational;
+    if (names === undefined) delete process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_DECLARED_NAME_ATTENDANCE_HTTP_ENABLED = names;
+  }
+});
