@@ -387,7 +387,8 @@ test("R12-04H1: ten ANDON settings tabs remain visible but central machine inven
   assert.match(machine, /<SelectTrigger disabled=\{centralAccess\}>/);
   assert.match(machine, /disabled=\{centralAccess \|\| Boolean\(selectedMachine\.currentCallId\)\}/);
   assert.match(machine, /Modo de produção e ativação exigem ações operacionais próprias/);
-  assert.match(guard, /return method === "PATCH" && \^/);
+  assert.match(guard, /method === "PATCH"/);
+  assert.doesNotMatch(guard, /\/active|\/production-mode|\/status/);
   assert.match(route, /if \(!isAuthorizedCentralMachineSettings\(request\)\)/);
   assert.match(policy, /"andon.settings.open"/);
   // A grant for settings must not be misinterpreted as permission to alter
