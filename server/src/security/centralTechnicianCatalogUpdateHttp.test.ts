@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import type { FastifyRequest } from "fastify";
 import { csrfToken } from "../access/credentials.js";
 import { AccessError, type Principal } from "../access/policy.js";
@@ -117,4 +118,17 @@ test("R12-04A: allowlist, credential edit and technical-area validation", () => 
       : invalid && typeof invalid === "object" && ("pin" in invalid || "tag" in invalid)
         ? "invalid_technician_credential"
         : "invalid_input");
+});
+
+test("R12-04A: legacy admin gate is bypassed ONLY after central workstation, session, CSRF and catalog ACL marker", async () => {
+  const [admin, workstation, route, frontend] = await Promise.all([
+    readFile(new URL("./adminAuthorization.ts", import.meta.url), "utf8"),
+    readFile(new URL("./workstationAccess.ts", import.meta.url), "utf8"),
+    readFile(new URL("../routes/technicians.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../../src/api/andonApiClient.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(admin, /if \(isAuthorizedCentralTechnicianUpdate\(request\)\) return;/);
+  assert.match(workstation, /markCentralTechnicianUpdateAuthorized\(request, principal, workstation\)/);
+  assert.match(route, /if \(!isAuthorizedCentralTechnicianUpdate\(request\)\)/);
+  assert.match(frontend, /method === "PATCH" && \/\^\\\/api\\\/technicians/);
 });
