@@ -82,7 +82,7 @@ test("R12-04C: any human role with explicit ANDON settings grant, scoped globall
       }, station), "permission_denied");
       denied(() => markCentralCategorySettingsAuthorized(req(), {
         ...delegate, purpose: "password_change",
-      }, station), "permission_denied");
+      }, station), "password_change_required");
       denied(() => markCentralCategorySettingsAuthorized(
         req("POST", "/api/andon-categories", "0".repeat(64)), delegate, station),
       "csrf_denied");
