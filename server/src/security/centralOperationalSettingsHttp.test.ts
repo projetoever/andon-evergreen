@@ -69,12 +69,27 @@ test("central system-settings requires explicitly enabled flag, primary Admin, a
 test("operational settings strict whitelist excludes siren, global mute, credentials and unknown keys", () => {
   assert(CENTRAL_OPERATIONAL_SETTINGS_FIELDS.includes("requireWorkOrderAtOpen"));
   assert.deepEqual(parseCentralOperationalSettingsPatch({
+    dashboardSoundMuteTimerEnabled: true,
+    dashboardSoundMuteDurationMinutes: 3,
+    dashboardSoundAutoMuteTimerEnabled: false,
+    dashboardSoundActiveDurationMinutes: 5,
+  }), {
+    dashboardSoundMuteTimerEnabled: true,
+    dashboardSoundMuteDurationMinutes: 3,
+    dashboardSoundAutoMuteTimerEnabled: false,
+    dashboardSoundActiveDurationMinutes: 5,
+  });
+  assert.deepEqual(parseCentralOperationalSettingsPatch({
     requireWorkOrderAtOpen: true, attendanceMode: "pin",
     clientName: "  Evergreen   ",
   }), { requireWorkOrderAtOpen: true, attendanceMode: "pin", clientName: "Evergreen" });
   for (const patch of [
     {}, null, [], { dashboardSoundMuted: true },
-    { dashboardSoundMuteTimerEnabled: true }, { adminPasswordHash: "bad" },
+    { dashboardSoundMuteDurationMinutes: 0 },
+    { dashboardSoundActiveDurationMinutes: 241 },
+    { dashboardSoundMuteDurationMinutes: "3" },
+    { dashboardSoundAutoMuteTimerEnabled: "true" },
+    { adminPasswordHash: "bad" },
     { requireWorkstationApproval: false }, { hubEnabled: true },
     { unknown: "x" }, { attendanceMode: "name" },
     { requireWorkOrderAtOpen: "true" }, { clientName: "" },
@@ -111,6 +126,7 @@ test("Manager presentation grant permits only two safe fields, with flag, full s
       { attendanceMode: "name" },
       { rfidReaderMode: "keyboard_hid" },
       { dashboardSoundMuted: true },
+      { dashboardSoundMuteTimerEnabled: true },
       { adminPasswordHash: "unsafe" },
       { virtualKeyboardEnabled: true, requireWorkOrderAtOpen: false },
     ]) {
@@ -148,6 +164,8 @@ test("R10-09: any HUMAN profile with explicit ANDON settings grant can configure
         { clientName: "Evergreen" },
         { attendanceMode: "pin" },
         { rfidReaderMode: "keyboard_hid" },
+        { dashboardSoundMuteTimerEnabled: true, dashboardSoundMuteDurationMinutes: 3 },
+        { dashboardSoundAutoMuteTimerEnabled: false, dashboardSoundActiveDurationMinutes: 5 },
       ]) {
         const request = req(csrfToken(token), body);
         markCentralOperationalSettingsAuthorized(request, delegated, station);
