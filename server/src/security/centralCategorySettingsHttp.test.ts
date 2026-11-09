@@ -76,7 +76,7 @@ test("R12-04C: any human role with explicit ANDON settings grant, scoped globall
         req("PATCH", "/api/andon-categories/electric"), delegate, station);
       denied(() => markCentralCategorySettingsAuthorized(req(), {
         ...delegate, permissions: ["andon.read"],
-      }, station), "permission_denied");
+      }, station), "scoped_query_required");
       denied(() => markCentralCategorySettingsAuthorized(req(), {
         ...delegate, accountType: "kiosk",
       }, station), "permission_denied");
