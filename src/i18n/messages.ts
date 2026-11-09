@@ -11,6 +11,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Workstation não autorizada. Verifique aprovação e ativação no Hub.", "Workstation not authorized. Check approval and activation in the Hub.", "工作站未獲授權。請檢查 Hub 核准與啟用狀態。"],
   ["O chamado foi alterado ou já está em atendimento. Atualize a lista antes de decidir se ainda pode cancelar.", "The call changed or is already being handled. Refresh before deciding whether cancellation is still allowed.", "工單已變更或正在處理。請重新整理後再決定能否取消。"],
   ["Não foi possível atualizar o estado de som compartilhado.", "Could not update the shared sound state.", "無法更新共用聲音狀態。"],
+  ["Não foi possível atualizar o som deste navegador.", "Could not update this browser’s sound.", "無法更新此瀏覽器的音效。"],
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],
