@@ -11,6 +11,7 @@ import { centralTechnicianUpdateEnabled } from "../security/centralTechnicianCat
 import {
   credentialBelongsToAnotherTechnician, getTechnicianTechnicalAreas,
   lockTechnicianCredential, technicianIdentitySelect, toPublicTechnician,
+  type IdentifiedTechnician,
 } from "../services/technicianIdentity.js";
 import { hashCredential, normalizePin, normalizeTag } from "../security/technicianCredentials.js";
 
@@ -83,11 +84,7 @@ export function parseCentralTechnicianUpdateBody(raw: unknown): TechnicianUpdate
   return p;
 }
 
-function safeSnapshot(t: {
-  name: string; employeeId: string | null; shiftId: string | null;
-  active: boolean; pinHash: string | null; tagHash: string | null;
-  technicalArea: string | null; technicalAreas: Array<{ technicalArea: string }>;
-}) {
+function safeSnapshot(t: IdentifiedTechnician) {
   const areas = getTechnicianTechnicalAreas(t);
   return {
     name: t.name, employeeId: t.employeeId, shiftId: t.shiftId,
