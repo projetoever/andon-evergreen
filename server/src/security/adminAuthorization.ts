@@ -7,6 +7,7 @@ import { isAuthorizedCentralMachineSettings } from "./centralMachineSettingsHttp
 import { isAuthorizedCentralMachineCreate } from "./centralMachineCreateHttp.js";
 import { isAuthorizedCentralTechnicianCreate } from "./centralTechnicianCatalogHttp.js";
 import { isAuthorizedCentralTechnicianUpdate } from "./centralTechnicianCatalogUpdateHttp.js";
+import { isAuthorizedCentralShiftUpdate } from "./centralShiftSettingsHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -158,6 +159,9 @@ export async function enforceAdminAuthorization(
   // Only the exact PATCH already approved by Hub session/workstation/CSRF/ACL
   // may bypass the old, duplicate Admin password. Other PATCHes stay protected.
   if (isAuthorizedCentralTechnicianUpdate(request)) return;
+  // Never require the legacy Admin password for an already validated central
+  // shift settings request; no other administration route is affected.
+  if (isAuthorizedCentralShiftUpdate(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
