@@ -20,7 +20,6 @@ export const UNMIGRATED_WRITE_ROUTES: readonly UnmigratedWriteRoute[] = [
   { source: "failureEvents.ts", method: "POST", route: "/api/failure-events", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id/finish", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
-  { source: "shifts.ts", method: "PATCH", route: "/api/shifts/:id", reason: "Shift scheduling updates require production scheduling authority and audit." },
   { source: "systemSettings.ts", method: "PATCH", route: "/api/dashboard-sound-state", reason: "Shared sound state requires explicit device/operator scope; not equivalent to system-admin authority." },
   { source: "workstations.ts", method: "POST", route: "/api/workstations/register", reason: "Workstation registration is device admission/check-in, not a general access-management permission." },
   { source: "workstations.ts", method: "PATCH", route: "/api/workstations/:id", reason: "Station registration/preferences and admin updates require separate device and administration rules." },

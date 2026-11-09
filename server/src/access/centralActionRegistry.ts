@@ -87,6 +87,8 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "POST", route: "/api/technicians", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
   // Human technician catalog edit, audited and gated separately from attendance/identity.
   { method: "PATCH", route: "/api/technicians/:id", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
+  // Global ANDON shift catalogue, NOT direct machine production controls.
+  { method: "PATCH", route: "/api/shifts/:id", permission: "andon.settings.open", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/:technicianName/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
