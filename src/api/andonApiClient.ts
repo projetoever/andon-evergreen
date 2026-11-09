@@ -128,6 +128,8 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/machine-sets\/[A-Za-z0-9_-]{1,160}$/.test(path)) ||
       (method === "POST" && /^\/api\/machine-sets\/[A-Za-z0-9_-]{1,160}\/subsets$/.test(path)) ||
       (method === "PATCH" && /^\/api\/machine-subsets\/[A-Za-z0-9_-]{1,160}$/.test(path)) ||
+      (method === "POST" && (path === "/api/machine-set-types" || path === "/api/machine-subset-types")) ||
+      (method === "PATCH" && /^\/api\/machine-(?:set|subset)-types\/[A-Za-z0-9_-]{1,160}$/.test(path)) ||
       (method === "POST" && path === "/api/technicians/identify") ||
       (method === "PATCH" && path === "/api/system-settings") ||
       (method === "PATCH" && path === "/api/andon-visual-palette") ||
