@@ -33,7 +33,9 @@ jobs:
 
   validate:
     name: Build, PostgreSQL e fluxos críticos
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 does not install Chromium on ubuntu26.04-x64.
+    # Pin LTS runner until the browser harness is upgraded and validated.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     services:

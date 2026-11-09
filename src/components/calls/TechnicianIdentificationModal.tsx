@@ -82,8 +82,9 @@ export function TechnicianIdentificationModal({
       initializedCallRef.current = null;
       return;
     }
-    if (initializedCallRef.current === callId) return;
-    initializedCallRef.current = callId;
+    const modalKey = `${purpose}:${callId}`;
+    if (initializedCallRef.current === modalKey) return;
+    initializedCallRef.current = modalKey;
     setSettings(null);
     setLoadFailed(false);
     setNames([]);
@@ -98,7 +99,8 @@ export function TechnicianIdentificationModal({
         setSettings(systemSettings);
         setMethod(effectiveAttendanceMode(
           systemSettings.attendanceMode, centralAttendance,
-          systemSettings.centralDeclaredNameAttendanceEnabled === true && purpose === "start",
+          systemSettings.centralDeclaredNameAttendanceEnabled === true &&
+            (purpose === "start" || systemSettings.centralDeclaredNameTechnicianAddEnabled === true),
         ));
       })
       .catch((error) => {
@@ -109,7 +111,7 @@ export function TechnicianIdentificationModal({
             : "Não foi possível carregar o modo de atendimento",
         );
       });
-  }, [open, callId, centralAttendance]);
+  }, [open, callId, centralAttendance, purpose]);
 
   const excluded = useMemo(
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
@@ -224,7 +226,8 @@ export function TechnicianIdentificationModal({
     }
   }
 
-  const canDeclareName = settings?.centralDeclaredNameAttendanceEnabled === true && purpose === "start";
+  const canDeclareName = settings?.centralDeclaredNameAttendanceEnabled === true &&
+    (purpose === "start" || settings.centralDeclaredNameTechnicianAddEnabled === true);
 
   function handleNameSubmit() {
     // Central name selections are operator declarations, never PIN/RFID authentication.

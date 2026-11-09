@@ -87,6 +87,8 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // Human technician enrollment, not technician identity proof or call attendance.
   { method: "POST", route: "/api/technicians", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
+  // Name selection is a declared operation, NOT authenticated PIN/RFID. Separate runtime gate and audit.
+  { method: "POST", route: "/api/andon-calls/:id/technicians-declared", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/:technicianName/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/finish-maintenance", permission: "calls.finishMaintenance", scope: "machine_from_call_record", module: "operational" },

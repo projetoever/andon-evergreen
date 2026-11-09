@@ -40,8 +40,10 @@ test("R12-02B2: start dialog is server-gated, individual technician exit is veri
     assert.match(source, /effectiveAttendanceMode\(/);
     assert.match(source, /allowedAttendanceModes\(/);
   }
-  assert.match(start, /systemSettings\.centralDeclaredNameAttendanceEnabled === true && purpose === "start"/);
-  assert.match(start, /const canDeclareName = settings\?\.centralDeclaredNameAttendanceEnabled === true && purpose === "start"/);
+  assert.match(start, /systemSettings\.centralDeclaredNameAttendanceEnabled === true &&/);
+  assert.match(start, /systemSettings\.centralDeclaredNameTechnicianAddEnabled === true/);
+  assert.match(start, /const canDeclareName = settings\?\.centralDeclaredNameAttendanceEnabled === true &&/);
+  assert.match(start, /settings\.centralDeclaredNameTechnicianAddEnabled === true/);
   assert.match(start, /if \(centralAttendance && !canDeclareName\) return;/);
   assert.match(start, /A ação e o responsável são auditados/);
   assert.match(end, /effectiveAttendanceMode\(systemSettings\.attendanceMode, centralAttendance\)/);
@@ -69,3 +71,25 @@ test("R12-02B2: admin panel permits name only when server's runtime grant is tru
   assert.match(source, /No login central, a seleção por nome não autentica o mantenedor/);
   assert.match(source, /A seleção por nome é uma declaração registrada pelo operador/);
 });
+
+test("R12-02D: declaration of additional technician is independent and cannot spoof verified credentials", async () => {
+  const [repo, client, server, admission, runtime] = await Promise.all([
+    readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/andonApiClient.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/centralDeclaredNameTechnicianAddHttp.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/workstationAccess.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(repo, /technicians-declared/);
+  assert.match(repo, /declared\.length !== params\.technicians\.length/);
+  assert.match(repo, /technicianNames: params\.technicians\.map/);
+  assert.match(client, /technicians-declared\$\/\.test\(path\)/);
+  assert.match(server, /ANDON_CENTRAL_DECLARED_NAME_TECHNICIAN_ADD_HTTP_ENABLED/);
+  assert.match(server, /centralDeclaredNameAttendanceEnabled\(\)/);
+  assert.match(server, /calls\.technicians\.manage/);
+  assert.match(server, /parseDeclaredTechnicianAddBody\(request\.body\)/);
+  assert.match(server, /checkCsrf/);
+  assert.match(admission, /markCentralDeclaredNameTechnicianAddAuthorized/);
+  assert.match(runtime, /centralDeclaredNameTechnicianAddEnabled: centralDeclaredNameTechnicianAddEnabled\(\)/);
+});
+
