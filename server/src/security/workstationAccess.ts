@@ -10,6 +10,7 @@ import {
 } from "../services/workstationAuthorization.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
+import { isAndonSettingsDelegate } from "../access/policy.js";
 import { AccessError, assertModule, assertPermission, isAndonSettingsDelegate } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
@@ -38,6 +39,7 @@ import { isCentralTechnicianCreateMutation, markCentralTechnicianCreateAuthorize
 import { isCentralTechnicianUpdateMutation, markCentralTechnicianUpdateAuthorized } from "./centralTechnicianCatalogUpdateHttp.js";
 import { isCentralShiftUpdateMutation, markCentralShiftUpdateAuthorized } from "./centralShiftSettingsHttp.js";
 import { isCentralCategorySettingsMutation, markCentralCategorySettingsAuthorized } from "./centralCategorySettingsHttp.js";
+import { centralMachineSetSettingsEnabled, isCentralMachineSetSettingsMutation, markCentralMachineSetSettingsAuthorized, isCentralMachineSetSettingsRead, authorizeCentralMachineSetSettingsRead } from "./centralMachineSetSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -147,6 +149,11 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         assertModule(principal, workstation, "operational");
         return;
       }
+      if (isCentralMachineSetSettingsRead(request.method, path) &&
+          isAndonSettingsDelegate(principal) && centralMachineSetSettingsEnabled()) {
+        authorizeCentralMachineSetSettingsRead(principal, workstation);
+        return;
+      }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
       if (ownPreferencesReadTarget) {
         if (!centralOwnWorkstationPreferencesEnabled() ||
@@ -174,6 +181,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralTechnicianUpdateMutation(request.method, path) &&
           !isCentralShiftUpdateMutation(request.method, path) &&
           !isCentralCategorySettingsMutation(request.method, path) &&
+          !isCentralMachineSetSettingsMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralMachineCreateMutation(request.method, path) &&
@@ -250,6 +258,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralCategorySettingsMutation(request.method, path)) {
           markCentralCategorySettingsAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralMachineSetSettingsMutation(request.method, path)) {
+          markCentralMachineSetSettingsAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMachineSettingsMutation(request.method, path)) {
