@@ -18,11 +18,15 @@ export function mayAuthorizeScreenUnlock(
   return user.active && user.accountType === "person" && !user.mustChangePassword &&
     (
       (user.isPrimaryAdmin && user.machineScope === "all") ||
-      (user.roleLabel === "Manutenção" &&
-        user.permissions.some(p => p.key === "andon.read") &&
-        user.permissions.some(p => p.key === "calls.attend") &&
+      (user.permissions.some(p => p.key === "andon.read") &&
         (user.machineScope === "all" ||
-          user.machines.some(m => m.machineId === machineId)))
+          user.machines.some(m => m.machineId === machineId)) &&
+        // Preserve existing authorized maintenance path. The additional
+        // permission is explicit (never implied by role or module access)
+        // and uses the SAME one-time password, locks and atomic audit.
+        ((user.roleLabel === "Manutenção" &&
+          user.permissions.some(p => p.key === "calls.attend")) ||
+          user.permissions.some(p => p.key === "workstations.screen.unlock")))
     );
 }
 
