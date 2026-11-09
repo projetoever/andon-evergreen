@@ -3,6 +3,7 @@ import { publicVisualPalette, publicVisualPaletteRevision } from "./andonVisualP
 import { centralVisualPaletteWritesEnabled } from "../security/centralVisualPaletteHttp.js";
 import { centralOperationalSettingsEnabled } from "../security/centralOperationalSettingsHttp.js";
 import { centralDeclaredNameAttendanceEnabled } from "../security/centralDeclaredNameAttendanceHttp.js";
+import { centralDeclaredNameTechnicianAddEnabled } from "../security/centralDeclaredNameTechnicianAddHttp.js";
 
 export const GLOBAL_SYSTEM_SETTINGS_ID = "global";
 export const ATTENDANCE_MODES = ["name", "pin", "rfid"] as const;
@@ -50,6 +51,7 @@ export async function getSystemSettings() {
     andonVisualPaletteWriteEnabled: centralVisualPaletteWritesEnabled(),
     centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled(),
     centralDeclaredNameAttendanceEnabled: centralDeclaredNameAttendanceEnabled(),
+    centralDeclaredNameTechnicianAddEnabled: centralDeclaredNameTechnicianAddEnabled(),
   };
 }
 
