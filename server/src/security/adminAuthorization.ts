@@ -6,6 +6,7 @@ import { isAuthorizedCentralOperationalSettings } from "./centralOperationalSett
 import { isAuthorizedCentralMachineSettings } from "./centralMachineSettingsHttp.js";
 import { isAuthorizedCentralMachineCreate } from "./centralMachineCreateHttp.js";
 import { isAuthorizedCentralTechnicianCreate } from "./centralTechnicianCatalogHttp.js";
+import { isAuthorizedCentralTechnicianUpdate } from "./centralTechnicianCatalogUpdateHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -154,6 +155,9 @@ export async function enforceAdminAuthorization(
   // checks may bypass this legacy credential gate.
   if (isAuthorizedCentralMachineCreate(request)) return;
   if (isAuthorizedCentralTechnicianCreate(request)) return;
+  // Only the exact PATCH already approved by Hub session/workstation/CSRF/ACL
+  // may bypass the old, duplicate Admin password. Other PATCHes stay protected.
+  if (isAuthorizedCentralTechnicianUpdate(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
