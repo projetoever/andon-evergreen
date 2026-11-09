@@ -43,6 +43,8 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // CSRF and transactional audit. Registry is NOT runtime authorization.
   { method: "PATCH", route: "/api/andon-visual-palette", permission: "andon.read", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines", permission: "andon.read", scope: "collection_filter", module: "operational" },
+  // Dedicated opt-in POST; runtime guard separately enforces catalog ACL/CSRF.
+  { method: "POST", route: "/api/machines", permission: "andon.settings.open", scope: "module_global", module: "operational" },
   { method: "GET", route: "/api/machines/:id", permission: "andon.read", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/status", permission: "machines.status.write", scope: "machine_from_route", module: "operational" },
   { method: "PATCH", route: "/api/machines/:id/production-mode", permission: "production.schedule.write", scope: "machine_from_route", module: "operational" },
@@ -81,6 +83,10 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   // call-scoped and requiring calls.attend OR calls.technicians.manage.
   // The runtime guard enforces the alternative privilege; this catalog is NOT ACL.
   { method: "POST", route: "/api/technicians/identify", permission: "calls.attend", scope: "machine_from_call_record", module: "operational" },
+  // Human technician enrollment, not technician identity proof or call attendance.
+  { method: "POST", route: "/api/technicians", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
+  // Human technician catalog edit, audited and gated separately from attendance/identity.
+  { method: "PATCH", route: "/api/technicians/:id", permission: "catalog.technicians.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-calls/:id/technicians", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/:technicianName/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },
   { method: "PATCH", route: "/api/andon-calls/:id/technicians/end", permission: "calls.technicians.manage", scope: "machine_from_call_record", module: "operational" },

@@ -11,7 +11,6 @@ export type UnmigratedWriteRoute = {
 };
 
 export const UNMIGRATED_WRITE_ROUTES: readonly UnmigratedWriteRoute[] = [
-  { source: "machines.ts", method: "POST", route: "/api/machines", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "machines.ts", method: "PATCH", route: "/api/machines/:id", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "machines.ts", method: "PATCH", route: "/api/machines/:id/active", reason: "Machine inventory changes require catalog policy, machine scope, referential checks and audit." },
   { source: "dashboardPriority.ts", method: "PATCH", route: "/api/dashboard-priority/access-policy", reason: "Priority access/credential/login routes retain their separate legacy guards; central migration and audit are not designed." },
@@ -21,8 +20,6 @@ export const UNMIGRATED_WRITE_ROUTES: readonly UnmigratedWriteRoute[] = [
   { source: "failureEvents.ts", method: "POST", route: "/api/failure-events", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
   { source: "failureEvents.ts", method: "PATCH", route: "/api/failure-events/:id/finish", reason: "Physical downtime events can affect KPI attribution; require source-machine scope, ownership and audit." },
-  { source: "technicians.ts", method: "POST", route: "/api/technicians", reason: "Technician identity and technician catalog changes require separate identity or catalog authority and audit." },
-  { source: "technicians.ts", method: "PATCH", route: "/api/technicians/:id", reason: "Technician identity and technician catalog changes require separate identity or catalog authority and audit." },
   { source: "shifts.ts", method: "PATCH", route: "/api/shifts/:id", reason: "Shift scheduling updates require production scheduling authority and audit." },
   { source: "systemSettings.ts", method: "PATCH", route: "/api/dashboard-sound-state", reason: "Shared sound state requires explicit device/operator scope; not equivalent to system-admin authority." },
   { source: "workstations.ts", method: "POST", route: "/api/workstations/register", reason: "Workstation registration is device admission/check-in, not a general access-management permission." },
