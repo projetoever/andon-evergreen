@@ -36,6 +36,7 @@ import { isCentralMachineSettingsMutation, markCentralMachineSettingsAuthorized 
 import { isCentralMachineCreateMutation, markCentralMachineCreateAuthorized } from "./centralMachineCreateHttp.js";
 import { isCentralTechnicianCreateMutation, markCentralTechnicianCreateAuthorized } from "./centralTechnicianCatalogHttp.js";
 import { isCentralTechnicianUpdateMutation, markCentralTechnicianUpdateAuthorized } from "./centralTechnicianCatalogUpdateHttp.js";
+import { isCentralShiftUpdateMutation, markCentralShiftUpdateAuthorized } from "./centralShiftSettingsHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -130,7 +131,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           (path === "/api/system-settings" ||
            path === "/api/dashboard-sound-state" ||
            path === "/api/andon-categories" ||
-           path === "/api/technicians")) {
+           path === "/api/technicians" ||
+           path === "/api/shifts")) {
         assertModule(principal, workstation, "operational");
         return;
       }
@@ -169,6 +171,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralTechnicianIdentityMutation(request.method, path) &&
           !isCentralTechnicianCreateMutation(request.method, path) &&
           !isCentralTechnicianUpdateMutation(request.method, path) &&
+          !isCentralShiftUpdateMutation(request.method, path) &&
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralMachineCreateMutation(request.method, path) &&
@@ -237,6 +240,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralTechnicianUpdateMutation(request.method, path)) {
           markCentralTechnicianUpdateAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralShiftUpdateMutation(request.method, path)) {
+          markCentralShiftUpdateAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralMachineSettingsMutation(request.method, path)) {
