@@ -371,3 +371,26 @@ test("R10-07: centrally granted settings access shows every ANDON tab without by
   assert.match(modal, /allowGlobalSave=\{centralAccess\}/);
   assert.match(modal, /Configurações do ANDON permite gerenciar o painel em qualquer perfil/);
 });
+
+test("R12-04H1: ten ANDON settings tabs remain visible but central machine inventory cannot operate live production", async () => {
+  const [modal, machine, guard, route, policy] = await Promise.all([
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/centralMachineSettingsHttp.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/machines.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/access/policy.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(modal, /const visibleTabs = tabs;/);
+  assert.equal((modal.match(/^    id: "(general|appearance|sounds|attendance|technicians|shifts|categories|classifications|assetCatalogs|machines)",$/gm) ?? []).length, 10);
+  assert.match(modal, /<MachineAdminPanel centralAccess=\{centralAccess\}/);
+  assert.match(machine, /function MachineAdminPanel\(\{ centralAccess = false \}/);
+  assert.match(machine, /<SelectTrigger disabled=\{centralAccess\}>/);
+  assert.match(machine, /disabled=\{centralAccess \|\| Boolean\(selectedMachine\.currentCallId\)\}/);
+  assert.match(machine, /Modo de produção e ativação exigem ações operacionais próprias/);
+  assert.match(guard, /return method === "PATCH" && \^/);
+  assert.match(route, /if \(!isAuthorizedCentralMachineSettings\(request\)\)/);
+  assert.match(policy, /"andon.settings.open"/);
+  // A grant for settings must not be misinterpreted as permission to alter
+  // machineStatus, productionMode, physical controls, calls or the Hub.
+  assert.doesNotMatch(guard, /permission.*machines\.status\.write|permission.*production\.schedule\.write/);
+});
