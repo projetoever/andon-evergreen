@@ -18,6 +18,8 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { AccessError } from "../access/policy.js";
 import { isAuthorizedCentralMachineSettings } from "../security/centralMachineSettingsHttp.js";
 import { updateCentralMachineMetadata } from "../access/centralMachineSettings.js";
+import { isAuthorizedCentralMachineCreate } from "../security/centralMachineCreateHttp.js";
+import { createCentralMachine } from "../access/centralMachineCreate.js";
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
@@ -118,6 +120,28 @@ export async function registerMachineRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: CreateMachineBody }>("/api/machines", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralMachineCreate(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        const created = await createCentralMachine(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          body: request.body ?? {},
+          requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        const machine = await prisma.machine.findUniqueOrThrow({
+          where: { id: created.id }, select: machineSelect,
+        });
+        return reply.status(201).send(machine);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+          return reply.status(409).send({ error: "machine_already_exists" });
+        throw error;
+      }
+    }
     const id = requiredBodyString(request.body?.id);
     if (!id) return badRequest(reply, "Campo id é obrigatório");
 

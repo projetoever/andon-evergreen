@@ -19,6 +19,7 @@ import {
 import { permissionLabels } from "@/services/accessLabels";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  SCREEN_UNLOCK_PERMISSION,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
   isExactRolePreset,
@@ -817,6 +818,23 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           </Label>
                         ))}
                       </div>
+                      {draft.accountType === "person" && catalog.permissions.includes(SCREEN_UNLOCK_PERMISSION) && (
+                        <div className="space-y-2 border-t border-border pt-3">
+                          <p className="text-sm font-semibold">{ui("Permissão de tela fixa")}</p>
+                          <Label className="flex min-h-11 items-start gap-3 rounded-md border border-border bg-background p-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 shrink-0"
+                              checked={draft.permissions.includes(SCREEN_UNLOCK_PERMISSION)}
+                              onChange={(e) => togglePermission(SCREEN_UNLOCK_PERMISSION, e.target.checked)}
+                            />
+                            <span className="space-y-1">
+                              <span className="block font-semibold">{ui("Permitir desfixar tela de máquina")}</span>
+                              <span className="block text-xs text-muted-foreground">{ui("Exige usuário e senha próprios, máquina autorizada e auditoria. Não libera acesso ao Hub nem administração de workstations.")}</span>
+                            </span>
+                          </Label>
+                        </div>
+                      )}
                       {editing && !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions) && (
                         <p className="text-xs text-muted-foreground">
                           {ui("Outras permissões históricas são preservadas. Trocar o perfil aplica o preset de ações correspondente.")}

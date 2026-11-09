@@ -1,5 +1,18 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Permissão de tela fixa", "Fixed-screen permission", "固定畫面權限"],
+  ["Permitir desfixar tela de máquina", "Allow releasing a fixed machine screen", "允許解除機台固定畫面"],
+  ["Exige usuário e senha próprios, máquina autorizada e auditoria. Não libera acesso ao Hub nem administração de workstations.", "Requires own username and password, authorized machine scope and audit. Does not grant Hub or workstation administration.", "需要本人帳號密碼、授權機台範圍及稽核記錄。不授予 Hub 或工作站管理權限。"],
+  ["Informe a senha de um Admin, mantenedor ou usuário com permissão para desfixar esta máquina. O usuário conectado não será alterado.", "Enter the password of an Admin, maintenance technician, or user explicitly allowed to release this screen. The signed-in user will not change.", "請輸入管理員、維修人員或獲明確授權解除此機台固定畫面的使用者密碼。目前登入者不會變更。"],
+  ["Sem permissão para cancelar este chamado. Verifique se ele foi aberto por seu usuário ou solicite autorização para cancelar qualquer chamado.", "Not allowed to cancel this call. Check whether you created it or ask for permission to cancel any call.", "無權取消此工單。請確認是否由您建立，或申請取消所有工單的權限。"],
+  ["Sem acesso à máquina deste chamado. Confira o escopo de máquinas do seu usuário.", "You cannot access this call's machine. Check your assigned machine scope.", "無權存取此工單所屬機台。請檢查分配的機台範圍。"],
+  ["Sessão de segurança inválida. Atualize a página, entre novamente e verifique o estado do chamado antes de repetir.", "Security session invalid. Refresh, sign in again and check the call status before retrying.", "安全工作階段無效。請重新整理並登入，重試前確認工單狀態。"],
+  ["O cancelamento ainda não está autorizado neste ambiente. Não altere permissões ou proteção da API para contornar o bloqueio.", "Cancellation is not yet authorized in this environment. Do not bypass API protection or permissions.", "此環境尚未授權取消工單。請勿繞過 API 保護或權限。"],
+  ["Workstation não autorizada. Verifique aprovação e ativação no Hub.", "Workstation not authorized. Check approval and activation in the Hub.", "工作站未獲授權。請檢查 Hub 核准與啟用狀態。"],
+  ["O chamado foi alterado ou já está em atendimento. Atualize a lista antes de decidir se ainda pode cancelar.", "The call changed or is already being handled. Refresh before deciding whether cancellation is still allowed.", "工單已變更或正在處理。請重新整理後再決定能否取消。"],
+  ["Não foi possível atualizar o estado de som compartilhado.", "Could not update the shared sound state.", "無法更新共用聲音狀態。"],
+  ["Não foi possível atualizar o som deste navegador.", "Could not update this browser’s sound.", "無法更新此瀏覽器的音效。"],
+  ["Modo de produção e ativação exigem ações operacionais próprias; não são editáveis neste cadastro central.", "Production mode and activation require separate operational actions; they cannot be changed in this central inventory form.", "生產模式與啟用狀態須透過個別營運操作變更，無法在此集中設備資料表單中編輯。"],
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],

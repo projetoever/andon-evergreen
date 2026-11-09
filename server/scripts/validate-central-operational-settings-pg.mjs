@@ -78,7 +78,7 @@ try {
   assert.equal((await send({ requireWorkOrderAtOpen: true },
     { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
   assert.equal((await send({ dashboardSoundMuted: true })).statusCode, 400);
-  assert.equal((await send({ dashboardSoundMuteTimerEnabled: true })).statusCode, 400);
+  assert.equal((await send({ dashboardSoundMuteDurationMinutes: 0 })).statusCode, 400);
   assert.equal((await send({ attendanceMode: "name" })).statusCode, 400);
   assert.equal((await send({ hubEnabled: false })).statusCode, 400);
   assert.equal(await auditCount(), 0);
