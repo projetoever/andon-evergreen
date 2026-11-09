@@ -8,6 +8,7 @@ import { isAuthorizedCentralMachineCreate } from "./centralMachineCreateHttp.js"
 import { isAuthorizedCentralTechnicianCreate } from "./centralTechnicianCatalogHttp.js";
 import { isAuthorizedCentralTechnicianUpdate } from "./centralTechnicianCatalogUpdateHttp.js";
 import { isAuthorizedCentralShiftUpdate } from "./centralShiftSettingsHttp.js";
+import { isAuthorizedCentralCategorySettings } from "./centralCategorySettingsHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -162,6 +163,8 @@ export async function enforceAdminAuthorization(
   // Never require the legacy Admin password for an already validated central
   // shift settings request; no other administration route is affected.
   if (isAuthorizedCentralShiftUpdate(request)) return;
+  // Never bypass legacy Admin without the exact central ACL+CSRF request marker.
+  if (isAuthorizedCentralCategorySettings(request)) return;
 
   if (!readAdminSession(request)) {
     return reply.status(401).send({
