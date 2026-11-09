@@ -12,6 +12,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["O chamado foi alterado ou já está em atendimento. Atualize a lista antes de decidir se ainda pode cancelar.", "The call changed or is already being handled. Refresh before deciding whether cancellation is still allowed.", "工單已變更或正在處理。請重新整理後再決定能否取消。"],
   ["Não foi possível atualizar o estado de som compartilhado.", "Could not update the shared sound state.", "無法更新共用聲音狀態。"],
   ["Não foi possível atualizar o som deste navegador.", "Could not update this browser’s sound.", "無法更新此瀏覽器的音效。"],
+  ["Modo de produção e ativação exigem ações operacionais próprias; não são editáveis neste cadastro central.", "Production mode and activation require separate operational actions; they cannot be changed in this central inventory form.", "生產模式與啟用狀態須透過個別營運操作變更，無法在此集中設備資料表單中編輯。"],
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],
