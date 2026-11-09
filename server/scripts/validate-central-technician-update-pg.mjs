@@ -156,7 +156,8 @@ try {
     !("tagHash" in changed.json()) && !("tag" in changed.json()));
   const stored = await db.technician.findUniqueOrThrow({ where: { id: techIds[0] } });
   assert(await verifyCredential(pinNext, stored.pinHash));
-  assert(await verifyCredential(tagNext, stored.tagHash));
+  // Stored RFID hashes are based on normalized upper-case tag strings.
+  assert(await verifyCredential(tagNext.toUpperCase(), stored.tagHash));
   assert(!(await verifyCredential(pin + "0", stored.pinHash)));
   assert.equal((await auditFor(techIds[0])).length, 1);
   const audit = (await auditFor(techIds[0]))[0];
