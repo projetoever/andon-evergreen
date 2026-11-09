@@ -167,7 +167,9 @@ export function AttendanceModeSettingsTab() {
       {centralAttendance && (
         <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
           {settings.centralDeclaredNameAttendanceEnabled === true
-            ? ui("A seleção por nome é uma declaração registrada pelo operador, não uma verificação de PIN ou RFID. No acesso central, esta opção exige autorização específica do servidor; adicionar mantenedor ao acompanhamento continua exigindo PIN ou tag.")
+            ? settings.centralDeclaredNameTechnicianAddEnabled === true
+              ? ui("A seleção por nome declara quem atende ou entra no acompanhamento, sem verificar PIN ou RFID. O servidor autoriza e audita cada inclusão de mantenedor separadamente.")
+              : ui("A seleção por nome é uma declaração registrada pelo operador, não uma verificação de PIN ou RFID. No acesso central, esta opção exige autorização específica do servidor; adicionar mantenedor ao acompanhamento continua exigindo PIN ou tag.")
             : ui("No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.")}
         </div>
       )}
