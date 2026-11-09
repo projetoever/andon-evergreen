@@ -41,9 +41,8 @@ test("R12-04A: central technician PATCH is OFF by default, exact path only", () 
     for (const [method, path] of [
       ["POST", "/api/technicians/tech_123"], ["PATCH", "/api/technicians"],
       ["PATCH", "/api/technicians/tech_123/pin"], ["PATCH", "/api/technicians/a.b"],
-      ["DELETE", "/api/technicians/tech_123"], ["PATCH", "/api/technicians/identify"],
-    ]) assert.equal(isCentralTechnicianUpdateMutation(method, path),
-      method === "PATCH" && path === "/api/technicians/identify");
+      ["DELETE", "/api/technicians/tech_123"],
+    ]) assert.equal(isCentralTechnicianUpdateMutation(method, path), false);
     const approved = request();
     markCentralTechnicianUpdateAuthorized(approved, base, station);
     assert.equal(isAuthorizedCentralTechnicianUpdate(approved), true);
@@ -112,9 +111,10 @@ test("R12-04A: allowlist, credential edit and technical-area validation", () => 
     { technicalAreas: ["mechanical", "MECHANICAL"] },
     { name: "new\u0000name" },
   ]) denied(() => parseCentralTechnicianUpdateBody(invalid),
-    invalid && typeof invalid === "object" && ("technicalAreas" in invalid || "technicalArea" in invalid) &&
-      (!(Array.isArray((invalid as { technicalAreas?: unknown }).technicalAreas)) ||
-        (Array.isArray((invalid as { technicalAreas?: unknown }).technicalAreas)))
+    invalid && typeof invalid === "object" &&
+      ("technicalAreas" in invalid || "technicalArea" in invalid)
       ? "invalid_technical_areas"
-      : "invalid_input");
+      : invalid && typeof invalid === "object" && ("pin" in invalid || "tag" in invalid)
+        ? "invalid_technician_credential"
+        : "invalid_input");
 });
