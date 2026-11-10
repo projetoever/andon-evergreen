@@ -31,6 +31,7 @@ type Options = {
   transitionThrows?: boolean;
   missingPermission?: boolean;
   multiple?: boolean;
+  declared?: boolean;
 };
 
 function fixture(opts: Options = {}) {
@@ -103,8 +104,8 @@ function fixture(opts: Options = {}) {
         assert.equal(args.data.actorType, "user");
         assert.equal(args.data.workstationId, baseStation.id);
         assert.deepEqual(args.data.after, opts.multiple
-          ? { technicianId: "tech-1", technicianIds: ["tech-1", "tech-2"] }
-          : { technicianId: "tech-1" });
+          ? { technicianId: "tech-1", technicianIds: ["tech-1", "tech-2"], identificationMethod: opts.declared ? "name_declared" : "credential_verified" }
+          : { technicianId: "tech-1", identificationMethod: opts.declared ? "name_declared" : "credential_verified" });
         staged.push("audit");
         return { id: "audit-1" };
       },
@@ -128,6 +129,7 @@ function fixture(opts: Options = {}) {
   const run = (overrides: Partial<Parameters<typeof runCentralAttendanceWithAtomicAudit>[1]> = {}) =>
     runCentralAttendanceWithAtomicAudit(db, {
       token: TOKEN, workstationId: "station-37", callId: "call-37",
+      ...(opts.declared ? { identificationMethod: "name_declared" as const } : {}),
       verifyAndApplyAttendance: async (_, context) => {
         log.push("domain-verify-and-transition");
         assert.deepEqual(context, {
@@ -242,4 +244,12 @@ test("SEC-04/2A.9b2a: malformed multi-technician audit attribution rolls back", 
     assert(!f.committed);
     assert(!f.log.includes("audit"));
   }
+});
+
+
+test("REFINE13: central declared selection audits attribution as name_declared, not PIN/RFID", async () => {
+  const f = fixture({ declared: true });
+  assert.deepEqual(await f.run(), { ok: true });
+  assert.deepEqual(f.staged, ["transition", "audit"]);
+  assert(f.committed);
 });
