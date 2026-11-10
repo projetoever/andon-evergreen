@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
+import { MachineConfigurationInventoryCard } from "./MachineConfigurationInventoryCard";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
@@ -349,7 +350,8 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
         </div>
       </aside>
 
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-4">
+        {centralAccess && <MachineConfigurationInventoryCard />}
         {creating ? (
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">

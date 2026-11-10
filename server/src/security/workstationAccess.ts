@@ -41,6 +41,7 @@ import { isCentralCategorySettingsMutation, markCentralCategorySettingsAuthorize
 import { centralMachineSetSettingsEnabled, isCentralMachineSetSettingsMutation, markCentralMachineSetSettingsAuthorized, isCentralMachineSetSettingsRead, authorizeCentralMachineSetSettingsRead } from "./centralMachineSetSettingsHttp.js";
 import { centralMachineSubsetSettingsEnabled, isCentralMachineSubsetSettingsMutation, markCentralMachineSubsetSettingsAuthorized, isCentralMachineSubsetSettingsRead, authorizeCentralMachineSubsetSettingsRead } from "./centralMachineSubsetSettingsHttp.js";
 import { isCentralAssetTypeCatalogRead, isCentralAssetTypeCatalogMutation, markCentralAssetTypeCatalogAuthorized } from "./centralAssetTypeCatalogHttp.js";
+import { isCentralMachineInventoryRead, markCentralMachineInventoryAuthorized } from "./centralMachineInventoryHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
@@ -128,6 +129,13 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         token: readSecureCookie(request, ACCESS_COOKIE),
         workstationId: id,
       });
+      // Dedicated, OFF-by-default global inventory is only STATIC metadata.
+      // Do not bind a full-scope principal or weaken the operational machine
+      // and call collections, which stay filtered by machineScope.
+      if (isCentralMachineInventoryRead(request.method, path)) {
+        markCentralMachineInventoryAuthorized(request, principal, workstation);
+        return;
+      }
       // Operational configuration and sanitized catalogs have no
       // machine-specific history. Selected-machine operators need them
       // to render dialogs and alarms; mutations keep their separate guards.
