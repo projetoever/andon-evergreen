@@ -121,7 +121,7 @@ export function QuickOpenCallModal({
       toast.success(`Chamado de ${option.label} aberto.`);
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
+      toast.error(ui(error instanceof Error ? error.message : "Não foi possível abrir o chamado"));
     } finally {
       setIsSubmitting(false);
     }
