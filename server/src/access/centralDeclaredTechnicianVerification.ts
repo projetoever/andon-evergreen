@@ -21,6 +21,7 @@ export async function verifyDeclaredCentralTechnicians(
   tx: Prisma.TransactionClient,
   call: LockedAttendanceContext,
   rawIds: unknown,
+  allowedStatuses: Array<"open" | "in_progress" | "post_maintenance"> = ["open"],
 ) {
   if (call.category !== "maintenance") {
     throw new AccessError("maintenance_call_required", 409);
@@ -70,7 +71,7 @@ export async function verifyDeclaredCentralTechnicians(
   if (currentCall.isSystemTest) {
     throw new AccessError("system_test_transition_denied");
   }
-  if (currentCall.status !== "open" || currentCall.category !== "maintenance") {
+  if (!allowedStatuses.includes(currentCall.status as "open") || currentCall.category !== "maintenance") {
     throw new AccessError("call_state_changed", 409);
   }
   if (!currentCall.subtype || technicians.some((t) =>
