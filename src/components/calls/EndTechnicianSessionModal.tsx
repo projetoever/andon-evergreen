@@ -97,7 +97,7 @@ export function EndTechnicianSessionModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance, systemSettings.centralDeclaredAttendanceEnabled === true));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -209,7 +209,7 @@ export function EndTechnicianSessionModal({
   ]);
 
   const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
-    settings?.attendanceMode, centralAttendance,
+    settings?.attendanceMode, centralAttendance, settings?.centralDeclaredAttendanceEnabled === true,
   );
 
   return (
