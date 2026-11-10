@@ -82,6 +82,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const resetSecretRef = useRef<HTMLDivElement>(null);
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
+  const [temporaryCopyStatus, setTemporaryCopyStatus] = useState("");
   const [adminRecoveryCode, setAdminRecoveryCode] = useState<string | null>(null);
   const [recoveryCopyStatus, setRecoveryCopyStatus] = useState("");
   const [legacyStatus, setLegacyStatus] = useState<{
@@ -92,6 +93,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [resetTarget, setResetTarget] = useState<AccessUser | null>(null);
   const [reauth, setReauth] = useState(false);
   useEffect(() => {
+    setTemporaryCopyStatus("");
     if (secret) resetSecretRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [secret]);
   const listVersion = useRef(0);
@@ -556,7 +558,26 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                 )}
               </p>
               <code className="block break-all text-xl select-all">{secret}</code>
-              <Button onClick={() => setSecret(null)}>{ui("Já anotei, ocultar")}</Button>
+              <p className="text-xs text-muted-foreground">
+                {ui("Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={async () => {
+                  const toCopy = secret;
+                  try {
+                    if (!navigator.clipboard?.writeText) throw new Error("clipboard_unavailable");
+                    await navigator.clipboard.writeText(toCopy);
+                    setTemporaryCopyStatus(ui("Senha provisória copiada. Compartilhe somente por um canal seguro."));
+                  } catch {
+                    setTemporaryCopyStatus(ui("Não foi possível copiar. Selecione a senha manualmente."));
+                  }
+                }}>{ui("Copiar senha")}</Button>
+                <Button type="button" onClick={() => {
+                  setSecret(null);
+                  setTemporaryCopyStatus("");
+                }}>{ui("Já anotei, ocultar")}</Button>
+              </div>
+              {temporaryCopyStatus && <p role="status" className="text-xs">{temporaryCopyStatus}</p>}
             </Card>
             </div>
           )}
