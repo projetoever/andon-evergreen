@@ -49,8 +49,11 @@ export function parseCentralOperationalSettingsPatch(body: unknown) {
         throw new AccessError("invalid_input", 400);
       patch[key] = value;
     } else if (key === "attendanceMode") {
-      // Name-only is never an authenticated technician identity in central mode.
-      if (value !== "pin" && value !== "rfid")
+      // Name selection is explicitly a declared identity, gated separately
+      // from strong PIN/RFID verification. Never silently enable it in factory.
+      if (value !== "pin" && value !== "rfid" &&
+          !(value === "name" &&
+            process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED === "1"))
         throw new AccessError("central_credential_required", 400);
       patch[key] = value;
     } else if (key === "rfidReaderMode") {
