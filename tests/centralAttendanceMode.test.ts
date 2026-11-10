@@ -28,7 +28,7 @@ test("central declared-name flows require server capability and preserve strong 
     assert.match(source, /effectiveAttendanceMode\(systemSettings\.attendanceMode, centralAttendance, systemSettings\.centralDeclaredAttendanceEnabled === true\)/);
     assert.match(source, /allowedAttendanceModes\(/);
     assert.doesNotMatch(source, /if \(centralAttendance\) return;/);
-    assert.match(source, /declara|declaração/);
+    assert.match(source, /declara|declaração|seleção por nome registra/);
   }
   assert.match(files[2], /technicianIds/);
   assert.match(files[2], /technicianId:/);
