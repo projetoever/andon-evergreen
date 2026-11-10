@@ -143,6 +143,7 @@ try {
         . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.UpdateBackup.ps1"
+        . "C:\web-andon-industrial\installer\AndonInstaller.CentralActivation.ps1"
 
         Write-AndonHeader "ATUALIZAR PELA MAIN - APLICACAO"
 
@@ -182,6 +183,7 @@ try {
             }
             throw
         }
+        $activateCentralAfterBuild = Request-AndonCentralNotebookActivation -Config $config
         Ensure-AndonDedicatedNodeRuntime
         $network = Ensure-AndonNetworkConfig
         Write-AndonBackendEnv -Config $config -NetworkConfig $network
@@ -189,8 +191,29 @@ try {
         Apply-AndonFirewallRules
         Prepare-AndonChromeProfileForReuse
         Recreate-AndonTasks
-        Start-AndonRuntime
-        Invoke-AndonHealthCheck
+        $centralActivated = $false
+        try {
+            if ($activateCentralAfterBuild) {
+                # No authentication switch before successful migrations and build.
+                $centralActivated = Set-AndonCentralNotebookActivation -Config $config
+            }
+            Start-AndonRuntime
+            Invoke-AndonHealthCheck
+        } catch {
+            if ($centralActivated) {
+                Write-AndonWarn "Health check falhou; restaurando perfil de autenticacao anterior."
+                $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
+                $config = Set-AndonConfigProperty -Config $config -Name "centralSecurityValidationEnabled" -Value $false
+                try {
+                    Stop-AndonRuntime
+                    Save-AndonConfig $config
+                    Write-AndonBackendEnv -Config $config
+                } catch {
+                    Write-AndonWarn "Nao foi possivel reverter automaticamente as configuracoes. Pare e consulte backup."
+                }
+            }
+            throw
+        }
         Write-AndonHeader "ATUALIZACAO FINALIZADA"
         Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }
