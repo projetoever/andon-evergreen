@@ -67,6 +67,12 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "POST", route: "/api/machine-subset-types", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
   { method: "PATCH", route: "/api/machine-subset-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
   { method: "DELETE", route: "/api/machine-subset-types/:id", permission: "catalog.assets.manage", scope: "module_global", module: "operational" },
+  // REFINE14: separate reasons and specialties. These routes remain inert until
+  // the independent central feature gate and audited adapter are enabled.
+  { method: "POST", route: "/api/call-reasons", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/call-reasons/:reasonId", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "POST", route: "/api/call-reasons/:reasonId/options", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "PATCH", route: "/api/call-reasons/:reasonId/options/:optionId", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-categories", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "PATCH", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "DELETE", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
