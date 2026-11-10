@@ -23,6 +23,10 @@ jobs:
         shell: powershell
         run: .\installer\tests\installer-runtime-regression.ps1
 
+      - name: Validar backup e restauração obrigatórios antes de migrations
+        shell: powershell
+        run: .\installer\tests\update-backup-gate-regression.ps1
+
       - name: Validar transação reversível HTTP e HTTPS
         shell: powershell
         run: .\installer\tests\https-transport-transaction-regression.ps1
