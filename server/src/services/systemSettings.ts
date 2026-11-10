@@ -14,6 +14,7 @@ const PUBLIC_SYSTEM_SETTINGS_SELECT = {
   allowWholeSetCalls: true,
   virtualKeyboardEnabled: true,
   requireWorkOrderAtOpen: true,
+  preventDuplicateWorkOrderNumbers: true,
   restrictMaintenanceCompletionToAttendanceWorkstation: true,
   dashboardSoundMuteTimerEnabled: true,
   dashboardSoundMuteDurationMinutes: true,
