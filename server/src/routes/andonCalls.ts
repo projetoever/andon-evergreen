@@ -2980,7 +2980,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const updated = await runCentralTechnicianAdd(prisma, {
             token: readSecureCookie(request, ACCESS_COOKIE),
             workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
-            callId: request.params.id, credentials: body.credentials,
+            callId: request.params.id,
+            credentials: declared ? undefined : body.credentials as Array<{ method?: unknown; value?: unknown }>,
             technicianIds: declared ? body.technicianIds : undefined,
             requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
           });
