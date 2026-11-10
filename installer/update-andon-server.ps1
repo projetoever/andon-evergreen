@@ -211,12 +211,8 @@ try {
         } catch {
             if ($centralActivated) {
                 Write-AndonWarn "Health check falhou; restaurando perfil de autenticacao anterior."
-                $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
-                $config = Set-AndonConfigProperty -Config $config -Name "centralSecurityValidationEnabled" -Value $false
                 try {
-                    Stop-AndonRuntime
-                    Save-AndonConfig $config
-                    Write-AndonBackendEnv -Config $config
+                    Undo-AndonCentralNotebookActivation -Config $config
                 } catch {
                     Write-AndonWarn "Nao foi possivel reverter automaticamente as configuracoes. Pare e consulte backup."
                 }
