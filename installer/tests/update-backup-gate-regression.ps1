@@ -33,4 +33,22 @@ Assert-UpdateContract (!$menu.Contains('15 - Recursos de seguranca (homologacao 
 Assert-UpdateContract ($profile.Contains('NOTEBOOK_ISOLADO')) "typed notebook confirmation"
 Assert-UpdateContract ($profile.Contains('Stop-AndonRuntime')) "profile switch stops runtime"
 Assert-UpdateContract ($profile.Contains('Write-AndonBackendEnv -Config $config')) "rebuild env after profile selection"
+
+$activation = Get-Content (Join-Path $root "installer\AndonInstaller.CentralActivation.ps1") -Raw
+$preflight = $update.IndexOf("Request-AndonCentralNotebookActivation -Config")
+$build = $update.IndexOf("Invoke-AndonNodePipeline -RunSeed")
+$commitActivation = $update.IndexOf("Set-AndonCentralNotebookActivation -Config")
+$restart = $update.IndexOf("Start-AndonRuntime", $build)
+Assert-UpdateContract ($check -lt $preflight -and $preflight -lt $build) "central preflight must follow restore, precede migrations"
+Assert-UpdateContract ($build -lt $commitActivation -and $commitActivation -lt $restart) "activate only after successful migration/build"
+Assert-UpdateContract ($activation.Contains('NOTEBOOK_ISOLADO')) "typed isolated notebook opt-in"
+Assert-UpdateContract ($activation.Contains('ATIVAR_CENTRAL')) "second deliberate confirmation"
+Assert-UpdateContract ($activation.Contains('"isPrimaryAdmin" IS TRUE AND active IS TRUE')) "verify real primary central Admin"
+Assert-UpdateContract ($activation.Contains('"mustChangePassword" IS FALSE')) "deny temporary Admin password"
+Assert-UpdateContract ($activation.Contains('Save-AndonConfig $Config')) "persist selected profile for future main updates"
+Assert-UpdateContract ($activation.Contains('Write-AndonBackendEnv -Config $Config')) "regenerate flags without editing DB"
+Assert-UpdateContract ($activation.Contains('centralAccessEnabled" -Value $oldCentral')) "rollback previous login mode on save error"
+Assert-UpdateContract ($update.Contains('Health check falhou; restaurando perfil')) "revert on health check failure"
+Assert-UpdateContract ($activation.Contains('return $false')) "no implicit first-time activation"
+
 Write-Host "REFINE13: updater backup/restore ordering and fail-closed checks PASS"
