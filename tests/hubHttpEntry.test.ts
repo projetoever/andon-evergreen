@@ -15,7 +15,7 @@ test("REFINE13: HTTP localhost Hub offers precise HTTPS URL preserving path", ()
   }), "https://127.0.0.1:8080/hub?module=andon#login");
 });
 
-test("REFINE13: no suggestion for HTTPS or remote origins and no implicit redirect", () => {
+test("REFINE13: no suggestion for HTTPS or remote origins and no implicit redirect", async () => {
   assert.equal(getSafeHubHttpsUrl(null), null);
   assert.equal(getSafeHubHttpsUrl({ ...location, protocol: "https:" }), null);
   assert.equal(getSafeHubHttpsUrl({
