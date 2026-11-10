@@ -46,6 +46,7 @@ export type SettingsTab =
   | "attendance"
   | "technicians"
   | "categories"
+  | "callReasons"
   | "shifts"
   | "classifications"
   | "assetCatalogs"
