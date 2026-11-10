@@ -17,6 +17,7 @@ import { registerAdminAuthRoutes } from "./routes/adminAuth.js";
 import { registerAnalyticsRoutes } from "./routes/analytics.js";
 import { registerAndonCallRoutes } from "./routes/andonCalls.js";
 import { registerAndonCategoryRoutes } from "./routes/andonCategories.js";
+import { registerCallReasonRoutes } from "./routes/callReasons.js";
 import { registerFailureClassificationRoutes } from "./routes/failureClassifications.js";
 import { registerDashboardPriorityRoutes } from "./routes/dashboardPriority.js";
 import { registerDiagnosisAuditRoutes } from "./routes/diagnosisAudit.js";
@@ -93,6 +94,7 @@ export function buildServer() {
   void registerMachineSetRoutes(app);
   void registerMachineSubsetRoutes(app);
   void registerAndonCategoryRoutes(app);
+  void registerCallReasonRoutes(app);
   void registerAndonCallRoutes(app);
   void registerFailureEventRoutes(app);
   void registerDiagnosisAuditRoutes(app);

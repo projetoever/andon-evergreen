@@ -43,6 +43,7 @@ import { centralMachineSubsetSettingsEnabled, isCentralMachineSubsetSettingsMuta
 import { isCentralAssetTypeCatalogRead, isCentralAssetTypeCatalogMutation, markCentralAssetTypeCatalogAuthorized } from "./centralAssetTypeCatalogHttp.js";
 import { isCentralMachineInventoryRead, markCentralMachineInventoryAuthorized } from "./centralMachineInventoryHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
+import { isCentralCallReasonRead, authorizeCentralCallReasonRead, isCentralCallReasonWrite, markCentralCallReasonAuthorized } from "./centralCallReasonsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -132,6 +133,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       // Dedicated, OFF-by-default global inventory is only STATIC metadata.
       // Do not bind a full-scope principal or weaken the operational machine
       // and call collections, which stay filtered by machineScope.
+      if (isCentralCallReasonRead(request.method, path)) {
+        authorizeCentralCallReasonRead(request, principal, workstation);
+        return;
+      }
       if (isCentralMachineInventoryRead(request.method, path)) {
         markCentralMachineInventoryAuthorized(request, principal, workstation);
         return;
@@ -202,7 +207,8 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
           !isCentralOperationalSettingsMutation(request.method, path) &&
           !isCentralMachineSettingsMutation(request.method, path) &&
           !isCentralMachineCreateMutation(request.method, path) &&
-          !isCentralVisualPaletteMutation(request.method, path))
+          !isCentralVisualPaletteMutation(request.method, path) &&
+          !isCentralCallReasonWrite(request.method, path))
         throw new AccessError("scoped_query_required");
       // SEC-04: one narrowly scoped opt-in route family, never a generic
       // central-write bypass. The marker requires HTTPS/session/CSRF/ACL and
@@ -271,6 +277,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         }
         if (isCentralShiftUpdateMutation(request.method, path)) {
           markCentralShiftUpdateAuthorized(request, principal, workstation);
+          return;
+        }
+        if (isCentralCallReasonWrite(request.method, path)) {
+          markCentralCallReasonAuthorized(request, principal, workstation);
           return;
         }
         if (isCentralCategorySettingsMutation(request.method, path)) {

@@ -12,6 +12,7 @@ import { isAuthorizedCentralCategorySettings } from "./centralCategorySettingsHt
 import { isAuthorizedCentralMachineSetSettings } from "./centralMachineSetSettingsHttp.js";
 import { isAuthorizedCentralMachineSubsetSettings } from "./centralMachineSubsetSettingsHttp.js";
 import { isAuthorizedCentralAssetTypeCatalog } from "./centralAssetTypeCatalogHttp.js";
+import { isAuthorizedCentralCallReasonRequest } from "./centralCallReasonsHttp.js";
 
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
@@ -167,6 +168,7 @@ export async function enforceAdminAuthorization(
   // shift settings request; no other administration route is affected.
   if (isAuthorizedCentralShiftUpdate(request)) return;
   // Never bypass legacy Admin without the exact central ACL+CSRF request marker.
+  if (isAuthorizedCentralCallReasonRequest(request)) return;
   if (isAuthorizedCentralCategorySettings(request)) return;
   // Specific machine-set metadata write prevalidated by Hub, workstation,
   // CSRF and explicit settings grant; never unlock arbitrary asset actions.
