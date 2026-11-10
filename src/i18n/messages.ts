@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["KPI", "KPI", "KPI"],
   ["Motivos e subcategorias", "Reasons and subcategories", "原因與子類別"],
   ["Motivos principais, especialidades e política de KPI corretivo.", "Main reasons, specialties and corrective KPI policy.", "主要原因、專業類別與維修 KPI 政策。"],
   ["Motivos e subcategorias de chamados", "Call reasons and subcategories", "通報原因與子類別"],
