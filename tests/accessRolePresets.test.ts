@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  SCREEN_UNLOCK_PERMISSION,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
   isExactRolePreset,
@@ -111,4 +112,20 @@ test("R10-09: granting ANDON settings in any profile enables only minimum ANDON 
     ["andon.settings.open", "andon.read"]);
   assert.deepEqual(toggleAndonModulePermission(["andon.read", "andon.settings.open"],
     "andon.settings.open", false), ["andon.read"]);
+});
+
+test("REFINE 11: individual machine-screen unpin requires ANDON read and is not in role presets", () => {
+  assert.equal(SCREEN_UNLOCK_PERMISSION, "workstations.screen.unlock");
+  for (const role of ["Produção", "Manutenção", "Líder", "Gestor/Gerente"]) {
+    const list = suggestedPermissions(role, [...catalog, SCREEN_UNLOCK_PERMISSION]);
+    assert(!list.includes(SCREEN_UNLOCK_PERMISSION), "role presets must not auto-grant screen release");
+  }
+  const granted = toggleAndonModulePermission([], SCREEN_UNLOCK_PERMISSION, true);
+  assert.deepEqual(granted, [SCREEN_UNLOCK_PERMISSION, "andon.read"]);
+  assert.deepEqual(
+    toggleAndonModulePermission(granted, SCREEN_UNLOCK_PERMISSION, false),
+    ["andon.read"], "revoking screen permission does not remove the ANDON module");
+  assert.deepEqual(
+    toggleAndonModulePermission(granted, "andon.read", false),
+    [], "removing ANDON access also revokes screen release");
 });

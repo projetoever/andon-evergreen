@@ -5,6 +5,7 @@ param(
     [int]$PostgresPort = 55432,
     [switch]$EnableCentralOperationalWrites,
     [switch]$EnableGlobalPaletteWrites,
+    [switch]$EnableRefine12CatalogWrites,
     [switch]$NotebookStandardPorts
 )
 
@@ -36,10 +37,24 @@ $centralHomologationFlags = @(
     "ANDON_CENTRAL_DIAGNOSIS_EDIT_HTTP_ENABLED",
     "ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED",
     "ANDON_CENTRAL_TECHNICIAN_IDENTITY_HTTP_ENABLED",
+    "ANDON_CENTRAL_TECHNICIAN_CREATE_HTTP_ENABLED",
     "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
     # Only metadata name/OS, never machine status or production control.
     "ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED",
     "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
+)
+# REFINE 12 catalog settings: NEVER inherit these flags from the shell.
+# New type/set/subset, category, shift, technician and inventory writes have
+# separate opt-in even when older central operational writes are enabled.
+$refine12CatalogFlags = @(
+    "ANDON_CENTRAL_TECHNICIAN_UPDATE_HTTP_ENABLED",
+    "ANDON_CENTRAL_SHIFT_UPDATE_HTTP_ENABLED",
+    "ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED"
 )
 # UX-12 has a separate global-write capability. It is never inherited from
 # a parent PowerShell and is never enabled by operational writes alone.
@@ -59,6 +74,10 @@ $standardNotebookPorts = (
 )
 if ($NotebookStandardPorts -and !$standardNotebookPorts) {
     throw "Portas do ambiente local invalidas. Use exclusivamente 8080, 3001 e 55432."
+}
+if ($EnableRefine12CatalogWrites -and
+    (!$standardNotebookPorts -or !$EnableCentralOperationalWrites)) {
+    throw "Catalogos REFINE 12 apenas no notebook HTTPS 8080/3001 e banco HML 55432 com opt-in operacional."
 }
 if ($NotebookStandardPorts -and !$EnableCentralOperationalWrites) {
     throw "O perfil local requer ativacao explicita das escritas centrais isoladas."
@@ -194,7 +213,7 @@ $environmentNames = @(
     "ANDON_HOMOLOGATION_TLS_CERT", "ANDON_HOMOLOGATION_TLS_KEY",
     "ANDON_HOMOLOGATION_HOST", "ANDON_HOMOLOGATION_FRONTEND_PORT",
     "PLC_INTEGRATION_ENABLED", "PLC_ADAPTER", "ANDON_PROJECT_PATH", "ANDON_TLS_HOST"
-) + $centralHomologationFlags + @($visualPaletteFlag, $hmlAdmissionFlag)
+) + $centralHomologationFlags + $refine12CatalogFlags + @($visualPaletteFlag, $hmlAdmissionFlag)
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
@@ -257,6 +276,10 @@ foreach ($flag in $centralHomologationFlags) {
     [Environment]::SetEnvironmentVariable(
         $flag, $(if ($EnableCentralOperationalWrites) { "1" } else { "0" }), "Process")
 }
+foreach ($flag in $refine12CatalogFlags) {
+    [Environment]::SetEnvironmentVariable(
+        $flag, $(if ($EnableRefine12CatalogWrites) { "1" } else { "0" }), "Process")
+}
 [Environment]::SetEnvironmentVariable(
     $visualPaletteFlag, $(if ($EnableGlobalPaletteWrites) { "1" } else { "0" }), "Process")
 [Environment]::SetEnvironmentVariable(
@@ -308,6 +331,7 @@ $frontendProcess = Start-Process -FilePath $nodeExe -ArgumentList ('"' + $fronte
     isolatedCentralWrites = [bool]$EnableCentralOperationalWrites
     notebookStandardPorts = [bool]$NotebookStandardPorts
     isolatedGlobalPaletteWrites = [bool]$EnableGlobalPaletteWrites
+    isolatedRefine12CatalogWrites = [bool]$EnableRefine12CatalogWrites
 } | ConvertTo-Json | Set-Content -Encoding UTF8 $processPath
 
 try {
@@ -338,5 +362,6 @@ Write-Host "  Banco: PostgreSQL isolado em 127.0.0.1:$PostgresPort"
 Write-Host "  Primeiro acesso central: no Hub local, cadastre uma unica senha Admin (SEM senha predefinida)."
 Write-Host "  Escritas centrais isoladas: $(if ($EnableCentralOperationalWrites) { 'ATIVAS PARA TESTES' } else { 'DESLIGADAS (padrao)' })"
 Write-Host "  Paleta global (escrita): $(if ($EnableGlobalPaletteWrites) { 'ATIVA APENAS NO AMBIENTE LOCAL' } else { 'DESLIGADA (padrao, independente)' })"
+Write-Host "  Catalogos REFINE 12 HML: $(if ($EnableRefine12CatalogWrites) { 'ATIVOS SOMENTE NO NOTEBOOK' } else { 'DESLIGADOS' })"
 Write-Host "  Eventos fisicos, sirene global e credenciais antigas: NAO LIBERADOS."
 Write-Host "  Encerrar: .\homologation\https\Stop-AndonHttpsHomologation.ps1"

@@ -856,6 +856,7 @@ function Get-AndonDefaultConfig {
         tlsCertificatePath = ""
         tlsPrivateKeyPath = ""
         centralAccessEnabled = $false
+        centralSecurityValidationEnabled = $false
     }
 }
 
@@ -893,12 +894,13 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled","centralSecurityValidationEnabled")) {
                 $allowsEmptyValue = $key -in @(
                     "httpsHost",
                     "tlsCertificatePath",
                     "tlsPrivateKeyPath",
-                    "centralAccessEnabled"
+                    "centralAccessEnabled",
+                    "centralSecurityValidationEnabled"
                 )
                 if (
                     $null -ne $fileConfig.$key -and
@@ -939,6 +941,10 @@ function Save-AndonConfig {
         centralAccessEnabled = (
             $null -ne $Config.centralAccessEnabled -and
             "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+        )
+        centralSecurityValidationEnabled = (
+            $null -ne $Config.centralSecurityValidationEnabled -and
+            "$($Config.centralSecurityValidationEnabled)".Trim().ToLowerInvariant() -eq "true"
         )
     }
     $configToSave | ConvertTo-Json -Depth 6 | Set-Content $Global:AndonConfigPath -Encoding UTF8
@@ -1074,6 +1080,51 @@ function Write-AndonBackendEnv {
         $null -ne $Config.centralAccessEnabled -and
         "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
     ) { "1" } else { "0" }
+    $validationEnabled = (
+        $null -ne $Config.centralSecurityValidationEnabled -and
+        "$($Config.centralSecurityValidationEnabled)".Trim().ToLowerInvariant() -eq "true"
+    )
+    if ($validationEnabled -and (
+        $centralAccessEnabled -ne "1" -or
+        "$($Config.transportMode)".Trim().ToLowerInvariant() -ne "https" -or
+        "$($Config.postgresHost)".Trim().ToLowerInvariant() -notin @("127.0.0.1", "localhost")
+    )) {
+        throw "Homologacao de seguranca exige login central, HTTPS e PostgreSQL local."
+    }
+    # Explicit opt-in in the installer; NEVER an implied production default.
+    # Only authenticated and scope-checked central HTTP functionality is enabled;
+    # hardware integrations and external/mobile control are excluded.
+    $securityWriteFlags = @(
+        "ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED",
+        "ANDON_CENTRAL_ATTENDANCE_HTTP_ENABLED",
+        "ANDON_CENTRAL_MAINTENANCE_COMPLETION_HTTP_ENABLED",
+        "ANDON_CENTRAL_RETURN_MAINTENANCE_HTTP_ENABLED",
+        "ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED",
+        "ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED",
+        "ANDON_CENTRAL_FINISH_CALL_HTTP_ENABLED",
+        "ANDON_CENTRAL_CANCEL_CALL_HTTP_ENABLED",
+        "ANDON_CENTRAL_TECHNICIAN_END_HTTP_ENABLED",
+        "ANDON_CENTRAL_TECHNICIAN_ADD_HTTP_ENABLED",
+        "ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED",
+        "ANDON_CENTRAL_DIAGNOSIS_EDIT_HTTP_ENABLED",
+        "ANDON_CENTRAL_OWN_WORKSTATION_PREFS_HTTP_ENABLED",
+        "ANDON_CENTRAL_TECHNICIAN_IDENTITY_HTTP_ENABLED",
+        "ANDON_CENTRAL_TECHNICIAN_CREATE_HTTP_ENABLED",
+        "ANDON_CENTRAL_TECHNICIAN_UPDATE_HTTP_ENABLED",
+        "ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED",
+        "ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED",
+        "ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED",
+        "ANDON_CENTRAL_SHIFT_UPDATE_HTTP_ENABLED",
+        "ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED",
+        "ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED",
+        "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
+        "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
+        "ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED",
+        "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
+    )
+    $securityEnv = ($securityWriteFlags | ForEach-Object {
+        "$_=$(if ($validationEnabled) { '1' } else { '0' })"
+    }) -join "`r`n"
     $tlsEnvironment = ""
     if ("$($Config.transportMode)".Trim().ToLowerInvariant() -eq "https") {
         $tlsEnvironment = @"
@@ -1088,6 +1139,7 @@ DATABASE_URL="$databaseUrl"
 CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
 ANDON_ACCESS_ORIGIN="$($NetworkConfig.frontendUrl)"
 ANDON_CENTRAL_ACCESS_ENABLED=$centralAccessEnabled
+$securityEnv
 $tlsEnvironment
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"

@@ -5,6 +5,11 @@ import type {
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralMachineSubsetSettings } from "../security/centralMachineSubsetSettingsHttp.js";
+import { createCentralMachineSubset, updateCentralMachineSubset } from "../access/centralMachineSubsetSettings.js";
 import {
   badRequest,
   conflict,
@@ -220,6 +225,25 @@ export async function registerMachineSubsetRoutes(
   }>(
     "/api/machine-sets/:machineSetId/subsets",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralMachineSubsetSettings(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          const subset = await createCentralMachineSubset(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            machineSetId: request.params.machineSetId, body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return reply.status(201).send(subset);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_code_in_use" });
+          throw error;
+        }
+      }
       if (
         request.body?.machineSetId !== undefined
       ) {
@@ -425,6 +449,24 @@ export async function registerMachineSubsetRoutes(
   }>(
     "/api/machine-subsets/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralMachineSubsetSettings(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await updateCentralMachineSubset(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            subsetId: request.params.id, body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_code_in_use" });
+          throw error;
+        }
+      }
       if (
         request.body?.machineSetId !== undefined
       ) {

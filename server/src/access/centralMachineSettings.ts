@@ -95,9 +95,14 @@ export async function updateCentralMachineMetadata(
       select: { id: true, name: true, requireWorkOrderAtOpen: true },
     });
     if (!before) throw new AccessError("machine_not_found", 404);
+    // A delegated settings editor may edit another machine's metadata, but
+    // must never receive live call IDs, production history or priority data
+    // for a machine outside their operational machineScope.
+    const canReadOperational = latest.machineScope === "all" ||
+      latest.machineIds.includes(input.machineId);
     const changedKeys = Object.keys(patch).filter(key =>
       before[key as keyof typeof before] !== patch[key as keyof typeof patch]);
-    if (!changedKeys.length) return { id: before.id, changed: false };
+    if (!changedKeys.length) return { id: before.id, changed: false, canReadOperational };
     const after = await tx.machine.update({
       where: { id: input.machineId }, data: patch,
       select: { id: true, name: true, requireWorkOrderAtOpen: true },
@@ -111,6 +116,6 @@ export async function updateCentralMachineMetadata(
       before: { values: before, changedKeys },
       after: { values: after, changedKeys },
     });
-    return { id: after.id, changed: true };
+    return { id: after.id, changed: true, canReadOperational };
   });
 }

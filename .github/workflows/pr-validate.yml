@@ -23,6 +23,10 @@ jobs:
         shell: powershell
         run: .\installer\tests\installer-runtime-regression.ps1
 
+      - name: Validar backup e restauração obrigatórios antes de migrations
+        shell: powershell
+        run: .\installer\tests\update-backup-gate-regression.ps1
+
       - name: Validar transação reversível HTTP e HTTPS
         shell: powershell
         run: .\installer\tests\https-transport-transaction-regression.ps1
@@ -33,6 +37,7 @@ jobs:
 
   validate:
     name: Build, PostgreSQL e fluxos críticos
+    # Playwright 1.56.1 browser test dependencies are supported on Ubuntu 24.04.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 

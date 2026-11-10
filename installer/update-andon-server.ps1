@@ -142,6 +142,7 @@ try {
         . "C:\web-andon-industrial\installer\AndonInstaller.Database.Docker.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
+        . "C:\web-andon-industrial\installer\AndonInstaller.UpdateBackup.ps1"
 
         Write-AndonHeader "ATUALIZAR PELA MAIN - APLICACAO"
 
@@ -170,6 +171,17 @@ try {
         Write-AndonOk "Modo preservado: $($config.databaseMode)"
 
         Stop-AndonRuntime
+        # Hard gate: no migrations/build until a consistent dump has been restored
+        # successfully in a throwaway PostgreSQL database on the same host.
+        try {
+            Assert-AndonUpdateBackupRestorable -Config $config | Out-Null
+        } catch {
+            Write-AndonWarn "Backup/restore nao aprovado; nenhuma migration foi executada."
+            try { Start-AndonRuntime } catch {
+                Write-AndonWarn "Falha ao reiniciar runtime anterior. Execute health check."
+            }
+            throw
+        }
         Ensure-AndonDedicatedNodeRuntime
         $network = Ensure-AndonNetworkConfig
         Write-AndonBackendEnv -Config $config -NetworkConfig $network
