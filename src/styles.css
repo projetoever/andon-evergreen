@@ -463,7 +463,7 @@
     row-gap: 0.5rem;
   }
 
-  :is(.space-y-1, .space-y-1\\.5, .space-y-2, .space-y-3)
+  :is(.space-y-1, [class~="space-y-1.5"], .space-y-2, .space-y-3)
   > label:has(+ :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select)) {
     display: block;
     margin-bottom: 0.5rem;
