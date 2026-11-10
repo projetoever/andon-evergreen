@@ -297,6 +297,12 @@ try {
     const beforeReset = JSON.stringify(users.find(u => u.login === "marina.producao").permissions);
     await page.getByRole("button", { name: "Redefinir senha", exact: true }).first().click();
     const resetSection = page.getByRole("region", { name: "Redefinir senha" });
+    // REFINE14: stacked labels must retain visible spacing across all password
+    // forms, without applying the rule to horizontal checkboxes/radios.
+    const labelGap = await resetSection.locator("label").first().evaluate(el =>
+      Number.parseFloat(getComputedStyle(el).rowGap));
+    assert(labelGap >= 8, `Expected >=8px between label and input, got ${labelGap}`);
+
     await resetSection.getByPlaceholder("Informe o motivo para o registro de auditoria")
       .fill("Teste de login secundário");
     const [resetResult] = await Promise.all([
