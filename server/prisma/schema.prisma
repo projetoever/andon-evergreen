@@ -18,6 +18,7 @@ model SystemSettings {
   allowWholeSetCalls                                   Boolean  @default(true)
   virtualKeyboardEnabled                               Boolean  @default(true)
   requireWorkOrderAtOpen                               Boolean  @default(false)
+  preventDuplicateWorkOrderNumbers                      Boolean  @default(false)
   restrictMaintenanceCompletionToAttendanceWorkstation Boolean  @default(false)
   dashboardSoundMuteTimerEnabled                       Boolean  @default(false)
   dashboardSoundMuteDurationMinutes                    Int      @default(3)

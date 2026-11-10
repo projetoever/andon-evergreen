@@ -10,6 +10,7 @@ export interface SystemSettings {
   allowWholeSetCalls: boolean;
   virtualKeyboardEnabled: boolean;
   requireWorkOrderAtOpen: boolean;
+  preventDuplicateWorkOrderNumbers: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation: boolean;
   dashboardSoundMuteTimerEnabled: boolean;
   dashboardSoundMuteDurationMinutes: number;
@@ -42,6 +43,7 @@ export interface SystemSettingsPatch {
   allowWholeSetCalls?: boolean;
   virtualKeyboardEnabled?: boolean;
   requireWorkOrderAtOpen?: boolean;
+  preventDuplicateWorkOrderNumbers?: boolean;
   restrictMaintenanceCompletionToAttendanceWorkstation?: boolean;
   dashboardSoundMuteTimerEnabled?: boolean;
   dashboardSoundMuteDurationMinutes?: number;

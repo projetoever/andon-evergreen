@@ -1,5 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Impedir reutilização de números de OS", "Prevent work order number reuse", "防止重複使用工單編號"],
+  ["Quando ativado, bloqueia uma nova abertura com OS já registrada em outro chamado real, em qualquer máquina. Mantém histórico e permite vários setores na mesma abertura em lote.", "When enabled, prevent opening a new call with an OS already recorded in another real call on any machine. History is preserved and multiple sectors in the same batch are allowed.", "啟用時，禁止以任何機台其他實際通報已使用的工單編號再次開單。保留歷史資料，允許同一批次的多個部門使用相同工單。"],
+  ["Bloquear OS duplicadas", "Block duplicate work orders", "封鎖重複工單"],
+  ["Bloqueio de OS duplicadas ativado para novas aberturas.", "Duplicate work order blocking enabled for new calls.", "已對新通報啟用重複工單封鎖。"],
+  ["Bloqueio de OS duplicadas desativado.", "Duplicate work order blocking disabled.", "已關閉重複工單封鎖。"],
+  ["Não foi possível salvar a regra contra OS duplicadas.", "Could not save the duplicate work order rule.", "無法儲存重複工單規則。"],
+  ["Esta OS já foi utilizada em outro chamado. Informe um número de OS diferente.", "This work order number has already been used in another call. Enter a different number.", "此工單編號已用於另一通報。請輸入其他工單編號。"],
+
   ["Copiar senha", "Copy password", "複製密碼"],
   ["Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.", "Copying the password temporarily leaves the secret on the device clipboard.", "複製密碼會將機密資訊暫時留在裝置的剪貼簿中。"],
   ["Senha provisória copiada. Compartilhe somente por um canal seguro.", "Temporary password copied. Share only through a secure channel.", "已複製臨時密碼。請僅透過安全管道分享。"],

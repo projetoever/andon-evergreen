@@ -449,3 +449,27 @@
   outline-offset: 1px;
 }
 
+
+
+/* REFINE 14: consistent 8px separation for stacked form labels and fields.
+   Excludes checkbox/radio labels and horizontal inline control groups. */
+/* Unlayered to override Tailwind's .block/.inline utility on Label.
+   Text/password field wrappers stay vertical; no checkbox/radio layout change. */
+label:has(> input:not([type="checkbox"]):not([type="radio"])),
+label:has(> textarea),
+label:has(> select) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  row-gap: 0.5rem;
+}
+label:has(> input:not([type="checkbox"]):not([type="radio"])) > *,
+label:has(> textarea) > *,
+label:has(> select) > * {
+  margin-block-start: 0;
+}
+:is(.space-y-1, [class~="space-y-1.5"], .space-y-2, .space-y-3)
+> label:has(+ :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select)) {
+  display: block;
+  margin-bottom: 0.5rem;
+}

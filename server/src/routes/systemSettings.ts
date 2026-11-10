@@ -26,6 +26,7 @@ type UpdateSystemSettingsBody = {
   allowWholeSetCalls?: unknown;
   virtualKeyboardEnabled?: unknown;
   requireWorkOrderAtOpen?: unknown;
+  preventDuplicateWorkOrderNumbers?: unknown;
   restrictMaintenanceCompletionToAttendanceWorkstation?: unknown;
   dashboardSoundMuteTimerEnabled?: unknown;
   dashboardSoundMuteDurationMinutes?: unknown;
@@ -96,6 +97,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
     const allowWholeSetCalls = body.allowWholeSetCalls;
     const virtualKeyboardEnabled = body.virtualKeyboardEnabled;
     const requireWorkOrderAtOpen = body.requireWorkOrderAtOpen;
+    const preventDuplicateWorkOrderNumbers = body.preventDuplicateWorkOrderNumbers;
     const restrictMaintenanceCompletionToAttendanceWorkstation =
       body.restrictMaintenanceCompletionToAttendanceWorkstation;
     const dashboardSoundMuteTimerEnabled = body.dashboardSoundMuteTimerEnabled;
@@ -136,6 +138,9 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
         reply,
         "Campo restrictMaintenanceCompletionToAttendanceWorkstation deve ser booleano",
       );
+    }
+    if ("preventDuplicateWorkOrderNumbers" in body && typeof preventDuplicateWorkOrderNumbers !== "boolean") {
+      return badRequest(reply, "Campo preventDuplicateWorkOrderNumbers deve ser booleano");
     }
     const dashboardSoundMuteValidationError = validateDashboardSoundMuteSettingsPatch(body);
     if (dashboardSoundMuteValidationError) {
@@ -189,6 +194,7 @@ export function registerSystemSettingsRoutes(app: FastifyInstance) {
       ...(typeof allowWholeSetCalls === "boolean" ? { allowWholeSetCalls } : {}),
       ...(typeof virtualKeyboardEnabled === "boolean" ? { virtualKeyboardEnabled } : {}),
       ...(typeof requireWorkOrderAtOpen === "boolean" ? { requireWorkOrderAtOpen } : {}),
+      ...(typeof preventDuplicateWorkOrderNumbers === "boolean" ? { preventDuplicateWorkOrderNumbers } : {}),
       ...(typeof restrictMaintenanceCompletionToAttendanceWorkstation === "boolean"
         ? { restrictMaintenanceCompletionToAttendanceWorkstation }
         : {}),

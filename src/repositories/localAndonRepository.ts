@@ -9,6 +9,7 @@ import type { AndonCall } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AppSettings, SoundConfig } from "@/types/settings";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { normalizeWorkOrderNumber } from "@/utils/workOrderUtils";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import {
   calculateCallWaitingMinutes,
@@ -67,6 +68,18 @@ function applyMachineSetSnapshotToLocalCall(
   };
 }
 
+async function validateLocalOsReuse(calls: AndonCall[], workOrderNumber?: string) {
+  const settings = await getSystemSettings();
+  if (!settings.preventDuplicateWorkOrderNumbers || !workOrderNumber?.trim()) return;
+  const key = normalizeWorkOrderNumber(workOrderNumber).toUpperCase();
+  if (calls.some(call =>
+    !call.isSystemTest && call.workOrderNumber &&
+    normalizeWorkOrderNumber(call.workOrderNumber).toUpperCase() === key
+  )) {
+    throw new Error("Esta OS já foi utilizada em outro chamado. Informe um número de OS diferente.");
+  }
+}
+
 export class LocalAndonRepository implements AndonRepository {
   async loadSnapshot(): Promise<AndonSnapshot | null> {
     const machines = loadFromStorage<Machine[] | null>(LOCAL_STORAGE_KEYS.machines, null);
@@ -101,6 +114,7 @@ export class LocalAndonRepository implements AndonRepository {
   }
 
   async openCall(machines: Machine[], calls: AndonCall[], params: andonService.OpenAndonCallParams) {
+    await validateLocalOsReuse(calls, params.workOrderNumber);
     return applyMachineSetSnapshotToLocalCall(andonService.openAndonCall(machines, calls, params), params);
   }
 
@@ -112,6 +126,7 @@ export class LocalAndonRepository implements AndonRepository {
     const workOrderNumbers = new Set(
       params.map((item) => item.workOrderNumber?.trim()).filter(Boolean),
     );
+    await validateLocalOsReuse(calls, params.find(item => item.workOrderNumber?.trim())?.workOrderNumber);
     if (workOrderNumbers.size > 1) {
       throw new Error("Os chamados em lote devem usar a mesma OS");
     }

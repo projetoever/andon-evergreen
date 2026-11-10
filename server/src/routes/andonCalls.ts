@@ -1,6 +1,7 @@
 import { diagnosisSnapshot, type DiagnosisSnapshot } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
+import { assertWorkOrderNumberAvailable, DuplicateWorkOrderNumberError } from "../services/workOrderUniqueness.js";
 import { normalizePin } from "../security/technicianCredentials.js";
 
 import { lockAndonCategoryFlow } from "../db/andonCategoryFlowLock.js";
@@ -2429,6 +2430,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         ) {
           throw new AndonCallValidationError("Informe o número da OS para abrir o chamado");
         }
+        await assertWorkOrderNumberAvailable(tx, workOrderNumber, isSystemTest);
         if (!isSystemTest && (await findDuplicateActiveSectorCall(tx, machineId, subtype))) {
           throw new AndonCallValidationError(
             "Já existe um chamado ativo deste setor para a máquina",
@@ -2564,6 +2566,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     } catch (error) {
       if (error instanceof AccessError)
         return reply.status(error.statusCode).send({ error: error.code });
+      if (error instanceof DuplicateWorkOrderNumberError)
+        return reply.status(409).send({ error: error.code, message: error.message });
       if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
       throw error;
     }
@@ -2624,6 +2628,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           throw new AndonCallValidationError("Informe o número da OS para abrir o chamado");
         }
 
+        await assertWorkOrderNumberAvailable(tx, workOrderNumber);
         const failureState = await getOpenFailureState(tx, machineId);
         const mustInheritActiveStop = Boolean(
           machine.machineStatus === "stopped" && failureState.activeOwnerEvent,
@@ -2754,6 +2759,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     } catch (error) {
       if (error instanceof AccessError)
         return reply.status(error.statusCode).send({ error: error.code });
+      if (error instanceof DuplicateWorkOrderNumberError)
+        return reply.status(409).send({ error: error.code, message: error.message });
       if (error instanceof AndonCallValidationError) return badRequest(reply, error.message);
       throw error;
     }
