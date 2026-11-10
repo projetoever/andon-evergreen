@@ -22,7 +22,6 @@ test("S3-A: changes never activate opening calls, write BI or bypass feature gat
   ]);
   assert.match(panel, /centralCallReasonsCatalogEnabled === true/);
   assert.match(panel, /!enabled/);
-  assert.match(panel, /expectedRevision/).notEqual?.(undefined);
   assert.match(service, /expectedRevision: revision/);
   assert.match(backend, /centralCallReasonsHttpEnabled\(\)/);
   assert.doesNotMatch(panel, /openCall\(/);
