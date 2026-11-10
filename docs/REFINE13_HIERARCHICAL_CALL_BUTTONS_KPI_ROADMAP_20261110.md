@@ -30,3 +30,7 @@ Data: 10/11/2026. Status: **planejamento e contrato de implementação, NÃO fun
 - **REFINE 15+ / S4**: BI, paridade MTTA/MTTR/MTBF/disponibilidade e deploy controlado no notebook original.
 
 Nenhum desses está automaticamente autorizado a reclassificar chamados históricos, executar seed de novos motivos no servidor industrial ou alterar máquina física.
+
+## Reaproveitamento do código S2 já existente
+
+A antiga **PR #329** (`https://github.com/projetoever/andon-evergreen/pull/329`) contém uma implementação de API segura de motivos/opções (`server/src/routes/callReasons.ts`, políticas de escrita e testes PG); porém sua branch foi comparada com a main atual e está **243 commits atrás** e 25 à frente. Portanto, **não fazer merge direto** dessa PR, pois poderia reintroduzir contratos obsoletos de sessão, workstation, CORS ou BI. A próxima fase é portar as funções S2 para uma branch nova sobre main, reconciliar arquivos compartilhados, preservar flags OFF, rodar CI conjunta e testes de autorização. A fundação S1 já está na main e não precisa ser recriada.
