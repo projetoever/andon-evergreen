@@ -161,7 +161,7 @@ export function AttendanceModeSettingsTab() {
 
       {centralAttendance && (
         <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
-          {ui("No login central, selecionar por nome declara o mantenedor, sem autenticação pessoal. O usuário e a workstation responsáveis serão auditados. Ativação depende de liberação administrativa no servidor.")}
+          {ui("No login central, selecionar por nome declara o mantenedor, sem autenticação pessoal. O usuário e a workstation responsáveis serão auditados. A escolha fica disponível somente quando o servidor autorizar esta modalidade.")}
         </div>
       )}
 
@@ -174,7 +174,7 @@ export function AttendanceModeSettingsTab() {
               key={option.id}
               type="button"
               aria-pressed={selected}
-              disabled={false}
+              disabled={centralAttendance && option.id === "name" && settings.centralDeclaredAttendanceEnabled !== true}
               onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",
