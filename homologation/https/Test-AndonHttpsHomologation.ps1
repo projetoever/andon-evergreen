@@ -217,6 +217,67 @@ foreach ($flag in $forbiddenOperationalGates) {
     }
 }
 
+# R12-04H3: catalog gates require an independent opt-in, cannot inherit
+# environment values, and are never valid on server/industrial port profiles.
+$expectedRefine12Flags = @(
+    "ANDON_CENTRAL_TECHNICIAN_UPDATE_HTTP_ENABLED",
+    "ANDON_CENTRAL_SHIFT_UPDATE_HTTP_ENABLED",
+    "ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
+    "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
+    "ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED"
+)
+$refine12Match = [regex]::Match($start, '(?s)\$refine12CatalogFlags = @\((.*?)\)')
+if (!$refine12Match.Success) { throw "Whitelist catalogos REFINE 12 ausente." }
+$actualRefine12Flags = @([regex]::Matches($refine12Match.Groups[1].Value, '"(ANDON_CENTRAL_[A-Z_]+)"') |
+    ForEach-Object { $_.Groups[1].Value })
+if ($actualRefine12Flags.Count -ne $expectedRefine12Flags.Count) {
+    throw "Whitelist REFINE 12 possui permissao omitida/extra."
+}
+foreach ($flag in $expectedRefine12Flags) {
+    if ($actualRefine12Flags -notcontains $flag) {
+        throw "Flag REFINE 12 obrigatoria ausente: $flag"
+    }
+}
+foreach ($flag in $actualRefine12Flags) {
+    if ($expectedRefine12Flags -notcontains $flag) {
+        throw "Flag REFINE 12 nao autorizada: $flag"
+    }
+}
+foreach ($required in @(
+    '[switch]$EnableRefine12CatalogWrites',
+    'if ($EnableRefine12CatalogWrites -and',
+    '(!$standardNotebookPorts -or !$EnableCentralOperationalWrites)',
+    ') + $centralHomologationFlags + $refine12CatalogFlags',
+    'foreach ($flag in $refine12CatalogFlags)',
+    '$(if ($EnableRefine12CatalogWrites) { "1" } else { "0" })',
+    'isolatedRefine12CatalogWrites = [bool]$EnableRefine12CatalogWrites',
+    'SetEnvironmentVariable($name, $previousEnvironment[$name], "Process")'
+)) {
+    if (!$start.Contains($required)) {
+        throw "Guarda obrigatoria do catalogo HML ausente: $required"
+    }
+}
+
+# Invalid profile must be rejected before any Docker, filesystem mutation,
+# environment assignment or network call; runnable in CI Windows PS5.1.
+foreach ($flags in @(
+    @{ EnableRefine12CatalogWrites = $true },
+    @{ EnableRefine12CatalogWrites = $true; EnableCentralOperationalWrites = $true }
+)) {
+    $blockedRefine12 = $false
+    try {
+        & $scripts[0] @flags | Out-Null
+    } catch {
+        if ($_.Exception.Message -notmatch "Catalogos REFINE 12") {
+            throw "Flag REFINE12 bloqueada por motivo inesperado: $($_.Exception.Message)"
+        }
+        $blockedRefine12 = $true
+    }
+    if (!$blockedRefine12) { throw "Flag REFINE 12 ativada fora do notebook HML." }
+}
+
 # This opt-in combination must fail BEFORE Docker, files or external tools.
 $paletteOnlyBlocked = $false
 try {
