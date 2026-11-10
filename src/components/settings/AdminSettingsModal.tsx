@@ -211,7 +211,7 @@ export function AdminSettingsModal({
     if (tab === "shifts") return <ShiftsSettingsTab />;
     if (tab === "classifications") return <ClassificationsTab />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
-    if (tab === "machines") return <MachineAdminPanel />;
+    if (tab === "machines") return <MachineAdminPanel centralAccess={centralAccess} />;
     return null;
   };
 

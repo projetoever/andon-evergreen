@@ -18,6 +18,10 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { AccessError } from "../access/policy.js";
 import { isAuthorizedCentralMachineSettings } from "../security/centralMachineSettingsHttp.js";
 import { updateCentralMachineMetadata } from "../access/centralMachineSettings.js";
+import { isAuthorizedCentralMachineCreate } from "../security/centralMachineCreateHttp.js";
+import { createCentralMachine } from "../access/centralMachineCreate.js";
+import { isAuthorizedCentralMachineInventory } from "../security/centralMachineInventoryHttp.js";
+import { readCentralMachineInventory } from "../access/centralMachineInventory.js";
 
 const MACHINE_STATUSES = new Set(["running", "stopped"]);
 const PRODUCTION_MODES = new Set(["scheduled", "not_scheduled", "production"]);
@@ -102,6 +106,26 @@ async function findMachineOr404(id: string, reply: Parameters<typeof notFound>[0
 }
 
 export async function registerMachineRoutes(app: FastifyInstance) {
+
+  app.get("/api/andon-settings/machines", async (request, reply) => {
+    // No legacy fallback, service-token bypass, or use of machineSelect.
+    if (!isAuthorizedCentralMachineInventory(request))
+      return reply.status(403).send({ error: "central_action_not_supported" });
+    try {
+      const result = await readCentralMachineInventory(prisma, {
+        token: readSecureCookie(request, ACCESS_COOKIE),
+        workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+        query: request.query,
+      });
+      reply.header("Cache-Control", "no-store");
+      return result;
+    } catch (error) {
+      if (error instanceof AccessError)
+        return reply.status(error.statusCode).send({ error: error.code });
+      throw error;
+    }
+  });
+
   app.get<{ Querystring: MachineQuery }>("/api/machines", async (request) => {
     const includeInactive = parseBoolean(request.query.includeInactive) === true;
     const allowedIds = scopedMachineReadIds(request);
@@ -118,6 +142,28 @@ export async function registerMachineRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: CreateMachineBody }>("/api/machines", async (request, reply) => {
+    if (centralAccessEnabled()) {
+      if (!isAuthorizedCentralMachineCreate(request))
+        throw new AccessError("central_action_not_supported");
+      try {
+        const created = await createCentralMachine(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+          body: request.body ?? {},
+          requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+        });
+        const machine = await prisma.machine.findUniqueOrThrow({
+          where: { id: created.id }, select: machineSelect,
+        });
+        return reply.status(201).send(machine);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+          return reply.status(409).send({ error: "machine_already_exists" });
+        throw error;
+      }
+    }
     const id = requiredBodyString(request.body?.id);
     if (!id) return badRequest(reply, "Campo id é obrigatório");
 
@@ -208,7 +254,7 @@ export async function registerMachineRoutes(app: FastifyInstance) {
         if (!isAuthorizedCentralMachineSettings(request))
           throw new AccessError("central_action_not_supported");
         try {
-          await updateCentralMachineMetadata(prisma, {
+          const result = await updateCentralMachineMetadata(prisma, {
             token: readSecureCookie(request, ACCESS_COOKIE),
             workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
             machineId: request.params.id,
@@ -216,6 +262,15 @@ export async function registerMachineRoutes(app: FastifyInstance) {
             requestId: request.id,
             ipAddress: request.ip.replace(/^::ffff:/, ""),
           });
+          if (!result.canReadOperational) {
+            // Do not leak currentCallId/status/priority/productionEvents
+            // through the metadata-write response for out-of-scope machines.
+            reply.header("Cache-Control", "no-store");
+            return await prisma.machine.findUniqueOrThrow({
+              where: { id: request.params.id },
+              select: { id: true, name: true, requireWorkOrderAtOpen: true, isActive: true },
+            });
+          }
           return await prisma.machine.findUniqueOrThrow({
             where: { id: request.params.id }, select: machineSelect,
           });

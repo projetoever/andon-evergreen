@@ -26,11 +26,13 @@ import { toast } from "@/i18n/toast";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import {
-  getDashboardSoundState,
   getSystemSettings,
   SYSTEM_SETTINGS_CHANGED_EVENT,
-  updateDashboardSoundState,
 } from "@/services/systemSettingsService";
+import {
+  readBrowserDashboardSoundState,
+  updateBrowserDashboardSoundState,
+} from "@/services/dashboardBrowserSoundState";
 import type { DashboardMachineOrderMode, SystemSettings } from "@/types/systemSettings";
 import {
   DEFAULT_DASHBOARD_SOUND_ACTIVE_DURATION_MINUTES,
@@ -143,19 +145,20 @@ export function DashboardPage() {
     async (muted: boolean, reason: "manual" | "auto" = "manual") => {
       setDashboardSoundSyncing(true);
       try {
-        return await updateDashboardSoundState(muted, reason);
-      } catch {
-        toast.error(
-          muted
-            ? "Não foi possível silenciar a sirene externa"
-            : "Não foi possível reativar a sirene externa",
+        // R12-04G2: browser audio is always local, in central AND legacy modes.
+        // The optional external siren/mini-PC GPIO has its own shared API; it
+        // cannot block or change this workstation's speaker preference.
+        return updateBrowserDashboardSoundState(
+          muted, reason, dashboardMuteTimerEnabled, dashboardMuteDurationMinutes,
         );
+      } catch {
+        toast.error("Não foi possível atualizar o som deste navegador.");
         return null;
       } finally {
         setDashboardSoundSyncing(false);
       }
     },
-    [],
+    [dashboardMuteTimerEnabled, dashboardMuteDurationMinutes],
   );
 
   const reactivateDashboardSound = useCallback(
@@ -248,14 +251,17 @@ export function DashboardPage() {
         // Defaults preservam as configuracoes locais se a leitura falhar.
       });
 
-    void getDashboardSoundState()
+    // Local browser mute never reads the optional siren's shared server state,
+    // even if the Hub/central access flag has not loaded yet.
+    const readMute = Promise.resolve(readBrowserDashboardSoundState());
+    void readMute
       .then((soundState) => {
         if (cancelled) return;
 
         cancelDashboardMuteTimer();
         dashboardMutedAtRef.current = soundState.mutedAt;
         dashboardMuteReasonRef.current = soundState.reason;
-        knownCallsAtMuteRef.current = null; // mute restaurado: usa o carimbo do servidor
+        knownCallsAtMuteRef.current = null; // timestamp retained across reloads
         setDashboardSoundMuted(soundState.muted);
 
         if (soundState.muted) {
