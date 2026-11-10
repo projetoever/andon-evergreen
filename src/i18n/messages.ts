@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Copiar senha", "Copy password", "複製密碼"],
+  ["Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.", "Copying the password temporarily leaves the secret on the device clipboard.", "複製密碼會將機密資訊暫時留在裝置的剪貼簿中。"],
+  ["Senha provisória copiada. Compartilhe somente por um canal seguro.", "Temporary password copied. Share only through a secure channel.", "已複製臨時密碼。請僅透過安全管道分享。"],
+  ["Não foi possível copiar. Selecione a senha manualmente.", "Could not copy. Select the password manually.", "無法複製。請手動選取密碼。"],
   ["Este navegador abriu o ANDON por HTTP. Se o servidor utiliza HTTPS, abra o endereço seguro abaixo.", "This browser opened ANDON over HTTP. If the server uses HTTPS, open the secure address below.", "此瀏覽器以 HTTP 開啟 ANDON。如果伺服器使用 HTTPS，請開啟下方的安全網址。"],
   ["Abrir Hub em HTTPS", "Open Hub over HTTPS", "以 HTTPS 開啟 Hub"],
   ["Senha do usuário", "User password", "使用者密碼"],
