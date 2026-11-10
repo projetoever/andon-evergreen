@@ -33,6 +33,7 @@ export type GuardedAttendanceInput<T> = {
   callId: string;
   requestId?: string;
   ipAddress?: string;
+  identificationMethod?: "credential_verified" | "name_declared";
   verifyAndApplyAttendance: (
     tx: Prisma.TransactionClient,
     call: LockedAttendanceContext,
@@ -154,8 +155,10 @@ export async function runCentralAttendanceWithAtomicAudit<T>(
       resourceId: call.callId,
       machineId: call.machineId,
       after: multiIds
-        ? { technicianId: result.technicianId, technicianIds: multiIds }
-        : { technicianId: result.technicianId },
+        ? { technicianId: result.technicianId, technicianIds: multiIds,
+            identificationMethod: input.identificationMethod ?? "credential_verified" }
+        : { technicianId: result.technicianId,
+            identificationMethod: input.identificationMethod ?? "credential_verified" },
     });
     return result.value;
   });
