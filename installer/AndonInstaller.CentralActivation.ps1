@@ -94,3 +94,12 @@ function Set-AndonCentralNotebookActivation {
         throw
     }
 }
+
+function Undo-AndonCentralNotebookActivation {
+    param([Parameter(Mandatory=$true)][object]$Config)
+    Stop-AndonRuntime
+    $Config = Set-AndonConfigProperty -Config $Config -Name "centralAccessEnabled" -Value $false
+    $Config = Set-AndonConfigProperty -Config $Config -Name "centralSecurityValidationEnabled" -Value $false
+    Save-AndonConfig $Config
+    Write-AndonBackendEnv -Config $Config
+}
