@@ -40,3 +40,9 @@ Conferir planilha ANDON_CONTROLE_REFINE_1-7.xlsx no Drive, diário de homologaç
 - Este documento **não** implementa seleção por nome nem instala qualquer mudança industrial.
 - Fábrica, DB andon_db, CLP/Node-RED/GPIO e instalação de produção continuam intocados.
 - Próxima entrega de código: PR específica #345 na branch, depois PR de integração com gates.
+
+## Execução inicial 10/11 — implementação em andamento
+- Criado `server/src/access/centralDeclaredTechnicianVerification.ts`: resolução por ID com consulta ao banco, lock por técnico, revalidação de ativo, área, estado da chamada e indisponibilidade em outras sessões; não usa PIN ou RFID e não alega autenticação pessoal.
+- Criado `server/src/access/centralDeclaredTechnicianVerification.test.ts`: cenários básicos de aceitação/rejeição para mock transacional. **Testes não executados nem CI confirmada**.
+- **Ainda necessário**: autorização de modalidade name no backend sob flag OFF, endpoint de transição transacional com auditoria `name_declared`, integração de atendimento/inclusão/saída e finalização no frontend, tradução, testes PG reais e CI, homologação HML e posterior integração main.
+- PR #420 continua draft; não fazer merge nem atualizar banco original com este estágio.
