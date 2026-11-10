@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Este navegador abriu o ANDON por HTTP. Se o servidor utiliza HTTPS, abra o endereço seguro abaixo.", "This browser opened ANDON over HTTP. If the server uses HTTPS, open the secure address below.", "此瀏覽器以 HTTP 開啟 ANDON。如果伺服器使用 HTTPS，請開啟下方的安全網址。"],
+  ["Abrir Hub em HTTPS", "Open Hub over HTTPS", "以 HTTPS 開啟 Hub"],
   ["Senha do usuário", "User password", "使用者密碼"],
   ["Redefina a senha sem alterar o perfil, as máquinas ou as permissões deste usuário.", "Reset the password without changing this user's role, machines, or permissions.", "重設密碼而不變更此使用者的角色、機台或權限。"],
   ["Cancelar redefinição", "Cancel reset", "取消重設"],
