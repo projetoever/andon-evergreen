@@ -33,6 +33,7 @@ export interface SystemSettings {
   /** Runtime capability only; every PATCH still needs its own ACL/CSRF. */
   centralOperationalSettingsWriteEnabled?: boolean;
   centralDeclaredAttendanceEnabled?: boolean;
+  centralCallReasonsCatalogEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

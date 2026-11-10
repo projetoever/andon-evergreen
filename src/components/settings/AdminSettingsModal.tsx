@@ -40,6 +40,7 @@ import { MachineAssetCatalogPanel } from "./MachineAssetCatalogPanel";
 import { TechniciansSettingsTab } from "./TechniciansSettingsTab";
 import { AttendanceModeSettingsTab } from "./AttendanceModeSettingsTab";
 import { CategoriesSettingsTab } from "./CategoriesSettingsTab";
+import { CallReasonsSettingsTab } from "./CallReasonsSettingsTab";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { AppearanceSettingsPreview } from "./AppearanceSettingsPreview";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
@@ -130,6 +131,13 @@ const tabs: AdminNavigationItem[] = [
     icon: Tags,
   },
   {
+    id: "callReasons",
+    get label() { return ui("Motivos e subcategorias"); },
+    get description() { return ui("Motivos principais, especialidades e política de KPI corretivo."); },
+    group: "Cadastros",
+    icon: Tags,
+  },
+  {
     id: "classifications",
     get label() {
       return ui("Classificações");
@@ -208,6 +216,7 @@ export function AdminSettingsModal({
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
     if (tab === "categories") return <CategoriesSettingsTab />;
+    if (tab === "callReasons") return <CallReasonsSettingsTab />;
     if (tab === "shifts") return <ShiftsSettingsTab />;
     if (tab === "classifications") return <ClassificationsTab />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;

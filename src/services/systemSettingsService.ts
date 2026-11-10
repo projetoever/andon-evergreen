@@ -47,6 +47,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     rfidInputTerminator: "enter",
     rfidCodeLength: null,
     filterTechniciansByCurrentShift: true,
+    centralCallReasonsCatalogEnabled: false,
     createdAt: now,
     updatedAt: now,
   };
