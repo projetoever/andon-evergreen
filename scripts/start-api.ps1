@@ -120,7 +120,15 @@ try {
     if ($context.TransportMode -eq "https") {
         $env:ANDON_TLS_CERT = $context.TlsCertificatePath
         $env:ANDON_TLS_KEY = $context.TlsPrivateKeyPath
-        $env:CORS_ORIGINS = $context.FrontendUrl
+        # Match the installer network policy: the two loopback spellings are
+        # permitted only for a loopback-bound HTTPS API. The canonical Hub
+        # origin for authenticated writes remains ANDON_ACCESS_ORIGIN.
+        $origins = @($context.FrontendUrl)
+        if ($context.HttpsHost -in @("localhost", "127.0.0.1")) {
+            $origins += "https://localhost:$($context.FrontendPort)"
+            $origins += "https://127.0.0.1:$($context.FrontendPort)"
+        }
+        $env:CORS_ORIGINS = (($origins | Select-Object -Unique) -join ",")
     } else {
         Remove-Item Env:\ANDON_TLS_CERT -ErrorAction SilentlyContinue
         Remove-Item Env:\ANDON_TLS_KEY -ErrorAction SilentlyContinue
