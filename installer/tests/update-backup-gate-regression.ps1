@@ -51,4 +51,11 @@ Assert-UpdateContract ($activation.Contains('centralAccessEnabled" -Value $oldCe
 Assert-UpdateContract ($update.Contains('Health check falhou; restaurando perfil')) "revert on health check failure"
 Assert-UpdateContract ($activation.Contains('return $false')) "no implicit first-time activation"
 
+$apiStart = Get-Content (Join-Path $root "scripts\start-api.ps1") -Raw
+Assert-UpdateContract (!$apiStart.Contains('$env:CORS_ORIGINS = $context.FrontendUrl')) "do not override HTTPS CORS with only one host"
+Assert-UpdateContract ($apiStart.Contains('https://localhost:$($context.FrontendPort)')) "localhost HTTPS is allowed on loopback runtime"
+Assert-UpdateContract ($apiStart.Contains('https://127.0.0.1:$($context.FrontendPort)')) "127.0.0.1 HTTPS is allowed on loopback runtime"
+Assert-UpdateContract ($apiStart.Contains('if ($context.HttpsHost -in @("localhost", "127.0.0.1"))')) "do not widen remote server CORS origins"
+Assert-UpdateContract ($apiStart.Contains('$env:ANDON_ACCESS_ORIGIN = $context.FrontendUrl')) "central authorization retains canonical exact origin"
+
 Write-Host "REFINE13: updater backup/restore ordering and fail-closed checks PASS"
