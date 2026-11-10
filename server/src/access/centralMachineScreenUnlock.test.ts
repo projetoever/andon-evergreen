@@ -28,6 +28,26 @@ test("R9.3 screen release requires verified Admin or scoped maintenance; product
   assert.equal(mayAuthorizeScreenUnlock({
     ...maint, permissions: [{ key: "andon.read" }],
   }, machine), false);
+  const production = {
+    ...maint, roleLabel: "Produção",
+    permissions: [{ key: "andon.read" }, { key: "workstations.screen.unlock" }],
+  };
+  assert.equal(mayAuthorizeScreenUnlock(production, machine), true,
+    "explicit per-user grant works with verified credentials, regardless of role label");
+  assert.equal(mayAuthorizeScreenUnlock(production, "37"), false,
+    "permission cannot bypass selected machine scope");
+  assert.equal(mayAuthorizeScreenUnlock({ ...production, active: false }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...production, accountType: "kiosk" }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({ ...production, mustChangePassword: true }, machine), false);
+  assert.equal(mayAuthorizeScreenUnlock({
+    ...production, permissions: [{ key: "workstations.screen.unlock" }],
+  }, machine), false, "grant without andon.read is insufficient");
+  assert.equal(mayAuthorizeScreenUnlock({
+    ...production, permissions: [{ key: "andon.read" }],
+  }, machine), false, "revoke takes effect without role privilege");
+  assert.equal(mayAuthorizeScreenUnlock({
+    ...production, roleLabel: "Gestor/Gerente",
+  }, machine), true, "grant is role-agnostic");
 });
 
 test("R9.3 unlocking fixed machine is atomic, audited and does not switch the operator session", async () => {

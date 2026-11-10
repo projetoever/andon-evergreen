@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
+import { MachineConfigurationInventoryCard } from "./MachineConfigurationInventoryCard";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
 import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
@@ -73,7 +74,7 @@ function Section({
   );
 }
 
-export function MachineAdminPanel() {
+export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: boolean }) {
   useInterfaceLanguage();
   const {
     machines,
@@ -349,7 +350,8 @@ export function MachineAdminPanel() {
         </div>
       </aside>
 
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-4">
+        {centralAccess && <MachineConfigurationInventoryCard />}
         {creating ? (
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
@@ -426,7 +428,7 @@ export function MachineAdminPanel() {
                     value={newProductionMode}
                     onValueChange={(value) => setNewProductionMode(value as ProductionMode)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={centralAccess}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -559,6 +561,11 @@ export function MachineAdminPanel() {
                 </div>
               </div>
 
+              {centralAccess && (
+                <p role="status" className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  {ui("Modo de produção e ativação exigem ações operacionais próprias; não são editáveis neste cadastro central.")}
+                </p>
+              )}
               <div className="grid gap-4 lg:grid-cols-3">
                 <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
                   <span>
@@ -612,7 +619,7 @@ export function MachineAdminPanel() {
                   </span>
                   <Switch
                     checked={selectedMachine.isActive}
-                    disabled={Boolean(selectedMachine.currentCallId)}
+                    disabled={centralAccess || Boolean(selectedMachine.currentCallId)}
                     onCheckedChange={(checked) => updateMachineActive(selectedMachine.id, checked)}
                   />
                 </label>
