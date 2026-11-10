@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Senha do usuário", "User password", "使用者密碼"],
+  ["Redefina a senha sem alterar o perfil, as máquinas ou as permissões deste usuário.", "Reset the password without changing this user's role, machines, or permissions.", "重設密碼而不變更此使用者的角色、機台或權限。"],
+  ["Cancelar redefinição", "Cancel reset", "取消重設"],
+  ["Informe o motivo para o registro de auditoria", "Enter a reason for the audit log", "請輸入稽核紀錄的原因"],
+  ["A senha provisória será exibida uma única vez e exigirá troca no primeiro acesso.", "The temporary password is shown only once and must be changed at first sign-in.", "臨時密碼只顯示一次，首次登入時必須更改。"],
+
   ["Permissão de tela fixa", "Fixed-screen permission", "固定畫面權限"],
   ["Permitir desfixar tela de máquina", "Allow releasing a fixed machine screen", "允許解除機台固定畫面"],
   ["Exige usuário e senha próprios, máquina autorizada e auditoria. Não libera acesso ao Hub nem administração de workstations.", "Requires own username and password, authorized machine scope and audit. Does not grant Hub or workstation administration.", "需要本人帳號密碼、授權機台範圍及稽核記錄。不授予 Hub 或工作站管理權限。"],
