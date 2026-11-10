@@ -43,3 +43,17 @@
 - A validação por CI/restore em clone prova consistência do dump, **não** prova que o banco original migrado está homologado funcionalmente.
 - O atualizador não faz rollback automático de todas as migrações após o início do pipeline. Em falha após migrations, interromper a aplicação, preservar logs e usar procedimento de restauração supervisionado a partir do backup protegido; não reiniciar repetidamente nem executar db:seed.
 - Não aplicar na fábrica até homologação explícita dos testes no notebook e planejamento de janela operacional.
+
+## REFINE 13 — Correção para notebook com Admin legado aparente
+
+Diagnóstico real: `andon_db` no PostgreSQL Docker local porta 5432; HTTPS configurado; `installedCommit=15ea79667f000629920c75033ebf45e60ef3d477`; `centralAccessEnabled=false`; `centralSecurityValidationEnabled` não definido. Consulta apenas leitura confirmou 4 contas centrais e exatamente um Admin principal ativo. Isso prova que o código foi atualizado, mas não o perfil de autenticação; não prova a senha pessoal pronta.
+
+A PR #423 acrescenta à **opção 2**, após backup e restore em clone:
+- Exibição de diagnóstico e convite explícito de homologação no notebook, somente HTTPS+Docker local
+- Confirmação dupla `NOTEBOOK_ISOLADO` e `ATIVAR_CENTRAL`; sem confirmação mantém legado; fábrica nunca ativa automaticamente
+- Consulta PostgreSQL de Admin principal ativo, sem troca obrigatória de senha e hash cadastrado (contagem exatamente 1); se falhar interrompe e tenta restaurar runtime anterior
+- Migração/build antes de persistir a ativação central e as flags R12/R13; rollback do perfil caso health check falhe
+- Persistência de `centralAccessEnabled=true` e `centralSecurityValidationEnabled=true` em `andon-config.json` e regeneração de `server/.env` para atualizações posteriores
+- Não cria credenciais nem reativa Admin legado e não altera dados técnicos/operacionais
+
+**Aceite obrigatório no notebook:** usuário sabe a senha pessoal do Admin central, faz login, visualiza módulos, workstations e permissões, cadastra máquina e técnico, modo por nome, histórico/cancelamento, BI; comparar antes/depois. Sem confirmação do login, não aplicar no servidor industrial. Se perfil estiver ativo em produção no futuro, exigir planejamento próprio, não a confirmação NOTEBOOK_ISOLADO.
