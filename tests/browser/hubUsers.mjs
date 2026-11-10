@@ -268,6 +268,8 @@ try {
     await page.screenshot({ path: `${output}/${viewport.width}-create.png`, fullPage: true });
     await page.getByRole("button", { name: "Salvar usuário", exact: true }).click();
     await page.getByText("Senha provisória — exibição única", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Copiar senha", exact: true }).waitFor();
+    await page.getByText("Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Já anotei, ocultar", exact: true }).click();
     await page.reload();
     await page.getByText("Marina — Supervisão de Produção", { exact: true }).waitFor();
@@ -304,6 +306,7 @@ try {
     ]);
     assert.equal((await resetResult.json()).temporaryPassword, "b8e7a4c692d013f05a99");
     await page.getByText("b8e7a4c692d013f05a99", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Copiar senha", exact: true }).count(), 1);
     assert.equal(JSON.stringify(users.find(u => u.login === "marina.producao").permissions), beforeReset);
     await page.getByRole("button", { name: "Já anotei, ocultar", exact: true }).click();
     await editButton.click();
