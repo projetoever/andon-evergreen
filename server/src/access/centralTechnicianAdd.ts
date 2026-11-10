@@ -9,6 +9,8 @@ import {
   identifyTechnician, getTechnicianTechnicalAreas, type IdentifiedTechnician,
 } from "../services/technicianIdentity.js";
 import { normalizeCredential } from "../security/technicianCredentials.js";
+import { verifyDeclaredCentralTechnicians } from "./centralDeclaredTechnicianVerification.js";
+import { GLOBAL_SYSTEM_SETTINGS_ID } from "../services/systemSettings.js";
 import {
   lockAndFindMissingActiveTechnicians, persistAddedTechnicianSessions,
 } from "../routes/andonCalls.js";
@@ -23,7 +25,8 @@ export function runCentralTechnicianAdd(
   db: Pick<PrismaClient, "$transaction">,
   input: {
     token: string; workstationId: string; callId: string;
-    credentials: Array<{ method?: unknown; value?: unknown }>;
+    credentials?: Array<{ method?: unknown; value?: unknown }>;
+    technicianIds?: unknown;
     requestId?: string; ipAddress?: string;
   },
 ) {
@@ -31,10 +34,14 @@ export function runCentralTechnicianAdd(
     throw new AccessError("authentication_required", 401);
   if (!input.workstationId || !/^[a-zA-Z0-9_-]{1,160}$/.test(input.callId))
     throw new AccessError("invalid_action_resource", 400);
-  if (!Array.isArray(input.credentials) || input.credentials.length < 1 ||
-      input.credentials.length > 6)
+  const declared = input.technicianIds !== undefined;
+  if (declared && (input.credentials !== undefined ||
+      process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1"))
+    throw new AccessError("central_action_not_supported");
+  if (!declared && (!Array.isArray(input.credentials) || input.credentials.length < 1 ||
+      input.credentials.length > 6))
     throw new AccessError("technician_credentials_invalid", 400);
-  const credentials = input.credentials.map(credential =>
+  const credentials = declared ? [] : input.credentials!.map(credential =>
     normalizeCredential(credential?.method, credential?.value));
   if (credentials.some(credential => !credential))
     throw new AccessError("technician_credential_required", 400);
@@ -93,10 +100,34 @@ export function runCentralTechnicianAdd(
         (call.status !== "in_progress" && call.status !== "post_maintenance"))
       throw new AccessError("call_state_changed", 409);
 
-    // First resolve identities from credential hashes; never use names/IDs
-    // claimed by the browser. A PIN and RFID of the same person are duplicates.
-    const original: IdentifiedTechnician[] = [];
-    for (const credential of credentials) {
+    // Declared identities are server-resolved under technician locks and
+    // recorded as declared, not falsely labelled PIN/RFID verified.
+    if (declared) {
+      const mode = await tx.systemSettings.findUnique({
+        where: { id: GLOBAL_SYSTEM_SETTINGS_ID }, select: { attendanceMode: true },
+      });
+      if (mode?.attendanceMode !== "name")
+        throw new AccessError("central_action_not_supported");
+    }
+    const original: IdentifiedTechnician[] = declared
+      ? await (async () => {
+          const selected = await verifyDeclaredCentralTechnicians(tx, {
+            callId: input.callId, machineId: reference.machineId,
+            category: call!.category, status: "open",
+          }, input.technicianIds, ["in_progress", "post_maintenance"]);
+          const full = await tx.technician.findMany({
+            where: { id: { in: selected.map(t => t.id) }, active: true },
+            select: {
+              id: true, employeeId: true, name: true, technicalArea: true,
+              technicalAreas: { select: { technicalArea: true }, orderBy: { technicalArea: "asc" } },
+              shiftId: true, active: true, pinHash: true, tagHash: true,
+              shift: { select: { name: true } },
+            },
+          });
+          return selected.map(t => full.find(found => found.id === t.id)!);
+        })()
+      : [];
+    if (!declared) for (const credential of credentials) {
       const technician = await identifyTechnician(credential!, tx);
       if (!technician) throw new AccessError("technician_credential_invalid");
       original.push(technician);
@@ -115,7 +146,7 @@ export function runCentralTechnicianAdd(
     });
     // Re-identify after locks to catch changes/revocations made by Admin.
     // Persist the post-lock technician/shift snapshot rather than stale input.
-    const verifiedTechnicians: IdentifiedTechnician[] = [];
+    const verifiedTechnicians: IdentifiedTechnician[] = declared ? original : [];
     for (let i = 0; i < credentials.length; i++) {
       const verified = await identifyTechnician(credentials[i]!, tx);
       if (!verified || verified.id !== original[i].id ||
@@ -157,6 +188,7 @@ export function runCentralTechnicianAdd(
       after: {
         technicianIds: original.map(tech => tech.id),
         phase: call.status === "post_maintenance" ? "follow_up" : "maintenance",
+        identificationMethod: declared ? "name_declared" : "credential_verified",
       },
     });
     return updated;
