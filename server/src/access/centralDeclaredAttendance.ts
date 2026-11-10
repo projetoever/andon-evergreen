@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { AccessError } from "./policy.js";
+import { GLOBAL_SYSTEM_SETTINGS_ID } from "../services/systemSettings.js";
 import { runCentralAttendanceWithAtomicAudit } from "./centralAttendanceAtomicAudit.js";
 import { verifyDeclaredCentralTechnicians } from "./centralDeclaredTechnicianVerification.js";
 import { applyVerifiedCentralAttendanceDomainTransitionMany } from "../routes/andonCalls.js";
@@ -32,6 +33,13 @@ export function runCentralDeclaredAttendance(
     ipAddress: input.ipAddress,
     identificationMethod: "name_declared",
     verifyAndApplyAttendance: async (tx, call) => {
+      if (process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1")
+        throw new AccessError("central_action_not_supported");
+      const mode = await tx.systemSettings.findUnique({
+        where: { id: GLOBAL_SYSTEM_SETTINGS_ID }, select: { attendanceMode: true },
+      });
+      if (mode?.attendanceMode !== "name")
+        throw new AccessError("central_action_not_supported");
       const technicians = await verifyDeclaredCentralTechnicians(
         tx, call, input.technicianIds,
       );
