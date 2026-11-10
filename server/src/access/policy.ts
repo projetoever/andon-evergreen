@@ -26,6 +26,8 @@ export const PERMISSIONS = [
   "catalog.classifications.manage",
   "catalog.technicians.manage",
   "workstations.read",
+  // One-time credential-verified release of this machine screen only.
+  "workstations.screen.unlock",
   "workstations.manage",
   "hub.settings.presentation.write",
   "users.create",
