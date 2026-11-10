@@ -11,7 +11,7 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 /** Only non-siren, non-credential operational policy fields, never generic JSON. */
 export const CENTRAL_OPERATIONAL_SETTINGS_FIELDS = [
   "clientName", "clientUnit", "allowWholeSetCalls",
-  "virtualKeyboardEnabled", "requireWorkOrderAtOpen",
+  "virtualKeyboardEnabled", "requireWorkOrderAtOpen", "preventDuplicateWorkOrderNumbers",
   "restrictMaintenanceCompletionToAttendanceWorkstation",
   "dashboardMachineOrderMode", "attendanceMode",
   "rfidReaderMode", "rfidInputTerminator", "rfidCodeLength",
@@ -23,7 +23,7 @@ export const CENTRAL_OPERATIONAL_SETTINGS_FIELDS = [
 type EditableKey = typeof CENTRAL_OPERATIONAL_SETTINGS_FIELDS[number];
 const allowed = new Set<string>(CENTRAL_OPERATIONAL_SETTINGS_FIELDS);
 const booleanFields = new Set<string>([
-  "allowWholeSetCalls", "virtualKeyboardEnabled", "requireWorkOrderAtOpen",
+  "allowWholeSetCalls", "virtualKeyboardEnabled", "requireWorkOrderAtOpen", "preventDuplicateWorkOrderNumbers",
   "restrictMaintenanceCompletionToAttendanceWorkstation",
   "filterTechniciansByCurrentShift",
   "dashboardSoundMuteTimerEnabled", "dashboardSoundAutoMuteTimerEnabled",
