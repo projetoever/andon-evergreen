@@ -126,7 +126,7 @@ export class LocalAndonRepository implements AndonRepository {
     const workOrderNumbers = new Set(
       params.map((item) => item.workOrderNumber?.trim()).filter(Boolean),
     );
-    await validateLocalOsReuse(calls, params[0]?.workOrderNumber);
+    await validateLocalOsReuse(calls, params.find(item => item.workOrderNumber?.trim())?.workOrderNumber);
     if (workOrderNumbers.size > 1) {
       throw new Error("Os chamados em lote devem usar a mesma OS");
     }
