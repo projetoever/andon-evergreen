@@ -21,6 +21,8 @@ export function GeneralSettingsTab() {
   ) === true;
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(true);
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
+  const [preventDuplicateWorkOrderNumbers, setPreventDuplicateWorkOrderNumbers] = useState(false);
+  const [isSavingUniqueWorkOrder, setIsSavingUniqueWorkOrder] = useState(false);
   const [restrictMaintenanceCompletion, setRestrictMaintenanceCompletion] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function GeneralSettingsTab() {
       const settings = await getSystemSettings();
       setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
       setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
+      setPreventDuplicateWorkOrderNumbers(settings.preventDuplicateWorkOrderNumbers === true);
       setRestrictMaintenanceCompletion(
         settings.restrictMaintenanceCompletionToAttendanceWorkstation === true,
       );
@@ -160,6 +163,24 @@ export function GeneralSettingsTab() {
     }
   }
 
+  async function handleUniqueWorkOrderChange(enabled: boolean) {
+    const previous = preventDuplicateWorkOrderNumbers;
+    setPreventDuplicateWorkOrderNumbers(enabled);
+    setIsSavingUniqueWorkOrder(true);
+    try {
+      const settings = await updateSystemSettings({ preventDuplicateWorkOrderNumbers: enabled });
+      setPreventDuplicateWorkOrderNumbers(settings.preventDuplicateWorkOrderNumbers);
+      toast.success(settings.preventDuplicateWorkOrderNumbers
+        ? ui("Bloqueio de OS duplicadas ativado para novas aberturas.")
+        : ui("Bloqueio de OS duplicadas desativado."));
+    } catch {
+      setPreventDuplicateWorkOrderNumbers(previous);
+      toast.error(ui("Não foi possível salvar a regra contra OS duplicadas."));
+    } finally {
+      setIsSavingUniqueWorkOrder(false);
+    }
+  }
+
   async function handleMaintenanceRestrictionChange(restricted: boolean) {
     const previousValue = restrictMaintenanceCompletion;
     setRestrictMaintenanceCompletion(restricted);
@@ -266,6 +287,19 @@ export function GeneralSettingsTab() {
                 onCheckedChange={(checked) => void handleWorkOrderRequirementChange(checked)}
               />
             </div>
+            <div className="flex min-h-14 items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
+              <div className="space-y-1">
+                <p className="font-bold">{ui("Impedir reutilização de números de OS")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {ui("Quando ativado, bloqueia uma nova abertura com OS já registrada em outro chamado real, em qualquer máquina. Mantém histórico e permite vários setores na mesma abertura em lote.")}
+                </p>
+              </div>
+              <Switch
+                aria-label={ui("Bloquear OS duplicadas")}
+                checked={preventDuplicateWorkOrderNumbers}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingUniqueWorkOrder}
+                onCheckedChange={(checked) => void handleUniqueWorkOrderChange(checked)}
+              />
           </CardContent>
         </Card>
 
