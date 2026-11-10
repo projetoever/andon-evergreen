@@ -77,6 +77,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [draft, setDraft] = useState<UserDraft | null>(null);
   const [advancedPermissions, setAdvancedPermissions] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<AccessUser | null>(null);
+  const [inlineResetReason, setInlineResetReason] = useState("");
+  const resetSecretRef = useRef<HTMLDivElement>(null);
   const [original, setOriginal] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
   const [adminRecoveryCode, setAdminRecoveryCode] = useState<string | null>(null);
@@ -88,6 +91,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
   const [legacyRetirementConfirmed, setLegacyRetirementConfirmed] = useState(false);
   const [resetTarget, setResetTarget] = useState<AccessUser | null>(null);
   const [reauth, setReauth] = useState(false);
+  useEffect(() => {
+    if (secret) resetSecretRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [secret]);
   const listVersion = useRef(0);
   const principal = session?.principal;
   const admin = principal?.isPrimaryAdmin && principal.purpose === "normal";
@@ -187,6 +193,8 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
     // directly into the exhaustive ACL grid (pilot UX) or lose permissions.
     setAdvancedPermissions(false);
     setEditing(user?.id ?? null);
+    setEditingUser(user ?? null);
+    setInlineResetReason("");
     setDraft(value);
     setOriginal(JSON.stringify(value));
     setSecret(null);
@@ -539,6 +547,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
             </Card>
           )}
           {secret && (
+            <div ref={resetSecretRef}>
             <Card className="space-y-3 border-primary p-5" role="status">
               <h3 className="font-bold">{ui("Senha provisória — exibição única")}</h3>
               <p className="text-sm">
@@ -549,6 +558,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
               <code className="block break-all text-xl select-all">{secret}</code>
               <Button onClick={() => setSecret(null)}>{ui("Já anotei, ocultar")}</Button>
             </Card>
+            </div>
           )}
           {resetTarget && (
             <Card className="p-5">
@@ -906,6 +916,62 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       {ui("As permissões serão aplicadas às operações após a ativação segura do controle central.")}
                     </p>
                   </fieldset>}
+                  {editing && editingUser?.id === editing && editingUser.accountType === "person" &&
+                    !editingUser.isPrimaryAdmin && (
+                    <section className="space-y-3 rounded-lg border border-border bg-muted/20 p-4"
+                      aria-label={ui("Redefinir senha")}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{ui("Senha do usuário")}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {ui("Redefina a senha sem alterar o perfil, as máquinas ou as permissões deste usuário.")}
+                          </p>
+                        </div>
+                        {!resetTarget || resetTarget.id !== editing ? (
+                          <Button type="button" variant="outline" disabled={busy}
+                            onClick={() => { setResetTarget(editingUser); setInlineResetReason(""); setSecret(null); }}>
+                            {ui("Redefinir senha")}
+                          </Button>
+                        ) : (
+                          <Button type="button" variant="outline" disabled={busy}
+                            onClick={() => { setResetTarget(null); setInlineResetReason(""); }}>
+                            {ui("Cancelar redefinição")}
+                          </Button>
+                        )}
+                      </div>
+                      {resetTarget?.id === editing && (
+                        <div className="space-y-3">
+                          <Label className="block space-y-2">
+                            {ui("Motivo da redefinição")}
+                            <Input value={inlineResetReason} maxLength={500}
+                              onChange={(event) => setInlineResetReason(event.target.value)}
+                              placeholder={ui("Informe o motivo para o registro de auditoria")} />
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            {ui("A senha provisória será exibida uma única vez e exigirá troca no primeiro acesso.")}
+                          </p>
+                          <Button type="button" disabled={busy || !inlineResetReason.trim()}
+                            onClick={() => void run(async () => {
+                              if (resetTarget.id !== editing || resetTarget.isPrimaryAdmin ||
+                                  resetTarget.accountType !== "person") return;
+                              const result = await accessRequest<{ temporaryPassword: string }>(
+                                "/users/" + encodeURIComponent(resetTarget.id) + "/reset", "POST",
+                                { reason: inlineResetReason.trim() },
+                              );
+                              setResetTarget(null);
+                              setInlineResetReason("");
+                              setDraft(null);
+                              setEditing(null);
+                              setEditingUser(null);
+                              setSecret(result.temporaryPassword);
+                              await refreshUsers();
+                            })}>
+                            {ui("Gerar senha provisória")}
+                          </Button>
+                        </div>
+                      )}
+                    </section>
+                  )}
                   <div className="flex flex-wrap gap-3">
                     <Button
                       type="submit"
