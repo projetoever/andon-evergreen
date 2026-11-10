@@ -7,6 +7,7 @@ import { lockTechnicianSessionFlow } from "../db/technicianSessionFlowLock.js";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
 import { AccessError, assertModule, assertPermission } from "./policy.js";
 import { identifyTechnician } from "../services/technicianIdentity.js";
+import { GLOBAL_SYSTEM_SETTINGS_ID } from "../services/systemSettings.js";
 import { normalizeCredential } from "../security/technicianCredentials.js";
 import { endActiveTechnicianSession } from "../routes/andonCalls.js";
 
@@ -22,7 +23,8 @@ export function runCentralTechnicianEnd(
   db: Pick<PrismaClient, "$transaction">,
   input: {
     token: string; workstationId: string; callId: string;
-    credential: { method?: unknown; value?: unknown } | undefined;
+    credential?: { method?: unknown; value?: unknown };
+    technicianId?: unknown;
     reason?: unknown; notes?: unknown;
     requestId?: string; ipAddress?: string;
   },
@@ -31,8 +33,17 @@ export function runCentralTechnicianEnd(
     throw new AccessError("authentication_required", 401);
   if (!input.workstationId || !/^[a-zA-Z0-9_-]{1,160}$/.test(input.callId))
     throw new AccessError("invalid_action_resource", 400);
-  const credential = normalizeCredential(input.credential?.method, input.credential?.value);
-  if (!credential) throw new AccessError("technician_credential_required", 400);
+  const declared = input.technicianId !== undefined;
+  if (declared && (input.credential !== undefined ||
+      process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1"))
+    throw new AccessError("central_action_not_supported");
+  if (declared && (typeof input.technicianId !== "string" ||
+      !/^[a-zA-Z0-9_-]{1,160}$/.test(input.technicianId)))
+    throw new AccessError("declared_technicians_invalid", 400);
+  const credential = declared ? null :
+    normalizeCredential(input.credential?.method, input.credential?.value);
+  if (!declared && !credential)
+    throw new AccessError("technician_credential_required", 400);
   if ((input.reason !== undefined &&
        (typeof input.reason !== "string" || input.reason.length > 2000)) ||
       (input.notes !== undefined &&
@@ -95,12 +106,30 @@ export function runCentralTechnicianEnd(
 
     // Credential verification and administrative technician changes use the
     // same advisory lock: reject deactivation/credential rotation in a race.
-    const initial = await identifyTechnician(credential, tx);
-    if (!initial) throw new AccessError("technician_credential_invalid", 403);
+    if (declared) {
+      const mode = await tx.systemSettings.findUnique({
+        where: { id: GLOBAL_SYSTEM_SETTINGS_ID }, select: { attendanceMode: true },
+      });
+      if (mode?.attendanceMode !== "name")
+        throw new AccessError("central_action_not_supported");
+    }
+    const initial = declared
+      ? await tx.technician.findUnique({
+          where: { id: input.technicianId as string },
+          select: { id: true, active: true },
+        })
+      : await identifyTechnician(credential!, tx);
+    if (!initial || (declared && !initial.active))
+      throw new AccessError("technician_not_found", 404);
     await lockTechnicianSessionFlow(tx, initial.id);
-    const identified = await identifyTechnician(credential, tx);
-    if (!identified || identified.id !== initial.id)
-      throw new AccessError("technician_credential_invalid", 403);
+    const identified = declared
+      ? await tx.technician.findUnique({
+          where: { id: input.technicianId as string },
+          select: { id: true, active: true },
+        })
+      : await identifyTechnician(credential!, tx);
+    if (!identified || identified.id !== initial.id || (declared && !identified.active))
+      throw new AccessError("technician_not_found", 404);
 
     const result = await endActiveTechnicianSession(tx, {
       callId: input.callId, technicianId: identified.id,
@@ -112,7 +141,8 @@ export function runCentralTechnicianEnd(
     }, {
       action: "calls.technicians.end", resourceType: "andon_call",
       resourceId: input.callId, machineId: reference.machineId,
-      after: { technicianId: identified.id, status: call.status },
+      after: { technicianId: identified.id, status: call.status,
+        identificationMethod: declared ? "name_declared" : "credential_verified" },
     });
     return result;
   });
