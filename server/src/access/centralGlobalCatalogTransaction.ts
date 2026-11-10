@@ -3,7 +3,7 @@ import { tokenHash } from "./credentials.js";
 import { lockUser, resolveSession } from "./sessions.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
-import { AccessError } from "./policy.js";
+import { AccessError, assertPermission, type Permission } from "./policy.js";
 import { preflightCentralGlobalCatalogWrite } from "./centralGlobalCatalogPreflight.js";
 
 /**
@@ -18,6 +18,8 @@ export async function runCentralGlobalCatalogTransaction<T>(
     token: string; workstationId: string;
     method: string; path: string;
     requestId?: string; ipAddress?: string;
+    requirePrimaryAdmin?: boolean;
+    additionalPermissions?: Permission[];
     // Must be supplied only by trusted server code, never from a request body.
     applyReviewedDomainMutation: (tx: Prisma.TransactionClient) => Promise<{
       value: T; resourceId: string; resourceType: string;
@@ -54,12 +56,18 @@ export async function runCentralGlobalCatalogTransaction<T>(
     const action = preflightCentralGlobalCatalogWrite({
       principal, workstation, request: { method: input.method, path: input.path },
     });
+    if (input.requirePrimaryAdmin && !principal.isPrimaryAdmin)
+      throw new AccessError("primary_admin_required");
+    for (const permission of input.additionalPermissions ?? []) assertPermission(principal, permission);
     const latest = await resolveSession(tx, request);
     if (latest.userId !== principal.userId || latest.sessionId !== principal.sessionId)
       throw new AccessError("authentication_required", 401);
     preflightCentralGlobalCatalogWrite({
       principal: latest, workstation, request: { method: input.method, path: input.path },
     });
+    if (input.requirePrimaryAdmin && !latest.isPrimaryAdmin)
+      throw new AccessError("primary_admin_required");
+    for (const permission of input.additionalPermissions ?? []) assertPermission(latest, permission);
     const result = await input.applyReviewedDomainMutation(tx);
     if (!result || !result.resourceId || !result.resourceType)
       throw new AccessError("invalid_action_resource", 400);
