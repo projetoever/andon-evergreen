@@ -69,7 +69,6 @@ function Show-AndonMenu {
         Write-Host "12 - Configurar IP/rede do servidor"
         Write-Host "13 - Configurar PostgreSQL/porta do banco"
         Write-Host "14 - Configurar HTTPS (assistente)"
-        Write-Host "15 - Recursos de seguranca (homologacao no notebook)"
         Write-Host "0  - Sair"
         Write-Host ""
 
@@ -158,11 +157,6 @@ function Show-AndonMenu {
                 Invoke-AndonMenuScript `
                     "$Global:AndonInstallerPath\configure-andon-https.ps1" `
                     "Configurar transporte HTTP/HTTPS"
-            }
-            "15" {
-                Invoke-AndonMenuScript `
-                    "$Global:AndonInstallerPath\configure-andon-security-validation.ps1" `
-                    "Configurar recursos de seguranca no notebook"
             }
             "0" {
                 return
