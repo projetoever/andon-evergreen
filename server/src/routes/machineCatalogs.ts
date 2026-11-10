@@ -2,6 +2,11 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../db/prisma.js";
+import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
+import { AccessError } from "../access/policy.js";
+import { parseWorkstationId } from "../services/workstationAuthorization.js";
+import { isAuthorizedCentralAssetTypeCatalog } from "../security/centralAssetTypeCatalogHttp.js";
+import { createCentralAssetType, updateCentralAssetType } from "../access/centralAssetTypeCatalog.js";
 import { badRequest, conflict, notFound, parseBoolean } from "./routeUtils.js";
 
 type CatalogQuery = {
@@ -119,6 +124,25 @@ export async function registerMachineCatalogRoutes(
   app.post<{ Body: CatalogBody }>(
     "/api/machine-set-types",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralAssetTypeCatalog(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          const created = await createCentralAssetType(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            kind: "set", body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return reply.status(201).send(created);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_type_code_in_use" });
+          throw error;
+        }
+      }
       const name = requiredString(request.body?.name);
 
       if (!name) {
@@ -193,6 +217,24 @@ export async function registerMachineCatalogRoutes(
   }>(
     "/api/machine-set-types/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralAssetTypeCatalog(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await updateCentralAssetType(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            kind: "set", typeId: request.params.id, body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_type_code_in_use" });
+          throw error;
+        }
+      }
       const current =
         await prisma.machineSetType.findUnique({
           where: { id: request.params.id },
@@ -374,6 +416,25 @@ export async function registerMachineCatalogRoutes(
   app.post<{ Body: CatalogBody }>(
     "/api/machine-subset-types",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralAssetTypeCatalog(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          const created = await createCentralAssetType(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            kind: "subset", body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+          return reply.status(201).send(created);
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_type_code_in_use" });
+          throw error;
+        }
+      }
       const name = requiredString(request.body?.name);
 
       if (!name) {
@@ -449,6 +510,24 @@ export async function registerMachineCatalogRoutes(
   }>(
     "/api/machine-subset-types/:id",
     async (request, reply) => {
+      if (centralAccessEnabled()) {
+        if (!isAuthorizedCentralAssetTypeCatalog(request))
+          throw new AccessError("central_action_not_supported");
+        try {
+          return await updateCentralAssetType(prisma, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+            kind: "subset", typeId: request.params.id, body: request.body,
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          });
+        } catch (error) {
+          if (error instanceof AccessError)
+            return reply.status(error.statusCode).send({ error: error.code });
+          if (isPrismaError(error, "P2002"))
+            return reply.status(409).send({ error: "asset_type_code_in_use" });
+          throw error;
+        }
+      }
       const current =
         await prisma.machineSubsetType.findUnique({
           where: { id: request.params.id },
