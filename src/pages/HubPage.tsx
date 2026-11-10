@@ -17,6 +17,7 @@ import { getAdminAuthStatus, type AdminAuthStatus } from "@/services/adminAuthSe
 import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { getSafeHubHttpsUrl } from "@/utils/secureHubEntry";
 
 export function HubPage() {
   const { access, error, checking, refresh } = useModuleAccess();
@@ -36,11 +37,9 @@ export function HubPage() {
   // intentionally accepts HTTPS only. Show the secure URL rather than
   // misdiagnosing a transport mismatch as a broken Admin configuration.
   // Do not automatically redirect: legacy HTTP deployments still exist.
-  const secureHubUrl = typeof window !== "undefined" &&
-    window.location.protocol === "http:" &&
-    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)
-      ? `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`
-      : null;
+  const secureHubUrl = getSafeHubHttpsUrl(
+    typeof window !== "undefined" ? window.location : null,
+  );
   const [initialStatus, setInitialStatus] = useState<AdminAuthStatus | null>(null);
   const [initialStatusError, setInitialStatusError] = useState("");
   const [initialStatusPending, setInitialStatusPending] = useState(
