@@ -183,7 +183,16 @@ try {
             }
             throw
         }
-        $activateCentralAfterBuild = Request-AndonCentralNotebookActivation -Config $config
+        $activateCentralAfterBuild = $false
+        try {
+            $activateCentralAfterBuild = Request-AndonCentralNotebookActivation -Config $config
+        } catch {
+            Write-AndonWarn "Falha na verificacao do login central; restaurando runtime anterior."
+            try { Start-AndonRuntime } catch {
+                Write-AndonWarn "Nao foi possivel reiniciar runtime anterior. Verifique os logs."
+            }
+            throw
+        }
         Ensure-AndonDedicatedNodeRuntime
         $network = Ensure-AndonNetworkConfig
         Write-AndonBackendEnv -Config $config -NetworkConfig $network
