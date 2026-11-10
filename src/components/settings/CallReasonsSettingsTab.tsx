@@ -102,9 +102,13 @@ export function CallReasonsSettingsTab() {
       ...draft,
       id: selected ?? makeId(draft.displayName),
       displayName: draft.displayName.trim(),
-      suggestedResponsibility: draft.nature === "corrective_failure" ? "maintenance"
-        : draft.nature === "planned_setup" || draft.nature === "production_support" ? "operations"
-          : "unassigned",
+      // Preserve an existing policy owner unless the nature is changed
+      // deliberately. Editing labels/colors must never rewrite KPI ownership.
+      suggestedResponsibility: chosen && chosen.nature === draft.nature
+        ? chosen.suggestedResponsibility
+        : draft.nature === "corrective_failure" ? "maintenance"
+          : draft.nature === "planned_setup" || draft.nature === "production_support"
+            ? "operations" : "unassigned",
       maintenanceKpiPolicy: draft.nature !== "corrective_failure" &&
         draft.maintenanceKpiPolicy === "eligible" ? "excluded" : draft.maintenanceKpiPolicy,
     };
