@@ -16,6 +16,9 @@ export const CENTRAL_OPERATIONAL_SETTINGS_FIELDS = [
   "dashboardMachineOrderMode", "attendanceMode",
   "rfidReaderMode", "rfidInputTerminator", "rfidCodeLength",
   "filterTechniciansByCurrentShift",
+  // Browser-only dashboard audio timer policy; no GPIO, external siren or runtime mute.
+  "dashboardSoundMuteTimerEnabled", "dashboardSoundMuteDurationMinutes",
+  "dashboardSoundAutoMuteTimerEnabled", "dashboardSoundActiveDurationMinutes",
 ] as const;
 type EditableKey = typeof CENTRAL_OPERATIONAL_SETTINGS_FIELDS[number];
 const allowed = new Set<string>(CENTRAL_OPERATIONAL_SETTINGS_FIELDS);
@@ -23,6 +26,7 @@ const booleanFields = new Set<string>([
   "allowWholeSetCalls", "virtualKeyboardEnabled", "requireWorkOrderAtOpen",
   "restrictMaintenanceCompletionToAttendanceWorkstation",
   "filterTechniciansByCurrentShift",
+  "dashboardSoundMuteTimerEnabled", "dashboardSoundAutoMuteTimerEnabled",
 ]);
 
 export function parseCentralOperationalSettingsPatch(body: unknown) {
@@ -49,8 +53,7 @@ export function parseCentralOperationalSettingsPatch(body: unknown) {
         throw new AccessError("invalid_input", 400);
       patch[key] = value;
     } else if (key === "attendanceMode") {
-      // Name selection is explicitly a declared identity, gated separately
-      // from strong PIN/RFID verification. Never silently enable it in factory.
+      // Name declaration is enabled only under a separate, explicit central flag.
       if (value !== "pin" && value !== "rfid" &&
           !(value === "name" &&
             process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED === "1"))
@@ -62,6 +65,14 @@ export function parseCentralOperationalSettingsPatch(body: unknown) {
     } else if (key === "rfidInputTerminator") {
       if (!["enter", "tab", "fixed_length"].includes(String(value)) ||
           typeof value !== "string")
+        throw new AccessError("invalid_input", 400);
+      patch[key] = value;
+    } else if (key === "dashboardSoundMuteDurationMinutes" ||
+               key === "dashboardSoundActiveDurationMinutes") {
+      // Bound automated browser sound timers to safe, finite periods. Never
+      // alter dashboardSoundMuted or external siren/PLC settings through here.
+      if (typeof value !== "number" || !Number.isInteger(value) ||
+          value < 1 || value > 240)
         throw new AccessError("invalid_input", 400);
       patch[key] = value;
     } else if (key === "rfidCodeLength") {
