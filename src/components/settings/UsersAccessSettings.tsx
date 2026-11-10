@@ -560,7 +560,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
             </Card>
             </div>
           )}
-          {resetTarget && (
+          {resetTarget && !draft && (
             <Card className="p-5">
               <form
                 className="space-y-3"
