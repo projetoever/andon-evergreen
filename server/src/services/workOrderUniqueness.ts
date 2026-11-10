@@ -1,4 +1,4 @@
-import { Prisma, type Prisma as PrismaType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 /**
  * Prevent accidental reuse of an operator-entered work order across independent
@@ -20,7 +20,7 @@ export function normalizedWorkOrderKey(value: string): string {
 }
 
 export async function assertWorkOrderNumberAvailable(
-  tx: PrismaType.TransactionClient,
+  tx: Prisma.TransactionClient,
   workOrderNumber: string | undefined,
   isSystemTest = false,
 ): Promise<void> {
