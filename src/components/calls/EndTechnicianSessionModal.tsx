@@ -97,7 +97,7 @@ export function EndTechnicianSessionModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance, systemSettings.centralDeclaredAttendanceEnabled === true));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -183,7 +183,6 @@ export function EndTechnicianSessionModal({
   }
 
   function handleNameSubmit() {
-    if (centralAttendance) return;
     const target = activeSessions.find((session) => session.id === sessionId);
     if (target) void finishSession(target);
   }
@@ -210,7 +209,7 @@ export function EndTechnicianSessionModal({
   ]);
 
   const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
-    settings?.attendanceMode, centralAttendance,
+    settings?.attendanceMode, centralAttendance, settings?.centralDeclaredAttendanceEnabled === true,
   );
 
   return (
@@ -246,7 +245,7 @@ export function EndTechnicianSessionModal({
 
         {centralAttendance && settings?.attendanceMode === "name" && (
           <p role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm font-semibold text-foreground">
-            {ui("No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.")}
+            {ui("A seleção por nome registra quem realizou a ação no Hub, mas não comprova a identidade do mantenedor por PIN ou tag.")}
           </p>
         )}
 

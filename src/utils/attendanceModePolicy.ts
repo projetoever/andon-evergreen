@@ -1,21 +1,24 @@
 import type { AttendanceMode } from "@/types/systemSettings";
 
 /**
- * The pre-central installation may persist "name" as its legacy attendance
- * setting. Central writes require a verified PIN/RFID credential, so name
- * selection must never be offered as an actionable central path.
- *
- * Do not mutate the global setting: turning central access OFF restores the
- * exact legacy behavior and its previously saved preference.
+ * The server advertises this capability only when declared central attendance
+ * has been explicitly enabled. Otherwise central uses credential verification,
+ * while legacy (central OFF) keeps its previously configured preference.
  */
-export function effectiveAttendanceMode(configured: AttendanceMode, central: boolean): AttendanceMode {
-  return central && configured === "name" ? "pin" : configured;
+export function effectiveAttendanceMode(
+  configured: AttendanceMode,
+  central: boolean,
+  declaredEnabled = false,
+): AttendanceMode {
+  return central && configured === "name" && !declaredEnabled ? "pin" : configured;
 }
 
 export function allowedAttendanceModes(
-  configured: AttendanceMode | undefined, central: boolean,
+  configured: AttendanceMode | undefined,
+  central: boolean,
+  declaredEnabled = false,
 ): AttendanceMode[] {
-  return !central && configured === "name"
+  return configured === "name" && (!central || declaredEnabled)
     ? ["name", "pin", "rfid"]
     : ["pin", "rfid"];
 }

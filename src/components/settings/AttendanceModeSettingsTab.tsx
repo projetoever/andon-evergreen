@@ -94,10 +94,6 @@ export function AttendanceModeSettingsTab() {
 
   async function handleSave() {
     if (!settings || !hasUnsavedChanges) return;
-    if (centralAttendance && settings.attendanceMode === "name") {
-      toast.error(ui("Com login central, use PIN ou tag para identificar o mantenedor."));
-      return;
-    }
 
     if (
       settings.rfidInputTerminator === "fixed_length" &&
@@ -165,7 +161,7 @@ export function AttendanceModeSettingsTab() {
 
       {centralAttendance && (
         <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
-          {ui("No login central, a seleção por nome não autentica o mantenedor. Os atendimentos exigem PIN ou tag, independentemente do modo legado salvo.")}
+          {ui("No login central, selecionar por nome declara o mantenedor, sem autenticação pessoal. O usuário e a workstation responsáveis serão auditados. A escolha fica disponível somente quando o servidor autorizar esta modalidade.")}
         </div>
       )}
 
@@ -178,7 +174,7 @@ export function AttendanceModeSettingsTab() {
               key={option.id}
               type="button"
               aria-pressed={selected}
-              disabled={centralAttendance && option.id === "name"}
+              disabled={centralAttendance && option.id === "name" && settings.centralDeclaredAttendanceEnabled !== true}
               onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",

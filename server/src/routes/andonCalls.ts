@@ -35,6 +35,7 @@ import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
+import { runCentralDeclaredAttendance } from "../access/centralDeclaredAttendance.js";
 import { runCentralMaintenanceCompletion } from "../access/centralMaintenanceCompletion.js";
 import { isAuthorizedCentralMaintenanceCompletion } from "../security/centralMaintenanceCompletionHttp.js";
 import { runCentralReturnToMaintenance } from "../access/centralReturnToMaintenance.js";
@@ -81,6 +82,7 @@ type OpenAndonCallBody = {
 };
 
 type AttendAndonCallBody = {
+  technicianIds?: unknown;
   technicianName?: unknown;
   technicianNames?: unknown;
   technicianArea?: unknown;
@@ -88,6 +90,7 @@ type AttendAndonCallBody = {
 };
 
 type AddTechnicianBody = {
+  technicianIds?: unknown;
   technicianName?: unknown;
   technicianNames?: unknown;
   technicianArea?: unknown;
@@ -104,6 +107,7 @@ type BatchOpenAndonCallsBody = {
 };
 
 type EndTechnicianBody = {
+  technicianId?: unknown;
   reason?: unknown;
   notes?: unknown;
   technicianName?: unknown;
@@ -2762,6 +2766,27 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         if (!isAuthorizedCentralAttendanceRequest(request))
           throw new AccessError("central_action_not_supported");
         const body = request.body ?? {};
+        const declared = Object.prototype.hasOwnProperty.call(body, "technicianIds");
+        if (declared) {
+          if (process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1" ||
+              Object.keys(body).some(key => key !== "technicianIds"))
+            return reply.status(403).send({ error: "central_action_not_supported" });
+          try {
+            return await runCentralDeclaredAttendance(prisma, {
+              token: readSecureCookie(request, ACCESS_COOKIE),
+              workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
+              callId: request.params.id,
+              technicianIds: body.technicianIds,
+              requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+            });
+          } catch (error) {
+            if (error instanceof AccessError)
+              return reply.status(error.statusCode).send({ error: error.code });
+            if (error instanceof AndonCallValidationError)
+              return badRequest(reply, error.message);
+            throw error;
+          }
+        }
         const allowed = ["credentials", "technicianName", "technicianNames", "technicianArea"];
         if (!Array.isArray(body.credentials) || body.credentials.length === 0 ||
             body.credentials.length > 6 || Object.keys(body).some((key) => !allowed.includes(key)))
@@ -2939,7 +2964,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         if (!isAuthorizedCentralTechnicianAdd(request))
           throw new AccessError("central_action_not_supported");
         const body = request.body ?? {};
-        if (Object.keys(body).some(key => key !== "credentials") ||
+        const declared = Object.prototype.hasOwnProperty.call(body, "technicianIds");
+        if (declared) {
+          if (process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1" ||
+              Object.keys(body).some(key => key !== "technicianIds"))
+            return reply.status(403).send({ error: "central_action_not_supported" });
+        } else if (Object.keys(body).some(key => key !== "credentials") ||
             !Array.isArray(body.credentials) || body.credentials.length < 1 ||
             body.credentials.length > 6 ||
             body.credentials.some(credential => !credential ||
@@ -2950,7 +2980,9 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           const updated = await runCentralTechnicianAdd(prisma, {
             token: readSecureCookie(request, ACCESS_COOKIE),
             workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
-            callId: request.params.id, credentials: body.credentials,
+            callId: request.params.id,
+            credentials: declared ? undefined : body.credentials as Array<{ method?: unknown; value?: unknown }>,
+            technicianIds: declared ? body.technicianIds : undefined,
             requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
           });
           return reply.status(201).send(updated);
@@ -3072,8 +3104,14 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         if (!isAuthorizedCentralTechnicianEnd(request))
           throw new AccessError("central_action_not_supported");
         const body = request.body ?? {};
-        // The central path must never infer technician identity from a name.
-        if (!body.credential || Object.keys(body).some((key) =>
+        // Named technicians remain declarations, never credential verification.
+        const declared = Object.prototype.hasOwnProperty.call(body, "technicianId");
+        if (declared) {
+          if (process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED !== "1" ||
+              Object.keys(body).some((key) =>
+                !["technicianId", "reason", "notes"].includes(key)))
+            return reply.status(403).send({ error: "central_action_not_supported" });
+        } else if (!body.credential || Object.keys(body).some((key) =>
             !["credential", "reason", "notes"].includes(key)))
           return reply.status(400).send({ error: "technician_credential_required" });
         try {
@@ -3082,6 +3120,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
             callId: request.params.id,
             credential: body.credential,
+            technicianId: declared ? body.technicianId : undefined,
             reason: body.reason, notes: body.notes,
             requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
           });

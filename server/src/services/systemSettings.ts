@@ -48,6 +48,7 @@ export async function getSystemSettings() {
     andonVisualPaletteRevision: publicVisualPaletteRevision(settings.andonVisualPaletteRevision),
     andonVisualPaletteWriteEnabled: centralVisualPaletteWritesEnabled(),
     centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled(),
+    centralDeclaredAttendanceEnabled: process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED === "1",
   };
 }
 

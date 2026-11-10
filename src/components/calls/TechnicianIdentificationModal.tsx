@@ -96,7 +96,7 @@ export function TechnicianIdentificationModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance, systemSettings.centralDeclaredAttendanceEnabled === true));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -222,7 +222,6 @@ export function TechnicianIdentificationModal({
   }
 
   function handleNameSubmit() {
-    if (centralAttendance) return;
     const technicians = names.map((name) => {
       const technician = findTechnicianByName(name);
       return {
@@ -261,7 +260,7 @@ export function TechnicianIdentificationModal({
   if (!call) return null;
 
   const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
-    settings?.attendanceMode, centralAttendance,
+    settings?.attendanceMode, centralAttendance, settings?.centralDeclaredAttendanceEnabled === true,
   );
   const actionLabel =
     purpose === "start"
@@ -300,7 +299,7 @@ export function TechnicianIdentificationModal({
 
         {centralAttendance && settings?.attendanceMode === "name" && (
           <p role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-sm font-semibold text-foreground">
-            {ui("No login central, identifique o mantenedor por PIN ou tag. A seleção por nome permanece disponível somente no modo legado.")}
+            {ui("No login central, a seleção por nome registra uma declaração do usuário autenticado, sem verificar PIN ou tag do mantenedor.")}
           </p>
         )}
 

@@ -31,6 +31,7 @@ export interface SystemSettings {
   andonVisualPaletteWriteEnabled?: boolean;
   /** Runtime capability only; every PATCH still needs its own ACL/CSRF. */
   centralOperationalSettingsWriteEnabled?: boolean;
+  centralDeclaredAttendanceEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

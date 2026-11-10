@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["No login central, a seleção por nome registra uma declaração do usuário autenticado, sem verificar PIN ou tag do mantenedor.", "With central sign-in, selecting a name records the signed-in user's declaration without verifying the technician's PIN or tag.", "使用中央登入時，透過姓名選取只記錄登入使用者的聲明，不會驗證維修人員的 PIN 或感應卡。"],
+  ["A seleção por nome registra quem realizou a ação no Hub, mas não comprova a identidade do mantenedor por PIN ou tag.", "Selecting a name records who performed the action in Hub, but does not prove the technician's identity using a PIN or tag.", "以姓名選取會記錄在 Hub 中執行操作的人員，但不代表透過 PIN 或感應卡驗證維修人員的身分。"],
+  ["No login central, selecionar por nome declara o mantenedor, sem autenticação pessoal. O usuário e a workstation responsáveis serão auditados. A escolha fica disponível somente quando o servidor autorizar esta modalidade.", "With central sign-in, selecting a name declares the technician without authenticating them. The responsible user and workstation are audited. This option is available only when the server enables it.", "在中央登入模式下，姓名選取僅為維修人員的聲明，並非個人身分驗證。系統會稽核操作使用者及工作站。只有伺服器啟用此模式時才能選擇。"],
+
   ["Confiança Kiosk", "Kiosk trust", "Kiosk 信任狀態"],
   ["Kiosk não configurado", "Kiosk not configured", "尚未設定 Kiosk"],
   ["Em preparação", "Pending setup", "設定準備中"],
