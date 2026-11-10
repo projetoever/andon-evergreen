@@ -31,6 +31,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     allowWholeSetCalls: true,
     virtualKeyboardEnabled: true,
     requireWorkOrderAtOpen: false,
+    preventDuplicateWorkOrderNumbers: false,
     restrictMaintenanceCompletionToAttendanceWorkstation: false,
     dashboardSoundMuteTimerEnabled: false,
     dashboardSoundMuteDurationMinutes: 3,
