@@ -337,7 +337,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       toast.success(`ANDON aberto para Máquina ${machineId}`);
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao abrir ANDON");
+      toast.error(ui(err instanceof Error ? err.message : "Erro ao abrir ANDON"));
     }
   }
 
