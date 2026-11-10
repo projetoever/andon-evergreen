@@ -46,3 +46,14 @@ Conferir planilha ANDON_CONTROLE_REFINE_1-7.xlsx no Drive, diário de homologaç
 - Criado `server/src/access/centralDeclaredTechnicianVerification.test.ts`: cenários básicos de aceitação/rejeição para mock transacional. **Testes não executados nem CI confirmada**.
 - **Ainda necessário**: autorização de modalidade name no backend sob flag OFF, endpoint de transição transacional com auditoria `name_declared`, integração de atendimento/inclusão/saída e finalização no frontend, tradução, testes PG reais e CI, homologação HML e posterior integração main.
 - PR #420 continua draft; não fazer merge nem atualizar banco original com este estágio.
+
+## REFINE 13 — implementação funcional e integração (10/11)
+- Frontend (modais iniciar/adição/saída e painel de configuração), API e backend atualizados para technicianIds/technicianId em modo name. PIN/RFID permanece alternativa.
+- Controle crítico: ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED desligado por padrão. Campo público centralDeclaredAttendanceEnabled informa ao frontend se a opção pode ser usada; quando OFF, login central ainda resolve name salvo para PIN, sem regressão.
+- Backend autentica sessão do Hub, aprova a workstation, verifica escopo da máquina, valida mantenedor em banco sob lock, preserva regras de último técnico e audita identificationMethod=name_declared; não trata nome como credencial verificada.
+- Novo teste PG CI: server/scripts/validate-central-declared-name-pg.mjs, cenário sintético /andon_test com começo, inclusão, saída, negação 1→0, CSRF, flag OFF e auditoria.
+- Traduções adicionadas em PT/EN/ZH-TW.
+- PR funcional #420: https://github.com/projetoever/andon-evergreen/pull/420, não marcar concluída antes da CI atual verde.
+- PR consolidação REFINE12 #421: https://github.com/projetoever/andon-evergreen/pull/421, baseada em SHA R12 H3 edec5d6, deverá ser conciliada com #420 e CI.
+- Menu oficial 2 atualizar main / 4 iniciar / 6 health.
+- O script atual de opção 2 não demonstrou backup+restore automático integrado antes de migrations. Não executar no banco original até gate de backup consistente, teste de restauração, paridade BI e procedimento reversível; alvos de fábrica seguem protegidos.
