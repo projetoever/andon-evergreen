@@ -181,6 +181,15 @@ try {
         );
         return send({ user: users.find((u) => u.id === id) });
       }
+      if (path.startsWith("/api/access/users/") && path.endsWith("/reset") && req.method() === "POST") {
+        assert.equal(data.reason, "Teste de login secundário");
+        const id = decodeURIComponent(path.split("/")[4]);
+        assert(id !== "admin", "primary Admin may not be reset through the user list");
+        users = users.map((u) => u.id === id
+          ? { ...u, mustChangePassword: true, authorizationVersion: u.authorizationVersion + 1 }
+          : u);
+        return send({ temporaryPassword: "b8e7a4c692d013f05a99" });
+      }
       if (path === "/api/access/logout") {
         principal = null;
         return send({ ok: true });
@@ -281,6 +290,23 @@ try {
       await page.getByRole("button", { name: "Salvar usuário", exact: true }).isDisabled(),
       true,
     );
+    // REFINE13 regression: reset is accessible directly in Edit user without
+    // accidentally saving changes to profile, machine scope, or permissions.
+    const beforeReset = JSON.stringify(users.find(u => u.login === "marina.producao").permissions);
+    await page.getByRole("button", { name: "Redefinir senha", exact: true }).first().click();
+    const resetSection = page.getByRole("region", { name: "Redefinir senha" });
+    await resetSection.getByPlaceholder("Informe o motivo para o registro de auditoria")
+      .fill("Teste de login secundário");
+    const [resetResult] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/reset") &&
+        response.request().method() === "POST" && response.ok()),
+      resetSection.getByRole("button", { name: "Gerar senha provisória" }).click(),
+    ]);
+    assert.equal((await resetResult.json()).temporaryPassword, "b8e7a4c692d013f05a99");
+    await page.getByText("b8e7a4c692d013f05a99", { exact: true }).waitFor();
+    assert.equal(JSON.stringify(users.find(u => u.login === "marina.producao").permissions), beforeReset);
+    await page.getByRole("button", { name: "Já anotei, ocultar", exact: true }).click();
+    await editButton.click();
     await page.getByRole("checkbox", { name: "Usuário ativo", exact: true }).uncheck();
     // Wait for the actual mutation response rather than an unchanged list
     // label that can remain visible while the API update is still pending.
