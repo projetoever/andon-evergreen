@@ -300,6 +300,7 @@ export function GeneralSettingsTab() {
                 disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingUniqueWorkOrder}
                 onCheckedChange={(checked) => void handleUniqueWorkOrderChange(checked)}
               />
+            </div>
           </CardContent>
         </Card>
 
