@@ -32,6 +32,15 @@ export function HubPage() {
   // hydration frame deterministic, then translate after the client mounts.
   const [clientHydrated, setClientHydrated] = useState(false);
   useEffect(() => { setClientHydrated(true); }, []);
+  // Browser address-bar shortcuts often choose HTTP while the notebook API
+  // intentionally accepts HTTPS only. Show the secure URL rather than
+  // misdiagnosing a transport mismatch as a broken Admin configuration.
+  // Do not automatically redirect: legacy HTTP deployments still exist.
+  const secureHubUrl = typeof window !== "undefined" &&
+    window.location.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)
+      ? `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`
+      : null;
   const [initialStatus, setInitialStatus] = useState<AdminAuthStatus | null>(null);
   const [initialStatusError, setInitialStatusError] = useState("");
   const [initialStatusPending, setInitialStatusPending] = useState(
@@ -99,8 +108,18 @@ export function HubPage() {
     );
     if (initialStatusError || !initialStatus) return (
       <main className="min-h-dvh bg-background p-6 text-foreground">
-        <div role="alert">{initialStatusError || ui("Configuração inicial indisponível.")}</div>
-        <Button className="mt-4" onClick={() => void refreshInitialStatus()}>
+        <div role="alert">{secureHubUrl
+          ? ui("Este navegador abriu o ANDON por HTTP. Se o servidor utiliza HTTPS, abra o endereço seguro abaixo.")
+          : initialStatusError || ui("Configuração inicial indisponível.")}</div>
+        {secureHubUrl && (
+          <a href={secureHubUrl}
+            className="mt-4 inline-flex min-h-11 items-center rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground"
+            aria-label={ui("Abrir Hub em HTTPS")}>
+            {ui("Abrir Hub em HTTPS")}
+          </a>
+        )}
+        <Button className="mt-4" variant={secureHubUrl ? "outline" : "default"}
+          onClick={() => void refreshInitialStatus()}>
           {ui("Tentar novamente")}
         </Button>
       </main>
