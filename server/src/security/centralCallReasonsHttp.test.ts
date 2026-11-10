@@ -91,7 +91,12 @@ test("R6/S2: permissions, primary Admin, machine scope, module, CSRF and marker 
       ...admin, isPrimaryAdmin: false, permissions: ["andon.read", "catalog.reasons.manage"],
     }, station), "primary_admin_required");
     denied(() => markCentralCallReasonAuthorized(w, { ...admin, purpose: "password_change" }, station), "password_change_required");
-    denied(() => markCentralCallReasonAuthorized(w, admin, { ...station, allowOperational: false }), "workstation_module_denied");
+    // Current central-mode contract delegates module rights to the user;
+    // legacy workstation allowOperational is not an auth source here.
+    assert.doesNotThrow(() => markCentralCallReasonAuthorized(
+      fake("POST", "/api/call-reasons"), admin,
+      { ...station, allowOperational: false },
+    ));
     denied(() => markCentralCallReasonAuthorized(fake("POST", "/api/call-reasons", "0".repeat(64)), admin, station), "csrf_denied");
     assert.equal(isAuthorizedCentralCallReasonRequest(w), false);
     markCentralCallReasonAuthorized(w, admin, station);
