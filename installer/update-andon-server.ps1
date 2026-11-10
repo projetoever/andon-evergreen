@@ -143,6 +143,7 @@ try {
         . "C:\web-andon-industrial\installer\AndonInstaller.Database.Local.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.Runtime.ps1"
         . "C:\web-andon-industrial\installer\AndonInstaller.UpdateBackup.ps1"
+        . "C:\web-andon-industrial\installer\AndonInstaller.CentralActivation.ps1"
 
         Write-AndonHeader "ATUALIZAR PELA MAIN - APLICACAO"
 
@@ -182,6 +183,16 @@ try {
             }
             throw
         }
+        $activateCentralAfterBuild = $false
+        try {
+            $activateCentralAfterBuild = Request-AndonCentralNotebookActivation -Config $config
+        } catch {
+            Write-AndonWarn "Falha na verificacao do login central; restaurando runtime anterior."
+            try { Start-AndonRuntime } catch {
+                Write-AndonWarn "Nao foi possivel reiniciar runtime anterior. Verifique os logs."
+            }
+            throw
+        }
         Ensure-AndonDedicatedNodeRuntime
         $network = Ensure-AndonNetworkConfig
         Write-AndonBackendEnv -Config $config -NetworkConfig $network
@@ -189,8 +200,25 @@ try {
         Apply-AndonFirewallRules
         Prepare-AndonChromeProfileForReuse
         Recreate-AndonTasks
-        Start-AndonRuntime
-        Invoke-AndonHealthCheck
+        $centralActivated = $false
+        try {
+            if ($activateCentralAfterBuild) {
+                # No authentication switch before successful migrations and build.
+                $centralActivated = Set-AndonCentralNotebookActivation -Config $config
+            }
+            Start-AndonRuntime
+            Invoke-AndonHealthCheck
+        } catch {
+            if ($centralActivated) {
+                Write-AndonWarn "Health check falhou; restaurando perfil de autenticacao anterior."
+                try {
+                    Undo-AndonCentralNotebookActivation -Config $config
+                } catch {
+                    Write-AndonWarn "Nao foi possivel reverter automaticamente as configuracoes. Pare e consulte backup."
+                }
+            }
+            throw
+        }
         Write-AndonHeader "ATUALIZACAO FINALIZADA"
         Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }
