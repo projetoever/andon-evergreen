@@ -20,4 +20,17 @@ foreach ($required in @(
     Assert-UpdateContract ($backup.Contains($required)) "required backup control $required"
 }
 Assert-UpdateContract (!$backup.Contains("db:seed")) "seed may not run in backup gate"
+
+$common = Get-Content (Join-Path $root "installer\AndonInstaller.Common.ps1") -Raw
+$menu = Get-Content (Join-Path $root "installer\menu-andon-installer.ps1") -Raw
+$profile = Get-Content (Join-Path $root "installer\configure-andon-security-validation.ps1") -Raw
+Assert-UpdateContract ($common.Contains('centralSecurityValidationEnabled = $false')) "feature flags default OFF"
+Assert-UpdateContract ($common.Contains('ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED')) "declared attendance flag preserved"
+Assert-UpdateContract ($common.Contains('ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED')) "R12 inventory flag preserved"
+Assert-UpdateContract ($common.Contains('ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED')) "R12 global settings flag preserved"
+Assert-UpdateContract ($common.Contains('Homologacao de seguranca exige login central, HTTPS e PostgreSQL local')) "secure activation preflight"
+Assert-UpdateContract ($menu.Contains('15 - Recursos de seguranca (homologacao no notebook)')) "menu option 15"
+Assert-UpdateContract ($profile.Contains('NOTEBOOK_ISOLADO')) "typed notebook confirmation"
+Assert-UpdateContract ($profile.Contains('Stop-AndonRuntime')) "profile switch stops runtime"
+Assert-UpdateContract ($profile.Contains('Write-AndonBackendEnv -Config $config')) "rebuild env after profile selection"
 Write-Host "REFINE13: updater backup/restore ordering and fail-closed checks PASS"
