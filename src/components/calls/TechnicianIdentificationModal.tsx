@@ -96,7 +96,7 @@ export function TechnicianIdentificationModal({
     getSystemSettings()
       .then((systemSettings) => {
         setSettings(systemSettings);
-        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance));
+        setMethod(effectiveAttendanceMode(systemSettings.attendanceMode, centralAttendance, systemSettings.centralDeclaredAttendanceEnabled === true));
       })
       .catch((error) => {
         setLoadFailed(true);
@@ -260,7 +260,7 @@ export function TechnicianIdentificationModal({
   if (!call) return null;
 
   const allowedMethods: AttendanceMode[] = allowedAttendanceModes(
-    settings?.attendanceMode, centralAttendance,
+    settings?.attendanceMode, centralAttendance, settings?.centralDeclaredAttendanceEnabled === true,
   );
   const actionLabel =
     purpose === "start"
