@@ -556,7 +556,14 @@ try {
     paletteWriteEnabled = true;
     appearance = await openAndonAppearance();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
-    const cardBorder = appearance.getByRole("textbox", { name: "Código HEX de Contorno padrão dos cards" });
+    const openColorDialog = async () => {
+      await appearance.getByRole("button", { name: "Personalizar cor de Contorno padrão dos cards" }).click();
+      const picker = page.getByRole("dialog", { name: "Contorno padrão dos cards" });
+      await picker.waitFor();
+      return picker;
+    };
+    let colorDialog = await openColorDialog();
+    const cardBorder = page.getByRole("textbox", { name: "Código HEX de Contorno padrão dos cards" });
     const spectrum = appearance.getByRole("slider", {
       name: "Painel multicolorido de Contorno padrão dos cards",
     });
@@ -575,6 +582,7 @@ try {
       return field && field.value === "#33A1C9";
     });
     assert.equal(await cardBorder.inputValue(), "#33A1C9");
+    await colorDialog.getByRole("button", { name: "Aplicar à prévia" }).click();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isEnabled(), true);
     await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 1.").waitFor();
@@ -588,16 +596,16 @@ try {
     // A competing Admin update must return 409 and prevent silent overwrite.
     paletteRevision += 1;
     globalPalette = { ...globalPalette, cardBorder: "violet" };
+    colorDialog = await openColorDialog();
     await cardBorder.fill("#3366CC");
+    await colorDialog.getByRole("button", { name: "Aplicar à prévia" }).click();
     await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
     await appearance.getByText("A paleta foi modificada por outro administrador. Recarregue antes de salvar.").waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
     await appearance.getByRole("button", { name: "Recarregar paleta" }).click();
-    await page.waitForFunction(() => {
-      const field = document.querySelector('input[aria-label="Código HEX de Contorno padrão dos cards"]');
-      return field && field.value === "#C69BF5";
-    });
+    colorDialog = await openColorDialog();
     assert.equal(await cardBorder.inputValue(), "#C69BF5");
+    await colorDialog.getByRole("button", { name: "Cancelar" }).click();
     paletteWriteEnabled = false;
     // UX-12 acceptance: two independent browser contexts with different
     // local visual preferences still receive the SAME revisioned global palette.
