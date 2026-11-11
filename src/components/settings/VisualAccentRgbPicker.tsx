@@ -152,7 +152,7 @@ export function VisualAccentRgbPicker({
           min={0} max={100} step={1}
           value={Math.round(hsv.v * 100)}
           onChange={event => applyHsv({ ...hsv, v: Number(event.target.value) / 100 })}
-          className="h-3 w-full cursor-pointer accent-foreground"
+          className="andon-spectrum-brightness w-full cursor-pointer"
           style={{ background: `linear-gradient(to right, #000000, ${fullBrightness})` }}
         />
       </label>
