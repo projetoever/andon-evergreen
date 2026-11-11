@@ -1,6 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Não foi possível validar a especialidade selecionada.", "Unable to validate the selected specialty.", "無法驗證所選的專業類別。"],
   ["Selecione a categoria","Select a category","選擇類別"],
   ["Selecione a especialidade para continuar a abertura do chamado.","Select a specialty to continue opening the call.","選擇專業類別以繼續建立通報。"],
   ["Nenhuma subcategoria ativa para este motivo. Solicite o cadastro ao administrador.","No active subcategories for this reason. Ask an administrator to configure them.","此原因沒有啟用的子類別。請聯絡管理員設定。"],
