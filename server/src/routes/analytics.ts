@@ -1,4 +1,5 @@
 import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
+import { correctiveReasonCandidateWhere } from "../analytics/correctiveReasonCohort.js";
 import { buildCausalEpisodes, buildCorrectiveCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
 import { isCorrectiveReasonCandidate } from "../analytics/correctiveReasonCohort.js";
 import { METRIC_VERSION, GENERIC_DIAGNOSES } from "../analytics/eligibility.js";
@@ -1100,6 +1101,9 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             failureClassification: true,
             failureResponsibility: true, analyticsDisposition: true,
             maintenanceReturnCount: true,
+            callReasonSnapshot: { select: {
+              nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true,
+            } },
           },
         }),
         effectiveEnd.getTime() > period.start.getTime()
@@ -1196,10 +1200,15 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
         prisma.andonCall.count({
           where: {
-            ...callScopeWhere,
-            status: "finished",
-            finishedAt: { gte: period.start, lt: effectiveEnd },
-            OR:[{failureClassification:null},{failureClassification:{in:GENERIC_DIAGNOSES}}],
+            AND: [
+              callScopeWhere,
+              { status: "finished", finishedAt: { gte: period.start, lt: effectiveEnd } },
+              correctiveReasonCandidateWhere,
+              { OR: [
+                { failureClassification: null },
+                { failureClassification: { in: GENERIC_DIAGNOSES } },
+              ] },
+            ],
           },
         }),
       ]);
@@ -1282,9 +1291,9 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             badActors:
               "ativos ordenados por downtime físico unido; não há score oculto ou ponderação subjetiva. O parâmetro includeInactive permite comparar máquinas ativas e inativas.",
             repeatDiagnosis:
-              "repetições adicionais da mesma classificação em chamados concluídos da mesma máquina no período; não equivale a causa raiz",
+              "repetições adicionais de diagnóstico em chamados corretivos candidatos concluídos; Setup/Apoio não são falhas e ficam fora deste indicador",
             dataHealth:
-              "snapshot operacional atual; respeita máquina/setor e não aplica classificação a registros ainda ativos",
+              "registros sem classificação são apenas os chamados corretivos candidatos; Setup/Apoio continuam nos volumes operacionais, atendimentos e downtime físico",
           },
         },
         assets: result.assets,
