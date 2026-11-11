@@ -158,7 +158,7 @@ export function VisualAccentRgbPicker({
       </label>
 
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-        <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-bold text-foreground">RGB</span>
+        <span className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-bold text-foreground">{ui("RGB")}</span>
         <label className="block">
           <span className="sr-only">{ui("Código HEX de {0}", { 0: ui(label) })}</span>
           <input
