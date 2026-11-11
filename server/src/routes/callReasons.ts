@@ -6,6 +6,7 @@ import { AccessError } from "../access/policy.js";
 import { runCentralCallReasonWrite, type CallReasonWrite } from "../access/centralCallReasonsWrite.js";
 import {
   isAuthorizedCentralCallReasonRead, isAuthorizedCentralCallReasonRequest,
+  isAuthorizedCentralOperationalReasonRead,
 } from "../security/centralCallReasonsHttp.js";
 import { assertEffectiveReasonOption } from "../services/callReasonMutations.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
@@ -69,6 +70,39 @@ export function registerCallReasonRoutes(app: FastifyInstance) {
           active: technicalArea.active, categoryGroup: technicalArea.categoryGroup,
         },
         effectivePolicy: assertEffectiveReasonOption(reason, option, technicalArea),
+      })),
+    }));
+  });
+
+  // Sanitized operational catalog: no Admin metadata, no inactive options
+  // and no permission to mutate the underlying KPI policy.
+  app.get("/api/call-reasons/operational", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    if (!isAuthorizedCentralOperationalReasonRead(request))
+      return reply.status(403).send(DENIED);
+    const reasons = await prisma.callReason.findMany({
+      where: { active: true },
+      orderBy: [{ displayOrder: "asc" }, { displayName: "asc" }, { id: "asc" }],
+      select: {
+        id: true, displayName: true, color: true, revision: true,
+        options: {
+          where: { active: true, technicalArea: { active: true } },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
+          select: {
+            id: true, revision: true, technicalAreaId: true,
+            displayName: true,
+            technicalArea: { select: { displayName: true, categoryGroup: true } },
+          },
+        },
+      },
+    });
+    return reasons.map(({ options, ...reason }) => ({
+      ...reason,
+      options: options.map(({ technicalArea, ...option }) => ({
+        ...option,
+        displayName: option.displayName ?? technicalArea.displayName,
+        legacyCategory: technicalArea.categoryGroup,
+        legacySubtype: option.technicalAreaId,
       })),
     }));
   });
