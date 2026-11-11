@@ -1,9 +1,10 @@
 /**
- * UX-12 / stage 1: PREVIEW ONLY. This module cannot write production settings.
- * Non-critical accents are selected from a small, vetted set; alarm danger/
- * warning colors and their UI states remain exclusively in semantic CSS.
+ * Global ANDON visual accents: legacy named presets or user-chosen RGB/HEX.
+ * Only strict #RRGGBB values are accepted; critical stop/warning tokens stay
+ * outside this schema and always retain their semantic CSS colors.
  */
-export type VisualAccent = "slate" | "evergreen" | "ocean" | "indigo" | "violet";
+export type PresetVisualAccent = "slate" | "evergreen" | "ocean" | "indigo" | "violet";
+export type VisualAccent = PresetVisualAccent | `#${string}`;
 export type VisualPaletteKey =
   | "cardBorder"
   | "selectedCardBorder"
@@ -20,7 +21,7 @@ export type VisualPaletteDraft = Readonly<{
   focusAccent: VisualAccent;
 }>;
 
-export const VISUAL_ACCENTS: Readonly<Record<VisualAccent, Readonly<{
+export const VISUAL_ACCENTS: Readonly<Record<PresetVisualAccent, Readonly<{
   dark: string;
   light: string;
 }>>> = Object.freeze({
@@ -45,12 +46,18 @@ export const DEFAULT_VISUAL_PALETTE: VisualPaletteDraft = Object.freeze({
   focusAccent: "evergreen",
 });
 
-export function isVisualAccent(value: unknown): value is VisualAccent {
-  return typeof value === "string" &&
-    Object.prototype.hasOwnProperty.call(VISUAL_ACCENTS, value);
+export function isCustomVisualHex(value: unknown): value is `#${string}` {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
-/** Fail-closed parsing: no free-form CSS/hex, reserved keys or status colors. */
+export function isVisualAccent(value: unknown): value is VisualAccent {
+  return isCustomVisualHex(value) || (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(VISUAL_ACCENTS, value)
+  );
+}
+
+/** Fail-closed parsing: legacy names or strict RGB hex only; never CSS/status fields. */
 export function parseVisualPalette(input: unknown): VisualPaletteDraft | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const body = input as Record<string, unknown>;
@@ -70,6 +77,7 @@ export function parseVisualPalette(input: unknown): VisualPaletteDraft | null {
 }
 
 export function accentForTheme(accent: VisualAccent, theme: "light" | "dark"): string {
+  if (isCustomVisualHex(accent)) return accent.toUpperCase();
   return VISUAL_ACCENTS[accent][theme];
 }
 

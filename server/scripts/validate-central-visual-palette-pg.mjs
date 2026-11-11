@@ -78,7 +78,7 @@ try {
   const first = publicVisualPalette(before.andonVisualPalette);
   const palette = {
     ...first,
-    cardBorder: first.cardBorder === "ocean" ? "indigo" : "ocean",
+    cardBorder: first.cardBorder === "#34A1C9" ? "#34A1C8" : "#34A1C9",
   };
   const request = { palette, expectedRevision: before.andonVisualPaletteRevision };
 
@@ -88,6 +88,7 @@ try {
   assert.equal((await send({ ...request, palette: {
     ...palette, warning: "evergreen",
   } })).statusCode, 400);
+  assert.equal((await send({ ...request, palette: { ...palette, focusAccent: "rgba(1,2,3,0)" } })).statusCode, 400);
   assert.equal(await auditCount(), 0);
 
   await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: false } });
@@ -137,7 +138,7 @@ try {
   process.env.ANDON_CENTRAL_VISUAL_PALETTE_HTTP_ENABLED = "1";
   await db.accessSession.update({ where: { id: sessionId }, data: { revokedAt: new Date() } });
   assert.equal((await send({ palette, expectedRevision: after.andonVisualPaletteRevision })).statusCode, 401);
-  console.log("UX-12 central palette PG PASS: ACL, CSRF, revision race, audit rollback, no-op, revocation");
+  console.log("UX-12 RGB global palette PG PASS: strict #RRGGBB, ACL, CSRF, revision race, audit rollback, no-op, revocation");
 } finally {
   if (app) await app.close();
   for (const [key, env] of [

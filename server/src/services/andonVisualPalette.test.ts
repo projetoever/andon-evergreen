@@ -25,7 +25,10 @@ test("UX-12: reject arbitrary CSS, status colors, malformed data, revision poiso
   for (const raw of [
     null, false, [], {}, { version: 1 },
     { ...DEFAULT_STORED_VISUAL_PALETTE, version: 2 },
-    { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "#ff0000" },
+    { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "#fff" },
+    { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "#12345678" },
+    { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "#Q10000" },
+    { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "rgb(255,0,0)" },
     { ...DEFAULT_STORED_VISUAL_PALETTE, focusAccent: "var(--danger)" },
     { ...DEFAULT_STORED_VISUAL_PALETTE, danger: "ocean" },
     { ...DEFAULT_STORED_VISUAL_PALETTE, warning: "violet" },
@@ -50,5 +53,24 @@ test("UX-12: each approved accent can persist without changing alarm semantics",
       focusAccent: accent,
     };
     assert.deepEqual(parseStoredVisualPalette(palette), palette);
+  }
+});
+
+
+test("UX-12 RGB: allow exactly #RRGGBB without permitting CSS or alarm token overrides", () => {
+  const colors = ["#000000", "#FFFFFF", "#12aBcD", "#ff0000"];
+  for (const hex of colors) {
+    const palette = {
+      ...DEFAULT_STORED_VISUAL_PALETTE,
+      cardBorder: hex, selectedCardBorder: hex,
+      sectorSelection: hex, operationAccent: hex, focusAccent: hex,
+    };
+    assert.deepEqual(parseStoredVisualPalette(palette), palette);
+    assert.deepEqual(publicVisualPalette(palette), palette);
+  }
+  for (const disallowed of ["#fff", "#00000000", "var(--danger)", "inherit", "red;opacity:0"]) {
+    assert.equal(parseStoredVisualPalette({
+      ...DEFAULT_STORED_VISUAL_PALETTE, focusAccent: disallowed,
+    }), null);
   }
 });

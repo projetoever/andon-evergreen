@@ -19,6 +19,10 @@ test("UX-12: default global palette still avoids critical stop/warning colors", 
   }
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, danger: "ocean" }), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, warning: "violet" }), null);
+  const custom = parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: "#102FBC" });
+  assert.equal(custom?.cardBorder, "#102FBC");
+  assert.equal(accentForTheme("#102FBC", "dark"), "#102FBC");
+  assert.equal(accentForTheme("#102FBC", "light"), "#102FBC");
 });
 
 test("UX-12: local theme never becomes globally shared and polling uses guarded settings GET", async () => {

@@ -473,3 +473,36 @@ label:has(> select) > * {
   display: block;
   margin-bottom: 0.5rem;
 }
+
+
+/* UX-12: custom visual-palette brightness track. Alarm semantics are untouched. */
+.andon-spectrum-brightness {
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.andon-spectrum-brightness::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #19242f;
+  border-radius: 50%;
+  background: #f8fafc;
+  box-shadow: 0 0 0 2px #f8fafc, 0 1px 5px #0006;
+}
+.andon-spectrum-brightness::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #19242f;
+  border-radius: 50%;
+  background: #f8fafc;
+  box-shadow: 0 0 0 2px #f8fafc, 0 1px 5px #0006;
+}
+.andon-spectrum-brightness:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}

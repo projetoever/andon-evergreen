@@ -1,12 +1,12 @@
 /**
- * UX-12 storage boundary: STRICT non-critical token palette, never CSS.
- * Keep allowed names and default values in sync with the UI palette schema.
- * The write endpoint and audit trail are deliberately outside this stage.
+ * UX-12 storage boundary: strict legacy accents or #RRGGBB colors only.
+ * Critical alarm/warning status tokens never belong to this whitelist.
+ * Revision, access checks and audit remain in centralVisualPalette.
  */
 export const VISUAL_PALETTE_ACCENTS = [
   "slate", "evergreen", "ocean", "indigo", "violet",
 ] as const;
-export type VisualPaletteAccent = typeof VISUAL_PALETTE_ACCENTS[number];
+export type VisualPaletteAccent = typeof VISUAL_PALETTE_ACCENTS[number] | `#${string}`;
 export const VISUAL_PALETTE_FIELDS = [
   "cardBorder", "selectedCardBorder", "sectorSelection",
   "operationAccent", "focusAccent",
@@ -35,6 +35,12 @@ export const DEFAULT_STORED_VISUAL_PALETTE: StoredVisualPalette = Object.freeze(
 const permitted = new Set<string>(VISUAL_PALETTE_ACCENTS);
 const fields = new Set<string>(VISUAL_PALETTE_FIELDS);
 
+function isValidAccent(value: unknown): value is VisualPaletteAccent {
+  return typeof value === "string" && (
+    permitted.has(value) || /^#[0-9a-fA-F]{6}$/.test(value)
+  );
+}
+
 export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const input = raw as Record<string, unknown>;
@@ -42,8 +48,7 @@ export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | nu
   if (names.length !== VISUAL_PALETTE_FIELDS.length + 1 ||
       !names.includes("version") || input.version !== 1 ||
       names.some(name => name !== "version" && !fields.has(name)) ||
-      VISUAL_PALETTE_FIELDS.some(name => typeof input[name] !== "string" ||
-        !permitted.has(input[name] as string))) return null;
+      VISUAL_PALETTE_FIELDS.some(name => !isValidAccent(input[name]))) return null;
   return {
     version: 1,
     cardBorder: input.cardBorder as VisualPaletteAccent,

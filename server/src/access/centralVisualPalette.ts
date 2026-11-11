@@ -14,7 +14,7 @@ import {
 } from "../services/andonVisualPalette.js";
 
 /**
- * Never accept HTML/CSS, arbitrary hex, status tokens, or generic settings.
+ * Accept only legacy preset names or exact #RRGGBB, never HTML/CSS, status tokens, or generic settings.
  * A save requires the previously-read revision so competing Admins do not
  * silently overwrite each other's choices.
  */
