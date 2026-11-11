@@ -59,6 +59,9 @@ test("REFINE15: trusted operator remains authenticated past both idle and absolu
   const p = await resolveSession(fixture({ persistentOperational: true }), request, now);
   assert.equal(p.persistentOperational, true);
   assert.equal(p.login, "producao");
+  assert.equal(p.machineScope, "selected");
+  assert.deepEqual(p.machineIds, ["37"]);
+  assert.deepEqual(p.permissions, ["andon.read", "calls.open"]);
   await assert.rejects(resolveSession(fixture(), request, now), (e: unknown) =>
     e instanceof AccessError && e.statusCode === 401);
 });
