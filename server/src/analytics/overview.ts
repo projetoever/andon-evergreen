@@ -1,5 +1,6 @@
 import { buildCausalEpisodes, type CausalEpisode } from "./causality.js";
 import { hasSpecificDiagnosis, isEligible, uniqueById, METRIC_VERSION } from "./eligibility.js";
+import { isCorrectiveReasonCandidate } from "./correctiveReasonCohort.js";
 const TIME_ZONE_SUFFIX_PATTERN = /(Z|[+-]\d{2}:\d{2})$/i;
 
 export type AnalyticsOverviewFilters = {
@@ -24,6 +25,11 @@ export type AnalyticsCallRecord = {
   failureResponsibility?: string | null;
   analyticsDisposition?: string | null;
   isSystemTest: boolean;
+  callReasonSnapshot?: {
+    nature: string;
+    maintenanceKpiPolicy: string;
+    analyticsDisposition: string;
+  } | null;
 };
 
 export type AnalyticsFailureEventRecord = {
@@ -387,7 +393,13 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     (call) => call.status === "finished" && isInPeriod(call.finishedAt, start, effectiveEnd),
   );
 
-  const mttaValues = attendedCalls
+  // MTTA is a corrective response metric. Do not include Setup/Apoio calls
+  // merely because their specialty is a maintenance technical area.
+  // Historical calls without a hierarchy snapshot retain legacy eligibility.
+  const correctiveAttendedCalls = attendedCalls.filter(call =>
+    isCorrectiveReasonCandidate(call.callReasonSnapshot),
+  );
+  const mttaValues = correctiveAttendedCalls
     .filter((call) => call.attendedAt && call.attendedAt >= call.openedAt)
     .map((call) => diffMinutes(call.openedAt, call.attendedAt as Date));
 
@@ -403,7 +415,10 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     .filter((call) => call.finishedAt && call.finishedAt >= call.openedAt)
     .map((call) => diffMinutes(call.openedAt, call.finishedAt as Date));
 
-  const maintenanceCalls = finishedCalls.filter(call => call.failureResponsibility === "maintenance");
+  const maintenanceCalls = finishedCalls.filter(call =>
+    call.failureResponsibility === "maintenance" &&
+    isCorrectiveReasonCandidate(call.callReasonSnapshot),
+  );
   const returnedCalls = maintenanceCalls.filter((call) => call.maintenanceReturnCount > 0);
   const maintenanceReturnCycles = maintenanceCalls.reduce(
     (total, call) => total + Math.max(0, call.maintenanceReturnCount),
@@ -487,7 +502,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
         systemTests: true, testClassifications: true, falseCalls: true, duplicates: true, cancelledCalls: true,
       },
       semantics: {
-        mtta: "attendedAt - openedAt para atendimentos iniciados no período",
+        mtta: "attendedAt - openedAt para chamados corretivos candidatos com atendimento iniciado no período; Setup/Apoio não contam, legado sem snapshot segue política histórica",
         mttr:
           "MTTR de restabelecimento = duração integral média de episódios físicos encerrados e inteiramente atribuídos à manutenção; não é attendanceMinutes nem pessoa-tempo",
         downtime:
