@@ -120,15 +120,20 @@ export function MachineCurrentCallPanel({
       </div>
       <dl className="machine-detail-facts grid min-h-0 shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm lg:grid-cols-3 lg:auto-rows-fr">
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">{t("Categoria")}</dt>
+          <dt className="text-xs uppercase text-muted-foreground">
+            {t(call.callReasonSnapshot ? "Motivo do chamado" : "Categoria")}
+          </dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {call.category === "maintenance" ? t("Manutenção") : t("Produção")}
+            {call.callReasonSnapshot?.reasonNameSnapshot ??
+              (call.category === "maintenance" ? t("Manutenção") : t("Produção"))}
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-muted-foreground">{t("Subtipo")}</dt>
+          <dt className="text-xs uppercase text-muted-foreground">
+            {t(call.callReasonSnapshot ? "Especialidade" : "Subtipo")}
+          </dt>
           <dd className="text-base font-bold leading-tight text-foreground md:text-lg">
-            {getCallSubtypeLabel(call.subtype)}
+            {call.callReasonSnapshot?.optionNameSnapshot ?? getCallSubtypeLabel(call.subtype)}
           </dd>
         </div>
         <div>
@@ -163,7 +168,9 @@ export function MachineCurrentCallPanel({
         </div>
         <div>
           <dt className="text-xs uppercase text-muted-foreground">
-            {t("Conclusão da manutenção")}
+            {t(call.callReasonSnapshot?.nature === "planned_setup" ||
+              call.callReasonSnapshot?.nature === "production_support"
+              ? "Conclusão do atendimento técnico" : "Conclusão da manutenção")}
           </dt>
           <dd className="font-mono text-sm leading-tight text-foreground">
             {formatDateTime(call.maintenanceCompletedAt)}

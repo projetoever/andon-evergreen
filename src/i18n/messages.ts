@@ -1,6 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Motivo do chamado","Call reason","通報原因"],
+  ["Especialidade","Specialty","專業類別"],
+  ["Conclusão do atendimento técnico","Technical service completed","技術服務完成"],
   ["Carregando categorias de chamados...","Loading call categories...","正在載入通報類別..."],
   ["Abertura de novos chamados indisponível: não foi possível validar as categorias.","Opening new calls is unavailable: call categories could not be verified.","無法建立新通報：無法驗證通報類別。"],
   ["Descrição do atendimento","Service description","服務說明"],
