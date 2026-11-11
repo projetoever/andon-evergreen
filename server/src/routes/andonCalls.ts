@@ -1,6 +1,7 @@
 import { diagnosisSnapshot, type DiagnosisSnapshot } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
+import { resolveOpeningReasonInTransaction, type ReasonOpeningSelection } from "../services/callReasonOpening.js";
 import { assertWorkOrderNumberAvailable, DuplicateWorkOrderNumberError } from "../services/workOrderUniqueness.js";
 import { normalizePin } from "../security/technicianCredentials.js";
 
@@ -67,6 +68,10 @@ type AndonCallQuery = {
 };
 
 type OpenAndonCallBody = {
+  reasonId?: unknown;
+  optionId?: unknown;
+  expectedReasonRevision?: unknown;
+  expectedOptionRevision?: unknown;
   machineId?: unknown;
   machineSetId?: unknown;
   machineSubsetId?: unknown;
@@ -2299,6 +2304,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (centralOpen && !isAuthorizedCentralOpenCall(request))
       throw new AccessError("central_action_not_supported");
     const body = request.body ?? {};
+    const reasonKeys = ["reasonId", "optionId", "expectedReasonRevision", "expectedOptionRevision"] as const;
+    const hasReasonSelection = reasonKeys.some(key => body[key] !== undefined);
+    // OFF by default and gated independently from catalog administration.
+    const hierarchicalOpeningEnabled = centralOpen &&
+      process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED === "1" &&
+      process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1";
+    if (hasReasonSelection && !hierarchicalOpeningEnabled)
+      return reply.status(403).send({ error: "hierarchical_calls_disabled" });
+    if (centralOpen && hierarchicalOpeningEnabled && !hasReasonSelection)
+      return reply.status(400).send({ error: "call_reason_selection_required" });
+    const reasonSelection: ReasonOpeningSelection | null = hasReasonSelection ? {
+      reasonId: body.reasonId,
+      optionId: body.optionId,
+      expectedReasonRevision: body.expectedReasonRevision,
+      expectedOptionRevision: body.expectedOptionRevision,
+    } : null;
     if (centralOpen) {
       // A human browser can never forge a system test, origin or creator.
       if (body.isSystemTest !== undefined || body.createdBy !== undefined ||
@@ -2307,7 +2328,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       if (Object.keys(body).some((key) => ![
         "machineId", "machineSetId", "machineSubsetId", "category", "subtype",
         "criticality", "description", "origin", "machineCondition",
-        "workOrderNumber", "operatorNote",
+        "workOrderNumber", "operatorNote", ...reasonKeys,
       ].includes(key)))
         return reply.status(400).send({ error: "invalid_input" });
     }
@@ -2457,6 +2478,17 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           await closeOpenFailureEventsForRecovery(tx, failureState.openEvents, now);
         }
 
+        // Resolve within the same transaction after existing machine/category
+        // locks and OS checks; never trust client KPI parameters.
+        const openingReasonSnapshot = reasonSelection
+          ? await resolveOpeningReasonInTransaction(tx, {
+              selection: reasonSelection,
+              legacyCategory: category,
+              legacySubtype: subtype,
+              catalogEnabled: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED === "1",
+              hierarchicalOpeningEnabled,
+            })
+          : null;
         const createdCall = await tx.andonCall.create({
           data: {
             machineId,
@@ -2482,6 +2514,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             machineStatusAtOpen: effectiveMachineCondition,
           },
         });
+
+        if (openingReasonSnapshot) {
+          await tx.andonCallReasonSnapshot.create({
+            data: { callId: createdCall.id, ...openingReasonSnapshot },
+          });
+        }
 
         if (machineSet) {
           await tx.$executeRaw(Prisma.sql`
