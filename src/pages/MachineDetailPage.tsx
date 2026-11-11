@@ -10,7 +10,8 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { EndTechnicianSessionModal } from "@/components/calls/EndTechnicianSessionModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
-import { QuickOpenCallModal } from "@/components/calls/QuickOpenCallModal";
+import { QuickOpenCallModal, type HierarchicalOpeningChoice } from "@/components/calls/QuickOpenCallModal";
+import { CallReasonOptionsModal } from "@/components/calls/CallReasonOptionsModal";
 import { TechnicianIdentificationModal } from "@/components/calls/TechnicianIdentificationModal";
 import { MachineActionPanel } from "@/components/machines/MachineActionPanel";
 import { MachineCurrentCallPanel } from "@/components/machines/MachineCurrentCallPanel";
@@ -35,6 +36,7 @@ import {
 } from "@/services/machineSoundPreferenceService";
 import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
+import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
 import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getSystemSettings } from "@/services/systemSettingsService";
@@ -88,6 +90,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [selectedSubtype, setSelectedSubtype] = useState<CallSubtype | null>(null);
   const [forcedMachineCondition, setForcedMachineCondition] = useState<"stopped" | undefined>();
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
+  const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[] | null>(null);
+  const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
+  const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [cancelCallId, setCancelCallId] = useState<string | null>(null);
@@ -149,6 +154,20 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     openStopOwnerCallId && activeCalls.some((call) => call.id === openStopOwnerCallId),
   );
   const latestOpenCall = activeCalls.find((call) => call.status === "open") ?? null;
+
+  // Read-only operator catalog is available only while BOTH server gates are
+  // active. A 403/disabled response leaves the existing sector UI untouched.
+  useEffect(() => {
+    if (access?.centralAccessEnabled !== true) {
+      setHierarchicalReasons(null);
+      return;
+    }
+    let cancelled = false;
+    void getOperationalCallReasons()
+      .then((reasons) => { if (!cancelled) setHierarchicalReasons(reasons); })
+      .catch(() => { if (!cancelled) setHierarchicalReasons(null); });
+    return () => { cancelled = true; };
+  }, [access?.centralAccessEnabled, machineId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -477,6 +496,37 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
   }
 
+  function handleSelectReasonOption(reasonId: string, optionId: string) {
+    const reason = hierarchicalReasons?.find(item => item.id === reasonId);
+    const option = reason?.options.find(item => item.id === optionId);
+    if (!reason || !option) {
+      toast.error(ui("Não foi possível validar a especialidade selecionada."));
+      return;
+    }
+    const existing = activeCalls.find(call => call.subtype === option.legacySubtype);
+    if (existing) {
+      // A sector with an active call must SELECT it, never open a duplicate.
+      setSelectedCallId(existing.id);
+      setSelectedReasonId(null);
+      return;
+    }
+    setHierarchicalChoice({
+      reasonId: reason.id,
+      optionId: option.id,
+      expectedReasonRevision: reason.revision,
+      expectedOptionRevision: option.revision,
+      category: option.legacyCategory,
+      subtype: option.legacySubtype,
+      label: option.displayName,
+    });
+    setSelectedSubtype(option.legacySubtype);
+    setForcedMachineCondition(
+      machine?.machineStatus === "stopped" && hasActiveStopOwner ? "stopped" : undefined,
+    );
+    setSelectedReasonId(null);
+    setConditionDialogOpen(true);
+  }
+
   async function handleOpenSubtype(subtype: CallSubtype) {
     if (!machine) return;
 
@@ -695,6 +745,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         currentCall={currentCall}
         categories={categories}
+        hierarchicalReasons={hierarchicalReasons}
+        onOpenReason={(reasonId) => {
+          setHierarchicalChoice(null);
+          setSelectedReasonId(reasonId);
+        }}
         activeCalls={activeCalls}
         selectedCallId={selectedCallId}
         hasActiveStopOwner={hasActiveStopOwner}
@@ -710,14 +765,32 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         maintenanceCompletionHintTone={maintenanceCompletionHintTone}
       />
 
+      <CallReasonOptionsModal
+        open={selectedReasonId !== null}
+        reason={hierarchicalReasons?.find(reason => reason.id === selectedReasonId)
+          ? {
+              ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
+              active: true,
+              options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options
+                .map(option => ({ ...option, active: true })),
+            }
+          : null}
+        onOpenChange={(open) => { if (!open) setSelectedReasonId(null); }}
+        onSelect={handleSelectReasonOption}
+      />
+
       <QuickOpenCallModal
         open={conditionDialogOpen}
         onOpenChange={(open) => {
           setConditionDialogOpen(open);
-          if (!open) setForcedMachineCondition(undefined);
+          if (!open) {
+            setForcedMachineCondition(undefined);
+            setHierarchicalChoice(null);
+          }
         }}
         machineId={machine.id}
         subtype={selectedSubtype}
+        hierarchicalChoice={hierarchicalChoice}
         forcedMachineCondition={forcedMachineCondition}
       />
       <CancelCallModal
