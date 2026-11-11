@@ -846,6 +846,9 @@ export function WorkstationsSettingsTab() {
                             <p className="text-xs text-muted-foreground">
                               {ui("Somente workstation aprovada com tela fixada em uma máquina e conta pessoal sem permissões administrativas. Admin e ações sensíveis continuam com expiração normal.")}
                             </p>
+                            <p className="text-xs text-muted-foreground">
+                              {ui("Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.")}
+                            </p>
                           </div>
                           <Switch aria-label={ui("Não expirar login operacional")}
                             checked={workstation.allowPersistentOperationalLogin === true}
@@ -908,7 +911,9 @@ export function WorkstationsSettingsTab() {
                         </p>
                         <p>
                           <span className="text-muted-foreground">{ui("Expiração")}: </span>
-                          {formatLastSeen(workstation.lastLogin.expiresAt)}
+                          {workstation.lastLogin.persistentOperational
+                            ? ui("Sem expiração automática")
+                            : formatLastSeen(workstation.lastLogin.expiresAt)}
                         </p>
                       </div>
                     )}
