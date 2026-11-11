@@ -254,7 +254,8 @@ export async function login(
           ? "password_change"
           : "normal",
       now,
-      !admission && !current.mustChangePassword &&
+      !admission && !current.mustChangePassword && !current.isPrimaryAdmin &&
+        station.allowPersistentOperationalLogin && Boolean(station.lockedMachineId) &&
         permitsPersistentOperationalAccount(
           { ...current, permissions: await tx.accessPermission.findMany({ where: { userId: current.id } }) },
           station,
