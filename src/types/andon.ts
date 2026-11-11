@@ -82,6 +82,18 @@ export interface CallImpactInterval {
 }
 
 export interface AndonCall {
+  // Immutable choice captured at opening. Null on all legacy calls.
+  // Never re-resolve names from an edited catalog for history rendering.
+  callReasonSnapshot?: {
+    reasonId: string;
+    reasonNameSnapshot: string;
+    reasonRevision: number;
+    optionId: string;
+    optionNameSnapshot: string;
+    optionRevision: number;
+    technicalAreaId: string;
+    nature: string;
+  } | null;
   id: string;
   machineId: string;
   machineSetId?: string | null;
