@@ -62,6 +62,8 @@ export async function resolveSession(
     throw new AccessError("authentication_required", 401);
   if (row.persistentOperational &&
       (row.purpose !== "normal" ||
+        !row.persistentMachineId ||
+        row.persistentMachineId !== row.workstation.lockedMachineId ||
         !permitsPersistentOperationalAccount(row.user, row.workstation,
           row.user.machines, row.user.machineScope)))
     throw new AccessError("authentication_required", 401);
@@ -85,7 +87,7 @@ export async function resolveSession(
     // terminal. Never inherit broad all-machine/global catalogue privileges.
     machineScope: row.persistentOperational ? "selected" : row.user.machineScope,
     machineIds: row.persistentOperational
-      ? [row.workstation.lockedMachineId!]
+      ? [row.persistentMachineId!]
       : row.user.machines.map((x) => x.machineId),
     permissions: row.persistentOperational
       ? row.user.permissions.map(x => x.key).filter(key => TRUSTED_OPERATIONAL_GRANTS.has(key))
@@ -107,6 +109,7 @@ export async function issueSession(
   purpose: "normal" | "password_change" | "workstation_admission",
   now: Date,
   persistentOperational = false,
+  persistentMachineId: string | null = null,
 ) {
   const token = randomBytes(32).toString("hex");
   const row = await tx.accessSession.create({
@@ -119,6 +122,7 @@ export async function issueSession(
       createdAt: now,
       lastInteractionAt: now,
       persistentOperational,
+      persistentMachineId: persistentOperational ? persistentMachineId : null,
       // Legacy reporting retains expiresAt; persistent sessions use a separate
       // authorization bit and never infer access solely from this sentinel.
       expiresAt: persistentOperational ? new Date("9999-12-31T00:00:00.000Z") :
@@ -272,6 +276,7 @@ export async function login(
           await tx.accessMachine.findMany({ where: { userId: current.id } }),
           current.machineScope,
         ),
+      station.lockedMachineId,
     );
     await appendAudit(
       tx,
