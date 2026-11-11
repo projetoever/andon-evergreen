@@ -85,3 +85,29 @@ export function updateCallReasonOption(
     { ...patch, expectedRevision: revision },
   );
 }
+
+/**
+ * Read-only, authenticated operational list for machine-screen reason buttons.
+ * This endpoint is distinct from the Admin catalog; server returns only
+ * active options and rejects use until the hierarchical flow is enabled.
+ */
+export interface OperationalReasonOption {
+  id: string;
+  revision: number;
+  technicalAreaId: string;
+  displayName: string;
+  legacyCategory: "maintenance" | "production";
+  legacySubtype: string;
+}
+
+export interface OperationalReason {
+  id: string;
+  displayName: string;
+  color: string;
+  revision: number;
+  options: OperationalReasonOption[];
+}
+
+export function getOperationalCallReasons() {
+  return api.get<OperationalReason[]>("/api/call-reasons/operational");
+}

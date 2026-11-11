@@ -7,6 +7,7 @@ import { AccessError, type Principal } from "../access/policy.js";
 import { registerCallReasonRoutes } from "../routes/callReasons.js";
 import {
   authorizeCentralCallReasonRead, centralCallReasonsHttpEnabled,
+  isCentralOperationalReasonRead, authorizeCentralOperationalReasonRead, isAuthorizedCentralOperationalReasonRead,
   isAuthorizedCentralCallReasonRead, isAuthorizedCentralCallReasonRequest,
   isCentralCallReasonRead, isCentralCallReasonWrite,
   markCentralCallReasonAuthorized,
@@ -132,5 +133,59 @@ test("R6/S2: standalone route never reads or writes database without trusted mar
     assert.equal(res.statusCode, 403, method + " " + url);
     assert.equal(res.json().error, "central_action_not_supported");
     assert.equal(res.headers["cache-control"], "no-store");
+  }
+});
+
+test("S3-B3: operational catalog read requires central session, both flags and calls.open", () => {
+  const previous = {
+    access: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
+    catalog: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED,
+    opening: process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED,
+  };
+  const req = fake("GET", "/api/call-reasons/operational");
+  const operator: Principal = {
+    ...admin, isPrimaryAdmin: false, roleLabel: "Produção",
+    machineScope: "selected", machineIds: ["machine_37"],
+    permissions: ["andon.read", "calls.open"],
+  };
+  try {
+    assert.equal(isCentralOperationalReasonRead("GET", "/api/call-reasons/operational"), true);
+    assert.equal(isCentralOperationalReasonRead("POST", "/api/call-reasons/operational"), false);
+    assert.equal(isCentralOperationalReasonRead("GET", "/api/call-reasons"), false);
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
+    denied(() => authorizeCentralOperationalReasonRead(req, operator, station), "hierarchical_calls_disabled");
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "1";
+    denied(() => authorizeCentralOperationalReasonRead(req, {
+      ...operator, permissions: ["andon.read"],
+    }, station), "permission_denied");
+    denied(() => authorizeCentralOperationalReasonRead(req, {
+      ...operator, purpose: "password_change",
+    }, station), "password_change_required");
+    assert.equal(isAuthorizedCentralOperationalReasonRead(req), false);
+    authorizeCentralOperationalReasonRead(req, operator, station);
+    assert.equal(isAuthorizedCentralOperationalReasonRead(req), true);
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
+    assert.equal(isAuthorizedCentralOperationalReasonRead(req), false);
+  } finally {
+    for (const [key, value] of [
+      ["ANDON_CENTRAL_ACCESS_ENABLED", previous.access],
+      ["ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED", previous.catalog],
+      ["ANDON_HIERARCHICAL_CALL_OPEN_ENABLED", previous.opening],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("S3-B3: unmarked HTTP operational catalog read cannot query the database", async (t) => {
+  const app = Fastify();
+  t.after(() => app.close());
+  registerCallReasonRoutes(app);
+  for (const method of ["GET", "POST"] as const) {
+    const res = await app.inject({ method, url: "/api/call-reasons/operational" });
+    assert.equal(res.statusCode, method === "GET" ? 403 : 404);
   }
 });
