@@ -143,7 +143,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
         ))}
       </div>
       <Dialog open={editingKey !== null} onOpenChange={open => { if (!open) cancelColorEdit(); }}>
-        <DialogContent className="max-w-[440px]">
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] max-w-[440px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingKey ? ui(fieldLabels[editingKey]) : ui("Selecionar cor")}</DialogTitle>
             <DialogDescription>
