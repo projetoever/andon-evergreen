@@ -60,6 +60,7 @@ export type Principal = {
   workstationId: string;
   purpose: string;
   authenticatedAt: Date;
+  persistentOperational?: boolean;
 };
 export function assertPermission(principal: Principal, permission: string, machineId?: string) {
   if (principal.purpose !== "normal") throw new AccessError("password_change_required");
