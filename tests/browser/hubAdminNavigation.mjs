@@ -557,12 +557,23 @@ try {
     appearance = await openAndonAppearance();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
     const cardBorder = appearance.getByRole("textbox", { name: "Código HEX de Contorno padrão dos cards" });
-    const colorWheel = appearance.getByLabel("Selecionar cor de Contorno padrão dos cards");
-    await colorWheel.fill("#24A1C9");
+    const spectrum = appearance.getByRole("slider", {
+      name: "Painel multicolorido de Contorno padrão dos cards",
+    });
+    await spectrum.click({ position: { x: 65, y: 60 } });
+    await spectrum.press("ArrowRight");
+    const brightness = appearance.getByRole("slider", {
+      name: "Brilho de Contorno padrão dos cards",
+    });
+    await brightness.press("ArrowLeft");
     await cardBorder.fill("#34A1C9");
     const rgbRed = appearance.getByRole("spinbutton", { name: "Contorno padrão dos cards · R" });
     await rgbRed.fill("51");
     await rgbRed.press("Tab");
+    await page.waitForFunction(() => {
+      const field = document.querySelector('input[aria-label="Código HEX de Contorno padrão dos cards"]');
+      return field && field.value === "#33A1C9";
+    });
     assert.equal(await cardBorder.inputValue(), "#33A1C9");
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isEnabled(), true);
     await appearance.getByRole("button", { name: "Salvar globalmente" }).click();
@@ -582,6 +593,10 @@ try {
     await appearance.getByText("A paleta foi modificada por outro administrador. Recarregue antes de salvar.").waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
     await appearance.getByRole("button", { name: "Recarregar paleta" }).click();
+    await page.waitForFunction(() => {
+      const field = document.querySelector('input[aria-label="Código HEX de Contorno padrão dos cards"]');
+      return field && field.value === "#C69BF5";
+    });
     assert.equal(await cardBorder.inputValue(), "#C69BF5");
     paletteWriteEnabled = false;
     // UX-12 acceptance: two independent browser contexts with different
