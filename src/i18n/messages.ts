@@ -1,5 +1,21 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Sessão operacional da workstation", "Workstation operational session", "工作站操作階段"],
+  ["Não expirar login operacional", "Do not expire operational login", "操作登入不自動到期"],
+  ["Somente workstation aprovada com tela fixada em uma máquina e conta pessoal sem permissões administrativas. Admin e ações sensíveis continuam com expiração normal.", "Only an approved workstation pinned to a machine and a personal account without administrator permissions. Admin and sensitive actions keep normal expiry.", "僅限已核准且鎖定於機台的工作站及不具管理權限的個人帳戶。管理員與敏感操作仍按正常期限到期。"],
+  ["Sessões operacionais sem expiração habilitadas nesta workstation.", "Non-expiring operational sessions enabled for this workstation.", "已為此工作站啟用不自動到期的操作階段。"],
+  ["Confiança desativada e sessões persistentes revogadas.", "Trust disabled and persistent sessions revoked.", "已停用信任並撤銷持續階段。"],
+  ["Não foi possível alterar a confiança da workstation.", "Could not change workstation trust.", "無法變更工作站信任。"],
+  ["Estado da confiança", "Trust status", "信任狀態"],
+  ["Habilitada · revogável pelo Admin", "Enabled · revocable by Admin", "已啟用 · 管理員可撤銷"],
+  ["Sessão sem expiração automática", "Session without automatic expiry", "階段不自動到期"],
+  ["Motivo do logout remoto", "Remote logout reason", "遠端登出原因"],
+  ["Informe o motivo para auditoria (mínimo 8 caracteres)", "Enter audit reason (minimum 8 characters)", "請輸入稽核原因（至少 8 個字元）"],
+  ["Forçar logout da workstation", "Force workstation logout", "強制工作站登出"],
+  ["Sessão encerrada remotamente. O usuário deverá entrar novamente.", "Session ended remotely. User must sign in again.", "階段已遠端結束，使用者必須重新登入。"],
+  ["Não foi possível encerrar a sessão remotamente.", "Could not end session remotely.", "無法遠端結束階段。"],
+  ["Encerrar sessão não desliga a máquina, não cancela chamados e não revoga a aprovação da workstation.", "Ending the session does not stop the machine, cancel calls or revoke workstation approval.", "結束階段不會停止機台、取消通報或撤銷工作站核准。"],
+
   ["KPI", "KPI", "KPI"],
   ["Motivos e subcategorias", "Reasons and subcategories", "原因與子類別"],
   ["Motivos principais, especialidades e política de KPI corretivo.", "Main reasons, specialties and corrective KPI policy.", "主要原因、專業類別與維修 KPI 政策。"],
