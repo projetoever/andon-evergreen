@@ -16,3 +16,14 @@ test("active call panel shows immutable original reason/specialty without re-rea
   assert.doesNotMatch(panel, /getCallReasonsCatalog\(/);
   assert.match(type, /callReasonSnapshot\?:/);
 });
+
+test("active call snapshot labels remain translated in PT, EN and ZH-TW", async () => {
+  const messages = await readFile(new URL("../src/i18n/messages.ts", import.meta.url), "utf8");
+  for (const triple of [
+    '["Motivo do chamado","Call reason","通報原因"]',
+    '["Especialidade","Specialty","專業類別"]',
+    '["Conclusão do atendimento técnico","Technical service completed","技術服務完成"]',
+  ]) {
+    assert.ok(messages.includes(triple), `Missing complete translation: ${triple}`);
+  }
+});
