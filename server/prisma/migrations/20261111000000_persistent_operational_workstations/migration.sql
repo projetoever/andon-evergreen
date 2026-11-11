@@ -3,3 +3,5 @@
 -- Revocation and workstation binding remain enforced for every request.
 ALTER TABLE "workstations" ADD COLUMN "allowPersistentOperationalLogin" BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE "access_sessions" ADD COLUMN "persistentOperational" BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE "access_sessions" ADD COLUMN "persistentMachineId" TEXT;
