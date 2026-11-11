@@ -2312,8 +2312,11 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
       process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1";
     if (hasReasonSelection && !hierarchicalOpeningEnabled)
       return reply.status(403).send({ error: "hierarchical_calls_disabled" });
-    if (centralOpen && hierarchicalOpeningEnabled && !hasReasonSelection)
-      return reply.status(400).send({ error: "call_reason_selection_required" });
+    // Compatibility: legacy dashboard, active-sector and service workflows
+    // still open calls without reason fields. The presence of a hierarchy
+    // selection opts that individual call into server-side catalog validation.
+    // Reject reason metadata when OFF, but never reject legitimate legacy
+    // openings merely because the operational catalog is ON.
     const reasonSelection: ReasonOpeningSelection | null = hasReasonSelection ? {
       reasonId: body.reasonId,
       optionId: body.optionId,
