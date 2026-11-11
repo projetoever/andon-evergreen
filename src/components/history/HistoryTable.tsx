@@ -104,10 +104,13 @@ export function HistoryTable({ calls }: HistoryTableProps) {
                 </td>
 
                 <td className="px-3 py-3">
-                  {call.category === "maintenance" ? ui("Manutenção") : ui("Produção")}
+                  {call.callReasonSnapshot?.reasonNameSnapshot ??
+                    (call.category === "maintenance" ? ui("Manutenção") : ui("Produção"))}
                 </td>
 
-                <td className="px-3 py-3 font-bold">{getCallSubtypeLabel(call.subtype)}</td>
+                <td className="px-3 py-3 font-bold">
+                  {call.callReasonSnapshot?.optionNameSnapshot ?? getCallSubtypeLabel(call.subtype)}
+                </td>
 
                 <td className="px-3 py-3">
                   {ui("Criticidade:")} {getCriticalityLabel(call.criticality)}
