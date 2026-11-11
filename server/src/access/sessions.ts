@@ -240,10 +240,14 @@ export async function login(
           data: { temporaryConsumedAt: now, authorizationVersion: { increment: 1 } },
         })
       : current;
-    await tx.accessSession.updateMany({
-      where: { workstationId: station.id, revokedAt: null },
-      data: { revokedAt: now },
-    });
+    // Preserve legacy multi-user sessions in ordinary workstations.
+    // Only a trusted pinned workstation invalidates previous browser logins
+    // when a different person signs in; Admin sessions are not durable.
+    if (station.allowPersistentOperationalLogin && station.lockedMachineId)
+      await tx.accessSession.updateMany({
+        where: { workstationId: station.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
     const session = await issueSession(
       tx,
       effective,
