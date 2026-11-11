@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { getSystemSettings } from "@/services/systemSettingsService";
-import type { CallSubtype } from "@/types/andon";
+import type { CallCategory, CallSubtype } from "@/types/andon";
 import type { MachineStatus } from "@/types/machine";
 import {
   canSubmitWorkOrderGate,
@@ -26,12 +26,23 @@ import {
   resolveWorkOrderRequirement,
 } from "@/utils/workOrderUtils";
 
+export type HierarchicalOpeningChoice = {
+  reasonId: string;
+  optionId: string;
+  expectedReasonRevision: number;
+  expectedOptionRevision: number;
+  category: CallCategory;
+  subtype: CallSubtype;
+  label: string;
+};
+
 interface QuickOpenCallModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   machineId: string;
   subtype: CallSubtype | null;
   forcedMachineCondition?: MachineStatus;
+  hierarchicalChoice?: HierarchicalOpeningChoice | null;
 }
 
 export function QuickOpenCallModal({
@@ -40,9 +51,10 @@ export function QuickOpenCallModal({
   machineId,
   subtype,
   forcedMachineCondition,
+  hierarchicalChoice = null,
 }: QuickOpenCallModalProps) {
   useInterfaceLanguage();
-  const { machines, openCalls } = useAndon();
+  const { machines, openCall, openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -50,7 +62,9 @@ export function QuickOpenCallModal({
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const [operatorNote, setOperatorNote] = useState("");
-  const option = subtype ? getCallTypeOption(subtype) : null;
+  const option = hierarchicalChoice
+    ? { category: hierarchicalChoice.category, label: hierarchicalChoice.label }
+    : subtype ? getCallTypeOption(subtype) : null;
   const machineRequiresWorkOrder =
     machines.find((machine) => machine.id === machineId)?.requireWorkOrderAtOpen === true;
   const workOrderRequired = resolveWorkOrderRequirement(
@@ -107,17 +121,28 @@ export function QuickOpenCallModal({
     const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
     setIsSubmitting(true);
     try {
-      await openCalls([
-        {
-          machineId,
-          category: option.category,
-          subtype,
-          criticality: "medium",
-          machineCondition: forcedMachineCondition ?? machineCondition,
-          workOrderNumber: normalizedWorkOrderNumber || undefined,
-          operatorNote: operatorNote.trim() || undefined,
-        },
-      ]);
+      const params = {
+        machineId,
+        category: option.category,
+        subtype,
+        criticality: "medium" as const,
+        machineCondition: forcedMachineCondition ?? machineCondition,
+        workOrderNumber: normalizedWorkOrderNumber || undefined,
+        operatorNote: operatorNote.trim() || undefined,
+      };
+      if (hierarchicalChoice) {
+        // A hierarchical choice MUST go through the single-call endpoint.
+        // The legacy batch endpoint cannot store a reason snapshot.
+        await openCall({
+          ...params,
+          reasonId: hierarchicalChoice.reasonId,
+          optionId: hierarchicalChoice.optionId,
+          expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
+          expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
+        });
+      } else {
+        await openCalls([params]);
+      }
       toast.success(`Chamado de ${option.label} aberto.`);
       onOpenChange(false);
     } catch (error) {
