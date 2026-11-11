@@ -15,13 +15,14 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const IDLE = 30 * 60 * 1000;
-const PRIVILEGED = new Set([
-  "andon.settings.open", "analytics.reclassify", "analytics.policy.manage",
-  "catalog.assets.manage", "catalog.reasons.manage",
-  "catalog.classifications.manage", "catalog.technicians.manage",
-  "workstations.read", "workstations.manage", "users.create",
-  "hub.settings.presentation.write", "audit.read", "audit.export", "priorities.write",
+const TRUSTED_OPERATIONAL_GRANTS = new Set([
+  "andon.read", "history.read", "calls.open", "calls.cancel.own",
+  "calls.attend", "calls.technicians.manage", "calls.finishMaintenance",
+  "calls.finish", "calls.followUp", "calls.returnToMaintenance",
+  "bi.read", "bi.export", "priorities.read",
 ]);
+// Intentionally allowlist, not blacklist: any newly introduced privilege
+// disqualifies a durable session until explicitly security-reviewed.
 export function permitsPersistentOperationalAccount(user: {
   accountType: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
   permissions: ReadonlyArray<{ key: string }>;
@@ -31,7 +32,8 @@ export function permitsPersistentOperationalAccount(user: {
   return station.active && !station.pendingApproval &&
     station.allowPersistentOperationalLogin && Boolean(station.lockedMachineId) &&
     user.accountType === "person" && !user.isPrimaryAdmin && !user.mustChangePassword &&
-    user.permissions.every(permission => !PRIVILEGED.has(permission.key)) &&
+    user.permissions.length > 0 &&
+    user.permissions.every(permission => TRUSTED_OPERATIONAL_GRANTS.has(permission.key)) &&
     (machineScope === "all" ||
       machineIds.some(entry => entry.machineId === station.lockedMachineId));
 }
