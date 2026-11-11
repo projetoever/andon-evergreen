@@ -3,15 +3,12 @@ import { AlertCircle } from "lucide-react";
 import { AndonApiError } from "@/api/andonApiClient";
 import { readGlobalVisualPalette, saveGlobalVisualPalette } from "@/services/visualPaletteService";
 import { Button } from "@/components/ui/button";
+import { VisualAccentRgbPicker } from "./VisualAccentRgbPicker";
 import { ui } from "@/i18n/translate";
 import {
   accentForTheme,
-  DEFAULT_VISUAL_PALETTE,
-  isVisualAccent,
   restoreDefaultVisualPalette,
-  VISUAL_ACCENTS,
   VISUAL_PALETTE_KEYS,
-  type VisualAccent,
   type VisualPaletteDraft,
   type VisualPaletteKey,
 } from "@/theme/andonVisualPalette";
@@ -23,14 +20,6 @@ const fieldLabels: Readonly<Record<VisualPaletteKey, string>> = {
   operationAccent: "Acento dos botões de operação",
   focusAccent: "Foco e seleção",
 };
-const accentLabels: Readonly<Record<VisualAccent, string>> = {
-  slate: "Cinza industrial",
-  evergreen: "Verde padrão",
-  ocean: "Azul oceano",
-  indigo: "Índigo",
-  violet: "Violeta",
-};
-
 /**
  * Preview remains draft-only in legacy mode. An authenticated ANDON
  * settings delegate may save only when the separately guarded server flag
@@ -106,25 +95,18 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
             : ui("Prévia local sem aplicação global. Utilize o Admin principal do Hub para salvar com auditoria.")}
         </p>
       </div>
+      <p className="text-xs text-muted-foreground">
+        {ui("Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.")}
+      </p>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {VISUAL_PALETTE_KEYS.map(key => (
-          <label key={key} className="space-y-1 text-sm font-semibold text-foreground">
-            <span>{ui(fieldLabels[key])}</span>
-            <select
-              aria-label={ui(fieldLabels[key])}
-              disabled={loading || busy}
-              className="h-11 w-full rounded-md border border-border bg-background px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={draft[key]}
-              onChange={event => {
-                if (!isVisualAccent(event.target.value)) return;
-                setDraft(old => ({ ...old, [key]: event.target.value as VisualAccent }));
-              }}
-            >
-              {(Object.keys(VISUAL_ACCENTS) as VisualAccent[]).map(value => (
-                <option key={value} value={value}>{ui(accentLabels[value])}</option>
-              ))}
-            </select>
-          </label>
+          <VisualAccentRgbPicker
+            key={key}
+            label={fieldLabels[key]}
+            disabled={loading || busy}
+            value={draft[key]}
+            onChange={color => setDraft(previous => ({ ...previous, [key]: color }))}
+          />
         ))}
       </div>
       <div className="grid gap-3 md:grid-cols-2" aria-label={ui("Prévia clara e escura")}>
