@@ -825,7 +825,8 @@ export function registerAccessRoutes(
           if (!station) throw new AccessError("workstation_not_found", 404);
           const now = new Date();
           const sessions = await tx.accessSession.findMany({
-            where: { workstationId: id, revokedAt: null, expiresAt: { gt: now } },
+            where: { workstationId: id, revokedAt: null,
+              OR: [{ persistentOperational: true }, { expiresAt: { gt: now } }], },
             include: { user: { select: { isPrimaryAdmin: true, active: true } } },
           });
           if (sessions.some(s => s.user.isPrimaryAdmin))
@@ -839,7 +840,7 @@ export function registerAccessRoutes(
           // revokes access cookies, not kiosk trust leases or running calls.
           const result = await tx.accessSession.updateMany({
             where: { id: { in: ids }, workstationId: id, revokedAt: null,
-              expiresAt: { gt: now } },
+              OR: [{ persistentOperational: true }, { expiresAt: { gt: now } }] },
             data: { revokedAt: now },
           });
           if (!result.count) throw new AccessError("no_active_session", 409);
