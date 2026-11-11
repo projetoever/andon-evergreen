@@ -380,6 +380,7 @@ model AndonCall {
   technicianTimeAllocations   TechnicianTimeAllocation[]
   failureEvents               FailureEvent[]
   impactIntervals             CallImpactInterval[]
+  callReasonSnapshot          AndonCallReasonSnapshot?
 
   @@index([machineId])
   @@index([machineSetId])
@@ -391,6 +392,29 @@ model AndonCall {
   @@index([isSystemTest])
   @@index([openedAt])
   @@map("andon_calls")
+}
+
+// S3-B1: immutable opening-time catalog/policy evidence, independent from mutable
+// reason/option rows. Historical calls have no row; no legacy backfill.
+model AndonCallReasonSnapshot {
+  callId                       String    @id
+  call                         AndonCall @relation(fields: [callId], references: [id], onDelete: Restrict)
+  reasonId                     String
+  reasonNameSnapshot           String
+  reasonRevision               Int
+  optionId                     String
+  optionNameSnapshot           String
+  optionRevision               Int
+  technicalAreaId              String
+  nature                       String
+  suggestedResponsibility      String
+  maintenanceKpiPolicy         String
+  analyticsDisposition         String
+  createdAt                    DateTime  @default(now())
+
+  @@index([reasonId])
+  @@index([optionId])
+  @@map("andon_call_reason_snapshots")
 }
 
 model TechnicianSession {
