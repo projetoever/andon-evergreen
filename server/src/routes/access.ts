@@ -784,6 +784,68 @@ export function registerAccessRoutes(
       });
     });
 
+    // REFINE 15: explicit remote logout only. Never ends calls, disables the
+    // workstation, touches a machine screen, or revokes primary Admin sessions.
+    app.post<{ Params: { id: string }; Body: { reason: string } }>(
+      `${PREFIX}/workstations/:id/remote-logout`,
+      { schema: schema({ reason: string(500) }) },
+      async (req) => {
+        const request = requestAccess(req);
+        const initial = await resolveSession(db, request);
+        assertRecentAdmin(initial);
+        assertPermission(initial, "workstations.manage");
+        assertFullMachineScope(initial);
+        const id = parseWorkstationId(req.params.id);
+        if (!id) throw new AccessError("invalid_input", 400);
+        if (id === initial.workstationId)
+          throw new AccessError("current_workstation_protected", 409);
+        const reason = req.body.reason.trim().replace(/\\s+/g, " ");
+        if (reason.length < 8) throw new AccessError("reason_required", 400);
+        return db.$transaction(async (tx) => {
+          await lockUser(tx, initial.userId);
+          await lockWorkstationFlow(tx, id);
+          const principal = await resolveSession(tx, request);
+          if (principal.userId !== initial.userId ||
+              principal.sessionId !== initial.sessionId)
+            throw new AccessError("authentication_required", 401);
+          assertRecentAdmin(principal);
+          assertPermission(principal, "workstations.manage");
+          assertFullMachineScope(principal);
+          const station = await tx.workstation.findUnique({
+            where: { id }, select: { id: true, name: true },
+          });
+          if (!station) throw new AccessError("workstation_not_found", 404);
+          const now = new Date();
+          const sessions = await tx.accessSession.findMany({
+            where: { workstationId: id, revokedAt: null, expiresAt: { gt: now } },
+            include: { user: { select: { isPrimaryAdmin: true, active: true } } },
+          });
+          if (sessions.some(s => s.user.isPrimaryAdmin))
+            throw new AccessError("admin_workstation_protected", 409);
+          const ids = sessions
+            .filter(s => s.user.active && s.purpose === "normal" &&
+              s.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime())
+            .map(s => s.id);
+          if (!ids.length) throw new AccessError("no_active_session", 409);
+          // The WHERE clause rechecks that sessions remain active. This only
+          // revokes access cookies, not kiosk trust leases or running calls.
+          const result = await tx.accessSession.updateMany({
+            where: { id: { in: ids }, workstationId: id, revokedAt: null,
+              expiresAt: { gt: now } },
+            data: { revokedAt: now },
+          });
+          if (!result.count) throw new AccessError("no_active_session", 409);
+          await appendAudit(tx, actorFromPrincipal(principal), {
+            action: "workstation.session.remote_logout",
+            resourceType: "workstation", resourceId: id, reason,
+            before: { activeSessions: ids.length },
+            after: { revokedSessions: result.count },
+          });
+          return { ok: true, revokedSessions: result.count };
+        });
+      },
+    );
+
     app.get<{ Params: { id: string } }>(
       `${PREFIX}/workstations/:id/archive-preflight`,
       async (req) => {
