@@ -24,14 +24,22 @@ test("UX-12 stage 1: immutable versioned default and simultaneous theme accents"
   assert.notEqual(accentForTheme("evergreen", "dark"), accentForTheme("evergreen", "light"));
 });
 
-test("UX-12 stage 1: reject arbitrary CSS, status-token poisoning and schema drift", () => {
+test("UX-12: strict custom RGB is allowed, arbitrary CSS/status fields rejected", () => {
   assert.deepEqual(parseVisualPalette(DEFAULT_VISUAL_PALETTE), DEFAULT_VISUAL_PALETTE);
   assert.equal(parseVisualPalette(null), null);
   assert.equal(parseVisualPalette([]), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, version: 2 }), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, danger: "ocean" }), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, warning: "indigo" }), null);
-  assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: "#ff0000" }), null);
+  assert.deepEqual(
+    parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: "#ff0000" }),
+    { ...DEFAULT_VISUAL_PALETTE, cardBorder: "#ff0000" },
+  );
+  assert.equal(accentForTheme("#9b24e7", "dark"), "#9B24E7");
+  assert.equal(accentForTheme("#9b24e7", "light"), "#9B24E7");
+  for (const bad of ["#fff", "#11223344", "#GG0000", "rgb(1,2,3)", "red", "transparent"]) {
+    assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: bad }), null);
+  }
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: "var(--danger)" }), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: "red;filter:invert(1)" }), null);
   assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, cardBorder: undefined }), null);
@@ -46,6 +54,14 @@ test("UX-12 stage 1: admin-only local preview, no global write or alarm mutation
   assert.match(legacy, /if \(tab === "appearance"\) return <AppearanceSettingsPreview allowGlobalSave=\{centralAccess\} \/>/);
   assert.doesNotMatch(central, /<AppearanceSettingsPreview allowGlobalSave \/>/);
   assert.match(preview, /\(\["dark", "light"\] as const\)\.map/);
+  assert.match(preview, /<VisualAccentRgbPicker/);
+  assert.doesNotMatch(preview, /<select/);
+  const picker = await source("src/components/settings/VisualAccentRgbPicker.tsx");
+  assert.match(picker, /type="color"/);
+  assert.match(picker, /type="number"/);
+  assert.match(picker, /Código HEX/);
+  assert.match(picker, /max=\{255\}/);
+  assert.match(picker, /isCustomVisualHex/);
   assert.match(preview, /onClick=\{\(\) => setDraft\(restoreDefaultVisualPalette\(\)\)\}/);
   assert.doesNotMatch(preview, /updateSystemSettings|fetch\(|apiClient|localStorage|sessionStorage/);
   assert.doesNotMatch(preview, /--danger\s*:|--warning\s*:|setProperty\(/);
