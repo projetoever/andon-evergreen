@@ -1783,8 +1783,23 @@ export async function applyFinalCallDomainTransition(
           const resolvedFailureDescription =
             optionalString(input.body.failureDescription) ?? optionalString(input.body.notes);
 
+          // Setup/Apoio are service requests, not automatically machine failures.
+          // Store operational notes, but never invent a corrective diagnosis.
+          const openingReason = await tx.andonCallReasonSnapshot.findUnique({
+            where: { callId: call.id },
+            select: { nature: true },
+          });
+          const isNonCorrectiveReason =
+            openingReason?.nature === "planned_setup" ||
+            openingReason?.nature === "production_support";
           let snapshot: DiagnosisSnapshot = { failureResponsibility: null, analyticsDisposition: null };
           if (!call.isSystemTest) {
+            if (isNonCorrectiveReason) {
+              if (!resolvedFailureDescription)
+                throw new FinishCallValidationError("Descrição do atendimento é obrigatória");
+              if (failureClassification)
+                throw new FinishCallValidationError("Setup e Apoio não exigem classificação de falha");
+            } else {
             if (!failureClassification) {
               throw new FinishCallValidationError("Classificação da falha é obrigatória");
             }
@@ -1819,6 +1834,7 @@ export async function applyFinalCallDomainTransition(
                   notes: resolvedFailureDescription,
                 },
               });
+            }
             }
           }
 
@@ -1999,7 +2015,7 @@ export async function applyFinalCallDomainTransition(
               currentAttendanceStartedAt: null,
               finishedAt: now,
               notes: mergeFinalDescription(call.notes, input.finalDescription),
-              failureClassification: call.isSystemTest ? null : failureClassification,
+              failureClassification: call.isSystemTest || isNonCorrectiveReason ? null : failureClassification,
               ...snapshot,
               failureDescription: call.isSystemTest ? null : resolvedFailureDescription,
               callWaitingMinutes: diffMinutes(call.openedAt, call.attendedAt ?? now),
