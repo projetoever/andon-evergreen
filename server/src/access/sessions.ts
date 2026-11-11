@@ -81,9 +81,15 @@ export async function resolveSession(
     roleLabel: row.user.roleLabel,
     accountType: row.user.accountType,
     isPrimaryAdmin: row.user.isPrimaryAdmin,
-    machineScope: row.user.machineScope,
-    machineIds: row.user.machines.map((x) => x.machineId),
-    permissions: row.user.permissions.map((x) => x.key),
+    // Durable human sessions are bound to the machine shown on the pinned
+    // terminal. Never inherit broad all-machine/global catalogue privileges.
+    machineScope: row.persistentOperational ? "selected" : row.user.machineScope,
+    machineIds: row.persistentOperational
+      ? [row.workstation.lockedMachineId!]
+      : row.user.machines.map((x) => x.machineId),
+    permissions: row.persistentOperational
+      ? row.user.permissions.map(x => x.key).filter(key => TRUSTED_OPERATIONAL_GRANTS.has(key))
+      : row.user.permissions.map((x) => x.key),
     sessionId: row.id,
     workstationId: row.workstationId,
     purpose: row.purpose,
