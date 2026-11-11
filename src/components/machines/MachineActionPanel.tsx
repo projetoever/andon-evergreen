@@ -7,6 +7,7 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import type { AndonCall, CallSubtype } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AndonCategoryConfig } from "@/types/settings";
+import type { OperationalReason } from "@/services/callReasonsCatalogService";
 
 interface MachineActionPanelProps {
   machine: Machine;
@@ -16,6 +17,8 @@ interface MachineActionPanelProps {
   selectedCallId: string | null;
   hasActiveStopOwner: boolean;
   onOpenSubtype: (subtype: CallSubtype) => void;
+  hierarchicalReasons?: OperationalReason[] | null;
+  onOpenReason?: (reasonId: string) => void;
   onSelectCall: (callId: string) => void;
   onAttend: () => void;
   onCancelCall: () => void;
@@ -231,6 +234,8 @@ export function MachineActionPanel({
   selectedCallId,
   hasActiveStopOwner,
   onOpenSubtype,
+  hierarchicalReasons = null,
+  onOpenReason,
   onSelectCall,
   onAttend,
   onCancelCall,
@@ -269,7 +274,44 @@ export function MachineActionPanel({
         className="grid gap-1.5"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
       >
-        {categories.map((category) => {
+        {hierarchicalReasons !== null ? (
+          <>
+            {hierarchicalReasons.map((reason) => (
+              <button
+                key={reason.id}
+                type="button"
+                onClick={() => onOpenReason?.(reason.id)}
+                className={cn(
+                  "machine-sector-action min-h-16 rounded-lg border-2 bg-card px-3 py-2 text-base font-black uppercase text-foreground",
+                  "transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+                style={{ borderColor: reason.color }}
+                aria-label={t("Abrir novo chamado") + ": " + reason.displayName}
+              >
+                {reason.displayName}
+              </button>
+            ))}
+            {/* Existing active sectors remain selectable. Never trigger a new
+                opening when an operator clicks a sector with an active call. */}
+            {categories.filter((category) =>
+              activeCalls.some((call) => call.subtype === category.id),
+            ).map((category) => {
+              const activeCall = activeCalls.find((call) => call.subtype === category.id);
+              return (
+                <MachineSectorButton
+                  key={category.id}
+                  category={category}
+                  activeCall={activeCall}
+                  selectedCallId={selectedCallId}
+                  className={sectorActionClass}
+                  onOpenSubtype={onOpenSubtype}
+                  onSelectCall={onSelectCall}
+                  translate={t}
+                />
+              );
+            })}
+          </>
+        ) : categories.map((category) => {
           const activeCall = activeCalls.find((call) => call.subtype === category.id);
           return (
             <MachineSectorButton
