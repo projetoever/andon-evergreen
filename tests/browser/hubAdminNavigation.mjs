@@ -564,6 +564,11 @@ try {
     };
     let colorDialog = await openColorDialog();
     const cardBorder = page.getByRole("textbox", { name: "Código HEX de Contorno padrão dos cards" });
+    await cardBorder.fill("#BC18CF");
+    await colorDialog.getByRole("button", { name: "Cancelar" }).click();
+    assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
+    assert.match(await appearance.getByRole("button", { name: "Personalizar cor de Contorno padrão dos cards" }).innerText(), /#526578/);
+    colorDialog = await openColorDialog();
     const spectrum = colorDialog.getByRole("slider", {
       name: "Painel multicolorido de Contorno padrão dos cards",
     });
