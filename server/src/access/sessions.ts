@@ -157,6 +157,10 @@ export async function login(
     // Admin may admit ONLY the current pending device, never a blocked station.
     if (current.isPrimaryAdmin && !current.mustChangePassword)
       await lockWorkstationFlow(tx, input.workstationId);
+    // The workstation lock serializes new logins with remote logout and
+    // trust toggles; the old browser session cannot outlive a user switch.
+    if (!current.isPrimaryAdmin || current.mustChangePassword)
+      await lockWorkstationFlow(tx, input.workstationId);
     const station = await tx.workstation.findUnique({
       where: { id: input.workstationId },
       include: { admission: { select: { status: true } } },
@@ -234,6 +238,10 @@ export async function login(
           data: { temporaryConsumedAt: now, authorizationVersion: { increment: 1 } },
         })
       : current;
+    await tx.accessSession.updateMany({
+      where: { workstationId: station.id, revokedAt: null },
+      data: { revokedAt: now },
+    });
     const session = await issueSession(
       tx,
       effective,
