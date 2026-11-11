@@ -33,6 +33,7 @@ export interface AccessPrincipal {
   displayName: string;
   isPrimaryAdmin: boolean;
   purpose: string;
+  persistentOperational?: boolean;
   permissions?: string[];
   machineScope?: string;
   machineIds?: string[];
@@ -64,6 +65,7 @@ export interface WorkstationArchivePreflight {
 }
 
 export interface ManagedWorkstation extends Workstation {
+  allowPersistentOperationalLogin?: boolean;
   presence: "online" | "offline" | "unknown";
   /** Read-only pre-enrollment metadata. Does not grant a kiosk session. */
   kioskTrust?: {
@@ -91,6 +93,7 @@ export interface ManagedWorkstation extends Workstation {
     lastInteractionAt: string;
     expiresAt: string;
     purpose: string;
+    persistentOperational?: boolean;
     state: "valid" | "revoked" | "expired" | "user_inactive" | "workstation_blocked";
   } | null;
 }
