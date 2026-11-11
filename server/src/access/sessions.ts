@@ -15,6 +15,26 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const IDLE = 30 * 60 * 1000;
+const PRIVILEGED = new Set([
+  "andon.settings.open", "analytics.reclassify", "analytics.policy.manage",
+  "catalog.assets.manage", "catalog.reasons.manage",
+  "catalog.classifications.manage", "catalog.technicians.manage",
+  "workstations.read", "workstations.manage", "users.create",
+  "hub.settings.presentation.write", "audit.read", "audit.export", "priorities.write",
+]);
+export function permitsPersistentOperationalAccount(user: {
+  accountType: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
+  permissions: ReadonlyArray<{ key: string }>;
+}, station: { active: boolean; pendingApproval: boolean;
+  allowPersistentOperationalLogin: boolean; lockedMachineId: string | null;
+}, machineIds: ReadonlyArray<{ machineId: string }>, machineScope: string) {
+  return station.active && !station.pendingApproval &&
+    station.allowPersistentOperationalLogin && Boolean(station.lockedMachineId) &&
+    user.accountType === "person" && !user.isPrimaryAdmin && !user.mustChangePassword &&
+    user.permissions.every(permission => !PRIVILEGED.has(permission.key)) &&
+    (machineScope === "all" ||
+      machineIds.some(entry => entry.machineId === station.lockedMachineId));
+}
 type Reader = Pick<Prisma.TransactionClient, "accessSession">;
 export type AccessRequest = { token: string; workstationId: string };
 export async function resolveSession(
@@ -31,12 +51,17 @@ export async function resolveSession(
   if (
     !row ||
     row.revokedAt ||
-    row.expiresAt <= now ||
+    (!row.persistentOperational && row.expiresAt <= now) ||
     !row.user.active ||
     row.authorizationVersion !== row.user.authorizationVersion ||
     row.workstationId !== request.workstationId ||
-    row.lastInteractionAt.getTime() + IDLE <= now.getTime()
+    (!row.persistentOperational && row.lastInteractionAt.getTime() + IDLE <= now.getTime())
   )
+    throw new AccessError("authentication_required", 401);
+  if (row.persistentOperational &&
+      (row.purpose !== "normal" ||
+        !permitsPersistentOperationalAccount(row.user, row.workstation,
+          row.user.machines, row.user.machineScope)))
     throw new AccessError("authentication_required", 401);
   const admissionSession = row.purpose === "workstation_admission";
   if (
@@ -61,6 +86,7 @@ export async function resolveSession(
     workstationId: row.workstationId,
     purpose: row.purpose,
     authenticatedAt: row.lastAuthenticatedAt ?? row.createdAt,
+    persistentOperational: row.persistentOperational,
   };
 }
 export async function lockUser(tx: Prisma.TransactionClient, id: string) {
@@ -72,6 +98,7 @@ export async function issueSession(
   workstationId: string,
   purpose: "normal" | "password_change" | "workstation_admission",
   now: Date,
+  persistentOperational = false,
 ) {
   const token = randomBytes(32).toString("hex");
   const row = await tx.accessSession.create({
@@ -83,10 +110,14 @@ export async function issueSession(
       authorizationVersion: user.authorizationVersion,
       createdAt: now,
       lastInteractionAt: now,
-      expiresAt: new Date(now.getTime() + (purpose === "normal" ? 12 * HOUR : 10 * 60 * 1000)),
+      persistentOperational,
+      // Legacy reporting retains expiresAt; persistent sessions use a separate
+      // authorization bit and never infer access solely from this sentinel.
+      expiresAt: persistentOperational ? new Date("9999-12-31T00:00:00.000Z") :
+        new Date(now.getTime() + (purpose === "normal" ? 12 * HOUR : 10 * 60 * 1000)),
     },
   });
-  return { token, sessionId: row.id, expiresAt: row.expiresAt, purpose };
+  return { token, sessionId: row.id, expiresAt: row.expiresAt, purpose, persistentOperational };
 }
 export async function login(
   db: PrismaClient,
@@ -213,6 +244,13 @@ export async function login(
           ? "password_change"
           : "normal",
       now,
+      !admission && !current.mustChangePassword &&
+        permitsPersistentOperationalAccount(
+          { ...current, permissions: await tx.accessPermission.findMany({ where: { userId: current.id } }) },
+          station,
+          await tx.accessMachine.findMany({ where: { userId: current.id } }),
+          current.machineScope,
+        ),
     );
     await appendAudit(
       tx,
@@ -230,7 +268,7 @@ export async function login(
         action: "access.login",
         resourceType: "access_user",
         resourceId: current.id,
-        after: { purpose: session.purpose },
+        after: { purpose: session.purpose, persistentOperational: session.persistentOperational },
       },
     );
     return session;
@@ -413,8 +451,11 @@ export async function recordInteraction(db: PrismaClient, request: AccessRequest
       where: {
         id: principal.sessionId,
         revokedAt: null,
-        expiresAt: { gt: now },
-        lastInteractionAt: { gt: new Date(now.getTime() - IDLE) },
+        OR: [
+          { persistentOperational: true },
+          { persistentOperational: false, expiresAt: { gt: now },
+            lastInteractionAt: { gt: new Date(now.getTime() - IDLE) } },
+        ],
       },
       data: { lastInteractionAt: now },
     });
