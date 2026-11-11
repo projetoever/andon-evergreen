@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Sem expiração automática", "No automatic expiry", "不自動到期"],
+  ["Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.", "After enabling, the operator must sign in again to start a non-expiring session. Clearing cookies or using private browsing requires signing in again.", "啟用後，操作員必須重新登入以啟動不自動到期的階段。清除 Cookie 或使用無痕模式時需要重新驗證身分。"],
+
   ["Sessão operacional da workstation", "Workstation operational session", "工作站操作階段"],
   ["Não expirar login operacional", "Do not expire operational login", "操作登入不自動到期"],
   ["Somente workstation aprovada com tela fixada em uma máquina e conta pessoal sem permissões administrativas. Admin e ações sensíveis continuam com expiração normal.", "Only an approved workstation pinned to a machine and a personal account without administrator permissions. Admin and sensitive actions keep normal expiry.", "僅限已核准且鎖定於機台的工作站及不具管理權限的個人帳戶。管理員與敏感操作仍按正常期限到期。"],
