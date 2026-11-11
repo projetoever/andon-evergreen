@@ -82,6 +82,12 @@ export interface CallImpactInterval {
 }
 
 export interface AndonCall {
+  /** Snapshot of the operator's original selection; absent on legacy calls. */
+  callReasonSnapshot?: {
+    reasonId: string; reasonNameSnapshot: string; reasonRevision: number;
+    optionId: string; optionNameSnapshot: string; optionRevision: number;
+    technicalAreaId: string; nature: string;
+  } | null;
   id: string;
   machineId: string;
   machineSetId?: string | null;
