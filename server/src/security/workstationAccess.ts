@@ -43,7 +43,7 @@ import { centralMachineSubsetSettingsEnabled, isCentralMachineSubsetSettingsMuta
 import { isCentralAssetTypeCatalogRead, isCentralAssetTypeCatalogMutation, markCentralAssetTypeCatalogAuthorized } from "./centralAssetTypeCatalogHttp.js";
 import { isCentralMachineInventoryRead, markCentralMachineInventoryAuthorized } from "./centralMachineInventoryHttp.js";
 import { isCentralVisualPaletteMutation, markCentralVisualPaletteAuthorized } from "./centralVisualPaletteHttp.js";
-import { isCentralCallReasonRead, authorizeCentralCallReasonRead, isCentralCallReasonWrite, markCentralCallReasonAuthorized } from "./centralCallReasonsHttp.js";
+import { isCentralCallReasonRead, authorizeCentralCallReasonRead, isCentralCallReasonWrite, markCentralCallReasonAuthorized, isCentralOperationalReasonRead, authorizeCentralOperationalReasonRead } from "./centralCallReasonsHttp.js";
 
 const ALLOWED_API_PATHS = new Set([
   "/api/workstations/register",
@@ -133,6 +133,10 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       // Dedicated, OFF-by-default global inventory is only STATIC metadata.
       // Do not bind a full-scope principal or weaken the operational machine
       // and call collections, which stay filtered by machineScope.
+      if (isCentralOperationalReasonRead(request.method, path)) {
+        authorizeCentralOperationalReasonRead(request, principal, workstation);
+        return;
+      }
       if (isCentralCallReasonRead(request.method, path)) {
         authorizeCentralCallReasonRead(request, principal, workstation);
         return;
