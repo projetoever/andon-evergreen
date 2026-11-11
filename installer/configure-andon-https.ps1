@@ -180,7 +180,7 @@ try {
                 param($certificatePath, $privateKeyPath, $failurePoint)
                 $config = Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "http"
                 $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value ""
-                # HTTPS-to-HTTPS keeps the central login and the validation flag.
+                $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
                 Save-AndonConfig $config
                 Invoke-AndonTransportFailurePoint -Point "after_config" -FailurePoint $failurePoint
                 $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
@@ -316,7 +316,7 @@ try {
             $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value $httpsHost
             $config = Set-AndonConfigProperty -Config $config -Name "tlsCertificatePath" -Value $certificatePath
             $config = Set-AndonConfigProperty -Config $config -Name "tlsPrivateKeyPath" -Value $privateKeyPath
-            $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
+            # HTTPS-to-HTTPS keeps the central login and the validation flag.
             Save-AndonConfig $config
             Invoke-AndonTransportFailurePoint -Point "after_config" -FailurePoint $failurePoint
             $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
