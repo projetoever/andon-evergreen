@@ -1,6 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Descrição do atendimento","Service description","服務說明"],
+  ["Descreva o atendimento realizado para finalizar.","Describe the service performed to finish the call.","請描述已完成的服務以結束通報。"],
+  ["Descreva o serviço realizado.","Describe the service performed.","請描述已完成的服務。"],
   ["Sem expiração automática", "No automatic expiry", "不自動到期"],
   ["Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.", "After enabling, the operator must sign in again to start a non-expiring session. Clearing cookies or using private browsing requires signing in again.", "啟用後，操作員必須重新登入以啟動不自動到期的階段。清除 Cookie 或使用無痕模式時需要重新驗證身分。"],
   ["Sessão operacional da workstation", "Workstation operational session", "工作站操作階段"],
