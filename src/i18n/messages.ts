@@ -7,6 +7,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Código HEX", "HEX code", "HEX 色碼"],
   ["Código HEX de {0}", "HEX code for {0}", "{0}的 HEX 色碼"],
   ["RGB", "RGB", "RGB"],
+  ["Personalizar cor de {0}", "Customize color for {0}", "自訂{0}的顏色"],
+  ["Aplicar à prévia", "Apply to preview", "套用至預覽"],
   ["Canais RGB", "RGB channels", "RGB 色彩通道"],
   ["Painel multicolorido de {0}", "Multicolor spectrum for {0}", "{0}的多彩選色面板"],
   ["Cor atual de {0}", "Current color for {0}", "{0}的目前顏色"],
