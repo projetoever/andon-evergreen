@@ -173,10 +173,9 @@ export function VisualAccentRgbPicker({
           />
         </label>
       </div>
-      <div className="grid grid-cols-3 gap-2" aria-label={ui("Canais RGB")}>
+      <div className="grid gap-1.5" aria-label={ui("Canais RGB")}>
         {channels.map(channel => (
-          <label key={channel} className="block space-y-1 text-xs font-semibold text-muted-foreground">
-            <span className="uppercase">{channel}</span>
+          <label key={channel} className="grid grid-cols-[minmax(0,112px)_1fr] items-center gap-3 text-xs font-semibold text-muted-foreground">
             <input
               type="number"
               aria-label={`${ui(label)} · ${channel.toUpperCase()}`}
@@ -186,8 +185,9 @@ export function VisualAccentRgbPicker({
               onChange={event => setRgbInputs(previous => ({ ...previous, [channel]: event.target.value }))}
               onBlur={() => commitRgb(channel)}
               onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }}
-              className="h-10 w-full rounded-md border border-border bg-background px-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 w-full rounded-md border border-border bg-background px-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            <span>{ui(channel === "r" ? "Vermelho" : channel === "g" ? "Verde" : "Azul")}</span>
           </label>
         ))}
       </div>
