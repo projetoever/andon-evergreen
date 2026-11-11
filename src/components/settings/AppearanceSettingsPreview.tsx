@@ -98,7 +98,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
       <p className="text-xs text-muted-foreground">
         {ui("Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.")}
       </p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {VISUAL_PALETTE_KEYS.map(key => (
           <VisualAccentRgbPicker
             key={key}
