@@ -173,15 +173,11 @@ jobs:
         run: |
           mkdir -p /tmp/andon-playwright
           npm install --prefix /tmp/andon-playwright --no-save --package-lock=false playwright@1.56.1
-          # External Ubuntu mirror/DNS failures must not prevent browser tests.
-          # First try dependency installation, then fall back to runner-provided libs.
-          if ! /tmp/andon-playwright/node_modules/.bin/playwright install --with-deps chromium; then
-            echo "::warning::Apt mirror unavailable; retrying Chromium dependency setup"
-            if ! /tmp/andon-playwright/node_modules/.bin/playwright install --with-deps chromium; then
-              echo "::warning::OS dependency download failed; attempting Chromium with runner libraries"
-              /tmp/andon-playwright/node_modules/.bin/playwright install chromium
-            fi
-          fi
+          # GitHub Ubuntu 24.04 already has the browser runtime libraries.
+          # Avoid apt mirror dependency: it can fail on transient external DNS.
+          # The actual Playwright browser runs below still fail the job if
+          # the runner is missing any required library or browser binary.
+          /tmp/andon-playwright/node_modules/.bin/playwright install chromium
           mkdir -p /tmp/andon-admission-browser
           openssl req -x509 -newkey rsa:2048 -nodes \
             -keyout /tmp/andon-admission-browser/key.pem \
