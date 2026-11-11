@@ -7,6 +7,7 @@ export type CausalImpact = {
   startedAt: Date;
   endedAt: Date | null;
   failureResponsibility: string | null;
+  correctiveReasonCandidate?: boolean;
 };
 export type CausalEpisode = {
   machineId: string;
@@ -126,4 +127,28 @@ export function summarizeCausalDowntime(episodes: CausalEpisode[], start: Date, 
     responsibility,
     downtimeMinutes: Math.round(ms / 600) / 100,
   }));
+}
+
+/**
+ * Corrective MTTR evidence is a separate view over the SAME physical events.
+ * A Setup/Apoio origin can still stop the machine; its minutes stay present
+ * in physical/operational downtime but cannot prove a corrective repair.
+ * Unknown legacy origins continue to follow pre-existing attribution.
+ */
+export function buildCorrectiveCausalEpisodes(
+  events: AnalyticsFailureEventRecord[],
+  impacts: CausalImpact[] = [],
+): CausalEpisode[] {
+  return buildCausalEpisodes(
+    events.map(event => ({
+      ...event,
+      failureResponsibility: event.correctiveReasonCandidate === false
+        ? "unassigned" : event.failureResponsibility,
+    })),
+    impacts.map(impact => ({
+      ...impact,
+      failureResponsibility: impact.correctiveReasonCandidate === false
+        ? "unassigned" : impact.failureResponsibility,
+    })),
+  );
 }

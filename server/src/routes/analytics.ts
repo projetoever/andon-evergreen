@@ -1,5 +1,6 @@
 import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
-import { buildCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
+import { buildCausalEpisodes, buildCorrectiveCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
+import { isCorrectiveReasonCandidate } from "../analytics/correctiveReasonCohort.js";
 import { METRIC_VERSION, GENERIC_DIAGNOSES } from "../analytics/eligibility.js";
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
@@ -92,6 +93,9 @@ const analyticsEventSelect = {
       machineId: true,
       isSystemTest: true,
       subtype: true,
+      callReasonSnapshot: { select: {
+        nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true,
+      } },
     },
   },
 } satisfies Prisma.FailureEventSelect;
@@ -244,6 +248,11 @@ async function loadOverviewDataset(
         event.call === null || allowedIds.includes(event.call.machineId);
       return {
         ...event,
+        // Never use a foreign linked call as proof of corrective attribution.
+        // Its own physical stop still contributes to downtime.
+        correctiveReasonCandidate: event.callId === null ||
+          (visibleCall && event.call?.machineId === event.machineId &&
+            isCorrectiveReasonCandidate(event.call?.callReasonSnapshot)),
         call: visibleCall ? event.call : null,
         callId: visibleCall ? event.callId : null,
       };
@@ -265,6 +274,7 @@ async function loadOverviewDataset(
         failureResponsibility: event.failureResponsibility, analyticsDisposition: event.analyticsDisposition,
         callId: event.callId,
         linkedCallIsSystemTest: event.call?.isSystemTest === true,
+        correctiveReasonCandidate: event.correctiveReasonCandidate,
       }));
   }
 
@@ -278,9 +288,20 @@ async function loadOverviewDataset(
         { ...policy.callWhere, machineId: { in: [...allowedIds] } },
     },
     select: { id: true, machineId: true, startedAt: true, endedAt: true,
-      call: { select: { failureResponsibility: true } } },
+      call: { select: {
+        failureResponsibility: true,
+        callReasonSnapshot: { select: {
+          nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true,
+        } },
+      } } },
   }) : [];
-  const causalEpisodes = buildCausalEpisodes(failureEvents, impacts.map(row => ({ ...row, failureResponsibility: row.call.failureResponsibility })));
+  const causalImpacts = impacts.map(row => ({
+    ...row,
+    failureResponsibility: row.call.failureResponsibility,
+    correctiveReasonCandidate: isCorrectiveReasonCandidate(row.call.callReasonSnapshot),
+  }));
+  const causalEpisodes = buildCausalEpisodes(failureEvents, causalImpacts);
+  const correctiveCausalEpisodes = buildCorrectiveCausalEpisodes(failureEvents, causalImpacts);
   const exclusionScope: Prisma.AndonCallWhereInput = {
     ...dimensionsWhere,
     OR: [{ openedAt: { gte: start, lt: effectiveEnd } }, { attendedAt: { gte: start, lt: effectiveEnd } }, { finishedAt: { gte: start, lt: effectiveEnd } }],
@@ -293,7 +314,7 @@ async function loadOverviewDataset(
   ], {isolationLevel:"RepeatableRead"});
   const excludedCalls = scopedCalls-eligibleCalls;
 
-  return { calls, activeCallsNow, failureEvents, reliabilityAssets, causalEpisodes, excludedCalls };
+  return { calls, activeCallsNow, failureEvents, reliabilityAssets, causalEpisodes, correctiveCausalEpisodes, excludedCalls };
 }
 
 function clipMinutes(startedAt: Date, endedAt: Date | null, start: Date, end: Date) {
