@@ -35,6 +35,61 @@ function Assert-TestState {
         -Message ".env anterior deve ser restaurado"
 }
 
+# REFINE15: preserve central login while rotating HTTPS certificates/host.
+$centralConfig = [pscustomobject]@{
+    centralAccessEnabled = $true
+    centralSecurityValidationEnabled = $true
+    postgresHost = "127.0.0.1"
+}
+Assert-AndonTransportSecurityCompatibility -Config $centralConfig -TargetMode "https"
+
+$httpDenied = ""
+try {
+    Assert-AndonTransportSecurityCompatibility -Config $centralConfig -TargetMode "http"
+} catch { $httpDenied = $_.Exception.Message }
+Assert-TransportTest -Condition ($httpDenied -match "acesso central esta habilitado") -Message "HTTP nao pode desligar login central"
+
+$centralDisabled = [pscustomobject]@{
+    centralAccessEnabled = $false
+    centralSecurityValidationEnabled = $true
+    postgresHost = "127.0.0.1"
+}
+$invalidValidation = ""
+try {
+    Assert-AndonTransportSecurityCompatibility -Config $centralDisabled -TargetMode "https"
+} catch { $invalidValidation = $_.Exception.Message }
+Assert-TransportTest -Condition ($invalidValidation -match "requer login central") -Message "Homologacao requer login central"
+
+$remoteDatabase = [pscustomobject]@{
+    centralAccessEnabled = $true
+    centralSecurityValidationEnabled = $true
+    postgresHost = "192.168.68.77"
+}
+$remoteDenied = ""
+try {
+    Assert-AndonTransportSecurityCompatibility -Config $remoteDatabase -TargetMode "https"
+} catch { $remoteDenied = $_.Exception.Message }
+Assert-TransportTest -Condition ($remoteDenied -match "PostgreSQL local") -Message "Homologacao exige banco local"
+
+$legacyConfig = [pscustomobject]@{
+    centralAccessEnabled = $false
+    centralSecurityValidationEnabled = $false
+    postgresHost = "127.0.0.1"
+}
+Assert-AndonTransportSecurityCompatibility -Config $legacyConfig -TargetMode "https"
+Assert-AndonTransportSecurityCompatibility -Config $legacyConfig -TargetMode "http"
+
+# Static regression: the HTTPS mutation must not force centralAccessEnabled off.
+$configurator = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\configure-andon-https.ps1") -Raw
+$httpsMarker = 'Set-AndonConfigProperty -Config $config -Name "transportMode" -Value "https"'
+$httpsMutationStart = $configurator.IndexOf($httpsMarker)
+Assert-TransportTest -Condition ($httpsMutationStart -ge 0) -Message "Fluxo HTTPS nao encontrado"
+$httpsMutationEnd = $configurator.IndexOf('Invoke-AndonTransportFailurePoint -Point "after_config"', $httpsMutationStart)
+Assert-TransportTest -Condition ($httpsMutationEnd -gt $httpsMutationStart) -Message "Transacao HTTPS incompleta"
+$httpsMutation = $configurator.Substring($httpsMutationStart, $httpsMutationEnd - $httpsMutationStart)
+Assert-TransportTest -Condition ($httpsMutation -notmatch 'Set-AndonConfigProperty.+centralAccessEnabled.+false') -Message "HTTPS nao deve desligar login central"
+Assert-TransportTest -Condition ($configurator -match 'Assert-AndonTransportSecurityCompatibility -Config \$config -TargetMode "https"') -Message "HTTPS deve validar antes do certificado"
+
 $testRoot = Join-Path $env:TEMP ("andon-https-transaction-" + [guid]::NewGuid().ToString("N"))
 $tlsPath = Join-Path $testRoot "tls"
 $sourcePath = Join-Path $testRoot "source"
@@ -215,7 +270,7 @@ try {
         -NetworkValue $successfulNetwork `
         -EnvValue $successfulEnv
 
-    Write-Host "Transacao HTTPS: ACL previa, sete falhas intermediarias e rollback HTTP aprovados."
+    Write-Host "Transacao HTTPS: login central preservado, ACL, sete falhas intermediarias e rollback HTTP aprovados."
 } finally {
     if (Test-Path $testRoot) {
         Remove-Item -LiteralPath $testRoot -Recurse -Force

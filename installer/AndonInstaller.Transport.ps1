@@ -111,6 +111,48 @@ function Assert-AndonRestrictedTlsAcl {
     }
 }
 
+# Validate the requested transport BEFORE issuing certificates or touching the
+# runtime/config. Never silently downgrade an authenticated central session.
+function Assert-AndonTransportSecurityCompatibility {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("http", "https")]
+        [string]$TargetMode
+    )
+
+    $centralEnabled = (
+        "$($Config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true"
+    )
+    $validationEnabled = (
+        "$($Config.centralSecurityValidationEnabled)".Trim().ToLowerInvariant() -eq "true"
+    )
+    if ($TargetMode -eq "http" -and ($centralEnabled -or $validationEnabled)) {
+        throw (
+            "O acesso central esta habilitado. HTTP legado exige desativacao " +
+            "administrativa explicita do login central e das escritas de homologacao " +
+            "antes de alterar o transporte. Nenhuma configuracao foi alterada."
+        )
+    }
+
+    if ($validationEnabled -and !$centralEnabled) {
+        throw (
+            "Homologacao de seguranca requer login central. " +
+            "Nao desative o login durante a configuracao HTTPS."
+        )
+    }
+
+    if ($validationEnabled -and
+        "$($Config.postgresHost)".Trim().ToLowerInvariant() -notin
+            @("localhost", "127.0.0.1")) {
+        throw (
+            "Homologacao de seguranca exige PostgreSQL local. " +
+            "Nao use o banco da fabrica no notebook."
+        )
+    }
+}
+
 function Invoke-AndonTransportFailurePoint {
     param(
         [string]$Point,

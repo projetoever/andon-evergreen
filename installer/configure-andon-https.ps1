@@ -172,6 +172,7 @@ try {
     }
 
     if ($choice -eq "1") {
+        Assert-AndonTransportSecurityCompatibility -Config $config -TargetMode "http"
         Invoke-AndonTransportTransaction `
             -TlsPath $tlsPath `
             -StatePaths $statePaths `
@@ -196,6 +197,7 @@ try {
     }
 
     if ($choice -notin @("2", "3")) { throw "Opcao invalida." }
+    Assert-AndonTransportSecurityCompatibility -Config $config -TargetMode "https"
 
     if ($choice -eq "2") {
         # Certificado de desenvolvimento local nunca deve ser provisionado em Windows Server.
@@ -314,7 +316,7 @@ try {
             $config = Set-AndonConfigProperty -Config $config -Name "httpsHost" -Value $httpsHost
             $config = Set-AndonConfigProperty -Config $config -Name "tlsCertificatePath" -Value $certificatePath
             $config = Set-AndonConfigProperty -Config $config -Name "tlsPrivateKeyPath" -Value $privateKeyPath
-            $config = Set-AndonConfigProperty -Config $config -Name "centralAccessEnabled" -Value $false
+            # HTTPS-to-HTTPS keeps the central login and the validation flag.
             Save-AndonConfig $config
             Invoke-AndonTransportFailurePoint -Point "after_config" -FailurePoint $failurePoint
             $updatedNetwork = Save-AndonNetworkConfig -ServerIp $serverIp -Config $config
@@ -331,12 +333,13 @@ try {
     if ($choice -eq "3" -and $networkMode -eq "1") {
         Write-AndonWarn "HOMOLOGACAO: outros clientes nao confiam automaticamente na CA mkcert."
     }
-    Write-AndonWarn "A autenticacao central continua desligada."
+    Write-AndonOk "Perfil de autenticacao central preservado: $(if ($config.centralAccessEnabled) { 'habilitado' } else { 'desabilitado' })."
     Write-AndonOk "Use a opcao 4 para iniciar o ANDON em https://$httpsHost`:$($config.frontendPort)."
     exit 0
  } catch {
     Write-AndonHeader "ERRO"
     Write-AndonFail "$($_.Exception.Message)"
+    Write-AndonWarn "Se o ANDON foi parado para esta mudanca, reinicie pelo MENU 4 e verifique pelo MENU 6. Nenhum banco foi migrado nesta opcao."
     exit 1
 } finally {
     if (
