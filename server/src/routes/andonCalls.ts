@@ -198,6 +198,14 @@ const andonCallInclude = {
   technicianSessions: { orderBy: { startedAt: "asc" } },
   technicianTimeAllocations: { orderBy: { startedAt: "asc" } },
   impactIntervals: { orderBy: { startedAt: "asc" } },
+  // Only immutable opening evidence, not the mutable current catalog/KPI policy.
+  callReasonSnapshot: {
+    select: {
+      reasonId: true, reasonNameSnapshot: true, reasonRevision: true,
+      optionId: true, optionNameSnapshot: true, optionRevision: true,
+      technicalAreaId: true, nature: true,
+    },
+  },
 } satisfies Prisma.AndonCallInclude;
 
 function optionalString(value: unknown) {
