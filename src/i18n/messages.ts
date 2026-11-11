@@ -1,6 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Selecione a categoria","Select a category","選擇類別"],
+  ["Selecione a especialidade para continuar a abertura do chamado.","Select a specialty to continue opening the call.","選擇專業類別以繼續建立通報。"],
+  ["Nenhuma subcategoria ativa para este motivo. Solicite o cadastro ao administrador.","No active subcategories for this reason. Ask an administrator to configure them.","此原因沒有啟用的子類別。請聯絡管理員設定。"],
+  ["Subcategorias disponíveis","Available subcategories","可用的子類別"],
+  ["Continuar","Continue","繼續"],
   ["Motivos e subcategorias", "Reasons and subcategories", "原因與子類別"],
   ["Motivos principais, especialidades e política de KPI corretivo.", "Main reasons, specialties and corrective KPI policy.", "主要原因、專業類別與維修 KPI 政策。"],
   ["Motivos e subcategorias de chamados", "Call reasons and subcategories", "通報原因與子類別"],
