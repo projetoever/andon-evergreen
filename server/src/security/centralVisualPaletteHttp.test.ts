@@ -61,9 +61,11 @@ test("UX-12: dedicated palette write always OFF unless central mode and separate
   }
 });
 
-test("UX-12: only revision and strict preset can be submitted, not arbitrary CSS or other settings", () => {
+test("UX-12: only versioned named presets or strict RGB can be submitted, not CSS/status fields", () => {
   const good = { palette: DEFAULT_STORED_VISUAL_PALETTE, expectedRevision: 0 };
   assert.deepEqual(parseCentralVisualPaletteUpdate(good), good);
+  const custom = { palette: { ...DEFAULT_STORED_VISUAL_PALETTE, cardBorder: "#34A1C9" }, expectedRevision: 1 };
+  assert.deepEqual(parseCentralVisualPaletteUpdate(custom), custom);
   const invalid = [
     {}, null, { ...good, danger: "ocean" }, { ...good, expectedRevision: -1 },
     { ...good, expectedRevision: 1.5 }, { ...good, expectedRevision: "0" },
