@@ -38,6 +38,11 @@ import {
 } from "@/utils/workstationAttendanceUtils";
 
 export interface OpenAndonCallParams {
+  // S3-B3: optional only for central, single, flag-gated hierarchical openings.
+  reasonId?: string;
+  optionId?: string;
+  expectedReasonRevision?: number;
+  expectedOptionRevision?: number;
   machineId: string;
   machineSetId?: string;
   machineSetCodeSnapshot?: string;
