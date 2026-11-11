@@ -196,15 +196,17 @@ export function registerAccessRoutes(
     });
     const sendSession = (
       reply: FastifyReply,
-      session: { token: string; expiresAt: Date; purpose: string },
+      session: { token: string; expiresAt: Date; purpose: string; persistentOperational?: boolean },
     ) => {
       setCookie(
         reply,
         ACCESS_COOKIE,
         session.token,
-        Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
+        session.persistentOperational ? 34560000 :
+          Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
       );
-      return { csrf: csrfToken(session.token), purpose: session.purpose };
+      return { csrf: csrfToken(session.token), purpose: session.purpose,
+        persistentOperational: session.persistentOperational === true };
     };
     app.get(`${PREFIX}/session`, async (req, reply) => {
       let principal = null;
@@ -214,6 +216,10 @@ export function registerAccessRoutes(
         if (!(e instanceof AccessError)) throw e;
       }
       let token = readSecureCookie(req, ACCESS_COOKIE) || readSecureCookie(req, PREAUTH_COOKIE);
+      // Refresh the browser-capped cookie on a genuine session check.
+      // No anonymous heartbeat or background poll may extend authorization.
+      if (principal?.persistentOperational && token)
+        setCookie(reply, ACCESS_COOKIE, token, 34560000);
       if (!token) {
         token = randomBytes(32).toString("hex");
         setCookie(reply, PREAUTH_COOKIE, token, 600);
@@ -739,11 +745,12 @@ export function registerAccessRoutes(
         const valid = Boolean(
           latest &&
           !latest.revokedAt &&
-          latest.expiresAt > now &&
-          latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime() &&
+          (latest.persistentOperational || latest.expiresAt > now) &&
+          (latest.persistentOperational || latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()) &&
           latest.user.active &&
           latest.authorizationVersion === latest.user.authorizationVersion &&
           station.active &&
+          (!latest.persistentOperational || station.allowPersistentOperationalLogin) &&
           !station.pendingApproval &&
           latest.purpose === "normal",
         );
@@ -753,8 +760,8 @@ export function registerAccessRoutes(
             ? "valid"
             : latest.revokedAt
               ? "revoked"
-              : latest.expiresAt <= now ||
-                  latest.lastInteractionAt.getTime() + 30 * 60 * 1000 <= now.getTime()
+              : (!latest.persistentOperational && latest.expiresAt <= now) ||
+                  (!latest.persistentOperational && latest.lastInteractionAt.getTime() + 30 * 60 * 1000 <= now.getTime())
                 ? "expired"
                 : !latest.user.active
                   ? "user_inactive"
@@ -778,6 +785,7 @@ export function registerAccessRoutes(
                 expiresAt: latest.expiresAt,
                 purpose: latest.purpose,
                 state: sessionState,
+                persistentOperational: latest.persistentOperational,
               }
             : null,
         };
@@ -824,7 +832,7 @@ export function registerAccessRoutes(
             throw new AccessError("admin_workstation_protected", 409);
           const ids = sessions
             .filter(s => s.user.active && s.purpose === "normal" &&
-              s.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime())
+              (s.persistentOperational || s.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()))
             .map(s => s.id);
           if (!ids.length) throw new AccessError("no_active_session", 409);
           // The WHERE clause rechecks that sessions remain active. This only
@@ -863,6 +871,7 @@ export function registerAccessRoutes(
         allowOperational?: boolean;
         allowBi?: boolean;
         allowPriorities?: boolean;
+        allowPersistentOperationalLogin?: boolean;
       };
     }>(
       `${PREFIX}/workstations/:id`,
@@ -874,6 +883,7 @@ export function registerAccessRoutes(
             allowOperational: { type: "boolean" },
             allowBi: { type: "boolean" },
             allowPriorities: { type: "boolean" },
+            allowPersistentOperationalLogin: { type: "boolean" },
           },
           [],
         ),
@@ -921,7 +931,15 @@ export function registerAccessRoutes(
             req.body.name === undefined
               ? undefined
               : req.body.name.trim().replace(/\s+/g, " ") || null;
+          if (req.body.allowPersistentOperationalLogin !== undefined) {
+            assertRecentAdmin(principal);
+            if (station.pendingApproval) throw new AccessError("workstation_denied", 409);
+            if (req.body.allowPersistentOperationalLogin &&
+                (!station.active || !station.lockedMachineId))
+              throw new AccessError("machine_screen_required", 409);
+          }
           const before = {
+            allowPersistentOperationalLogin: station.allowPersistentOperationalLogin,
             name: station.name,
             active: station.active,
             allowOperational: station.allowOperational,
@@ -940,11 +958,15 @@ export function registerAccessRoutes(
               ...(req.body.allowPriorities === undefined
                 ? {}
                 : { allowPriorities: req.body.allowPriorities }),
+              ...(req.body.allowPersistentOperationalLogin === undefined
+                ? {}
+                : { allowPersistentOperationalLogin: req.body.allowPersistentOperationalLogin }),
             },
           });
-          if (req.body.active === false)
+          if (req.body.active === false || req.body.allowPersistentOperationalLogin === false)
             await tx.accessSession.updateMany({
-              where: { workstationId: id, revokedAt: null },
+              where: { workstationId: id, revokedAt: null,
+                ...(req.body.active === false ? {} : { persistentOperational: true }) },
               data: { revokedAt: new Date() },
             });
           await appendAudit(tx, actorFromPrincipal(principal), {
@@ -958,6 +980,7 @@ export function registerAccessRoutes(
               allowOperational: updated.allowOperational,
               allowBi: updated.allowBi,
               allowPriorities: updated.allowPriorities,
+              allowPersistentOperationalLogin: updated.allowPersistentOperationalLogin,
             },
           });
           return { ok: true };
