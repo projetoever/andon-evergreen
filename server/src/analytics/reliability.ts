@@ -1,4 +1,5 @@
 import { hasSpecificDiagnosis, isEligible, uniqueById } from "./eligibility.js";
+import { isCorrectiveReasonCandidate } from "./correctiveReasonCohort.js";
 export type ReliabilityMachineRecord = {
   id: string;
   name: string;
@@ -26,6 +27,11 @@ export type ReliabilityCallRecord = {
   failureResponsibility?: string | null;
   analyticsDisposition?: string | null;
   maintenanceReturnCount: number;
+  callReasonSnapshot?: {
+    nature: string;
+    maintenanceKpiPolicy: string;
+    analyticsDisposition: string;
+  } | null;
 };
 
 export type ReliabilityActiveSessionRecord = {
@@ -226,6 +232,12 @@ export function buildAssetReliability({
         call.finishedAt.getTime() >= start.getTime() &&
         call.finishedAt.getTime() < effectiveEndMs,
     );
+    // Only corrective candidates contribute to maintenance return and
+    // repeated-failure diagnosis. Every service request still counts toward
+    // total calls and physical machine downtime.
+    const correctiveFinishedCalls = finishedCalls.filter(call =>
+      isCorrectiveReasonCandidate(call.callReasonSnapshot),
+    );
     const currentActiveCalls = activeCallsByMachine.get(machine.id) ?? [];
     const currentSessions = activeSessionsByMachine.get(machine.id) ?? [];
     const currentOpenEvents = openEventsByMachine.get(machine.id) ?? [];
@@ -268,12 +280,12 @@ export function buildAssetReliability({
           : null,
       callsOpened: openedCalls.length,
       callsFinished: finishedCalls.length,
-      maintenanceReturnCycles: finishedCalls.reduce(
+      maintenanceReturnCycles: correctiveFinishedCalls.reduce(
         (total, call) => total + Math.max(0, call.maintenanceReturnCount),
         0,
       ),
-      repeatDiagnosisCount: countRepeatDiagnoses(finishedCalls),
-      topDiagnosis: topDiagnosis(finishedCalls),
+      repeatDiagnosisCount: countRepeatDiagnoses(correctiveFinishedCalls),
+      topDiagnosis: topDiagnosis(correctiveFinishedCalls),
       activeCallCount: activeCalls === null ? null : currentActiveCalls.length,
       oldestActiveCallMinutes:
         activeCalls === null ? null : oldestActiveCallMinutes,
@@ -343,7 +355,9 @@ export function buildAssetReliability({
             ? null
             : 0,
       finishedCallsMissingClassification: finishedCalls.filter(
-        (call) => !hasSpecificDiagnosis(call.failureClassification),
+        (call) =>
+          isCorrectiveReasonCandidate(call.callReasonSnapshot) &&
+          !hasSpecificDiagnosis(call.failureClassification),
       ).length,
       finishedCalls: finishedCalls.length,
       standaloneFailureEvents: failureEvents.filter(
