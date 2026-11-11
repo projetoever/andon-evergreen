@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
+import { AndonApiError } from "@/api/andonApiClient";
 import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getSystemSettings } from "@/services/systemSettingsService";
@@ -65,7 +66,7 @@ const ACTIVE_STATUSES = new Set(["open", "in_progress", "post_maintenance"]);
 
 export function MachineDetailPage({ machineId }: { machineId: string }) {
   const { language: interfaceLanguage } = useInterfaceLanguage();
-  const { access } = useModuleAccess();
+  const { access, checking: accessChecking } = useModuleAccess();
   const {
     machines,
     calls,
@@ -91,6 +92,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [forcedMachineCondition, setForcedMachineCondition] = useState<"stopped" | undefined>();
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
   const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[] | null>(null);
+  // Fail closed: a failed catalog request must not silently switch operators
+  // back to legacy opening once hierarchical mode may be enabled.
+  const [reasonCatalogStatus, setReasonCatalogStatus] =
+    useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
+  const [reasonCatalogReload, setReasonCatalogReload] = useState(0);
   const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
   const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
@@ -155,19 +161,41 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   );
   const latestOpenCall = activeCalls.find((call) => call.status === "open") ?? null;
 
-  // Read-only operator catalog is available only while BOTH server gates are
-  // active. A 403/disabled response leaves the existing sector UI untouched.
+  // A feature-disabled response is the ONLY supported legacy fallback.
+  // Network errors, 401/403 ACL denials and empty active catalogs instead
+  // block new openings. Existing calls remain available for attendance.
   useEffect(() => {
-    if (access?.centralAccessEnabled !== true) {
-      setHierarchicalReasons(null);
+    setHierarchicalReasons(null);
+    if (accessChecking || !access) {
+      setReasonCatalogStatus("loading");
+      return;
+    }
+    if (!access.centralAccessEnabled) {
+      setReasonCatalogStatus("legacy");
       return;
     }
     let cancelled = false;
+    setReasonCatalogStatus("loading");
     void getOperationalCallReasons()
-      .then((reasons) => { if (!cancelled) setHierarchicalReasons(reasons); })
-      .catch(() => { if (!cancelled) setHierarchicalReasons(null); });
+      .then((reasons) => {
+        if (cancelled) return;
+        setHierarchicalReasons(reasons);
+        setReasonCatalogStatus(reasons.length ? "ready" : "unavailable");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setHierarchicalReasons(null);
+        setSelectedReasonId(null);
+        setHierarchicalChoice(null);
+        setConditionDialogOpen(false);
+        setReasonCatalogStatus(
+          error instanceof AndonApiError && error.code === "hierarchical_calls_disabled"
+            ? "legacy"
+            : "unavailable",
+        );
+      });
     return () => { cancelled = true; };
-  }, [access?.centralAccessEnabled, machineId]);
+  }, [accessChecking, access?.centralAccessEnabled, machineId, reasonCatalogReload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -528,7 +556,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   async function handleOpenSubtype(subtype: CallSubtype) {
-    if (!machine) return;
+    if (!machine || reasonCatalogStatus === "loading" || reasonCatalogStatus === "unavailable") return;
 
     setSelectedSubtype(subtype);
 
@@ -745,8 +773,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         currentCall={currentCall}
         categories={categories}
-        hierarchicalReasons={hierarchicalReasons}
+        hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons :
+          reasonCatalogStatus === "legacy" ? null : []}
+        reasonCatalogStatus={reasonCatalogStatus}
+        onRetryReasonCatalog={() => setReasonCatalogReload(current => current + 1)}
         onOpenReason={(reasonId) => {
+          if (reasonCatalogStatus !== "ready") return;
           setHierarchicalChoice(null);
           setSelectedReasonId(reasonId);
         }}
