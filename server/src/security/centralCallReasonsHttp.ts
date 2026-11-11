@@ -8,6 +8,7 @@ import {
 
 const validated = new WeakSet<FastifyRequest>();
 const validatedReads = new WeakSet<FastifyRequest>();
+const validatedOperationalReads = new WeakSet<FastifyRequest>();
 const ID = "[a-z0-9_]{2,40}";
 
 /** Independent feature gate, OFF on every existing installation by default. */
@@ -17,6 +18,27 @@ export function centralCallReasonsHttpEnabled() {
 }
 export function isCentralCallReasonRead(method: string, path: string) {
   return method === "GET" && path === "/api/call-reasons";
+}
+/** Read-only catalog for authorized operators. This never delegates admin permissions. */
+export function isCentralOperationalReasonRead(method: string, path: string) {
+  return method === "GET" && path === "/api/call-reasons/operational";
+}
+export function authorizeCentralOperationalReasonRead(
+  request: FastifyRequest, principal: Principal, station: Station,
+) {
+  if (!isCentralOperationalReasonRead(request.method, request.url.split("?", 1)[0] ?? ""))
+    throw new AccessError("central_route_not_supported");
+  if (!centralCallReasonsHttpEnabled() ||
+      process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED !== "1")
+    throw new AccessError("hierarchical_calls_disabled", 403);
+  assertModule(principal, station, "operational");
+  assertPermission(principal, "calls.open");
+  validatedOperationalReads.add(request);
+}
+export function isAuthorizedCentralOperationalReasonRead(request: FastifyRequest) {
+  return centralCallReasonsHttpEnabled() &&
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1" &&
+    validatedOperationalReads.has(request);
 }
 export function isCentralCallReasonWrite(method: string, path: string) {
   if (method === "POST" && path === "/api/call-reasons") return true;
