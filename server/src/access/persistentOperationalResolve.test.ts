@@ -70,6 +70,7 @@ test("REFINE15: trusted operator remains authenticated past both idle and absolu
 test("REFINE15: durable session stops immediately on revocation, trust-off, unpinning and role elevation", async () => {
   for (const patch of [
     { revoked: true }, { trust: false }, { lockedMachineId: null },
+    { lockedMachineId: "39" },
     { active: false }, { admin: true }, { privileged: true },
     { purpose: "password_change" }, { versionMismatch: true },
   ]) {
