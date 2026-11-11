@@ -696,6 +696,7 @@ model AccessSession {
   lastInteractionAt    DateTime @default(now())
   lastAuthenticatedAt  DateTime?
   persistentOperational Boolean @default(false)
+  persistentMachineId String?
   expiresAt            DateTime
   revokedAt            DateTime?
   user                 AccessUser @relation(fields: [userId], references: [id], onDelete: Restrict)
