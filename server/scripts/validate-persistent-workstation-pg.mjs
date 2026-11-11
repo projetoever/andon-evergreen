@@ -109,8 +109,9 @@ try {
     where: { tokenHash: tokenHash(token) },
   });
   await db.accessSession.update({ where: { id: s.id }, data: {
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    lastInteractionAt: new Date("2024-12-01T00:00:00Z"),
     expiresAt: new Date("2025-01-01T00:00:00Z"),
-    lastInteractionAt: new Date("2025-01-01T00:00:00Z"),
   } });
   const persisted = await resolveSession(db, { token, workstationId: targetStationId });
   assert.equal(persisted.persistentOperational, true);
