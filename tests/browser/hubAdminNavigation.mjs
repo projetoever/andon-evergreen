@@ -564,17 +564,17 @@ try {
     };
     let colorDialog = await openColorDialog();
     const cardBorder = page.getByRole("textbox", { name: "Código HEX de Contorno padrão dos cards" });
-    const spectrum = appearance.getByRole("slider", {
+    const spectrum = colorDialog.getByRole("slider", {
       name: "Painel multicolorido de Contorno padrão dos cards",
     });
     await spectrum.click({ position: { x: 65, y: 60 } });
     await spectrum.press("ArrowRight");
-    const brightness = appearance.getByRole("slider", {
+    const brightness = colorDialog.getByRole("slider", {
       name: "Brilho de Contorno padrão dos cards",
     });
     await brightness.press("ArrowLeft");
     await cardBorder.fill("#34A1C9");
-    const rgbRed = appearance.getByRole("spinbutton", { name: "Contorno padrão dos cards · R" });
+    const rgbRed = colorDialog.getByRole("spinbutton", { name: "Contorno padrão dos cards · R" });
     await rgbRed.fill("51");
     await rgbRed.press("Tab");
     await page.waitForFunction(() => {
