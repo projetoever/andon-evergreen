@@ -28,6 +28,7 @@ function fixture(changes: {
     createdAt: old, lastInteractionAt: old,
     expiresAt: old, revokedAt: changes.revoked ? old : null,
     authorizationVersion: changes.versionMismatch ? 5 : 4,
+    persistentMachineId: changes.persistentOperational ? "37" : null,
     workstation: {
       active: changes.active ?? true, pendingApproval: false,
       allowPersistentOperationalLogin: changes.trust ?? true,
