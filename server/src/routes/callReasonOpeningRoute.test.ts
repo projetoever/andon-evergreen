@@ -28,3 +28,13 @@ test("S3-B2B: audit+authentication wrapper and duplicate OS guard are preserved"
   assert.match(code, /assertWorkOrderNumberAvailable\(tx, workOrderNumber, isSystemTest\)/);
   assert.match(code, /findDuplicateActiveSectorCall\(tx, machineId, subtype\)/);
 });
+
+test("S3-B5: enabling hierarchy never blocks older single-opening callers without metadata", async () => {
+  const code = await readFile(route, "utf8");
+  const single = code.split('app.post<{ Body: OpenAndonCallBody }>("/api/andon-calls"')[1]
+    .split('app.post<{ Body: BatchOpenAndonCallsBody }>')[0];
+  assert.doesNotMatch(single, /call_reason_selection_required/);
+  assert.match(single, /hasReasonSelection && !hierarchicalOpeningEnabled/);
+  assert.match(single, /reasonSelection: ReasonOpeningSelection \| null = hasReasonSelection/);
+  assert.match(single, /openingReasonSnapshot = reasonSelection/);
+});
