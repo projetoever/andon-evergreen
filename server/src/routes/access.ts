@@ -807,7 +807,7 @@ export function registerAccessRoutes(
         if (!id) throw new AccessError("invalid_input", 400);
         if (id === initial.workstationId)
           throw new AccessError("current_workstation_protected", 409);
-        const reason = req.body.reason.trim().replace(/\\s+/g, " ");
+        const reason = req.body.reason.trim().replace(/\s+/g, " ");
         if (reason.length < 8) throw new AccessError("reason_required", 400);
         return db.$transaction(async (tx) => {
           await lockUser(tx, initial.userId);
