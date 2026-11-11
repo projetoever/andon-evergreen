@@ -43,6 +43,7 @@ export type AnalyticsFailureEventRecord = {
   analyticsDisposition?: string | null;
   callId: string | null;
   linkedCallIsSystemTest: boolean;
+  correctiveReasonCandidate?: boolean;
 };
 
 export type AnalyticsReliabilityAsset = {
@@ -53,6 +54,7 @@ export type AnalyticsReliabilityAsset = {
 export type BuildExecutiveOverviewParams = {
   calls: AnalyticsCallRecord[];
   causalEpisodes?: CausalEpisode[];
+  correctiveCausalEpisodes?: CausalEpisode[];
   activeCallsNow: number | null;
   failureEvents: AnalyticsFailureEventRecord[];
   reliabilityAssets: AnalyticsReliabilityAsset[] | null;
@@ -476,7 +478,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     downtimeByMachine.reduce((total, machine) => total + machine.downtimeMinutes, 0),
   );
   const causalEpisodes = params.causalEpisodes ?? buildCausalEpisodes(failureEvents);
-  const resolvedMaintenanceEpisodes = causalEpisodes.filter(episode => episode.responsibility === "maintenance" && Number.isFinite(episode.end) && episode.end >= start.getTime() && episode.end < effectiveEnd.getTime());
+  const resolvedMaintenanceEpisodes = (params.correctiveCausalEpisodes ?? causalEpisodes).filter(episode => episode.responsibility === "maintenance" && Number.isFinite(episode.end) && episode.end >= start.getTime() && episode.end < effectiveEnd.getTime());
   const mttrMinutes = average(resolvedMaintenanceEpisodes.map(episode => (episode.end-episode.start)/60_000));
   const classificationCoveragePercent =
     finishedCalls.length > 0
@@ -504,7 +506,7 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       semantics: {
         mtta: "attendedAt - openedAt para chamados corretivos candidatos com atendimento iniciado no período; Setup/Apoio não contam, legado sem snapshot segue política histórica",
         mttr:
-          "MTTR de restabelecimento = duração integral média de episódios físicos encerrados e inteiramente atribuídos à manutenção; não é attendanceMinutes nem pessoa-tempo",
+          "MTTR corretivo = duração média integral de episódios físicos encerrados e atribuídos à manutenção com origem corretiva elegível; Setup/Apoio permanecem no downtime físico, não no MTTR",
         downtime:
           "downtime acumulado = união temporal de FailureEvent por máquina; soma entre máquinas",
         mtbfEstimated:
