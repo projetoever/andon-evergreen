@@ -88,6 +88,10 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
     const notes = optionalString(body.notes);
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
+    if (body.callId !== undefined && body.callId !== null &&
+        (typeof body.callId !== "string" || (body.callId.trim() !== "" && !callId))) {
+      return badRequest(reply, "Referência do chamado inválida");
+    }
     if (!MACHINE_STATUSES.has(machineStatus)) {
       return badRequest(reply, "Status operacional inválido");
     }
@@ -97,6 +101,24 @@ export async function registerFailureEventRoutes(app: FastifyInstance) {
 
       const machine = await tx.machine.findUnique({ where: { id: machineId } });
       if (!machine) return null;
+
+      // A supplied call reference must belong to the same machine. The
+      // machine flow is already locked. Reject before inspecting/closing
+      // events or mutating machine status; never repair legacy history here.
+      if (callId) {
+        const call = await tx.andonCall.findUnique({
+          where: { id: callId }, select: { machineId: true },
+        });
+        if (!call || call.machineId !== machineId) {
+          return {
+            statusCode: 400 as const,
+            payload: {
+              error: "invalid_call_machine_reference",
+              message: "Chamado inexistente ou não vinculado à máquina informada",
+            },
+          };
+        }
+      }
 
       const openEvents = await tx.failureEvent.findMany({
         where: { machineId, endedAt: null },
