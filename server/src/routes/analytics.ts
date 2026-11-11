@@ -155,6 +155,9 @@ async function loadOverviewDataset(
         failureClassification: true,
         failureResponsibility: true, analyticsDisposition: true,
         isSystemTest: true,
+        callReasonSnapshot: { select: {
+          nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true,
+        } },
       },
     }),
     includeActiveCalls && !filters.classification
