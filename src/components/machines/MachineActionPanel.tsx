@@ -18,6 +18,8 @@ interface MachineActionPanelProps {
   hasActiveStopOwner: boolean;
   onOpenSubtype: (subtype: CallSubtype) => void;
   hierarchicalReasons?: OperationalReason[] | null;
+  reasonCatalogStatus?: "loading" | "legacy" | "ready" | "unavailable";
+  onRetryReasonCatalog?: () => void;
   onOpenReason?: (reasonId: string) => void;
   onSelectCall: (callId: string) => void;
   onAttend: () => void;
@@ -235,6 +237,8 @@ export function MachineActionPanel({
   hasActiveStopOwner,
   onOpenSubtype,
   hierarchicalReasons = null,
+  reasonCatalogStatus = "legacy",
+  onRetryReasonCatalog,
   onOpenReason,
   onSelectCall,
   onAttend,
@@ -269,6 +273,28 @@ export function MachineActionPanel({
             : t("Setor livre abre chamado; setor ativo seleciona o chamado.")}
         </p>
       </div>
+
+      {(reasonCatalogStatus === "loading" || reasonCatalogStatus === "unavailable") && (
+        <div
+          role={reasonCatalogStatus === "unavailable" ? "alert" : "status"}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm font-semibold text-foreground"
+        >
+          <span>
+            {reasonCatalogStatus === "loading"
+              ? t("Carregando categorias de chamados...")
+              : t("Abertura de novos chamados indisponível: não foi possível validar as categorias.")}
+          </span>
+          {reasonCatalogStatus === "unavailable" && (
+            <button
+              type="button"
+              className="min-h-10 rounded-md border border-border bg-background px-3 py-2 font-bold hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={onRetryReasonCatalog}
+            >
+              {t("Tentar novamente")}
+            </button>
+          )}
+        </div>
+      )}
 
       <div
         className="grid gap-1.5"
