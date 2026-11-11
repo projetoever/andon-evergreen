@@ -1,6 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Motivo do chamado","Call reason","通報原因"],
+  ["Especialidade","Specialty","專業類別"],
+  ["Conclusão do atendimento técnico","Technical service completed","技術服務完成"],
   ["Descrição do atendimento","Service description","服務說明"],
   ["Descreva o atendimento realizado para finalizar.","Describe the service performed to finish the call.","請描述已完成的服務以結束通報。"],
   ["Descreva o serviço realizado.","Describe the service performed.","請描述已完成的服務。"],
