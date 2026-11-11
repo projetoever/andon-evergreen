@@ -118,6 +118,8 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
 
   const option = call ? getCallTypeOption(call.subtype) : null;
 
+  const isServiceRequest = call?.callReasonSnapshot?.nature === "planned_setup" ||
+    call?.callReasonSnapshot?.nature === "production_support";
   const requiresTechnician = call ? requiresMaintenanceTechnician(call) : false;
 
   const requiresAssetConfirmation = call?.category === "maintenance";
@@ -499,10 +501,11 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
     !isSubmitting &&
     hasValidAssetSelection &&
     (call.isSystemTest ||
-      (!isLoadingFailureClassifications &&
-        !failureClassificationsLoadFailed &&
-        hasValidFailureClassification &&
-        callDescription.trim().length > 0)) &&
+      (callDescription.trim().length > 0 &&
+        (isServiceRequest ||
+          (!isLoadingFailureClassifications &&
+            !failureClassificationsLoadFailed &&
+            hasValidFailureClassification)))) &&
     (!requiresTechnician || technicianNames.length > 0),
   );
 
@@ -587,7 +590,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
 
         notes: normalizedDescription || null,
 
-        failureClassification: currentCall.isSystemTest
+        failureClassification: currentCall.isSystemTest || isServiceRequest
           ? null
           : failureClassification.trim() || null,
 
@@ -949,14 +952,14 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
             <section className="rounded-xl border border-warning/40 bg-warning/5 p-3">
               <div className="mb-3">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  {ui("Detalhes da falha")}
+                  {isServiceRequest ? ui("Descrição do atendimento") : ui("Detalhes da falha")}
                 </h4>
                 <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                  {ui("Classifique a ocorrência e descreva a falha para finalizar.")}
+                  {isServiceRequest ? ui("Descreva o atendimento realizado para finalizar.") : ui("Classifique a ocorrência e descreva a falha para finalizar.")}
                 </p>
               </div>
 
-              {failureClassificationsLoadFailed ? (
+              {failureClassificationsLoadFailed && !isServiceRequest ? (
                 <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                   {ui(
                     "Não foi possível carregar o catálogo central. Reabra o modal para tentar novamente.",
@@ -964,6 +967,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
+                  {!isServiceRequest && (
                   <div>
                     <label
                       htmlFor="failure-classification"
@@ -1004,13 +1008,14 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
 
                   <div>
                     <label
                       htmlFor="call-description"
                       className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground"
                     >
-                      {ui("Descrição da falha")}
+                      {isServiceRequest ? ui("Descrição do atendimento") : ui("Descrição da falha")}
                       <span className="ml-1 text-danger" aria-hidden="true">
                         *
                       </span>
@@ -1021,7 +1026,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
                       onChange={(event) => setCallDescription(event.target.value)}
                       aria-required="true"
                       rows={3}
-                      placeholder={ui("Descreva a ocorrência identificada.")}
+                      placeholder={isServiceRequest ? ui("Descreva o serviço realizado.") : ui("Descreva a ocorrência identificada.")}
                     />
                   </div>
                 </div>
