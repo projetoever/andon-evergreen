@@ -1200,9 +1200,14 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         }),
         prisma.andonCall.count({
           where: {
+            // Preserve machineId at the outer SQL scope for access auditing,
+            // and repeat the original scope inside AND so nested eligibility
+            // cannot override any existing legacy security predicates.
+            ...callScopeWhere,
+            status: "finished",
+            finishedAt: { gte: period.start, lt: effectiveEnd },
             AND: [
               callScopeWhere,
-              { status: "finished", finishedAt: { gte: period.start, lt: effectiveEnd } },
               correctiveReasonCandidateWhere,
               { OR: [
                 { failureClassification: null },
