@@ -159,7 +159,12 @@ try {
     await db.accessSession.deleteMany({ where: { userId: { in: ids } } });
     await db.accessPermission.deleteMany({ where: { userId: { in: ids } } });
     await db.accessMachine.deleteMany({ where: { userId: { in: ids } } });
-    await db.accessUser.updateMany({ where: { id: { in: ids } }, data: { active: false } });
+    if (adminUserId) await db.accessUser.update({
+      where: { id: adminUserId }, data: { isPrimaryAdmin: false, active: false },
+    });
+    if (operatorUserId) await db.accessUser.update({
+      where: { id: operatorUserId }, data: { active: false },
+    });
   }
   await db.workstation.deleteMany({ where: { id: { in: [adminStationId, targetStationId] } } });
   await db.machine.deleteMany({ where: { id: machineId } });
