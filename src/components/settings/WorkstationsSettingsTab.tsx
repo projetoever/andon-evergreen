@@ -87,6 +87,7 @@ export function WorkstationsSettingsTab() {
   const [items, setItems] = useState<ManagedWorkstation[]>([]);
   const [accessSession, setAccessSession] = useState<AccessState | null>(null);
   const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
+  const [remoteLogoutReasons, setRemoteLogoutReasons] = useState<Record<string, string>>({});
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -292,6 +293,44 @@ export function WorkstationsSettingsTab() {
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar workstation.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function changePersistentOperational(workstation: ManagedWorkstation, enabled: boolean) {
+    if (!centralAccess || !accessSession?.principal?.isPrimaryAdmin || savingId) return;
+    setSavingId(workstation.id);
+    try {
+      await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}`, "PATCH", {
+        allowPersistentOperationalLogin: enabled,
+      });
+      await load();
+      toast.success(ui(enabled
+        ? "Sessões operacionais sem expiração habilitadas nesta workstation."
+        : "Confiança desativada e sessões persistentes revogadas."));
+    } catch (error) {
+      toast.error(error instanceof Error ? systemMessage(error.message) :
+        ui("Não foi possível alterar a confiança da workstation."));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function remoteLogout(workstation: ManagedWorkstation) {
+    const reason = (remoteLogoutReasons[workstation.id] ?? "").trim();
+    if (!centralAccess || !accessSession?.principal?.isPrimaryAdmin ||
+        workstation.id === currentWorkstationId || savingId || reason.length < 8) return;
+    setSavingId(workstation.id);
+    try {
+      await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}/remote-logout`,
+        "POST", { reason });
+      setRemoteLogoutReasons(current => ({ ...current, [workstation.id]: "" }));
+      await load();
+      toast.success(ui("Sessão encerrada remotamente. O usuário deverá entrar novamente."));
+    } catch (error) {
+      toast.error(error instanceof Error ? systemMessage(error.message) :
+        ui("Não foi possível encerrar a sessão remotamente."));
     } finally {
       setSavingId(null);
     }
@@ -798,6 +837,59 @@ export function WorkstationsSettingsTab() {
                         {" · "}{ui("A operação Kiosk ainda não está habilitada.")}
                       </p>
                     )}
+                    {centralAccess && accessSession?.principal?.isPrimaryAdmin && (
+                      <section className="space-y-3 rounded-lg border border-border p-3">
+                        <h4 className="font-semibold">{ui("Sessão operacional da workstation")}</h4>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{ui("Não expirar login operacional")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {ui("Somente workstation aprovada com tela fixada em uma máquina e conta pessoal sem permissões administrativas. Admin e ações sensíveis continuam com expiração normal.")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {ui("Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.")}
+                            </p>
+                          </div>
+                          <Switch aria-label={ui("Não expirar login operacional")}
+                            checked={workstation.allowPersistentOperationalLogin === true}
+                            disabled={isSaving || !canManage || workstation.pendingApproval ||
+                              !workstation.active || (!workstation.lockedMachineId &&
+                                !workstation.allowPersistentOperationalLogin)}
+                            onCheckedChange={value => void changePersistentOperational(workstation, value)} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {ui("Estado da confiança")}: {workstation.allowPersistentOperationalLogin
+                            ? ui("Habilitada · revogável pelo Admin")
+                            : ui("Desativada")}
+                          {workstation.lastLogin?.persistentOperational
+                            ? " · " + ui("Sessão sem expiração automática")
+                            : ""}
+                        </p>
+                        {!isCurrent && workstation.lastLogin?.state === "valid" && (
+                          <div className="space-y-2 border-t border-border pt-3">
+                            <Label className="block space-y-2">
+                              {ui("Motivo do logout remoto")}
+                              <Input value={remoteLogoutReasons[workstation.id] ?? ""}
+                                placeholder={ui("Informe o motivo para auditoria (mínimo 8 caracteres)")}
+                                maxLength={500}
+                                disabled={isSaving}
+                                onChange={event => setRemoteLogoutReasons(current => ({
+                                  ...current, [workstation.id]: event.target.value,
+                                }))} />
+                            </Label>
+                            <Button type="button" variant="destructive"
+                              disabled={isSaving ||
+                                (remoteLogoutReasons[workstation.id] ?? "").trim().length < 8}
+                              onClick={() => void remoteLogout(workstation)}>
+                              {ui("Forçar logout da workstation")}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              {ui("Encerrar sessão não desliga a máquina, não cancela chamados e não revoga a aprovação da workstation.")}
+                            </p>
+                          </div>
+                        )}
+                      </section>
+                    )}
                     {centralAccess && workstation.lastLogin && (
                       <div className="grid gap-2 rounded-lg border border-border p-3 text-xs md:grid-cols-2">
                         <p>
@@ -819,7 +911,9 @@ export function WorkstationsSettingsTab() {
                         </p>
                         <p>
                           <span className="text-muted-foreground">{ui("Expiração")}: </span>
-                          {formatLastSeen(workstation.lastLogin.expiresAt)}
+                          {workstation.lastLogin.persistentOperational
+                            ? ui("Sem expiração automática")
+                            : formatLastSeen(workstation.lastLogin.expiresAt)}
                         </p>
                       </div>
                     )}
