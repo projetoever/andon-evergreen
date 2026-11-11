@@ -3,7 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { AndonApiError } from "@/api/andonApiClient";
 import { readGlobalVisualPalette, saveGlobalVisualPalette } from "@/services/visualPaletteService";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VisualAccentRgbPicker } from "./VisualAccentRgbPicker";
 import { ui } from "@/i18n/translate";
 import {
@@ -146,6 +146,9 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
         <DialogContent className="max-w-[440px]">
           <DialogHeader>
             <DialogTitle>{editingKey ? ui(fieldLabels[editingKey]) : ui("Selecionar cor")}</DialogTitle>
+            <DialogDescription>
+              {ui("Arraste no espectro ou informe HEX/RGB, depois aplique à prévia.")}
+            </DialogDescription>
           </DialogHeader>
           {editingKey && (
             <VisualAccentRgbPicker
