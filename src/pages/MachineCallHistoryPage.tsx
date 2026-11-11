@@ -69,6 +69,13 @@ interface MachineCallHistoryPageProps {
   machineId: string;
 }
 
+/** Immutable reason identity from opening, with legacy fallback. */
+function callReasonHistoryLabel(call: AndonCall): string {
+  const original = call.callReasonSnapshot;
+  if (original) return `${original.reasonNameSnapshot} • ${original.optionNameSnapshot}`;
+  return `${call.category === "maintenance" ? ui("Manutenção") : ui("Produção")} • ${getCallSubtypeLabel(call.subtype)}`;
+}
+
 const PLACEHOLDER_CLASSIFICATION: FailureClassification = "real_machine_failure";
 
 function getFailureClassificationLabel(
@@ -967,8 +974,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                       {formatDateTime(call.finishedAt ?? call.openedAt)}
                     </div>
                     <h2 className="truncate text-base font-black text-foreground md:text-lg">
-                      {call.category === "maintenance" ? ui("Manutenção") : ui("Produção")} •{" "}
-                      {getCallSubtypeLabel(call.subtype)}
+                      {callReasonHistoryLabel(call)}
                     </h2>
                     <CallIdLabel callId={call.id} className="mt-0.5" />
                     {call.workOrderNumber && (
@@ -1059,8 +1065,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
                         <div>
                           <dt className="text-xs uppercase text-muted-foreground">{ui("Tipo")}</dt>
                           <dd className="font-bold">
-                            {call.category === "maintenance" ? ui("Manutenção") : ui("Produção")} •{" "}
-                            {getCallSubtypeLabel(call.subtype)}
+                            {callReasonHistoryLabel(call)}
                           </dd>
                         </div>
                         <div>
