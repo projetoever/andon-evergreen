@@ -1,6 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["KPI", "KPI", "KPI"],
+  ["Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.", "Choose any color in the picker or enter HEX/RGB. The preview does not change critical alarms.", "可使用選色器自由選色或輸入 HEX/RGB。預覽不會變更重要警報。"],
+  ["Selecionar cor de {0}", "Choose color for {0}", "選擇{0}的顏色"],
+  ["Abrir seletor multicolorido", "Open full color picker", "開啟完整選色器"],
+  ["Código HEX", "HEX code", "HEX 色碼"],
+  ["Código HEX de {0}", "HEX code for {0}", "{0}的 HEX 色碼"],
+  ["Canais RGB", "RGB channels", "RGB 色彩通道"],
   ["Motivo do chamado","Call reason","通報原因"],
   ["Especialidade","Specialty","專業類別"],
   ["Conclusão do atendimento técnico","Technical service completed","技術服務完成"],
