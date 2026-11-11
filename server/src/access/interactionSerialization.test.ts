@@ -47,19 +47,25 @@ function fixture(options: Case = {}) {
         where: {
           id: string;
           revokedAt: null;
-          expiresAt: { gt: Date };
-          lastInteractionAt: { gt: Date };
+          OR: [
+            { persistentOperational: true },
+            { persistentOperational: false; expiresAt: { gt: Date };
+              lastInteractionAt: { gt: Date } },
+          ];
         };
         data: { lastInteractionAt: Date };
       }) => {
         log.push("conditional-update");
         assert.equal(input.where.id, "session-37");
         assert.equal(input.where.revokedAt, null);
-        assert(input.where.expiresAt.gt instanceof Date);
-        assert(input.where.lastInteractionAt.gt instanceof Date);
-        assert(input.where.expiresAt.gt.getTime() <= input.data.lastInteractionAt.getTime());
+        assert.deepEqual(input.where.OR[0], { persistentOperational: true });
+        const ordinary = input.where.OR[1];
+        assert.equal(ordinary.persistentOperational, false);
+        assert(ordinary.expiresAt.gt instanceof Date);
+        assert(ordinary.lastInteractionAt.gt instanceof Date);
+        assert(ordinary.expiresAt.gt.getTime() <= input.data.lastInteractionAt.getTime());
         assert.equal(
-          input.data.lastInteractionAt.getTime() - input.where.lastInteractionAt.gt.getTime(),
+          input.data.lastInteractionAt.getTime() - ordinary.lastInteractionAt.gt.getTime(),
           30 * 60 * 1000,
         );
         return { count: options.updatedRows ?? 1 };
