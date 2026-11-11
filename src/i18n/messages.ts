@@ -9,6 +9,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["RGB", "RGB", "RGB"],
   ["Personalizar cor de {0}", "Customize color for {0}", "自訂{0}的顏色"],
   ["Aplicar à prévia", "Apply to preview", "套用至預覽"],
+  ["Arraste no espectro ou informe HEX/RGB, depois aplique à prévia.", "Drag in the spectrum or enter HEX/RGB, then apply to the preview.", "在色譜中拖曳或輸入 HEX/RGB，然後套用至預覽。"],
   ["Canais RGB", "RGB channels", "RGB 色彩通道"],
   ["Painel multicolorido de {0}", "Multicolor spectrum for {0}", "{0}的多彩選色面板"],
   ["Cor atual de {0}", "Current color for {0}", "{0}的目前顏色"],
