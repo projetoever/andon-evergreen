@@ -51,11 +51,12 @@ test("S3-B2: reject malformed IDs, mismatched legacy category and stale/missing 
 });
 
 test("S3-B2: flags cannot be supplied in the selection object to bypass server policy", () => {
+  const tamperedSelection = { ...input.selection, catalogEnabled: true };
   assert.throws(
     () => parseReasonOpeningSelection({
       ...input,
       catalogEnabled: false,
-      selection: { ...input.selection, catalogEnabled: true },
+      selection: tamperedSelection,
     }),
     /hierarchical_calls_disabled/,
   );
