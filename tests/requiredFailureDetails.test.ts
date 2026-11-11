@@ -120,7 +120,7 @@ test("placeholders não são classificações específicas e notas automáticas 
   );
 });
 
-test("frontend exige classificação e descrição em todas as condições finais", async () => {
+test("frontend exige falha nas corretivas e descrição operacional em Setup/Apoio", async () => {
   const [modal, repository, configService] = await Promise.all([
     readFile(new URL("../src/components/calls/FinishCallModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
@@ -139,9 +139,11 @@ test("frontend exige classificação e descrição em todas as condições finai
   assert.doesNotMatch(modal, /const \[failureDescription, setFailureDescription\]/);
   assert.match(
     modal,
-    /hasValidFailureClassification &&\s*callDescription\.trim\(\)\.length > 0/,
+    /callDescription\.trim\(\)\.length > 0 &&\s*\(isServiceRequest \|\|/,
   );
   assert.match(modal, /Detalhes da falha/);
+  assert.match(modal, /isServiceRequest \? ui\("Descrição do atendimento"\)/);
+  assert.match(modal, /!isServiceRequest && \(/);
   assert.match(modal, /Descrição da falha/);
   assert.doesNotMatch(modal, /\{applicableFailureEvent && \(/);
   assert.doesNotMatch(modal, /Observações do atendimento/);
@@ -190,7 +192,11 @@ test("backend e modo local validam detalhes e preservam descrição única", asy
   const finishRoute = finishDomain;
   assert.doesNotMatch(finishRoute, /tx\.failureEvent\.create/);
   assert.match(finishRoute, /if \(!call\.isSystemTest\)/);
-  assert.match(finishRoute, /failureClassification: call\.isSystemTest \? null : failureClassification/);
+  assert.match(finishRoute, /openingReason\?\.nature === "planned_setup"/);
+  assert.match(finishRoute, /openingReason\?\.nature === "production_support"/);
+  assert.match(finishRoute, /if \(!failureClassification\)/);
+  assert.match(finishRoute, /Descrição do atendimento é obrigatória/);
+  assert.match(finishRoute, /failureClassification: call\.isSystemTest \|\| isNonCorrectiveReason \? null : failureClassification/);
   assert.match(finishRoute, /failureDescription: call\.isSystemTest \? null : resolvedFailureDescription/);
   assert.match(
     route,
