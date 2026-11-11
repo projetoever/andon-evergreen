@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { AndonApiError } from "@/api/andonApiClient";
 import { readGlobalVisualPalette, saveGlobalVisualPalette } from "@/services/visualPaletteService";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VisualAccentRgbPicker } from "./VisualAccentRgbPicker";
 import { ui } from "@/i18n/translate";
 import {
@@ -10,6 +11,7 @@ import {
   restoreDefaultVisualPalette,
   VISUAL_PALETTE_KEYS,
   type VisualPaletteDraft,
+  type VisualAccent,
   type VisualPaletteKey,
 } from "@/theme/andonVisualPalette";
 
@@ -35,6 +37,27 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
   const [restorePending, setRestorePending] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [message, setMessage] = useState("");
+  const [editingKey, setEditingKey] = useState<VisualPaletteKey | null>(null);
+  const [editingOriginal, setEditingOriginal] = useState<VisualAccent | null>(null);
+
+  function beginColorEdit(key: VisualPaletteKey) {
+    setEditingOriginal(draft[key]);
+    setEditingKey(key);
+  }
+
+  function cancelColorEdit() {
+    if (editingKey && editingOriginal !== null) {
+      const key = editingKey;
+      setDraft(previous => ({ ...previous, [key]: editingOriginal }));
+    }
+    setEditingKey(null);
+    setEditingOriginal(null);
+  }
+
+  function confirmColorEdit() {
+    setEditingKey(null);
+    setEditingOriginal(null);
+  }
   const changed = VISUAL_PALETTE_KEYS.some(key => draft[key] !== saved[key]);
 
   const reload = useCallback(async () => {
@@ -98,17 +121,49 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
       <p className="text-xs text-muted-foreground">
         {ui("Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.")}
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         {VISUAL_PALETTE_KEYS.map(key => (
-          <VisualAccentRgbPicker
+          <button
             key={key}
-            label={fieldLabels[key]}
+            type="button"
+            aria-label={ui("Personalizar cor de {0}", { 0: ui(fieldLabels[key]) })}
             disabled={loading || busy}
-            value={draft[key]}
-            onChange={color => setDraft(previous => ({ ...previous, [key]: color }))}
-          />
+            onClick={() => beginColorEdit(key)}
+            className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-background/50 p-3 text-left transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+          >
+            <span className="h-10 w-10 shrink-0 rounded-md border border-border shadow-sm"
+              style={{ backgroundColor: accentForTheme(draft[key], "dark") }} aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">{ui(fieldLabels[key])}</span>
+              <span className="block font-mono text-xs text-muted-foreground">
+                {accentForTheme(draft[key], "dark")}
+              </span>
+            </span>
+          </button>
         ))}
       </div>
+      <Dialog open={editingKey !== null} onOpenChange={open => { if (!open) cancelColorEdit(); }}>
+        <DialogContent className="max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{editingKey ? ui(fieldLabels[editingKey]) : ui("Selecionar cor")}</DialogTitle>
+          </DialogHeader>
+          {editingKey && (
+            <VisualAccentRgbPicker
+              label={fieldLabels[editingKey]}
+              disabled={loading || busy}
+              value={draft[editingKey]}
+              onChange={color => {
+                const key = editingKey;
+                setDraft(previous => ({ ...previous, [key]: color }));
+              }}
+            />
+          )}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={cancelColorEdit}>{ui("Cancelar")}</Button>
+            <Button type="button" onClick={confirmColorEdit}>{ui("Aplicar à prévia")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="grid gap-3 md:grid-cols-2" aria-label={ui("Prévia clara e escura")}>
         {(["dark", "light"] as const).map(theme => {
           const dark = theme === "dark";
