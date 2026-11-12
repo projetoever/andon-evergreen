@@ -1,5 +1,6 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["O perfil determina as funções do ANDON agrupadas; apenas o Admin define quais módulos estão habilitados.","The profile determines the bundled ANDON functions; only the Admin chooses which modules are enabled.","角色決定 ANDON 模組內的功能權限；僅管理員能選擇啟用哪些模組。"],
   ["ANDON","ANDON","ANDON"],
   ["BI","BI","BI"],
   ["Config. do ANDON","ANDON settings","ANDON 設定"],
