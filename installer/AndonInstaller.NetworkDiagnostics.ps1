@@ -72,10 +72,28 @@ function Show-AndonHttpsNetworkDiagnostics {
     }
 
     $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue)
+    # Effective policy, not just rules created in the local persistent store:
+    # a domain GPO can ignore locally allowed ports.
+    $activeFirewallProfiles = @(Get-NetFirewallProfile -PolicyStore ActiveStore -ErrorAction SilentlyContinue)
     Write-Host ("Inventario IP/perfis Windows: {0} ms" -f $networkClock.ElapsedMilliseconds)
     foreach ($profile in $profiles) {
         # Intentionally do not display Wi-Fi SSID, gateways or user secrets.
         Write-Host ("Adaptador {0}: perfil de firewall {1}" -f $profile.InterfaceAlias, $profile.NetworkCategory)
+        $effective = @($activeFirewallProfiles | Where-Object {
+            "$($_.Name)" -eq "$($profile.NetworkCategory)"
+        } | Select-Object -First 1)
+        if ($effective.Count -gt 0) {
+            $item = $effective[0]
+            Write-Host ("Firewall efetivo {0}: enabled={1}, inbound={2}, regras locais={3}, regras de entrada={4}" -f
+                $item.Name, $item.Enabled, $item.DefaultInboundAction,
+                $item.AllowLocalFirewallRules, $item.AllowInboundRules)
+            if ("$($item.AllowLocalFirewallRules)" -eq "False" -or
+                "$($item.AllowInboundRules)" -eq "False") {
+                Write-AndonWarn "Politica ativa pode ignorar permissoes locais ou bloquear entradas mesmo com regra ANDON Allow."
+            }
+        } else {
+            Write-AndonWarn "Perfil ativo de firewall nao encontrado; nao inferir que a rede esta liberada."
+        }
     }
 
     foreach ($service in @(
@@ -92,11 +110,11 @@ function Show-AndonHttpsNetworkDiagnostics {
             Write-AndonWarn "O servico pode nao estar acessivel pela interface Wi-Fi; verifique bind e inicializacao."
         }
 
-        $rule = Get-NetFirewallRule -DisplayName $service.Rule -ErrorAction SilentlyContinue
-        if (!$rule) {
-            Write-AndonWarn "Regra de entrada nao encontrada: $($service.Rule). Nao criar automaticamente."
+        $rule = @(Get-NetFirewallRule -PolicyStore ActiveStore -DisplayName $service.Rule -ErrorAction SilentlyContinue)
+        if ($rule.Count -eq 0) {
+            Write-AndonWarn "Regra de entrada NAO encontrada na politica ativa: $($service.Rule). Pode haver politica corporativa que ignora regra local."
         } else {
-            foreach ($item in @($rule)) {
+            foreach ($item in $rule) {
                 Write-Host ("Firewall {0}: enabled={1}, action={2}, profile={3}" -f
                     $service.Rule, $item.Enabled, $item.Action, $item.Profile)
                 if ("$($item.Enabled)" -ne "True" -or "$($item.Action)" -ne "Allow") {
