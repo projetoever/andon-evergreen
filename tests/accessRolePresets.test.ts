@@ -175,7 +175,8 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
   assert.match(simple, /toggleSimpleModule\(/);
   assert.doesNotMatch(simple, /PILOT_OPERATIONAL_ACTIONS|SCREEN_UNLOCK_PERMISSION/);
   assert.doesNotMatch(simple, /Chamados: abrir|Cancelar chamados próprios|Concluir manutenção/);
-  assert.match(source, /Role classification never overwrites an existing ACL/);
+  assert.match(source, /reconcileSimpleModuleRole\(/);
+  assert.match(source, /profile changes rebase only existing ANDON grants|Role changes rebase only existing ANDON grants/);
   assert.match(source, /A new account starts without grants/);
 });
 
