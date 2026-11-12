@@ -115,6 +115,7 @@ export async function registerModuleRoutes(app: FastifyInstance) {
             login: principal.login,
             displayName: principal.displayName,
             roleLabel: principal.roleLabel,
+            isPrimaryAdmin: principal.isPrimaryAdmin,
             purpose: principal.purpose,
             machineScope: principal.machineScope,
             machineIds: principal.machineIds,

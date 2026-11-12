@@ -1,11 +1,12 @@
 import type { Prisma, PrismaClient, CallReason, CallReasonOption } from "@prisma/client";
-import { AccessError } from "./policy.js";
+import { AccessError, isAndonSettingsDelegate } from "./policy.js";
 import { runCentralGlobalCatalogTransaction } from "./centralGlobalCatalogTransaction.js";
 import {
   parseReasonCreate, parseReasonPatch, parseOptionCreate,
   parseOptionPatch, assertEffectiveReasonOption,
 } from "../services/callReasonMutations.js";
 import { centralCallReasonsHttpEnabled } from "../security/centralCallReasonsHttp.js";
+import { isReasonPresentationOnlyPatch } from "../security/callReasonPresentationPolicy.js";
 
 export type CallReasonWrite = {
   token: string;
@@ -47,6 +48,7 @@ export function runCentralCallReasonWrite(
       : input.operation === "option.create"
         ? `/api/call-reasons/${reasonId}/options`
         : `/api/call-reasons/${reasonId}/options/${optionId}`;
+  const presentationPatch = isReasonPresentationOnlyPatch(input.operation, input.body);
   return runCentralGlobalCatalogTransaction<CallReason | CallReasonOption>(db, {
     token: input.token,
     workstationId: input.workstationId,
@@ -54,8 +56,15 @@ export function runCentralCallReasonWrite(
     path: route,
     requestId: input.requestId,
     ipAddress: input.ipAddress,
-    requirePrimaryAdmin: true,
-    additionalPermissions: ["analytics.policy.manage"],
+    requirePrimaryAdmin: !presentationPatch,
+    additionalPermissions: presentationPatch ? [] : ["analytics.policy.manage"],
+    // A stale or changed identity cannot convert this into a write grant.
+    // The locked transaction checks both the first and refreshed principals.
+    assertAuthorizedCatalogPrincipal: (principal) => {
+      if (presentationPatch && !principal.isPrimaryAdmin &&
+          !isAndonSettingsDelegate(principal))
+        throw new AccessError("primary_admin_required");
+    },
     applyReviewedDomainMutation: async (tx: Prisma.TransactionClient) => {
       if (input.operation === "reason.create") {
         const data = parseReasonCreate(input.body);

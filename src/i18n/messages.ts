@@ -5815,4 +5815,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Calculando indicadores dos filtros…","Calculating filtered indicators…","正在計算篩選指標…"],
   ["Exporta somente os registros da página atual, não o histórico completo.","Exports only the current page, not the full call history.","僅匯出目前頁面的記錄，不包含完整叫修歷史。"],
   ["CSV da página","Export page CSV","匯出本頁 CSV"],
+  ["Permissão de Config. do ANDON: você pode editar nome, cor e ativação de motivos existentes. Criar motivos, vincular especialidades e alterar políticas de KPI exigem Admin principal.","ANDON settings access: you can edit existing reason names, colors and active status. Creating reasons, linking specialties and changing KPI policies require the primary Admin.","ANDON 設定權限：可修改現有原因的名稱、顏色及啟用狀態。新增原因、連結專業類別及變更 KPI 政策需主要管理員核准。"],
 ];

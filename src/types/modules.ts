@@ -33,6 +33,7 @@ export interface ModuleAccess {
     login: string;
     displayName: string;
     roleLabel: string;
+    isPrimaryAdmin?: boolean;
     purpose: string;
     machineScope: string;
     machineIds: string[];

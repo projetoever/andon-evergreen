@@ -189,3 +189,77 @@ test("S3-B3: unmarked HTTP operational catalog read cannot query the database", 
     assert.equal(res.statusCode, method === "GET" ? 403 : 404);
   }
 });
+
+test("CFG-08A: explicit ANDON settings delegate may read and PATCH only display fields", () => {
+  const old = {
+    central: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
+    reason: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED,
+  };
+  const delegate: Principal = {
+    ...admin, isPrimaryAdmin: false, roleLabel: "Gerente",
+    machineScope: "selected", machineIds: ["15"],
+    permissions: ["andon.read", "andon.settings.open"],
+  };
+  const withBody = (method: string, path: string, body: unknown,
+    csrf = csrfToken(token)) =>
+    Object.assign(fake(method,path,csrf), { body });
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED="1";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED="1";
+    const read=fake("GET","/api/call-reasons");
+    authorizeCentralCallReasonRead(read,delegate,station);
+    assert.equal(isAuthorizedCentralCallReasonRead(read),true);
+    const patch=withBody("PATCH","/api/call-reasons/maintenance",{
+      expectedRevision:2,displayName:"Manutenção corretiva",color:"#123456",active:true,
+    });
+    markCentralCallReasonAuthorized(patch,delegate,station);
+    assert.equal(isAuthorizedCentralCallReasonRequest(patch),true);
+    const option=withBody("PATCH","/api/call-reasons/maintenance/options/electrical",{
+      expectedRevision:3,active:false,
+    });
+    markCentralCallReasonAuthorized(option,delegate,station);
+    assert.equal(isAuthorizedCentralCallReasonRequest(option),true);
+    const deniedRoutes=[
+      withBody("POST","/api/call-reasons",{id:"test",nature:"planned_setup"}),
+      withBody("POST","/api/call-reasons/maintenance/options",{
+        id:"electrical",technicalAreaId:"electrical",
+      }),
+      withBody("PATCH","/api/call-reasons/maintenance",{
+        expectedRevision:2,maintenanceKpiPolicy:"eligible",
+      }),
+      withBody("PATCH","/api/call-reasons/maintenance",{
+        expectedRevision:2,active:true,nature:"corrective_failure",
+      }),
+      withBody("PATCH","/api/call-reasons/maintenance/options/electrical",{
+        expectedRevision:3,active:true,natureOverride:"corrective_failure",
+      }),
+    ];
+    for (const req of deniedRoutes) {
+      denied(()=>markCentralCallReasonAuthorized(req,delegate,station),"primary_admin_required");
+      assert.equal(isAuthorizedCentralCallReasonRequest(req),false);
+    }
+    denied(()=>markCentralCallReasonAuthorized(withBody(
+      "PATCH","/api/call-reasons/maintenance",{expectedRevision:2,active:true},
+      "0".repeat(64),
+    ),delegate,station),"csrf_denied");
+    const noGrant={...delegate,permissions:["andon.read"]};
+    denied(()=>authorizeCentralCallReasonRead(fake("GET","/api/call-reasons"),
+      noGrant,station),"scoped_query_required");
+    denied(()=>markCentralCallReasonAuthorized(withBody(
+      "PATCH","/api/call-reasons/maintenance",{expectedRevision:2,active:true},
+    ),noGrant,station),"scoped_query_required");
+    const service={...delegate,accountType:"service"};
+    denied(()=>markCentralCallReasonAuthorized(withBody(
+      "PATCH","/api/call-reasons/maintenance",{expectedRevision:2,active:true},
+    ),service,station),"scoped_query_required");
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED="0";
+    denied(()=>markCentralCallReasonAuthorized(withBody(
+      "PATCH","/api/call-reasons/maintenance",{expectedRevision:2,active:true},
+    ),delegate,station),"central_action_not_supported");
+  } finally {
+    if(old.central===undefined)delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED=old.central;
+    if(old.reason===undefined)delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=old.reason;
+  }
+});

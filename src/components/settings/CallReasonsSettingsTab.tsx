@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/i18n/toast";
 import { ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import type { AndonCategoryConfig } from "@/types/settings";
@@ -38,6 +39,8 @@ const emptyDraft = (): Draft => ({
 
 export function CallReasonsSettingsTab() {
   useLanguage();
+  const { access } = useModuleAccess();
+  const isPrimaryAdmin = access?.principal?.isPrimaryAdmin === true;
   const [enabled, setEnabled] = useState(false);
   const [reasons, setReasons] = useState<CallReasonView[]>([]);
   const [areas, setAreas] = useState<AndonCategoryConfig[]>([]);
@@ -120,7 +123,10 @@ export function CallReasonsSettingsTab() {
     try {
       if (chosen) {
         const { id: _id, ...values } = next;
-        await updateCallReason(chosen.id, chosen.revision, values);
+        await updateCallReason(chosen.id, chosen.revision, isPrimaryAdmin ? values : {
+          displayName: next.displayName, color: next.color,
+          active: next.active, displayOrder: next.displayOrder,
+        });
       } else {
         await createCallReason(next);
       }
@@ -132,7 +138,7 @@ export function CallReasonsSettingsTab() {
   }
 
   async function addArea() {
-    if (!chosen || !areaToAdd || busy) return;
+    if (!isPrimaryAdmin || !chosen || !areaToAdd || busy) return;
     const area = areas.find(item => item.id === areaToAdd);
     if (!area?.active) return;
     setBusy(true);
@@ -180,12 +186,17 @@ export function CallReasonsSettingsTab() {
         </div>
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {!loading && enabled && !isPrimaryAdmin && !error && (
+        <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+          {ui("Permissão de Config. do ANDON: você pode editar nome, cor e ativação de motivos existentes. Criar motivos, vincular especialidades e alterar políticas de KPI exigem Admin principal.")}
+        </p>
+      )}
       {!loading && enabled && !error && (
         <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)]">
           <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Motivos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
-              <Button type="button" variant="outline" size="sm"
+              <Button type="button" variant="outline" size="sm" disabled={!isPrimaryAdmin}
                 onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); }}>
                 {ui("Novo motivo")}
               </Button>
@@ -216,7 +227,7 @@ export function CallReasonsSettingsTab() {
               </Label>
               <Label className="block space-y-2">{ui("Natureza do chamado")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.nature} disabled={busy}
+                  value={draft.nature} disabled={busy || !isPrimaryAdmin}
                   onChange={e => setDraft({
                     ...draft, nature: e.target.value as Draft["nature"],
                     maintenanceKpiPolicy: e.target.value === "corrective_failure" ? "pending" : "excluded",
@@ -226,7 +237,7 @@ export function CallReasonsSettingsTab() {
               </Label>
               <Label className="block space-y-2">{ui("Política de KPI corretivo")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.maintenanceKpiPolicy} disabled={busy}
+                  value={draft.maintenanceKpiPolicy} disabled={busy || !isPrimaryAdmin}
                   onChange={e => setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] })}>
                   {policyValues.filter(value => value !== "eligible" || draft.nature === "corrective_failure")
                     .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
@@ -243,7 +254,7 @@ export function CallReasonsSettingsTab() {
                   onChange={e => setDraft({ ...draft, active: e.target.checked })} />
                 {ui("Motivo ativo")}
               </label>
-              <Button type="button" disabled={busy || !draft.displayName.trim()} onClick={() => void saveReason()}>
+              <Button type="button" disabled={busy || !draft.displayName.trim() || (!chosen && !isPrimaryAdmin)} onClick={() => void saveReason()}>
                 {ui(chosen ? "Salvar motivo" : "Cadastrar motivo")}
               </Button>
             </div>
@@ -271,14 +282,14 @@ export function CallReasonsSettingsTab() {
                 <div className="flex flex-wrap items-end gap-2">
                   <Label className="min-w-48 flex-1 space-y-2">{ui("Vincular especialidade")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                      value={areaToAdd} disabled={busy}
+                      value={areaToAdd} disabled={busy || !isPrimaryAdmin}
                       onChange={e => setAreaToAdd(e.target.value)}>
                       <option value="">{ui("Selecione uma especialidade")}</option>
                       {areas.filter(area => area.active && !chosen.options.some(option => option.technicalAreaId === area.id))
                         .map(area => <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
-                  <Button type="button" disabled={busy || !areaToAdd} onClick={() => void addArea()}>
+                  <Button type="button" disabled={busy || !areaToAdd || !isPrimaryAdmin} onClick={() => void addArea()}>
                     {ui("Vincular")}
                   </Button>
                 </div>
