@@ -3,7 +3,7 @@ import { tokenHash } from "./credentials.js";
 import { lockUser, resolveSession } from "./sessions.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
-import { AccessError, assertPermission, type Permission } from "./policy.js";
+import { AccessError, assertPermission, type Permission, type Principal } from "./policy.js";
 import { preflightCentralGlobalCatalogWrite } from "./centralGlobalCatalogPreflight.js";
 
 /**
@@ -20,6 +20,10 @@ export async function runCentralGlobalCatalogTransaction<T>(
     requestId?: string; ipAddress?: string;
     requirePrimaryAdmin?: boolean;
     additionalPermissions?: Permission[];
+    /** Trusted server-only domain check; enforced twice under transaction locks.
+     * This is NOT derived from client JSON and cannot replace route preflight.
+     */
+    assertAuthorizedCatalogPrincipal?: (principal: Principal) => void;
     // Must be supplied only by trusted server code, never from a request body.
     applyReviewedDomainMutation: (tx: Prisma.TransactionClient) => Promise<{
       value: T; resourceId: string; resourceType: string;
@@ -58,6 +62,7 @@ export async function runCentralGlobalCatalogTransaction<T>(
     });
     if (input.requirePrimaryAdmin && !principal.isPrimaryAdmin)
       throw new AccessError("primary_admin_required");
+    input.assertAuthorizedCatalogPrincipal?.(principal);
     for (const permission of input.additionalPermissions ?? []) assertPermission(principal, permission);
     const latest = await resolveSession(tx, request);
     if (latest.userId !== principal.userId || latest.sessionId !== principal.sessionId)
@@ -67,6 +72,7 @@ export async function runCentralGlobalCatalogTransaction<T>(
     });
     if (input.requirePrimaryAdmin && !latest.isPrimaryAdmin)
       throw new AccessError("primary_admin_required");
+    input.assertAuthorizedCatalogPrincipal?.(latest);
     for (const permission of input.additionalPermissions ?? []) assertPermission(latest, permission);
     const result = await input.applyReviewedDomainMutation(tx);
     if (!result || !result.resourceId || !result.resourceType)
