@@ -104,6 +104,31 @@ Assert-TransportTest -Condition (
     $httpsTransaction -gt $httpsTlsValidation
 ) -Message "Fluxos HTTP e HTTPS devem ser identificaveis no menu"
 
+# REFINE16: option 14 diagnostic is a separate read-only branch, not a
+# shortcut that stops services, imports trust or mutates the central profile.
+. (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkDiagnostics.ps1")
+$option14Diagnostics = $configurator.IndexOf('if ($choice -eq "4") {', $menuChoice)
+$option14HttpChoice = $configurator.IndexOf('if ($choice -eq "1") {', $menuChoice)
+Assert-TransportTest -Condition ($option14Diagnostics -gt $menuChoice -and
+    $option14Diagnostics -lt $option14HttpChoice) -Message "Option 14 client diagnostic must be reached before any HTTP/HTTPS mutation"
+$diagnosticBlock = $configurator.Substring($option14Diagnostics, $option14HttpChoice - $option14Diagnostics)
+Assert-TransportTest -Condition (
+    $diagnosticBlock -match 'Show-AndonHttpsNetworkDiagnostics -Config \$config' -and
+    $diagnosticBlock -notmatch 'Invoke-AndonTransportTransaction|Assert-AndonStoppedForTransportChange|certutil|New-NetFirewallRule|mkcert -install|Save-AndonConfig'
+) -Message "Option 14 read-only client diagnostics must not change trust, firewall, services or ANDON config"
+Assert-TransportTest -Condition (
+    $configurator -match 'AndonInstaller.NetworkDiagnostics.ps1'
+) -Message "Option 14 diagnostic must load its read-only network functions"
+Assert-TransportTest -Condition (
+    (Get-AndonCertificateIssuerHint -Issuer 'CN=mkcert lab' -Subject 'CN=192.168.68.100') -eq "MKCERT_TEST_CA"
+) -Message "mkcert issuer is a lab CA clue, not mobile trust"
+Assert-TransportTest -Condition (
+    (Get-AndonCertificateIssuerHint -Issuer 'CN=Local selfsigned' -Subject 'CN=Local selfsigned') -eq "SELF_SIGNED_UNVERIFIED"
+) -Message "self-signed server certificate remains unverified on client"
+Assert-TransportTest -Condition (
+    (Get-AndonCertificateIssuerHint -Issuer 'CN=Managed CA' -Subject 'CN=andon.corp.example') -eq "CLIENT_TRUST_UNVERIFIED"
+) -Message "managed CA still requires real client trust validation"
+
 $initialPreparation = $configurator.Substring(0, $menuChoice)
 $prematureShutdown = @($initialPreparation -split "\r?\n" | Where-Object { $_.Trim() -eq "Assert-AndonStoppedForTransportChange" })
 Assert-TransportTest -Condition ($prematureShutdown.Count -eq 0) -Message "Menu14 nao deve exigir parada antes da escolha/cancelamento"

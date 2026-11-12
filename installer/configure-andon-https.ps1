@@ -1,6 +1,7 @@
 ﻿. "C:\web-andon-industrial\installer\AndonInstaller.Common.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.Transport.ps1"
 . "C:\web-andon-industrial\installer\AndonInstaller.NetworkHttps.ps1"
+. "C:\web-andon-industrial\installer\AndonInstaller.NetworkDiagnostics.ps1"
 
 $ErrorActionPreference = "Stop"
 
@@ -165,12 +166,34 @@ try {
     Write-Host "1 - HTTP legado (rollback, padrao)"
     Write-Host "2 - HTTPS LOCAL assistido (acesso somente neste computador)"
     Write-Host "3 - HTTPS DE REDE (certificado emitido por CA confiavel)"
+    Write-Host "4 - Diagnosticar HTTPS e confianca no smartphone (SOMENTE LEITURA)"
     Write-Host "0 - Cancelar"
     Write-Host ""
     $choice = Read-Host "Escolha o modo"
 
     if ($choice -eq "0") {
         Write-AndonWarn "Configuracao cancelada."
+        exit 0
+    }
+
+    if ($choice -eq "4") {
+        Write-AndonHeader "HTTPS / SMARTPHONE - DIAGNOSTICO SEM ALTERACOES"
+        if ("$($config.transportMode)".Trim().ToLowerInvariant() -ne "https") {
+            Write-AndonWarn "O transporte atual nao e HTTPS. Use 14 -> 2/3 para planejar configuracao segura."
+        } else {
+            # No service stop, certificate import, firewall change, trust-store
+            # write or device enrollment. This can run while ANDON is live.
+            Show-AndonHttpsNetworkDiagnostics -Config $config
+            Write-AndonHeader "ACEITE HTTPS EM CLIENTES REAIS"
+            Write-Host "No smartphone, abra as duas URLs exibidas e confira o estado do certificado."
+            Write-Host "Se o Chrome marcar HTTPS como nao confiavel, solicite a TI uma CA gerenciada"
+            Write-Host "com SAN valido para o nome DNS/IP escolhido. O certificado do Windows"
+            Write-Host "nao comprova a confianca do Android."
+            Write-AndonWarn "Nao ignore o aviso, nao desative validacao TLS e nao altere os dispositivos automaticamente."
+            Write-AndonWarn "A CA mkcert e de LAB; NUNCA distribua rootCA-key.pem (chave privada da CA)."
+            Write-Host "Esta verificacao nao comprova a rede do smartphone; valide no aparelho real."
+        }
+        Write-AndonOk "Diagnostico somente leitura concluido; configuracao e servicos preservados."
         exit 0
     }
 
