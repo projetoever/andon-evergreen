@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { centralAccessEnabled } from "../access/http.js";
-import { AccessError, type Principal } from "../access/policy.js";
+import { AccessError, assertPermission, type Principal } from "../access/policy.js";
 
 /**
  * Scoped user context is attached only by the server-side workstation
@@ -15,6 +15,7 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
     pathname === "/api/andon-calls" ||
     pathname === "/api/failure-events" ||
     pathname === "/api/andon-calls/history" ||
+    pathname === "/api/andon-calls/history/search" ||
     pathname === "/api/dashboard-priority/order" ||
     pathname === "/api/analytics/filter-options" ||
     pathname === "/api/analytics/overview" ||
@@ -43,6 +44,18 @@ export function scopedMachineReadIds(request: FastifyRequest): readonly string[]
     // auth check could silently turn into an unfiltered result.
     throw new AccessError("central_read_context_required");
   }
+  return principal.machineScope === "all" ? null : principal.machineIds;
+}
+
+/** Access to the NEW global-history search is intentionally narrower than
+ * a generic operational read: no service account/legacy fallback, no central
+ * session without an explicit history grant, no unbound machine scope.
+ */
+export function scopedGlobalHistoryReadIds(request: FastifyRequest): readonly string[] | null {
+  if (!centralAccessEnabled()) throw new AccessError("global_history_disabled");
+  const principal = scopedPrincipals.get(request);
+  if (!principal) throw new AccessError("central_read_context_required");
+  assertPermission(principal, "history.read");
   return principal.machineScope === "all" ? null : principal.machineIds;
 }
 
