@@ -3,7 +3,11 @@ import test from "node:test";
 
 import {
   DEFAULT_CALL_HISTORY_FILTERS,
+  DEFAULT_GLOBAL_CALL_HISTORY_FILTERS,
   filterCallHistory,
+  filterGlobalCallHistory,
+  hasActiveGlobalCallHistoryFilters,
+  compareCallHistoryChronology,
   listCallHistoryTechnicians,
   type CallHistoryFilters,
 } from "../src/utils/callHistoryFilters";
@@ -197,4 +201,68 @@ test("resultado permanece ordenado do mais recente para o mais antigo", () => {
     filterCallHistory(calls, DEFAULT_CALL_HISTORY_FILTERS).map((call) => call.id),
     ["new", "old"],
   );
+});
+
+
+test("HIST-01: opening chronology is stable even if an old call completes later", () => {
+  const historical = createCall({
+    id: "historical-old", machineId: "11",
+    openedAt: "2026-10-01T10:00:00Z", finishedAt: "2026-11-12T23:55:00Z",
+  });
+  const recent = createCall({
+    id: "recent-open", machineId: "15",
+    openedAt: "2026-11-12T21:00:00Z", finishedAt: null, status: "open",
+  });
+  const calls = [historical, recent];
+  assert.deepEqual(
+    filterCallHistory(calls, DEFAULT_CALL_HISTORY_FILTERS).map(c => c.id),
+    ["historical-old", "recent-open"], "legacy machine ordering is preserved",
+  );
+  assert.deepEqual(
+    filterGlobalCallHistory(calls, DEFAULT_GLOBAL_CALL_HISTORY_FILTERS).map(c => c.id),
+    ["recent-open", "historical-old"], "new global list uses opening, not finish",
+  );
+  assert.deepEqual(calls.map(c => c.id), ["historical-old", "recent-open"],
+    "filtering never mutates source arrays");
+});
+
+test("HIST-01: global machine selection composes with all existing history filters", () => {
+  const items = [
+    createCall({ id: "15_electric", machineId: "15", subtype: "electrical",
+      workOrderNumber: "OS-223", status: "finished", technicianName: "Carlos",
+      technicianNames: ["Carlos"] }),
+    createCall({ id: "11_electric", machineId: "11", subtype: "electrical",
+      workOrderNumber: "OS-223", status: "finished", technicianName: "Carlos",
+      technicianNames: ["Carlos"] }),
+    createCall({ id: "15_mechanic", machineId: "15", subtype: "mechanical",
+      workOrderNumber: "OS-223", status: "finished", technicianName: "Carlos",
+      technicianNames: ["Carlos"] }),
+    createCall({ id: "15_system", machineId: "15", subtype: "electrical",
+      workOrderNumber: "OS-223", status: "finished", isSystemTest: true,
+      technicianName: "Carlos", technicianNames: ["Carlos"] }),
+  ];
+  const filters = { ...DEFAULT_GLOBAL_CALL_HISTORY_FILTERS,
+    machineId: "15", query: "os-223", subtype: "electrical",
+    status: "finished" as const, technician: "Carlos",
+    origin: "real" as const,
+  };
+  assert.deepEqual(
+    filterGlobalCallHistory(items, filters).map(c => c.id),
+    ["15_electric"],
+  );
+  assert.equal(hasActiveGlobalCallHistoryFilters(filters), true);
+  assert.equal(hasActiveGlobalCallHistoryFilters(DEFAULT_GLOBAL_CALL_HISTORY_FILTERS), false);
+});
+
+test("HIST-01: duplicate opening time has stable ID tiebreak, invalid times sort last", () => {
+  const calls = [
+    createCall({id: "b", openedAt: "2026-11-12T21:00:00Z"}),
+    createCall({id: "invalid", openedAt: "bad legacy date"}),
+    createCall({id: "a", openedAt: "2026-11-12T18:00:00-03:00"}),
+  ];
+  assert.deepEqual(
+    filterGlobalCallHistory(calls, DEFAULT_GLOBAL_CALL_HISTORY_FILTERS).map(c => c.id),
+    ["a","b","invalid"],
+  );
+  assert.equal(compareCallHistoryChronology(calls[0], calls[2], "openedAt") > 0, true);
 });
