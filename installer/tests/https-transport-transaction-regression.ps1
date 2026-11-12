@@ -105,8 +105,22 @@ Assert-TransportTest -Condition (
 ) -Message "Fluxos HTTP e HTTPS devem ser identificaveis no menu"
 
 $initialPreparation = $configurator.Substring(0, $menuChoice)
+$prematureShutdown = @($initialPreparation -split "\r?\n" | Where-Object { $_.Trim() -eq "Assert-AndonStoppedForTransportChange" })
+Assert-TransportTest -Condition ($prematureShutdown.Count -eq 0) -Message "Menu14 nao deve exigir parada antes da escolha/cancelamento"
+
+$httpPreflight = $configurator.Substring($httpStart, $httpTransaction - $httpStart)
 Assert-TransportTest -Condition (
-    $initialPreparation -notmatch '^\s+Assert-AndonStoppedForTransportChange\s*
+    $httpPreflight.IndexOf("Assert-AndonTransportSecurityCompatibility") -ge 0 -and
+    $httpPreflight.IndexOf("Assert-AndonStoppedForTransportChange") -gt
+        $httpPreflight.IndexOf("Assert-AndonTransportSecurityCompatibility")
+) -Message "Transacao HTTP exige seguranca e parada antes do commit"
+
+$httpsPreflight = $configurator.Substring($httpsTlsValidation, $httpsTransaction - $httpsTlsValidation)
+Assert-TransportTest -Condition (
+    $httpsPreflight.IndexOf("Assert-AndonStoppedForTransportChange") -gt
+        $httpsPreflight.IndexOf("Assert-AndonTlsPair")
+) -Message "Validar certificado HTTPS antes de exigir parada para aplicacao"
+
 $testRoot = Join-Path $env:TEMP ("andon-https-transaction-" + [guid]::NewGuid().ToString("N"))
 $tlsPath = Join-Path $testRoot "tls"
 $sourcePath = Join-Path $testRoot "source"
