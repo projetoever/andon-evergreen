@@ -29,6 +29,49 @@ export interface GlobalHistoryCallSummary {
   } | null;
 }
 
+export interface GlobalHistoryTechnicianSession {
+  id: string;
+  technicianName: string;
+  phase: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  notes: string | null;
+  endReason: string | null;
+}
+export interface GlobalHistoryImpactInterval {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  source: string;
+}
+export interface GlobalHistoryFailureEvent {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  classification: string | null;
+  notes: string | null;
+  source: string;
+  durationSeconds: number | null;
+}
+export interface GlobalHistoryCallDetail extends GlobalHistoryCallSummary {
+  attendedAt: string | null;
+  maintenanceCompletedAt: string | null;
+  currentAttendanceStartedAt: string | null;
+  callWaitingMinutes: number | null;
+  attendanceMinutes: number | null;
+  postMaintenanceMinutes: number | null;
+  totalCallMinutes: number | null;
+  machineStoppedMinutes: number | null;
+  operatorNote: string | null;
+  failureDescription: string | null;
+  cancelReason: string | null;
+  notes: string | null;
+  technicianSessions: GlobalHistoryTechnicianSession[];
+  impactIntervals: GlobalHistoryImpactInterval[];
+  failureEvents: GlobalHistoryFailureEvent[];
+}
+
 export interface GlobalHistorySearchResult {
   items: GlobalHistoryCallSummary[];
   total: number;
@@ -97,4 +140,13 @@ export function listGlobalHistoryCategoryOptions() {
 }
 export function listGlobalHistoryClassificationOptions() {
   return api.get<GlobalHistoryClassificationOption[]>("/api/failure-classifications");
+}
+
+/** Individual detail performs another SQL-scoped and history.read check even
+ * when the ID came from an already authorized list.
+ */
+export function getGlobalHistoryCallDetail(callId: string) {
+  return api.get<{ call: GlobalHistoryCallDetail }>(
+    "/api/andon-calls/history/detail/" + encodeURIComponent(callId),
+  );
 }
