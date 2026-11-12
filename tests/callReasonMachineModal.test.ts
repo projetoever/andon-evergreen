@@ -20,9 +20,9 @@ test("S3-B3B: machine screen shows parent reasons, then option modal and scoped 
   assert.match(panel, /hierarchicalReasons !== null/);
   assert.match(panel, /hierarchicalReasons\.map/);
   assert.match(panel, /activeCalls\.some/);
-  assert.match(quick, /if \(hierarchicalChoice\)/);
+  assert.match(quick, /\.\.\.\(hierarchicalChoice/);
   assert.match(quick, /await openCall\(/);
-  assert.match(quick, /await openCalls\(\[params\]\)/);
+  assert.doesNotMatch(quick, /await openCalls\(\[params\]\)/);
 });
 
 test("S3-B3B: frontend preserves backend expected revisions and legacy fields", async () => {
