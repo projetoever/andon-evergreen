@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  PILOT_OPERATIONAL_ACTIONS,
   SCREEN_UNLOCK_PERMISSION,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
@@ -128,4 +129,25 @@ test("REFINE 11: individual machine-screen unpin requires ANDON read and is not 
   assert.deepEqual(
     toggleAndonModulePermission(granted, "andon.read", false),
     [], "removing ANDON access also revokes screen release");
+});
+
+
+test("REFINE 16 P0: opening a call is explicitly granted, never inferred from ANDON read", () => {
+  const actions = PILOT_OPERATIONAL_ACTIONS.map((entry) => entry.key);
+  assert(actions.includes("calls.open"));
+  assert(actions.includes("calls.attend"));
+  assert(actions.includes("calls.finish"));
+  assert(!actions.includes("users.create"));
+  assert(!actions.includes("workstations.manage"));
+  assert(!actions.includes("calls.cancel.any"));
+  const existingCustom = ["andon.read", "bi.read", "andon.settings.open"];
+  const afterOpeningGrant = toggleAndonModulePermission(existingCustom, "calls.open", true);
+  assert.deepEqual(afterOpeningGrant, [...existingCustom, "calls.open"]);
+  assert.equal(existingCustom.includes("calls.open"), false,
+    "a user viewing ANDON must not gain an open-call permission implicitly");
+  assert.deepEqual(
+    toggleAndonModulePermission(afterOpeningGrant, "calls.open", false),
+    existingCustom, "revoking call opening leaves custom grants untouched",
+  );
+  assert.equal(suggestedPermissions("Gestor/Gerente", catalog).includes("calls.open"), true);
 });
