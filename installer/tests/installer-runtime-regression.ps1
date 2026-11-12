@@ -70,6 +70,31 @@ foreach ($powerShellFile in $powerShellFiles) {
 
 Write-Host "Parser PowerShell aprovado em $($powerShellFiles.Count) arquivo(s)."
 
+. (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkDiagnostics.ps1")
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @() -LanIpv4 "192.168.68.100") -eq "NO_LISTENER"
+) -Message "Porta ausente deve ser diagnosticada"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("127.0.0.1","::1") -LanIpv4 "192.168.68.100") -eq "LOOPBACK_ONLY"
+) -Message "Loopback isolado nao pode ser reportado como acesso Wi-Fi"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("0.0.0.0") -LanIpv4 "192.168.68.100") -eq "ALL_INTERFACES"
+) -Message "0.0.0.0 contempla Wi-Fi, ainda sujeito ao firewall"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("192.168.68.100") -LanIpv4 "192.168.68.100") -eq "LAN_INTERFACE"
+) -Message "Bind do IPv4 Wi-Fi deve ser reconhecido"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("192.168.132.1") -LanIpv4 "192.168.68.100") -eq "OTHER_INTERFACE"
+) -Message "Interface virtual diferente nao permite inferir acesso Wi-Fi"
+$networkDiagnosticsSource = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkDiagnostics.ps1") -Raw
+Assert-AndonTest -Condition (
+    $networkDiagnosticsSource -notmatch '(?im)^\s*(New-NetFirewallRule|Set-NetFirewallRule|Set-NetConnectionProfile|Remove-NetFirewallRule|Install-Module|Set-Content|Export-PfxCertificate)\b'
+) -Message "Diagnostico de rede deve ser somente leitura"
+$healthRunner = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\health-check-andon.ps1") -Raw
+Assert-AndonTest -Condition ($healthRunner -match 'Show-AndonHttpsNetworkDiagnostics') -Message "Menu 6 deve explicar conectividade do smartphone"
+Write-Host "Diagnostico HTTPS: cinco modos bind e nenhuma alteracao de rede aprovados."
+
+
 . (Join-Path $repositoryRoot "installer\AndonInstaller.Common.ps1")
 $Global:AndonProjectPath = "C:\web-andon-industrial\andon"
 $Global:AndonNodeExePath = "C:\web-andon-industrial\runtime\node\node.exe"
