@@ -332,7 +332,7 @@ test("runtime Node valida move, usa cópia original e distingue rollback incompl
   assert.doesNotMatch(common, /C:\\Program Files\\nodejs\\npm\.cmd/);
 });
 
-test("health check representa PASS WARN SKIP FAIL e empty sem máquina não é crítico", async () => {
+test("health usa PASS WARN SKIP FAIL e preserva acesso protegido com modo somente leitura", async () => {
   const [common, runtime] = await Promise.all([
     readInstaller("AndonInstaller.Common.ps1"),
     readInstaller("AndonInstaller.Runtime.ps1"),
@@ -342,7 +342,10 @@ test("health check representa PASS WARN SKIP FAIL e empty sem máquina não é c
     assert.match(common, new RegExp(`"${status}"`));
   }
   assert.match(common, /-Status "SKIP"[\s\S]*nenhuma maquina livre/);
-  assert.match(runtime, /if \(\$writeResult\.Status -eq "FAIL"\)/);
+  assert.match(runtime, /if \(\$accessResult\.Status -eq "FAIL"\)/);
+  assert.match(runtime, /\[switch\]\$ReadOnly/);
+  assert.match(runtime, /Test-AndonApiReadOnly/);
+  assert.match(runtime, /if \(!\$frontendReady -and !\$ReadOnly\)/);
   assert.doesNotMatch(runtime, /if \(!\(Test-AndonApiWrite\)\)/);
 });
 

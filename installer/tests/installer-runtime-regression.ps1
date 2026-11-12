@@ -189,8 +189,9 @@ $script:AndonRuntimeContext = $null
 # Central security must not be mistaken for a dead database.
 # A protected 401/403 response is healthy and MUST NOT create test calls.
 $originalImportConfig = (Get-Item Function:\Import-AndonConfig).ScriptBlock
+$script:HealthCentralAccessEnabled = $true
 function Import-AndonConfig {
-    return [pscustomobject]@{ centralAccessEnabled = $true }
+    return [pscustomobject]@{ centralAccessEnabled = $script:HealthCentralAccessEnabled }
 }
 $script:TestProtectedStatus = 403
 $script:TestProtectedNetworkError = $false
@@ -232,6 +233,42 @@ Assert-AndonTest -Condition ($centralError.Status -eq "FAIL") -Message "Erro HTT
 $script:TestProtectedNetworkError = $true
 $centralNetworkFailure = Test-AndonApiWrite
 Assert-AndonTest -Condition ($centralNetworkFailure.Status -eq "FAIL") -Message "Falha de rede sem status HTTP nao e 403 esperado"
+
+# Commercial-grade Menu 6: read-only in BOTH central and legacy modes.
+# No synthetic call creation or cancellation is permitted.
+$script:TestProtectedNetworkError = $false
+$script:TestProtectedStatus = 403
+$script:ReadinessRequests = @()
+$script:ProtectedRequests = @()
+$centralReadOnly = Test-AndonApiReadOnly
+Assert-AndonTest -Condition ($centralReadOnly.Status -eq "SKIP") -Message "Modo central retorna protecao esperada no health read-only"
+Assert-AndonTest -Condition ($script:ProtectedRequests.Count -eq 1) -Message "Uma unica leitura central no health"
+
+$script:HealthCentralAccessEnabled = $false
+$script:ReadinessRequests = @()
+$legacyReadOnly = Test-AndonApiReadOnly
+Assert-AndonTest -Condition ($legacyReadOnly.Status -eq "PASS") -Message "Modo legado permite GET sem chamados sinteticos"
+Assert-AndonTest -Condition (
+    @($script:ReadinessRequests | Where-Object { $_ -notlike "*/api/machines?includeInactive=true" }).Count -eq 0
+) -Message "Modo legado health nao realiza POST, PATCH ou rotas extras"
+$script:HealthCentralAccessEnabled = $true
+
+$runtimeHealthSource = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.Runtime.ps1") -Raw
+$healthEntry = $runtimeHealthSource.IndexOf("function Invoke-AndonHealthCheck {")
+Assert-AndonTest -Condition ($healthEntry -ge 0) -Message "Funcao de health ausente"
+$healthOnly = $runtimeHealthSource.Substring($healthEntry)
+Assert-AndonTest -Condition (
+    $healthOnly -match '\[switch\]\$ReadOnly' -and
+    $healthOnly -match 'if \(!\$frontendReady -and !\$ReadOnly\)' -and
+    $healthOnly -match 'Test-AndonApiReadOnly' -and
+    $healthOnly -match '\$frontendTimer\.ElapsedMilliseconds'
+) -Message "Health produto sem autocorrecao silenciosa e com latencia/sondas limitadas"
+$runner = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\health-check-andon.ps1") -Raw
+Assert-AndonTest -Condition (
+    $runner -match 'Invoke-AndonHealthCheck -Full -ReadOnly' -and
+    $runner -match 'Show-AndonHttpsNetworkDiagnostics' -and
+    $runner -match 'RESUMO DO DIAGNOSTICO'
+) -Message "Menu6 deve ser somente leitura e apresentar diagnostico mesmo apos falha operacional"
 
 Remove-Item Function:\Invoke-WebRequest
 Set-Item Function:\Import-AndonConfig -Value $originalImportConfig

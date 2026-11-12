@@ -1557,13 +1557,16 @@ function Invoke-AndonNodePipeline {
 }
 
 function Test-AndonCentralProtectedRead {
-    param([Parameter(Mandatory = $true)][string]$ApiBaseUrl)
+    param(
+        [Parameter(Mandatory = $true)][string]$ApiBaseUrl,
+        [ValidateRange(1, 30)][int]$TimeoutSeconds = 5
+    )
 
     # No cookies or credentials: 401/403 is the expected security boundary.
     # Never create, cancel or mutate calls from the installer in central mode.
     $status = 0
     try {
-        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/machines?includeInactive=true" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/machines?includeInactive=true" -UseBasicParsing -TimeoutSec $TimeoutSeconds -ErrorAction Stop
         $status = [int]$response.StatusCode
     } catch {
         $webResponse = $_.Exception.Response
@@ -1581,6 +1584,32 @@ function Test-AndonCentralProtectedRead {
         $result = New-AndonHealthResult -Status "FAIL" -Message "FALHA DE SEGURANCA: leitura de maquinas sem autenticacao no modo central (HTTP $status)."
     } else {
         $result = New-AndonHealthResult -Status "FAIL" -Message "Leitura protegida retornou HTTP $status inesperado; verificar API, nao ampliar permissoes."
+    }
+    Write-AndonHealthResult $result
+    return $result
+}
+
+# Product health checks must never mutate production state. This read-only
+# probe validates the operational API permission boundary without creating
+# calls, cancelling them, or pretending an unauthenticated client is an admin.
+function Test-AndonApiReadOnly {
+    $api = Get-AndonApiBaseUrl
+    $config = Import-AndonConfig
+    if ("$($config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true") {
+        return (Test-AndonCentralProtectedRead -ApiBaseUrl $api)
+    }
+
+    try {
+        $machines = @(Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 5)
+        $result = New-AndonHealthResult -Status "PASS" -Message (
+            "API operacional legada respondeu a leitura de maquinas. " +
+            "Nenhum chamado de teste foi criado ou cancelado."
+        )
+    } catch {
+        $result = New-AndonHealthResult -Status "FAIL" -Message (
+            "Leitura operacional legada indisponivel; confira autenticacao/HTTPS/API. " +
+            "Nenhuma escrita foi realizada."
+        )
     }
     Write-AndonHealthResult $result
     return $result
