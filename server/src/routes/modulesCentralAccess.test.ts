@@ -9,6 +9,8 @@ const stationId = "ws_00000000-0000-4000-8000-000000000037";
 test("Hub module access reflects the verified central login, not legacy module passwords", async (t) => {
   const prevFlag = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   const prevOrigin = process.env.ANDON_ACCESS_ORIGIN;
+  const prevGlobalHistory = process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED;
+  process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED = "0";
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   process.env.ANDON_ACCESS_ORIGIN = "https://andon.test";
   const originals = {
@@ -19,6 +21,7 @@ test("Hub module access reflects the verified central login, not legacy module p
     session: prisma.accessSession.findUnique,
   };
   let purpose = "normal";
+  let grantHistory = false;
   prisma.workstation.findUnique = (async () => ({
     id: stationId, name: "Notebook", active: true, pendingApproval: false,
     allowOperational: true, allowBi: true, allowPriorities: true,
@@ -45,7 +48,7 @@ test("Hub module access reflects the verified central login, not legacy module p
       mustChangePassword: purpose !== "normal", authorizationVersion: 1,
       machineScope: "all", machines: [],
       permissions: [{ key: "andon.read" }, { key: "bi.read" },
-        { key: "priorities.read" }],
+        { key: "priorities.read" }, ...(grantHistory ? [{ key: "history.read" }] : [])],
     },
   })) as unknown as typeof originals.session;
   t.after(() => {
@@ -56,6 +59,8 @@ test("Hub module access reflects the verified central login, not legacy module p
     prisma.accessSession.findUnique = originals.session;
     if (prevFlag === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = prevFlag;
+    if (prevGlobalHistory === undefined) delete process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED = prevGlobalHistory;
     if (prevOrigin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
     else process.env.ANDON_ACCESS_ORIGIN = prevOrigin;
   });
@@ -84,13 +89,24 @@ test("Hub module access reflects the verified central login, not legacy module p
     "central read-only priority access must not require a second login");
   assert.equal(priorities.authenticated, true);
 
+  // Fourth Hub card is server-authorized, but NOT a new coarse permission.
+  assert.deepEqual(response.json().globalHistory, { available: false, allowed: false });
+  process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED = "1";
+  const missing = (await app.inject({ url: "/api/modules/access", headers })).json();
+  assert.deepEqual(missing.globalHistory, { available: true, allowed: false });
+  grantHistory = true;
+  const permittedHistory = (await app.inject({ url: "/api/modules/access", headers })).json();
+  assert.deepEqual(permittedHistory.globalHistory, { available: true, allowed: true });
+
   purpose = "password_change";
   const provisional = (await app.inject({ url: "/api/modules/access", headers })).json();
+  assert.deepEqual(provisional.globalHistory, { available: true, allowed: false });
   assert.equal(provisional.modules.find((m: {id: string}) => m.id === "operational").allowed, false);
   assert.equal(provisional.modules.find((m: {id: string}) => m.id === "bi").authenticated, false);
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
   const legacy = (await app.inject({ url: "/api/modules/access", headers })).json();
+  assert.deepEqual(legacy.globalHistory, { available: false, allowed: false });
   assert.equal(legacy.modules.find((m: {id: string}) => m.id === "operational").passwordRequired, true);
   assert.equal(legacy.modules.find((m: {id: string}) => m.id === "bi").authenticated, false);
   assert.equal(legacy.modules.find((m: {id: string}) => m.id === "priorities").passwordRequired, true);

@@ -27,6 +27,7 @@ export interface ModuleAccess {
   hubEnabled: boolean;
   centralAccessEnabled?: boolean;
   prioritiesWriteEnabled?: boolean;
+  globalHistory?: { available: boolean; allowed: boolean };
   principal?: {
     userId: string;
     login: string;

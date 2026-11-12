@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, BarChart3, Factory, ListOrdered, Lock } from "lucide-react";
+import { ArrowUpRight, BarChart3, Factory, History, ListOrdered, Lock } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { ModuleDefinition } from "@/types/modules";
@@ -34,6 +34,10 @@ export function ModuleCards({
 }) {
   const { access } = useModuleAccess();
   const { t } = useLanguage();
+  const historyAllowed = access?.centralAccessEnabled === true &&
+    access.globalHistory?.available === true &&
+    access.globalHistory.allowed === true;
+  const showHistory = access?.centralAccessEnabled === true;
   const modules = LOCKED_MODULES.map((fallback) =>
     access?.modules.find((module) => module.id === fallback.id) ?? fallback
   );
@@ -92,6 +96,30 @@ export function ModuleCards({
           </div>
         );
       })}
+      {showHistory && (historyAllowed ? (
+        <Link to="/history" className="block min-w-0 rounded-xl border border-border bg-card p-6 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><History className="h-6 w-6" aria-hidden="true" /></span>
+            <ArrowUpRight className="h-5 w-5 text-primary" aria-hidden="true" />
+          </div>
+          <h2 className="mt-6 text-xl font-black tracking-tight">{t("Histórico Global")}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t("Chamados de todas as máquinas autorizadas, com filtros e consulta cronológica.")}</p>
+          <p className="mt-6 text-xs font-bold uppercase tracking-wide text-primary">{t("Abrir módulo")}</p>
+        </Link>
+      ) : (
+        <div aria-disabled="true" title={t(access?.globalHistory?.available
+          ? "Acesso restrito ao perfil do usuário conectado." : "Módulo indisponível nesta instalação.")}
+          className="block min-w-0 cursor-not-allowed rounded-xl border border-border/60 bg-card/60 p-6 text-left opacity-55">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground"><History className="h-6 w-6" aria-hidden="true" /></span>
+            <Lock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          </div>
+          <h2 className="mt-6 text-xl font-black tracking-tight">{t("Histórico Global")}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t("Chamados de todas as máquinas autorizadas, com filtros e consulta cronológica.")}</p>
+          <p className="mt-6 inline-flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground"><Lock className="h-3.5 w-3.5" />{t(access?.globalHistory?.available
+            ? "Acesso restrito ao perfil do usuário conectado." : "Em homologação")}</p>
+        </div>
+      ))}
 
     </div>
   );

@@ -1,4 +1,6 @@
 import { ui } from "@/i18n/translate";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { GlobalCallHistoryPage } from "./GlobalCallHistoryPage";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useMemo } from "react";
 import { useAndon } from "@/context/AndonProvider";
@@ -13,7 +15,18 @@ import { exportHistoryToCsv } from "@/services/exportService";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "@/i18n/toast";
 
+/** Keep the existing legacy history path intact when central mode is OFF.
+ * A central Hub session opens the new scoped global experience only, without
+ * mounting the legacy all-calls AndonProvider in this route.
+ */
 export function HistoryPage() {
+  const { access, checking } = useModuleAccess();
+  if (checking) return <main role="status" className="p-6">{ui("Verificando histórico…")}</main>;
+  if (access?.centralAccessEnabled) return <GlobalCallHistoryPage />;
+  return <LegacyHistoryPage />;
+}
+
+function LegacyHistoryPage() {
   useInterfaceLanguage();
   const { calls, machines } = useAndon();
   const { filter, setFilter } = useHistoryFilterState();

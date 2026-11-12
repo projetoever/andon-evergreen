@@ -161,6 +161,18 @@ function RootContent() {
         <Toaster />
       </>
     );
+  // History is a lightweight independent central module. Never mount the
+  // legacy AndonProvider (which polls live calls) for a scoped global reader.
+  // Legacy central-OFF deployments keep the original full history provider.
+  if (pathname === "/history")
+    return (
+      <WorkstationAccessGate>
+        {access?.centralAccessEnabled
+          ? <Outlet />
+          : <AndonProvider><TechnicianProvider><Outlet /><VirtualKeyboard /></TechnicianProvider></AndonProvider>}
+        <Toaster />
+      </WorkstationAccessGate>
+    );
   if (pathname === "/machine-priorities")
     return (
       <WorkstationAccessGate>
