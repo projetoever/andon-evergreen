@@ -70,6 +70,31 @@ foreach ($powerShellFile in $powerShellFiles) {
 
 Write-Host "Parser PowerShell aprovado em $($powerShellFiles.Count) arquivo(s)."
 
+. (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkDiagnostics.ps1")
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @() -LanIpv4 "192.168.68.100") -eq "NO_LISTENER"
+) -Message "Porta ausente deve ser diagnosticada"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("127.0.0.1","::1") -LanIpv4 "192.168.68.100") -eq "LOOPBACK_ONLY"
+) -Message "Loopback isolado nao pode ser reportado como acesso Wi-Fi"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("0.0.0.0") -LanIpv4 "192.168.68.100") -eq "ALL_INTERFACES"
+) -Message "0.0.0.0 contempla Wi-Fi, ainda sujeito ao firewall"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("192.168.68.100") -LanIpv4 "192.168.68.100") -eq "LAN_INTERFACE"
+) -Message "Bind do IPv4 Wi-Fi deve ser reconhecido"
+Assert-AndonTest -Condition (
+    (Get-AndonLanBindStatus -ListenerAddresses @("192.168.132.1") -LanIpv4 "192.168.68.100") -eq "OTHER_INTERFACE"
+) -Message "Interface virtual diferente nao permite inferir acesso Wi-Fi"
+$networkDiagnosticsSource = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.NetworkDiagnostics.ps1") -Raw
+Assert-AndonTest -Condition (
+    $networkDiagnosticsSource -notmatch '(?im)^\s*(New-NetFirewallRule|Set-NetFirewallRule|Set-NetConnectionProfile|Remove-NetFirewallRule|Install-Module|Set-Content|Export-PfxCertificate)\b'
+) -Message "Diagnostico de rede deve ser somente leitura"
+$healthRunner = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\health-check-andon.ps1") -Raw
+Assert-AndonTest -Condition ($healthRunner -match 'Show-AndonHttpsNetworkDiagnostics') -Message "Menu 6 deve explicar conectividade do smartphone"
+Write-Host "Diagnostico HTTPS: cinco modos bind e nenhuma alteracao de rede aprovados."
+
+
 . (Join-Path $repositoryRoot "installer\AndonInstaller.Common.ps1")
 $Global:AndonProjectPath = "C:\web-andon-industrial\andon"
 $Global:AndonNodeExePath = "C:\web-andon-industrial\runtime\node\node.exe"
@@ -160,6 +185,58 @@ Assert-AndonTest -Condition (!(Test-AndonRuntimeApiBusinessReady)) -Message "Wat
 $script:TestReady = $true
 Assert-AndonTest -Condition (Test-AndonRuntimeApiBusinessReady) -Message "Watchdog aceita API protegida com schema pronto"
 $script:AndonRuntimeContext = $null
+
+# Central security must not be mistaken for a dead database.
+# A protected 401/403 response is healthy and MUST NOT create test calls.
+$originalImportConfig = (Get-Item Function:\Import-AndonConfig).ScriptBlock
+function Import-AndonConfig {
+    return [pscustomobject]@{ centralAccessEnabled = $true }
+}
+$script:TestProtectedStatus = 403
+$script:TestProtectedNetworkError = $false
+$script:ProtectedRequests = @()
+function Invoke-WebRequest {
+    param(
+        [string]$Uri,
+        [switch]$UseBasicParsing,
+        [int]$TimeoutSec,
+        [string]$ErrorAction
+    )
+    $script:ProtectedRequests += $Uri
+    if ($script:TestProtectedNetworkError) { throw "Simulacao de falha de rede" }
+    return [pscustomobject]@{ StatusCode = $script:TestProtectedStatus }
+}
+
+$script:TestReady = $true
+$script:ReadinessRequests = @()
+$centralProtected = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralProtected.Status -eq "SKIP") -Message "403 de leitura protegida nao e falha da API"
+Assert-AndonTest -Condition ($centralProtected.Message -match "403") -Message "Explicar 403 como exigencia de autenticacao"
+Assert-AndonTest -Condition ($script:ProtectedRequests.Count -eq 1) -Message "Central consulta apenas endpoint protegido"
+Assert-AndonTest -Condition (
+    @($script:ReadinessRequests | Where-Object { $_ -like "*/api/*" }).Count -eq 0
+) -Message "Nenhuma requisicao de escrita ou admin-auth legado no modo central"
+
+$script:TestProtectedStatus = 401
+$centralUnauthorized = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralUnauthorized.Status -eq "SKIP") -Message "401 central exige login"
+
+$script:TestProtectedStatus = 200
+$centralLeaked = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralLeaked.Status -eq "FAIL") -Message "Leitura 200 anonima no central deve falhar na seguranca"
+
+$script:TestProtectedStatus = 500
+$centralError = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralError.Status -eq "FAIL") -Message "Erro HTTP 500 central nao pode ser ignorado"
+
+$script:TestProtectedNetworkError = $true
+$centralNetworkFailure = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralNetworkFailure.Status -eq "FAIL") -Message "Falha de rede sem status HTTP nao e 403 esperado"
+
+Remove-Item Function:\Invoke-WebRequest
+Set-Item Function:\Import-AndonConfig -Value $originalImportConfig
+$script:TestProtectedNetworkError = $false
+Write-Host "Health central: 401/403 esperados, vazamento 200 e falhas de rede bloqueados."
 
 Remove-Item Function:\Invoke-RestMethod
 
