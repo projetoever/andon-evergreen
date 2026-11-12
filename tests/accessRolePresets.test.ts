@@ -10,6 +10,7 @@ import {
   simpleModuleGrants,
   simpleModuleState,
   toggleSimpleModule,
+  reconcileSimpleModuleRole,
   hasRoleSuggestion,
   isExactRolePreset,
   suggestedPermissions,
@@ -249,4 +250,36 @@ test("REFINE 16 P0: production ANDON stays production-safe, and BI/Priorities/Co
   const nonOverlapping = toggleSimpleModule(withPriorities, "bi", "Produção", available, false);
   assert(!nonOverlapping.includes("bi.read") && !nonOverlapping.includes("bi.export"));
   assert(nonOverlapping.includes("calls.open") && nonOverlapping.includes("priorities.write"));
+});
+
+test("REFINE 16 P0: profile downgrade revokes Manager ANDON powers without changing independent modules", () => {
+  const available = [...new Set([...catalog,
+    "machines.status.write", "production.schedule.write", "andon.settings.open",
+    "catalog.reasons.manage", "audit.read", "workstations.screen.unlock",
+  ])];
+  const manager = toggleSimpleModule(
+    ["bi.read", "bi.export", "priorities.read", "priorities.write",
+      "andon.settings.open", "catalog.reasons.manage", "audit.read"],
+    "andon", "Gestor/Gerente", available, true,
+  );
+  assert.equal(simpleModuleState(manager, "andon", "Gestor/Gerente", available), "on");
+  const production = reconcileSimpleModuleRole(manager, "Gestor/Gerente", "Produção", available);
+  assert.equal(simpleModuleState(production, "andon", "Produção", available), "on");
+  for (const key of ["calls.open", "calls.cancel.own", "bi.read", "bi.export",
+    "priorities.write", "andon.settings.open", "catalog.reasons.manage", "audit.read"])
+    assert(production.includes(key), "lost required grant: " + key);
+  for (const key of ["calls.cancel.any", "calls.attend", "calls.finishMaintenance",
+    "calls.finish", "calls.returnToMaintenance", "production.schedule.write",
+    "machines.status.write"])
+    assert(!production.includes(key), "role downgrade retained Manager grant: " + key);
+  assert(!production.includes("users.create") && !production.includes("workstations.manage"));
+  const restored = reconcileSimpleModuleRole(production, "Produção", "Gestor/Gerente", available);
+  assert.equal(simpleModuleState(restored, "andon", "Gestor/Gerente", available), "on");
+  assert(restored.includes("calls.finish"), "explicit profile upgrade should rebase enabled group");
+
+  // A partial legacy account must never be auto-promoted by relabeling its role.
+  const partial = ["andon.read", "bi.read", "calls.cancel.any"];
+  const relabeled = reconcileSimpleModuleRole(partial, "Gestor/Gerente", "Produção", available);
+  assert.deepEqual(relabeled, ["andon.read", "bi.read"]);
+  assert.equal(simpleModuleState(relabeled, "andon", "Produção", available), "partial");
 });
