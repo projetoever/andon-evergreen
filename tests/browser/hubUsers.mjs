@@ -247,26 +247,42 @@ try {
     await page.getByLabel("Perfil", { exact: true }).selectOption("Manutenção");
     await page.getByText("Acesso aos módulos e configurações", { exact: true }).waitFor();
     await page.getByLabel("Perfil", { exact: true }).selectOption("Gestor/Gerente");
+    assert.equal(await page.getByLabel("Escopo de máquinas").inputValue(), "selected",
+      "Changing profile must not silently expand machine access to all machines");
+    await page.getByLabel("Escopo de máquinas").selectOption("all");
     assert.equal(await page.getByLabel("Escopo de máquinas").inputValue(), "all",
-      "Manager profile explicitly selects full-machine scope");
+      "Admin can still explicitly grant full-machine scope");
     assert.equal(await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).count(), 0);
-    assert.equal(await page.getByRole("checkbox", { name: "Configurações do ANDON: acessar", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("checkbox", { name: "Config. do ANDON", exact: true }).count(), 1);
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
     await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
     await page.getByLabel("Perfil", { exact: true }).selectOption("Líder");
 
     await page.getByLabel("Escopo de máquinas").selectOption("selected");
     assert.equal(
-      await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(),
-      true,
+      await page.getByRole("checkbox", { name: "Prioridades", exact: true }).isChecked(),
+      false, "no module is granted implicitly from the role label",
     );
+    await page.getByRole("checkbox", { name: "Prioridades", exact: true }).check();
     await page.getByRole("checkbox", { name: "Máquina 37 · 37", exact: true }).check();
-    assert.equal(await page.getByRole("checkbox", { name: "ANDON: visualizar", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("checkbox", { name: "ANDON", exact: true }).isChecked(), false);
+    await page.getByRole("checkbox", { name: "ANDON", exact: true }).check();
+    assert.equal(await page.getByRole("checkbox", { name: "ANDON", exact: true }).isChecked(), true);
     assert.equal(await page.getByRole("checkbox", { name: "Chamados: abrir", exact: true }).count(), 0);
     await page.evaluate(() => scrollTo(0, 0));
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-create.png`, fullPage: true });
+    assert.equal(await page.getByRole("checkbox", { name: "Config. do ANDON", exact: true }).count(), 1);
     await page.getByRole("button", { name: "Salvar usuário", exact: true }).click();
+    assert(users.some(u => u.login === "marina.producao" &&
+      u.permissions.some(p => p.key === "calls.open")),
+      "ANDON module must grant actual calls.open to the stored user");
+    assert(users.some(u => u.login === "marina.producao" &&
+      u.permissions.some(p => p.key === "priorities.write")),
+      "Priorities module must grant write, not only view");
+    assert(users.every(u => u.login !== "marina.producao" ||
+      !u.permissions.some(p => p.key === "users.create" || p.key === "workstations.manage")),
+      "four module selections must never grant Hub identity/workstation administration");
     await page.getByText("Senha provisória — exibição única", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Copiar senha", exact: true }).waitFor();
     await page.getByText("Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.", { exact: true }).waitFor();
@@ -286,8 +302,8 @@ try {
     // The ordinary pilot view keeps only module access; existing role grants
     // are preserved when editing without a profile change.
     assert.equal(await page.getByLabel("Perfil", { exact: true }).inputValue(), "Líder");
-    assert.equal(await page.getByRole("checkbox", { name: "Prioridades: visualizar", exact: true }).isChecked(), true);
-    assert.equal(await page.getByRole("checkbox", { name: "Configurações do ANDON: acessar", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("checkbox", { name: "Prioridades", exact: true }).isChecked(), true);
+    assert.equal(await page.getByRole("checkbox", { name: "Config. do ANDON", exact: true }).count(), 1);
     assert.equal(
       await page.getByRole("button", { name: "Salvar usuário", exact: true }).isDisabled(),
       true,
@@ -417,7 +433,7 @@ try {
         "list",
         "search",
         "create",
-        "explicit scope and permissions",
+        "explicit machine scope and four grouped modules",
         "one-time secret",
         "reload persistence (stateful fixture)",
         "edit/no-change disabled",
