@@ -713,9 +713,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           setDraft({
                             ...draft,
                             roleLabel,
-                            // Role changes rebase only existing ANDON grants, so a
-                            // Production downgrade cannot retain Manager actions.
-                            // Other modules and special exceptions are preserved.
+                            // Role changes safely rebase ANDON and BI actions,
+                            // including KPI reclassification, on downgrades.
+                            // Priorities, config and exceptions are preserved.
                             ...(!advancedPermissions && draft.accountType === "person"
                               ? {
                                   permissions: reconcileSimpleModuleRole(
