@@ -348,6 +348,13 @@ export class ApiAndonRepository implements AndonRepository {
       throw new Error("Os chamados em lote devem pertencer à mesma máquina");
     }
 
+    // A single call is NEVER a batch operation. Keeping the authorization
+    // boundary exact prevents mobile or kiosk openings from depending on
+    // the independent central batch-write feature gate.
+    if (params.length === 1) {
+      return this.openCall(_machines, _calls, first);
+    }
+
     await this.apiClient.post<ApiAndonCall[]>("/api/andon-calls/batch", {
       machineId: first.machineId,
       subtypes: params.map((item) => item.subtype),
