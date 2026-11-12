@@ -445,12 +445,17 @@ function Stop-AndonRuntime {
 }
 
 function Invoke-AndonHealthCheck {
-    param([switch]$Full)
+    param([switch]$Full, [switch]$ReadOnly)
 
     Write-AndonHeader "HEALTH CHECK ANDON $Global:AndonInstallerVersion"
 
     $config = Import-AndonConfig
     $hasCriticalError = $false
+    $healthTimeout = if ($ReadOnly) { 5 } else { 10 }
+    if ($ReadOnly) {
+        Write-AndonOk "Diagnostico SOMENTE LEITURA: nao altera firewall, certificados, configuracoes, tarefas ou chamados."
+        Write-Host "Iniciar e recuperar servicos somente pela opcao 4; configuracao HTTPS somente pela opcao 14."
+    }
 
     Write-Host "databaseMode: $($config.databaseMode)"
     Write-Host "PostgreSQL:    $($config.postgresHost):$($config.postgresPort)"
@@ -510,30 +515,46 @@ function Invoke-AndonHealthCheck {
 
     $api = Get-AndonApiBaseUrl
     foreach ($url in @("$api/health", "$api/health/db", "$api/health/ready")) {
+        $probeTimer = [System.Diagnostics.Stopwatch]::StartNew()
         try {
-            $health = Invoke-RestMethod $url -TimeoutSec 10
+            $health = Invoke-RestMethod $url -TimeoutSec $healthTimeout
             if ($url -like "*/health/db" -and $health.connected -ne $true) { throw "Banco desconectado." }
             if ($url -like "*/health/ready" -and ($health.status -ne "ok" -or $health.ready -ne $true)) { throw "Schema indisponivel." }
-            Write-AndonOk $url
+            $probeTimer.Stop()
+            Write-AndonOk "$url | $($probeTimer.ElapsedMilliseconds) ms"
+            if ($probeTimer.ElapsedMilliseconds -gt 1500) {
+                Write-AndonWarn "Resposta lenta (acima de 1,5 s): avaliar carga e conectividade local."
+            }
         } catch {
-            Write-AndonFail $url
+            $probeTimer.Stop()
+            Write-AndonFail "$url | $($probeTimer.ElapsedMilliseconds) ms | falha na prontidao"
             $hasCriticalError = $true
         }
     }
 
-    if (!(Test-AndonFrontendReady)) {
+    $frontendTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    $frontendReady = Test-AndonFrontendReady
+    $frontendTimer.Stop()
+    if (!$frontendReady -and !$ReadOnly) {
         Write-AndonWarn "Frontend nao respondeu. Tentando autoheal do frontend uma vez..."
         $frontendScript = "$Global:AndonProjectPath\scripts\start-frontend.ps1"
         if (Test-Path $frontendScript) {
             Start-Process powershell.exe -WindowStyle Minimized -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$frontendScript`""
             Start-Sleep -Seconds 15
+            $frontendReady = Test-AndonFrontendReady
         }
     }
 
-    if (Test-AndonFrontendReady) {
-        Write-AndonOk "Frontend $(Get-AndonFrontendUrl)"
+    if ($frontendReady) {
+        Write-AndonOk "Frontend $(Get-AndonFrontendUrl) | $($frontendTimer.ElapsedMilliseconds) ms (primeira resposta)"
+        if ($frontendTimer.ElapsedMilliseconds -gt 1500) {
+            Write-AndonWarn "Frontend respondeu lentamente. Avalie CPU, rede e renderizacao se for recorrente."
+        }
     } else {
-        Write-AndonFail "Frontend $(Get-AndonFrontendUrl)"
+        Write-AndonFail "Frontend $(Get-AndonFrontendUrl) nao respondeu."
+        if ($ReadOnly) {
+            Write-AndonWarn "Nenhuma tentativa de reinicio foi feita. Use opcao 4 para iniciar/recuperar."
+        }
         $hasCriticalError = $true
     }
 
@@ -551,13 +572,20 @@ function Invoke-AndonHealthCheck {
     }
 
     if ($Full) {
-        $writeResult = Test-AndonApiWrite
-        if ($writeResult.Status -eq "FAIL") {
+        $accessResult = if ($ReadOnly) {
+            Test-AndonApiReadOnly
+        } else {
+            Test-AndonApiWrite
+        }
+        if ($accessResult.Status -eq "FAIL") {
             $hasCriticalError = $true
         }
     }
 
     if ($hasCriticalError) {
-        throw "Health check encontrou falha critica. Execute Iniciar ANDON ou Reparar instalacao."
+        if ($ReadOnly) {
+            throw "Diagnostico identificou falha real de servico ou controle de acesso. Consulte os itens [FAIL] e o diagnostico HTTPS; nao execute reparo sem identificar a causa."
+        }
+        throw "Health check encontrou falha critica. Consulte o log e diagnostique antes de reparar."
     }
 }
