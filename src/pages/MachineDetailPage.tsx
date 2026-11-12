@@ -592,15 +592,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
 
     try {
-      await openCalls([
-        {
-          machineId: machine.id,
-          category: category.categoryGroup,
-          subtype,
-          criticality: "medium",
-          machineCondition: "stopped",
-        },
-      ]);
+      await openCall({
+        machineId: machine.id,
+        category: category.categoryGroup,
+        subtype,
+        criticality: "medium",
+        machineCondition: "stopped",
+      });
       toast.success(`Chamado de ${category.displayName} aberto com a máquina parada.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
