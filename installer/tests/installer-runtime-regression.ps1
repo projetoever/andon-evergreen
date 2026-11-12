@@ -118,6 +118,9 @@ Assert-AndonTest -Condition (
 Assert-AndonTest -Condition (
     $networkDiagnosticsSource -match 'Get-NetFirewallAddressFilter' -and
     $networkDiagnosticsSource -match 'Get-NetFirewallPortFilter' -and
+    $networkDiagnosticsSource -match 'Get-NetFirewallProfile -PolicyStore ActiveStore' -and
+    $networkDiagnosticsSource -match 'Get-NetFirewallRule -PolicyStore ActiveStore' -and
+    $networkDiagnosticsSource -match 'AllowLocalFirewallRules' -and
     $networkDiagnosticsSource -match 'Tempo total do inventario HTTPS/rede'
 ) -Message "Menu 6 deve mostrar escopo real de firewall e diferenciar tempo de inventario do tempo da API"
 Write-Host "Firewall read-only: perfis/escopos Any ou restritos e diagnostico de latencia aprovados."
