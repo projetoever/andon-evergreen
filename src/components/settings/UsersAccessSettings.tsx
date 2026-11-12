@@ -19,11 +19,11 @@ import {
 import { permissionLabels } from "@/services/accessLabels";
 import {
   MODULE_ENTRY_PERMISSIONS,
-  PILOT_OPERATIONAL_ACTIONS,
-  SCREEN_UNLOCK_PERMISSION,
+  SIMPLE_MODULE_GROUPS,
+  simpleModuleState,
+  toggleSimpleModule,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
-  isExactRolePreset,
   suggestedPermissions,
   toggleAndonModulePermission,
 } from "@/services/accessRolePresets";
@@ -190,7 +190,8 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
         }
       : {
           ...emptyDraft(),
-          permissions: suggestedPermissions("Produção", catalog?.permissions ?? []),
+          // A new account starts without grants. Four module choices require
+          // an explicit decision by the primary Admin before creating it.
         };
     // Existing custom grants remain intact. A historical user must never open
     // directly into the exhaustive ACL grid (pilot UX) or lose permissions.
@@ -710,15 +711,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           const roleLabel = e.target.value;
                           setDraft({
                             ...draft,
+                            // Role classification never overwrites an existing ACL.
+                            // The Admin must explicitly choose module bundles.
                             roleLabel,
-                            ...(!advancedPermissions && draft.accountType === "person"
-                              ? {
-                                  permissions: suggestedPermissions(roleLabel, catalog.permissions),
-                                  ...(roleLabel === "Gestor/Gerente"
-                                    ? { machineScope: "all" as const, machineIds: [] }
-                                    : {}),
-                                }
-                              : {}),
                           });
                         }}
                       >
@@ -824,14 +819,6 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       )}
                     </p>
                   </fieldset>
-                  {!advancedPermissions && editing && (
-                    !PILOT_SIMPLE_ROLES.some((role) => role === draft.roleLabel) ||
-                    !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions)
-                  ) && (
-                    <p role="status" className="rounded-lg border border-warning/40 p-3 text-sm text-muted-foreground">
-                      {ui("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.")}
-                    </p>
-                  )}
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                     <p className="text-sm text-muted-foreground">
                       {ui("O perfil não concede ações automaticamente. Revise as permissões gravadas antes de salvar.")}
@@ -848,70 +835,46 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
                       <legend className="px-1 font-bold">{ui("Acesso aos módulos e configurações")}</legend>
                       <p className="text-sm text-muted-foreground">
-                        {ui("O usuário determina os módulos. A workstation precisa apenas estar aprovada. O Admin principal tem acesso automático a todos.")}
+                        {ui("Cada módulo habilitado concede as funções correspondentes ao perfil. A workstation e o escopo de máquinas continuam protegidos.")}
                       </p>
                       <div className="grid gap-2 sm:grid-cols-2">
-                        {MODULE_ENTRY_PERMISSIONS.filter(entry =>
-                          catalog.permissions.includes(entry.key),
-                        ).map(entry => (
-                          <Label key={entry.key} className="flex min-h-11 items-center gap-3 rounded-md border border-border bg-background p-3">
-                            <input type="checkbox"
-                              checked={draft.permissions.includes(entry.key)}
-                              onChange={(e) => togglePermission(entry.key, e.target.checked)} />
-                            {ui(entry.label)}
-                          </Label>
-                        ))}
+                        {SIMPLE_MODULE_GROUPS.map((entry) => {
+                          const state = simpleModuleState(
+                            draft.permissions, entry.id, draft.roleLabel, catalog.permissions,
+                          );
+                          return (
+                            <Label key={entry.id} className="flex min-h-12 items-center gap-3 rounded-md border border-border bg-background p-3">
+                              <input
+                                type="checkbox"
+                                disabled={draft.accountType !== "person"}
+                                checked={state === "on"}
+                                onChange={(e) => setDraft({
+                                  ...draft,
+                                  permissions: toggleSimpleModule(
+                                    draft.permissions, entry.id, draft.roleLabel,
+                                    catalog.permissions, e.target.checked,
+                                  ),
+                                })}
+                              />
+                              <span className="min-w-0 flex-1 font-semibold">{ui(entry.label)}</span>
+                              {state === "partial" && (
+                                <span className="text-xs text-warning">{ui("Parcial")}</span>
+                              )}
+                            </Label>
+                          );
+                        })}
                       </div>
-                      {draft.accountType === "person" && (
-                        <div className="space-y-3 border-t border-border pt-3">
-                          <p className="text-sm font-semibold">{ui("Operações de chamados")}</p>
-                          <p className="text-xs leading-5 text-muted-foreground">
-                            {ui("ANDON: visualizar permite somente acessar o painel. Abrir, atender e concluir chamados exigem permissões próprias. Nenhuma ação é concedida somente pelo nome do perfil.")}
-                          </p>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {PILOT_OPERATIONAL_ACTIONS.filter((entry) =>
-                              catalog.permissions.includes(entry.key),
-                            ).map((entry) => (
-                              <Label key={entry.key} className="flex min-h-11 items-center gap-3 rounded-md border border-border bg-background p-3">
-                                <input
-                                  type="checkbox"
-                                  checked={draft.permissions.includes(entry.key)}
-                                  onChange={(e) => togglePermission(entry.key, e.target.checked)}
-                                />
-                                {ui(entry.label)}
-                              </Label>
-                            ))}
-                          </div>
-                          {draft.permissions.includes("andon.read") &&
-                            !draft.permissions.includes("calls.open") && (
-                            <p role="status" className="rounded-md border border-warning/40 p-3 text-sm text-muted-foreground">
-                              {ui("Atenção: este usuário pode visualizar o ANDON, mas não pode abrir chamados. Para autorizar a operação, marque Abrir chamados e salve.")}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {draft.accountType === "person" && catalog.permissions.includes(SCREEN_UNLOCK_PERMISSION) && (
-                        <div className="space-y-2 border-t border-border pt-3">
-                          <p className="text-sm font-semibold">{ui("Permissão de tela fixa")}</p>
-                          <Label className="flex min-h-11 items-start gap-3 rounded-md border border-border bg-background p-3">
-                            <input
-                              type="checkbox"
-                              className="mt-1 shrink-0"
-                              checked={draft.permissions.includes(SCREEN_UNLOCK_PERMISSION)}
-                              onChange={(e) => togglePermission(SCREEN_UNLOCK_PERMISSION, e.target.checked)}
-                            />
-                            <span className="space-y-1">
-                              <span className="block font-semibold">{ui("Permitir desfixar tela de máquina")}</span>
-                              <span className="block text-xs text-muted-foreground">{ui("Exige usuário e senha próprios, máquina autorizada e auditoria. Não libera acesso ao Hub nem administração de workstations.")}</span>
-                            </span>
-                          </Label>
-                        </div>
-                      )}
-                      {editing && !isExactRolePreset(draft.roleLabel, draft.permissions, catalog.permissions) && (
-                        <p className="text-xs text-muted-foreground">
-                          {ui("Outras permissões históricas são preservadas. Trocar o perfil aplica o preset de ações correspondente.")}
+                      {SIMPLE_MODULE_GROUPS.some((entry) =>
+                        simpleModuleState(draft.permissions, entry.id, draft.roleLabel,
+                          catalog.permissions) === "partial",
+                      ) && (
+                        <p role="status" className="text-xs text-muted-foreground">
+                          {ui("Acesso parcial: marque o módulo para conceder suas funções. Nenhuma permissão será ampliada apenas pelo perfil.")}
                         </p>
                       )}
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Permissões especiais de segurança e administração permanecem separadas. Nenhum módulo libera o gerenciamento de usuários ou workstations.")}
+                      </p>
                     </fieldset>
                   )}
                   {advancedPermissions && <fieldset className="space-y-3">
