@@ -161,6 +161,58 @@ $script:TestReady = $true
 Assert-AndonTest -Condition (Test-AndonRuntimeApiBusinessReady) -Message "Watchdog aceita API protegida com schema pronto"
 $script:AndonRuntimeContext = $null
 
+# Central security must not be mistaken for a dead database.
+# A protected 401/403 response is healthy and MUST NOT create test calls.
+$originalImportConfig = (Get-Item Function:\Import-AndonConfig).ScriptBlock
+function Import-AndonConfig {
+    return [pscustomobject]@{ centralAccessEnabled = $true }
+}
+$script:TestProtectedStatus = 403
+$script:TestProtectedNetworkError = $false
+$script:ProtectedRequests = @()
+function Invoke-WebRequest {
+    param(
+        [string]$Uri,
+        [switch]$UseBasicParsing,
+        [int]$TimeoutSec,
+        [string]$ErrorAction
+    )
+    $script:ProtectedRequests += $Uri
+    if ($script:TestProtectedNetworkError) { throw "Simulacao de falha de rede" }
+    return [pscustomobject]@{ StatusCode = $script:TestProtectedStatus }
+}
+
+$script:TestReady = $true
+$script:ReadinessRequests = @()
+$centralProtected = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralProtected.Status -eq "SKIP") -Message "403 de leitura protegida nao e falha da API"
+Assert-AndonTest -Condition ($centralProtected.Message -match "403") -Message "Explicar 403 como exigencia de autenticacao"
+Assert-AndonTest -Condition ($script:ProtectedRequests.Count -eq 1) -Message "Central consulta apenas endpoint protegido"
+Assert-AndonTest -Condition (
+    @($script:ReadinessRequests | Where-Object { $_ -like "*/api/*" }).Count -eq 0
+) -Message "Nenhuma requisicao de escrita ou admin-auth legado no modo central"
+
+$script:TestProtectedStatus = 401
+$centralUnauthorized = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralUnauthorized.Status -eq "SKIP") -Message "401 central exige login"
+
+$script:TestProtectedStatus = 200
+$centralLeaked = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralLeaked.Status -eq "FAIL") -Message "Leitura 200 anonima no central deve falhar na seguranca"
+
+$script:TestProtectedStatus = 500
+$centralError = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralError.Status -eq "FAIL") -Message "Erro HTTP 500 central nao pode ser ignorado"
+
+$script:TestProtectedNetworkError = $true
+$centralNetworkFailure = Test-AndonApiWrite
+Assert-AndonTest -Condition ($centralNetworkFailure.Status -eq "FAIL") -Message "Falha de rede sem status HTTP nao e 403 esperado"
+
+Remove-Item Function:\Invoke-WebRequest
+Set-Item Function:\Import-AndonConfig -Value $originalImportConfig
+$script:TestProtectedNetworkError = $false
+Write-Host "Health central: 401/403 esperados, vazamento 200 e falhas de rede bloqueados."
+
 Remove-Item Function:\Invoke-RestMethod
 
 Write-Host "installationProfile, sanitizacao e health empty aprovados."
