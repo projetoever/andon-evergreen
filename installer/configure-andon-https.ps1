@@ -131,7 +131,9 @@ function Ensure-AndonMkcert {
 $script:AndonLocalTlsTemp = ""
 try {
     Assert-AndonAdmin
-    Assert-AndonStoppedForTransportChange
+    # Operators may inspect/cancel transport choices and prepare a CSR or
+    # certificate while the ANDON is running. Only the final activation
+    # requires explicit shutdown through menu 5; never stop services here.
     $config = Import-AndonConfig
     $serverIp = Get-AndonTransportServerIp
     $tlsPath = Join-Path $Global:AndonBasePath "tls"
@@ -159,6 +161,7 @@ try {
 
     Write-AndonHeader "CONFIGURAR TRANSPORTE HTTP/HTTPS"
     Write-Host "Modo atual: $($config.transportMode.ToUpperInvariant())"
+    Write-AndonWarn "Consultar opcoes, gerar CSR ou preparar certificado nao requer parar o ANDON. Para APLICAR alteracao HTTP/HTTPS, use opcao 5 e depois opcao 14."
     Write-Host "1 - HTTP legado (rollback, padrao)"
     Write-Host "2 - HTTPS LOCAL assistido (acesso somente neste computador)"
     Write-Host "3 - HTTPS DE REDE (certificado emitido por CA confiavel)"
@@ -173,6 +176,7 @@ try {
 
     if ($choice -eq "1") {
         Assert-AndonTransportSecurityCompatibility -Config $config -TargetMode "http"
+        Assert-AndonStoppedForTransportChange
         Invoke-AndonTransportTransaction `
             -TlsPath $tlsPath `
             -StatePaths $statePaths `
@@ -305,6 +309,9 @@ try {
     }
     Assert-AndonTlsPair -CertificatePath $sourceCertificate -PrivateKeyPath $sourcePrivateKey -HttpsHost $httpsHost
 
+    # Fail before changing live configuration if services are still active.
+    # Certificate validation/cancellation is allowed without stopping them.
+    Assert-AndonStoppedForTransportChange
     Invoke-AndonTransportTransaction `
         -TlsPath $tlsPath `
         -StatePaths $statePaths `
