@@ -133,7 +133,7 @@ test("REFINE 11: individual machine-screen unpin requires ANDON read and is not 
 
 
 test("REFINE 16 P0: opening a call is explicitly granted, never inferred from ANDON read", () => {
-  const actions = PILOT_OPERATIONAL_ACTIONS.map((entry) => entry.key);
+  const actions: string[] = PILOT_OPERATIONAL_ACTIONS.map((entry) => entry.key);
   assert(actions.includes("calls.open"));
   assert(actions.includes("calls.attend"));
   assert(actions.includes("calls.finish"));
