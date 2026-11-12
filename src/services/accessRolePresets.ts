@@ -191,25 +191,27 @@ export function toggleSimpleModule(
   return [...next];
 }
 
-/** Reclassifying a user must not leave Manager call-cancellation or maintenance
- * powers attached to a Production profile. Rebase only the ANDON operation
- * group, leaving BI, Priorities, ANDON settings and exceptional grants alone.
- * A fully enabled group follows the role; a partial historical ACL is never
- * automatically promoted to full access.
+/** Reclassifying a user must not leave Manager call-cancellation,
+ * maintenance or BI-reclassification powers attached to a Production profile.
+ * Rebase role-dependent ANDON and BI grants; preserve Priorities, ANDON
+ * settings and exceptional grants. Partial historical ACL is never silently
+ * promoted to full access.
  */
 export function reconcileSimpleModuleRole(
   current: readonly string[], oldRole: string, nextRole: string,
   catalog: readonly string[],
 ): string[] {
   if (oldRole === nextRole) return [...current];
-  const wasFullyOn = simpleModuleState(current, "andon", oldRole, catalog) === "on";
-  const allowedNew = simpleModuleGrants("andon", nextRole, catalog);
-  const allowedSet = new Set(allowedNew);
   const next = new Set(current);
-  for (const grant of ANDON_OPERATION_GRANTS)
-    if (!allowedSet.has(grant)) next.delete(grant);
-  if (wasFullyOn)
-    for (const grant of allowedNew) next.add(grant);
+  for (const group of ["andon", "bi"] as const) {
+    const fullyEnabled = simpleModuleState(current, group, oldRole, catalog) === "on";
+    const allowedNew = simpleModuleGrants(group, nextRole, catalog);
+    const allowedSet = new Set(allowedNew);
+    for (const grant of ownedByGroup(group))
+      if (!allowedSet.has(grant)) next.delete(grant);
+    if (fullyEnabled)
+      for (const grant of allowedNew) next.add(grant);
+  }
   if (next.has("andon.settings.open") && catalog.includes("andon.read"))
     next.add("andon.read");
   return [...next];
