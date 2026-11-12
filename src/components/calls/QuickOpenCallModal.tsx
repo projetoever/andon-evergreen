@@ -62,6 +62,7 @@ export function QuickOpenCallModal({
   const [requireWorkOrderAtOpen, setRequireWorkOrderAtOpen] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const [operatorNote, setOperatorNote] = useState("");
+  const [openingError, setOpeningError] = useState<string | null>(null);
   const option = hierarchicalChoice
     ? { category: hierarchicalChoice.category, label: hierarchicalChoice.label }
     : subtype ? getCallTypeOption(subtype) : null;
@@ -80,6 +81,7 @@ export function QuickOpenCallModal({
 
   useEffect(() => {
     if (!open) {
+      setOpeningError(null);
       setWorkOrderNumber("");
       setOperatorNote("");
       setRequireWorkOrderAtOpen(false);
@@ -119,6 +121,7 @@ export function QuickOpenCallModal({
     if (!subtype || !option || isSubmitting || !canSubmit) return;
 
     const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
+    setOpeningError(null);
     setIsSubmitting(true);
     try {
       const params = {
@@ -147,7 +150,9 @@ export function QuickOpenCallModal({
       toast.success(`Chamado de ${option.label} aberto.`);
       onOpenChange(false);
     } catch (error) {
-      toast.error(ui(error instanceof Error ? error.message : "Não foi possível abrir o chamado"));
+      const message = ui(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
+      setOpeningError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -203,6 +208,15 @@ export function QuickOpenCallModal({
               "Não foi possível carregar a regra da OS. Feche e reabra o modal para tentar novamente.",
             )}
           </p>
+        )}
+
+        {openingError && (
+          <div role="alert" className="rounded-lg border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-foreground">
+            {openingError}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {ui("Os dados preenchidos foram preservados. Nenhum chamado foi confirmado.")}
+            </p>
+          </div>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
