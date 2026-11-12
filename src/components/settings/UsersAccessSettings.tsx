@@ -19,6 +19,7 @@ import {
 import { permissionLabels } from "@/services/accessLabels";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  PILOT_OPERATIONAL_ACTIONS,
   SCREEN_UNLOCK_PERMISSION,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
@@ -831,6 +832,18 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       {ui("Este usuário possui permissões personalizadas. Elas serão preservadas ao salvar; para substituí-las, altere explicitamente o perfil ou abra a configuração avançada.")}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
+                    <p className="text-sm text-muted-foreground">
+                      {ui("O perfil não concede ações automaticamente. Revise as permissões gravadas antes de salvar.")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAdvancedPermissions((value) => !value)}
+                    >
+                      {ui(advancedPermissions ? "Mostrar permissões essenciais" : "Mostrar todas as permissões")}
+                    </Button>
+                  </div>
                   {!advancedPermissions && (
                     <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
                       <legend className="px-1 font-bold">{ui("Acesso aos módulos e configurações")}</legend>
@@ -849,6 +862,34 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           </Label>
                         ))}
                       </div>
+                      {draft.accountType === "person" && (
+                        <div className="space-y-3 border-t border-border pt-3">
+                          <p className="text-sm font-semibold">{ui("Operações de chamados")}</p>
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            {ui("ANDON: visualizar permite somente acessar o painel. Abrir, atender e concluir chamados exigem permissões próprias. Nenhuma ação é concedida somente pelo nome do perfil.")}
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {PILOT_OPERATIONAL_ACTIONS.filter((entry) =>
+                              catalog.permissions.includes(entry.key),
+                            ).map((entry) => (
+                              <Label key={entry.key} className="flex min-h-11 items-center gap-3 rounded-md border border-border bg-background p-3">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.permissions.includes(entry.key)}
+                                  onChange={(e) => togglePermission(entry.key, e.target.checked)}
+                                />
+                                {ui(entry.label)}
+                              </Label>
+                            ))}
+                          </div>
+                          {draft.permissions.includes("andon.read") &&
+                            !draft.permissions.includes("calls.open") && (
+                            <p role="status" className="rounded-md border border-warning/40 p-3 text-sm text-muted-foreground">
+                              {ui("Atenção: este usuário pode visualizar o ANDON, mas não pode abrir chamados. Para autorizar a operação, marque Abrir chamados e salve.")}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {draft.accountType === "person" && catalog.permissions.includes(SCREEN_UNLOCK_PERMISSION) && (
                         <div className="space-y-2 border-t border-border pt-3">
                           <p className="text-sm font-semibold">{ui("Permissão de tela fixa")}</p>
