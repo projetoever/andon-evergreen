@@ -3,8 +3,9 @@ import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access
 import { checkCsrf } from "../access/credentials.js";
 import {
   AccessError, assertModule, assertFullMachineScope, assertPermission,
-  type Principal,
+  isAndonSettingsDelegate, type Principal,
 } from "../access/policy.js";
+import { isReasonPresentationOnlyPatch } from "./callReasonPresentationPolicy.js";
 
 const validated = new WeakSet<FastifyRequest>();
 const validatedReads = new WeakSet<FastifyRequest>();
@@ -49,9 +50,13 @@ export function isCentralCallReasonWrite(method: string, path: string) {
 }
 type Station = { allowOperational: boolean; allowBi: boolean; allowPriorities: boolean };
 
-function assertReasonAdmin(principal: Principal, station: Station) {
+function assertReasonCatalogAccess(principal: Principal, station: Station) {
   if (!centralCallReasonsHttpEnabled()) throw new AccessError("central_action_not_supported");
   assertModule(principal, station, "operational");
+  // Explicit ANDON settings delegates may read the global catalogue and
+  // change only presentation fields; machine scope still limits operational
+  // actions and does not become a broad privileged catalog grant.
+  if (isAndonSettingsDelegate(principal)) return;
   assertFullMachineScope(principal);
   assertPermission(principal, "catalog.reasons.manage");
   if (!principal.isPrimaryAdmin) throw new AccessError("primary_admin_required");
@@ -61,7 +66,7 @@ export function authorizeCentralCallReasonRead(
 ) {
   if (!isCentralCallReasonRead(request.method, request.url.split("?", 1)[0] ?? ""))
     throw new AccessError("central_route_not_supported");
-  assertReasonAdmin(principal, station);
+  assertReasonCatalogAccess(principal, station);
   validatedReads.add(request);
 }
 export function isAuthorizedCentralCallReasonRead(request: FastifyRequest) {
@@ -73,8 +78,16 @@ export function markCentralCallReasonAuthorized(
   const path = request.url.split("?", 1)[0] ?? "";
   if (!isCentralCallReasonWrite(request.method, path))
     throw new AccessError("central_action_not_supported");
-  assertReasonAdmin(principal, station);
-  assertPermission(principal, "analytics.policy.manage");
+  assertReasonCatalogAccess(principal, station);
+  const presentationPatch = request.method === "PATCH" &&
+    isReasonPresentationOnlyPatch(
+      path.includes("/options/") ? "option.update" : "reason.update",
+      request.body,
+    );
+  if (!principal.isPrimaryAdmin && !presentationPatch)
+    throw new AccessError("primary_admin_required");
+  if (principal.isPrimaryAdmin)
+    assertPermission(principal, "analytics.policy.manage");
   if (!checkCsrf(readSecureCookie(request, ACCESS_COOKIE), request.headers["x-andon-csrf"]))
     throw new AccessError("csrf_denied");
   validated.add(request);
