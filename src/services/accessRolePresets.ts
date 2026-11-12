@@ -72,6 +72,19 @@ export const MODULE_ENTRY_PERMISSIONS = [
   { key: "andon.settings.open", label: "Configurações do ANDON: acessar" },
 ] as const;
 
+/** Pilot editor: visible, individually revocable action grants.
+ * Displaying an action NEVER infers it from the role or module permission.
+ * Keep sensitive/rare grants in the separately accessible advanced editor.
+ */
+export const PILOT_OPERATIONAL_ACTIONS = [
+  { key: "calls.open", label: "Abrir chamados" },
+  { key: "calls.cancel.own", label: "Cancelar chamados próprios" },
+  { key: "calls.attend", label: "Atender chamados" },
+  { key: "calls.finishMaintenance", label: "Concluir manutenção" },
+  { key: "calls.finish", label: "Finalizar chamados" },
+  { key: "history.read", label: "Consultar histórico de chamados" },
+] as const;
+
 /**
  * Settings access is independent of the role label, but /andon still needs
  * operational module read to expose its settings dialog. Grant this minimal
