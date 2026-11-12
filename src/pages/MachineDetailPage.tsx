@@ -70,7 +70,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const {
     machines,
     calls,
-    openCalls,
+    openCall,
     attendCall,
     cancelCall,
     completeMaintenance,
