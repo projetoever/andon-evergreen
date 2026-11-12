@@ -1,5 +1,16 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["O perfil não concede ações automaticamente. Revise as permissões gravadas antes de salvar.","A role does not automatically grant actions. Review the saved permissions before saving.","角色本身不會自動授予操作權限。儲存前請檢查已設定的權限。"],
+  ["Operações de chamados","Call operations","通報操作"],
+  ["ANDON: visualizar permite somente acessar o painel. Abrir, atender e concluir chamados exigem permissões próprias. Nenhuma ação é concedida somente pelo nome do perfil.","ANDON: view only provides access to the panel. Opening, attending, and completing calls require separate permissions. The role name alone grants no actions.","「ANDON：檢視」僅允許存取面板。建立、處理及結束通報需要各自的權限。角色名稱本身不會授予操作權限。"],
+  ["Atenção: este usuário pode visualizar o ANDON, mas não pode abrir chamados. Para autorizar a operação, marque Abrir chamados e salve.","Warning: this user can view ANDON but cannot open calls. To authorize the action, select Open calls and save.","注意：此使用者可以檢視 ANDON，但無法建立通報。若要授權，請勾選「建立通報」並儲存。"],
+  ["Mostrar permissões essenciais","Show essential permissions","顯示基本權限"],
+  ["Mostrar todas as permissões","Show all permissions","顯示所有權限"],
+  ["Abrir chamados","Open calls","建立通報"],
+  ["Cancelar chamados próprios","Cancel own calls","取消自己建立的通報"],
+  ["Atender chamados","Attend calls","處理通報"],
+  ["Finalizar chamados","Finish calls","結束通報"],
+  ["Consultar histórico de chamados","View call history","檢視通報歷史"],
   ["Os dados preenchidos foram preservados. Nenhum chamado foi confirmado.", "The entered details were preserved. No call has been confirmed.", "已保留所填資料。尚未確認建立任何通報。"],
   ["KPI", "KPI", "KPI"],
   ["Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.", "Choose any color in the picker or enter HEX/RGB. The preview does not change critical alarms.", "可使用選色器自由選色或輸入 HEX/RGB。預覽不會變更重要警報。"],
