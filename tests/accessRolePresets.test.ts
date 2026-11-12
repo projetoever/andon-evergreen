@@ -176,7 +176,7 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
   assert.doesNotMatch(simple, /PILOT_OPERATIONAL_ACTIONS|SCREEN_UNLOCK_PERMISSION/);
   assert.doesNotMatch(simple, /Chamados: abrir|Cancelar chamados próprios|Concluir manutenção/);
   assert.match(source, /reconcileSimpleModuleRole\(/);
-  assert.match(source, /profile changes rebase only existing ANDON grants|Role changes rebase only existing ANDON grants/);
+  assert.match(source, /Role changes safely rebase ANDON and BI actions/);
   assert.match(source, /A new account starts without grants/);
 });
 
@@ -259,7 +259,7 @@ test("REFINE 16 P0: profile downgrade revokes Manager ANDON powers without chang
     "catalog.reasons.manage", "audit.read", "workstations.screen.unlock",
   ])];
   const manager = toggleSimpleModule(
-    ["bi.read", "bi.export", "priorities.read", "priorities.write",
+    ["bi.read", "bi.export", "analytics.reclassify", "priorities.read", "priorities.write",
       "andon.settings.open", "catalog.reasons.manage", "audit.read"],
     "andon", "Gestor/Gerente", available, true,
   );
@@ -271,12 +271,15 @@ test("REFINE 16 P0: profile downgrade revokes Manager ANDON powers without chang
     assert(production.includes(key), "lost required grant: " + key);
   for (const key of ["calls.cancel.any", "calls.attend", "calls.finishMaintenance",
     "calls.finish", "calls.returnToMaintenance", "production.schedule.write",
-    "machines.status.write"])
+    "machines.status.write", "analytics.reclassify"])
     assert(!production.includes(key), "role downgrade retained Manager grant: " + key);
   assert(!production.includes("users.create") && !production.includes("workstations.manage"));
   const restored = reconcileSimpleModuleRole(production, "Produção", "Gestor/Gerente", available);
   assert.equal(simpleModuleState(restored, "andon", "Gestor/Gerente", available), "on");
   assert(restored.includes("calls.finish"), "explicit profile upgrade should rebase enabled group");
+  assert.equal(simpleModuleState(manager, "bi", "Gestor/Gerente", available), "on");
+  assert(!production.includes("analytics.reclassify"),
+    "role downgrade must revoke manager-only KPI reclassification");
 
   // A partial legacy account must never be auto-promoted by relabeling its role.
   const partial = ["andon.read", "bi.read", "calls.cancel.any"];
