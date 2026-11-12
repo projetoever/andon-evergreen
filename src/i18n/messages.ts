@@ -5776,4 +5776,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Última movimentação","Last activity","最近更新"],
   ["Subcategoria / falha","Subcategory / fault","子類別／故障"],
   ["Chamado real","Real call","實際叫修"],
+  ["Em homologação", "In validation", "驗收中"],
 ];
