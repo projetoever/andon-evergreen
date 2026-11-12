@@ -16,6 +16,7 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
     pathname === "/api/failure-events" ||
     pathname === "/api/andon-calls/history" ||
     pathname === "/api/andon-calls/history/search" ||
+    /^\/api\/andon-calls\/history\/detail\/[A-Za-z0-9_-]{1,160}$/.test(pathname) ||
     pathname === "/api/dashboard-priority/order" ||
     pathname === "/api/analytics/filter-options" ||
     pathname === "/api/analytics/overview" ||
@@ -55,6 +56,8 @@ export function scopedGlobalHistoryReadIds(request: FastifyRequest): readonly st
   if (!centralAccessEnabled()) throw new AccessError("global_history_disabled");
   const principal = scopedPrincipals.get(request);
   if (!principal) throw new AccessError("central_read_context_required");
+  if (principal.accountType !== "person" || principal.purpose !== "normal")
+    throw new AccessError("permission_denied");
   assertPermission(principal, "history.read");
   return principal.machineScope === "all" ? null : principal.machineIds;
 }
