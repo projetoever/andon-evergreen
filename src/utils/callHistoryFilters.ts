@@ -2,6 +2,24 @@ import type { AndonCall, AndonStatus } from "@/types/andon";
 
 export type CallHistoryPeriod = "all" | "today" | "7d" | "30d" | "custom";
 export type CallHistoryOrigin = "all" | "real" | "system";
+/** Legacy machine history sorts by completion/activity. The Global History
+ * chronological list explicitly requests openedAt; never change the legacy
+ * default silently or apply pagination before sorting.
+ */
+export type CallHistorySort = "activity" | "openedAt";
+
+export interface GlobalCallHistoryFilters extends CallHistoryFilters {
+  /** Selected machine in the ALREADY AUTHORIZED result; all means no extra
+   * DISPLAY filtering. This is never an access-control substitute.
+   */
+  machineId: string;
+}
+
+export const DEFAULT_GLOBAL_CALL_HISTORY_FILTERS: GlobalCallHistoryFilters = {
+  ...DEFAULT_CALL_HISTORY_FILTERS,
+  machineId: "all",
+};
+
 
 export interface CallHistoryFailureDetails {
   classification?: string | null;
@@ -136,6 +154,7 @@ export function filterCallHistory(
   filters: CallHistoryFilters,
   failureDetailsByCallId: ReadonlyMap<string, CallHistoryFailureDetails> = new Map(),
   now = new Date(),
+  sortBy: CallHistorySort = "activity",
 ) {
   return calls
     .filter((call) => {
@@ -164,11 +183,47 @@ export function filterCallHistory(
       return callMatchesPeriod(call, filters.period, filters.customDate, now);
     })
     .slice()
-    .sort(
-      (current, next) =>
-        new Date(next.finishedAt ?? next.openedAt).getTime() -
-        new Date(current.finishedAt ?? current.openedAt).getTime(),
-    );
+    .sort((current, next) => compareCallHistoryChronology(current, next, sortBy));
+}
+
+/** Dates in server payloads are ISO instants. Invalid legacy dates belong at
+ * the end of the list; a deterministic ID tie-breaker stabilizes selection
+ * and cursor pagination as other calls are completed out of order.
+ */
+export function compareCallHistoryChronology(
+  first: Pick<AndonCall, "id" | "openedAt" | "finishedAt" | "updatedAt">,
+  second: Pick<AndonCall, "id" | "openedAt" | "finishedAt" | "updatedAt">,
+  sortBy: CallHistorySort,
+): number {
+  const when = (call: typeof first) =>
+    sortBy === "openedAt" ? call.openedAt : call.finishedAt ?? call.openedAt;
+  const timestamp = (value: string | null) => {
+    const time = value ? Date.parse(value) : NaN;
+    return Number.isFinite(time) ? time : Number.NEGATIVE_INFINITY;
+  };
+  const delta = timestamp(when(second)) - timestamp(when(first));
+  return delta || first.id.localeCompare(second.id);
+}
+
+/** The Global History left column reuses all existing machine-history filters.
+ * IMPORTANT: the API MUST restrict machineScope and filter/paginate in SQL
+ * BEFORE passing a page to the browser. This function adds only visual
+ * filtering on already-authorized rows and cannot confer data access.
+ */
+export function filterGlobalCallHistory(
+  scopedCalls: AndonCall[],
+  filters: GlobalCallHistoryFilters,
+  failureDetailsByCallId: ReadonlyMap<string, CallHistoryFailureDetails> = new Map(),
+  now = new Date(),
+): AndonCall[] {
+  const visible = filters.machineId === "all"
+    ? scopedCalls
+    : scopedCalls.filter(call => call.machineId === filters.machineId);
+  return filterCallHistory(visible, filters, failureDetailsByCallId, now, "openedAt");
+}
+
+export function hasActiveGlobalCallHistoryFilters(filters: GlobalCallHistoryFilters) {
+  return filters.machineId !== "all" || hasActiveCallHistoryFilters(filters);
 }
 
 export function hasActiveCallHistoryFilters(filters: CallHistoryFilters) {
