@@ -317,16 +317,16 @@ export function GlobalCallHistoryPage() {
                 <details className="rounded-lg border border-border bg-muted/20 p-3">
                   <summary className="cursor-pointer text-xs font-bold"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{ui("Tipos de falha e filtros adicionais")}</summary>
                   <div className="mt-3 grid grid-cols-2 gap-3">
-                    <FilterField label="Tipo / especialidade" value={draft.subtype}
-                      onChange={subtype=>edit({subtype})} placeholder="Selecione ou digite o código"
+                    <FilterField label={ui("Tipo / especialidade")} value={draft.subtype}
+                      onChange={subtype=>edit({subtype})} placeholder={ui("Selecione ou digite o código")}
                       suggestions={categories.map(c => ({ value:c.id, label:c.displayName }))} />
-                    <FilterField label="Mantenedor" value={draft.technician}
-                      onChange={technician=>edit({technician})} placeholder="Nome exato" />
-                    <FilterField label="Classificação da falha" value={draft.failureClassification}
-                      onChange={failureClassification=>edit({failureClassification})} placeholder="Selecione ou digite o código"
+                    <FilterField label={ui("Mantenedor")} value={draft.technician}
+                      onChange={technician=>edit({technician})} placeholder={ui("Nome exato")} />
+                    <FilterField label={ui("Classificação da falha")} value={draft.failureClassification}
+                      onChange={failureClassification=>edit({failureClassification})} placeholder={ui("Selecione ou digite o código")}
                       suggestions={classifications.map(c => ({ value:c.value, label:c.label }))} />
-                    <FilterField label="Motivo principal" value={draft.reasonId}
-                      onChange={reasonId=>edit({reasonId})} placeholder="Ex.: maintenance" />
+                    <FilterField label={ui("Motivo principal")} value={draft.reasonId}
+                      onChange={reasonId=>edit({reasonId})} placeholder={ui("Ex.: maintenance")} />
                   </div>
                 </details>
                 <div className="flex gap-2">
