@@ -5,13 +5,17 @@ import {
   ArrowLeft, CalendarDays, Clock3, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
   listAuthorizedHistoryMachines,
+  listGlobalHistoryCategoryOptions,
+  listGlobalHistoryClassificationOptions,
   searchGlobalHistory,
   type AuthorizedHistoryMachine,
+  type GlobalHistoryCategoryOption,
+  type GlobalHistoryClassificationOption,
   type GlobalHistoryCallSummary,
   type GlobalHistorySearchFilters,
   type GlobalHistorySearchResult,
@@ -87,19 +91,29 @@ function SummaryDetail({ call }: { call: GlobalHistoryCallSummary }) {
 }
 
 function FilterField({
-  label, value, onChange, placeholder,
-}: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  label, value, onChange, placeholder, suggestions = [],
+}: { label: string; value: string; onChange: (value: string) => void;
+  placeholder: string; suggestions?: Array<{ value: string; label: string }> }) {
+  const listId = useId();
   return (
     <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
       <span>{ui(label)}</span>
       <input
         type="text"
+        list={suggestions.length ? listId : undefined}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={ui(placeholder)}
         maxLength={100}
         className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
       />
+      {suggestions.length > 0 && (
+        <datalist id={listId}>
+          {suggestions.map(item => (
+            <option key={item.value} value={item.value} label={item.label} />
+          ))}
+        </datalist>
+      )}
     </label>
   );
 }
@@ -112,6 +126,9 @@ export function GlobalCallHistoryPage() {
   const [draft, setDraft] = useState<GlobalHistorySearchFilters>(DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS);
   const [applied, setApplied] = useState<GlobalHistorySearchFilters>(DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS);
   const [machines, setMachines] = useState<AuthorizedHistoryMachine[]>([]);
+  const [categories, setCategories] = useState<GlobalHistoryCategoryOption[]>([]);
+  const [classifications, setClassifications] = useState<GlobalHistoryClassificationOption[]>([]);
+
   const [machineError, setMachineError] = useState("");
   const [result, setResult] = useState<GlobalHistorySearchResult | null>(null);
   const [error, setError] = useState("");
@@ -124,6 +141,8 @@ export function GlobalCallHistoryPage() {
   useEffect(() => {
     if (!allowed) {
       setMachines([]);
+      setCategories([]);
+      setClassifications([]);
       setResult(null);
       setSelectedId(null);
       return;
@@ -136,6 +155,12 @@ export function GlobalCallHistoryPage() {
     }).catch(() => {
       if (current) setMachineError(ui("Não foi possível consultar as máquinas autorizadas."));
     });
+    void listGlobalHistoryCategoryOptions().then(list => {
+      if (current) setCategories(list);
+    }).catch(() => { if (current) setCategories([]); });
+    void listGlobalHistoryClassificationOptions().then(list => {
+      if (current) setClassifications(list);
+    }).catch(() => { if (current) setClassifications([]); });
     return () => { current = false; };
   }, [allowed, userId]);
 
@@ -293,11 +318,13 @@ export function GlobalCallHistoryPage() {
                   <summary className="cursor-pointer text-xs font-bold"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{ui("Tipos de falha e filtros adicionais")}</summary>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <FilterField label="Tipo / especialidade" value={draft.subtype}
-                      onChange={subtype=>edit({subtype})} placeholder="Ex.: electrical" />
+                      onChange={subtype=>edit({subtype})} placeholder="Selecione ou digite o código"
+                      suggestions={categories.map(c => ({ value:c.id, label:c.displayName }))} />
                     <FilterField label="Mantenedor" value={draft.technician}
                       onChange={technician=>edit({technician})} placeholder="Nome exato" />
                     <FilterField label="Classificação da falha" value={draft.failureClassification}
-                      onChange={failureClassification=>edit({failureClassification})} placeholder="Código da falha" />
+                      onChange={failureClassification=>edit({failureClassification})} placeholder="Selecione ou digite o código"
+                      suggestions={classifications.map(c => ({ value:c.value, label:c.label }))} />
                     <FilterField label="Motivo principal" value={draft.reasonId}
                       onChange={reasonId=>edit({reasonId})} placeholder="Ex.: maintenance" />
                   </div>
