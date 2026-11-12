@@ -56,7 +56,7 @@ test("HIST-05: summary route requires flag, history.read and SQL machineScope", 
     return [
       {status:"finished",category:"maintenance",isSystemTest:false,_count:{_all:3}},
     ];
-  }) as typeof old.groupBy;
+  }) as unknown as typeof old.groupBy;
   t.after(()=>{
     prisma.andonCall.groupBy=old.groupBy;
     if(old.central===undefined)delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
