@@ -31,8 +31,10 @@ import { badRequest, notFound, parseDate, parseLimit } from "./routeUtils.js";
 import {
   restrictCentralCallListToActive,
   scopedMachineReadIds,
+  scopedGlobalHistoryReadIds,
 } from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
+import { buildScopedGlobalHistoryQuery, type GlobalHistoryQuery } from "../services/globalCallHistoryQuery.js";
 import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
@@ -2287,6 +2289,52 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
 
     return enrichCallsWithAssetSnapshots(calls);
   });
+
+  /**
+   * HIST-02: opt-in global History list only. Full details and new UI are a
+   * separate reviewed phase. The central preHandler binds a real user scope;
+   * no legacy transport, service token or arbitrary workstation header can
+   * make this route read historical data.
+   */
+  app.get<{ Querystring: GlobalHistoryQuery }>(
+    "/api/andon-calls/history/search",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!centralAccessEnabled() ||
+          process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1") {
+        return reply.status(403).send({ error: "global_history_disabled" });
+      }
+      try {
+        const allowedMachineIds = scopedGlobalHistoryReadIds(request);
+        const { where, take, skip, orderBy } = buildScopedGlobalHistoryQuery(
+          request.query, allowedMachineIds,
+        );
+        const [total, items] = await Promise.all([
+          prisma.andonCall.count({ where }),
+          prisma.andonCall.findMany({
+            where, take, skip, orderBy,
+            select: {
+              id: true, machineId: true,
+              machine: { select: { name: true } },
+              category: true, subtype: true, status: true, criticality: true,
+              workOrderNumber: true, failureClassification: true,
+              technicianName: true, technicianNames: true,
+              isSystemTest: true, openedAt: true, finishedAt: true, updatedAt: true,
+              callReasonSnapshot: { select: {
+                reasonId: true, reasonNameSnapshot: true,
+                optionId: true, optionNameSnapshot: true, nature: true,
+              } },
+            },
+          }),
+        ]);
+        return { items, total, limit: take, offset: skip, hasMore: skip + items.length < total };
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
 
   app.get<{ Querystring: AndonCallQuery }>("/api/andon-calls/history", async (request) => {
     const { machineId } = request.query;
