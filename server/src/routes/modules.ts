@@ -10,6 +10,7 @@ import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access
 import { resolveSession } from "../access/sessions.js";
 import { assertModule, assertFullMachineScope, assertPermission, type Principal } from "../access/policy.js";
 import { centralPriorityHttpEnabled } from "../security/centralPriorityHttp.js";
+import { globalHistoryModuleAccess } from "../security/globalHistoryModuleAccess.js";
 
 export async function registerModuleRoutes(app: FastifyInstance) {
   app.get("/api/modules/access", async (request, reply) => {
@@ -96,6 +97,9 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       centralAccessEnabled: central,
       // Never expose the central editor as active unless the server-side
       // opt-in is enabled and this exact account/device has full global grant.
+      // A fourth Hub card uses existing history.read and machineScope.
+      // Never create a fifth checkbox or trust frontend permission hints.
+      globalHistory: globalHistoryModuleAccess(principal, workstation),
       prioritiesWriteEnabled: Boolean(central && centralPriorityHttpEnabled() &&
         principal?.purpose === "normal" && permitted(MODULE_REGISTRY[2]) &&
         (() => {
