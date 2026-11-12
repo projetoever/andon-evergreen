@@ -23,6 +23,30 @@ function Get-AndonLanBindStatus {
     return "OTHER_INTERFACE"
 }
 
+# Pure classifier: a rule that allows every profile and remote source can
+# expose ANDON outside the approved industrial/client network. Do not mutate it.
+function Get-AndonFirewallExposure {
+    param(
+        [object]$Rule,
+        [string[]]$RemoteAddresses = @()
+    )
+    if (!$Rule) { return "UNKNOWN" }
+    $enabled = "$($Rule.Enabled)".Trim().ToLowerInvariant()
+    $action = "$($Rule.Action)".Trim().ToLowerInvariant()
+    if ($enabled -ne "true" -or $action -ne "allow") { return "NOT_ALLOWING" }
+    if ($RemoteAddresses.Count -eq 0) { return "UNKNOWN" }
+    $unrestricted = @($RemoteAddresses | Where-Object {
+        "$_".Trim().ToLowerInvariant() -in @("any", "0.0.0.0/0", "::/0")
+    }).Count -gt 0
+    $profiles = "$($Rule.Profile)".Trim()
+    $anyProfile = $profiles -eq "Any" -or $profiles -eq "0" -or
+        $profiles -eq "Domain, Private, Public"
+    if ($unrestricted -and $anyProfile) { return "BROAD_ANY_PROFILE" }
+    if ($unrestricted) { return "BROAD_REMOTE_ANY" }
+    if ($anyProfile) { return "BROAD_PROFILE_ANY" }
+    return "SCOPED"
+}
+
 function Show-AndonHttpsNetworkDiagnostics {
     param([object]$Config = $null)
 
@@ -32,6 +56,7 @@ function Show-AndonHttpsNetworkDiagnostics {
         return
     }
     Write-AndonHeader "DIAGNOSTICO HTTPS REDE (SOMENTE LEITURA)"
+    $networkClock = [System.Diagnostics.Stopwatch]::StartNew()
     $network = Get-AndonNetworkConfig
     $serverIpv4 = if ($network -and "$($network.serverIp)") {
         "$($network.serverIp)"
@@ -47,15 +72,35 @@ function Show-AndonHttpsNetworkDiagnostics {
     }
 
     $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue)
+    # Effective policy, not just rules created in the local persistent store:
+    # a domain GPO can ignore locally allowed ports.
+    $activeFirewallProfiles = @(Get-NetFirewallProfile -PolicyStore ActiveStore -ErrorAction SilentlyContinue)
+    Write-Host ("Inventario IP/perfis Windows: {0} ms" -f $networkClock.ElapsedMilliseconds)
     foreach ($profile in $profiles) {
         # Intentionally do not display Wi-Fi SSID, gateways or user secrets.
         Write-Host ("Adaptador {0}: perfil de firewall {1}" -f $profile.InterfaceAlias, $profile.NetworkCategory)
+        $effective = @($activeFirewallProfiles | Where-Object {
+            "$($_.Name)" -eq "$($profile.NetworkCategory)"
+        } | Select-Object -First 1)
+        if ($effective.Count -gt 0) {
+            $item = $effective[0]
+            Write-Host ("Firewall efetivo {0}: enabled={1}, inbound={2}, regras locais={3}, regras de entrada={4}" -f
+                $item.Name, $item.Enabled, $item.DefaultInboundAction,
+                $item.AllowLocalFirewallRules, $item.AllowInboundRules)
+            if ("$($item.AllowLocalFirewallRules)" -eq "False" -or
+                "$($item.AllowInboundRules)" -eq "False") {
+                Write-AndonWarn "Politica ativa pode ignorar permissoes locais ou bloquear entradas mesmo com regra ANDON Allow."
+            }
+        } else {
+            Write-AndonWarn "Perfil ativo de firewall nao encontrado; nao inferir que a rede esta liberada."
+        }
     }
 
     foreach ($service in @(
         @{ Name = "Frontend"; Port = [int]$Config.frontendPort; Rule = "ANDON Frontend $($Config.frontendPort)" },
         @{ Name = "API"; Port = [int]$Config.apiPort; Rule = "ANDON API $($Config.apiPort)" }
     )) {
+        $serviceClock = [System.Diagnostics.Stopwatch]::StartNew()
         $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $service.Port -ErrorAction SilentlyContinue)
         $addresses = @($listeners | ForEach-Object { "$($_.LocalAddress)" } | Sort-Object -Unique)
         $bind = Get-AndonLanBindStatus -ListenerAddresses $addresses -LanIpv4 $serverIpv4
@@ -65,18 +110,45 @@ function Show-AndonHttpsNetworkDiagnostics {
             Write-AndonWarn "O servico pode nao estar acessivel pela interface Wi-Fi; verifique bind e inicializacao."
         }
 
-        $rule = Get-NetFirewallRule -DisplayName $service.Rule -ErrorAction SilentlyContinue
-        if (!$rule) {
-            Write-AndonWarn "Regra de entrada nao encontrada: $($service.Rule). Nao criar automaticamente."
+        $rule = @(Get-NetFirewallRule -PolicyStore ActiveStore -DisplayName $service.Rule -ErrorAction SilentlyContinue)
+        if ($rule.Count -eq 0) {
+            Write-AndonWarn "Regra de entrada NAO encontrada na politica ativa: $($service.Rule). Pode haver politica corporativa que ignora regra local."
         } else {
-            foreach ($item in @($rule)) {
+            foreach ($item in $rule) {
                 Write-Host ("Firewall {0}: enabled={1}, action={2}, profile={3}" -f
                     $service.Rule, $item.Enabled, $item.Action, $item.Profile)
                 if ("$($item.Enabled)" -ne "True" -or "$($item.Action)" -ne "Allow") {
                     Write-AndonWarn "Firewall pode bloquear a entrada; validar com a TI antes de alterar regra."
                 }
+
+                # Explicit inspection of address/port filters. The rule's
+                # Profile alone does not reveal its remote source scope.
+                # NetSecurity APIs are read-only and work on PS 5.1/WS2016.
+                $remoteAddresses = @()
+                try {
+                    $addressFilter = Get-NetFirewallAddressFilter -AssociatedNetFirewallRule $item -ErrorAction Stop
+                    $remoteAddresses = @($addressFilter | ForEach-Object { $_.RemoteAddress } |
+                        ForEach-Object { "$_" } | Where-Object { $_ })
+                    Write-Host ("Origem permitida: {0}" -f ($remoteAddresses -join ", "))
+                } catch {
+                    Write-AndonWarn "Escopo da origem nao pode ser verificado; a regra deve ser auditada pela TI."
+                }
+                try {
+                    $portFilter = Get-NetFirewallPortFilter -AssociatedNetFirewallRule $item -ErrorAction Stop
+                    Write-Host ("Filtro porta/protocolo: {0}/{1}" -f
+                        "$($portFilter.Protocol)", "$($portFilter.LocalPort)")
+                } catch {
+                    Write-AndonWarn "Porta/protocolo da regra nao puderam ser verificados."
+                }
+
+                $exposure = Get-AndonFirewallExposure -Rule $item -RemoteAddresses $remoteAddresses
+                if ($exposure -in @("BROAD_ANY_PROFILE", "BROAD_REMOTE_ANY", "BROAD_PROFILE_ANY")) {
+                    Write-AndonWarn ("Firewall permissivo ({0}): revisar perfil e rede de origem com TI antes de uso industrial." -f $exposure)
+                }
             }
         }
+        $serviceClock.Stop()
+        Write-Host ("Tempo do inventario {0}: {1} ms" -f $service.Name, $serviceClock.ElapsedMilliseconds)
     }
 
     if ("$($Config.tlsCertificatePath)".Trim() -and
@@ -101,4 +173,9 @@ function Show-AndonHttpsNetworkDiagnostics {
     Write-AndonWarn "Aviso de certificado: CA mkcert nao e confiada automaticamente no smartphone. Preferir CA corporativa/gerenciada."
     Write-AndonWarn "403 apos conexao: workstation/sessao nao autorizada. Nao desligar autenticacao nem desabilitar validacao TLS."
     Write-Host "Diagnostico local NAO comprova chegada de pacotes do smartphone e nao instala certificados."
+    $networkClock.Stop()
+    Write-Host ("Tempo total do inventario HTTPS/rede: {0} ms" -f $networkClock.ElapsedMilliseconds)
+    if ($networkClock.ElapsedMilliseconds -gt 3000) {
+        Write-AndonWarn "Inventario Windows acima de 3 segundos: nao confundir com latencia da API ou do smartphone."
+    }
 }

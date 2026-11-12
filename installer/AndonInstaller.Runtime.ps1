@@ -451,6 +451,8 @@ function Invoke-AndonHealthCheck {
 
     $config = Import-AndonConfig
     $hasCriticalError = $false
+    $healthClock = [System.Diagnostics.Stopwatch]::StartNew()
+    $stageClock = [System.Diagnostics.Stopwatch]::StartNew()
     $healthTimeout = if ($ReadOnly) { 5 } else { 10 }
     if ($ReadOnly) {
         Write-AndonOk "Diagnostico SOMENTE LEITURA: nao altera firewall, certificados, configuracoes, tarefas ou chamados."
@@ -481,6 +483,8 @@ function Invoke-AndonHealthCheck {
         Write-Host "Node global (somente informativo): nao encontrado"
     }
     Write-Host "O Node global nao e usado quando o runtime dedicado esta disponivel."
+    Write-Host ("Tempo da validacao Node: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $stageClock.Restart()
 
     if ($config.databaseMode -eq "docker") {
         $docker = Get-Command docker.exe -ErrorAction SilentlyContinue
@@ -505,6 +509,9 @@ function Invoke-AndonHealthCheck {
         }
     }
 
+    Write-Host ("Tempo da validacao PostgreSQL/Docker: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $stageClock.Restart()
+
     foreach ($port in @($config.apiPort, $config.frontendPort, $config.postgresPort)) {
         if (Test-AndonPortInUse ([int]$port)) {
             Write-AndonOk "Porta $port em uso."
@@ -512,6 +519,9 @@ function Invoke-AndonHealthCheck {
             Write-AndonWarn "Porta $port sem listener."
         }
     }
+
+    Write-Host ("Tempo da sondagem das portas Windows: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $stageClock.Restart()
 
     $api = Get-AndonApiBaseUrl
     foreach ($url in @("$api/health", "$api/health/db", "$api/health/ready")) {
@@ -531,6 +541,9 @@ function Invoke-AndonHealthCheck {
             $hasCriticalError = $true
         }
     }
+
+    Write-Host ("Tempo das sondagens API HTTPS: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $stageClock.Restart()
 
     $frontendTimer = [System.Diagnostics.Stopwatch]::StartNew()
     $frontendReady = Test-AndonFrontendReady
@@ -558,6 +571,7 @@ function Invoke-AndonHealthCheck {
         $hasCriticalError = $true
     }
 
+    $stageClock.Restart()
     $tasks = Get-ScheduledTask -TaskName "ANDON*" -ErrorAction SilentlyContinue
     if ($tasks) {
         $tasks | Select-Object TaskName, State | Format-Table -AutoSize
@@ -571,6 +585,9 @@ function Invoke-AndonHealthCheck {
         Write-AndonWarn "Chrome Kiosk nao detectado."
     }
 
+    Write-Host ("Tempo das tarefas/Chrome kiosk: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $stageClock.Restart()
+
     if ($Full) {
         $accessResult = if ($ReadOnly) {
             Test-AndonApiReadOnly
@@ -581,6 +598,10 @@ function Invoke-AndonHealthCheck {
             $hasCriticalError = $true
         }
     }
+
+    Write-Host ("Tempo de verificacao das permissoes: {0} ms" -f $stageClock.ElapsedMilliseconds)
+    $healthClock.Stop()
+    Write-Host ("Tempo total dos servicos locais (sem inventario de rede): {0} ms" -f $healthClock.ElapsedMilliseconds)
 
     if ($hasCriticalError) {
         if ($ReadOnly) {
