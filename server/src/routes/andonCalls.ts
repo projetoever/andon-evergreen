@@ -36,6 +36,7 @@ import {
 import { callMachineReadWhere } from "../security/callReadScope.js";
 import { buildScopedGlobalHistoryQuery, type GlobalHistoryQuery } from "../services/globalCallHistoryQuery.js";
 import { scopedGlobalCallDetailWhere } from "../services/globalCallHistoryDetail.js";
+import { summarizeScopedGlobalHistory } from "../services/globalCallHistorySummary.js";
 import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
@@ -2329,6 +2330,40 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }),
         ]);
         return { items, total, limit: take, offset: skip, hasMore: skip + items.length < total };
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
+  /**
+   * HIST-05: small, exact aggregate for ALL calls matching the current filters.
+   * The identity is bound by enforceWorkstationAccess, the existing opt-in is
+   * OFF by default, and the SQL WHERE is identical to HIST-02 search.
+   * Grouping is performed in PostgreSQL; no unbounded individual-call read.
+   */
+  app.get<{ Querystring: GlobalHistoryQuery }>(
+    "/api/andon-calls/history/summary",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!centralAccessEnabled() ||
+          process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1") {
+        return reply.status(403).send({ error: "global_history_disabled" });
+      }
+      try {
+        const allowedMachineIds = scopedGlobalHistoryReadIds(request);
+        const { where } = buildScopedGlobalHistoryQuery(
+          request.query, allowedMachineIds,
+        );
+        // Prisma aggregates in SQL after machineScope and all other filters.
+        const groups = await prisma.andonCall.groupBy({
+          by: ["status", "category", "isSystemTest"],
+          where,
+          _count: { _all: true },
+        });
+        return summarizeScopedGlobalHistory(groups);
       } catch (error) {
         if (error instanceof AccessError)
           return reply.status(error.statusCode).send({ error: error.code });

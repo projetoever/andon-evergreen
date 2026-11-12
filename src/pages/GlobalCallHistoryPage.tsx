@@ -2,7 +2,7 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowLeft, CalendarDays, Clock3, Filter, History, Lock, RefreshCw,
+  ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
@@ -10,6 +10,7 @@ import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
   getGlobalHistoryCallDetail,
+  getGlobalHistorySummary,
   listAuthorizedHistoryMachines,
   listGlobalHistoryCategoryOptions,
   listGlobalHistoryClassificationOptions,
@@ -21,10 +22,13 @@ import {
   type GlobalHistoryCallDetail,
   type GlobalHistorySearchFilters,
   type GlobalHistorySearchResult,
+  type GlobalHistorySummary,
 } from "@/services/globalHistoryService";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalHistoryDetailSections } from "@/components/history/GlobalHistoryDetailSections";
+import { GlobalHistorySummaryPanel } from "@/components/history/GlobalHistorySummaryPanel";
+import { downloadGlobalHistoryPageCsv } from "@/services/globalHistoryPageCsv";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Aberto",
@@ -144,6 +148,9 @@ export function GlobalCallHistoryPage() {
 
   const [machineError, setMachineError] = useState("");
   const [result, setResult] = useState<GlobalHistorySearchResult | null>(null);
+  const [summary, setSummary] = useState<GlobalHistorySummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -225,6 +232,30 @@ export function GlobalCallHistoryPage() {
     return () => { active = false; };
   }, [allowed, userId, selectedId, result, reload]);
 
+  // Aggregation uses the same server-authorized filters but no page offset.
+  useEffect(() => {
+    if (!allowed) {
+      setSummary(null);
+      setSummaryLoading(false);
+      setSummaryError("");
+      return;
+    }
+    let current = true;
+    setSummary(null);
+    setSummaryLoading(true);
+    setSummaryError("");
+    void getGlobalHistorySummary(applied).then(next => {
+      if (current) setSummary(next);
+    }).catch(cause => {
+      if (current) setSummaryError(cause instanceof Error
+        ? systemMessage(cause.message)
+        : ui("Indicadores indisponíveis."));
+    }).finally(() => {
+      if (current) setSummaryLoading(false);
+    });
+    return () => { current = false; };
+  }, [allowed, userId, applied, reload]);
+
   const edit = useCallback((patch: Partial<GlobalHistorySearchFilters>) =>
     setDraft(current => ({ ...current, ...patch })), []);
 
@@ -275,7 +306,17 @@ export function GlobalCallHistoryPage() {
               <h1 className="text-xl font-black sm:text-2xl">{ui("Histórico de chamados")}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm"
+              title={ui("Exporta somente os registros da página atual, não o histórico completo.")}
+              disabled={loading || !result?.items.length}
+              onClick={() => {
+                if (allowed && !loading && result?.items.length)
+                  downloadGlobalHistoryPageCsv(result.items);
+              }}>
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              {ui("CSV da página")}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setReload(v => v + 1)}>
               <RefreshCw className="mr-1 h-4 w-4" /> {ui("Atualizar")}
             </Button>
@@ -285,6 +326,14 @@ export function GlobalCallHistoryPage() {
           </div>
         </header>
 
+        {summaryLoading && <div role="status" className="space-y-2 rounded-xl border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">{ui("Calculando indicadores dos filtros…")}</p>
+          <Skeleton className="h-14 w-full" />
+        </div>}
+        {summaryError && <div role="alert" className="rounded-xl border border-danger/40 bg-card p-3 text-sm">
+          {ui("Indicadores indisponíveis.")} {summaryError}
+        </div>}
+        {!summaryLoading && !summaryError && summary && <GlobalHistorySummaryPanel summary={summary} />}
         <div className="grid min-h-[65dvh] gap-3 lg:grid-cols-[minmax(330px,410px)_minmax(0,1fr)]">
           <aside
             aria-label={ui("Falhas e filtros cronológicos")}

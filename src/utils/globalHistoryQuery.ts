@@ -54,3 +54,20 @@ export function globalHistorySearchPath(
   return "/api/andon-calls/history/search?" + params.toString();
 }
 
+
+/** Summary must use the same filter set, but must NEVER inherit UI pagination.
+ * Totals are computed over the full authorized filtered history by the API.
+ */
+export function globalHistorySummaryPath(
+  filters: GlobalHistorySearchFilters,
+  now = new Date(),
+) {
+  const path = globalHistorySearchPath(filters, 0, now);
+  const [base, query] = path.split("?");
+  if (base !== "/api/andon-calls/history/search" || !query)
+    throw new Error("invalid_history_summary_path");
+  const params = new URLSearchParams(query);
+  params.delete("limit");
+  params.delete("offset");
+  return "/api/andon-calls/history/summary?" + params.toString();
+}
