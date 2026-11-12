@@ -22,6 +22,7 @@ import {
   SIMPLE_MODULE_GROUPS,
   simpleModuleState,
   toggleSimpleModule,
+  reconcileSimpleModuleRole,
   PILOT_SIMPLE_ROLES,
   hasRoleSuggestion,
   suggestedPermissions,
@@ -711,9 +712,18 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           const roleLabel = e.target.value;
                           setDraft({
                             ...draft,
-                            // Role classification never overwrites an existing ACL.
-                            // The Admin must explicitly choose module bundles.
                             roleLabel,
+                            // Role changes rebase only existing ANDON grants, so a
+                            // Production downgrade cannot retain Manager actions.
+                            // Other modules and special exceptions are preserved.
+                            ...(!advancedPermissions && draft.accountType === "person"
+                              ? {
+                                  permissions: reconcileSimpleModuleRole(
+                                    draft.permissions, draft.roleLabel, roleLabel,
+                                    catalog.permissions,
+                                  ),
+                                }
+                              : {}),
                           });
                         }}
                       >
@@ -821,7 +831,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   </fieldset>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                     <p className="text-sm text-muted-foreground">
-                      {ui("O perfil não concede ações automaticamente. Revise as permissões gravadas antes de salvar.")}
+                      {ui("O perfil determina as funções do ANDON agrupadas; apenas o Admin define quais módulos estão habilitados.")}
                     </p>
                     <Button
                       type="button"
