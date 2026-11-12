@@ -2,6 +2,14 @@
 # Does not open ports, alter trust stores, export keys, accept foreign CA,
 # modify ANDON settings or assume remote mobile access works.
 
+# Issuer classification is a diagnostic clue, never proof of trust on Android.
+function Get-AndonCertificateIssuerHint {
+    param([string]$Issuer = "", [string]$Subject = "")
+    if ($Issuer -match '(?i)mkcert') { return "MKCERT_TEST_CA" }
+    if ($Issuer -and $Issuer -eq $Subject) { return "SELF_SIGNED_UNVERIFIED" }
+    return "CLIENT_TRUST_UNVERIFIED"
+}
+
 function Get-AndonLanBindStatus {
     param(
         [string[]]$ListenerAddresses = @(),
@@ -156,6 +164,17 @@ function Show-AndonHttpsNetworkDiagnostics {
         try {
             $certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("$($Config.tlsCertificatePath)")
             Write-Host ("Certificado servidor: validade ate {0}" -f $certificate.NotAfter.ToString("yyyy-MM-dd"))
+            $issuerHint = Get-AndonCertificateIssuerHint -Issuer "$($certificate.Issuer)" -Subject "$($certificate.Subject)"
+            Write-Host ("Tipo aparente de CA: {0}" -f $issuerHint)
+            if ($issuerHint -eq "MKCERT_TEST_CA") {
+                Write-AndonWarn "Certificado emitido por mkcert (laboratorio); a confianca no Windows nao implica confianca no Android/Chrome."
+                Write-AndonWarn "Produto industrial: solicitar CA corporativa/gerenciada para o hostname canonico e validar nos clientes."
+            } elseif ($issuerHint -eq "SELF_SIGNED_UNVERIFIED") {
+                Write-AndonWarn "Certificado aparentemente autoassinado; confianca no smartphone NAO comprovada."
+            } else {
+                Write-AndonWarn "A cadeia TLS do cliente Android NAO pode ser comprovada pelo certificado local."
+            }
+
             if ((Get-Date) -gt $certificate.NotAfter) {
                 Write-AndonWarn "Certificado expirado. Emita certificado confiavel antes de acesso remoto."
             }
@@ -170,7 +189,9 @@ function Show-AndonHttpsNetworkDiagnostics {
     Write-Host ("  1. https://{0}:{1}/health  (API, leitura publica sem dados internos)" -f $httpsHost, $Config.apiPort)
     Write-Host ("  2. https://{0}:{1}/hub  (interface, exige login/permissoes)" -f $httpsHost, $Config.frontendPort)
     Write-AndonWarn "Timeout/sem resposta: Wi-Fi client isolation, IP alterado, bind, firewall ou roteamento."
-    Write-AndonWarn "Aviso de certificado: CA mkcert nao e confiada automaticamente no smartphone. Preferir CA corporativa/gerenciada."
+    Write-AndonWarn "HTTPS com cadeado riscado: confira a causa no Chrome (CA nao confiavel, SAN/host divergente ou validade)."
+    Write-AndonWarn "O certificado local e o teste de Windows NAO demonstram confianca no Android; nao aceite avisos de seguranca."
+    Write-AndonWarn "CA mkcert serve somente para laboratorio. NUNCA compartilhe rootCA-key.pem nem altere a confianca de aparelhos sem TI."
     Write-AndonWarn "403 apos conexao: workstation/sessao nao autorizada. Nao desligar autenticacao nem desabilitar validacao TLS."
     Write-Host "Diagnostico local NAO comprova chegada de pacotes do smartphone e nao instala certificados."
     $networkClock.Stop()
