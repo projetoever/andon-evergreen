@@ -54,7 +54,7 @@ export function QuickOpenCallModal({
   hierarchicalChoice = null,
 }: QuickOpenCallModalProps) {
   useInterfaceLanguage();
-  const { machines, openCall, openCalls } = useAndon();
+  const { machines, openCall } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -130,19 +130,20 @@ export function QuickOpenCallModal({
         workOrderNumber: normalizedWorkOrderNumber || undefined,
         operatorNote: operatorNote.trim() || undefined,
       };
-      if (hierarchicalChoice) {
-        // A hierarchical choice MUST go through the single-call endpoint.
-        // The legacy batch endpoint cannot store a reason snapshot.
-        await openCall({
-          ...params,
-          reasonId: hierarchicalChoice.reasonId,
-          optionId: hierarchicalChoice.optionId,
-          expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
-          expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
-        });
-      } else {
-        await openCalls([params]);
-      }
+      // A single human opening always uses POST /api/andon-calls.
+      // The batch endpoint has an independent central opt-in and is only for
+      // genuine multi-sector requests. Never silently retry a rejected write.
+      await openCall({
+        ...params,
+        ...(hierarchicalChoice
+          ? {
+              reasonId: hierarchicalChoice.reasonId,
+              optionId: hierarchicalChoice.optionId,
+              expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
+              expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
+            }
+          : {}),
+      });
       toast.success(`Chamado de ${option.label} aberto.`);
       onOpenChange(false);
     } catch (error) {
