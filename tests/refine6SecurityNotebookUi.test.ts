@@ -4,11 +4,18 @@ import { readFile } from "node:fs/promises";
 
 const read = (p: string) => readFile(new URL(p, import.meta.url), "utf8");
 
-test("REFINE 6 notebook: simple profiles are default even for legacy-custom users", async () => {
-  const users = await read("../src/components/settings/UsersAccessSettings.tsx");
+test("REFINE 16: default editor groups four modules and preserves historical custom grants", async () => {
+  const [users, presets] = await Promise.all([
+    read("../src/components/settings/UsersAccessSettings.tsx"),
+    read("../src/services/accessRolePresets.ts"),
+  ]);
   assert.match(users, /setAdvancedPermissions\(false\);/);
-  assert.match(users, /isExactRolePreset\(/);
-  assert.match(users, /Este usuário possui permissões personalizadas/);
+  assert.match(users, /SIMPLE_MODULE_GROUPS\.map/);
+  assert.match(users, /simpleModuleState\(/);
+  assert.match(users, /toggleSimpleModule\(/);
+  assert.match(users, /reconcileSimpleModuleRole\(/);
+  assert.match(presets, /export const SIMPLE_MODULE_GROUPS/);
+  assert.match(presets, /export function simpleModuleState/);
   assert.match(users, /Perfil existente \(personalizado\)/);
   assert.match(users, /advancedPermissions && <fieldset/);
   assert.match(users, /permissions: user\.permissions\.map/);

@@ -1,5 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["O perfil determina as funções do ANDON agrupadas; apenas o Admin define quais módulos estão habilitados.","The profile determines the bundled ANDON functions; only the Admin chooses which modules are enabled.","角色決定 ANDON 模組內的功能權限；僅管理員能選擇啟用哪些模組。"],
+  ["ANDON","ANDON","ANDON"],
+  ["BI","BI","BI"],
+  ["Config. do ANDON","ANDON settings","ANDON 設定"],
+  ["Cada módulo habilitado concede as funções correspondentes ao perfil. A workstation e o escopo de máquinas continuam protegidos.","Each enabled module grants the functions appropriate to the selected profile. Workstation approval and machine scope still apply.","啟用模組會授予與所選角色相符的功能。工作站核准與機台範圍限制仍然適用。"],
+  ["Parcial","Partial","部分授權"],
+  ["Acesso parcial: marque o módulo para conceder suas funções. Nenhuma permissão será ampliada apenas pelo perfil.","Partial access: select the module to grant its functions. A profile name alone never expands permissions.","部分存取：勾選模組以授予對應功能。僅變更角色名稱不會擴大權限。"],
+  ["Permissões especiais de segurança e administração permanecem separadas. Nenhum módulo libera o gerenciamento de usuários ou workstations.","Special security and administration grants remain separate. No module enables user or workstation management.","特殊安全與管理權限維持獨立。啟用模組不會授予使用者或工作站管理權限。"],
   ["O perfil não concede ações automaticamente. Revise as permissões gravadas antes de salvar.","A role does not automatically grant actions. Review the saved permissions before saving.","角色本身不會自動授予操作權限。儲存前請檢查已設定的權限。"],
   ["Operações de chamados","Call operations","通報操作"],
   ["ANDON: visualizar permite somente acessar o painel. Abrir, atender e concluir chamados exigem permissões próprias. Nenhuma ação é concedida somente pelo nome do perfil.","ANDON: view only provides access to the panel. Opening, attending, and completing calls require separate permissions. The role name alone grants no actions.","「ANDON：檢視」僅允許存取面板。建立、處理及結束通報需要各自的權限。角色名稱本身不會授予操作權限。"],
