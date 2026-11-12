@@ -1,6 +1,6 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
-import { globalHistorySearchPath } from "@/utils/globalHistoryQuery";
-export { globalHistorySearchPath, dateRangeForGlobalHistory } from "@/utils/globalHistoryQuery";
+import { globalHistorySearchPath, globalHistorySummaryPath } from "@/utils/globalHistoryQuery";
+export { globalHistorySearchPath, globalHistorySummaryPath, dateRangeForGlobalHistory } from "@/utils/globalHistoryQuery";
 
 const api = createAndonApiClient();
 
@@ -149,4 +149,15 @@ export function getGlobalHistoryCallDetail(callId: string) {
   return api.get<{ call: GlobalHistoryCallDetail }>(
     "/api/andon-calls/history/detail/" + encodeURIComponent(callId),
   );
+}
+
+export interface GlobalHistorySummary {
+  total: number;
+  byStatus: Array<{ status: string; count: number }>;
+  byCategory: Array<{ category: string; count: number }>;
+  byOrigin: { real: number; system: number };
+}
+
+export function getGlobalHistorySummary(filters: GlobalHistorySearchFilters) {
+  return api.get<GlobalHistorySummary>(globalHistorySummaryPath(filters));
 }
