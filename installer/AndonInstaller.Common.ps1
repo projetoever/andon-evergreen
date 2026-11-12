@@ -1556,11 +1556,45 @@ function Invoke-AndonNodePipeline {
     Write-AndonOk "Backend/frontend preparados."
 }
 
+function Test-AndonCentralProtectedRead {
+    param([Parameter(Mandatory = $true)][string]$ApiBaseUrl)
+
+    # No cookies or credentials: 401/403 is the expected security boundary.
+    # Never create, cancel or mutate calls from the installer in central mode.
+    $status = 0
+    try {
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/machines?includeInactive=true" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $status = [int]$response.StatusCode
+    } catch {
+        $webResponse = $_.Exception.Response
+        if ($null -eq $webResponse -or $null -eq $webResponse.StatusCode) {
+            $result = New-AndonHealthResult -Status "FAIL" -Message "Verificacao de acesso protegido falhou por transporte/rede; API e banco devem ser verificados."
+            Write-AndonHealthResult $result
+            return $result
+        }
+        $status = [int]$webResponse.StatusCode
+    }
+
+    if ($status -in @(401, 403)) {
+        $result = New-AndonHealthResult -Status "SKIP" -Message "API e banco prontos. Leitura protegida (HTTP $status): acesso central exige sessao e workstation autorizada. Teste de escrita nao executado."
+    } elseif ($status -ge 200 -and $status -lt 300) {
+        $result = New-AndonHealthResult -Status "FAIL" -Message "FALHA DE SEGURANCA: leitura de maquinas sem autenticacao no modo central (HTTP $status)."
+    } else {
+        $result = New-AndonHealthResult -Status "FAIL" -Message "Leitura protegida retornou HTTP $status inesperado; verificar API, nao ampliar permissoes."
+    }
+    Write-AndonHealthResult $result
+    return $result
+}
+
 function Test-AndonApiWrite {
     $api = Get-AndonApiBaseUrl
     try {
         $readiness = Invoke-RestMethod "$api/health/ready" -TimeoutSec 10
         if ($readiness.status -ne "ok" -or $readiness.ready -ne $true) { throw "API/schema indisponivel." }
+        $currentConfig = Import-AndonConfig
+        if ("$($currentConfig.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true") {
+            return (Test-AndonCentralProtectedRead -ApiBaseUrl $api)
+        }
         # Uma instalacao nova nao deve executar testes operacionais antes da
         # configuracao da primeira senha. O estado pendente e esperado.
         $adminState = Invoke-RestMethod "$api/api/admin-auth/status" -TimeoutSec 10
