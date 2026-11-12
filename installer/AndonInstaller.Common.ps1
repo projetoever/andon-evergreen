@@ -1557,13 +1557,16 @@ function Invoke-AndonNodePipeline {
 }
 
 function Test-AndonCentralProtectedRead {
-    param([Parameter(Mandatory = $true)][string]$ApiBaseUrl)
+    param(
+        [Parameter(Mandatory = $true)][string]$ApiBaseUrl,
+        [ValidateRange(1, 30)][int]$TimeoutSeconds = 5
+    )
 
     # No cookies or credentials: 401/403 is the expected security boundary.
     # Never create, cancel or mutate calls from the installer in central mode.
     $status = 0
     try {
-        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/machines?includeInactive=true" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$ApiBaseUrl/api/machines?includeInactive=true" -UseBasicParsing -TimeoutSec $TimeoutSeconds -ErrorAction Stop
         $status = [int]$response.StatusCode
     } catch {
         $webResponse = $_.Exception.Response
