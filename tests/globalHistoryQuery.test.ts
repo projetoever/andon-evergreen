@@ -4,13 +4,12 @@ import {
   dateRangeForGlobalHistory,
   globalHistorySearchPath,
 } from "../src/utils/globalHistoryQuery";
-import {
-  DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
-  type GlobalHistorySearchFilters,
-} from "../src/services/globalHistoryService";
+import type { GlobalHistorySearchFilters } from "../src/services/globalHistoryService";
 
-const filters = (patch: Partial<GlobalHistorySearchFilters> = {}) =>
-  ({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, ...patch });
+const filters = (patch: Partial<GlobalHistorySearchFilters> = {}): GlobalHistorySearchFilters =>
+  ({ query:"", machineId:"all", subtype:"", status:"all", technician:"",
+    failureClassification:"", reasonId:"", origin:"all", period:"30d", customDate:"",
+    ...patch });
 
 test("HIST-03: query encodes machine, classification, text and all current filter families", () => {
   const url = globalHistorySearchPath(filters({
