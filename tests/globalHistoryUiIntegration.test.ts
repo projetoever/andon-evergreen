@@ -67,3 +67,23 @@ test("HIST-04: individual details only load for server-authorized selected calls
   assert.match(panels,/Eventos e tempos apresentados conforme registros existentes/);
   assert.doesNotMatch(panels,/(?:eval\(|dangerouslySetInnerHTML)/);
 });
+
+test("HIST-05: exact authorized totals and page-only export are visibly distinguished", async () => {
+  const [page,scope,panel,exporter] = await Promise.all([
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../server/src/security/centralScopedMachineReads.ts"),
+    source("../src/components/history/GlobalHistorySummaryPanel.tsx"),
+    source("../src/services/globalHistoryPageCsv.ts"),
+  ]);
+  assert.match(scope,/pathname === "\/api\/andon-calls\/history\/summary"/);
+  assert.match(page,/getGlobalHistorySummary\(applied\)/);
+  assert.match(page,/GlobalHistorySummaryPanel summary=\{summary\}/);
+  assert.match(page,/downloadGlobalHistoryPageCsv\(result\.items\)/);
+  assert.match(page,/CSV da página/);
+  assert.match(page,/Exporta somente os registros da página atual/);
+  assert.match(panel,/summary\.total/);
+  assert.match(panel,/summary\.byStatus/);
+  assert.match(panel,/summary\.byCategory/);
+  assert.match(exporter,/items\.length > 25/);
+  assert.doesNotMatch(page,/downloadGlobalHistoryPageCsv\(summary/);
+});
