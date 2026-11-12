@@ -1586,6 +1586,32 @@ function Test-AndonCentralProtectedRead {
     return $result
 }
 
+# Product health checks must never mutate production state. This read-only
+# probe validates the operational API permission boundary without creating
+# calls, cancelling them, or pretending an unauthenticated client is an admin.
+function Test-AndonApiReadOnly {
+    $api = Get-AndonApiBaseUrl
+    $config = Import-AndonConfig
+    if ("$($config.centralAccessEnabled)".Trim().ToLowerInvariant() -eq "true") {
+        return (Test-AndonCentralProtectedRead -ApiBaseUrl $api)
+    }
+
+    try {
+        $machines = @(Invoke-RestMethod "$api/api/machines?includeInactive=true" -TimeoutSec 5)
+        $result = New-AndonHealthResult -Status "PASS" -Message (
+            "API operacional legada respondeu a leitura de maquinas. " +
+            "Nenhum chamado de teste foi criado ou cancelado."
+        )
+    } catch {
+        $result = New-AndonHealthResult -Status "FAIL" -Message (
+            "Leitura operacional legada indisponivel; confira autenticacao/HTTPS/API. " +
+            "Nenhuma escrita foi realizada."
+        )
+    }
+    Write-AndonHealthResult $result
+    return $result
+}
+
 function Test-AndonApiWrite {
     $api = Get-AndonApiBaseUrl
     try {
