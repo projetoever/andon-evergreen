@@ -47,3 +47,23 @@ test("HIST-03: chronology, period and selected-machine filtering cannot bypass s
   assert.match(sql,/openedAt: "desc" as const/);
   assert.match(scope,/assertPermission\(principal, "history.read"\)/);
 });
+
+test("HIST-04: individual details only load for server-authorized selected calls", async () => {
+  const [page,client,panels] = await Promise.all([
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../src/services/globalHistoryService.ts"),
+    source("../src/components/history/GlobalHistoryDetailSections.tsx"),
+  ]);
+  assert.match(page,/getGlobalHistoryCallDetail\(selectedId\)/);
+  assert.match(page,/result\?\.items\.some\(item => item\.id === selectedId\)/);
+  assert.match(page,/let active = true/);
+  assert.match(page,/return \(\) => \{ active = false; \}/);
+  assert.match(page,/detail\?\.id===selected\.id/);
+  assert.match(client,/\/api\/andon-calls\/history\/detail\//);
+  assert.match(panels,/call\.technicianSessions/);
+  assert.match(panels,/call\.failureEvents/);
+  assert.match(panels,/call\.machineStoppedMinutes/);
+  assert.match(panels,/call\.attendedAt/);
+  assert.match(panels,/Eventos e tempos apresentados conforme registros existentes/);
+  assert.doesNotMatch(panels,/(?:eval\(|dangerouslySetInnerHTML)/);
+});

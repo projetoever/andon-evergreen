@@ -9,6 +9,7 @@ import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
+  getGlobalHistoryCallDetail,
   listAuthorizedHistoryMachines,
   listGlobalHistoryCategoryOptions,
   listGlobalHistoryClassificationOptions,
@@ -17,11 +18,13 @@ import {
   type GlobalHistoryCategoryOption,
   type GlobalHistoryClassificationOption,
   type GlobalHistoryCallSummary,
+  type GlobalHistoryCallDetail,
   type GlobalHistorySearchFilters,
   type GlobalHistorySearchResult,
 } from "@/services/globalHistoryService";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GlobalHistoryDetailSections } from "@/components/history/GlobalHistoryDetailSections";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Aberto",
@@ -47,7 +50,12 @@ function formatInstant(value: string | null | undefined): string {
     : "Data indisponível";
 }
 
-function SummaryDetail({ call }: { call: GlobalHistoryCallSummary }) {
+function SummaryDetail({ call, detail, detailLoading, detailError }: {
+  call: GlobalHistoryCallSummary;
+  detail: GlobalHistoryCallDetail | null;
+  detailLoading: boolean;
+  detailError: string;
+}) {
   const line = (label: string, value: string | null | undefined) => (
     <div className="flex min-w-0 flex-wrap justify-between gap-2 border-b border-border/60 py-2 text-sm">
       <dt className="text-muted-foreground">{ui(label)}</dt>
@@ -80,12 +88,17 @@ function SummaryDetail({ call }: { call: GlobalHistoryCallSummary }) {
           ? call.technicianNames.join(", ") : call.technicianName)}
         {line("Origem", call.isSystemTest ? "Teste do sistema" : "Chamado real")}
       </dl>
-      <div role="note" className="rounded-xl border border-info/40 bg-info/10 p-4 text-sm leading-relaxed">
-        <p className="font-bold">{ui("Resumo para consulta — HIST-03")}</p>
-        <p className="mt-1 text-muted-foreground">
-          {ui("A linha do tempo, anotações, participantes, tempos por fase, auditoria e gráficos completos serão adicionados após a API de detalhes por chamado ser homologada. Esta tela não permite editar registros.")}
-        </p>
-      </div>
+      {detailLoading && <div role="status" className="space-y-3">
+        <p className="text-sm text-muted-foreground">{ui("Carregando registro completo do chamado…")}</p>
+        <Skeleton className="h-28 w-full" /><Skeleton className="h-44 w-full" />
+      </div>}
+      {detailError && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+        {ui("Não foi possível consultar o detalhamento autorizado deste chamado.")} {detailError}
+      </p>}
+      {detail && detail.id === call.id && <GlobalHistoryDetailSections call={detail}/>}
+      {!detail && !detailLoading && !detailError && <p role="note" className="text-sm text-muted-foreground">
+        {ui("Detalhamento indisponível nesta seleção.")}
+      </p>}
     </article>
   );
 }
@@ -136,6 +149,10 @@ export function GlobalCallHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [reload, setReload] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<GlobalHistoryCallDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+
   const [mobileDetail, setMobileDetail] = useState(false);
 
   useEffect(() => {
@@ -186,6 +203,27 @@ export function GlobalCallHistoryPage() {
     });
     return () => { current = false; };
   }, [allowed, userId, applied, offset, reload]);
+
+  useEffect(() => {
+    setDetail(null);
+    setDetailError("");
+    if (!allowed || !selectedId || !result?.items.some(item => item.id === selectedId)) {
+      setDetailLoading(false);
+      return;
+    }
+    let active = true;
+    setDetailLoading(true);
+    void getGlobalHistoryCallDetail(selectedId).then(next => {
+      if (active) setDetail(next.call);
+    }).catch(error => {
+      if (active) setDetailError(error instanceof Error
+        ? systemMessage(error.message)
+        : ui("Falha na consulta do histórico."));
+    }).finally(() => {
+      if (active) setDetailLoading(false);
+    });
+    return () => { active = false; };
+  }, [allowed, userId, selectedId, result, reload]);
 
   const edit = useCallback((patch: Partial<GlobalHistorySearchFilters>) =>
     setDraft(current => ({ ...current, ...patch })), []);
@@ -375,7 +413,7 @@ export function GlobalCallHistoryPage() {
             {mobileDetail && <Button variant="outline" className="mb-4 lg:hidden" onClick={()=>setMobileDetail(false)}>
               <ArrowLeft className="mr-1 h-4 w-4" />{ui("Voltar à lista")}
             </Button>}
-            {selected ? <SummaryDetail call={selected}/> : (
+            {selected ? <SummaryDetail call={selected} detail={detail?.id===selected.id ? detail : null} detailLoading={detailLoading} detailError={detailError}/> : (
               <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
                 <Wrench className="h-9 w-9" />
                 <p className="text-sm">{ui("Selecione uma ocorrência na lista para consultar os detalhes disponíveis.")}</p>

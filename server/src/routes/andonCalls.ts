@@ -35,6 +35,7 @@ import {
 } from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
 import { buildScopedGlobalHistoryQuery, type GlobalHistoryQuery } from "../services/globalCallHistoryQuery.js";
+import { scopedGlobalCallDetailWhere } from "../services/globalCallHistoryDetail.js";
 import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
@@ -2328,6 +2329,55 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }),
         ]);
         return { items, total, limit: take, offset: skip, hasMore: skip + items.length < total };
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
+  /**
+   * HIST-04: one read-only historical call, including its documented phases,
+   * technician participation and attributable failures. A random ID is NOT
+   * authority: findFirst intersects that ID with server-bound machine scope
+   * before reading any relation. A missing/out-of-scope ID returns the same 404.
+   */
+  app.get<{ Params: { callId: string } }>(
+    "/api/andon-calls/history/detail/:callId",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!centralAccessEnabled() ||
+          process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1") {
+        return reply.status(403).send({ error: "global_history_disabled" });
+      }
+      try {
+        const allowedIds = scopedGlobalHistoryReadIds(request);
+        const where = scopedGlobalCallDetailWhere(request.params.callId, allowedIds);
+        const call = await prisma.andonCall.findFirst({
+          where,
+          include: {
+            ...andonCallInclude,
+            machine: { select: { id: true, name: true } },
+          },
+        });
+        if (!call) return reply.status(404).send({ error: "history_call_not_found" });
+        // A historical failure event linked to this call but a DIFFERENT
+        // machine is an integrity anomaly, NOT authority to read that machine.
+        const events = await prisma.failureEvent.findMany({
+          where: { callId: call.id, machineId: call.machineId },
+          orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+          select: {
+            id: true, callId: true, machineId: true,
+            startedAt: true, endedAt: true, durationSeconds: true,
+            classification: true, failureResponsibility: true,
+            analyticsDisposition: true, source: true,
+            productionMode: true, machineStatus: true,
+            notes: true, updatedAt: true,
+          },
+        });
+        const [enriched] = await enrichCallsWithAssetSnapshots([call]);
+        return { call: { ...(enriched as Record<string, unknown>), failureEvents: events } };
       } catch (error) {
         if (error instanceof AccessError)
           return reply.status(error.statusCode).send({ error: error.code });
