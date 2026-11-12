@@ -94,6 +94,36 @@ $healthRunner = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\h
 Assert-AndonTest -Condition ($healthRunner -match 'Show-AndonHttpsNetworkDiagnostics') -Message "Menu 6 deve explicar conectividade do smartphone"
 Write-Host "Diagnostico HTTPS: cinco modos bind e nenhuma alteracao de rede aprovados."
 
+$openFirewall = [pscustomobject]@{ Enabled = $true; Action = "Allow"; Profile = "Any" }
+$privateFirewall = [pscustomobject]@{ Enabled = $true; Action = "Allow"; Profile = "Private" }
+$disabledFirewall = [pscustomobject]@{ Enabled = $false; Action = "Allow"; Profile = "Any" }
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $openFirewall -RemoteAddresses @("Any")) -eq "BROAD_ANY_PROFILE"
+) -Message "Regras Any/Any exigem alerta de exposicao comercial"
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $privateFirewall -RemoteAddresses @("Any")) -eq "BROAD_REMOTE_ANY"
+) -Message "Perfil Private sozinho nao limita rede de origem"
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $openFirewall -RemoteAddresses @("192.168.68.0/24")) -eq "BROAD_PROFILE_ANY"
+) -Message "Restricao de subrede nao corrige perfil Any"
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $privateFirewall -RemoteAddresses @("192.168.68.0/24")) -eq "SCOPED"
+) -Message "Perfil e origem limitados diferem de regra global"
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $disabledFirewall -RemoteAddresses @("Any")) -eq "NOT_ALLOWING"
+) -Message "Regra desabilitada nao concede acesso"
+Assert-AndonTest -Condition (
+    (Get-AndonFirewallExposure -Rule $openFirewall -RemoteAddresses @()) -eq "UNKNOWN"
+) -Message "Nao inferir que filtro inacessivel autoriza acesso limitado"
+Assert-AndonTest -Condition (
+    $networkDiagnosticsSource -match 'Get-NetFirewallAddressFilter' -and
+    $networkDiagnosticsSource -match 'Get-NetFirewallPortFilter' -and
+    $networkDiagnosticsSource -match 'Tempo total do inventario HTTPS/rede'
+) -Message "Menu 6 deve mostrar escopo real de firewall e diferenciar tempo de inventario do tempo da API"
+Write-Host "Firewall read-only: perfis/escopos Any ou restritos e diagnostico de latencia aprovados."
+
+
+
 
 . (Join-Path $repositoryRoot "installer\AndonInstaller.Common.ps1")
 $Global:AndonProjectPath = "C:\web-andon-industrial\andon"
@@ -274,6 +304,14 @@ Remove-Item Function:\Invoke-WebRequest
 Set-Item Function:\Import-AndonConfig -Value $originalImportConfig
 $script:TestProtectedNetworkError = $false
 Write-Host "Health central: 401/403 esperados, vazamento 200 e falhas de rede bloqueados."
+$healthRuntime = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.Runtime.ps1") -Raw
+Assert-AndonTest -Condition (
+    $healthRuntime -match 'Tempo da validacao PostgreSQL/Docker:' -and
+    $healthRuntime -match 'Tempo da sondagem das portas Windows:' -and
+    $healthRuntime -match 'Tempo das tarefas/Chrome kiosk:' -and
+    $healthRuntime -match 'Tempo total dos servicos locais'
+) -Message "Health deve identificar por etapa a origem dos 16 segundos de diagnostico"
+
 
 Remove-Item Function:\Invoke-RestMethod
 
