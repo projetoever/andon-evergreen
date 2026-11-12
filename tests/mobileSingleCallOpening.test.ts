@@ -30,11 +30,13 @@ test("machine quick-stop and generic single item use individual API and genuine 
 });
 
 test("403 operator errors explain safe denial reasons without weakening central security", async () => {
-  const [client, central, route] = await Promise.all([
+  const [client, errors, central, route] = await Promise.all([
     source("../src/api/andonApiClient.ts"),
+    source("../src/api/andonErrorMessages.ts"),
     source("../server/src/security/centralOpenCallHttp.ts"),
     source("../server/src/routes/andonCalls.ts"),
   ]);
+  assert.match(client, /buildAndonApiErrorMessage/);
   for (const code of [
     "central_action_not_supported",
     "workstation_inactive",
@@ -44,7 +46,7 @@ test("403 operator errors explain safe denial reasons without weakening central 
     "machine_scope_denied",
     "origin_denied",
     "hierarchical_calls_disabled",
-  ]) assert.match(client, new RegExp(code));
+  ]) assert.match(errors, new RegExp(code));
   assert.match(central, /ANDON_CENTRAL_OPEN_CALL_HTTP_ENABLED === "1"/);
   assert.match(central, /assertPermission\(principal, "calls\.open"\)/);
   assert.match(central, /checkCsrf\(/);
