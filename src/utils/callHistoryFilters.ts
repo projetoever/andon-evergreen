@@ -15,11 +15,6 @@ export interface GlobalCallHistoryFilters extends CallHistoryFilters {
   machineId: string;
 }
 
-export const DEFAULT_GLOBAL_CALL_HISTORY_FILTERS: GlobalCallHistoryFilters = {
-  ...DEFAULT_CALL_HISTORY_FILTERS,
-  machineId: "all",
-};
-
 
 export interface CallHistoryFailureDetails {
   classification?: string | null;
@@ -47,6 +42,12 @@ export const DEFAULT_CALL_HISTORY_FILTERS: CallHistoryFilters = {
   customDate: "",
   origin: "all",
 };
+
+export const DEFAULT_GLOBAL_CALL_HISTORY_FILTERS: GlobalCallHistoryFilters = {
+  ...DEFAULT_CALL_HISTORY_FILTERS,
+  machineId: "all",
+};
+
 
 function normalizeSearchText(value: unknown) {
   return String(value ?? "")
