@@ -273,7 +273,14 @@ try {
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-create.png`, fullPage: true });
     assert.equal(await page.getByRole("checkbox", { name: "Config. do ANDON", exact: true }).count(), 1);
-    await page.getByRole("button", { name: "Salvar usuário", exact: true }).click();
+    const [createdResponse] = await Promise.all([
+      page.waitForResponse(response =>
+        new URL(response.url()).pathname === "/api/access/users" &&
+        response.request().method() === "POST" && response.ok(),
+      ),
+      page.getByRole("button", { name: "Salvar usuário", exact: true }).click(),
+    ]);
+    assert.equal((await createdResponse.json()).user.login, "marina.producao");
     assert(users.some(u => u.login === "marina.producao" &&
       u.permissions.some(p => p.key === "calls.open")),
       "ANDON module must grant actual calls.open to the stored user");
