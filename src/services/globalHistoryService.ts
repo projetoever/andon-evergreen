@@ -42,6 +42,20 @@ export interface AuthorizedHistoryMachine {
   name: string;
 }
 
+/** Static reference catalogs, not live call records. The server still
+ * authorizes these GETs via the current user's operational module grant.
+ */
+export interface GlobalHistoryCategoryOption {
+  id: string;
+  displayName: string;
+  active: boolean;
+}
+export interface GlobalHistoryClassificationOption {
+  value: string;
+  label: string;
+  active: boolean;
+}
+
 export type GlobalHistoryPeriod = "all" | "today" | "7d" | "30d" | "custom";
 
 export interface GlobalHistorySearchFilters {
@@ -76,4 +90,11 @@ export function searchGlobalHistory(filters: GlobalHistorySearchFilters, offset:
 
 export function listAuthorizedHistoryMachines() {
   return api.get<AuthorizedHistoryMachine[]>("/api/machines");
+}
+
+export function listGlobalHistoryCategoryOptions() {
+  return api.get<GlobalHistoryCategoryOption[]>("/api/andon-categories");
+}
+export function listGlobalHistoryClassificationOptions() {
+  return api.get<GlobalHistoryClassificationOption[]>("/api/failure-classifications");
 }
