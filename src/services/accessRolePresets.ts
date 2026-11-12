@@ -86,6 +86,112 @@ export const PILOT_OPERATIONAL_ACTIONS = [
 ] as const;
 
 /**
+ * REFINE 16 — Exactly four pilot controls. These are explicit Admin-issued
+ * bundles of existing server permissions, never client-side authorization.
+ * Backend keeps checking each action, workstation, session, machine and flag.
+ * Sensitive Hub/user/workstation management, audit and screen unlock are NOT
+ * silently added to any bundle. Advanced grants remain a separate opt-in.
+ */
+export const SIMPLE_MODULE_GROUPS = [
+  { id: "andon", label: "ANDON" },
+  { id: "bi", label: "BI" },
+  { id: "priorities", label: "Prioridades" },
+  { id: "andonSettings", label: "Config. do ANDON" },
+] as const;
+export type SimpleModuleGroup = (typeof SIMPLE_MODULE_GROUPS)[number]["id"];
+
+/** All ordinary operational grants; role presets decide which can be bundled. */
+const ANDON_OPERATION_GRANTS = [
+  "andon.read",
+  "history.read",
+  "calls.open",
+  "calls.cancel.own",
+  "calls.cancel.any", // Manager preset only; never Production or Maintenance.
+  "calls.attend",
+  "calls.technicians.manage",
+  "calls.finishMaintenance",
+  "calls.finish",
+  "calls.followUp",
+  "calls.returnToMaintenance",
+  "machines.status.write",
+  "production.schedule.write",
+  "diagnosis.edit",
+] as const;
+const BI_GRANTS = ["bi.read", "bi.export", "analytics.reclassify"] as const;
+const PRIORITY_GRANTS = ["priorities.read", "priorities.write"] as const;
+const ANDON_CONFIG_GRANTS = [
+  "andon.settings.open",
+  "catalog.assets.manage",
+  "catalog.reasons.manage",
+  "catalog.classifications.manage",
+  "catalog.technicians.manage",
+] as const;
+
+function ownedByGroup(group: SimpleModuleGroup): readonly string[] {
+  switch (group) {
+    case "andon": return ANDON_OPERATION_GRANTS;
+    case "bi": return BI_GRANTS;
+    case "priorities": return PRIORITY_GRANTS;
+    case "andonSettings": return ANDON_CONFIG_GRANTS;
+  }
+}
+
+/** ANDON capabilities respect the selected operational profile, not its label
+ * at runtime: this function writes the resulting grants once, on Admin save.
+ */
+export function simpleModuleGrants(
+  group: SimpleModuleGroup, roleLabel: string, catalog: readonly string[],
+): string[] {
+  const supported = new Set(catalog);
+  if (group === "andon") {
+    const roleGrants = new Set(suggestions[roleLabel] ?? suggestions["Produção"]);
+    return ANDON_OPERATION_GRANTS.filter(key => supported.has(key) && roleGrants.has(key));
+  }
+  if (group === "bi") {
+    // Reclassification changes historical KPIs: only the Manager profile can
+    // obtain it from the simple BI bundle, and the server still audits it.
+    return BI_GRANTS.filter(key => supported.has(key) &&
+      (key !== "analytics.reclassify" || roleLabel === "Gestor/Gerente"));
+  }
+  return ownedByGroup(group).filter(key => supported.has(key));
+}
+
+/** Partial historical grants must NEVER make the module look fully enabled.
+ * Example: 'vini' with andon.read but without calls.open is PARTIAL, not ON.
+ */
+export function simpleModuleState(
+  current: readonly string[], group: SimpleModuleGroup,
+  roleLabel: string, catalog: readonly string[],
+): "on" | "partial" | "off" {
+  const expected = simpleModuleGrants(group, roleLabel, catalog);
+  if (!expected.length) return "off";
+  const granted = expected.filter(key => current.includes(key)).length;
+  return granted === expected.length ? "on" : granted > 0 ? "partial" : "off";
+}
+
+export function toggleSimpleModule(
+  current: readonly string[], group: SimpleModuleGroup,
+  roleLabel: string, catalog: readonly string[], checked: boolean,
+): string[] {
+  const next = new Set(current);
+  if (checked) {
+    for (const key of simpleModuleGrants(group, roleLabel, catalog)) next.add(key);
+    // ANDON settings live in /andon, so even a config-only account needs read.
+    if (group === "andonSettings" && catalog.includes("andon.read")) next.add("andon.read");
+  } else {
+    for (const key of ownedByGroup(group)) next.delete(key);
+    if (group === "andon") {
+      // A screen-unlock exception is unsafe without its parent module.
+      next.delete(SCREEN_UNLOCK_PERMISSION);
+      // Keep only the minimum module entry required by the independent config
+      // bundle when it remains enabled. Never retain operational call grants.
+      if (next.has("andon.settings.open")) next.add("andon.read");
+    }
+  }
+  return [...next];
+}
+
+/**
  * Settings access is independent of the role label, but /andon still needs
  * operational module read to expose its settings dialog. Grant this minimal
  * prerequisite automatically in the user editor; never add calls, BI, Hub or
