@@ -1,7 +1,7 @@
 import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Radio, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   updateWorkstation,
 } from "@/services/workstationService";
 import type { Workstation } from "@/types/workstation";
+import { compareWorkstationsForDisplay } from "@/services/workstationDisplayOrder";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
 import { CentralWorkstationAdmissionPolicySettings } from "./CentralWorkstationAdmissionPolicySettings";
@@ -133,13 +134,8 @@ export function WorkstationsSettingsTab() {
 
         return haystack.includes(normalizedQuery);
       })
-      .sort((a, b) => {
-        if (a.id === currentWorkstationId) return -1;
-        if (b.id === currentWorkstationId) return 1;
-        if (a.pendingApproval !== b.pendingApproval) return a.pendingApproval ? -1 : 1;
-        return workstationLabel(a).localeCompare(workstationLabel(b), "pt-BR");
-      });
-  }, [centralAccess, currentWorkstationId, items, searchQuery, statusFilter]);
+      .sort((a, b) => compareWorkstationsForDisplay(a, b, centralAccess));
+  }, [centralAccess, items, searchQuery, statusFilter]);
 
   const refreshAccessSession = useCallback(async () => {
     if (CONFIGURED_DATA_MODE === "local" || !centralAccess) return;
@@ -673,6 +669,10 @@ export function WorkstationsSettingsTab() {
                 className={[
                   "min-w-0 overflow-hidden",
                   isCurrent ? "border-primary/50 ring-1 ring-primary/30" : "",
+                  centralAccess && workstation.active && !workstation.pendingApproval &&
+                    workstation.presence === "online"
+                    ? "border-success/60 bg-success/5 ring-1 ring-success/20"
+                    : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -700,11 +700,28 @@ export function WorkstationsSettingsTab() {
                               : ui("Bloqueado")}
                         </Badge>
                         {centralAccess && (
-                          <Badge variant={workstation.presence === "online" ? "secondary" : "outline"}>
+                          <Badge
+                            variant="outline"
+                            className={
+                              workstation.active && !workstation.pendingApproval &&
+                              workstation.presence === "online"
+                                ? "gap-1 border-success/60 bg-success/10 font-bold text-success"
+                                : workstation.pendingApproval
+                                  ? "border-warning/60 bg-warning/10 text-warning"
+                                  : "text-muted-foreground"
+                            }
+                          >
+                            {workstation.active && !workstation.pendingApproval &&
+                              workstation.presence === "online" && (
+                                <Radio aria-hidden="true" className="h-3 w-3" />
+                              )}
                             {ui(
-                              workstation.presence === "online" ? "Online — heartbeat recente" :
-                              workstation.presence === "offline" ? "Offline — sem presença válida" :
-                              "Presença ainda desconhecida",
+                              workstation.active && !workstation.pendingApproval &&
+                                workstation.presence === "online"
+                                ? "Online — heartbeat recente"
+                                : workstation.presence === "offline"
+                                  ? "Offline — sem presença válida"
+                                  : "Presença ainda desconhecida",
                             )}
                           </Badge>
                         )}
