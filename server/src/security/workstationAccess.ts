@@ -332,6 +332,7 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       if (["GET", "HEAD"].includes(request.method) &&
           (path === "/api/andon-calls/history" ||
            path === "/api/andon-calls/history/search" ||
+           /^\/api\/andon-calls\/history\/detail\/[A-Za-z0-9_-]{1,160}$/.test(path) ||
            path === "/api/analytics/data-quality-details")) {
         // Data-quality detail rows contain diagnoses, work orders, and names;
         // BI dashboard permission alone must not unlock that historical PII.
