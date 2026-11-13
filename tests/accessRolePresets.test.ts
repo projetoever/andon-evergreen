@@ -319,6 +319,7 @@ test("SEC-17: new user defaults to Person; unsupported Kiosk enrollment is disab
   assert.ok(panel.includes('disabled={draft.accountType === "kiosk"}'));
   assert.ok(panel.includes('editingUser.accountType === "person"'));
   assert.ok(users.includes('(input.accountType === "kiosk" && input.active)'));
+  assert.ok(users.includes('if (!id && input.accountType === "kiosk")'));
   assert.ok(users.includes('before.accountType !== input.accountType'));
   assert.ok(routes.includes('user.accountType !== "person"'));
   assert.ok(sessions.includes('user.accountType !== "person"'));
