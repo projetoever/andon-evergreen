@@ -119,7 +119,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       return;
     }
     if (accessChecking || access?.centralAccessEnabled !== true) {
-      toast(ui("Não foi possível verificar sua permissão. Tente novamente."));
+      toast(ui("Não foi possível verificar sua permissão. Tente novamente."), { className: "!bg-white !text-slate-900 !border-slate-200" });
       return;
     }
     try {
@@ -132,12 +132,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         (principal.machineScope === "all" ||
           principal.machineIds?.includes(machine.id) === true);
       if (!authorized) {
-        toast(ui("Você não tem permissão para alterar a programação desta máquina."));
+        toast(ui("Você não tem permissão para alterar a programação desta máquina."), { className: "!bg-white !text-slate-900 !border-slate-200" });
         return;
       }
       setPendingProductionMode(next);
     } catch {
-      toast(ui("Não foi possível verificar sua permissão. Tente novamente."));
+      toast(ui("Não foi possível verificar sua permissão. Tente novamente."), { className: "!bg-white !text-slate-900 !border-slate-200" });
     }
   }
 
