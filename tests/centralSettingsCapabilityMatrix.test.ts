@@ -63,3 +63,37 @@ test("CFG-15A: central sector actions fail closed on write flag and forbid DELET
   // No new DELETE central flag or privilege may be inferred by this UI change.
   assert.doesNotMatch(tab, /ANDON_CENTRAL_CATEGORY_DELETE/);
 });
+
+test("CFG-15D3B: Machine Admin separates central machine creation from metadata edits", async () => {
+  const [panel, settings, createGate, metadataGate, metadataService] = await Promise.all([
+    get("../src/components/settings/MachineAdminPanel.tsx"),
+    get("../server/src/services/systemSettings.ts"),
+    get("../server/src/security/centralMachineCreateHttp.ts"),
+    get("../server/src/security/centralMachineSettingsHttp.ts"),
+    get("../server/src/access/centralMachineSettings.ts"),
+  ]);
+  assert.ok(panel.includes('settings.centralMachineCreateEnabled === true'));
+  assert.ok(panel.includes('settings.centralMachineSettingsWriteEnabled === true'));
+  assert.ok(panel.includes('const canCreateMachine = !centralAccess || centralCapabilities?.create === true'));
+  assert.ok(panel.includes('const canEditMachineMetadata = !centralAccess || centralCapabilities?.update === true'));
+  assert.ok(panel.includes('if (centralAccess) setCentralCapabilities(null); // fail closed during reload'));
+  assert.ok(panel.includes('setCapabilityError(true)'));
+  assert.ok(panel.includes('setCapabilityRetry(value => value + 1)'));
+  assert.ok(panel.includes('if (!canCreateMachine) return;'));
+  assert.ok(panel.includes('disabled={!canCreateMachine}'));
+  assert.ok(panel.includes('disabled={!newId.trim() || !canCreateMachine}'));
+  assert.ok(panel.includes('disabled={!canEditMachineMetadata}'));
+  assert.ok(panel.includes('if (!canEditMachineMetadata) return;'));
+  assert.ok(panel.includes('if (centralAccess) return;'));
+  assert.ok(panel.includes('<SelectTrigger disabled={centralAccess}>'));
+  assert.ok(panel.includes('disabled={centralAccess || Boolean(selectedMachine.currentCallId)}'));
+  assert.ok(panel.includes('updateMachineCatalog(selectedMachine.id, {'));
+  assert.ok(panel.includes('updateMachineProductionMode(selectedMachine.id, value as ProductionMode)'));
+  assert.ok(settings.includes('centralMachineCreateEnabled: centralMachineCreateEnabled()'));
+  assert.ok(settings.includes('centralMachineSettingsWriteEnabled: centralMachineSettingsEnabled()'));
+  assert.ok(createGate.includes('method === "POST"'));
+  assert.ok(metadataGate.includes('method === "PATCH"'));
+  assert.ok(metadataService.includes('key !== "name" && key !== "requireWorkOrderAtOpen"'));
+  assert.ok(!panel.includes("ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED"));
+  assert.ok(!panel.includes("ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED"));
+});

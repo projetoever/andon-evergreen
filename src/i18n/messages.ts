@@ -5876,4 +5876,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["bloqueada","blocked","已封鎖"],
   ["bloqueado","blocked","已封鎖"],
   ["habilitado","enabled","已啟用"],
+  ["Configurações operacionais de máquinas são controladas separadamente.","Operational machine settings are controlled separately.","機台作業設定另行控管。"],
 ]; 
