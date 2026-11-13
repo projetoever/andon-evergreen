@@ -5887,6 +5887,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Segurança e administração — permissões independentes","Security and administration — independent permissions","安全與管理 — 獨立權限"],
   ["Estas permissões não são selecionadas por nenhum dos 4 módulos. Habilite-as individualmente somente quando necessárias.","These permissions are not included in any of the four modules. Enable them individually only when needed.","這些權限不屬於四大模組。只有在必要時才個別啟用。"],
   ["Pessoa — acesso com senha","Person — password login","個人 — 密碼登入"],
+  ["Novos cadastros são contas de usuário com senha. O perfil descreve a função; selecione os módulos ou use Avançado para restringir ações.","New accounts use password-based login. The role describes a function; select modules or use Advanced to restrict actions.","新帳戶使用密碼登入。角色僅用於描述職務；請選擇模組，或在進階設定中限制操作。"],
+  ["Kiosk legado — inativo","Legacy Kiosk — inactive","舊版 Kiosk — 已停用"],
   ["Senha indisponível — Kiosk","Password unavailable — Kiosk","密碼不可用 — Kiosk"],
   ["Este Kiosk não possui login por senha. Para usar esse nome, renomeie o registro inativo e crie uma conta Pessoa.","This Kiosk has no password login. To use this username, rename the inactive record and create a Person account.","此 Kiosk 不支援密碼登入。若要使用此使用者名稱，請先重新命名停用紀錄，再建立個人帳戶。"],
   ["Kiosk — provisionamento indisponível","Kiosk — enrollment unavailable","Kiosk — 暫無法註冊"],
