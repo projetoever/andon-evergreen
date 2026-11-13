@@ -116,7 +116,7 @@ const ANDON_OPERATION_GRANTS = [
   "calls.followUp",
   "calls.returnToMaintenance",
   "machines.status.write",
-  "production.schedule.write",
+  "production.schedule.request",
   "diagnosis.edit",
   SCREEN_UNLOCK_PERMISSION,
 ] as const;
