@@ -5887,6 +5887,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Segurança e administração — permissões independentes","Security and administration — independent permissions","安全與管理 — 獨立權限"],
   ["Estas permissões não são selecionadas por nenhum dos 4 módulos. Habilite-as individualmente somente quando necessárias.","These permissions are not included in any of the four modules. Enable them individually only when needed.","這些權限不屬於四大模組。只有在必要時才個別啟用。"],
   ["Pessoa — acesso com senha","Person — password login","個人 — 密碼登入"],
+  ["Senha indisponível — Kiosk","Password unavailable — Kiosk","密碼不可用 — Kiosk"],
+  ["Este Kiosk não possui login por senha. Para usar esse nome, renomeie o registro inativo e crie uma conta Pessoa.","This Kiosk has no password login. To use this username, rename the inactive record and create a Person account.","此 Kiosk 不支援密碼登入。若要使用此使用者名稱，請先重新命名停用紀錄，再建立個人帳戶。"],
   ["Kiosk — provisionamento indisponível","Kiosk — enrollment unavailable","Kiosk — 暫無法註冊"],
   ["Pessoa é o tipo de conta disponível para login e senha. Kiosk é reservado para terminais industriais e ainda não pode ser provisionado, ativado ou receber senha no Hub. O perfil descreve a função; as permissões são escolhidas nos módulos ou em Avançado.","Person is the supported account type for username and password. Kiosk is reserved for industrial terminals and cannot yet be enrolled, activated or given a Hub password. The role describes the job; permissions are selected by module or in Advanced.","個人帳號可使用使用者名稱和密碼登入。Kiosk 專供工業終端機使用，目前無法在 Hub 中註冊、啟用或設定密碼。角色僅描述工作職務，權限須由模組或進階設定選擇。"],
   ["Cadastro Kiosk reservado — sem login e sem senha","Reserved Kiosk account — no login or password","保留的 Kiosk 帳號 — 無法登入、沒有密碼"],
