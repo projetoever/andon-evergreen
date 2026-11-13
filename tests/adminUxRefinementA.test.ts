@@ -77,7 +77,7 @@ test("mantenedores indicam alterações pendentes e permitem cancelar edição",
   assert.match(source, /Existem alterações pendentes/);
   assert.match(source, /handleCancelEdit/);
   assert.match(source, /Cadastro sincronizado/);
-  assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges\}/);
+  assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges \|\| !canEditSelected\}/);
 });
 
 test("classificações possuem pesquisa, filtro de status e contador", async () => {
