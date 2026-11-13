@@ -161,17 +161,24 @@ test("workstations possuem busca, filtro, contador e destaque da estação atual
   assert.match(source, /Tentar novamente/);
 });
 
-test("máquinas deixam clara a regra global, local e efetiva de OS", async () => {
+test("máquinas têm uma única lista e deixam a OS individual visível apenas com global desligado", async () => {
   const [machineAdmin, general] = await Promise.all([
     readFile(new URL("../src/components/settings/MachineAdminPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(machineAdmin, /Regra global de OS/);
-  assert.match(machineAdmin, /Regra desta máquina/);
-  assert.match(machineAdmin, /Resultado efetivo/);
-  assert.match(machineAdmin, /Regra efetiva = global OU exigência desta máquina/);
+  assert.doesNotMatch(machineAdmin, /MachineConfigurationInventoryCard/);
+  assert.match(machineAdmin, /filteredMachines\.map/);
+  assert.match(machineAdmin, /showIndividualWorkOrderControl = globalWorkOrderRequirement === false/);
+  assert.match(machineAdmin, /\{showIndividualWorkOrderControl && \(/);
+  assert.match(machineAdmin, /showIndividualWorkOrderControl \? newRequireWorkOrder : false/);
+  assert.match(machineAdmin, /OS obrigatória para todas as máquinas: regra global ativa/);
+  assert.match(machineAdmin, /Aguardando confirmação da regra global de OS/);
   assert.match(machineAdmin, /Exigir OS nesta máquina/);
+  assert.match(machineAdmin, /checked=\{selectedMachine\.requireWorkOrderAtOpen === true\}/);
+  assert.match(machineAdmin, /updateMachineCatalog\(selectedMachine\.id, \{/);
+  assert.doesNotMatch(machineAdmin, /setNewRequireWorkOrder\(true\)/);
+  assert.doesNotMatch(machineAdmin, /Regra efetiva = global OU exigência desta máquina/);
   assert.match(machineAdmin, /Filtrar máquinas por status/);
   assert.match(machineAdmin, /Filtrar máquinas por exigência de OS/);
   assert.match(machineAdmin, /ring-primary\/30/);
