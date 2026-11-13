@@ -22,6 +22,7 @@ import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { allowedAttendanceModes, effectiveAttendanceMode } from "@/utils/attendanceModePolicy";
 import {
   identifyTechnicianConfig,
+  getGlobalTechnicianAvailability,
   type IdentifiedTechnicianConfig,
   type TechnicianCredentialMethod,
 } from "@/services/technicianConfigService";
@@ -74,6 +75,9 @@ export function TechnicianIdentificationModal({
   const [credentialValue, setCredentialValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
+  const [globalBusyIds, setGlobalBusyIds] = useState<string[]>([]);
+  const [globalAvailabilityState, setGlobalAvailabilityState] = useState<"loading" | "ready" | "error">("loading");
+  const [globalAvailabilityRefresh, setGlobalAvailabilityRefresh] = useState(0);
   const initializedCallRef = useRef<string | null>(null);
   const submittingRef = useRef(false);
 
@@ -112,10 +116,92 @@ export function TechnicianIdentificationModal({
     () => new Set(excludeNames.map((name) => name.toLocaleLowerCase("pt-BR"))),
     [excludeNames],
   );
+  // The /api/andon-calls snapshot is filtered by each user's machine scope.
+  // It must NEVER be used to infer global technician availability in central
+  // mode: an Admin can see occupied technicians that a Production account
+  // cannot. Fetch only a minimal server-owned busy-ID set instead.
+  useEffect(() => {
+    if (!open || !call?.id || !centralAttendance) {
+      setGlobalAvailabilityState("loading");
+      setGlobalBusyIds([]);
+      return;
+    }
+    let active = true;
+    let inFlight = false;
+    setGlobalAvailabilityState("loading");
+    setGlobalBusyIds([]);
+
+    const refresh = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const result = await getGlobalTechnicianAvailability(call.id);
+        if (!Array.isArray(result.busyTechnicianIds) ||
+            result.busyTechnicianIds.some(id => typeof id !== "string" || !id)) {
+          throw new Error("invalid_technician_availability");
+        }
+        if (!active) return;
+        setGlobalBusyIds(result.busyTechnicianIds);
+        setGlobalAvailabilityState("ready");
+      } catch {
+        if (!active) return;
+        // Fail closed. An unavailable global snapshot is NOT "all free".
+        setGlobalBusyIds([]);
+        setGlobalAvailabilityState("error");
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 4000);
+    const onFocus = () => void refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [open, call?.id, centralAttendance, globalAvailabilityRefresh]);
+
+  // Clear selections that became occupied while this modal was open.
+  useEffect(() => {
+    if (!centralAttendance || globalAvailabilityState !== "ready") return;
+    const busy = new Set(globalBusyIds);
+    setNames(current => {
+      const available = current.filter(name => {
+        const technician = findTechnicianByName(name);
+        return technician?.id && !busy.has(technician.id);
+      });
+      return available.length === current.length ? current : available;
+    });
+  }, [centralAttendance, globalAvailabilityState, globalBusyIds, findTechnicianByName]);
+
   const activeAssignments = useMemo(() => {
     void interfaceLanguage;
-    return buildTechnicianActiveAssignmentMap(calls, machines, call?.id);
-  }, [call?.id, calls, machines, interfaceLanguage]);
+    if (!centralAttendance)
+      return buildTechnicianActiveAssignmentMap(calls, machines, call?.id);
+    // No foreign machine/call names or identifiers enter Production's view.
+    const result = new Map<string, import("@/utils/technicianAvailabilityUtils").TechnicianActiveAssignment>();
+    if (globalAvailabilityState !== "ready") return result;
+    // An Admin may already have an authorized, full-scope machine label.
+    // Reuse that label only when present in their scoped snapshot; otherwise
+    // show a generic status without leaking a foreign machine to Production.
+    const visibleAssignments = buildTechnicianActiveAssignmentMap(calls, machines, call?.id);
+    for (const id of globalBusyIds) {
+      const visible = visibleAssignments.get(`id:${id}`);
+      result.set(`id:${id}`, visible ?? {
+        technicianId: id, technicianName: "", callId: "", machineId: "",
+        machineLabel: ui("Em outro atendimento"),
+      });
+    }
+    return result;
+  }, [call?.id, calls, machines, interfaceLanguage, centralAttendance, globalBusyIds, globalAvailabilityState]);
   async function registerTechnicians(
     technicians: SelectedTechnicianInput[],
     submissionAlreadyStarted = false,
@@ -222,6 +308,7 @@ export function TechnicianIdentificationModal({
   }
 
   function handleNameSubmit() {
+    if (centralAttendance && globalAvailabilityState !== "ready") return;
     const technicians = names.map((name) => {
       const technician = findTechnicianByName(name);
       return {
@@ -233,6 +320,12 @@ export function TechnicianIdentificationModal({
         technicalAreas: technician?.areas,
       };
     });
+    if (centralAttendance && technicians.some(technician =>
+      !technician.id || globalBusyIds.includes(technician.id))) {
+      setAvailabilityNotice(ui("A disponibilidade mudou. Atualize a lista e selecione um mantenedor livre."));
+      setGlobalAvailabilityRefresh(version => version + 1);
+      return;
+    }
     void registerTechnicians(technicians);
   }
 
@@ -344,7 +437,24 @@ export function TechnicianIdentificationModal({
           </p>
         )}
 
-        {settings && method === "name" && area && (
+        {settings && method === "name" && area &&
+          centralAttendance && globalAvailabilityState === "loading" && (
+          <p role="status" className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            {ui("Verificando disponibilidade global dos mantenedores...")}
+          </p>
+        )}
+        {settings && method === "name" && area &&
+          centralAttendance && globalAvailabilityState === "error" && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/50 bg-danger/10 p-3 text-sm">
+            <p>{ui("Não foi possível verificar a disponibilidade dos mantenedores. A seleção está bloqueada por segurança.")}</p>
+            <button type="button" onClick={() => setGlobalAvailabilityRefresh(version => version + 1)}
+              className="min-h-10 rounded-lg border border-border bg-background px-3 font-semibold">
+              {ui("Tentar novamente")}
+            </button>
+          </div>
+        )}
+        {settings && method === "name" && area &&
+          (!centralAttendance || globalAvailabilityState === "ready") && (
           <TechnicianSelector
             area={area}
             value={names}
@@ -422,7 +532,7 @@ export function TechnicianIdentificationModal({
               !settings ||
               loadFailed ||
               isSubmitting ||
-              (method === "name" ? names.length === 0 : !credentialValue.trim())
+              (method === "name" ? names.length === 0 || (centralAttendance && globalAvailabilityState !== "ready") : !credentialValue.trim())
             }
           >
             {isSubmitting ? ui("Registrando...") : actionLabel}

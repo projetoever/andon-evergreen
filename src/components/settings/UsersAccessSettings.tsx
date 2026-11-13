@@ -17,7 +17,7 @@ import {
 } from "@/services/accessService";
 
 import { permissionLabels } from "@/services/accessLabels";
-import { persistentSessionIncompatibleGrants, suggestedPersistentProductionGrants } from "@/services/persistentSessionEligibility";
+import { suggestedPersistentProductionGrants } from "@/services/persistentSessionEligibility";
 import {
   SIMPLE_MODULE_GROUPS,
   advancedModuleGrants,
@@ -779,37 +779,19 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         </select>
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        {ui("A sessão permanente exige também autorização na workstation, máquina fixada e somente permissões operacionais compatíveis. Selecionar ANDON completo pode impedir a persistência. A API continua permitindo revogação imediata pelo Admin.")}
+                        {ui("Login sem expiração automática somente em workstation aprovada, máquina fixada e com permissões operacionais restritas. Sair ou desconectar pelo Admin encerra a sessão.")}
                       </p>
                       {draft.sessionPolicy === "persistent" && (
-                        <div className="space-y-2 rounded-md border border-warning/40 p-3">
-                          <p className="font-semibold">{ui("Verificação de elegibilidade da conta")}</p>
-                          {persistentSessionIncompatibleGrants(draft.permissions).length > 0 && (
-                            <p role="status" className="text-sm text-warning">
-                              {ui("Permissões incompatíveis com login persistente:")}{" "}
-                              {persistentSessionIncompatibleGrants(draft.permissions)
-                                .map((key) => ui(permissionLabels[key] ?? key)).join(", ")}
-                            </p>
-                          )}
-                          {draft.permissions.length === 0 && (
-                            <p role="status" className="text-sm text-warning">
-                              {ui("Selecione pelo menos uma função operacional antes de salvar.")}
-                            </p>
-                          )}
-                          {draft.machineScope === "selected" && draft.machineIds.length === 0 && (
-                            <p role="status" className="text-sm text-warning">
-                              {ui("Selecione uma máquina autorizada para a operação contínua.")}
-                            </p>
-                          )}
-                          <Button type="button" variant="outline" onClick={() => setDraft({
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Button type="button" variant="outline" size="sm" onClick={() => setDraft({
                             ...draft,
                             roleLabel: "Produção",
                             permissions: suggestedPersistentProductionGrants(catalog.permissions),
                           })}>
-                            {ui("Aplicar conjunto restrito de Produção 24h")}
+                            {ui("Usar permissões de Produção 24h")}
                           </Button>
                           <p className="text-xs text-muted-foreground">
-                            {ui("Esta ação substitui as permissões atuais por leitura, histórico, abertura e cancelamento próprio. Revise antes de salvar; a workstation precisa permitir persistência separadamente.")}
+                            {ui("Opcional: substitui as permissões atuais pelo conjunto restrito. Confira antes de salvar.")}
                           </p>
                         </div>
                       )}

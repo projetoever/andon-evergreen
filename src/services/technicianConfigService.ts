@@ -68,6 +68,19 @@ function mapTechnician(technician: ApiTechnician): TechnicianConfig {
   };
 }
 
+/** Central, call-scoped preflight. The server derives occupancy globally but
+ * only returns busy technician IDs; it never reveals other machines/calls.
+ */
+export interface GlobalTechnicianAvailability {
+  busyTechnicianIds: string[];
+  checkedAt: string;
+}
+export function getGlobalTechnicianAvailability(callId: string) {
+  return apiClient.get<GlobalTechnicianAvailability>(
+    "/api/technicians/availability?callId=" + encodeURIComponent(callId),
+  );
+}
+
 export async function listTechnicianConfigs(): Promise<TechnicianConfig[]> {
   const technicians = await apiClient.get<ApiTechnician[]>("/api/technicians");
   return technicians.map(mapTechnician);
