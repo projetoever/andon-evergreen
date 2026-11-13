@@ -47,7 +47,13 @@ export function getCallReasonsCatalog() {
   return api.get<CallReasonView[]>("/api/call-reasons");
 }
 
-export function createCallReason(input: CreateCallReason) {
+/** Delegated configuration can create a reason only with presentation and nature.
+ * The server assigns conservative, non-eligible KPI defaults.
+ */
+export type DelegatedReasonCreate = Pick<CreateCallReason,
+  "id" | "displayName" | "color" | "active" | "displayOrder" | "nature">;
+
+export function createCallReason(input: CreateCallReason | DelegatedReasonCreate) {
   return api.post<CallReasonView>("/api/call-reasons", input);
 }
 
