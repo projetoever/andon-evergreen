@@ -8,6 +8,8 @@ import { BigButton } from "@/components/common/BigButton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { refreshShiftConfigs, saveShiftConfig } from "@/services/shiftConfigService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import {
   refreshTechnicianShiftFilterConfig,
   saveTechnicianShiftFilterConfig,
@@ -45,6 +47,14 @@ function normalizeSearch(value: string) {
 
 export function ShiftsSettingsTab() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
+  // Shift PATCH and the technician filter PATCH use independent server gates.
+  // Environment capabilities cannot override per-user authorization.
+  const [centralShiftWritable, setCentralShiftWritable] = useState(false);
+  const [centralFilterWritable, setCentralFilterWritable] = useState(false);
+  const canEditShift = !centralMode || centralShiftWritable;
+  const canEditFilter = !centralMode || centralFilterWritable;
   const [items, setItems] = useState<ShiftConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ShiftConfig | null>(null);
@@ -52,18 +62,22 @@ export function ShiftsSettingsTab() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [filterByCurrentShift, setFilterByCurrentShift] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingFilter, setIsSavingFilter] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([refreshShiftConfigs(), refreshTechnicianShiftFilterConfig()])
-      .then(([list, filterConfig]) => {
+    Promise.all([
+      refreshShiftConfigs(), refreshTechnicianShiftFilterConfig(), getSystemSettings(),
+    ]).then(([list, filterConfig, capabilities]) => {
         if (cancelled) return;
         setItems(list);
         const first = list.find((shift) => shift.id === "morning") ?? list[0] ?? null;
         setSelectedId(first?.id ?? null);
         setDraft(first ? { ...first } : null);
         setFilterByCurrentShift(filterConfig.filterByCurrentShift);
+        setCentralShiftWritable(capabilities.centralShiftUpdateEnabled === true);
+        setCentralFilterWritable(capabilities.centralOperationalSettingsWriteEnabled === true);
       })
       .catch((error) => {
         if (!cancelled) {
@@ -117,7 +131,7 @@ export function ShiftsSettingsTab() {
   }
 
   async function handleSave() {
-    if (!draft) return;
+    if (!draft || !canEditShift || isSaving) return;
     if (!draft.name.trim()) {
       toast.error("Informe o nome do turno.");
       return;
@@ -151,22 +165,28 @@ export function ShiftsSettingsTab() {
   }
 
   async function handleSaveFilter(enabled: boolean) {
+    if (!canEditFilter || isSavingFilter || enabled === filterByCurrentShift) return;
     const previous = filterByCurrentShift;
+    setIsSavingFilter(true);
     setFilterByCurrentShift(enabled);
 
     try {
-      await saveTechnicianShiftFilterConfig({
+      const saved = await saveTechnicianShiftFilterConfig({
         filterByCurrentShift: enabled,
         updatedAt: new Date().toISOString(),
       });
+      setFilterByCurrentShift(saved.filterByCurrentShift);
       toast.success(
-        enabled ? "Filtro por turno atual habilitado." : "Filtro por turno atual desabilitado.",
+        saved.filterByCurrentShift
+          ? "Filtro por turno atual habilitado." : "Filtro por turno atual desabilitado.",
       );
     } catch (error) {
       setFilterByCurrentShift(previous);
       toast.error(
         error instanceof Error ? error.message : "Não foi possível salvar a configuração de turno.",
       );
+    } finally {
+      setIsSavingFilter(false);
     }
   }
 
@@ -181,6 +201,16 @@ export function ShiftsSettingsTab() {
         </p>
       </div>
 
+      {centralMode && (
+        <div role="note" className="space-y-1 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <p>{ui(canEditShift
+            ? "Edição central de turnos habilitada. Cadastro de novos turnos não está disponível e o filtro de turno usa outra configuração."
+            : "Edição central de turnos desabilitada. Consulta e filtro de turno possuem regras separadas; não implica falha no cadastro.")}</p>
+          <p>{ui(canEditFilter
+            ? "A preferência de filtro pode ser salva separadamente da edição de turnos."
+            : "A gravação central da preferência de filtro está indisponível; a leitura permanece disponível.")}</p>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-[minmax(300px,380px)_1fr]">
         <Section
           title={ui("Turnos configurados")}
@@ -330,6 +360,7 @@ export function ShiftsSettingsTab() {
                   {ui("Nome do turno")}
                   <input
                     value={draft.name}
+                    disabled={!canEditShift}
                     onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                     className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   />
@@ -341,6 +372,7 @@ export function ShiftsSettingsTab() {
                     <input
                       type="time"
                       value={draft.startTime}
+                      disabled={!canEditShift}
                       onChange={(event) =>
                         setDraft({
                           ...draft,
@@ -357,6 +389,7 @@ export function ShiftsSettingsTab() {
                     <input
                       type="time"
                       value={draft.endTime}
+                      disabled={!canEditShift}
                       onChange={(event) =>
                         setDraft({
                           ...draft,
@@ -380,6 +413,7 @@ export function ShiftsSettingsTab() {
                   </span>
                   <Switch
                     checked={draft.active}
+                    disabled={!canEditShift}
                     onCheckedChange={(checked) => setDraft({ ...draft, active: checked })}
                   />
                 </label>
@@ -400,7 +434,7 @@ export function ShiftsSettingsTab() {
                       tone="primary"
                       size="md"
                       onClick={() => void handleSave()}
-                      disabled={!hasUnsavedChanges || isSaving}
+                      disabled={!hasUnsavedChanges || isSaving || !canEditShift}
                     >
                       {ui("Salvar turno")}
                     </BigButton>
@@ -437,6 +471,7 @@ export function ShiftsSettingsTab() {
               </span>
               <Switch
                 checked={filterByCurrentShift}
+                disabled={!canEditFilter || isSavingFilter}
                 onCheckedChange={(checked) => void handleSaveFilter(checked)}
                 aria-label={ui("Priorizar mantenedores do turno atual")}
               />
