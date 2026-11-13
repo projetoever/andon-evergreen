@@ -26,7 +26,9 @@ test("UX-07: route and tab transitions do not delay alarms or alter provider hie
 });
 test("UX-07: permission checks display neutral loading skeleton, not a forbidden error", async () => {
   const gate = await load("../src/components/security/WorkstationAccessGate.tsx");
-  assert.match(gate, /if \(checking\)/);
+  const decision = await load("../src/components/security/workstationGateDecision.ts");
+  assert.match(gate, /if \(decision === "checking"\)/);
+  assert.match(decision, /checking \|\| \(!access && !error\)/);
   assert.match(gate, /<section role="status"/);
   assert.match(gate, /motion-reduce:animate-none/);
   assert.match(gate, /role="alert"/);
