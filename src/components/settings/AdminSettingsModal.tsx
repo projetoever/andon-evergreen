@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { logoutAdmin } from "@/services/adminAuthService";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import type { FailureClassificationConfig, SettingsTab } from "@/types/settings";
 import { toast } from "@/i18n/toast";
 import {
@@ -219,7 +220,7 @@ export function AdminSettingsModal({
     if (tab === "categories") return <CategoriesSettingsTab />;
     if (tab === "callReasons") return <CallReasonsSettingsTab />;
     if (tab === "shifts") return <ShiftsSettingsTab />;
-    if (tab === "classifications") return <ClassificationsTab />;
+    if (tab === "classifications") return <ClassificationsTab centralAccess={centralAccess} />;
     if (tab === "assetCatalogs") return <MachineAssetCatalogPanel />;
     if (tab === "machines") return <MachineAdminPanel centralAccess={centralAccess} />;
     return null;
@@ -432,8 +433,13 @@ export function AdminSettingsModal({
   );
 }
 
-function ClassificationsTab() {
+function ClassificationsTab({ centralAccess }: { centralAccess: boolean }) {
   useInterfaceLanguage();
+  // Deployment capability does not replace server-side per-user ACL checks.
+  const [centralWritable, setCentralWritable] = useState(false);
+  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityRetry, setCapabilityRetry] = useState(0);
+  const canWriteClassifications = !centralAccess || centralWritable;
   const [items, setItems] = useState<FailureClassificationConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<FailureClassificationConfig>({
@@ -447,6 +453,22 @@ function ClassificationsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!centralAccess) return;
+    let mounted = true;
+    setCentralWritable(false);
+    setCapabilityError(false);
+    void getSystemSettings().then(settings => {
+      if (mounted) setCentralWritable(settings.centralClassificationWriteEnabled === true);
+    }).catch(() => {
+      if (mounted) {
+        setCentralWritable(false);
+        setCapabilityError(true);
+      }
+    });
+    return () => { mounted = false; };
+  }, [centralAccess, capabilityRetry]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery
@@ -491,6 +513,7 @@ function ClassificationsTab() {
   }, [loadCatalog]);
 
   const handleAddClassification = () => {
+    if (!canWriteClassifications || isSaving) return;
     setSelectedId(null);
     setDraft({ id: "", value: "", label: "", active: true });
   };
@@ -501,6 +524,7 @@ function ClassificationsTab() {
   };
 
   const handleSave = async () => {
+    if (!canWriteClassifications || isSaving || isLoading || Boolean(loadError)) return;
     if (!draft.label.trim()) return toast.error("Informe o nome exibido.");
 
     const value = (draft.value.trim() || draft.label)
@@ -550,7 +574,7 @@ function ClassificationsTab() {
   };
 
   const handleToggleActive = async () => {
-    if (!selectedId) return;
+    if (!canWriteClassifications || isSaving || isLoading || Boolean(loadError) || !selectedId) return;
 
     setIsSaving(true);
     try {
@@ -575,6 +599,17 @@ function ClassificationsTab() {
           {ui("Gerencie o catálogo central usado na classificação da ocorrência.")}
         </p>
       </div>
+
+      {centralAccess && !canWriteClassifications && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/40 bg-info/10 p-3 text-sm">
+          <span>{ui("Somente leitura")}</span>
+          {capabilityError && (
+            <button type="button" className="font-bold underline" onClick={() => setCapabilityRetry(value => value + 1)}>
+              {ui("Tentar novamente")}
+            </button>
+          )}
+        </div>
+      )}
 
       {loadError && (
         <div
@@ -606,7 +641,7 @@ function ClassificationsTab() {
               tone="neutral"
               size="md"
               onClick={handleAddClassification}
-              disabled={isLoading || isSaving || Boolean(loadError)}
+              disabled={isLoading || isSaving || Boolean(loadError) || !canWriteClassifications}
             >
               {ui("Adicionar classificação")}
             </BigButton>
@@ -726,7 +761,7 @@ function ClassificationsTab() {
               className="mt-1 h-10 w-full rounded-md border bg-background px-2"
               value={draft.label}
               onChange={(event) => setDraft({ ...draft, label: event.target.value })}
-              disabled={isSaving || Boolean(loadError)}
+              disabled={isSaving || Boolean(loadError) || !canWriteClassifications}
             />
           </label>
 
@@ -737,7 +772,7 @@ function ClassificationsTab() {
               value={draft.value}
               onChange={(event) => setDraft({ ...draft, value: event.target.value })}
               placeholder={ui("ex: pneumatic_failure")}
-              disabled={Boolean(selectedId) || isSaving || Boolean(loadError)}
+              disabled={Boolean(selectedId) || isSaving || Boolean(loadError) || !canWriteClassifications}
             />
           </label>
 
@@ -754,7 +789,7 @@ function ClassificationsTab() {
                       .value as FailureClassificationConfig["responsibility"],
                   })
                 }
-                disabled={isSaving || Boolean(loadError)}
+                disabled={isSaving || Boolean(loadError) || !canWriteClassifications}
               >
                 <option value="unassigned">{ui("Pendente de definição")}</option>
                 <option value="maintenance">{ui("Manutenção")}</option>
@@ -777,7 +812,7 @@ function ClassificationsTab() {
                       .value as FailureClassificationConfig["analyticsDisposition"],
                   })
                 }
-                disabled={isSaving || Boolean(loadError)}
+                disabled={isSaving || Boolean(loadError) || !canWriteClassifications}
               >
                 <option value="include">{ui("Ocorrência real")}</option>
                 <option value="test">{ui("Teste — excluir dos indicadores")}</option>
@@ -803,7 +838,7 @@ function ClassificationsTab() {
               type="checkbox"
               checked={draft.active}
               onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-              disabled={isSaving || Boolean(loadError)}
+              disabled={isSaving || Boolean(loadError) || !canWriteClassifications}
             />
             {ui("Ativo", {}, "record")}
           </label>
@@ -813,7 +848,7 @@ function ClassificationsTab() {
               tone="primary"
               size="md"
               onClick={() => void handleSave()}
-              disabled={isSaving || Boolean(loadError)}
+              disabled={isSaving || Boolean(loadError) || !canWriteClassifications}
             >
               {isSaving ? ui("Salvando...") : ui("Salvar classificação")}
             </BigButton>
@@ -824,7 +859,7 @@ function ClassificationsTab() {
               tone="danger"
               size="md"
               onClick={() => void handleToggleActive()}
-              disabled={!selectedId || isSaving || Boolean(loadError)}
+              disabled={!selectedId || isSaving || Boolean(loadError) || !canWriteClassifications}
             >
               {draft.active ? ui("Inativar") : ui("Reativar")}
             </BigButton>
