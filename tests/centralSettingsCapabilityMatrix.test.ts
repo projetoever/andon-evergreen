@@ -147,3 +147,18 @@ test("CFG-15E: technicians revalidate central create/update gates while preservi
   const revalidate = tab.slice(tab.indexOf("const revalidate = () =>"), tab.indexOf("  }, [centralMode, capabilityReload]);"));
   assert.doesNotMatch(revalidate, /setDraft|setSelectedId|refreshTechnicians/);
 });
+
+test("CFG-15G: Machine Admin revalidates its own grants and OS policy from the server", async () => {
+  const machine = await get("../src/components/settings/MachineAdminPanel.tsx");
+  assert.match(machine, /const revalidate = \(\) => setCapabilityRetry\(value => value \+ 1\)/);
+  assert.match(machine, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(machine, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(machine, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(machine, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(machine, /getSystemSettings\(\)/);
+  assert.match(machine, /setCentralCapabilities\(null\)/);
+  assert.match(machine, /centralMachineCreateEnabled === true/);
+  assert.match(machine, /centralMachineSettingsWriteEnabled === true/);
+  assert.doesNotMatch(machine, /CustomEvent<\{ requireWorkOrderAtOpen/);
+  assert.doesNotMatch(machine, /applySettings\(detail\)/);
+});
