@@ -26,7 +26,7 @@ import {
   type UserInput,
 } from "../access/users.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
-import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
+import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie, centralAccessEnabled } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
 import { setCentralProductionModeWithCredential } from "../access/centralProductionModeCredential.js";
@@ -348,6 +348,7 @@ export function registerAccessRoutes(
         login: string(120), password: string(128),
       }) },
       async req => {
+        if (!centralAccessEnabled()) throw new AccessError("central_action_not_supported");
         // Failed credential attempts are throttled per source AND login;
         // never include the supplied password in logs or audit records.
         limited(`production-mode:${req.ip}`, 16, 15 * 60_000);
