@@ -188,7 +188,7 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
 test("SEC-16: all four essential modules grant their entire catalog regardless of profile", () => {
   const fullCatalog = [
     ...catalog,
-    "andon.settings.open", "machines.status.write", "production.schedule.write",
+    "andon.settings.open", "machines.status.write", "production.schedule.request", "production.schedule.write",
     "workstations.screen.unlock", "analytics.policy.manage",
     "catalog.assets.manage", "catalog.reasons.manage",
     "catalog.classifications.manage", "catalog.technicians.manage",
@@ -199,7 +199,7 @@ test("SEC-16: all four essential modules grant their entire catalog regardless o
     "calls.cancel.any", "calls.attend", "calls.technicians.manage",
     "calls.finishMaintenance", "calls.finish", "calls.followUp",
     "calls.returnToMaintenance", "machines.status.write",
-    "production.schedule.write", "diagnosis.edit", "workstations.screen.unlock",
+    "production.schedule.request", "diagnosis.edit", "workstations.screen.unlock",
   ];
   const requiredBi = ["bi.read", "bi.export", "analytics.reclassify", "analytics.policy.manage"];
   const requiredPriorities = ["priorities.read", "priorities.write"];
@@ -211,6 +211,8 @@ test("SEC-16: all four essential modules grant their entire catalog regardless o
     const byRole = (group: "andon" | "bi" | "priorities" | "andonSettings") =>
       simpleModuleGrants(group, role, fullCatalog);
     assert.deepEqual(byRole("andon"), requiredAndon, role + " ANDON");
+    assert(!byRole("andon").includes("production.schedule.write"), "Credential approval is never bundled with terminal requests");
+    assert(advancedIndependentGrants(fullCatalog).includes("production.schedule.write"), "Human approver grant remains individually configurable");
     assert.deepEqual(byRole("bi"), requiredBi, role + " BI");
     assert.deepEqual(byRole("priorities"), requiredPriorities, role + " priorities");
     assert.deepEqual(byRole("andonSettings"), requiredSettings, role + " config");
