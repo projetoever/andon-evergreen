@@ -26,8 +26,6 @@ import {
   toggleSimpleModule,
   reconcileSimpleModuleRole,
   PILOT_SIMPLE_ROLES,
-  hasRoleSuggestion,
-  suggestedPermissions,
   toggleAndonModulePermission,
 } from "@/services/accessRolePresets";
 
@@ -916,25 +914,6 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   )}
                   {advancedPermissions && <fieldset className="space-y-3">
                     <legend className="font-bold">{ui("Permissões por módulo e ação")}</legend>
-                    {draft.accountType === "person" && hasRoleSuggestion(draft.roleLabel) && (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setDraft({
-                              ...draft,
-                              permissions: suggestedPermissions(draft.roleLabel, catalog.permissions),
-                            })
-                          }
-                        >
-                          {ui("Aplicar permissões sugeridas")}
-                        </Button>
-                        <p className="text-sm text-muted-foreground">
-                          {ui("Substitui a seleção atual. Revise as permissões antes de salvar.")}
-                        </p>
-                      </div>
-                    )}
                     <p className="text-sm text-muted-foreground">
                       {ui("Desmarque abaixo apenas as funções que deseja restringir. O resumo exibirá Parcial; mudar o perfil não reativa permissões retiradas.")}
                     </p>
