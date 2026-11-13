@@ -4,6 +4,8 @@ export function dateRangeForGlobalHistory(
   period: GlobalHistoryPeriod,
   customDate: string,
   now = new Date(),
+  timeFrom = "",
+  timeBefore = "",
 ): { openedFrom?: string; openedBefore?: string } {
   if (period === "all") return {};
   let day: Date;
@@ -22,6 +24,29 @@ export function dateRangeForGlobalHistory(
     start.setDate(start.getDate() - (period === "7d" ? 6 : 29));
   const end = new Date(day.getFullYear(), day.getMonth(), day.getDate());
   end.setDate(end.getDate() + 1);
+
+  // Hour filtering is defined only for one explicit local-calendar day.
+  // Convert the local instants to ISO before calling the scoped backend.
+  if (period === "custom" && (timeFrom || timeBefore)) {
+    const parseClock = (value: string, fallback: [number, number]) => {
+      if (!value) return fallback;
+      if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))
+        throw new Error("Informe um horário válido.");
+      const [hour, minute] = value.split(":").map(Number);
+      return [hour, minute] as [number, number];
+    };
+    if (timeFrom && timeBefore && timeFrom === timeBefore)
+      throw new Error("Informe horários inicial e final diferentes.");
+    const [startHour, startMinute] = parseClock(timeFrom, [0, 0]);
+    const [endHour, endMinute] = parseClock(timeBefore, [0, 0]);
+    const from = new Date(day.getFullYear(), day.getMonth(), day.getDate(), startHour, startMinute);
+    const before = timeBefore
+      ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), endHour, endMinute)
+      : end;
+    // A night shift can start at 22:00 and end at 06:00 the next day.
+    if (timeBefore && before <= from) before.setDate(before.getDate() + 1);
+    return { openedFrom: from.toISOString(), openedBefore: before.toISOString() };
+  }
   return { openedFrom: start.toISOString(), openedBefore: end.toISOString() };
 }
 
@@ -46,7 +71,9 @@ export function globalHistorySearchPath(
   add("technician", filters.technician);
   add("failureClassification", filters.failureClassification);
   add("reasonId", filters.reasonId);
-  const range = dateRangeForGlobalHistory(filters.period, filters.customDate, now);
+  const range = dateRangeForGlobalHistory(
+    filters.period, filters.customDate, now, filters.timeFrom ?? "", filters.timeBefore ?? "",
+  );
   if (range.openedFrom) params.set("openedFrom", range.openedFrom);
   if (range.openedBefore) params.set("openedBefore", range.openedBefore);
   params.set("limit", "25");
