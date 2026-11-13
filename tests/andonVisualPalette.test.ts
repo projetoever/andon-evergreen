@@ -13,7 +13,7 @@ const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url)
 
 test("UX-12 stage 1: immutable versioned default and simultaneous theme accents", () => {
   assert.equal(DEFAULT_VISUAL_PALETTE.version, 1);
-  assert.equal(VISUAL_PALETTE_KEYS.length, 5);
+  assert.equal(VISUAL_PALETTE_KEYS.length, 6);
   assert.deepEqual(Object.keys(DEFAULT_VISUAL_PALETTE).sort(), ["version", ...VISUAL_PALETTE_KEYS].sort());
   assert.ok(Object.isFrozen(DEFAULT_VISUAL_PALETTE));
   const draft = restoreDefaultVisualPalette();
