@@ -395,3 +395,19 @@ test("R12-04H1: ten ANDON settings tabs remain visible but central machine inven
   // machineStatus, productionMode, physical controls, calls or the Hub.
   assert.doesNotMatch(guard, /permission.*machines\.status\.write|permission.*production\.schedule\.write/);
 });
+
+test("CFG-15: 11 abas exibem disponibilidade verificada sem prometer liberação por ACL", async () => {
+  const [panel, notice] = await Promise.all([
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/CentralSettingsCapabilityNotice.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.ok(panel.includes("<CentralSettingsCapabilityNotice tab={tab} open={open} />"));
+  assert.doesNotMatch(panel, /Algumas operações de cadastro ainda não foram migradas/);
+  assert.match(notice, /centralOperationalSettingsWriteEnabled === true/);
+  assert.match(notice, /andonVisualPaletteWriteEnabled === true/);
+  assert.match(notice, /centralDeclaredAttendanceEnabled === true/);
+  assert.match(notice, /centralCallReasonsCatalogEnabled === true/);
+  assert.match(notice, /Disponibilidade não verificada/);
+  assert.match(notice, /não há indicador central de disponibilidade/);
+  assert.doesNotMatch(notice, /updateSystemSettings|createCallReason|openCall/);
+});
