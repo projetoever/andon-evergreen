@@ -33,7 +33,7 @@ export type UserInput = {
   accountType: "person" | "kiosk";
   active: boolean;
   machineScope: "all" | "selected";
-  sessionPolicy: "standard" | "persistent";
+  sessionPolicy?: "standard" | "persistent";
   permissions: string[];
   machineIds: string[];
   version?: number;
@@ -57,7 +57,7 @@ export function validateUser(input: UserInput) {
     new Set(input.permissions).size !== input.permissions.length ||
     new Set(input.machineIds).size !== input.machineIds.length ||
     (input.machineScope === "all" && input.machineIds.length) ||
-    !["standard", "persistent"].includes(input.sessionPolicy) ||
+    (input.sessionPolicy !== undefined && !["standard", "persistent"].includes(input.sessionPolicy)) ||
     (input.sessionPolicy === "persistent" && (input.accountType !== "person" || !input.active)) ||
     (input.accountType === "kiosk" && input.active)
   )
@@ -96,7 +96,8 @@ export async function saveUser(
       accountType: input.accountType,
       active: input.active,
       machineScope: input.machineScope,
-      sessionPolicy: input.sessionPolicy,
+      // Older clients omit policy; preserve an existing setting or default safely.
+      sessionPolicy: input.sessionPolicy ?? before?.sessionPolicy ?? "standard",
     };
     const user = id
       ? await tx.accessUser.update({
