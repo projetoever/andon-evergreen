@@ -185,7 +185,7 @@ export function CallReasonsSettingsTab() {
     const label = optionLabel.trim();
     const orderText = optionOrder.trim();
     const order = Number(orderText);
-    if (label.length > 80 || !/^\\d{1,4}$/.test(orderText) ||
+    if (label.length > 80 || !/^\d{1,4}$/.test(orderText) ||
         !Number.isSafeInteger(order) || order < 0 || order > 9999) {
       toast.error(ui("Informe um nome de até 80 caracteres e uma ordem de 0 a 9999."));
       return;
