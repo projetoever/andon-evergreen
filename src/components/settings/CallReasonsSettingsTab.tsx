@@ -133,7 +133,10 @@ export function CallReasonsSettingsTab() {
           active: next.active, displayOrder: next.displayOrder,
         });
       } else {
-        await createCallReason(next);
+        await createCallReason(isPrimaryAdmin ? next : {
+          id: next.id, displayName: next.displayName, color: next.color,
+          active: next.active, displayOrder: next.displayOrder, nature: next.nature,
+        });
       }
       await refresh(next.id);
       toast.success(ui("Motivo de chamado salvo."));
@@ -228,7 +231,7 @@ export function CallReasonsSettingsTab() {
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       {!loading && enabled && !isPrimaryAdmin && !error && (
         <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-          {ui("Permissão de Config. do ANDON: você pode editar nome, cor e ativação de motivos existentes. Criar motivos, vincular especialidades e alterar políticas de KPI exigem Admin principal.")}
+          {ui("Permissão de Config. do ANDON: você pode cadastrar motivos com política conservadora e editar sua apresentação. Vincular especialidades e alterar políticas de KPI exigem Admin principal.")}
         </p>
       )}
       {!loading && enabled && !error && (
@@ -236,7 +239,7 @@ export function CallReasonsSettingsTab() {
           <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Motivos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
-              <Button type="button" variant="outline" size="sm" disabled={!isPrimaryAdmin}
+              <Button type="button" variant="outline" size="sm" disabled={busy}
                 onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); }}>
                 {ui("Novo motivo")}
               </Button>
@@ -267,7 +270,7 @@ export function CallReasonsSettingsTab() {
               </Label>
               <Label className="block space-y-2">{ui("Natureza do chamado")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.nature} disabled={busy || !isPrimaryAdmin}
+                  value={draft.nature} disabled={busy || (Boolean(chosen) && !isPrimaryAdmin)}
                   onChange={e => setDraft({
                     ...draft, nature: e.target.value as Draft["nature"],
                     maintenanceKpiPolicy: e.target.value === "corrective_failure" ? "pending" : "excluded",
@@ -288,13 +291,18 @@ export function CallReasonsSettingsTab() {
                   onChange={e => setDraft({ ...draft, color: e.target.value })} />
               </Label>
             </div>
+            {!chosen && !isPrimaryAdmin && (
+              <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                {ui("Novos motivos não entram automaticamente nos KPIs corretivos. A política conservadora é definida no servidor e pode ser revista pelo Admin principal.")}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={draft.active} disabled={busy}
                   onChange={e => setDraft({ ...draft, active: e.target.checked })} />
                 {ui("Motivo ativo")}
               </label>
-              <Button type="button" disabled={busy || !draft.displayName.trim() || (!chosen && !isPrimaryAdmin)} onClick={() => void saveReason()}>
+              <Button type="button" disabled={busy || !draft.displayName.trim()} onClick={() => void saveReason()}>
                 {ui(chosen ? "Salvar motivo" : "Cadastrar motivo")}
               </Button>
             </div>
