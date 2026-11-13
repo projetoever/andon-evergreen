@@ -1,20 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">Andon — monitoramento industrial</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="andon-favicon-title">
+  <title id="andon-favicon-title">ANDON — engrenagem, indicador de status e pulso</title>
+  <!-- Customer-independent compact derivative of the official 4096px ANDON gear logo. -->
   <defs>
-    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#18313B"/>
-      <stop offset="1" stop-color="#07151D"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#113149"/><stop offset="1" stop-color="#031018"/>
     </linearGradient>
-    <linearGradient id="signal" x1="0" y1="1" x2="1" y2="0">
-      <stop stop-color="#15A46B"/>
-      <stop offset=".55" stop-color="#43DC88"/>
-      <stop offset="1" stop-color="#98F9BE"/>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F2FAFF"/><stop offset=".35" stop-color="#8A9EAC"/>
+      <stop offset=".68" stop-color="#D7E0E8"/><stop offset="1" stop-color="#536879"/>
+    </linearGradient>
+    <linearGradient id="swoosh" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#15A46B"/><stop offset=".65" stop-color="#29E760"/><stop offset="1" stop-color="#A0FC53"/>
     </linearGradient>
   </defs>
-  <!-- Self-contained, customer-neutral brandmark: bold industrial A + live signal. -->
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#surface)"/>
-  <rect x="3" y="3" width="58" height="58" rx="13" fill="none" stroke="#42665F" stroke-opacity=".72" stroke-width="1.5"/>
-  <path d="M14 47 29 17a3.3 3.3 0 0 1 6 0l15 30" fill="none" stroke="url(#signal)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M15.5 38h10l4.6-9 6.3 15 4.4-6h8" fill="none" stroke="#F4FFF9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="51" cy="14" r="3.8" fill="#64F4A4"/>
+  <rect x="1.2" y="1.2" width="61.6" height="61.6" rx="13.8" fill="url(#bg)" stroke="#94AEC0" stroke-width="1.5"/>
+  <path d="M32 6.3 L34.03 3.68 L37.47 4.2 L38.64 7.29 L42.59 8.92 L44.27 9.9 L47.4 8.8 L50.01 11.09 L49.32 14.33 L51.77 17.84 L52.65 19.57 L55.87 20.33 L56.83 23.67 L54.5 26.03 L54.66 30.3 L54.47 32.23 L56.77 34.61 L55.77 37.94 L52.54 38.67 L50.36 42.34 L49.16 43.87 L49.81 47.11 L47.16 49.38 L44.05 48.24 L40.24 50.15 L38.4 50.78 L37.19 53.86 L33.74 54.34 L31.74 51.7 L27.49 51.25 L25.6 50.78 L22.92 52.72 L19.76 51.26 L19.51 47.96 L16.18 45.28 L14.84 43.87 L11.54 44.05 L9.67 41.11 L11.24 38.19 L9.89 34.14 L9.53 32.23 L6.65 30.59 L6.67 27.12 L9.57 25.51 L10.62 21.37 L11.35 19.57 L9.81 16.64 L11.71 13.72 L15.02 13.94 L18.14 11.02 L19.73 9.9 L20.02 6.6 L23.19 5.18 L25.85 7.15 L30.06 6.38 Z" fill="url(#steel)" stroke="#C5D6E2" stroke-width=".85" stroke-linejoin="round"/>
+  <circle cx="32" cy="29" r="18.7" fill="#071824" stroke="#566B7B" stroke-width="1.2"/>
+  <path d="M17.75 32.75 A14.25 14.25 0 0 1 21.92 22.92" fill="none" stroke="#21DF53" stroke-width="5.5" stroke-linecap="butt"/>
+  <path d="M22.28 22.58 A14.25 14.25 0 0 1 32 18.75" fill="none" stroke="#F4E921" stroke-width="5.5" stroke-linecap="butt"/>
+  <path d="M32.5 18.76 A14.25 14.25 0 0 1 42.08 22.92" fill="none" stroke="#FFA525" stroke-width="5.5" stroke-linecap="butt"/>
+  <path d="M42.42 23.28 A14.25 14.25 0 0 1 46.25 32.75" fill="none" stroke="#FB352E" stroke-width="5.5" stroke-linecap="butt"/>
+  <path d="M12.6 41.6 H22.7 l4.8-5.1 5.5 10.3 5.6-15.5 4.7 10.3 H51" fill="none" stroke="#031018" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12.6 41.6 H22.7 l4.8-5.1 5.5 10.3 5.6-15.5 4.7 10.3 H51" fill="none" stroke="#FFFFFF" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8 53.6 Q20.7 47.8 31.7 51.4 T56.5 48.3" fill="none" stroke="#031018" stroke-width="6" stroke-linecap="round"/>
+  <path d="M8 53.6 Q20.7 47.8 31.7 51.4 T56.5 48.3" fill="none" stroke="url(#swoosh)" stroke-width="3.7" stroke-linecap="round"/>
 </svg>

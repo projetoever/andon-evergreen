@@ -82,7 +82,7 @@ test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", 
   assert.match(root, /\{ title: "Andon" \}/);
   assert.match(root, /rel: "icon"/);
   assert.match(root, /type: "image\/svg\+xml"/);
-  assert.match(root, /href: "\/favicon\.svg\?v=1"/);
+  assert.match(root, /href: "\/favicon\.svg\?v=2"/);
   assert.match(root, /<AndonBrowserIdentity \/>/);
   assert.match(branding, /getSystemSettings\(\)/);
   assert.match(branding, /settings\.clientName/);
@@ -94,5 +94,11 @@ test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", 
   assert.match(hub, /clientName: draft\.clientName\.trim\(\)/);
   assert.match(favicon, /viewBox="0 0 64 64"/);
   assert.match(favicon, /#15A46B/);
+  assert.match(favicon, /engrenagem, indicador de status e pulso/);
+  assert.match(favicon, /id="steel"/);
+  assert.match(favicon, /#21DF53/);
+  assert.match(favicon, /#F4E921/);
+  assert.match(favicon, /#FB352E/);
+  assert.match(favicon, /id="swoosh"/);
   assert.doesNotMatch(favicon, /Evergreen|<script|href="https?:/);
 });
