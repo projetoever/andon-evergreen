@@ -119,8 +119,8 @@ try {
     "Revoked verifier approval must not write");
   await db.accessUser.update({ where: { id: operator.id },
     data: { permissions: { deleteMany: { key: "production.schedule.request" } } } });
-  assert.equal((await post({ expectedProductionMode: "not_scheduled", productionMode: "scheduled" })).statusCode, 401,
-    "Persistent terminal becomes invalid if safe allowlist and scope are no longer satisfied");
+  assert.equal((await post({ expectedProductionMode: "not_scheduled", productionMode: "scheduled" })).statusCode, 403,
+    "Terminal without request grant cannot perform this one-shot operation");
   console.log("REFINE20 schedule step-up PG PASS: central persistent terminal, password, CSRF, Origin, cross-machine, stale revision, audit, no session elevation, revocations");
 } finally {
   if (app) await app.close();
