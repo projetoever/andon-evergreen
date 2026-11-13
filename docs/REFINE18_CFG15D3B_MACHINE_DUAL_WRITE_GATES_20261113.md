@@ -13,7 +13,7 @@ No painel Máquinas do Admin ANDON, o botão Nova e os campos de nome/OS podiam 
 - Legado sem acesso central mantém comportamento anterior. Hierarquia de conjuntos/subconjuntos segue suas próprias guards (não incluída neste pacote).
 - Flags são somente indicação de recurso; a API conserva sessão, workstation, anti-CSRF, ACL, locks e auditoria.
 - Sem alterações em backend, migrações, instalação, banco real, PLC, sensores, GPIO ou Node-RED.
-- Teste de regressão em `tests/adminUxRefinementA.test.ts`; mensagem PT/EN/ZH em `src/i18n/messages.ts`.
+- Teste de regressão em `tests/centralSettingsCapabilityMatrix.test.ts`; mensagem PT/EN/ZH em `src/i18n/messages.ts`.
 
 ## Aceite
 CI Windows PowerShell 5.1 e Linux/PostgreSQL/backend/frontend/SSR/browser desktop+mobile; merge somente após duas CIs verdes. Validação física em notebook por usuário com flags criação/edição independentes e escopos diferentes após atualizar `main`. Não alterar flags ou instalações como parte da PR.
