@@ -50,3 +50,18 @@ test("REFINE 6 notebook: legacy page explains why main still displays old module
   assert.match(legacy, /Modo de administração legado ativo/);
   assert.match(legacy, /if \(access\?\.centralAccessEnabled\) return <HubCentralAdminPage \/>/);
 });
+
+
+test("SEC-18B: workstation trust is not mistaken for an active persistent Person session", async () => {
+  const [workstations, users] = await Promise.all([
+    read("../src/components/settings/WorkstationsSettingsTab.tsx"),
+    read("../src/components/settings/UsersAccessSettings.tsx"),
+  ]);
+  assert.match(workstations, /configurar a conta em Usuários e Acessos/);
+  assert.match(workstations, /lastLogin\?\.state === "valid"/);
+  assert.match(workstations, /Terminal autorizado, mas sem login persistente confirmado/);
+  assert.match(users, /value=\{draft\.sessionPolicy\}/);
+  assert.match(users, /Produção — não expirar em workstation confiável/);
+  assert.doesNotMatch(workstations, /workstation-kiosk-trust-status/);
+  assert.doesNotMatch(workstations, /Confiança Kiosk/);
+});
