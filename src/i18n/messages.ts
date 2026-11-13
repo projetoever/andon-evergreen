@@ -5897,6 +5897,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Senha indisponível — Kiosk","Password unavailable — Kiosk","密碼不可用 — Kiosk"],
   ["Este Kiosk não possui login por senha. Para usar esse nome, renomeie o registro inativo e crie uma conta Pessoa.","This Kiosk has no password login. To use this username, rename the inactive record and create a Person account.","此 Kiosk 不支援密碼登入。若要使用此使用者名稱，請先重新命名停用紀錄，再建立個人帳戶。"],
   ["Duração da sessão","Session duration","工作階段持續時間"],
+  ["Esta opção autoriza o terminal, mas também é necessário configurar a conta em Usuários e Acessos como Produção — não expirar em workstation confiável. A estação deve estar aprovada, com máquina fixada e permissões operacionais compatíveis.","This enables the workstation, but the account must also be set to Production — no automatic expiry on a trusted workstation in Users & Access. The station must be approved, pinned to a machine, and have compatible operational permissions.","這項設定只授權工作站；仍須在「使用者與存取」將帳戶設定為受信任工作站的生產持續登入。工作站須已核准、綁定機台，且具備相容的操作權限。"],
+  ["Terminal autorizado, mas sem login persistente confirmado. Verifique a política da conta e entre novamente.","Workstation is authorized, but no active persistent login is confirmed. Check the account policy and sign in again.","工作站已授權，但未確認有效的持續登入。請檢查帳戶政策並重新登入。"],
   ["Verificação de elegibilidade da conta","Account eligibility check","帳戶資格檢查"],
   ["Permissões incompatíveis com login persistente:","Permissions incompatible with persistent login:","與持續登入不相容的權限："],
   ["Selecione pelo menos uma função operacional antes de salvar.","Select at least one operational permission before saving.","儲存前請至少選擇一項操作權限。"],

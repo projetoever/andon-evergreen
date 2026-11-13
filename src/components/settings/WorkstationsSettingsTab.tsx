@@ -46,16 +46,6 @@ function hasRecentServerContact(value: string) {
   return Number.isFinite(timestamp) && timestamp <= now && now - timestamp <= 30 * 60 * 1000;
 }
 
-function kioskTrustStateLabel(state: NonNullable<ManagedWorkstation["kioskTrust"]>["state"]) {
-  switch (state) {
-    case "pending": return "Em preparação";
-    case "revoked": return "Confiança revogada";
-    case "expired": return "Confiança expirada";
-    case "provisioned_inactive": return "Configurado, mas desativado";
-    default: return "Kiosk não configurado";
-  }
-}
-
 function sessionStateLabel(state: NonNullable<ManagedWorkstation["lastLogin"]>["state"]) {
   switch (state) {
     case "valid": return "Sessão válida";
@@ -845,15 +835,6 @@ export function WorkstationsSettingsTab() {
                           ? formatLastSeen(workstation.lastHeartbeatAt) : ui("Nunca recebido")}
                       </p>
                     )}
-                    {centralAccess && (
-                      <p className="text-xs text-muted-foreground" data-testid="workstation-kiosk-trust-status">
-                        {ui("Confiança Kiosk")}:{" "}
-                        <strong>{ui(kioskTrustStateLabel(
-                          workstation.kioskTrust?.state ?? "not_configured",
-                        ))}</strong>
-                        {" · "}{ui("A operação Kiosk ainda não está habilitada.")}
-                      </p>
-                    )}
                     {centralAccess && accessSession?.principal?.isPrimaryAdmin && (
                       <section className="space-y-3 rounded-lg border border-border p-3">
                         <h4 className="font-semibold">{ui("Sessão operacional da workstation")}</h4>
@@ -861,7 +842,7 @@ export function WorkstationsSettingsTab() {
                           <div>
                             <p className="text-sm font-semibold">{ui("Não expirar login operacional")}</p>
                             <p className="text-xs text-muted-foreground">
-                              {ui("Somente workstation aprovada com tela fixada em uma máquina e conta pessoal sem permissões administrativas. Admin e ações sensíveis continuam com expiração normal.")}
+                              {ui("Esta opção autoriza o terminal, mas também é necessário configurar a conta em Usuários e Acessos como Produção — não expirar em workstation confiável. A estação deve estar aprovada, com máquina fixada e permissões operacionais compatíveis.")}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {ui("Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.")}
@@ -878,10 +859,19 @@ export function WorkstationsSettingsTab() {
                           {ui("Estado da confiança")}: {workstation.allowPersistentOperationalLogin
                             ? ui("Habilitada · revogável pelo Admin")
                             : ui("Desativada")}
-                          {workstation.lastLogin?.persistentOperational
+                          {workstation.lastLogin?.state === "valid" &&
+                            workstation.lastLogin.persistentOperational
                             ? " · " + ui("Sessão sem expiração automática")
                             : ""}
                         </p>
+                        {workstation.allowPersistentOperationalLogin &&
+                          (!workstation.lastLogin ||
+                            workstation.lastLogin.state !== "valid" ||
+                            workstation.lastLogin.persistentOperational !== true) && (
+                          <p role="status" className="text-xs text-warning">
+                            {ui("Terminal autorizado, mas sem login persistente confirmado. Verifique a política da conta e entre novamente.")}
+                          </p>
+                        )}
                         {!isCurrent && workstation.lastLogin?.state === "valid" && (
                           <div className="space-y-2 border-t border-border pt-3">
                             <Label className="block space-y-2">
