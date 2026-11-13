@@ -12,7 +12,7 @@ export const permissionLabels: Record<string, string> = {
   "calls.returnToMaintenance": "Chamados: retornar à manutenção",
   "machines.status.write": "Máquinas: alterar status",
   "production.schedule.write": "Produção: alterar programação",
-  "diagnosis.edit": "Diagnóstico: editar",
+  "diagnosis.edit": "Histórico: corrigir diagnóstico finalizado (PIN obrigatório)",
   "analytics.reclassify": "BI: reclassificar",
   "analytics.policy.manage": "BI: gerenciar políticas",
   "bi.read": "BI: visualizar",
