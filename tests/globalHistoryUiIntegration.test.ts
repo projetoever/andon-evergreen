@@ -120,3 +120,24 @@ test("HIST-07: optional hourly range is available only for a chosen date and val
   assert.match(page, /globalHistorySearchPath\(draft\)/);
   assert.match(page, /setError\(cause instanceof Error/);
 });
+
+
+test("HIST-08: list/detail/summary/CSV use the current PT/EN/ZH locale without changing timestamps", async () => {
+  const [page, detail, summary, csv, locale] = await Promise.all([
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../src/components/history/GlobalHistoryDetailSections.tsx"),
+    source("../src/components/history/GlobalHistorySummaryPanel.tsx"),
+    source("../src/services/globalHistoryPageCsv.ts"),
+    source("../src/i18n/language.ts"),
+  ]);
+  for (const component of [page, detail, summary, csv]) {
+    assert.match(component, /getInterfaceLocale/);
+    assert.doesNotMatch(component, /toLocaleString\("pt-BR"/);
+    assert.match(component, /toLocaleString\(getInterfaceLocale\(\)/);
+  }
+  assert.match(locale, /en: "en-US"/);
+  assert.match(locale, /"zh-TW": "zh-TW"/);
+  assert.match(page, /getGlobalHistorySummary\(applied\)/);
+  assert.match(csv, /csvCell/);
+  assert.match(detail, /showInstant/);
+});
