@@ -5868,4 +5868,11 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["A preferência de filtro pode ser salva separadamente da edição de turnos.","The shift filter preference can be saved independently of shift editing.","班次篩選偏好可以與班次編輯分開儲存。"],
   ["A gravação central da preferência de filtro está indisponível; a leitura permanece disponível.","Central saving of the shift filter preference is unavailable; reading remains available.","集中儲存班次篩選偏好目前不可用；仍可檢視。"],
   ["Modo somente leitura: a gravação central de configurações operacionais está desabilitada. Nenhuma alteração será enviada.","Read-only mode: saving central operational settings is disabled. No changes will be submitted.","唯讀模式：集中作業設定儲存功能已停用。不會送出任何變更。"],
+  ["Não foi possível verificar as permissões centrais dos mantenedores.","Could not verify central technician permissions.","無法確認維修人員的中央管理權限。"],
+  ["Verificando permissões centrais dos mantenedores...","Checking central technician permissions...","正在確認維修人員的中央管理權限…"],
+  ["Cadastro central:","Central creation:","中央新增："],
+  ["Edição central:","Central editing:","中央編輯："],
+  ["habilitada","enabled","已啟用"],
+  ["bloqueada","blocked","已封鎖"],
+  ["bloqueado","blocked","已封鎖"],
 ]; 
