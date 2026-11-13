@@ -223,7 +223,7 @@ export function CallReasonsSettingsTab() {
       <header className="space-y-1">
         <h2 className="text-lg font-bold">{ui("Motivos e subcategorias de chamados")}</h2>
         <p className="text-sm text-muted-foreground">
-          {ui("Configure o motivo principal e as especialidades que poderão aparecer na abertura de chamados. Este cadastro ainda não altera os botões operacionais nem os KPIs atuais.")}
+          {ui("Configure os motivos e as especialidades que aparecem na máquina quando a abertura hierárquica está habilitada. Alterações de apresentação não mudam automaticamente a classificação dos KPIs; as políticas e os vínculos continuam sujeitos à validação e autorização no servidor.")}
         </p>
       </header>
       {loading && <p role="status">{ui("Carregando motivos...")}</p>}
