@@ -5840,4 +5840,6 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Salvar apresentação","Save presentation","儲存顯示設定"],
   ["Fechar edição","Close editor","關閉編輯"],
   ["Editar apresentação","Edit presentation","編輯顯示設定"],
-]; 
+  ["Permissão de Config. do ANDON: você pode cadastrar motivos com política conservadora e editar sua apresentação. Vincular especialidades e alterar políticas de KPI exigem Admin principal.","ANDON settings permission: you can create reasons with a conservative policy and edit their presentation. Linking specialties and changing KPI policies require the primary Admin.","ANDON 設定權限：您可以使用保守政策新增原因並編輯顯示資訊。連結專業類別及變更 KPI 政策仍需主要管理員權限。"],
+  ["Novos motivos não entram automaticamente nos KPIs corretivos. A política conservadora é definida no servidor e pode ser revista pelo Admin principal.","New reasons are not automatically included in corrective KPIs. The server assigns a conservative policy, which the primary Admin may review.","新原因不會自動計入矯正維修 KPI。伺服器會套用保守政策，主要管理員可再審核。"],
+];
