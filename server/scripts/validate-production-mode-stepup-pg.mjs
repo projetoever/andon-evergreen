@@ -10,6 +10,7 @@ if (process.env.ANDON_INTEGRATION_TEST !== "1" || url.pathname !== "/andon_test"
     process.env.ANDON_CENTRAL_ACCESS_ENABLED === "1")
   throw Error("Production mode test needs isolated /andon_test with central access initially OFF");
 
+const previousCentral = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
 const db = new PrismaClient();
 const nonce = randomUUID().replaceAll("-", "").slice(0, 12);
 const machineId = "ci-prod-mode-" + nonce;
@@ -59,6 +60,7 @@ try {
     expiresAt: new Date(now.getTime() - 60_000),
     persistentOperational: true, persistentMachineId: machineId,
   } });
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   app = Fastify();
   app.addHook("onRequest", async req => {
     Object.defineProperty(req.raw.socket, "encrypted",
@@ -124,6 +126,8 @@ try {
   console.log("REFINE20 schedule step-up PG PASS: central persistent terminal, password, CSRF, Origin, cross-machine, stale revision, audit, no session elevation, revocations");
 } finally {
   if (app) await app.close();
+  if (previousCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentral;
   await db.auditEvent.deleteMany({ where: { action: "machine.production_mode.credential_verified", resourceId: machineId } });
   await db.machineProductionEvent.deleteMany({ where: { machineId } });
   for (const id of users) {
