@@ -54,3 +54,45 @@ test("BI report retrieves current identity rather than assuming live main or sta
   assert.match(pdf, /esc\(clientLabel\)/);
   assert.match(pdf, /pageHeader\("03",[^\n]*branding\)/);
 });
+
+
+test("BRAND-01: document title uses only the current Hub company, with safe fallback", async () => {
+  const { formatAndonBrowserTitle } = await import("../src/utils/andonBrowserTitle.ts");
+  assert.equal(formatAndonBrowserTitle("Evergreen"), "Andon (Evergreen)");
+  assert.equal(formatAndonBrowserTitle("Evergreen do Brasil"), "Andon (Evergreen do Brasil)");
+  assert.equal(formatAndonBrowserTitle(" Fábrica São João "), "Andon (Fábrica São João)");
+  assert.equal(formatAndonBrowserTitle("長春企業"), "Andon (長春企業)");
+  assert.equal(formatAndonBrowserTitle("a"), "Andon");
+  assert.equal(formatAndonBrowserTitle(null), "Andon");
+  assert.equal(formatAndonBrowserTitle(123), "Andon");
+  assert.equal(formatAndonBrowserTitle(" "), "Andon");
+  assert.equal(formatAndonBrowserTitle("X".repeat(101)), "Andon");
+  assert.equal(formatAndonBrowserTitle("Main\u202e Admin"), "Andon (Main Admin)");
+  assert.equal(formatAndonBrowserTitle("AC\u0000ME"), "Andon (ACME)");
+});
+
+test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", async () => {
+  const [root, branding, favicon, hub, service] = await Promise.all([
+    load("../src/routes/__root.tsx"),
+    load("../src/components/layout/AndonBrowserIdentity.tsx"),
+    load("../public/favicon.svg"),
+    load("../src/components/settings/HubClientIdentitySettings.tsx"),
+    load("../src/services/systemSettingsService.ts"),
+  ]);
+  assert.match(root, /\{ title: "Andon" \}/);
+  assert.match(root, /rel: "icon"/);
+  assert.match(root, /type: "image\/svg\+xml"/);
+  assert.match(root, /href: "\/favicon\.svg\?v=1"/);
+  assert.match(root, /<AndonBrowserIdentity \/>/);
+  assert.match(branding, /getSystemSettings\(\)/);
+  assert.match(branding, /settings\.clientName/);
+  assert.match(branding, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(branding, /window\.addEventListener\("focus", refresh\)/);
+  assert.match(branding, /requestVersion \+= 1/);
+  assert.match(branding, /document\.title = formatAndonBrowserTitle\(clientName\)/);
+  assert.match(service, /new CustomEvent<SystemSettings>\(SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(hub, /clientName: draft\.clientName\.trim\(\)/);
+  assert.match(favicon, /viewBox="0 0 64 64"/);
+  assert.match(favicon, /#15A46B/);
+  assert.doesNotMatch(favicon, /Evergreen|<script|https?:\/\//);
+});
