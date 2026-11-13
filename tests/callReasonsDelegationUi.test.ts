@@ -45,7 +45,7 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   ]);
   const editor = page.split("async function saveOptionPresentation")[1]?.split("\n  return (")[0];
   assert.ok(editor, "specialty presentation save handler must exist");
-  assert.ok(editor.includes("!/^\d{1,4}$/.test(orderText)"));
+  assert.ok(editor.includes(String.raw`!/^\d{1,4}$/.test(orderText)`));
   assert.match(editor, /await updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
   assert.match(editor, /displayName: label \|\| null, displayOrder: order/);
   assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
