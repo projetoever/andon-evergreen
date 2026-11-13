@@ -832,5 +832,7 @@
   ["OS obrigatória para todas as máquinas: regra global ativa.","Work order required on all machines: global rule active.","所有機台均須填寫工單：全域規則已啟用。"],
   ["Aguardando confirmação da regra global de OS; opção individual indisponível.","Waiting for the global work order rule; per-machine option unavailable.","等待確認全域工單規則；單機選項暫不可用。"],
   ["OS obrigatória nesta máquina.","Work order required on this machine.","此機台必須填寫工單。"],
-  ["OS opcional nesta máquina.","Work order optional on this machine.","此機台工單為選填。"]
+  ["OS opcional nesta máquina.","Work order optional on this machine.","此機台工單為選填。"],
+  ["Verificando disponibilidade do catálogo de motivos...","Checking call-reason catalog availability...","正在確認呼叫原因目錄的可用狀態…"],
+  ["Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.","Unable to verify catalog availability. No edits will be submitted.","無法確認目錄是否可用。不會提交任何編輯。"]
 ]
