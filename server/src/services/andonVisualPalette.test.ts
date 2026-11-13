@@ -15,7 +15,7 @@ test("UX-12: strict stored palette maintains the existing industrial default", (
   assert.deepEqual(parseStoredVisualPalette(DEFAULT_STORED_VISUAL_PALETTE), DEFAULT_STORED_VISUAL_PALETTE);
   assert.deepEqual(publicVisualPalette({}), DEFAULT_STORED_VISUAL_PALETTE);
   assert.ok(Object.isFrozen(DEFAULT_STORED_VISUAL_PALETTE));
-  assert.equal(VISUAL_PALETTE_FIELDS.length, 5);
+  assert.equal(VISUAL_PALETTE_FIELDS.length, 6);
   assert.equal(VISUAL_PALETTE_ACCENTS.length, 5);
   assert.equal(publicVisualPaletteRevision(0), 0);
   assert.equal(publicVisualPaletteRevision(2), 2);
