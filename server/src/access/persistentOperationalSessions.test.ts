@@ -3,7 +3,7 @@ import test from "node:test";
 import { permitsPersistentOperationalAccount } from "./sessions.js";
 
 const user = {
-  accountType: "person", isPrimaryAdmin: false, mustChangePassword: false,
+  accountType: "person", sessionPolicy: "persistent", isPrimaryAdmin: false, mustChangePassword: false,
   permissions: [{ key: "andon.read" }, { key: "calls.open" }],
 };
 const station = {
@@ -43,4 +43,10 @@ test("REFINE15: no persistent Admin, security manager, unapproved station, or un
     { ...station, allowPersistentOperationalLogin: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user, station,
     [{ machineId: "39" }], "selected"), false);
+});
+
+
+test("SEC-18: trusted station never overrides user session opt-in", () => {
+  assert.equal(permitsPersistentOperationalAccount({ ...user, sessionPolicy: "standard" }, station, machines, "selected"), false);
+  assert.equal(permitsPersistentOperationalAccount({ ...user, sessionPolicy: undefined }, station, machines, "selected"), false);
 });
