@@ -9,7 +9,7 @@ export const Route = createFileRoute("/history")({
       typeof search.machineId === "string" &&
       search.machineId.length >= 1 &&
       search.machineId.length <= 128 &&
-      !/[\\u0000-\\u001f\\u007f]/.test(search.machineId)
+      !/[\u0000-\u001f\u007f]/.test(search.machineId)
         ? search.machineId
         : undefined,
   }),
