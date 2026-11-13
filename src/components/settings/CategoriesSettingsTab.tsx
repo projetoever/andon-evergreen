@@ -230,7 +230,7 @@ export function CategoriesSettingsTab() {
               tone="neutral"
               size="md"
               onClick={handleAdd}
-              disabled={isBusy || isLoading || Boolean(loadError)}
+              disabled={isBusy || isLoading || Boolean(loadError) || !canChangeCatalog}
             >
               {ui("Adicionar setor")}
             </BigButton>
