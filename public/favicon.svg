@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Andon — monitoramento industrial</title>
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#18313B"/>
+      <stop offset="1" stop-color="#07151D"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="1" x2="1" y2="0">
+      <stop stop-color="#15A46B"/>
+      <stop offset=".55" stop-color="#43DC88"/>
+      <stop offset="1" stop-color="#98F9BE"/>
+    </linearGradient>
+  </defs>
+  <!-- Self-contained, customer-neutral brandmark: bold industrial A + live signal. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#surface)"/>
+  <rect x="3" y="3" width="58" height="58" rx="13" fill="none" stroke="#42665F" stroke-opacity=".72" stroke-width="1.5"/>
+  <path d="M14 47 29 17a3.3 3.3 0 0 1 6 0l15 30" fill="none" stroke="url(#signal)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M15.5 38h10l4.6-9 6.3 15 4.4-6h8" fill="none" stroke="#F4FFF9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="51" cy="14" r="3.8" fill="#64F4A4"/>
+</svg>
