@@ -24,6 +24,8 @@ const stationId = "ws_" + randomUUID();
 const token = randomBytes(32).toString("hex");
 const login = "ci.r6.reasons." + suffix;
 const reasonId = "r6_reason_" + suffix;
+const delegatedReasonId = "r6_delegate_" + suffix;
+const delegatedCorrectiveId = "r6_pending_" + suffix;
 const optionId = "r6_opt_" + suffix;
 const areaId = "r6_area_" + suffix;
 let userId = null;
@@ -181,7 +183,43 @@ try {
   const unprivileged = await send("PATCH", "/api/call-reasons/" + reasonId,
     { expectedRevision: after.revision, displayName: "Denied" });
   assert.equal(unprivileged.statusCode, 403, unprivileged.body);
-  await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: true } });
+
+  // CFG-08B1: scoped nonprimary Config. ANDON may add reasons using
+  // server-defined non-eligible KPI defaults, never client policy fields.
+  await db.accessPermission.create({ data: { userId, key: "andon.settings.open" } });
+  await db.accessUser.update({ where: { id: userId }, data: { machineScope: "selected" } });
+  const safeSetup = await send("POST", "/api/call-reasons", {
+    id: delegatedReasonId, displayName: "Setup delegado",
+    nature: "planned_setup", active: true, displayOrder: 20,
+  });
+  assert.equal(safeSetup.statusCode, 201, safeSetup.body);
+  assert.equal(safeSetup.json().maintenanceKpiPolicy, "excluded");
+  assert.equal(safeSetup.json().suggestedResponsibility, "operations");
+  const safeCorrective = await send("POST", "/api/call-reasons", {
+    id: delegatedCorrectiveId, displayName: "Manutenção sob revisão",
+    nature: "corrective_failure", active: true, displayOrder: 21,
+  });
+  assert.equal(safeCorrective.statusCode, 201, safeCorrective.body);
+  assert.equal(safeCorrective.json().maintenanceKpiPolicy, "pending");
+  assert.equal(safeCorrective.json().suggestedResponsibility, "unassigned");
+  const injected = await send("POST", "/api/call-reasons", {
+    id: "r6_injected_" + suffix, displayName: "Risco bloqueado",
+    nature: "corrective_failure", maintenanceKpiPolicy: "eligible",
+  });
+  assert.equal(injected.statusCode, 403, injected.body);
+  const linkDenied = await send("POST",
+    "/api/call-reasons/" + delegatedReasonId + "/options",
+    { id: "forbidden", technicalAreaId: areaId });
+  assert.equal(linkDenied.statusCode, 403, linkDenied.body);
+  const delegateAudits = await db.auditEvent.findMany({
+    where: { resourceType: "call_reason", resourceId: { in: [
+      delegatedReasonId, delegatedCorrectiveId,
+    ] } },
+  });
+  assert.equal(delegateAudits.length, 2);
+  assert.equal(await db.callReason.count({ where: { id: "r6_injected_" + suffix } }), 0);
+  await db.accessUser.update({ where: { id: userId },
+    data: { isPrimaryAdmin: true, machineScope: "all" } });
   await db.accessPermission.create({ data: { userId, key: "analytics.policy.manage" } });
 
   process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
@@ -198,7 +236,7 @@ try {
 } finally {
   if (app) await app.close();
   await db.callReasonOption.deleteMany({ where: { reasonId } });
-  await db.callReason.deleteMany({ where: { id: reasonId } });
+  await db.callReason.deleteMany({ where: { id: { in: [reasonId, delegatedReasonId, delegatedCorrectiveId] } } });
   // audit_events is intentionally APPEND-ONLY. Never delete or tamper with
   // synthetic audit evidence, even during test fixture cleanup.
   await db.andonCategory.deleteMany({ where: { id: areaId } });
