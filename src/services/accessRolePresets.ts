@@ -87,10 +87,12 @@ export const PILOT_OPERATIONAL_ACTIONS = [
 
 /**
  * REFINE 16 — Exactly four pilot controls. These are explicit Admin-issued
- * bundles of existing server permissions, never client-side authorization.
+ * full bundles of existing server permissions, explicitly chosen by Admin.
+ * The selected role label is descriptive and NEVER attenuates a checked bundle.
  * Backend keeps checking each action, workstation, session, machine and flag.
- * Sensitive Hub/user/workstation management, audit and screen unlock are NOT
- * silently added to any bundle. Advanced grants remain a separate opt-in.
+ * Screen unlock is included because it is an ANDON screen action, but Hub
+ * identity administration, workstation management and audit remain advanced.
+ * Advanced can revoke any individual permission after the bundle is checked.
  */
 export const SIMPLE_MODULE_GROUPS = [
   { id: "andon", label: "ANDON" },
@@ -100,7 +102,7 @@ export const SIMPLE_MODULE_GROUPS = [
 ] as const;
 export type SimpleModuleGroup = (typeof SIMPLE_MODULE_GROUPS)[number]["id"];
 
-/** All ordinary operational grants; role presets decide which can be bundled. */
+/** Every ANDON operational action, including credential-verified screen unlock. */
 const ANDON_OPERATION_GRANTS = [
   "andon.read",
   "history.read",
@@ -116,8 +118,9 @@ const ANDON_OPERATION_GRANTS = [
   "machines.status.write",
   "production.schedule.write",
   "diagnosis.edit",
+  SCREEN_UNLOCK_PERMISSION,
 ] as const;
-const BI_GRANTS = ["bi.read", "bi.export", "analytics.reclassify"] as const;
+const BI_GRANTS = ["bi.read", "bi.export", "analytics.reclassify", "analytics.policy.manage"] as const;
 const PRIORITY_GRANTS = ["priorities.read", "priorities.write"] as const;
 const ANDON_CONFIG_GRANTS = [
   "andon.settings.open",
@@ -136,24 +139,29 @@ function ownedByGroup(group: SimpleModuleGroup): readonly string[] {
   }
 }
 
-/** ANDON capabilities respect the selected operational profile, not its label
- * at runtime: this function writes the resulting grants once, on Admin save.
+/** Each essential choice grants all capabilities in that module that the
+ * server knows. Profile is a label; it must not silently restrict module actions.
+ * The backend independently enforces user, machine, workstation and flags.
  */
 export function simpleModuleGrants(
-  group: SimpleModuleGroup, roleLabel: string, catalog: readonly string[],
+  group: SimpleModuleGroup, _roleLabel: string, catalog: readonly string[],
 ): string[] {
   const supported = new Set(catalog);
-  if (group === "andon") {
-    const roleGrants = new Set(suggestions[roleLabel] ?? suggestions["Produção"]);
-    return ANDON_OPERATION_GRANTS.filter(key => supported.has(key) && roleGrants.has(key));
-  }
-  if (group === "bi") {
-    // Reclassification changes historical KPIs: only the Manager profile can
-    // obtain it from the simple BI bundle, and the server still audits it.
-    return BI_GRANTS.filter(key => supported.has(key) &&
-      (key !== "analytics.reclassify" || roleLabel === "Gestor/Gerente"));
-  }
   return ownedByGroup(group).filter(key => supported.has(key));
+}
+
+/** Organized advanced permission groups, with unrelated security/Hub grants
+ * kept outside the four essential modules. Also used by the UI for clarity.
+ */
+export function advancedModuleGrants(
+  group: SimpleModuleGroup, catalog: readonly string[],
+): string[] {
+  return simpleModuleGrants(group, "", catalog);
+}
+
+export function advancedIndependentGrants(catalog: readonly string[]): string[] {
+  const assigned = new Set(SIMPLE_MODULE_GROUPS.flatMap(g => ownedByGroup(g.id)));
+  return catalog.filter(key => !assigned.has(key));
 }
 
 /** Partial historical grants must NEVER make the module look fully enabled.
@@ -191,30 +199,16 @@ export function toggleSimpleModule(
   return [...next];
 }
 
-/** Reclassifying a user must not leave Manager call-cancellation,
- * maintenance or BI-reclassification powers attached to a Production profile.
- * Rebase role-dependent ANDON and BI grants; preserve Priorities, ANDON
- * settings and exceptional grants. Partial historical ACL is never silently
- * promoted to full access.
+/** The role label NEVER grants or revokes any permission. The Admin checks
+ * essential modules or edits individual permissions in Advanced. Switching a
+ * label must preserve those deliberate grants, especially custom exceptions.
+ * Role suggestions remain an explicit, separate Advanced button.
  */
 export function reconcileSimpleModuleRole(
-  current: readonly string[], oldRole: string, nextRole: string,
-  catalog: readonly string[],
+  current: readonly string[], _oldRole: string, _nextRole: string,
+  _catalog: readonly string[],
 ): string[] {
-  if (oldRole === nextRole) return [...current];
-  const next = new Set(current);
-  for (const group of ["andon", "bi"] as const) {
-    const fullyEnabled = simpleModuleState(current, group, oldRole, catalog) === "on";
-    const allowedNew = simpleModuleGrants(group, nextRole, catalog);
-    const allowedSet = new Set(allowedNew);
-    for (const grant of ownedByGroup(group))
-      if (!allowedSet.has(grant)) next.delete(grant);
-    if (fullyEnabled)
-      for (const grant of allowedNew) next.add(grant);
-  }
-  if (next.has("andon.settings.open") && catalog.includes("andon.read"))
-    next.add("andon.read");
-  return [...next];
+  return [...current];
 }
 
 /**

@@ -18,8 +18,9 @@ import {
 
 import { permissionLabels } from "@/services/accessLabels";
 import {
-  MODULE_ENTRY_PERMISSIONS,
   SIMPLE_MODULE_GROUPS,
+  advancedModuleGrants,
+  advancedIndependentGrants,
   simpleModuleState,
   toggleSimpleModule,
   reconcileSimpleModuleRole,
@@ -713,9 +714,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           setDraft({
                             ...draft,
                             roleLabel,
-                            // Role changes safely rebase ANDON and BI actions,
-                            // including KPI reclassification, on downgrades.
-                            // Priorities, config and exceptions are preserved.
+                            // Role is descriptive. No module or action is
+                            // granted/revoked by changing its label; the Admin
+                            // selects full modules or Advanced exceptions.
                             ...(!advancedPermissions && draft.accountType === "person"
                               ? {
                                   permissions: reconcileSimpleModuleRole(
@@ -831,21 +832,21 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   </fieldset>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                     <p className="text-sm text-muted-foreground">
-                      {ui("O perfil determina as funções do ANDON agrupadas; apenas o Admin define quais módulos estão habilitados.")}
+                      {ui("Cada módulo marcado seleciona todas as suas funções. Em Avançado você pode retirar ações específicas sem alterar os demais módulos.")}
                     </p>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setAdvancedPermissions((value) => !value)}
                     >
-                      {ui(advancedPermissions ? "Mostrar permissões essenciais" : "Mostrar todas as permissões")}
+                      {ui(advancedPermissions ? "Voltar aos 4 módulos" : "Avançado — restringir funções")}
                     </Button>
                   </div>
                   {!advancedPermissions && (
                     <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
                       <legend className="px-1 font-bold">{ui("Acesso aos módulos e configurações")}</legend>
                       <p className="text-sm text-muted-foreground">
-                        {ui("Cada módulo habilitado concede as funções correspondentes ao perfil. A workstation e o escopo de máquinas continuam protegidos.")}
+                        {ui("Marcar ANDON habilita abrir, atender, acompanhar, concluir, finalizar, cancelar, editar diagnóstico, alterar status e desfixar tela com credencial. As outras três opções selecionam todas as funções de seus respectivos conjuntos. Ajuste exceções em Avançado.")}
                       </p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {SIMPLE_MODULE_GROUPS.map((entry) => {
@@ -879,11 +880,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           catalog.permissions) === "partial",
                       ) && (
                         <p role="status" className="text-xs text-muted-foreground">
-                          {ui("Acesso parcial: marque o módulo para conceder suas funções. Nenhuma permissão será ampliada apenas pelo perfil.")}
+                          {ui("Parcial: uma ou mais ações foram restringidas em Avançado ou são necessárias por outro módulo. Marcar novamente concede todas as ações daquele conjunto.")}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {ui("Permissões especiais de segurança e administração permanecem separadas. Nenhum módulo libera o gerenciamento de usuários ou workstations.")}
+                        {ui("Os grupos não liberam administração do Hub, contas ou workstations. Ações como desfixar tela ainda exigem credenciais e validação da API. Para sessões persistentes de Produção, restrinja no Avançado as funções incompatíveis.")}
                       </p>
                     </fieldset>
                   )}
@@ -908,45 +909,49 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         </p>
                       </div>
                     )}
-                    <p className="text-sm font-semibold">{ui("Acesso aos módulos")}</p>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {MODULE_ENTRY_PERMISSIONS.filter((item) =>
-                        catalog.permissions.includes(item.key),
-                      ).map((item) => (
-                        <Label
-                          key={item.key}
-                          className="flex min-h-11 items-center gap-3 rounded-md border p-3"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft.permissions.includes(item.key)}
-                            onChange={(e) => togglePermission(item.key, e.target.checked)}
-                          />
-                          <span className="min-w-0 break-words">{ui(item.label)}</span>
-                        </Label>
-                      ))}
-                    </div>
-                    <p className="text-sm font-semibold">{ui("Permissões de ações específicas")}</p>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {catalog.permissions
-                        .filter((key) => !MODULE_ENTRY_PERMISSIONS.some((item) => item.key === key))
-                        .map((key) => (
-                          <Label
-                            key={key}
-                            className="flex min-h-11 items-start gap-3 rounded-md border p-3"
-                          >
+                    <p className="text-sm text-muted-foreground">
+                      {ui("Desmarque abaixo apenas as funções que deseja restringir. O resumo exibirá Parcial; mudar o perfil não reativa permissões retiradas.")}
+                    </p>
+                    {SIMPLE_MODULE_GROUPS.map((entry) => {
+                      const keys = advancedModuleGrants(entry.id, catalog.permissions);
+                      return (
+                        <section key={entry.id} className="space-y-2 rounded-lg border border-border p-3">
+                          <h4 className="font-bold">{ui(entry.label)} · {keys.filter(key => draft.permissions.includes(key)).length}/{keys.length}</h4>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {keys.map((key) => (
+                              <Label key={key} className="flex min-h-11 items-start gap-3 rounded-md border border-border bg-background p-3">
+                                <input
+                                  className="mt-1 shrink-0"
+                                  type="checkbox"
+                                  checked={draft.permissions.includes(key)}
+                                  onChange={(e) => togglePermission(key, e.target.checked)}
+                                />
+                                <span className="min-w-0 break-words">{ui(permissionLabels[key] ?? key)}</span>
+                              </Label>
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
+                    <section className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
+                      <h4 className="font-bold">{ui("Segurança e administração — permissões independentes")}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Estas permissões não são selecionadas por nenhum dos 4 módulos. Habilite-as individualmente somente quando necessárias.")}
+                      </p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {advancedIndependentGrants(catalog.permissions).map((key) => (
+                          <Label key={key} className="flex min-h-11 items-start gap-3 rounded-md border border-border bg-background p-3">
                             <input
                               className="mt-1 shrink-0"
                               type="checkbox"
                               checked={draft.permissions.includes(key)}
                               onChange={(e) => togglePermission(key, e.target.checked)}
                             />
-                            <span className="min-w-0 break-words">
-                              {ui(permissionLabels[key] ?? key)}
-                            </span>
+                            <span className="min-w-0 break-words">{ui(permissionLabels[key] ?? key)}</span>
                           </Label>
                         ))}
-                    </div>
+                      </div>
+                    </section>
                     <p className="text-sm text-muted-foreground">
                       {ui("As permissões serão aplicadas às operações após a ativação segura do controle central.")}
                     </p>
