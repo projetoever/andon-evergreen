@@ -5831,4 +5831,13 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Recurso desabilitado","Feature disabled","功能已停用"],
   ["Disponibilidade parcial","Partially available","部分可用"],
   ["Disponibilidade não verificada","Availability not verified","尚未驗證可用性"],
-];
+  ["Informe um nome de até 80 caracteres e uma ordem de 0 a 9999.","Enter a name of up to 80 characters and an order from 0 to 9999.","請輸入不超過 80 個字元的名稱及 0 至 9999 的排序值。"],
+  ["Apresentação da especialidade atualizada.","Specialty presentation updated.","已更新專業類別的顯示設定。"],
+  ["Não foi possível salvar a especialidade.","Unable to save the specialty.","無法儲存專業類別。"],
+  ["Nome exibido da especialidade","Specialty display name","專業類別顯示名稱"],
+  ["Usar nome da área técnica","Use technical area name","使用技術領域名稱"],
+  ["Nome vazio utiliza a área técnica original. Essa edição não altera a especialidade vinculada nem a política de KPI.","An empty name uses the original technical area label. This edit does not change the linked specialty or KPI policy.","名稱留空將使用原始技術領域名稱。此編輯不會變更已連結的專業類別或 KPI 政策。"],
+  ["Salvar apresentação","Save presentation","儲存顯示設定"],
+  ["Fechar edição","Close editor","關閉編輯"],
+  ["Editar apresentação","Edit presentation","編輯顯示設定"],
+]; 
