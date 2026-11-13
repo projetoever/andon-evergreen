@@ -306,13 +306,13 @@ try {
     },
   });
   await call(person, "/password", "POST", { newPassword: "Expired session password" }, 401);
-  const kiosk = await call(admin, "/users", "POST", {
+  // SEC-17B: dormant Kiosk enrollment is unavailable even for inactive accounts.
+  await call(admin, "/users", "POST", {
     ...input,
     login: `kiosk.${suffix}`,
     accountType: "kiosk",
     active: false,
-  });
-  assert.equal(kiosk.temporaryPassword, undefined);
+  }, 400);
   await call(
     admin,
     "/users",
