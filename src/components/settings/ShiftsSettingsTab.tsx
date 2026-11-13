@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { refreshShiftConfigs, saveShiftConfig } from "@/services/shiftConfigService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import {
   refreshTechnicianShiftFilterConfig,
   saveTechnicianShiftFilterConfig,
@@ -68,16 +68,14 @@ export function ShiftsSettingsTab() {
     let cancelled = false;
 
     Promise.all([
-      refreshShiftConfigs(), refreshTechnicianShiftFilterConfig(), getSystemSettings(),
-    ]).then(([list, filterConfig, capabilities]) => {
+      refreshShiftConfigs(), refreshTechnicianShiftFilterConfig(),
+    ]).then(([list, filterConfig]) => {
         if (cancelled) return;
         setItems(list);
         const first = list.find((shift) => shift.id === "morning") ?? list[0] ?? null;
         setSelectedId(first?.id ?? null);
         setDraft(first ? { ...first } : null);
         setFilterByCurrentShift(filterConfig.filterByCurrentShift);
-        setCentralShiftWritable(capabilities.centralShiftUpdateEnabled === true);
-        setCentralFilterWritable(capabilities.centralOperationalSettingsWriteEnabled === true);
       })
       .catch((error) => {
         if (!cancelled) {
@@ -93,6 +91,37 @@ export function ShiftsSettingsTab() {
       cancelled = true;
     };
   }, []);
+
+  // CFG-15D: independent PATCH gates must follow the current server state.
+  // Refreshing these booleans must never discard unsaved shift/filter drafts.
+  useEffect(() => {
+    if (!centralMode) return;
+    let mounted = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralShiftWritable(false);
+      setCentralFilterWritable(false); // fail closed until fresh API confirmation
+      void getSystemSettings().then(capabilities => {
+        if (!mounted || request !== requestVersion) return;
+        setCentralShiftWritable(capabilities.centralShiftUpdateEnabled === true);
+        setCentralFilterWritable(capabilities.centralOperationalSettingsWriteEnabled === true);
+      }).catch(() => {
+        if (!mounted || request !== requestVersion) return;
+        setCentralShiftWritable(false);
+        setCentralFilterWritable(false);
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      mounted = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [centralMode]);
 
   const filteredItems = useMemo(() => {
     const query = normalizeSearch(searchQuery);
