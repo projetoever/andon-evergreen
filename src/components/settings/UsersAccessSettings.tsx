@@ -746,17 +746,10 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         ))}
                       </select>
                     </Label>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">{ui("Tipo de conta")}</p>
-                      <p className="flex min-h-11 items-center rounded-md border bg-muted/20 px-3 text-sm">
-                        {ui(draft.accountType === "kiosk"
-                          ? "Kiosk — provisionamento indisponível"
-                          : "Pessoa — acesso com senha")}
-                      </p>
-                    </div>
+
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {ui("Pessoa é o tipo de conta disponível para login e senha. Kiosk é reservado para terminais industriais e ainda não pode ser provisionado, ativado ou receber senha no Hub. O perfil descreve a função; as permissões são escolhidas nos módulos ou em Avançado.")}
+                    {ui("Novos cadastros são contas de usuário com senha. O perfil descreve a função; selecione os módulos ou use Avançado para restringir ações.")}
                   </p>
                   {draft.accountType === "kiosk" && (
                     <div role="status" className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
@@ -1035,7 +1028,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   <h3 className="break-words font-bold">{user.displayName}</h3>
                   <p className="break-all text-sm text-muted-foreground">
                     {user.login} · {ui(user.roleLabel)} ·{" "}
-                    {ui(user.accountType === "person" ? "Pessoa" : "Kiosk — cadastro inativo")}
+                    {user.accountType === "kiosk" ? ui("Kiosk legado — inativo") : ui("Usuário")}
                   </p>
                   <p className="text-sm">
                     {ui(user.active ? "Ativo" : "Inativo")} ·{" "}
