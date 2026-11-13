@@ -62,6 +62,7 @@ const userProperties = {
   accountType: { enum: ["person", "kiosk"] },
   active: { type: "boolean" },
   machineScope: { enum: ["all", "selected"] },
+  sessionPolicy: { enum: ["standard", "persistent"] },
   permissions: {
     type: "array",
     maxItems: PERMISSIONS.length,
