@@ -387,6 +387,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Discreto","Discreet","低調"],
   ["Cinza industrial", "Industrial gray", "工業灰"],
   ["Aparência e cores","Appearance and colors","外觀與色彩"],
+  ["Histórico: corrigir diagnóstico finalizado (PIN obrigatório)","History: correct completed-call diagnosis (technician PIN required)","歷史紀錄：更正已結案診斷（須輸入維修人員 PIN）"],
   ["Em outro atendimento","On another call","正在處理其他工單"],
   ["Verificando disponibilidade global dos mantenedores...","Checking technicians' availability across all machines...","正在確認所有機台維修人員的工作狀態…"],
   ["Não foi possível verificar a disponibilidade dos mantenedores. A seleção está bloqueada por segurança.","Could not verify technician availability. Selection is blocked for safety.","無法確認維修人員的工作狀態。為安全起見，已封鎖選擇。"],
