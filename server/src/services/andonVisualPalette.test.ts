@@ -74,3 +74,21 @@ test("UX-12 RGB: allow exactly #RRGGBB without permitting CSS or alarm token ove
     }), null);
   }
 });
+
+
+test("UX-19: server upgrades five-color stored palettes without losing values", () => {
+  const legacy = {
+    version: 1, cardBorder: "#123456", selectedCardBorder: "evergreen",
+    sectorSelection: "ocean", operationAccent: "indigo", focusAccent: "slate",
+  };
+  const palette = parseStoredVisualPalette(legacy);
+  assert.ok(palette);
+  assert.equal(palette.cardBorder, "#123456");
+  assert.equal(palette.priorityBorder, DEFAULT_STORED_VISUAL_PALETTE.priorityBorder);
+  assert.equal(publicVisualPalette(legacy).priorityBorder, "#F97316");
+  assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder:"#abcdef" })?.priorityBorder, "#abcdef");
+  for (const invalid of ["red", "#FFF", "var(--danger)", "#00000000"]) {
+    assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder: invalid }), null);
+  }
+  assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder:"ocean", danger:"blue" }), null);
+});
