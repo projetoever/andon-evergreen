@@ -3,6 +3,8 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import {
   MODULE_ENTRY_PERMISSIONS,
+  advancedModuleGrants,
+  advancedIndependentGrants,
   PILOT_OPERATIONAL_ACTIONS,
   SCREEN_UNLOCK_PERMISSION,
   PILOT_SIMPLE_ROLES,
@@ -176,114 +178,121 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
   assert.doesNotMatch(simple, /PILOT_OPERATIONAL_ACTIONS|SCREEN_UNLOCK_PERMISSION/);
   assert.doesNotMatch(simple, /Chamados: abrir|Cancelar chamados próprios|Concluir manutenção/);
   assert.match(source, /reconcileSimpleModuleRole\(/);
-  assert.match(source, /Role changes safely rebase ANDON and BI actions/);
+  assert.match(source, /Role is descriptive/);
+  assert.match(source, /advancedModuleGrants\\(/);
+  assert.match(source, /advancedIndependentGrants\\(/);
   assert.match(source, /A new account starts without grants/);
 });
 
-test("REFINE 16 P0: grouped ANDON enables manager call lifecycle and preserves unrelated grants", () => {
-  const available = [...new Set([...catalog,
-    "machines.status.write", "production.schedule.write", "workstations.screen.unlock",
+
+test("SEC-16: all four essential modules grant their entire catalog regardless of profile", () => {
+  const fullCatalog = [
+    ...catalog,
+    "andon.settings.open", "machines.status.write", "production.schedule.write",
+    "workstations.screen.unlock", "analytics.policy.manage",
     "catalog.assets.manage", "catalog.reasons.manage",
     "catalog.classifications.manage", "catalog.technicians.manage",
-    "andon.settings.open", "audit.read", "analytics.policy.manage",
-  ])];
-  const existing = ["andon.read", "history.read", "bi.read", "audit.read"];
-  assert.equal(simpleModuleState(existing, "andon", "Gestor/Gerente", available), "partial");
-  const granted = toggleSimpleModule(existing, "andon", "Gestor/Gerente", available, true);
-  for (const key of [
-    "andon.read", "calls.open", "calls.attend", "calls.finishMaintenance",
-    "calls.finish", "calls.technicians.manage", "calls.followUp",
-    "calls.returnToMaintenance", "calls.cancel.own", "calls.cancel.any",
-  ]) assert(granted.includes(key), "missing manager call grant: " + key);
-  for (const key of ["bi.read", "audit.read"]) assert(granted.includes(key));
-  for (const forbidden of [
-    "users.create", "workstations.manage", "workstations.screen.unlock",
-    "analytics.policy.manage", "catalog.assets.manage",
-  ]) assert(!granted.includes(forbidden), "accidental privilege escalation: " + forbidden);
-  assert.equal(simpleModuleState(granted, "andon", "Gestor/Gerente", available), "on");
+    "hub.settings.presentation.write", "audit.read", "audit.export",
+  ];
+  const requiredAndon = [
+    "andon.read", "history.read", "calls.open", "calls.cancel.own",
+    "calls.cancel.any", "calls.attend", "calls.technicians.manage",
+    "calls.finishMaintenance", "calls.finish", "calls.followUp",
+    "calls.returnToMaintenance", "machines.status.write",
+    "production.schedule.write", "diagnosis.edit", "workstations.screen.unlock",
+  ];
+  const requiredBi = ["bi.read", "bi.export", "analytics.reclassify", "analytics.policy.manage"];
+  const requiredPriorities = ["priorities.read", "priorities.write"];
+  const requiredSettings = [
+    "andon.settings.open", "catalog.assets.manage", "catalog.reasons.manage",
+    "catalog.classifications.manage", "catalog.technicians.manage",
+  ];
+  for (const role of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Desconhecido"]) {
+    const byRole = (group: "andon" | "bi" | "priorities" | "andonSettings") =>
+      simpleModuleGrants(group, role, fullCatalog);
+    assert.deepEqual(byRole("andon"), requiredAndon, role + " ANDON");
+    assert.deepEqual(byRole("bi"), requiredBi, role + " BI");
+    assert.deepEqual(byRole("priorities"), requiredPriorities, role + " priorities");
+    assert.deepEqual(byRole("andonSettings"), requiredSettings, role + " config");
+    const enabled = toggleSimpleModule([], "andon", role, fullCatalog, true);
+    assert.equal(simpleModuleState(enabled, "andon", role, fullCatalog), "on");
+    for (const key of requiredAndon) assert(enabled.includes(key), "ANDON misses " + key);
+    for (const forbidden of ["users.create", "workstations.manage", "audit.read",
+      "hub.settings.presentation.write", "analytics.policy.manage", "andon.settings.open"])
+      assert(!enabled.includes(forbidden), role + " automatically granted " + forbidden);
+  }
+});
 
-  const revoked = toggleSimpleModule([...granted, "workstations.screen.unlock"],
-    "andon", "Gestor/Gerente", available, false);
+test("SEC-16: Advanced restricts individual actions and summary reports partial without regranting", () => {
+  const fullCatalog = [...new Set([...catalog, "andon.settings.open",
+    "workstations.screen.unlock", "machines.status.write", "production.schedule.write",
+    "catalog.assets.manage", "catalog.reasons.manage", "analytics.policy.manage",
+    "analytics.reclassify", "workstations.read", "audit.read",
+  ])];
+  let granted = toggleSimpleModule(["audit.read"], "andon", "Produção", fullCatalog, true);
+  assert(granted.includes("workstations.screen.unlock"));
+  granted = toggleAndonModulePermission(granted, "calls.finish", false);
+  granted = toggleAndonModulePermission(granted, "workstations.screen.unlock", false);
+  assert.equal(simpleModuleState(granted, "andon", "Produção", fullCatalog), "partial");
+  assert(!granted.includes("calls.finish"));
+  assert(!granted.includes("workstations.screen.unlock"));
+  const relabeled = reconcileSimpleModuleRole(granted, "Produção", "Gestor/Gerente", fullCatalog);
+  assert.deepEqual(relabeled, granted, "changing role label must not silently add missing actions");
+  const restored = toggleSimpleModule(relabeled, "andon", "Produção", fullCatalog, true);
+  assert.equal(simpleModuleState(restored, "andon", "Produção", fullCatalog), "on");
+  assert(restored.includes("calls.finish") && restored.includes("workstations.screen.unlock"));
+  assert(restored.includes("audit.read"));
+});
+
+test("SEC-16: each group can be revoked without losing unrelated modules or Hub security", () => {
+  const fullCatalog = [...new Set([...catalog,
+    "andon.settings.open", "catalog.assets.manage", "catalog.reasons.manage",
+    "catalog.classifications.manage", "catalog.technicians.manage",
+    "workstations.screen.unlock", "machines.status.write", "production.schedule.write",
+    "analytics.policy.manage", "audit.read", "workstations.read",
+    "hub.settings.presentation.write",
+  ])];
+  let grants = ["audit.read", "workstations.read", "hub.settings.presentation.write"];
+  for (const group of SIMPLE_MODULE_GROUPS) {
+    grants = toggleSimpleModule(grants, group.id, "Produção", fullCatalog, true);
+    assert.equal(simpleModuleState(grants, group.id, "Produção", fullCatalog), "on");
+  }
+  assert(grants.includes("analytics.policy.manage"));
+  const noAndon = toggleSimpleModule(grants, "andon", "Produção", fullCatalog, false);
   for (const key of ["calls.open", "calls.attend", "calls.finish", "calls.cancel.any",
-    "andon.read", "workstations.screen.unlock"]) assert(!revoked.includes(key));
-  assert.deepEqual(revoked, ["bi.read", "audit.read"],
-    "turning off ANDON must not erase BI or independently authorized audit");
+    "workstations.screen.unlock", "machines.status.write", "production.schedule.write"])
+    assert(!noAndon.includes(key), "removed ANDON still has " + key);
+  assert(noAndon.includes("andon.read"), "Config ANDON requires minimum module read");
+  for (const key of ["andon.settings.open", "bi.read", "priorities.write",
+    "audit.read", "workstations.read", "hub.settings.presentation.write"])
+    assert(noAndon.includes(key), "unrelated grant lost: " + key);
+  const withoutConfig = toggleSimpleModule(noAndon, "andonSettings", "Produção", fullCatalog, false);
+  assert(!withoutConfig.includes("andon.settings.open"));
+  assert(!withoutConfig.includes("catalog.assets.manage"));
+  assert(withoutConfig.includes("bi.read") && withoutConfig.includes("priorities.read"));
+  const withoutBi = toggleSimpleModule(withoutConfig, "bi", "Produção", fullCatalog, false);
+  assert(!withoutBi.includes("analytics.policy.manage") && !withoutBi.includes("analytics.reclassify"));
+  assert(withoutBi.includes("priorities.write") && withoutBi.includes("audit.read"));
+  const withoutPriorities = toggleSimpleModule(withoutBi, "priorities", "Produção", fullCatalog, false);
+  assert(!withoutPriorities.includes("priorities.write"));
+  assert(withoutPriorities.includes("audit.read") && withoutPriorities.includes("workstations.read"));
 });
 
-test("REFINE 16 P0: production ANDON stays production-safe, and BI/Priorities/Config are independent bundles", () => {
-  const available = [...new Set([...catalog, "andon.settings.open",
+test("SEC-16: four grouped Advanced sections cover each module action exactly once", () => {
+  const all = [...new Set([...catalog,
+    "andon.settings.open", "workstations.screen.unlock",
     "catalog.assets.manage", "catalog.reasons.manage",
     "catalog.classifications.manage", "catalog.technicians.manage",
-    "analytics.policy.manage", "workstations.screen.unlock",
+    "analytics.policy.manage", "audit.read", "audit.export",
+    "workstations.read", "hub.settings.presentation.write",
+    "machines.status.write", "production.schedule.write",
   ])];
-  const productionAndon = toggleSimpleModule([], "andon", "Produção", available, true);
-  assert.deepEqual(productionAndon, ["andon.read", "calls.open", "calls.cancel.own"]);
-  assert.equal(simpleModuleState(productionAndon, "andon", "Produção", available), "on");
-  for (const key of ["calls.attend", "calls.finish", "calls.cancel.any",
-    "workstations.screen.unlock", "users.create"]) assert(!productionAndon.includes(key));
-
-  const withBi = toggleSimpleModule(productionAndon, "bi", "Produção", available, true);
-  assert(withBi.includes("bi.read") && withBi.includes("bi.export"));
-  assert(!withBi.includes("analytics.reclassify"));
-  const managerBi = simpleModuleGrants("bi", "Gestor/Gerente", available);
-  assert(managerBi.includes("analytics.reclassify"),
-    "manager BI bundle may reclassify, subject to server flags/audit");
-  const withPriorities = toggleSimpleModule(withBi, "priorities", "Produção", available, true);
-  assert(withPriorities.includes("priorities.read") &&
-    withPriorities.includes("priorities.write"));
-  const withConfig = toggleSimpleModule([], "andonSettings", "Produção", available, true);
-  for (const key of ["andon.read", "andon.settings.open", "catalog.assets.manage",
-    "catalog.technicians.manage"]) assert(withConfig.includes(key));
-  for (const key of ["users.create", "workstations.manage", "calls.open",
-    "analytics.policy.manage", "workstations.screen.unlock"]) assert(!withConfig.includes(key));
-  assert.equal(simpleModuleState(withConfig, "andon", "Produção", available), "partial",
-    "config-only cannot appear as full ANDON operational access");
-  const disabledAndon = toggleSimpleModule(
-    [...withConfig, ...productionAndon], "andon", "Produção", available, false,
-  );
-  assert(disabledAndon.includes("andon.read"),
-    "config still needs minimum ANDON read even when operations are disabled");
-  assert(disabledAndon.includes("andon.settings.open"));
-  assert(!disabledAndon.includes("calls.open"));
-  const disabledConfig = toggleSimpleModule(withConfig, "andonSettings", "Produção", available, false);
-  assert(!disabledConfig.includes("andon.settings.open"));
-  assert(!disabledConfig.includes("catalog.reasons.manage"));
-  const nonOverlapping = toggleSimpleModule(withPriorities, "bi", "Produção", available, false);
-  assert(!nonOverlapping.includes("bi.read") && !nonOverlapping.includes("bi.export"));
-  assert(nonOverlapping.includes("calls.open") && nonOverlapping.includes("priorities.write"));
-});
-
-test("REFINE 16 P0: profile downgrade revokes Manager ANDON powers without changing independent modules", () => {
-  const available = [...new Set([...catalog,
-    "machines.status.write", "production.schedule.write", "andon.settings.open",
-    "catalog.reasons.manage", "audit.read", "workstations.screen.unlock",
-  ])];
-  const manager = toggleSimpleModule(
-    ["bi.read", "bi.export", "analytics.reclassify", "priorities.read", "priorities.write",
-      "andon.settings.open", "catalog.reasons.manage", "audit.read"],
-    "andon", "Gestor/Gerente", available, true,
-  );
-  assert.equal(simpleModuleState(manager, "andon", "Gestor/Gerente", available), "on");
-  const production = reconcileSimpleModuleRole(manager, "Gestor/Gerente", "Produção", available);
-  assert.equal(simpleModuleState(production, "andon", "Produção", available), "on");
-  for (const key of ["calls.open", "calls.cancel.own", "bi.read", "bi.export",
-    "priorities.write", "andon.settings.open", "catalog.reasons.manage", "audit.read"])
-    assert(production.includes(key), "lost required grant: " + key);
-  for (const key of ["calls.cancel.any", "calls.attend", "calls.finishMaintenance",
-    "calls.finish", "calls.returnToMaintenance", "production.schedule.write",
-    "machines.status.write", "analytics.reclassify"])
-    assert(!production.includes(key), "role downgrade retained Manager grant: " + key);
-  assert(!production.includes("users.create") && !production.includes("workstations.manage"));
-  const restored = reconcileSimpleModuleRole(production, "Produção", "Gestor/Gerente", available);
-  assert.equal(simpleModuleState(restored, "andon", "Gestor/Gerente", available), "on");
-  assert(restored.includes("calls.finish"), "explicit profile upgrade should rebase enabled group");
-  assert.equal(simpleModuleState(manager, "bi", "Gestor/Gerente", available), "on");
-  assert(!production.includes("analytics.reclassify"),
-    "role downgrade must revoke manager-only KPI reclassification");
-
-  // A partial legacy account must never be auto-promoted by relabeling its role.
-  const partial = ["andon.read", "bi.read", "calls.cancel.any"];
-  const relabeled = reconcileSimpleModuleRole(partial, "Gestor/Gerente", "Produção", available);
-  assert.deepEqual(relabeled, ["andon.read", "bi.read"]);
-  assert.equal(simpleModuleState(relabeled, "andon", "Produção", available), "partial");
+  const grouped = SIMPLE_MODULE_GROUPS.flatMap(g => advancedModuleGrants(g.id, all));
+  const independent = advancedIndependentGrants(all);
+  assert.equal(new Set(grouped).size, grouped.length, "permission belongs to multiple groups");
+  assert.deepEqual(new Set([...grouped, ...independent]), new Set(all));
+  for (const key of ["workstations.manage", "users.create", "audit.read", "audit.export",
+    "workstations.read", "hub.settings.presentation.write"])
+    assert(independent.includes(key), "unexpected privileged implicit group grant: " + key);
+  assert(grouped.includes("workstations.screen.unlock"), "ANDON must include screen unlock");
 });
