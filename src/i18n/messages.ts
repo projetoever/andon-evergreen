@@ -5831,4 +5831,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Recurso desabilitado","Feature disabled","功能已停用"],
   ["Disponibilidade parcial","Partially available","部分可用"],
   ["Disponibilidade não verificada","Availability not verified","尚未驗證可用性"],
+  ["Consultar esta máquina no Histórico Global","View this machine in Global History","在全域歷史記錄中檢視此機台"],
 ];
