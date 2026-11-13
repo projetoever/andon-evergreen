@@ -17,6 +17,7 @@ const VARIABLES = {
   sectorSelection: "--andon-palette-sector-selection",
   operationAccent: "--andon-palette-operation-accent",
   focusAccent: "--andon-palette-focus-accent",
+  priorityBorder: "--andon-palette-priority-border",
 } as const;
 
 /**

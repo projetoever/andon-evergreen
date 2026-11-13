@@ -9,7 +9,7 @@ export const VISUAL_PALETTE_ACCENTS = [
 export type VisualPaletteAccent = typeof VISUAL_PALETTE_ACCENTS[number] | `#${string}`;
 export const VISUAL_PALETTE_FIELDS = [
   "cardBorder", "selectedCardBorder", "sectorSelection",
-  "operationAccent", "focusAccent",
+  "operationAccent", "focusAccent", "priorityBorder",
 ] as const;
 export type VisualPaletteField = typeof VISUAL_PALETTE_FIELDS[number];
 
@@ -20,6 +20,7 @@ export type StoredVisualPalette = Readonly<{
   sectorSelection: VisualPaletteAccent;
   operationAccent: VisualPaletteAccent;
   focusAccent: VisualPaletteAccent;
+  priorityBorder: VisualPaletteAccent;
 }>;
 
 /** Never change in place; newly deployed systems and existing kiosks share it. */
@@ -30,6 +31,7 @@ export const DEFAULT_STORED_VISUAL_PALETTE: StoredVisualPalette = Object.freeze(
   sectorSelection: "evergreen",
   operationAccent: "evergreen",
   focusAccent: "evergreen",
+  priorityBorder: "#F97316",
 });
 
 const permitted = new Set<string>(VISUAL_PALETTE_ACCENTS);
@@ -45,10 +47,15 @@ export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | nu
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const input = raw as Record<string, unknown>;
   const names = Object.keys(input);
-  if (names.length !== VISUAL_PALETTE_FIELDS.length + 1 ||
+  // Old stored payloads have five accents: add only the new priority border
+  // default; never loosen validation for unknown fields or invalid CSS.
+  if ((names.length !== VISUAL_PALETTE_FIELDS.length + 1 &&
+       names.length !== VISUAL_PALETTE_FIELDS.length) ||
       !names.includes("version") || input.version !== 1 ||
       names.some(name => name !== "version" && !fields.has(name)) ||
-      VISUAL_PALETTE_FIELDS.some(name => !isValidAccent(input[name]))) return null;
+      VISUAL_PALETTE_FIELDS.some(name =>
+        name !== "priorityBorder" && !isValidAccent(input[name])) ||
+      (input.priorityBorder !== undefined && !isValidAccent(input.priorityBorder))) return null;
   return {
     version: 1,
     cardBorder: input.cardBorder as VisualPaletteAccent,
@@ -56,6 +63,7 @@ export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | nu
     sectorSelection: input.sectorSelection as VisualPaletteAccent,
     operationAccent: input.operationAccent as VisualPaletteAccent,
     focusAccent: input.focusAccent as VisualPaletteAccent,
+    priorityBorder: (input.priorityBorder ?? DEFAULT_STORED_VISUAL_PALETTE.priorityBorder) as VisualPaletteAccent,
   };
 }
 

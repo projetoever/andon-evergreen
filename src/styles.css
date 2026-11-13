@@ -429,6 +429,11 @@
 .andon-palette-machine-card {
   border-color: var(--andon-palette-card-border, var(--border));
 }
+/* Cosmetic production-priority grouping only; never redefine alarm colors. */
+.andon-palette-priority-border {
+  border-color: var(--andon-palette-priority-border, rgba(249, 115, 22, 0.7));
+}
+
 .machine-sector-action:focus-visible {
   outline: 2px solid var(--andon-palette-focus-accent, var(--ring));
   outline-offset: 2px;

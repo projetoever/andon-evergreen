@@ -8,8 +8,11 @@ import { VisualAccentRgbPicker } from "./VisualAccentRgbPicker";
 import { ui } from "@/i18n/translate";
 import {
   accentForTheme,
+  DEFAULT_VISUAL_PALETTE,
   restoreDefaultVisualPalette,
   VISUAL_PALETTE_KEYS,
+  INDUSTRIAL_VISUAL_PRESETS,
+  paletteContrastRatio,
   type VisualPaletteDraft,
   type VisualAccent,
   type VisualPaletteKey,
@@ -21,6 +24,7 @@ const fieldLabels: Readonly<Record<VisualPaletteKey, string>> = {
   sectorSelection: "Destaque de setor selecionado",
   operationAccent: "Acento dos botões de operação",
   focusAccent: "Foco e seleção",
+  priorityBorder: "Contorno de prioridades",
 };
 /**
  * Preview remains draft-only in legacy mode. An authenticated ANDON
@@ -121,6 +125,35 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
       <p className="text-xs text-muted-foreground">
         {ui("Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.")}
       </p>
+      <div className="space-y-3 rounded-xl border border-border bg-muted/15 p-3">
+        <div>
+          <h4 className="font-semibold text-foreground">{ui("Paletas industriais prontas")}</h4>
+          <p className="text-xs text-muted-foreground">
+            {ui("Selecione um conjunto de contornos e destaques para prévia. O tema claro/escuro continua independente e os alertas de segurança permanecem protegidos.")}
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {INDUSTRIAL_VISUAL_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={loading || busy}
+              onClick={() => { setDraft({ ...preset.palette }); setRestorePending(false); }}
+              aria-label={ui("Visualizar paleta {0}", { 0: ui(preset.label) })}
+              className="flex min-h-20 flex-col justify-between gap-2 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <span className="text-sm font-bold">{ui(preset.label)}</span>
+              <span className="text-xs text-muted-foreground">{ui(preset.description)}</span>
+              <span className="flex gap-1" aria-hidden="true">
+                {VISUAL_PALETTE_KEYS.map(key => (
+                  <span key={key} className="h-3 flex-1 rounded-sm border border-border/40"
+                    style={{ backgroundColor: accentForTheme(preset.palette[key], "dark") }}/>
+                ))}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {VISUAL_PALETTE_KEYS.map(key => (
           <button
@@ -197,6 +230,19 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
                   }}>{ui("Foco")}</span>
                 </div>
               </div>
+              <div className="mt-3 rounded-lg border-2 px-3 py-2 text-xs font-semibold" style={{
+                borderColor: accentForTheme(draft.priorityBorder, theme),
+              }}>
+                {ui("Grupo de máquinas prioritárias — contorno configurável")}
+              </div>
+              {VISUAL_PALETTE_KEYS.filter(key => draft[key] !== DEFAULT_VISUAL_PALETTE[key] &&
+                paletteContrastRatio(accentForTheme(draft[key], theme),
+                  key === "priorityBorder" ? background : card) < 3
+              ).length > 0 && (
+                <p role="status" className="mt-2 text-xs" style={{ color: foreground }}>
+                  {ui("Atenção: alguns contornos possuem contraste inferior a 3:1 neste modo. Ajuste as cores antes de publicar.")}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-md border-2 px-3 py-1 text-xs font-bold" style={{
                   borderColor: accentForTheme(draft.operationAccent, theme),
