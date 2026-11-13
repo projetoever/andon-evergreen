@@ -97,3 +97,20 @@ test("CFG-15D3B: Machine Admin separates central machine creation from metadata 
   assert.ok(!panel.includes("ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED"));
   assert.ok(!panel.includes("ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED"));
 });
+
+
+test("CFG-15B: all 11 tabs revalidate backend capabilities after navigation/settings changes/focus", async () => {
+  const notice = await get("../src/components/settings/CentralSettingsCapabilityNotice.tsx");
+  assert.match(notice, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(notice, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(notice, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(notice, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(notice, /\[open, tab, refreshVersion\]/);
+  assert.match(notice, /getSystemSettings\(\)\.then/);
+  assert.match(notice, /setSettings\(null\)/);
+  assert.match(notice, /setLoadFailed\(true\)/);
+  assert.match(notice, /setRefreshVersion\(version => version \+ 1\)/);
+  assert.match(notice, /Tentar novamente/);
+  assert.doesNotMatch(notice, /event\.detail\.(central|andon)/,
+    "untrusted browser events must never grant a capability");
+});
