@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ui } from "@/i18n/translate";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import type { SystemSettings } from "@/types/systemSettings";
 import type { SettingsTab } from "@/types/settings";
 
@@ -86,6 +86,7 @@ export function CentralSettingsCapabilityNotice({
 }: { tab: SettingsTab; open: boolean }) {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -98,14 +99,34 @@ export function CentralSettingsCapabilityNotice({
       if (current) setLoadFailed(true);
     });
     return () => { current = false; };
+  }, [open, tab, refreshVersion]);
+
+  // A configuration change in another tab or renewed focus can affect the
+  // current capability summary. Never accept client event payloads as an ACL
+  // grant; always re-read server-confirmed feature flags.
+  useEffect(() => {
+    if (!open) return;
+    const revalidate = () => setRefreshVersion(version => version + 1);
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
   }, [open]);
 
   if (!open) return null;
   if (loadFailed) {
     return (
-      <p role="status" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-        {ui("Não foi possível verificar a disponibilidade das funções desta aba. Isso não significa permissão concedida; consulte o aviso da própria operação.")}
-      </p>
+      <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+        <p className="min-w-0 flex-1">
+          {ui("Não foi possível verificar a disponibilidade das funções desta aba. Isso não significa permissão concedida; consulte o aviso da própria operação.")}
+        </p>
+        <button type="button" onClick={() => setRefreshVersion(version => version + 1)}
+          className="min-h-10 rounded-md border border-border bg-background px-3 font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {ui("Tentar novamente")}
+        </button>
+      </div>
     );
   }
   if (!settings) {
