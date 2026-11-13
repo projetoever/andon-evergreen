@@ -1,6 +1,8 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { getSystemSettings } from "@/services/systemSettingsService";
 import { Search, X } from "lucide-react";
 import { toast } from "@/i18n/toast";
 import { BigButton } from "@/components/common/BigButton";
@@ -75,8 +77,16 @@ function DetailSection({
 
 export function TechniciansSettingsTab() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
   const { technicians, isLoading, error, createTechnician, updateTechnician, refreshTechnicians } =
     useTechnicians();
+  const [centralCapabilities, setCentralCapabilities] = useState<{ create: boolean; update: boolean; error: boolean } | null>(null);
+  const [capabilityReload, setCapabilityReload] = useState(0);
+  const canCreateTechnician = !centralMode || centralCapabilities?.create === true;
+  const canUpdateTechnician = !centralMode || centralCapabilities?.update === true;
+  // Pure UI feature flags; the central API still enforces all session, ACL,
+  // workstation and anti-CSRF checks for each individual write.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TechnicianConfig>(EMPTY_DRAFT);
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
@@ -87,6 +97,23 @@ export function TechniciansSettingsTab() {
   const [areaFilter, setAreaFilter] = useState<"all" | CallSubtype>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [shiftFilter, setShiftFilter] = useState("all");
+
+  useEffect(() => {
+    if (!centralMode) return;
+    let mounted = true;
+    setCentralCapabilities(null); // fail closed during each new capability check
+    void getSystemSettings().then(settings => {
+      if (!mounted) return;
+      setCentralCapabilities({
+        create: settings.centralTechnicianCreateEnabled === true,
+        update: settings.centralTechnicianUpdateEnabled === true,
+        error: false,
+      });
+    }).catch(() => {
+      if (mounted) setCentralCapabilities({ create: false, update: false, error: true });
+    });
+    return () => { mounted = false; };
+  }, [centralMode, capabilityReload]);
 
   useEffect(() => {
     void refreshShiftConfigs()
@@ -159,6 +186,7 @@ export function TechniciansSettingsTab() {
   const persistedTechnician = selectedId
     ? (technicians.find((technician) => technician.id === selectedId) ?? null)
     : null;
+  const canEditSelected = selectedId ? canUpdateTechnician : canCreateTechnician;
 
   const hasUnsavedChanges = useMemo(() => {
     if (!persistedTechnician) {
@@ -195,6 +223,7 @@ export function TechniciansSettingsTab() {
   }
 
   function handleAddTechnician() {
+    if (!canCreateTechnician || isSaving) return;
     setSelectedId(null);
     const firstArea = areaOptions[0]?.id ?? EMPTY_DRAFT.area;
     setDraft({ ...EMPTY_DRAFT, area: firstArea, areas: [firstArea] });
@@ -216,6 +245,7 @@ export function TechniciansSettingsTab() {
   }
 
   function handleAddArea() {
+    if (!canEditSelected || isSaving) return;
     if (!areaToAdd || selectedAreas.includes(areaToAdd as CallSubtype)) return;
     const areas = [...selectedAreas, areaToAdd as CallSubtype];
     setDraft({ ...draft, areas });
@@ -223,6 +253,7 @@ export function TechniciansSettingsTab() {
   }
 
   function handleRemoveArea(area: CallSubtype) {
+    if (!canEditSelected || isSaving) return;
     if (selectedAreas.length <= 1) {
       toast.error("O mantenedor deve possuir pelo menos uma área técnica.");
       return;
@@ -232,6 +263,7 @@ export function TechniciansSettingsTab() {
   }
 
   async function handleSave() {
+    if (!canEditSelected || isSaving || isLoading || Boolean(error)) return;
     const trimmedName = draft.name.trim();
     const employeeId = draft.employeeId?.trim() ?? "";
     if (!trimmedName) return toast.error("Informe o nome do mantenedor.");
@@ -286,7 +318,7 @@ export function TechniciansSettingsTab() {
   }
 
   async function handleToggleActive() {
-    if (!draft.id) return;
+    if (!canUpdateTechnician || isSaving || isLoading || Boolean(error) || !draft.id) return;
 
     const employeeId = draft.employeeId?.trim() ?? "";
     if (!employeeId) {
@@ -321,6 +353,24 @@ export function TechniciansSettingsTab() {
           )}
         </p>
       </div>
+
+      {centralMode && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-info/40 bg-info/10 p-3 text-sm">
+          <span>
+            {centralCapabilities?.error
+              ? ui("Não foi possível verificar as permissões centrais dos mantenedores.")
+              : centralCapabilities === null
+                ? ui("Verificando permissões centrais dos mantenedores...")
+                : <>{ui("Cadastro central:")} <strong>{canCreateTechnician ? ui("habilitado") : ui("bloqueado")}</strong>
+                    {" · "}{ui("Edição central:")} <strong>{canUpdateTechnician ? ui("habilitada") : ui("bloqueada")}</strong></>}
+          </span>
+          {centralCapabilities?.error && (
+            <button type="button" className="font-bold underline" onClick={() => setCapabilityReload(value => value + 1)}>
+              {ui("Tentar novamente")}
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
@@ -463,7 +513,7 @@ export function TechniciansSettingsTab() {
             tone="neutral"
             size="md"
             onClick={handleAddTechnician}
-            disabled={isLoading || Boolean(error)}
+            disabled={isLoading || Boolean(error) || isSaving || !canCreateTechnician}
           >
             {ui("Adicionar mantenedor")}
           </BigButton>
@@ -571,6 +621,7 @@ export function TechniciansSettingsTab() {
                 <input
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   value={draft.name}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 />
               </label>
@@ -581,6 +632,7 @@ export function TechniciansSettingsTab() {
                   maxLength={80}
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
                   value={draft.employeeId ?? ""}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}
                   placeholder={ui("Registro do colaborador")}
                 />
@@ -606,6 +658,7 @@ export function TechniciansSettingsTab() {
                     </span>
                     <button
                       type="button"
+                      disabled={!canEditSelected || isSaving}
                       className="shrink-0 text-xs font-bold text-danger hover:underline"
                       onClick={() => handleRemoveArea(area)}
                     >
@@ -622,6 +675,7 @@ export function TechniciansSettingsTab() {
                   aria-label={ui("Nova área técnica")}
                   className="h-10 min-w-48 flex-1 rounded-md border bg-background px-2"
                   value={areaToAdd}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setAreaToAdd(event.target.value)}
                 >
                   <option value="">{ui("Selecione uma área")}</option>
@@ -634,7 +688,7 @@ export function TechniciansSettingsTab() {
                 <button
                   type="button"
                   className="h-10 rounded-md border border-primary px-3 text-sm font-bold text-primary disabled:opacity-50"
-                  disabled={!areaToAdd}
+                  disabled={!areaToAdd || !canEditSelected || isSaving}
                   onClick={handleAddArea}
                 >
                   {ui("+ Adicionar área técnica")}
@@ -655,6 +709,7 @@ export function TechniciansSettingsTab() {
                 <select
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                   value={draft.shiftId}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setDraft({ ...draft, shiftId: event.target.value })}
                 >
                   <option value="">{ui("Selecione um turno")}</option>
@@ -676,6 +731,7 @@ export function TechniciansSettingsTab() {
                 <input
                   type="checkbox"
                   checked={draft.active}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
                   className="h-4 w-4"
                 />
@@ -699,6 +755,7 @@ export function TechniciansSettingsTab() {
                   maxLength={8}
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono"
                   value={draft.pin ?? ""}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) =>
                     setDraft({ ...draft, pin: event.target.value.replace(/\D/g, "") })
                   }
@@ -720,6 +777,7 @@ export function TechniciansSettingsTab() {
                   maxLength={64}
                   className="mt-1 h-10 w-full rounded-md border bg-background px-2 font-mono uppercase"
                   value={draft.tag ?? ""}
+                  disabled={!canEditSelected || isSaving}
                   onChange={(event) => setDraft({ ...draft, tag: event.target.value })}
                   placeholder={
                     draft.hasTag
@@ -753,7 +811,7 @@ export function TechniciansSettingsTab() {
                   tone="danger"
                   size="md"
                   onClick={() => void handleToggleActive()}
-                  disabled={isSaving || Boolean(error)}
+                  disabled={isSaving || Boolean(error) || !canUpdateTechnician}
                 >
                   {draft.active ? ui("Inativar") : ui("Reativar")}
                 </BigButton>
@@ -765,7 +823,7 @@ export function TechniciansSettingsTab() {
                 tone="primary"
                 size="md"
                 onClick={() => void handleSave()}
-                disabled={isSaving || Boolean(error) || !hasUnsavedChanges}
+                disabled={isSaving || Boolean(error) || !hasUnsavedChanges || !canEditSelected}
               >
                 {isSaving
                   ? ui("Salvando...")

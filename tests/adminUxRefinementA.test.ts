@@ -77,7 +77,7 @@ test("mantenedores indicam alterações pendentes e permitem cancelar edição",
   assert.match(source, /Existem alterações pendentes/);
   assert.match(source, /handleCancelEdit/);
   assert.match(source, /Cadastro sincronizado/);
-  assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges\}/);
+  assert.match(source, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges \|\| !canEditSelected\}/);
 });
 
 test("classificações possuem pesquisa, filtro de status e contador", async () => {
@@ -445,4 +445,33 @@ test("CFG-15C: attendance mode never offers central write when flag OFF, includi
   assert.match(server, /"attendanceMode"/);
   assert.match(server, /"rfidInputTerminator"/);
   assert.match(server, /"rfidCodeLength"/);
+});
+
+test("CFG-15D1: central technician catalog respects separate creation and update feature gates", async () => {
+  const [tab, settings, createGuard, updateGuard] = await Promise.all([
+    readFile(new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/centralTechnicianCatalogHttp.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/centralTechnicianCatalogUpdateHttp.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(tab, /const centralMode = access\?\.centralAccessEnabled === true/);
+  assert.match(tab, /settings\.centralTechnicianCreateEnabled === true/);
+  assert.match(tab, /settings\.centralTechnicianUpdateEnabled === true/);
+  assert.match(tab, /const canCreateTechnician = !centralMode \|\| centralCapabilities\?\.create === true/);
+  assert.match(tab, /const canUpdateTechnician = !centralMode \|\| centralCapabilities\?\.update === true/);
+  assert.match(tab, /const canEditSelected = selectedId \? canUpdateTechnician : canCreateTechnician/);
+  assert.match(tab, /setCentralCapabilities\(null\)/);
+  assert.match(tab, /error: true/);
+  assert.match(tab, /if \(!canCreateTechnician \|\| isSaving\) return/);
+  assert.match(tab, /if \(!canEditSelected \|\| isSaving \|\| isLoading/);
+  assert.match(tab, /if \(!canUpdateTechnician \|\| isSaving \|\| isLoading/);
+  assert.match(tab, /disabled=\{isLoading \|\| Boolean\(error\) \|\| isSaving \|\| !canCreateTechnician\}/);
+  assert.match(tab, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !canUpdateTechnician\}/);
+  assert.match(tab, /disabled=\{isSaving \|\| Boolean\(error\) \|\| !hasUnsavedChanges \|\| !canEditSelected\}/);
+  assert.match(tab, /setCapabilityReload\(value => value \+ 1\)/);
+  assert.match(settings, /centralTechnicianCreateEnabled: centralTechnicianCreateEnabled\(\)/);
+  assert.match(settings, /centralTechnicianUpdateEnabled: centralTechnicianUpdateEnabled\(\)/);
+  assert.match(createGuard, /export function centralTechnicianCreateEnabled\(\)/);
+  assert.match(updateGuard, /export function centralTechnicianUpdateEnabled\(\)/);
+  assert.doesNotMatch(tab, /ANDON_CENTRAL_TECHNICIAN_CREATE_HTTP_ENABLED|ANDON_CENTRAL_TECHNICIAN_UPDATE_HTTP_ENABLED/);
 });
