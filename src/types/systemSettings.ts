@@ -34,6 +34,15 @@ export interface SystemSettings {
   centralOperationalSettingsWriteEnabled?: boolean;
   centralDeclaredAttendanceEnabled?: boolean;
   centralCallReasonsCatalogEnabled?: boolean;
+  /** Read-only backend capability flags, NOT user authorization. */
+  centralCategorySettingsWriteEnabled?: boolean;
+  centralShiftUpdateEnabled?: boolean;
+  centralClassificationWriteEnabled?: boolean;
+  centralAssetTypeCatalogWriteEnabled?: boolean;
+  centralTechnicianCreateEnabled?: boolean;
+  centralTechnicianUpdateEnabled?: boolean;
+  centralMachineCreateEnabled?: boolean;
+  centralMachineSettingsWriteEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
