@@ -114,3 +114,17 @@ test("CFG-15B: all 11 tabs revalidate backend capabilities after navigation/sett
   assert.doesNotMatch(notice, /event\.detail\.(central|andon)/,
     "untrusted browser events must never grant a capability");
 });
+
+test("CFG-15C: sectors re-check their OWN write gate after server settings changes and focus", async () => {
+  const tab = await get("../src/components/settings/CategoriesSettingsTab.tsx");
+  assert.match(tab, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(tab, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(tab, /const request = \+\+requestVersion/);
+  assert.match(tab, /mounted && request === requestVersion/);
+  assert.match(tab, /setCentralCatalogWritable\(false\)/);
+  assert.match(tab, /settings\.centralCategorySettingsWriteEnabled === true/);
+  assert.doesNotMatch(tab, /event\.detail/);
+});
