@@ -500,3 +500,22 @@ test("CFG-15D3: classifications remain readable but cannot write if central capa
   assert.ok(guard.includes('method === "PATCH"'));
   assert.ok(!modal.includes("ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED"));
 });
+
+test("CFG-15F: general settings write gate revalidates without changing saved operational fields", async () => {
+  const page = await readFile(
+    new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url), "utf8",
+  );
+  assert.match(page, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(page, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(page, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(page, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(page, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(page, /const request = \+\+capabilityRequestVersion\.current/);
+  assert.match(page, /request === capabilityRequestVersion\.current/);
+  assert.match(page, /setCentralWritable\(false\)/);
+  assert.match(page, /settings\.centralOperationalSettingsWriteEnabled === true/);
+  const onlyGate = page.slice(page.indexOf("const revalidate = () => {"),
+    page.indexOf("  }, [centralMode]);"));
+  assert.doesNotMatch(onlyGate, /setVirtualKeyboardEnabled|setRequireWorkOrderAtOpen|setDashboardMachineOrderMode|updateSystemSettings/);
+  assert.doesNotMatch(onlyGate, /event\.detail/);
+});
