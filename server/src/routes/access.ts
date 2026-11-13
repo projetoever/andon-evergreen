@@ -350,8 +350,8 @@ export function registerAccessRoutes(
       async req => {
         // Failed credential attempts are throttled per source AND login;
         // never include the supplied password in logs or audit records.
-        limited(`production-mode:${req.ip}`, 8, 15 * 60_000);
-        limited(`production-login:${tokenHash(req.body.login.trim().toLowerCase())}`, 8, 15 * 60_000);
+        limited(`production-mode:${req.ip}`, 16, 15 * 60_000);
+        limited(`production-login:${tokenHash(req.body.login.trim().toLowerCase())}`, 16, 15 * 60_000);
         return setCentralProductionModeWithCredential(db, {
           ...requestAccess(req), ...req.body,
           requestId: req.id, ipAddress: req.ip,
