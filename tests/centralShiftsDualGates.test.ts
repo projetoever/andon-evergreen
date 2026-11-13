@@ -68,3 +68,21 @@ test("CFG-15D2: asset catalogs and whole-set policy use independent central feat
   assert.ok(catalogGuard.includes('if (method !== "PATCH") return null'));
   assert.ok(catalogGuard.includes("Do not enable"));
 });
+
+test("CFG-15D: shift and technician-filter write capabilities revalidate without reloading drafts", async () => {
+  const ui = await source("../src/components/settings/ShiftsSettingsTab.tsx");
+  assert.match(ui, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(ui, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(ui, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(ui, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(ui, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(ui, /const request = \+\+requestVersion/);
+  assert.match(ui, /request !== requestVersion/);
+  assert.match(ui, /setCentralShiftWritable\(false\)/);
+  assert.match(ui, /setCentralFilterWritable\(false\)/);
+  assert.match(ui, /capabilities\.centralShiftUpdateEnabled === true/);
+  assert.match(ui, /capabilities\.centralOperationalSettingsWriteEnabled === true/);
+  assert.doesNotMatch(ui, /event\.detail/);
+  // Focus refresh must not refetch drafts, preventing loss of unsaved changes.
+  assert.doesNotMatch(ui, /const revalidate = \(\) => \{[\s\S]*?refreshShiftConfigs\(/);
+});
