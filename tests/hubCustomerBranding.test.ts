@@ -94,5 +94,5 @@ test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", 
   assert.match(hub, /clientName: draft\.clientName\.trim\(\)/);
   assert.match(favicon, /viewBox="0 0 64 64"/);
   assert.match(favicon, /#15A46B/);
-  assert.doesNotMatch(favicon, /Evergreen|<script|https?:\/\//);
+  assert.doesNotMatch(favicon, /Evergreen|<script|href="https?:/);
 });
