@@ -19,10 +19,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
-import { MachineConfigurationInventoryCard } from "./MachineConfigurationInventoryCard";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
-import { resolveWorkOrderRequirement } from "@/utils/workOrderUtils";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -44,13 +42,12 @@ function machineStatusLabel(machine: Machine) {
 }
 
 function workOrderRuleLabel(machine: Machine, globalRequirement: boolean | null) {
-  if (globalRequirement === true && machine.requireWorkOrderAtOpen) {
-    return ui("OS obrigatória · global + máquina");
-  }
-  if (globalRequirement === true) return ui("OS obrigatória · global");
-  if (machine.requireWorkOrderAtOpen) return ui("OS obrigatória · máquina");
+  // The global rule takes precedence visually; never erase the saved local flag.
   if (globalRequirement === null) return ui("OS · regra global indisponível");
-  return "OS opcional";
+  if (globalRequirement) return ui("OS obrigatória · global");
+  return machine.requireWorkOrderAtOpen
+    ? ui("OS obrigatória · máquina")
+    : ui("OS opcional");
 }
 
 function Section({
@@ -104,6 +101,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   const canEditMachineMetadata = !centralAccess || centralCapabilities?.update === true;
 
   const globalRequiresWorkOrder = globalWorkOrderRequirement === true;
+  const showIndividualWorkOrderControl = globalWorkOrderRequirement === false;
   const sortedMachines = useMemo(() => sortMachines(machines), [machines]);
   const filteredMachines = useMemo(
     () =>
@@ -111,10 +109,10 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
         sortedMachines,
         searchQuery,
         statusFilter,
-        workOrderFilter,
+        showIndividualWorkOrderControl ? workOrderFilter : "all",
         globalRequiresWorkOrder,
       ),
-    [globalRequiresWorkOrder, searchQuery, sortedMachines, statusFilter, workOrderFilter],
+    [globalRequiresWorkOrder, searchQuery, showIndividualWorkOrderControl, sortedMachines, statusFilter, workOrderFilter],
   );
 
   const selectedMachine =
@@ -122,12 +120,6 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
       ? null
       : (machines.find((machine) => machine.id === selectedMachineId) ?? null);
   const selectedMachineRequiresWorkOrder = selectedMachine?.requireWorkOrderAtOpen === true;
-  const selectedEffectiveWorkOrderRequirement =
-    selectedMachine && globalWorkOrderRequirement !== null
-      ? resolveWorkOrderRequirement(globalWorkOrderRequirement, selectedMachineRequiresWorkOrder)
-      : selectedMachineRequiresWorkOrder
-        ? true
-        : null;
 
   useEffect(() => {
     let active = true;
@@ -198,7 +190,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
       id,
       name: newName.trim() || `Máquina ${id}`,
       productionMode: newProductionMode,
-      requireWorkOrderAtOpen: newRequireWorkOrder,
+      requireWorkOrderAtOpen: showIndividualWorkOrderControl ? newRequireWorkOrder : false,
     });
 
     setCreating(false);
@@ -280,20 +272,21 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
             ))}
           </div>
 
-          <Select
-            value={workOrderFilter}
-            disabled={globalWorkOrderRequirement === null}
-            onValueChange={(value) => setWorkOrderFilter(value as "all" | "required" | "optional")}
-          >
-            <SelectTrigger aria-label={ui("Filtrar máquinas por exigência de OS")} className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{ui("Todas as regras de OS")}</SelectItem>
-              <SelectItem value="required">{ui("OS obrigatória")}</SelectItem>
-              <SelectItem value="optional">{ui("OS opcional")}</SelectItem>
-            </SelectContent>
-          </Select>
+          {showIndividualWorkOrderControl && (
+            <Select
+              value={workOrderFilter}
+              onValueChange={(value) => setWorkOrderFilter(value as "all" | "required" | "optional")}
+            >
+              <SelectTrigger aria-label={ui("Filtrar máquinas por exigência de OS")} className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{ui("Todas as regras de OS")}</SelectItem>
+                <SelectItem value="required">{ui("OS obrigatória")}</SelectItem>
+                <SelectItem value="optional">{ui("OS opcional")}</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
             <span>
@@ -302,7 +295,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
               {machines.length}
               {ui(" máquina(s)")}
             </span>
-            {(searchQuery || statusFilter !== "all" || workOrderFilter !== "all") && (
+            {(searchQuery || statusFilter !== "all" || (showIndividualWorkOrderControl && workOrderFilter !== "all")) && (
               <button
                 type="button"
                 className="font-bold text-primary hover:underline"
@@ -386,7 +379,6 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                 </button>
               )}
             </div>
-            <MachineConfigurationInventoryCard />
           </>
         )}
         {creating ? (
@@ -445,21 +437,23 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
               description={ui("Defina o comportamento inicial da máquina no ANDON.")}
             >
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
-                  <span>
-                    <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {globalRequiresWorkOrder
-                        ? ui(
-                            "A regra global já exige OS; esta opção registra também a exigência local.",
-                          )
-                        : ui(
-                            "Quando ativa, exige OS nesta máquina mesmo com a regra global desativada.",
-                          )}
+                {showIndividualWorkOrderControl ? (
+                  <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                    <span>
+                      <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {ui("Quando ativa, exige OS nesta máquina mesmo com a regra global desativada.")}
+                      </span>
                     </span>
-                  </span>
-                  <Switch checked={newRequireWorkOrder} disabled={!canCreateMachine} onCheckedChange={setNewRequireWorkOrder} />
-                </label>
+                    <Switch checked={newRequireWorkOrder} disabled={!canCreateMachine} onCheckedChange={setNewRequireWorkOrder} />
+                  </label>
+                ) : (
+                  <div role="status" className="flex min-h-12 items-center rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-xs text-muted-foreground">
+                    {globalRequiresWorkOrder
+                      ? ui("OS obrigatória para todas as máquinas: regra global ativa.")
+                      : ui("Aguardando confirmação da regra global de OS; opção individual indisponível.")}
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <Label>{ui("Modo padrão de produção")}</Label>
@@ -548,91 +542,42 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
               title={ui("Regras operacionais")}
               description={ui("Configurações que afetam a abertura e operação dos chamados.")}
             >
-              <div className="grid gap-2 rounded-lg border border-border bg-muted/15 p-3 sm:grid-cols-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    {ui("Regra global de OS")}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-foreground">
-                    {globalWorkOrderRequirement === null
-                      ? ui("Não carregada")
-                      : globalWorkOrderRequirement
-                        ? ui("Obrigatória")
-                        : ui("Opcional")}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {ui("Configurada em Configurações gerais.")}
-                  </p>
+              {!showIndividualWorkOrderControl && (
+                <div role="status" className="rounded-lg border border-info/40 bg-info/10 px-3 py-2 text-xs text-muted-foreground">
+                  {globalRequiresWorkOrder
+                    ? ui("OS obrigatória para todas as máquinas: regra global ativa.")
+                    : ui("Aguardando confirmação da regra global de OS; opção individual indisponível.")}
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    {ui("Regra desta máquina")}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-foreground">
-                    {selectedMachineRequiresWorkOrder
-                      ? ui("Exigência ativa")
-                      : ui("Sem exigência adicional")}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {ui("A máquina pode tornar a OS obrigatória mesmo com o global desligado.")}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                    {ui("Resultado efetivo")}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-1 text-sm font-black",
-                      selectedEffectiveWorkOrderRequirement === true
-                        ? "text-warning"
-                        : selectedEffectiveWorkOrderRequirement === false
-                          ? "text-success"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {selectedEffectiveWorkOrderRequirement === null
-                      ? ui("Aguardando regra global")
-                      : selectedEffectiveWorkOrderRequirement
-                        ? ui("OS OBRIGATÓRIA")
-                        : ui("OS OPCIONAL")}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {ui("Regra efetiva = global OU exigência desta máquina.")}
-                  </p>
-                </div>
-              </div>
+              )}
 
               {centralAccess && (
                 <p role="status" className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                   {ui("Modo de produção e ativação exigem ações operacionais próprias; não são editáveis neste cadastro central.")}
                 </p>
               )}
-              <div className="grid gap-4 lg:grid-cols-3">
-                <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
-                  <span>
-                    <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {globalRequiresWorkOrder
-                        ? selectedMachineRequiresWorkOrder
-                          ? ui("Exigência local ativa; a regra global também exige OS.")
-                          : ui("Mesmo desligada aqui, a regra global mantém a OS obrigatória.")
-                        : selectedMachineRequiresWorkOrder
-                          ? ui("Ativa: esta máquina exige OS mesmo com o global desativado.")
-                          : ui("Desativada: segue o global e a OS permanece opcional.")}
+              <div className={cn("grid gap-4", showIndividualWorkOrderControl ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+                {showIndividualWorkOrderControl && (
+                  <label className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border px-3">
+                    <span>
+                      <span className="block text-sm font-bold">{ui("Exigir OS nesta máquina")}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {selectedMachineRequiresWorkOrder
+                          ? ui("OS obrigatória nesta máquina.")
+                          : ui("OS opcional nesta máquina.")}
+                      </span>
                     </span>
-                  </span>
-                  <Switch
-                    checked={selectedMachine.requireWorkOrderAtOpen === true}
-                    disabled={!canEditMachineMetadata}
-                    onCheckedChange={(checked) => {
-                      if (!canEditMachineMetadata) return;
-                      updateMachineCatalog(selectedMachine.id, {
-                        requireWorkOrderAtOpen: checked,
-                      });
-                    }}
-                  />
-                </label>
+                    <Switch
+                      checked={selectedMachine.requireWorkOrderAtOpen === true}
+                      disabled={!canEditMachineMetadata}
+                      onCheckedChange={(checked) => {
+                        if (!canEditMachineMetadata) return;
+                        updateMachineCatalog(selectedMachine.id, {
+                          requireWorkOrderAtOpen: checked,
+                        });
+                      }}
+                    />
+                  </label>
+                )}
 
                 <div className="space-y-1">
                   <Label>{ui("Modo padrão de produção")}</Label>
