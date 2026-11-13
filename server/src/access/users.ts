@@ -66,6 +66,10 @@ export async function saveUser(
   id?: string,
 ) {
   validateUser(input);
+  // Kiosk provisionamento is dormant. Block new records through the API too;
+  // historical inactive records remain editable for audit-safe renaming.
+  if (!id && input.accountType === "kiosk")
+    throw new AccessError("invalid_user", 400);
   const initial = await requireUserAdmin(db, request);
   const password = id || input.accountType === "kiosk" ? null : temporaryPassword();
   const passwordHash = id ? undefined : await hashAccessPassword(password ?? temporaryPassword());
