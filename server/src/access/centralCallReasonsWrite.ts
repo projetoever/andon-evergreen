@@ -7,6 +7,7 @@ import {
 } from "../services/callReasonMutations.js";
 import { centralCallReasonsHttpEnabled } from "../security/centralCallReasonsHttp.js";
 import { isReasonPresentationOnlyPatch } from "../security/callReasonPresentationPolicy.js";
+import { conservativeReasonCreate, isDelegatedReasonCreate } from "../security/callReasonDelegateCreate.js";
 
 export type CallReasonWrite = {
   token: string;
@@ -49,6 +50,9 @@ export function runCentralCallReasonWrite(
         ? `/api/call-reasons/${reasonId}/options`
         : `/api/call-reasons/${reasonId}/options/${optionId}`;
   const presentationPatch = isReasonPresentationOnlyPatch(input.operation, input.body);
+  const conservativeCreate = input.operation === "reason.create" &&
+    isDelegatedReasonCreate(input.body);
+  const safeDelegateAction = presentationPatch || conservativeCreate;
   return runCentralGlobalCatalogTransaction<CallReason | CallReasonOption>(db, {
     token: input.token,
     workstationId: input.workstationId,
@@ -56,18 +60,22 @@ export function runCentralCallReasonWrite(
     path: route,
     requestId: input.requestId,
     ipAddress: input.ipAddress,
-    requirePrimaryAdmin: !presentationPatch,
-    additionalPermissions: presentationPatch ? [] : ["analytics.policy.manage"],
+    requirePrimaryAdmin: !safeDelegateAction,
+    additionalPermissions: safeDelegateAction ? [] : ["analytics.policy.manage"],
     // A stale or changed identity cannot convert this into a write grant.
     // The locked transaction checks both the first and refreshed principals.
     assertAuthorizedCatalogPrincipal: (principal) => {
-      if (presentationPatch && !principal.isPrimaryAdmin &&
+      if (safeDelegateAction && !principal.isPrimaryAdmin &&
           !isAndonSettingsDelegate(principal))
         throw new AccessError("primary_admin_required");
     },
     applyReviewedDomainMutation: async (tx: Prisma.TransactionClient) => {
       if (input.operation === "reason.create") {
-        const data = parseReasonCreate(input.body);
+        // A delegate can name and categorize a reason, but cannot submit KPI,
+        // responsibility or disposition fields. They are fixed server-side.
+        const data = parseReasonCreate(conservativeCreate
+          ? conservativeReasonCreate(input.body as Parameters<typeof conservativeReasonCreate>[0])
+          : input.body);
         const created = await tx.callReason.create({ data });
         return {
           value: created, resourceType: "call_reason", resourceId: created.id,

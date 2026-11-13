@@ -15,7 +15,7 @@ test("CFG-08A: explicit Admin status controls catalog create and KPI-sensitive c
   assert.match(page,/access\?\.principal\?\.isPrimaryAdmin === true/);
   assert.match(page,/isPrimaryAdmin \? values : \{/);
   assert.match(page,/disabled=\{busy \|\| !isPrimaryAdmin\}/);
-  assert.match(page,/disabled=\{!isPrimaryAdmin\}/);
+  assert.match(page,/disabled=\{busy \|\| \(Boolean\(chosen\) && !isPrimaryAdmin\)\}/);
   assert.match(page,/!chosen && !isPrimaryAdmin/);
   assert.match(page,/KPI exigem Admin principal/);
 });
@@ -30,9 +30,9 @@ test("CFG-08A: transaction rechecks delegated catalog role after session refresh
   assert.match(tx,/input\.assertAuthorizedCatalogPrincipal\?\.\(latest\)/);
   assert.match(domain,/isReasonPresentationOnlyPatch\(input\.operation, input\.body\)/);
   assert.match(domain,/!isAndonSettingsDelegate\(principal\)/);
-  assert.match(domain,/requirePrimaryAdmin: !presentationPatch/);
+  assert.match(domain,/requirePrimaryAdmin: !safeDelegateAction/);
   assert.match(http,/isReasonPresentationOnlyPatch\(/);
-  assert.match(http,/!principal\.isPrimaryAdmin && !presentationPatch/);
+  assert.match(http,/!principal\.isPrimaryAdmin && !presentationPatch && !conservativeCreate/);
   assert.match(http,/checkCsrf\(/);
 });
 
@@ -55,4 +55,29 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   assert.match(page, /disabled=\{busy \|\| editingOptionId !== null\}/);
   assert.match(service, /expectedRevision: revision/);
   assert.match(policy, /"displayName", "active", "displayOrder"/);
+});
+
+test("CFG-08B1: reason creation by settings delegates cannot choose KPI or create specialties", async () => {
+  const [page, service, http, domain, helper, tx] = await Promise.all([
+    source("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    source("../src/services/callReasonsCatalogService.ts"),
+    source("../server/src/security/centralCallReasonsHttp.ts"),
+    source("../server/src/access/centralCallReasonsWrite.ts"),
+    source("../server/src/security/callReasonDelegateCreate.ts"),
+    source("../server/src/access/centralGlobalCatalogTransaction.ts"),
+  ]);
+  assert.match(page, /await createCallReason\(isPrimaryAdmin \? next : \{/);
+  assert.match(page, /id: next\.id, displayName: next\.displayName, color: next\.color/);
+  assert.match(page, /nature: next\.nature/);
+  assert.match(page, /Vincular especialidades e alterar políticas de KPI exigem Admin principal/);
+  assert.match(service, /CreateCallReason \| DelegatedReasonCreate/);
+  assert.match(helper, /SAFE_REASON_FIELDS/);
+  assert.match(helper, /maintenanceKpiPolicy: operative \? "excluded" : "pending"/);
+  assert.doesNotMatch(helper, /"eligible"/);
+  assert.match(http, /isDelegatedReasonCreate\(request\.body\)/);
+  assert.match(domain, /isDelegatedReasonCreate\(input\.body\)/);
+  assert.match(domain, /conservativeReasonCreate\(/);
+  assert.match(domain, /additionalPermissions: safeDelegateAction \? \[\] : \["analytics\.policy\.manage"\]/);
+  assert.match(tx, /input\.assertAuthorizedCatalogPrincipal\?\.\(latest\)/);
+  assert.match(page, /disabled=\{busy \|\| !areaToAdd \|\| !isPrimaryAdmin\}/);
 });

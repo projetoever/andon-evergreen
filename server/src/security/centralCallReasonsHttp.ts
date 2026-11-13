@@ -6,6 +6,7 @@ import {
   isAndonSettingsDelegate, type Principal,
 } from "../access/policy.js";
 import { isReasonPresentationOnlyPatch } from "./callReasonPresentationPolicy.js";
+import { isDelegatedReasonCreate } from "./callReasonDelegateCreate.js";
 
 const validated = new WeakSet<FastifyRequest>();
 const validatedReads = new WeakSet<FastifyRequest>();
@@ -84,7 +85,9 @@ export function markCentralCallReasonAuthorized(
       path.includes("/options/") ? "option.update" : "reason.update",
       request.body,
     );
-  if (!principal.isPrimaryAdmin && !presentationPatch)
+  const conservativeCreate = request.method === "POST" &&
+    path === "/api/call-reasons" && isDelegatedReasonCreate(request.body);
+  if (!principal.isPrimaryAdmin && !presentationPatch && !conservativeCreate)
     throw new AccessError("primary_admin_required");
   if (principal.isPrimaryAdmin)
     assertPermission(principal, "analytics.policy.manage");
