@@ -112,6 +112,9 @@ export interface GlobalHistorySearchFilters {
   origin: "all" | "real" | "system";
   period: GlobalHistoryPeriod;
   customDate: string;
+  /** Optional local clock bounds, only applied for one selected calendar date. */
+  timeFrom?: string;
+  timeBefore?: string;
 }
 
 export const DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS: GlobalHistorySearchFilters = {
@@ -125,6 +128,8 @@ export const DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS: GlobalHistorySearchFilters =
   origin: "all",
   period: "30d",
   customDate: "",
+  timeFrom: "",
+  timeBefore: "",
 };
 
 export function searchGlobalHistory(filters: GlobalHistorySearchFilters, offset: number) {
