@@ -41,7 +41,7 @@ try {
   adminUserId = admin.id;
   const operator = await db.accessUser.create({ data: {
     login: "ci.operator.persistent." + n, displayName: "CI Production",
-    roleLabel: "Produção", accountType: "person", active: true,
+    roleLabel: "Produção", accountType: "person", sessionPolicy: "persistent", active: true,
     mustChangePassword: false, machineScope: "selected",
     passwordHash: await hashAccessPassword(operatorPassword),
     permissions: { create: [{ key: "andon.read" }, { key: "calls.open" }] },
