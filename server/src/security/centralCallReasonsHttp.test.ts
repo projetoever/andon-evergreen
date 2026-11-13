@@ -3,6 +3,7 @@ import test from "node:test";
 import type { FastifyRequest } from "fastify";
 import Fastify from "fastify";
 import { csrfToken } from "../access/credentials.js";
+import { conservativeReasonCreate, isDelegatedReasonCreate } from "./callReasonDelegateCreate.js";
 import { AccessError, type Principal } from "../access/policy.js";
 import { registerCallReasonRoutes } from "../routes/callReasons.js";
 import {
@@ -261,5 +262,63 @@ test("CFG-08A: explicit ANDON settings delegate may read and PATCH only display 
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED=old.central;
     if(old.reason===undefined)delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
     else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=old.reason;
+  }
+});
+
+test("CFG-08B1: delegated reason creation is conservative, explicit and fail-closed", () => {
+  const previous = {
+    central: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
+    catalog: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED,
+  };
+  const delegate: Principal = {
+    ...admin, isPrimaryAdmin: false, roleLabel: "Produção",
+    machineScope: "selected", machineIds: ["37"],
+    permissions: ["andon.read", "andon.settings.open"],
+  };
+  const safe = {
+    id: "setup_op", displayName: "Setup", nature: "planned_setup" as const,
+    color: "#64748B", active: true, displayOrder: 10,
+  };
+  const req = (body: unknown, csrf = csrfToken(token)) =>
+    Object.assign(fake("POST", "/api/call-reasons", csrf), { body });
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
+    assert.equal(isDelegatedReasonCreate(safe), true);
+    assert.deepEqual(conservativeReasonCreate(safe), {
+      ...safe, suggestedResponsibility: "operations",
+      maintenanceKpiPolicy: "excluded", analyticsDisposition: "include",
+    });
+    assert.equal(conservativeReasonCreate({ ...safe, nature: "corrective_failure" }).maintenanceKpiPolicy, "pending");
+    const permitted = req(safe);
+    markCentralCallReasonAuthorized(permitted, delegate, station);
+    assert.equal(isAuthorizedCentralCallReasonRequest(permitted), true);
+    for (const injected of [
+      { ...safe, maintenanceKpiPolicy: "eligible" },
+      { ...safe, suggestedResponsibility: "maintenance" },
+      { ...safe, analyticsDisposition: "include" },
+      { ...safe, technicalAreaId: "electrical" },
+      { ...safe, displayName: undefined },
+      { ...safe, nature: "malicious" },
+    ]) {
+      assert.equal(isDelegatedReasonCreate(injected), false);
+      denied(() => markCentralCallReasonAuthorized(req(injected), delegate, station), "primary_admin_required");
+    }
+    denied(() => markCentralCallReasonAuthorized(req(safe, "0".repeat(64)), delegate, station), "csrf_denied");
+    denied(() => markCentralCallReasonAuthorized(req(safe), {
+      ...delegate, permissions: ["andon.read"],
+    }, station), "scoped_query_required");
+    denied(() => markCentralCallReasonAuthorized(
+      Object.assign(fake("POST", "/api/call-reasons/setup_op/options"), { body: {
+        id: "mech", technicalAreaId: "mechanical",
+      } }), delegate, station,
+    ), "primary_admin_required");
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
+    denied(() => markCentralCallReasonAuthorized(req(safe), delegate, station), "central_action_not_supported");
+  } finally {
+    if (previous.central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previous.central;
+    if (previous.catalog === undefined) delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = previous.catalog;
   }
 });
