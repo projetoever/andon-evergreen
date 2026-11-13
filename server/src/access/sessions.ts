@@ -19,6 +19,7 @@ const TRUSTED_OPERATIONAL_GRANTS = new Set([
   "andon.read", "history.read", "calls.open", "calls.cancel.own",
   "calls.attend", "calls.technicians.manage", "calls.finishMaintenance",
   "calls.finish", "calls.followUp", "calls.returnToMaintenance",
+  "production.schedule.request", // Only a password-confirmed, audited operation.
   "bi.read", "bi.export", "priorities.read",
 ]);
 // Intentionally allowlist, not blacklist: any newly introduced privilege
