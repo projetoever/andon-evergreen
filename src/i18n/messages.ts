@@ -387,6 +387,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Discreto","Discreet","低調"],
   ["Cinza industrial", "Industrial gray", "工業灰"],
   ["Aparência e cores","Appearance and colors","外觀與色彩"],
+  ["Data indisponível","Date unavailable","日期不可用"],
   ["Contorno de prioridades","Priority group border","優先機台群組邊框"],
   ["Paletas industriais prontas","Industrial color palettes","工業配色預設"],
   ["Selecione um conjunto de contornos e destaques para prévia. O tema claro/escuro continua independente e os alertas de segurança permanecem protegidos.","Preview accent and border colors. Light/dark mode is independent and safety alerts remain protected.","預覽邊框與強調色。明暗模式獨立設定，安全警報色保持不變。"],
