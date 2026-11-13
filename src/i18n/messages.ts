@@ -5867,4 +5867,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Criação e edição centrais de setores estão desabilitadas ou não puderam ser verificadas. A exclusão permanece bloqueada.","Central sector creation and editing are disabled or could not be verified. Deletion remains blocked.","集中式區域新增與編輯已停用或無法驗證。刪除仍被封鎖。"],
   ["A preferência de filtro pode ser salva separadamente da edição de turnos.","The shift filter preference can be saved independently of shift editing.","班次篩選偏好可以與班次編輯分開儲存。"],
   ["A gravação central da preferência de filtro está indisponível; a leitura permanece disponível.","Central saving of the shift filter preference is unavailable; reading remains available.","集中儲存班次篩選偏好目前不可用；仍可檢視。"],
+  ["Modo somente leitura: a gravação central de configurações operacionais está desabilitada. Nenhuma alteração será enviada.","Read-only mode: saving central operational settings is disabled. No changes will be submitted.","唯讀模式：集中作業設定儲存功能已停用。不會送出任何變更。"],
 ]; 

@@ -16,6 +16,10 @@ export function GeneralSettingsTab() {
   useInterfaceLanguage();
   const { access } = useModuleAccess();
   const centralMode = access?.centralAccessEnabled === true;
+  // This reports only the deployment feature gate. The backend still checks
+  // user ACL, approved workstation, CSRF, locking and audit on every mutation.
+  const [centralWritable, setCentralWritable] = useState(false);
+  const canWriteSettings = !centralMode || centralWritable;
   const priorityModuleAllowed = access?.modules.some(
     (module) => module.id === "priorities" && module.available && module.enabled && module.allowed,
   ) === true;
@@ -39,9 +43,11 @@ export function GeneralSettingsTab() {
   const loadGeneralSettings = useCallback(async () => {
     setIsLoadingSettings(true);
     setSettingsLoadError(null);
+    setCentralWritable(false);
 
     try {
       const settings = await getSystemSettings();
+      setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
       setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
       setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
       setPreventDuplicateWorkOrderNumbers(settings.preventDuplicateWorkOrderNumbers === true);
@@ -89,7 +95,7 @@ export function GeneralSettingsTab() {
   }, [loadGeneralSettings, loadPriorityAccess]);
 
   async function handleDashboardOrderModeChange(mode: DashboardMachineOrderMode) {
-    if (mode === dashboardMachineOrderMode || isSavingDashboardOrderMode || settingsLoadError) {
+    if (!canWriteSettings || mode === dashboardMachineOrderMode || isSavingDashboardOrderMode || settingsLoadError) {
       return;
     }
     if (mode === "priority" && priorityAccessLoadError) {
@@ -122,6 +128,7 @@ export function GeneralSettingsTab() {
   }
 
   async function handleKeyboardChange(enabled: boolean) {
+    if (!canWriteSettings) return;
     const previousValue = virtualKeyboardEnabled;
     setVirtualKeyboardEnabled(enabled);
     setIsSavingKeyboard(true);
@@ -143,6 +150,7 @@ export function GeneralSettingsTab() {
   }
 
   async function handleWorkOrderRequirementChange(required: boolean) {
+    if (!canWriteSettings) return;
     const previousValue = requireWorkOrderAtOpen;
     setRequireWorkOrderAtOpen(required);
     setIsSavingWorkOrder(true);
@@ -164,6 +172,7 @@ export function GeneralSettingsTab() {
   }
 
   async function handleUniqueWorkOrderChange(enabled: boolean) {
+    if (!canWriteSettings) return;
     const previous = preventDuplicateWorkOrderNumbers;
     setPreventDuplicateWorkOrderNumbers(enabled);
     setIsSavingUniqueWorkOrder(true);
@@ -182,6 +191,7 @@ export function GeneralSettingsTab() {
   }
 
   async function handleMaintenanceRestrictionChange(restricted: boolean) {
+    if (!canWriteSettings) return;
     const previousValue = restrictMaintenanceCompletion;
     setRestrictMaintenanceCompletion(restricted);
     setIsSavingMaintenanceRestriction(true);
@@ -247,7 +257,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label={ui("Habilitar teclado virtual")}
                 checked={virtualKeyboardEnabled}
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingKeyboard}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingKeyboard || !canWriteSettings}
                 onCheckedChange={(checked) => void handleKeyboardChange(checked)}
               />
             </div>
@@ -266,7 +276,7 @@ export function GeneralSettingsTab() {
                 aria-label={ui("Restringir conclusão da manutenção à workstation do atendimento")}
                 checked={restrictMaintenanceCompletion}
                 disabled={
-                  isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingMaintenanceRestriction || !canWriteSettings
                 }
                 onCheckedChange={(checked) => void handleMaintenanceRestrictionChange(checked)}
               />
@@ -283,7 +293,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label={ui("Exigir OS na abertura do chamado")}
                 checked={requireWorkOrderAtOpen}
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingWorkOrder}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingWorkOrder || !canWriteSettings}
                 onCheckedChange={(checked) => void handleWorkOrderRequirementChange(checked)}
               />
             </div>
@@ -297,7 +307,7 @@ export function GeneralSettingsTab() {
               <Switch
                 aria-label={ui("Bloquear OS duplicadas")}
                 checked={preventDuplicateWorkOrderNumbers}
-                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingUniqueWorkOrder}
+                disabled={isLoadingSettings || Boolean(settingsLoadError) || isSavingUniqueWorkOrder || !canWriteSettings}
                 onCheckedChange={(checked) => void handleUniqueWorkOrderChange(checked)}
               />
             </div>
@@ -325,7 +335,7 @@ export function GeneralSettingsTab() {
                 type="button"
                 aria-pressed={dashboardMachineOrderMode === "default"}
                 disabled={
-                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode || !canWriteSettings
                 }
                 onClick={() => void handleDashboardOrderModeChange("default")}
                 className={`rounded-xl border p-4 text-left transition ${
@@ -344,7 +354,7 @@ export function GeneralSettingsTab() {
                 type="button"
                 aria-pressed={dashboardMachineOrderMode === "priority"}
                 disabled={
-                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode
+                  isLoadingSettings || Boolean(settingsLoadError) || isSavingDashboardOrderMode || !canWriteSettings
                 }
                 onClick={() => void handleDashboardOrderModeChange("priority")}
                 className={`rounded-xl border p-4 text-left transition ${

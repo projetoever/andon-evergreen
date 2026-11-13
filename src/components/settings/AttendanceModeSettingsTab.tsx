@@ -53,6 +53,10 @@ export function AttendanceModeSettingsTab() {
   const { access } = useModuleAccess();
   const centralAttendance = access?.centralAccessEnabled === true;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
+  // The declared-name flag controls name selection separately. The global
+  // operational-settings flag controls the actual PATCH on Save.
+  const canWriteAttendance = !centralAttendance ||
+    settings?.centralOperationalSettingsWriteEnabled === true;
   const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,7 +97,7 @@ export function AttendanceModeSettingsTab() {
   }, [savedSettings, settings]);
 
   async function handleSave() {
-    if (!settings || !hasUnsavedChanges) return;
+    if (!settings || !hasUnsavedChanges || !canWriteAttendance || isSaving) return;
 
     if (
       settings.rfidInputTerminator === "fixed_length" &&
@@ -162,6 +166,11 @@ export function AttendanceModeSettingsTab() {
       {centralAttendance && (
         <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
           {ui("No login central, selecionar por nome declara o mantenedor, sem autenticação pessoal. O usuário e a workstation responsáveis serão auditados. A escolha fica disponível somente quando o servidor autorizar esta modalidade.")}
+          {!canWriteAttendance && (
+            <p className="mt-2 font-semibold">
+              {ui("Modo somente leitura: a gravação central de configurações operacionais está desabilitada. Nenhuma alteração será enviada.")}
+            </p>
+          )}
         </div>
       )}
 
@@ -174,7 +183,8 @@ export function AttendanceModeSettingsTab() {
               key={option.id}
               type="button"
               aria-pressed={selected}
-              disabled={centralAttendance && option.id === "name" && settings.centralDeclaredAttendanceEnabled !== true}
+              disabled={!canWriteAttendance ||
+                (centralAttendance && option.id === "name" && settings.centralDeclaredAttendanceEnabled !== true)}
               onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",
@@ -206,6 +216,7 @@ export function AttendanceModeSettingsTab() {
             <select
               className="mt-1 h-10 w-full rounded-md border bg-background px-2"
               value={settings.rfidInputTerminator}
+              disabled={!canWriteAttendance}
               onChange={(event) =>
                 setSettings({
                   ...settings,
@@ -227,6 +238,7 @@ export function AttendanceModeSettingsTab() {
                 max={64}
                 className="mt-1 h-10 w-full rounded-md border bg-background px-2"
                 value={settings.rfidCodeLength ?? 10}
+                disabled={!canWriteAttendance}
                 onChange={(event) =>
                   setSettings({ ...settings, rfidCodeLength: Number(event.target.value) })
                 }
@@ -257,7 +269,7 @@ export function AttendanceModeSettingsTab() {
             tone="primary"
             size="md"
             onClick={() => void handleSave()}
-            disabled={isSaving || !hasUnsavedChanges}
+            disabled={isSaving || !hasUnsavedChanges || !canWriteAttendance}
           >
             {isSaving ? ui("Salvando...") : ui("Salvar modo de atendimento")}
           </BigButton>
