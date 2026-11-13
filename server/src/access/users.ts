@@ -20,6 +20,7 @@ export const userSelect = {
   active: true,
   isPrimaryAdmin: true,
   machineScope: true,
+  sessionPolicy: true,
   mustChangePassword: true,
   authorizationVersion: true,
   permissions: { select: { key: true } },
@@ -32,6 +33,7 @@ export type UserInput = {
   accountType: "person" | "kiosk";
   active: boolean;
   machineScope: "all" | "selected";
+  sessionPolicy: "standard" | "persistent";
   permissions: string[];
   machineIds: string[];
   version?: number;
@@ -55,6 +57,8 @@ export function validateUser(input: UserInput) {
     new Set(input.permissions).size !== input.permissions.length ||
     new Set(input.machineIds).size !== input.machineIds.length ||
     (input.machineScope === "all" && input.machineIds.length) ||
+    !["standard", "persistent"].includes(input.sessionPolicy) ||
+    (input.sessionPolicy === "persistent" && (input.accountType !== "person" || !input.active)) ||
     (input.accountType === "kiosk" && input.active)
   )
     throw new AccessError("invalid_user", 400);
@@ -92,6 +96,7 @@ export async function saveUser(
       accountType: input.accountType,
       active: input.active,
       machineScope: input.machineScope,
+      sessionPolicy: input.sessionPolicy,
     };
     const user = id
       ? await tx.accessUser.update({
