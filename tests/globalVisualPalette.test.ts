@@ -11,7 +11,7 @@ const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url)
 
 test("UX-12: default global palette still avoids critical stop/warning colors", async () => {
   assert.equal(DEFAULT_VISUAL_PALETTE.cardBorder, "slate");
-  assert.equal(VISUAL_PALETTE_KEYS.length, 5);
+  assert.equal(VISUAL_PALETTE_KEYS.length, 6);
   assert.equal(VISUAL_PALETTE_POLL_MS, 30_000);
   for (const key of VISUAL_PALETTE_KEYS) {
     assert.match(accentForTheme(DEFAULT_VISUAL_PALETTE[key], "light"), /^#[0-9a-fA-F]{6}$/);
@@ -81,6 +81,9 @@ test("UX-12: global colors target non-critical components and never override dan
   assert.match(css, /\.andon-palette-machine-card \{/);
   assert.match(css, /\.andon-palette-operation-button \{/);
   assert.match(provider, /--andon-palette-card-border/);
+  assert.match(provider, /--andon-palette-priority-border/);
+  assert.match(css, /\.andon-palette-priority-border/);
+  assert.match(await source("src/components/machines/MachineGrid.tsx"), /andon-palette-priority-border/);
   assert.doesNotMatch(provider, /--danger|--warning|--success|--primary/);
   assert.doesNotMatch(css, /\.andon-palette-machine-card\s*\{[^}]*opacity\s*:/);
 });
