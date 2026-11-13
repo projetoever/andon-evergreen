@@ -179,8 +179,8 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
   assert.doesNotMatch(simple, /Chamados: abrir|Cancelar chamados próprios|Concluir manutenção/);
   assert.match(source, /reconcileSimpleModuleRole\(/);
   assert.match(source, /Role is descriptive/);
-  assert.match(source, /advancedModuleGrants\\(/);
-  assert.match(source, /advancedIndependentGrants\\(/);
+  assert.ok(source.includes("advancedModuleGrants("));
+  assert.ok(source.includes("advancedIndependentGrants("));
   assert.match(source, /A new account starts without grants/);
 });
 
