@@ -1,6 +1,6 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ListOrdered, Settings2, ShieldCheck } from "lucide-react";
 import { toast } from "@/i18n/toast";
 
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { getDashboardPriorityAccessStatus } from "@/services/dashboardPriorityService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, updateSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import type { DashboardMachineOrderMode } from "@/types/systemSettings";
 
 export function GeneralSettingsTab() {
@@ -19,6 +19,7 @@ export function GeneralSettingsTab() {
   // This reports only the deployment feature gate. The backend still checks
   // user ACL, approved workstation, CSRF, locking and audit on every mutation.
   const [centralWritable, setCentralWritable] = useState(false);
+  const capabilityRequestVersion = useRef(0);
   const canWriteSettings = !centralMode || centralWritable;
   const priorityModuleAllowed = access?.modules.some(
     (module) => module.id === "priorities" && module.available && module.enabled && module.allowed,
@@ -44,10 +45,13 @@ export function GeneralSettingsTab() {
     setIsLoadingSettings(true);
     setSettingsLoadError(null);
     setCentralWritable(false);
+    const request = ++capabilityRequestVersion.current;
 
     try {
       const settings = await getSystemSettings();
-      setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
+      if (request === capabilityRequestVersion.current) {
+        setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
+      }
       setVirtualKeyboardEnabled(settings.virtualKeyboardEnabled !== false);
       setRequireWorkOrderAtOpen(settings.requireWorkOrderAtOpen === true);
       setPreventDuplicateWorkOrderNumbers(settings.preventDuplicateWorkOrderNumbers === true);
@@ -93,6 +97,35 @@ export function GeneralSettingsTab() {
     void loadGeneralSettings();
     void loadPriorityAccess();
   }, [loadGeneralSettings, loadPriorityAccess]);
+
+  // CFG-15F: the actual input gate must track the same server capabilities
+  // as the admin tab notice, without resetting controls during a focus event.
+  useEffect(() => {
+    if (!centralMode) return;
+    let active = true;
+    const revalidate = () => {
+      const request = ++capabilityRequestVersion.current;
+      setCentralWritable(false); // fail closed during pending or failed GET
+      void getSystemSettings().then(settings => {
+        if (active && request === capabilityRequestVersion.current) {
+          setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
+        }
+      }).catch(() => {
+        if (active && request === capabilityRequestVersion.current) {
+          setCentralWritable(false);
+        }
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      active = false;
+      capabilityRequestVersion.current += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [centralMode]);
 
   async function handleDashboardOrderModeChange(mode: DashboardMachineOrderMode) {
     if (!canWriteSettings || mode === dashboardMachineOrderMode || isSavingDashboardOrderMode || settingsLoadError) {
