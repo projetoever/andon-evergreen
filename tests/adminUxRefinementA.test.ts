@@ -475,3 +475,28 @@ test("CFG-15D1: central technician catalog respects separate creation and update
   assert.match(updateGuard, /export function centralTechnicianUpdateEnabled\(\)/);
   assert.doesNotMatch(tab, /ANDON_CENTRAL_TECHNICIAN_CREATE_HTTP_ENABLED|ANDON_CENTRAL_TECHNICIAN_UPDATE_HTTP_ENABLED/);
 });
+
+test("CFG-15D3: classifications remain readable but cannot write if central capability is OFF", async () => {
+  const [modal, settings, guard] = await Promise.all([
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/security/centralClassificationHttp.ts", import.meta.url), "utf8"),
+  ]);
+  assert.ok(modal.includes('<ClassificationsTab centralAccess={centralAccess} />'));
+  assert.ok(modal.includes('function ClassificationsTab({ centralAccess }: { centralAccess: boolean })'));
+  assert.ok(modal.includes('const canWriteClassifications = !centralAccess || centralWritable'));
+  assert.ok(modal.includes('settings.centralClassificationWriteEnabled === true'));
+  assert.ok(modal.includes('setCentralWritable(false)'));
+  assert.ok(modal.includes('setCapabilityError(true)'));
+  assert.ok(modal.includes('setCapabilityRetry(value => value + 1)'));
+  assert.ok(modal.includes('if (!canWriteClassifications || isSaving || isLoading || Boolean(loadError)) return;'));
+  assert.ok(modal.includes('if (!canWriteClassifications || isSaving || isLoading || Boolean(loadError) || !selectedId) return;'));
+  assert.ok(modal.includes('disabled={isLoading || isSaving || Boolean(loadError) || !canWriteClassifications}'));
+  assert.ok(modal.includes('disabled={isSaving || Boolean(loadError) || !canWriteClassifications}'));
+  assert.ok(modal.includes('disabled={!selectedId || isSaving || Boolean(loadError) || !canWriteClassifications}'));
+  assert.ok(modal.includes('await getFailureClassificationConfigs()'));
+  assert.ok(settings.includes('centralClassificationWriteEnabled: centralClassificationHttpEnabled()'));
+  assert.ok(guard.includes('method === "POST"'));
+  assert.ok(guard.includes('method === "PATCH"'));
+  assert.ok(!modal.includes("ANDON_CENTRAL_CLASSIFICATION_HTTP_ENABLED"));
+});
