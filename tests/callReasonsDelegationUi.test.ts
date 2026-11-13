@@ -35,3 +35,24 @@ test("CFG-08A: transaction rechecks delegated catalog role after session refresh
   assert.match(http,/!principal\.isPrimaryAdmin && !presentationPatch/);
   assert.match(http,/checkCsrf\(/);
 });
+
+
+test("CFG-08A2: delegated specialty editor changes presentation, not linked area or KPI policy", async () => {
+  const [page, service, policy] = await Promise.all([
+    source("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    source("../src/services/callReasonsCatalogService.ts"),
+    source("../server/src/security/callReasonPresentationPolicy.ts"),
+  ]);
+  const editor = page.split("async function saveOptionPresentation")[1]?.split("\n  return (")[0];
+  assert.ok(editor, "specialty presentation save handler must exist");
+  assert.ok(editor.includes("!/^\d{1,4}$/.test(orderText)"));
+  assert.match(editor, /await updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
+  assert.match(editor, /displayName: label \|\| null, displayOrder: order/);
+  assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
+  assert.match(page, /Nome exibido da especialidade/);
+  assert.match(page, /Ordem de exibição/);
+  assert.match(page, /Nome vazio utiliza a área técnica original/);
+  assert.match(page, /disabled=\{busy \|\| editingOptionId !== null\}/);
+  assert.match(service, /expectedRevision: revision/);
+  assert.match(policy, /"displayName", "active", "displayOrder"/);
+});
