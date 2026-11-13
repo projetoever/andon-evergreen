@@ -746,31 +746,33 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         ))}
                       </select>
                     </Label>
-                    {advancedPermissions && <Label className="space-y-2">
+                    <Label className="space-y-2">
                       {ui("Tipo de conta")}
                       <select
                         aria-label={ui("Tipo de conta")}
                         className="block min-h-11 w-full rounded-md border bg-background p-2"
                         disabled={Boolean(editing)}
                         value={draft.accountType}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            accountType: e.target.value as "person" | "kiosk",
-                            active: e.target.value === "person",
-                          })
-                        }
+                        onChange={(e) => {
+                          if (e.target.value !== "person") return;
+                          setDraft({ ...draft, accountType: "person", active: true });
+                        }}
                       >
-                        <option value="person">{ui("Pessoa")}</option>
-                        <option value="kiosk">{ui("Kiosk — cadastro inativo")}</option>
+                        <option value="person">{ui("Pessoa — acesso com senha")}</option>
+                        <option value="kiosk" disabled>{ui("Kiosk — provisionamento indisponível")}</option>
                       </select>
-                    </Label>}
+                    </Label>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {advancedPermissions
-                      ? ui("O perfil identifica a função, mas somente as permissões marcadas autorizam as ações. Kiosks ficam inativos até o provisionamento.")
-                      : ui("O perfil aplica automaticamente uma seleção de permissões. O servidor continua verificando cada ação, workstation e máquina.")}
+                    {ui("Pessoa é o tipo de conta disponível para login e senha. Kiosk é reservado para terminais industriais e ainda não pode ser provisionado, ativado ou receber senha no Hub. O perfil descreve a função; as permissões são escolhidas nos módulos ou em Avançado.")}
                   </p>
+                  {draft.accountType === "kiosk" && (
+                    <div role="status" className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                      <p className="font-bold">{ui("Cadastro Kiosk reservado — sem login e sem senha")}</p>
+                      <p>{ui("Este cadastro permanece inativo porque ainda não existe provisionamento seguro de Kiosk. Não é possível ativá-lo, redefinir sua senha ou convertê-lo em Pessoa aqui.")}</p>
+                      <p>{ui("Para utilizar esse login na Produção, renomeie este cadastro inativo e salve; depois crie uma conta Pessoa com o login desejado, escopo de máquinas e permissões adequados.")}</p>
+                    </div>
+                  )}
                   <Label className="flex min-h-11 items-center gap-3">
                     <input
                       type="checkbox"
@@ -1048,7 +1050,9 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     {ui(
                       user.machineScope === "all" ? "Todas as máquinas" : "Máquinas selecionadas",
                     )}
-                    {user.mustChangePassword && ` · ${ui("Troca de senha pendente")}`}
+                    {user.accountType === "kiosk"
+                      ? ` · ${ui("Kiosk sem login por senha")}`
+                      : user.mustChangePassword && ` · ${ui("Troca de senha pendente")}`}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
