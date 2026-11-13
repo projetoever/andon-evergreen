@@ -19,7 +19,7 @@ const ws = "ws_" + randomUUID();
 const token = randomBytes(32).toString("hex");
 const verifierPassword = "VerifyProduction-" + nonce;
 const users = [];
-let app, callAuditId;
+let app;
 try {
   await db.machine.createMany({ data: [
     { id: machineId, name: "CI schedule", productionMode: "scheduled", isActive: true },
@@ -105,7 +105,6 @@ try {
     where: { action: "machine.production_mode.credential_verified", resourceId: machineId },
   });
   assert.equal(audits.length, 1);
-  callAuditId = audits[0].id;
   assert.equal(audits[0].actorUserId, operator.id);
   assert.doesNotMatch(JSON.stringify(audits[0]), new RegExp(verifierPassword));
   // Session is still the original pinned Production account.
@@ -128,7 +127,7 @@ try {
   if (app) await app.close();
   if (previousCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
   else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previousCentral;
-  await db.auditEvent.deleteMany({ where: { action: "machine.production_mode.credential_verified", resourceId: machineId } });
+  // Audit log is append-only even in CI: do not delete or update audit rows.
   await db.machineProductionEvent.deleteMany({ where: { machineId } });
   for (const id of users) {
     await db.accessSession.deleteMany({ where: { userId: id } });
