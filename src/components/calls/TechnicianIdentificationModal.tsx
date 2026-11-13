@@ -189,8 +189,13 @@ export function TechnicianIdentificationModal({
     // No foreign machine/call names or identifiers enter Production's view.
     const result = new Map<string, import("@/utils/technicianAvailabilityUtils").TechnicianActiveAssignment>();
     if (globalAvailabilityState !== "ready") return result;
+    // An Admin may already have an authorized, full-scope machine label.
+    // Reuse that label only when present in their scoped snapshot; otherwise
+    // show a generic status without leaking a foreign machine to Production.
+    const visibleAssignments = buildTechnicianActiveAssignmentMap(calls, machines, call?.id);
     for (const id of globalBusyIds) {
-      result.set(`id:${id}`, {
+      const visible = visibleAssignments.get(`id:${id}`);
+      result.set(`id:${id}`, visible ?? {
         technicianId: id, technicianName: "", callId: "", machineId: "",
         machineLabel: ui("Em outro atendimento"),
       });
