@@ -1,11 +1,11 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
@@ -140,8 +140,15 @@ export function GlobalCallHistoryPage() {
   const { access, checking, refresh } = useModuleAccess();
   const allowed = access?.centralAccessEnabled === true && access.globalHistory?.allowed === true;
   const userId = access?.principal?.userId;
-  const [draft, setDraft] = useState<GlobalHistorySearchFilters>(DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS);
-  const [applied, setApplied] = useState<GlobalHistorySearchFilters>(DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS);
+  const { machineId: linkedMachineId } = useSearch({ from: "/history" });
+  const requestedMachineId = linkedMachineId || "all";
+  const previousRequestedMachineId = useRef(requestedMachineId);
+  const [draft, setDraft] = useState<GlobalHistorySearchFilters>(
+    () => ({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId }),
+  );
+  const [applied, setApplied] = useState<GlobalHistorySearchFilters>(
+    () => ({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId }),
+  );
   const [machines, setMachines] = useState<AuthorizedHistoryMachine[]>([]);
   const [categories, setCategories] = useState<GlobalHistoryCategoryOption[]>([]);
   const [classifications, setClassifications] = useState<GlobalHistoryClassificationOption[]>([]);
@@ -161,6 +168,18 @@ export function GlobalCallHistoryPage() {
   const [detailError, setDetailError] = useState("");
 
   const [mobileDetail, setMobileDetail] = useState(false);
+
+  // A machine-history deep link only preselects a filter: the existing
+  // server-scoped history query remains the sole authority over results.
+  useEffect(() => {
+    if (previousRequestedMachineId.current === requestedMachineId) return;
+    previousRequestedMachineId.current = requestedMachineId;
+    const next = { ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId };
+    setDraft(next);
+    setApplied(next);
+    setOffset(0);
+    setMobileDetail(false);
+  }, [requestedMachineId]);
 
   useEffect(() => {
     if (!allowed) {
