@@ -87,3 +87,25 @@ test("HIST-05: exact authorized totals and page-only export are visibly distingu
   assert.match(exporter,/items\.length > 25/);
   assert.doesNotMatch(page,/downloadGlobalHistoryPageCsv\(summary/);
 });
+
+test("HIST-06A: machine history links only to authorized global view with safe filter", async () => {
+  const [machine, globalPage, route, sql, module] = await Promise.all([
+    source("../src/pages/MachineCallHistoryPage.tsx"),
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../src/routes/history.tsx"),
+    source("../server/src/services/globalCallHistoryQuery.ts"),
+    source("../server/src/security/globalHistoryModuleAccess.ts"),
+  ]);
+  assert.match(machine, /access\.globalHistory\?\.available === true/);
+  assert.match(machine, /access\.globalHistory\?\.allowed === true/);
+  assert.match(machine, /globalHistoryAllowed && \(/);
+  assert.match(machine, /to="\/history" search=\{\{ machineId \}\}/);
+  assert.match(route, /validateSearch:/);
+  assert.match(route, /search\.machineId\.length <= 128/);
+  assert.match(globalPage, /useSearch\(\{ from: "\/history" \}\)/);
+  assert.match(globalPage, /machineId: requestedMachineId/);
+  assert.match(globalPage, /setApplied\(next\)/);
+  assert.match(globalPage, /searchGlobalHistory\(applied, offset\)/);
+  assert.match(sql, /callMachineReadWhere\(machineId, allowedMachineIds\)/);
+  assert.match(module, /history\.read/);
+});

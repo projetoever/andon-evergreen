@@ -5840,4 +5840,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Salvar apresentação","Save presentation","儲存顯示設定"],
   ["Fechar edição","Close editor","關閉編輯"],
   ["Editar apresentação","Edit presentation","編輯顯示設定"],
-]; 
+  ["Consultar esta máquina no Histórico Global","View this machine in Global History","在全域歷史記錄中檢視此機台"],
+];
