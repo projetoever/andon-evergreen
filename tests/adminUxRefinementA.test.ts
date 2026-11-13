@@ -417,17 +417,17 @@ test("CFG-15C: General Settings exposes reads but disables mutations when centra
     readFile(new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(source, /access\\?\\.centralAccessEnabled === true/);
-  assert.match(source, /setCentralWritable\\(settings\\.centralOperationalSettingsWriteEnabled === true\\)/);
-  assert.match(source, /const canWriteSettings = !centralMode \\|\\| centralWritable/);
-  assert.match(source, /setCentralWritable\\(false\\)/);
-  assert.match(source, /if \\(!canWriteSettings\\) return/);
-  assert.match(source, /disabled=\\{isLoadingSettings \\|\\| Boolean\\(settingsLoadError\\) \\|\\| isSavingKeyboard \\|\\| !canWriteSettings\\}/);
-  assert.match(source, /isSavingMaintenanceRestriction \\|\\| !canWriteSettings/);
-  assert.match(source, /isSavingWorkOrder \\|\\| !canWriteSettings/);
-  assert.match(source, /isSavingUniqueWorkOrder \\|\\| !canWriteSettings/);
-  assert.match(source, /isSavingDashboardOrderMode \\|\\| !canWriteSettings/);
-  assert.match(server, /centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled\\(\\)/);
+  assert.match(source, /access\?\.centralAccessEnabled === true/);
+  assert.match(source, /setCentralWritable\(settings\.centralOperationalSettingsWriteEnabled === true\)/);
+  assert.match(source, /const canWriteSettings = !centralMode \|\| centralWritable/);
+  assert.match(source, /setCentralWritable\(false\)/);
+  assert.match(source, /if \(!canWriteSettings\) return/);
+  assert.match(source, /disabled=\{isLoadingSettings \|\| Boolean\(settingsLoadError\) \|\| isSavingKeyboard \|\| !canWriteSettings\}/);
+  assert.match(source, /isSavingMaintenanceRestriction \|\| !canWriteSettings/);
+  assert.match(source, /isSavingWorkOrder \|\| !canWriteSettings/);
+  assert.match(source, /isSavingUniqueWorkOrder \|\| !canWriteSettings/);
+  assert.match(source, /isSavingDashboardOrderMode \|\| !canWriteSettings/);
+  assert.match(server, /centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled\(\)/);
 });
 
 test("CFG-15C: attendance mode never offers central write when flag OFF, including PIN and RFID", async () => {
@@ -435,11 +435,11 @@ test("CFG-15C: attendance mode never offers central write when flag OFF, includi
     readFile(new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/src/access/centralOperationalSettings.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(source, /const canWriteAttendance = !centralAttendance \\|\\|/);
-  assert.match(source, /settings\\?\\.centralOperationalSettingsWriteEnabled === true/);
-  assert.match(source, /if \\(!settings \\|\\| !hasUnsavedChanges \\|\\| !canWriteAttendance \\|\\| isSaving\\) return/);
-  assert.match(source, /disabled=\\{!canWriteAttendance\\}/);
-  assert.match(source, /disabled=\\{isSaving \\|\\| !hasUnsavedChanges \\|\\| !canWriteAttendance\\}/);
+  assert.match(source, /const canWriteAttendance = !centralAttendance \|\|/);
+  assert.match(source, /settings\?\.centralOperationalSettingsWriteEnabled === true/);
+  assert.match(source, /if \(!settings \|\| !hasUnsavedChanges \|\| !canWriteAttendance \|\| isSaving\) return/);
+  assert.match(source, /disabled=\{!canWriteAttendance\}/);
+  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canWriteAttendance\}/);
   assert.match(source, /centralDeclaredAttendanceEnabled !== true/);
   assert.match(source, /Modo somente leitura: a gravação central/);
   assert.match(server, /"attendanceMode"/);
