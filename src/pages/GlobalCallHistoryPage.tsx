@@ -1,4 +1,4 @@
-import { ui, systemMessage } from "@/i18n/translate";
+import { ui, systemMessage, getInterfaceLocale } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
@@ -51,8 +51,8 @@ function formatInstant(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isFinite(d.getTime())
-    ? d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-    : "Data indisponível";
+    ? d.toLocaleString(getInterfaceLocale(), { dateStyle: "short", timeStyle: "short" })
+    : ui("Data indisponível");
 }
 
 function SummaryDetail({ call, detail, detailLoading, detailError }: {

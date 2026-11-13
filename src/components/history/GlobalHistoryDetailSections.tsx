@@ -1,4 +1,4 @@
-import { ui } from "@/i18n/translate";
+import { ui, getInterfaceLocale } from "@/i18n/translate";
 import type {
   GlobalHistoryCallDetail,
   GlobalHistoryFailureEvent,
@@ -9,14 +9,14 @@ import { Activity, Clock3, FileText, Users, Wrench } from "lucide-react";
 function showInstant(value?: string | null) {
   if (!value) return "—";
   const d = new Date(value);
-  return Number.isFinite(d.getTime()) ? d.toLocaleString("pt-BR", {
+  return Number.isFinite(d.getTime()) ? d.toLocaleString(getInterfaceLocale(), {
     dateStyle: "short", timeStyle: "short",
   }) : "—";
 }
 
 function showMinutes(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? `${value.toLocaleString("pt-BR", {maximumFractionDigits:1})} min`
+    ? `${value.toLocaleString(getInterfaceLocale(), {maximumFractionDigits:1})} min`
     : "—";
 }
 

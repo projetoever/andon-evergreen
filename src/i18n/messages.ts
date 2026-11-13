@@ -387,6 +387,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Discreto","Discreet","低調"],
   ["Cinza industrial", "Industrial gray", "工業灰"],
   ["Aparência e cores","Appearance and colors","外觀與色彩"],
+  ["Data indisponível","Date unavailable","日期不可用"],
   ["Produção: solicitar alteração (exige senha autorizada)","Production: request schedule change (authorized password required)","生產：申請變更排程（需要授權密碼）"],
   ["Produção: autorizar alteração com senha","Production: approve schedule change with password","生產：以密碼核准排程變更"],
   ["Não foi possível verificar sua permissão. Tente novamente.","Could not verify your permission. Try again.","無法確認您的權限。請再試一次。"],
