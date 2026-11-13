@@ -18,7 +18,9 @@ import {
 } from "../services/technicianIdentity.js";
 import { badRequest, notFound, parseBoolean } from "./routeUtils.js";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
-import { AccessError } from "../access/policy.js";
+import { AccessError, assertModule, assertPermission } from "../access/policy.js";
+import { resolveSession } from "../access/sessions.js";
+import { busyTechnicianIdsFromGlobalSessions } from "../services/globalTechnicianAvailability.js";
 import { runCentralTechnicianIdentification } from "../access/centralTechnicianIdentity.js";
 import { isAuthorizedCentralTechnicianIdentity } from "../security/centralTechnicianIdentityHttp.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
@@ -26,6 +28,8 @@ import { isAuthorizedCentralTechnicianCreate } from "../security/centralTechnici
 import { createCentralTechnician } from "../access/centralTechnicianCatalogCreate.js";
 import { isAuthorizedCentralTechnicianUpdate } from "../security/centralTechnicianCatalogUpdateHttp.js";
 import { updateCentralTechnician } from "../access/centralTechnicianCatalogUpdate.js";
+
+type TechnicianAvailabilityQuery = { callId?: string };
 
 type TechnicianQuery = {
   active?: string;
@@ -158,6 +162,75 @@ function resolveLegacyTechnicalArea(currentArea: string | null, technicalAreas: 
 }
 
 export async function registerTechnicianRoutes(app: FastifyInstance) {
+  // GET is scoped to the current authorized attendance call, but occupancy
+  // is global. A production user must not learn other machines' call details.
+  // The response contains stable technician IDs only (no machine/call IDs).
+  app.get<{ Querystring: TechnicianAvailabilityQuery }>(
+    "/api/technicians/availability",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      if (!centralAccessEnabled())
+        return reply.status(403).send({ error: "central_action_not_supported" });
+      const callId = request.query?.callId;
+      if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{1,160}$/.test(callId) ||
+          Object.keys(request.query ?? {}).some(key => key !== "callId")) {
+        return reply.status(400).send({ error: "invalid_input" });
+      }
+      try {
+        const workstationId = parseWorkstationId(request.headers["x-andon-workstation-id"]);
+        if (!workstationId)
+          throw new AccessError("workstation_identification_required");
+        const principal = await resolveSession(prisma, {
+          token: readSecureCookie(request, ACCESS_COOKIE),
+          workstationId,
+        });
+        const workstation = await prisma.workstation.findUnique({
+          where: { id: workstationId },
+          select: { active: true, pendingApproval: true, allowOperational: true,
+            allowBi: true, allowPriorities: true },
+        });
+        if (!workstation?.active || workstation.pendingApproval)
+          throw new AccessError("workstation_inactive");
+        assertModule(principal, workstation, "operational");
+        const permission = principal.permissions.includes("calls.attend")
+          ? "calls.attend" : "calls.technicians.manage";
+        assertPermission(principal, permission);
+
+        const call = await prisma.andonCall.findUnique({
+          where: { id: callId },
+          select: { machineId: true, category: true, status: true, isSystemTest: true },
+        });
+        // Deny unknown/foreign calls with the same response: no scope oracle.
+        if (!call || (principal.machineScope !== "all" &&
+            !principal.machineIds.includes(call.machineId)))
+          throw new AccessError("call_not_found", 404);
+        assertPermission(principal, permission, call.machineId);
+        if (call.category !== "maintenance" || call.isSystemTest ||
+            !["open", "in_progress", "post_maintenance"].includes(call.status))
+          throw new AccessError("call_not_identifiable", 409);
+
+        const [technicians, sessions] = await Promise.all([
+          prisma.technician.findMany({
+            where: { active: true },
+            select: { id: true, name: true },
+          }),
+          prisma.technicianSession.findMany({
+            where: { endedAt: null, callId: { not: callId } },
+            select: { technicianId: true, technicianName: true, callId: true },
+          }),
+        ]);
+        return {
+          busyTechnicianIds: busyTechnicianIdsFromGlobalSessions(technicians, sessions, callId),
+          checkedAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
   app.get<{ Querystring: TechnicianQuery }>("/api/technicians", async (request) => {
     const active = parseBoolean(request.query.active);
     const { technicalArea, shiftId } = request.query;
