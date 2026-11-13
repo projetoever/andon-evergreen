@@ -24,14 +24,15 @@ const TRUSTED_OPERATIONAL_GRANTS = new Set([
 // Intentionally allowlist, not blacklist: any newly introduced privilege
 // disqualifies a durable session until explicitly security-reviewed.
 export function permitsPersistentOperationalAccount(user: {
-  accountType: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
+  accountType: string; sessionPolicy?: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
   permissions: ReadonlyArray<{ key: string }>;
 }, station: { active: boolean; pendingApproval: boolean;
   allowPersistentOperationalLogin: boolean; lockedMachineId: string | null;
 }, machineIds: ReadonlyArray<{ machineId: string }>, machineScope: string) {
   return station.active && !station.pendingApproval &&
     station.allowPersistentOperationalLogin && Boolean(station.lockedMachineId) &&
-    user.accountType === "person" && !user.isPrimaryAdmin && !user.mustChangePassword &&
+    user.accountType === "person" && user.sessionPolicy === "persistent" &&
+    !user.isPrimaryAdmin && !user.mustChangePassword &&
     user.permissions.length > 0 &&
     user.permissions.every(permission => TRUSTED_OPERATIONAL_GRANTS.has(permission.key)) &&
     (machineScope === "all" ||
