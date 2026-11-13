@@ -20,6 +20,7 @@ import { LanguageProvider } from "@/i18n/LanguageProvider";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { GlobalVisualPaletteProvider } from "@/theme/GlobalVisualPaletteProvider";
 import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
+import { AndonBrowserIdentity } from "@/components/layout/AndonBrowserIdentity";
 
 import appCss from "../styles.css?url";
 
@@ -53,7 +54,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, interactive-widget=resizes-content" },
-      { title: "Andon Evergreen" },
+      { title: "Andon" },
       {
         name: "description",
         content: "Sistema Andon industrial para acompanhar máquinas e chamados em tempo real.",
@@ -85,6 +86,11 @@ export const Route = createRootRoute({
     ],
     links: [
       {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg?v=1",
+      },
+      {
         rel: "stylesheet",
         href: appCss,
       },
@@ -113,6 +119,7 @@ function RootComponent() {
   useInterfaceLanguage();
   return (
     <ModuleAccessProvider>
+      <AndonBrowserIdentity />
       <RootContent />
     </ModuleAccessProvider>
   );
