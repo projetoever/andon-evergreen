@@ -11,6 +11,7 @@ import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
   getGlobalHistoryCallDetail,
   getGlobalHistorySummary,
+  globalHistorySearchPath,
   listAuthorizedHistoryMachines,
   listGlobalHistoryCategoryOptions,
   listGlobalHistoryClassificationOptions,
@@ -280,6 +281,15 @@ export function GlobalCallHistoryPage() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Validate local calendar and clock before updating the live query.
+    // A malformed range must not crash a React effect or issue a broad search.
+    try {
+      globalHistorySearchPath(draft);
+    } catch (cause) {
+      setError(cause instanceof Error ? ui(cause.message) : ui("Informe um horário válido."));
+      return;
+    }
+    setError("");
     setOffset(0);
     setApplied({ ...draft });
     setMobileDetail(false);
@@ -413,12 +423,31 @@ export function GlobalCallHistoryPage() {
                   </label>
                 </div>
                 {draft.period === "custom" && (
-                  <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                    <span>{ui("Data de abertura")}</span>
-                    <input type="date" required value={draft.customDate}
-                      onChange={e=>edit({customDate:e.target.value})}
-                      className="min-h-10 w-full rounded-lg border border-border bg-background p-2 text-sm text-foreground" />
-                  </label>
+                  <div className="space-y-2 rounded-lg border border-border p-3">
+                    <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                      <span>{ui("Data de abertura")}</span>
+                      <input type="date" required value={draft.customDate}
+                        onChange={e=>edit({customDate:e.target.value})}
+                        className="min-h-10 w-full rounded-lg border border-border bg-background p-2 text-sm text-foreground" />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                        <span>{ui("Horário inicial")}</span>
+                        <input type="time" step={60} value={draft.timeFrom ?? ""}
+                          onChange={e=>edit({timeFrom:e.target.value})}
+                          className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background p-2 text-sm text-foreground" />
+                      </label>
+                      <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                        <span>{ui("Horário final")}</span>
+                        <input type="time" step={60} value={draft.timeBefore ?? ""}
+                          onChange={e=>edit({timeBefore:e.target.value})}
+                          className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background p-2 text-sm text-foreground" />
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {ui("Horários opcionais no fuso local. Se o final for anterior ao inicial, inclui a madrugada do dia seguinte.")}
+                    </p>
+                  </div>
                 )}
                 <details className="rounded-lg border border-border bg-muted/20 p-3">
                   <summary className="cursor-pointer text-xs font-bold"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{ui("Tipos de falha e filtros adicionais")}</summary>
