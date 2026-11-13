@@ -49,12 +49,16 @@ export function CallReasonsSettingsTab() {
   const [areaToAdd, setAreaToAdd] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
+  const [optionLabel, setOptionLabel] = useState("");
+  const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
 
   const refresh = useCallback(async (preferred?: string | null) => {
     setLoading(true);
     setError(null);
+    setEditingOptionId(null);
     try {
       const settings = await getSystemSettings();
       const allowed = settings.centralCallReasonsCatalogEnabled === true;
@@ -88,6 +92,7 @@ export function CallReasonsSettingsTab() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   function edit(reason: CallReasonView) {
+    setEditingOptionId(null);
     setSelected(reason.id);
     setAreaToAdd("");
     setDraft({
@@ -165,6 +170,41 @@ export function CallReasonsSettingsTab() {
       await refresh(chosen.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível alterar a especialidade."));
+    } finally { setBusy(false); }
+  }
+
+  function beginOptionEdit(option: CallReasonView["options"][number]) {
+    if (busy) return;
+    setEditingOptionId(option.id);
+    setOptionLabel(option.displayName ?? "");
+    setOptionOrder(String(option.displayOrder));
+  }
+
+  async function saveOptionPresentation(option: CallReasonView["options"][number]) {
+    if (!chosen || busy || editingOptionId !== option.id) return;
+    const label = optionLabel.trim();
+    const orderText = optionOrder.trim();
+    const order = Number(orderText);
+    if (label.length > 80 || !/^\\d{1,4}$/.test(orderText) ||
+        !Number.isSafeInteger(order) || order < 0 || order > 9999) {
+      toast.error(ui("Informe um nome de até 80 caracteres e uma ordem de 0 a 9999."));
+      return;
+    }
+    if ((option.displayName ?? "") === label && option.displayOrder === order) {
+      setEditingOptionId(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      // Only presentation fields are delegated: no specialty reassignment,
+      // reason nature, KPI policy, responsibility or analytics override.
+      await updateCallReasonOption(chosen.id, option.id, option.revision, {
+        displayName: label || null, displayOrder: order,
+      });
+      await refresh(chosen.id);
+      toast.success(ui("Apresentação da especialidade atualizada."));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar a especialidade."));
     } finally { setBusy(false); }
   }
 
@@ -263,8 +303,8 @@ export function CallReasonsSettingsTab() {
                 <h4 className="font-semibold">{ui("Especialidades deste motivo")}</h4>
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhuma especialidade vinculada.")}</p>}
                 {chosen.options.map(option => (
-                  <div key={option.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-                    <div>
+                  <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
+                    <div className="min-w-0 flex-1 space-y-2">
                       <p className="font-semibold">{option.displayName ?? option.technicalArea.displayName}</p>
                       <p className="text-xs text-muted-foreground">
                         {ui("KPI")}: {ui(option.effectivePolicy.effectiveKpiStatus)} ·
@@ -272,11 +312,51 @@ export function CallReasonsSettingsTab() {
                           ? ui("Candidata ao KPI corretivo mediante evidências")
                           : ui("Não é falha corretiva automática")}
                       </p>
+                      {editingOptionId === option.id && (
+                        <div className="space-y-3 border-t border-border pt-3">
+                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px]">
+                            <Label className="block space-y-2">
+                              {ui("Nome exibido da especialidade")}
+                              <Input maxLength={80} value={optionLabel} disabled={busy}
+                                onChange={event => setOptionLabel(event.target.value)}
+                                placeholder={ui("Usar nome da área técnica")} />
+                            </Label>
+                            <Label className="block space-y-2">
+                              {ui("Ordem de exibição")}
+                              <Input type="number" min={0} max={9999} step={1}
+                                value={optionOrder} disabled={busy}
+                                onChange={event => setOptionOrder(event.target.value)} />
+                            </Label>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {ui("Nome vazio utiliza a área técnica original. Essa edição não altera a especialidade vinculada nem a política de KPI.")}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" disabled={busy}
+                              onClick={() => void saveOptionPresentation(option)}>
+                              {ui("Salvar apresentação")}
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" disabled={busy}
+                              onClick={() => setEditingOptionId(null)}>
+                              {ui("Cancelar")}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Button type="button" size="sm" variant="outline" disabled={busy}
-                      onClick={() => void toggleArea(option.id, option.revision, !option.active)}>
-                      {ui(option.active ? "Inativar" : "Ativar")}
-                    </Button>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline"
+                        disabled={busy || (editingOptionId !== null && editingOptionId !== option.id)}
+                        onClick={() => editingOptionId === option.id
+                          ? setEditingOptionId(null) : beginOptionEdit(option)}>
+                        {ui(editingOptionId === option.id ? "Fechar edição" : "Editar apresentação")}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline"
+                        disabled={busy || editingOptionId !== null}
+                        onClick={() => void toggleArea(option.id, option.revision, !option.active)}>
+                        {ui(option.active ? "Inativar" : "Ativar")}
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 <div className="flex flex-wrap items-end gap-2">
