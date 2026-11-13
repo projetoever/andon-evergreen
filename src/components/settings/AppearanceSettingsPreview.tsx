@@ -8,6 +8,7 @@ import { VisualAccentRgbPicker } from "./VisualAccentRgbPicker";
 import { ui } from "@/i18n/translate";
 import {
   accentForTheme,
+  DEFAULT_VISUAL_PALETTE,
   restoreDefaultVisualPalette,
   VISUAL_PALETTE_KEYS,
   INDUSTRIAL_VISUAL_PRESETS,
@@ -234,7 +235,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
               }}>
                 {ui("Grupo de máquinas prioritárias — contorno configurável")}
               </div>
-              {VISUAL_PALETTE_KEYS.filter(key =>
+              {VISUAL_PALETTE_KEYS.filter(key => draft[key] !== DEFAULT_VISUAL_PALETTE[key] &&
                 paletteContrastRatio(accentForTheme(draft[key], theme),
                   key === "priorityBorder" ? background : card) < 3
               ).length > 0 && (
