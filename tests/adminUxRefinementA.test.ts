@@ -282,7 +282,7 @@ test("modo de atendimento possui retry, alterações pendentes e cancelamento", 
   assert.match(source, /Alterações não salvas/);
   assert.match(source, /Configuração sincronizada/);
   assert.match(source, /savedSettings && setSettings\(savedSettings\)/);
-  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges\}/);
+  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canWriteAttendance\}/);
   assert.match(source, /Informe entre 4 e 64 caracteres para a leitura RFID/);
 });
 
@@ -410,4 +410,39 @@ test("CFG-15: 11 abas exibem disponibilidade verificada sem prometer liberação
   assert.match(notice, /Disponibilidade não verificada/);
   assert.match(notice, /não há indicador central de disponibilidade/);
   assert.doesNotMatch(notice, /updateSystemSettings|createCallReason|openCall/);
+});
+
+test("CFG-15C: General Settings exposes reads but disables mutations when central operational writes are OFF", async () => {
+  const [source, server] = await Promise.all([
+    readFile(new URL("../src/components/settings/GeneralSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(source, /access\\?\\.centralAccessEnabled === true/);
+  assert.match(source, /setCentralWritable\\(settings\\.centralOperationalSettingsWriteEnabled === true\\)/);
+  assert.match(source, /const canWriteSettings = !centralMode \\|\\| centralWritable/);
+  assert.match(source, /setCentralWritable\\(false\\)/);
+  assert.match(source, /if \\(!canWriteSettings\\) return/);
+  assert.match(source, /disabled=\\{isLoadingSettings \\|\\| Boolean\\(settingsLoadError\\) \\|\\| isSavingKeyboard \\|\\| !canWriteSettings\\}/);
+  assert.match(source, /isSavingMaintenanceRestriction \\|\\| !canWriteSettings/);
+  assert.match(source, /isSavingWorkOrder \\|\\| !canWriteSettings/);
+  assert.match(source, /isSavingUniqueWorkOrder \\|\\| !canWriteSettings/);
+  assert.match(source, /isSavingDashboardOrderMode \\|\\| !canWriteSettings/);
+  assert.match(server, /centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled\\(\\)/);
+});
+
+test("CFG-15C: attendance mode never offers central write when flag OFF, including PIN and RFID", async () => {
+  const [source, server] = await Promise.all([
+    readFile(new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/access/centralOperationalSettings.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(source, /const canWriteAttendance = !centralAttendance \\|\\|/);
+  assert.match(source, /settings\\?\\.centralOperationalSettingsWriteEnabled === true/);
+  assert.match(source, /if \\(!settings \\|\\| !hasUnsavedChanges \\|\\| !canWriteAttendance \\|\\| isSaving\\) return/);
+  assert.match(source, /disabled=\\{!canWriteAttendance\\}/);
+  assert.match(source, /disabled=\\{isSaving \\|\\| !hasUnsavedChanges \\|\\| !canWriteAttendance\\}/);
+  assert.match(source, /centralDeclaredAttendanceEnabled !== true/);
+  assert.match(source, /Modo somente leitura: a gravação central/);
+  assert.match(server, /"attendanceMode"/);
+  assert.match(server, /"rfidInputTerminator"/);
+  assert.match(server, /"rfidCodeLength"/);
 });
