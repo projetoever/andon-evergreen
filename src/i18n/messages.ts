@@ -5294,6 +5294,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
     "輸入最多 80 個字元的班次名稱",
   ],
   ["Horário inicial inválido", "Invalid start time", "開始時間無效"],
+  ["Horário inicial","Start time","開始時間"],
+  ["Horário final","End time","結束時間"],
   ["Horário final inválido", "Invalid end time", "結束時間無效"],
   ["Status do turno inválido", "Invalid shift status", "班次狀態無效"],
   [
