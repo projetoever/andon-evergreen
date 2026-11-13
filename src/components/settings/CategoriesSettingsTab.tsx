@@ -13,6 +13,8 @@ import {
   updateCategoryConfig,
 } from "@/services/categoryConfigService";
 import type { AndonCategoryConfig } from "@/types/settings";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { getSystemSettings } from "@/services/systemSettingsService";
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
   useInterfaceLanguage();
@@ -46,6 +48,11 @@ function categorySlug(value: string) {
 
 export function CategoriesSettingsTab() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
+  // Feature gate is an environment capability, not the person's ACL.
+  const [centralCatalogWritable, setCentralCatalogWritable] = useState(false);
+  const canChangeCatalog = !centralMode || centralCatalogWritable;
   const [items, setItems] = useState<AndonCategoryConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AndonCategoryConfig>(() => emptyCategory(10));
@@ -97,6 +104,18 @@ export function CategoriesSettingsTab() {
   }, []);
 
   useEffect(() => {
+    if (!centralMode) return;
+    let mounted = true;
+    setCentralCatalogWritable(false);
+    void getSystemSettings().then(settings => {
+      if (mounted) setCentralCatalogWritable(settings.centralCategorySettingsWriteEnabled === true);
+    }).catch(() => {
+      if (mounted) setCentralCatalogWritable(false);
+    });
+    return () => { mounted = false; };
+  }, [centralMode]);
+
+  useEffect(() => {
     void refresh("electrical").catch((error) => {
       toast.error(error instanceof Error ? error.message : "Não foi possível carregar os setores");
     });
@@ -108,13 +127,14 @@ export function CategoriesSettingsTab() {
   }
 
   function handleAdd() {
+    if (!canChangeCatalog) return;
     const nextOrder = Math.max(0, ...items.map((item) => item.displayOrder)) + 10;
     setSelectedId(null);
     setDraft(emptyCategory(nextOrder));
   }
 
   async function handleSave() {
-    if (isBusy) return;
+    if (isBusy || !canChangeCatalog) return;
     const displayName = draft.displayName.trim();
     const id = selectedId ?? categorySlug(draft.id || displayName);
     if (!displayName) return toast.error("Informe o nome do setor.");
@@ -166,7 +186,9 @@ export function CategoriesSettingsTab() {
   }
 
   async function handleRemove() {
-    if (!selectedId || isBusy) return;
+    // Central HTTP only supports POST/PATCH. Never offer a DELETE that the
+    // server intentionally rejects to protect historical sector references.
+    if (centralMode || !selectedId || isBusy) return;
     const confirmed = window.confirm(
       ui('Remover o setor "{0}"? Setores que possuem histórico deverão ser apenas inativados.', {
         0: draft.displayName,
@@ -208,7 +230,7 @@ export function CategoriesSettingsTab() {
               tone="neutral"
               size="md"
               onClick={handleAdd}
-              disabled={isBusy || isLoading || Boolean(loadError)}
+              disabled={isBusy || isLoading || Boolean(loadError) || !canChangeCatalog}
             >
               {ui("Adicionar setor")}
             </BigButton>
@@ -447,8 +469,16 @@ export function CategoriesSettingsTab() {
             )}
           </p>
 
+          {centralMode && (
+            <p role="note" className="text-xs text-muted-foreground">
+              {ui(canChangeCatalog
+                ? "No acesso central, remova setores apenas pela inativação; a exclusão fica bloqueada para preservar vínculos e histórico."
+                : "Criação e edição centrais de setores estão desabilitadas ou não puderam ser verificadas. A exclusão permanece bloqueada.")}
+            </p>
+          )}
           <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
-            <BigButton tone="primary" size="md" onClick={() => void handleSave()} disabled={isBusy}>
+            <BigButton tone="primary" size="md" onClick={() => void handleSave()}
+              disabled={isBusy || !canChangeCatalog}>
               {isBusy ? ui("Salvando...") : ui("Salvar setor")}
             </BigButton>
             <BigButton tone="neutral" size="md" onClick={handleCancel} disabled={isBusy}>
@@ -458,7 +488,7 @@ export function CategoriesSettingsTab() {
               tone="danger"
               size="md"
               onClick={() => void handleRemove()}
-              disabled={!selectedId || isBusy}
+              disabled={!selectedId || isBusy || centralMode}
             >
               {ui("Remover setor")}
             </BigButton>

@@ -3,6 +3,14 @@ import { publicVisualPalette, publicVisualPaletteRevision } from "./andonVisualP
 import { centralVisualPaletteWritesEnabled } from "../security/centralVisualPaletteHttp.js";
 import { centralOperationalSettingsEnabled } from "../security/centralOperationalSettingsHttp.js";
 import { centralCallReasonsHttpEnabled } from "../security/centralCallReasonsHttp.js";
+import { centralCategorySettingsEnabled } from "../security/centralCategorySettingsHttp.js";
+import { centralShiftUpdateEnabled } from "../security/centralShiftSettingsHttp.js";
+import { centralClassificationHttpEnabled } from "../security/centralClassificationHttp.js";
+import { centralAssetTypeCatalogEnabled } from "../security/centralAssetTypeCatalogHttp.js";
+import { centralTechnicianCreateEnabled } from "../security/centralTechnicianCatalogHttp.js";
+import { centralTechnicianUpdateEnabled } from "../security/centralTechnicianCatalogUpdateHttp.js";
+import { centralMachineCreateEnabled } from "../security/centralMachineCreateHttp.js";
+import { centralMachineSettingsEnabled } from "../security/centralMachineSettingsHttp.js";
 
 export const GLOBAL_SYSTEM_SETTINGS_ID = "global";
 export const ATTENDANCE_MODES = ["name", "pin", "rfid"] as const;
@@ -51,6 +59,17 @@ export async function getSystemSettings() {
     andonVisualPaletteWriteEnabled: centralVisualPaletteWritesEnabled(),
     centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled(),
     centralCallReasonsCatalogEnabled: centralCallReasonsHttpEnabled(),
+    // CFG-15A: report the exact independent CENTRAL write gates for every
+    // catalog surface. These booleans convey deployment capabilities, NEVER
+    // user grants, workstation approval, request success or live acceptance.
+    centralCategorySettingsWriteEnabled: centralCategorySettingsEnabled(),
+    centralShiftUpdateEnabled: centralShiftUpdateEnabled(),
+    centralClassificationWriteEnabled: centralClassificationHttpEnabled(),
+    centralAssetTypeCatalogWriteEnabled: centralAssetTypeCatalogEnabled(),
+    centralTechnicianCreateEnabled: centralTechnicianCreateEnabled(),
+    centralTechnicianUpdateEnabled: centralTechnicianUpdateEnabled(),
+    centralMachineCreateEnabled: centralMachineCreateEnabled(),
+    centralMachineSettingsWriteEnabled: centralMachineSettingsEnabled(),
     centralDeclaredAttendanceEnabled: process.env.ANDON_CENTRAL_DECLARED_ATTENDANCE_HTTP_ENABLED === "1",
   };
 }
