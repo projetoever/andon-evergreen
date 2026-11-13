@@ -1,4 +1,4 @@
-import { ui } from "@/i18n/translate";
+import { ui, getInterfaceLocale } from "@/i18n/translate";
 import type { GlobalHistoryCallSummary } from "@/services/globalHistoryService";
 
 /** CSV from the currently visible, already authorized page ONLY.
@@ -19,7 +19,7 @@ export function buildGlobalHistoryPageCsv(
     if (!iso) return "";
     const date = new Date(iso);
     return Number.isFinite(date.valueOf())
-      ? date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" })
+      ? date.toLocaleString(getInterfaceLocale(), { dateStyle: "short", timeStyle: "medium" })
       : "";
   };
   const header = [

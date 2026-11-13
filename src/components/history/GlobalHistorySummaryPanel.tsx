@@ -1,5 +1,5 @@
 import { BarChart3 } from "lucide-react";
-import { ui } from "@/i18n/translate";
+import { ui, getInterfaceLocale } from "@/i18n/translate";
 import type { GlobalHistorySummary } from "@/services/globalHistoryService";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -19,7 +19,7 @@ function AggregateBars({ values, total }: {
       {values.map(v => <li key={v.label} className="min-w-0 space-y-1">
         <div className="flex justify-between gap-2 text-xs">
           <span className="min-w-0 truncate text-muted-foreground">{ui(v.label)}</span>
-          <strong className="tabular-nums">{v.count.toLocaleString("pt-BR")}</strong>
+          <strong className="tabular-nums">{v.count.toLocaleString(getInterfaceLocale())}</strong>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
           <div className="h-full rounded-full bg-primary"
@@ -50,7 +50,7 @@ export function GlobalHistorySummaryPanel({ summary }: { summary: GlobalHistoryS
           </p>
         </div>
         <div className="text-right">
-          <strong className="text-2xl font-black tabular-nums">{summary.total.toLocaleString("pt-BR")}</strong>
+          <strong className="text-2xl font-black tabular-nums">{summary.total.toLocaleString(getInterfaceLocale())}</strong>
           <p className="text-xs text-muted-foreground">{ui("Chamados encontrados")}</p>
         </div>
       </div>
@@ -67,9 +67,9 @@ export function GlobalHistorySummaryPanel({ summary }: { summary: GlobalHistoryS
         </div>
       </div>
       <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
-        {ui("Chamados reais")}: <strong>{summary.byOrigin.real.toLocaleString("pt-BR")}</strong>
+        {ui("Chamados reais")}: <strong>{summary.byOrigin.real.toLocaleString(getInterfaceLocale())}</strong>
         {" · "}
-        {ui("Testes do sistema")}: <strong>{summary.byOrigin.system.toLocaleString("pt-BR")}</strong>
+        {ui("Testes do sistema")}: <strong>{summary.byOrigin.system.toLocaleString(getInterfaceLocale())}</strong>
       </p>
     </section>
   );
