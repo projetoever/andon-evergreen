@@ -95,6 +95,13 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   const [newName, setNewName] = useState("");
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
+  // Feature gates come from system-settings, not the visible Admin tab.
+  // The central API still enforces approved workstation, session, ACL and CSRF.
+  const [centralCapabilities, setCentralCapabilities] = useState<{ create: boolean; update: boolean } | null>(null);
+  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityRetry, setCapabilityRetry] = useState(0);
+  const canCreateMachine = !centralAccess || centralCapabilities?.create === true;
+  const canEditMachineMetadata = !centralAccess || centralCapabilities?.update === true;
 
   const globalRequiresWorkOrder = globalWorkOrderRequirement === true;
   const sortedMachines = useMemo(() => sortMachines(machines), [machines]);
@@ -124,6 +131,8 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
 
   useEffect(() => {
     let active = true;
+    if (centralAccess) setCentralCapabilities(null); // fail closed during reload
+    setCapabilityError(false);
 
     const applySettings = (settings: { requireWorkOrderAtOpen?: boolean }) => {
       if (active) {
@@ -132,9 +141,23 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
     };
 
     void getSystemSettings()
-      .then(applySettings)
+      .then(settings => {
+        if (!active) return;
+        applySettings(settings);
+        if (centralAccess) {
+          setCentralCapabilities({
+            create: settings.centralMachineCreateEnabled === true,
+            update: settings.centralMachineSettingsWriteEnabled === true,
+          });
+        }
+      })
       .catch(() => {
-        if (active) setGlobalWorkOrderRequirement(null);
+        if (!active) return;
+        setGlobalWorkOrderRequirement(null);
+        if (centralAccess) {
+          setCentralCapabilities(null);
+          setCapabilityError(true);
+        }
       });
 
     const handleSettingsChanged = (event: Event) => {
@@ -147,7 +170,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
       active = false;
       window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
     };
-  }, []);
+  }, [centralAccess, capabilityRetry]);
 
   useEffect(() => {
     if (creating) return;
@@ -157,6 +180,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   }, [creating, filteredMachines, selectedMachineId]);
 
   function handleStartCreate() {
+    if (!canCreateMachine) return;
     setCreating(true);
     setSelectedMachineId(null);
     setNewId("");
@@ -166,6 +190,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   }
 
   function handleCreate() {
+    if (!canCreateMachine) return;
     const id = newId.trim();
     if (!id) return;
 
@@ -196,7 +221,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                 {ui("Localize e selecione uma máquina para editar.")}
               </p>
             </div>
-            <Button type="button" size="sm" onClick={handleStartCreate}>
+            <Button type="button" size="sm" onClick={handleStartCreate} disabled={!canCreateMachine}>
               <Plus className="mr-1 h-4 w-4" />
               {ui("Nova")}
             </Button>
@@ -351,7 +376,19 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
       </aside>
 
       <div className="min-w-0 space-y-4">
-        {centralAccess && <MachineConfigurationInventoryCard />}
+        {centralAccess && (
+          <>
+            <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/40 bg-info/10 p-3 text-sm">
+              <span>{!canCreateMachine && !canEditMachineMetadata ? ui("Somente leitura") : ui("Configurações operacionais de máquinas são controladas separadamente.")}</span>
+              {capabilityError && (
+                <button type="button" className="font-bold underline" onClick={() => setCapabilityRetry(value => value + 1)}>
+                  {ui("Tentar novamente")}
+                </button>
+              )}
+            </div>
+            <MachineConfigurationInventoryCard />
+          </>
+        )}
         {creating ? (
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
@@ -385,6 +422,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                   <Input
                     id="machine-id"
                     value={newId}
+                    disabled={!canCreateMachine}
                     onChange={(event) => setNewId(event.target.value)}
                     placeholder="18"
                   />
@@ -394,6 +432,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                   <Input
                     id="machine-name"
                     value={newName}
+                    disabled={!canCreateMachine}
                     onChange={(event) => setNewName(event.target.value)}
                     placeholder={ui("Máquina 18")}
                   />
@@ -419,13 +458,14 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                           )}
                     </span>
                   </span>
-                  <Switch checked={newRequireWorkOrder} onCheckedChange={setNewRequireWorkOrder} />
+                  <Switch checked={newRequireWorkOrder} disabled={!canCreateMachine} onCheckedChange={setNewRequireWorkOrder} />
                 </label>
 
                 <div className="space-y-1">
                   <Label>{ui("Modo padrão de produção")}</Label>
                   <Select
                     value={newProductionMode}
+                    disabled={!canCreateMachine}
                     onValueChange={(value) => setNewProductionMode(value as ProductionMode)}
                   >
                     <SelectTrigger disabled={centralAccess}>
@@ -441,7 +481,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
             </Section>
 
             <div className="flex justify-end">
-              <Button type="button" onClick={handleCreate} disabled={!newId.trim()}>
+              <Button type="button" onClick={handleCreate} disabled={!newId.trim() || !canCreateMachine}>
                 {ui("Criar máquina")}
               </Button>
             </div>
@@ -491,7 +531,9 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                   <Input
                     key={selectedMachine.id}
                     defaultValue={selectedMachine.name}
+                    disabled={!canEditMachineMetadata}
                     onBlur={(event) => {
+                      if (!canEditMachineMetadata) return;
                       const name = event.target.value.trim();
                       if (name && name !== selectedMachine.name) {
                         updateMachineCatalog(selectedMachine.id, { name });
@@ -582,11 +624,13 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                   </span>
                   <Switch
                     checked={selectedMachine.requireWorkOrderAtOpen === true}
-                    onCheckedChange={(checked) =>
+                    disabled={!canEditMachineMetadata}
+                    onCheckedChange={(checked) => {
+                      if (!canEditMachineMetadata) return;
                       updateMachineCatalog(selectedMachine.id, {
                         requireWorkOrderAtOpen: checked,
-                      })
-                    }
+                      });
+                    }}
                   />
                 </label>
 
@@ -594,11 +638,12 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                   <Label>{ui("Modo padrão de produção")}</Label>
                   <Select
                     value={selectedMachine.productionMode}
-                    onValueChange={(value) =>
-                      updateMachineProductionMode(selectedMachine.id, value as ProductionMode)
-                    }
+                    onValueChange={(value) => {
+                      if (centralAccess) return;
+                      updateMachineProductionMode(selectedMachine.id, value as ProductionMode);
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={centralAccess}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
