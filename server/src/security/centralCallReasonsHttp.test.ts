@@ -4,6 +4,7 @@ import type { FastifyRequest } from "fastify";
 import Fastify from "fastify";
 import { csrfToken } from "../access/credentials.js";
 import { conservativeReasonCreate, isDelegatedReasonCreate } from "./callReasonDelegateCreate.js";
+import { assertDelegatedOptionLinkPolicy, isDelegatedOptionCreate } from "./callReasonDelegateOptionCreate.js";
 import { AccessError, type Principal } from "../access/policy.js";
 import { registerCallReasonRoutes } from "../routes/callReasons.js";
 import {
@@ -224,6 +225,7 @@ test("CFG-08A: explicit ANDON settings delegate may read and PATCH only display 
       withBody("POST","/api/call-reasons",{id:"test",nature:"planned_setup"}),
       withBody("POST","/api/call-reasons/maintenance/options",{
         id:"electrical",technicalAreaId:"electrical",
+        maintenanceKpiPolicyOverride:"eligible",
       }),
       withBody("PATCH","/api/call-reasons/maintenance",{
         expectedRevision:2,maintenanceKpiPolicy:"eligible",
@@ -311,6 +313,7 @@ test("CFG-08B1: delegated reason creation is conservative, explicit and fail-clo
     denied(() => markCentralCallReasonAuthorized(
       Object.assign(fake("POST", "/api/call-reasons/setup_op/options"), { body: {
         id: "mech", technicalAreaId: "mechanical",
+        natureOverride: "corrective_failure",
       } }), delegate, station,
     ), "primary_admin_required");
     process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
@@ -320,5 +323,57 @@ test("CFG-08B1: delegated reason creation is conservative, explicit and fail-clo
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = previous.central;
     if (previous.catalog === undefined) delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
     else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = previous.catalog;
+  }
+});
+
+test("CFG-08B2: settings delegate may link existing specialty only with a safe payload", () => {
+  const prevCentral = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const prevCatalog = process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+  const delegate: Principal = {
+    ...admin, isPrimaryAdmin: false, roleLabel: "Gerente",
+    machineScope: "selected", machineIds: ["37"],
+    permissions: ["andon.read", "andon.settings.open"],
+  };
+  const safe = {
+    id: "setup_mech", technicalAreaId: "mechanical", active: true, displayOrder: 20,
+  };
+  const makeRequest = (body: unknown, csrf = csrfToken(token)) =>
+    Object.assign(fake("POST", "/api/call-reasons/setup/options", csrf), { body });
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
+    assert.equal(isDelegatedOptionCreate(safe), true);
+    assert.equal(assertDelegatedOptionLinkPolicy({ active: true, maintenanceKpiPolicy: "pending" }), true);
+    assert.equal(assertDelegatedOptionLinkPolicy({ active: true, maintenanceKpiPolicy: "excluded" }), true);
+    assert.equal(assertDelegatedOptionLinkPolicy({ active: true, maintenanceKpiPolicy: "eligible" }), false);
+    assert.equal(assertDelegatedOptionLinkPolicy({ active: false, maintenanceKpiPolicy: "pending" }), false);
+    markCentralCallReasonAuthorized(makeRequest(safe), delegate, station);
+    for (const injection of [
+      { ...safe, maintenanceKpiPolicyOverride: "eligible" },
+      { ...safe, natureOverride: "corrective_failure" },
+      { ...safe, analyticsDispositionOverride: "include" },
+      { ...safe, suggestedResponsibilityOverride: "maintenance" },
+      { ...safe, id: "../another" },
+      { ...safe, technicalAreaId: "" },
+      { ...safe, active: "true" },
+      { ...safe, displayOrder: 99999 },
+    ]) {
+      assert.equal(isDelegatedOptionCreate(injection), false);
+      denied(() => markCentralCallReasonAuthorized(makeRequest(injection), delegate, station), "primary_admin_required");
+    }
+    denied(() => markCentralCallReasonAuthorized(makeRequest(safe, "0".repeat(64)), delegate, station), "csrf_denied");
+    denied(() => markCentralCallReasonAuthorized(makeRequest(safe), {
+      ...delegate, permissions: ["andon.read"],
+    }, station), "scoped_query_required");
+    denied(() => markCentralCallReasonAuthorized(makeRequest(safe), {
+      ...delegate, accountType: "service",
+    }, station), "scoped_query_required");
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
+    denied(() => markCentralCallReasonAuthorized(makeRequest(safe), delegate, station), "central_action_not_supported");
+  } finally {
+    if (prevCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = prevCentral;
+    if (prevCatalog === undefined) delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = prevCatalog;
   }
 });

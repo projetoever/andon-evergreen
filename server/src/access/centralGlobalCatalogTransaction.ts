@@ -25,7 +25,7 @@ export async function runCentralGlobalCatalogTransaction<T>(
      */
     assertAuthorizedCatalogPrincipal?: (principal: Principal) => void;
     // Must be supplied only by trusted server code, never from a request body.
-    applyReviewedDomainMutation: (tx: Prisma.TransactionClient) => Promise<{
+    applyReviewedDomainMutation: (tx: Prisma.TransactionClient, authorizedPrincipal: Principal) => Promise<{
       value: T; resourceId: string; resourceType: string;
       before?: unknown; after?: unknown;
     }>;
@@ -74,7 +74,7 @@ export async function runCentralGlobalCatalogTransaction<T>(
       throw new AccessError("primary_admin_required");
     input.assertAuthorizedCatalogPrincipal?.(latest);
     for (const permission of input.additionalPermissions ?? []) assertPermission(latest, permission);
-    const result = await input.applyReviewedDomainMutation(tx);
+    const result = await input.applyReviewedDomainMutation(tx, latest);
     if (!result || !result.resourceId || !result.resourceType)
       throw new AccessError("invalid_action_resource", 400);
     await appendAudit(tx, {

@@ -17,7 +17,7 @@ test("CFG-08A: explicit Admin status controls catalog create and KPI-sensitive c
   assert.match(page,/disabled=\{busy \|\| !isPrimaryAdmin\}/);
   assert.match(page,/disabled=\{busy \|\| \(Boolean\(chosen\) && !isPrimaryAdmin\)\}/);
   assert.match(page,/!chosen && !isPrimaryAdmin/);
-  assert.match(page,/KPI exigem Admin principal/);
+  assert.match(page,/Políticas de KPI continuam exclusivas do Admin principal/);
 });
 
 test("CFG-08A: transaction rechecks delegated catalog role after session refresh", async () => {
@@ -32,7 +32,7 @@ test("CFG-08A: transaction rechecks delegated catalog role after session refresh
   assert.match(domain,/!isAndonSettingsDelegate\(principal\)/);
   assert.match(domain,/requirePrimaryAdmin: !safeDelegateAction/);
   assert.match(http,/isReasonPresentationOnlyPatch\(/);
-  assert.match(http,/!principal\.isPrimaryAdmin && !presentationPatch && !conservativeCreate/);
+  assert.match(http,/!principal\.isPrimaryAdmin && !presentationPatch && !conservativeCreate && !safeOptionCreate/);
   assert.match(http,/checkCsrf\(/);
 });
 
@@ -69,7 +69,7 @@ test("CFG-08B1: reason creation by settings delegates cannot choose KPI or creat
   assert.match(page, /await createCallReason\(isPrimaryAdmin \? next : \{/);
   assert.match(page, /id: next\.id, displayName: next\.displayName, color: next\.color/);
   assert.match(page, /nature: next\.nature/);
-  assert.match(page, /Vincular especialidades e alterar políticas de KPI exigem Admin principal/);
+  assert.match(page, /vincular especialidades a motivos não elegíveis/);
   assert.match(service, /CreateCallReason \| DelegatedReasonCreate/);
   assert.match(helper, /SAFE_REASON_FIELDS/);
   assert.match(helper, /maintenanceKpiPolicy: operative \? "excluded" : "pending"/);
@@ -79,5 +79,28 @@ test("CFG-08B1: reason creation by settings delegates cannot choose KPI or creat
   assert.match(domain, /conservativeReasonCreate\(/);
   assert.match(domain, /additionalPermissions: safeDelegateAction \? \[\] : \["analytics\.policy\.manage"\]/);
   assert.match(tx, /input\.assertAuthorizedCatalogPrincipal\?\.\(latest\)/);
-  assert.match(page, /disabled=\{busy \|\| !areaToAdd \|\| !isPrimaryAdmin\}/);
+  assert.match(page, /disabled=\{busy \|\| !areaToAdd \|\| restrictedDelegatedLink\}/);
+});
+
+test("CFG-08B2: delegates may link only compatible areas without changing KPI ownership", async () => {
+  const [page, http, domain, policy, tx] = await Promise.all([
+    source("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    source("../server/src/security/centralCallReasonsHttp.ts"),
+    source("../server/src/access/centralCallReasonsWrite.ts"),
+    source("../server/src/security/callReasonDelegateOptionCreate.ts"),
+    source("../server/src/access/centralGlobalCatalogTransaction.ts"),
+  ]);
+  assert.match(page, /chosen\?\.maintenanceKpiPolicy === "eligible"/);
+  assert.match(page, /chosen\.nature !== "corrective_failure" \|\| area\.categoryGroup === "maintenance"/);
+  assert.match(page, /!chosen \|\| !areaToAdd \|\| busy \|\| restrictedDelegatedLink/);
+  assert.match(page, /disabled=\{busy \|\| restrictedDelegatedLink\}/);
+  assert.match(page, /disabled=\{busy \|\| !areaToAdd \|\| restrictedDelegatedLink\}/);
+  assert.match(http, /isDelegatedOptionCreate\(request\.body\)/);
+  assert.match(domain, /isDelegatedOptionCreate\(input\.body\)/);
+  assert.match(domain, /assertDelegatedOptionLinkPolicy\(reason\)/);
+  assert.match(domain, /effective\.correctiveCandidate \|\| effective\.effectiveKpiStatus === "eligible"/);
+  assert.match(domain, /authorizedPrincipal\.isPrimaryAdmin/);
+  assert.match(tx, /applyReviewedDomainMutation\(tx, latest\)/);
+  assert.match(policy, /OPTION_CREATE_FIELDS/);
+  assert.doesNotMatch(policy, /"natureOverride"|"maintenanceKpiPolicyOverride"|"analyticsDispositionOverride"/);
 });

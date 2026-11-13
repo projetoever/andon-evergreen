@@ -54,6 +54,13 @@ export function CallReasonsSettingsTab() {
   const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
+  const restrictedDelegatedLink = !isPrimaryAdmin &&
+    (chosen?.maintenanceKpiPolicy === "eligible" || chosen?.active !== true);
+  const linkableAreas = chosen ? areas.filter(area =>
+    area.active &&
+    !chosen.options.some(option => option.technicalAreaId === area.id) &&
+    (chosen.nature !== "corrective_failure" || area.categoryGroup === "maintenance")
+  ) : [];
 
   const refresh = useCallback(async (preferred?: string | null) => {
     setLoading(true);
@@ -146,9 +153,9 @@ export function CallReasonsSettingsTab() {
   }
 
   async function addArea() {
-    if (!isPrimaryAdmin || !chosen || !areaToAdd || busy) return;
+    if (!chosen || !areaToAdd || busy || restrictedDelegatedLink) return;
     const area = areas.find(item => item.id === areaToAdd);
-    if (!area?.active) return;
+    if (!area?.active || !linkableAreas.some(item => item.id === area.id)) return;
     setBusy(true);
     try {
       await addCallReasonOption(chosen.id, {
@@ -231,7 +238,7 @@ export function CallReasonsSettingsTab() {
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       {!loading && enabled && !isPrimaryAdmin && !error && (
         <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-          {ui("Permissão de Config. do ANDON: você pode cadastrar motivos com política conservadora e editar sua apresentação. Vincular especialidades e alterar políticas de KPI exigem Admin principal.")}
+          {ui("Config. do ANDON: você pode cadastrar motivos conservadores, editar sua apresentação e vincular especialidades a motivos não elegíveis. Políticas de KPI continuam exclusivas do Admin principal.")}
         </p>
       )}
       {!loading && enabled && !error && (
@@ -370,17 +377,25 @@ export function CallReasonsSettingsTab() {
                 <div className="flex flex-wrap items-end gap-2">
                   <Label className="min-w-48 flex-1 space-y-2">{ui("Vincular especialidade")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                      value={areaToAdd} disabled={busy || !isPrimaryAdmin}
+                      value={areaToAdd} disabled={busy || restrictedDelegatedLink}
                       onChange={e => setAreaToAdd(e.target.value)}>
                       <option value="">{ui("Selecione uma especialidade")}</option>
-                      {areas.filter(area => area.active && !chosen.options.some(option => option.technicalAreaId === area.id))
-                        .map(area => <option key={area.id} value={area.id}>{area.displayName}</option>)}
+                      {linkableAreas.map(area =>
+                        <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
-                  <Button type="button" disabled={busy || !areaToAdd || !isPrimaryAdmin} onClick={() => void addArea()}>
+                  <Button type="button" disabled={busy || !areaToAdd || restrictedDelegatedLink}
+                    onClick={() => void addArea()}>
                     {ui("Vincular")}
                   </Button>
                 </div>
+                {!isPrimaryAdmin && (
+                  <p role="note" className="text-xs text-muted-foreground">
+                    {ui(restrictedDelegatedLink
+                      ? "Vínculo reservado ao Admin principal: este motivo está inativo ou possui política de KPI elegível."
+                      : "O novo vínculo herdará a política do motivo, sem alterar KPI. Vincule somente áreas compatíveis e ativas.")}
+                  </p>
+                )}
               </section>
             )}
           </section>

@@ -7,6 +7,7 @@ import {
 } from "../access/policy.js";
 import { isReasonPresentationOnlyPatch } from "./callReasonPresentationPolicy.js";
 import { isDelegatedReasonCreate } from "./callReasonDelegateCreate.js";
+import { isDelegatedOptionCreate } from "./callReasonDelegateOptionCreate.js";
 
 const validated = new WeakSet<FastifyRequest>();
 const validatedReads = new WeakSet<FastifyRequest>();
@@ -87,7 +88,12 @@ export function markCentralCallReasonAuthorized(
     );
   const conservativeCreate = request.method === "POST" &&
     path === "/api/call-reasons" && isDelegatedReasonCreate(request.body);
-  if (!principal.isPrimaryAdmin && !presentationPatch && !conservativeCreate)
+  // A delegate can link areas without policy overrides. Whether the selected
+  // reason is eligible is verified against the CURRENT row inside the transaction.
+  const safeOptionCreate = request.method === "POST" &&
+    new RegExp(`^/api/call-reasons/${ID}/options$`).test(path) &&
+    isDelegatedOptionCreate(request.body);
+  if (!principal.isPrimaryAdmin && !presentationPatch && !conservativeCreate && !safeOptionCreate)
     throw new AccessError("primary_admin_required");
   if (principal.isPrimaryAdmin)
     assertPermission(principal, "analytics.policy.manage");

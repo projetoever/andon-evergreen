@@ -26,6 +26,10 @@ const login = "ci.r6.reasons." + suffix;
 const reasonId = "r6_reason_" + suffix;
 const delegatedReasonId = "r6_delegate_" + suffix;
 const delegatedCorrectiveId = "r6_pending_" + suffix;
+const eligibleReasonId = "r6_eligible_" + suffix;
+const productionAreaId = "r6_prod_" + suffix;
+const delegatedOptionId = "r6_link_" + suffix;
+const correctiveOptionId = "r6_corr_" + suffix;
 const optionId = "r6_opt_" + suffix;
 const areaId = "r6_area_" + suffix;
 let userId = null;
@@ -70,6 +74,10 @@ try {
   } });
   await db.andonCategory.create({
     data: { id: areaId, displayName: "Mecânica sintética R6", categoryGroup: "maintenance", color: "#64748B" },
+  });
+  await db.andonCategory.create({
+    data: { id: productionAreaId, displayName: "Produção sintética R6",
+      categoryGroup: "production", color: "#64748B" },
   });
 
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
@@ -168,6 +176,14 @@ try {
     assert.equal(res.statusCode, expected, res.body);
   }
   assert.equal((await audit()).length, 4);
+  // Eligible corrective parent is created by the primary Admin and must
+  // remain off limits for creating new specialty links as a delegate.
+  const eligibleParent = await send("POST", "/api/call-reasons", {
+    id: eligibleReasonId, displayName: "Corretiva elegível — Admin",
+    nature: "corrective_failure", maintenanceKpiPolicy: "eligible",
+    suggestedResponsibility: "maintenance", analyticsDisposition: "include",
+  });
+  assert.equal(eligibleParent.statusCode, 201, eligibleParent.body);
 
   await db.accessUser.update({ where: { id: userId }, data: { isPrimaryAdmin: false } });
   const nonAdmin = await send("GET", "/api/call-reasons");
@@ -207,10 +223,52 @@ try {
     nature: "corrective_failure", maintenanceKpiPolicy: "eligible",
   });
   assert.equal(injected.statusCode, 403, injected.body);
-  const linkDenied = await send("POST",
+  // CFG-08B2: delegated links inherit only the parent policy, with zero KPI
+  // overrides and no widening to an eligible corrective parent.
+  const safeLink = await send("POST",
     "/api/call-reasons/" + delegatedReasonId + "/options",
-    { id: "forbidden", technicalAreaId: areaId });
-  assert.equal(linkDenied.statusCode, 403, linkDenied.body);
+    { id: delegatedOptionId, technicalAreaId: productionAreaId,
+      displayName: "Equipe de produção", active: true, displayOrder: 10 });
+  assert.equal(safeLink.statusCode, 201, safeLink.body);
+  assert.equal(safeLink.json().maintenanceKpiPolicyOverride, null);
+  const correctiveLink = await send("POST",
+    "/api/call-reasons/" + delegatedCorrectiveId + "/options",
+    { id: correctiveOptionId, technicalAreaId: areaId, active: true });
+  assert.equal(correctiveLink.statusCode, 201, correctiveLink.body);
+  assert.equal(correctiveLink.json().natureOverride, null);
+  const eligibleDenied = await send("POST",
+    "/api/call-reasons/" + eligibleReasonId + "/options",
+    { id: "eligible_denied", technicalAreaId: areaId });
+  assert.equal(eligibleDenied.statusCode, 403, eligibleDenied.body);
+  const incompatible = await send("POST",
+    "/api/call-reasons/" + delegatedCorrectiveId + "/options",
+    { id: "incompatible", technicalAreaId: productionAreaId });
+  assert.equal(incompatible.statusCode, 400, incompatible.body);
+  const forcedKpi = await send("POST",
+    "/api/call-reasons/" + delegatedReasonId + "/options",
+    { id: "forced_kpi", technicalAreaId: areaId,
+      maintenanceKpiPolicyOverride: "eligible" });
+  assert.equal(forcedKpi.statusCode, 403, forcedKpi.body);
+  assert.equal(await db.callReasonOption.count({
+    where: { reasonId: eligibleReasonId },
+  }), 0);
+  const linkedSetup = await send("GET", "/api/call-reasons");
+  assert.equal(linkedSetup.statusCode, 200, linkedSetup.body);
+  const optionEffective = linkedSetup.json()
+    .find(reason => reason.id === delegatedReasonId)?.options
+    .find(option => option.id === delegatedOptionId)?.effectivePolicy;
+  assert.equal(optionEffective?.correctiveCandidate, false);
+  assert.equal(optionEffective?.effectiveKpiStatus, "excluded");
+  const linkedCorrective = linkedSetup.json()
+    .find(reason => reason.id === delegatedCorrectiveId)?.options
+    .find(option => option.id === correctiveOptionId)?.effectivePolicy;
+  assert.equal(linkedCorrective?.correctiveCandidate, false);
+  assert.equal(linkedCorrective?.effectiveKpiStatus, "pending");
+  const optionAudits = await db.auditEvent.findMany({ where: {
+    resourceType: "call_reason_option",
+    resourceId: { in: [delegatedOptionId, correctiveOptionId] },
+  } });
+  assert.equal(optionAudits.length, 2);
   const delegateAudits = await db.auditEvent.findMany({
     where: { resourceType: "call_reason", resourceId: { in: [
       delegatedReasonId, delegatedCorrectiveId,
@@ -235,11 +293,17 @@ try {
   process.stdout.write("R6 reasons HTTP PostgreSQL PASS: ACL, CSRF, revision race, KPI, audit atomicity and flag rollback\n");
 } finally {
   if (app) await app.close();
-  await db.callReasonOption.deleteMany({ where: { reasonId } });
-  await db.callReason.deleteMany({ where: { id: { in: [reasonId, delegatedReasonId, delegatedCorrectiveId] } } });
+  await db.callReasonOption.deleteMany({ where: {
+    reasonId: { in: [reasonId, delegatedReasonId, delegatedCorrectiveId, eligibleReasonId] },
+  } });
+  await db.callReason.deleteMany({ where: {
+    id: { in: [reasonId, delegatedReasonId, delegatedCorrectiveId, eligibleReasonId] },
+  } });
   // audit_events is intentionally APPEND-ONLY. Never delete or tamper with
   // synthetic audit evidence, even during test fixture cleanup.
-  await db.andonCategory.deleteMany({ where: { id: areaId } });
+  await db.andonCategory.deleteMany({ where: {
+    id: { in: [areaId, productionAreaId] },
+  } });
   if (userId) {
     await db.accessSession.deleteMany({ where: { userId } });
     await db.accessPermission.deleteMany({ where: { userId } });

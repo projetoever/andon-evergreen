@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient, CallReason, CallReasonOption } from "@prisma/client";
-import { AccessError, isAndonSettingsDelegate } from "./policy.js";
+import { AccessError, isAndonSettingsDelegate, type Principal } from "./policy.js";
 import { runCentralGlobalCatalogTransaction } from "./centralGlobalCatalogTransaction.js";
 import {
   parseReasonCreate, parseReasonPatch, parseOptionCreate,
@@ -8,6 +8,7 @@ import {
 import { centralCallReasonsHttpEnabled } from "../security/centralCallReasonsHttp.js";
 import { isReasonPresentationOnlyPatch } from "../security/callReasonPresentationPolicy.js";
 import { conservativeReasonCreate, isDelegatedReasonCreate } from "../security/callReasonDelegateCreate.js";
+import { assertDelegatedOptionLinkPolicy, isDelegatedOptionCreate } from "../security/callReasonDelegateOptionCreate.js";
 
 export type CallReasonWrite = {
   token: string;
@@ -52,7 +53,9 @@ export function runCentralCallReasonWrite(
   const presentationPatch = isReasonPresentationOnlyPatch(input.operation, input.body);
   const conservativeCreate = input.operation === "reason.create" &&
     isDelegatedReasonCreate(input.body);
-  const safeDelegateAction = presentationPatch || conservativeCreate;
+  const safeOptionCreate = input.operation === "option.create" &&
+    isDelegatedOptionCreate(input.body);
+  const safeDelegateAction = presentationPatch || conservativeCreate || safeOptionCreate;
   return runCentralGlobalCatalogTransaction<CallReason | CallReasonOption>(db, {
     token: input.token,
     workstationId: input.workstationId,
@@ -69,7 +72,7 @@ export function runCentralCallReasonWrite(
           !isAndonSettingsDelegate(principal))
         throw new AccessError("primary_admin_required");
     },
-    applyReviewedDomainMutation: async (tx: Prisma.TransactionClient) => {
+    applyReviewedDomainMutation: async (tx: Prisma.TransactionClient, authorizedPrincipal: Principal) => {
       if (input.operation === "reason.create") {
         // A delegate can name and categorize a reason, but cannot submit KPI,
         // responsibility or disposition fields. They are fixed server-side.
@@ -113,7 +116,19 @@ export function runCentralCallReasonWrite(
         if (!reason) throw new AccessError("call_reason_not_found", 404);
         if (!area) throw new AccessError("technical_area_not_found", 404);
         if (data.active && !area.active) throw new AccessError("technical_area_inactive", 409);
-        assertEffectiveReasonOption(reason, { ...data, reasonId: reason.id, revision: 1 }, area);
+        // Server-trusted principal was resolved TWICE inside the locked
+        // transaction. For delegates, reject eligible parents or inactive
+        // catalogue entries regardless of any stale UI state.
+        if (!authorizedPrincipal.isPrimaryAdmin) {
+          if (!safeOptionCreate || !assertDelegatedOptionLinkPolicy(reason) || !area.active)
+            throw new AccessError("delegated_option_link_not_allowed", 403);
+        }
+        const effective = assertEffectiveReasonOption(
+          reason, { ...data, reasonId: reason.id, revision: 1 }, area,
+        );
+        if (!authorizedPrincipal.isPrimaryAdmin &&
+            (effective.correctiveCandidate || effective.effectiveKpiStatus === "eligible"))
+          throw new AccessError("delegated_option_link_not_allowed", 403);
         const created = await tx.callReasonOption.create({
           data: { ...data, reasonId: reason.id },
         });
