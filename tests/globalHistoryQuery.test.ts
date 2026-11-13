@@ -60,3 +60,31 @@ test("HIST-03: today/7d/30d include correct local calendar days, not sliding hou
   assert.equal(week.openedBefore, today.openedBefore);
   assert.equal(month.openedBefore, today.openedBefore);
 });
+
+
+test("HIST-07: custom date filters exact local working-hour bounds", () => {
+  const selected = filters({ period:"custom", customDate:"2026-11-12", timeFrom:"08:15", timeBefore:"16:45" });
+  const p = new URL(globalHistorySearchPath(selected), "https://andon.test").searchParams;
+  assert.equal(p.get("openedFrom"), new Date(2026, 10, 12, 8, 15).toISOString());
+  assert.equal(p.get("openedBefore"), new Date(2026, 10, 12, 16, 45).toISOString());
+});
+
+test("HIST-07: overnight shift extends to the NEXT calendar day in local time", () => {
+  const range = dateRangeForGlobalHistory("custom", "2026-11-12", new Date(), "22:00", "06:00");
+  assert.equal(range.openedFrom, new Date(2026, 10, 12, 22).toISOString());
+  assert.equal(range.openedBefore, new Date(2026, 10, 13, 6).toISOString());
+  const earlyOnly = dateRangeForGlobalHistory("custom", "2026-11-12", new Date(), "", "06:00");
+  assert.equal(earlyOnly.openedFrom, new Date(2026, 10, 12).toISOString());
+  assert.equal(earlyOnly.openedBefore, new Date(2026, 10, 12, 6).toISOString());
+});
+
+test("HIST-07: invalid clocks and zero-length ranges reject before querying API", () => {
+  for (const bad of ["25:00", "08:60", "8:00", "23:59:00"]) {
+    assert.throws(() => dateRangeForGlobalHistory("custom", "2026-11-12", new Date(), bad, ""), /horário válido/);
+  }
+  assert.throws(() => dateRangeForGlobalHistory("custom", "2026-11-12", new Date(), "08:00", "08:00"), /diferentes/);
+  const now = new Date(2026, 10, 12, 12);
+  const baseline = dateRangeForGlobalHistory("30d", "", now);
+  const timeIgnored = dateRangeForGlobalHistory("30d", "", now, "22:00", "06:00");
+  assert.deepEqual(timeIgnored, baseline, "clock limits are applied only with a selected date");
+});
