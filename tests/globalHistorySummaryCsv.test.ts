@@ -11,7 +11,7 @@ import type { GlobalHistorySearchFilters } from "../src/services/globalHistorySe
 const filters: GlobalHistorySearchFilters = {
   query:"motor & sensor",machineId:"15",subtype:"electrical",status:"finished",
   technician:"Carlos",failureClassification:"failure",reasonId:"maintenance",
-  origin:"real",period:"custom",customDate:"2026-11-12",
+  origin:"real",period:"custom",customDate:"2026-11-12",timeFrom:"22:00",timeBefore:"06:00",
 };
 
 test("HIST-05: aggregate reuses every filter without page limit or offset", () => {
