@@ -11,6 +11,7 @@ export interface AccessUser {
   active: boolean;
   isPrimaryAdmin: boolean;
   machineScope: "all" | "selected";
+  sessionPolicy: "standard" | "persistent";
   mustChangePassword: boolean;
   authorizationVersion: number;
   permissions: { key: string }[];
@@ -23,6 +24,7 @@ export interface UserDraft {
   accountType: "person" | "kiosk";
   active: boolean;
   machineScope: "all" | "selected";
+  sessionPolicy: "standard" | "persistent";
   permissions: string[];
   machineIds: string[];
   version?: number;

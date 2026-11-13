@@ -41,7 +41,7 @@ try {
   adminUserId = admin.id;
   const operator = await db.accessUser.create({ data: {
     login: "ci.operator.persistent." + n, displayName: "CI Production",
-    roleLabel: "Produção", accountType: "person", active: true,
+    roleLabel: "Produção", accountType: "person", sessionPolicy: "standard", active: true,
     mustChangePassword: false, machineScope: "selected",
     passwordHash: await hashAccessPassword(operatorPassword),
     permissions: { create: [{ key: "andon.read" }, { key: "calls.open" }] },
@@ -88,6 +88,31 @@ try {
   const on = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
   assert.equal(on.statusCode, 200, on.body);
   const loginToken = randomBytes(32).toString("hex");
+  // Trusted workstation alone cannot grant persistent login to a standard user.
+  const standardLogin = await app.inject({
+    method: "POST", url: "/api/access/login",
+    headers: {
+      origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken),
+    },
+    payload: { login: operator.login, password: operatorPassword },
+  });
+  assert.equal(standardLogin.statusCode, 200, standardLogin.body);
+  assert.equal(standardLogin.json().persistentOperational, false);
+  const standardToken = String(standardLogin.headers["set-cookie"])
+    .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
+  assert(standardToken);
+  const updatedPolicy = await adminRequest("PUT", "/users/" + operator.id, {
+    login: operator.login, displayName: operator.displayName,
+    roleLabel: operator.roleLabel, accountType: "person", active: true,
+    machineScope: "selected", sessionPolicy: "persistent",
+    permissions: ["andon.read", "calls.open"], machineIds: [machineId],
+    version: operator.authorizationVersion,
+  });
+  assert.equal(updatedPolicy.statusCode, 200, updatedPolicy.body);
+  await assert.rejects(resolveSession(db, { token: standardToken, workstationId: targetStationId }));
+
   const login = await app.inject({
     method: "POST", url: "/api/access/login",
     headers: {

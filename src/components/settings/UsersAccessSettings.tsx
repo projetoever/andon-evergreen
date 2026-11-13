@@ -17,6 +17,7 @@ import {
 } from "@/services/accessService";
 
 import { permissionLabels } from "@/services/accessLabels";
+import { persistentSessionIncompatibleGrants, suggestedPersistentProductionGrants } from "@/services/persistentSessionEligibility";
 import {
   SIMPLE_MODULE_GROUPS,
   advancedModuleGrants,
@@ -37,6 +38,7 @@ const emptyDraft = (): UserDraft => ({
   accountType: "person",
   active: true,
   machineScope: "selected",
+  sessionPolicy: "standard",
   permissions: [],
   machineIds: [],
 });
@@ -186,6 +188,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
           accountType: user.accountType,
           active: user.active,
           machineScope: user.machineScope,
+          sessionPolicy: user.sessionPolicy,
           permissions: user.permissions.map((p) => p.key),
           machineIds: user.machines.map((m) => m.machineId),
           version: user.authorizationVersion,
@@ -746,7 +749,6 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         ))}
                       </select>
                     </Label>
-
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {ui("Novos cadastros são contas de usuário com senha. O perfil descreve a função; selecione os módulos ou use Avançado para restringir ações.")}
@@ -757,6 +759,61 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       <p>{ui("Este cadastro permanece inativo porque ainda não existe provisionamento seguro de Kiosk. Não é possível ativá-lo, redefinir sua senha ou convertê-lo em Pessoa aqui.")}</p>
                       <p>{ui("Para utilizar esse login na Produção, renomeie este cadastro inativo e salve; depois crie uma conta Pessoa com o login desejado, escopo de máquinas e permissões adequados.")}</p>
                     </div>
+                  )}
+                  {draft.accountType === "person" && (
+                    <fieldset className="space-y-2 rounded-md border p-3">
+                      <legend className="px-1 font-bold">{ui("Duração da sessão")}</legend>
+                      <Label className="space-y-2">
+                        {ui("Política de login do usuário")}
+                        <select
+                          aria-label={ui("Política de login do usuário")}
+                          className="block min-h-11 w-full rounded-md border bg-background p-2"
+                          value={draft.sessionPolicy}
+                          onChange={(e) => setDraft({
+                            ...draft,
+                            sessionPolicy: e.target.value as "standard" | "persistent",
+                          })}
+                        >
+                          <option value="standard">{ui("Padrão — 30 minutos inativo / 12 horas máximo")}</option>
+                          <option value="persistent">{ui("Produção — não expirar em workstation confiável")}</option>
+                        </select>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {ui("A sessão permanente exige também autorização na workstation, máquina fixada e somente permissões operacionais compatíveis. Selecionar ANDON completo pode impedir a persistência. A API continua permitindo revogação imediata pelo Admin.")}
+                      </p>
+                      {draft.sessionPolicy === "persistent" && (
+                        <div className="space-y-2 rounded-md border border-warning/40 p-3">
+                          <p className="font-semibold">{ui("Verificação de elegibilidade da conta")}</p>
+                          {persistentSessionIncompatibleGrants(draft.permissions).length > 0 && (
+                            <p role="status" className="text-sm text-warning">
+                              {ui("Permissões incompatíveis com login persistente:")}{" "}
+                              {persistentSessionIncompatibleGrants(draft.permissions)
+                                .map((key) => ui(permissionLabels[key] ?? key)).join(", ")}
+                            </p>
+                          )}
+                          {draft.permissions.length === 0 && (
+                            <p role="status" className="text-sm text-warning">
+                              {ui("Selecione pelo menos uma função operacional antes de salvar.")}
+                            </p>
+                          )}
+                          {draft.machineScope === "selected" && draft.machineIds.length === 0 && (
+                            <p role="status" className="text-sm text-warning">
+                              {ui("Selecione uma máquina autorizada para a operação contínua.")}
+                            </p>
+                          )}
+                          <Button type="button" variant="outline" onClick={() => setDraft({
+                            ...draft,
+                            roleLabel: "Produção",
+                            permissions: suggestedPersistentProductionGrants(catalog.permissions),
+                          })}>
+                            {ui("Aplicar conjunto restrito de Produção 24h")}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            {ui("Esta ação substitui as permissões atuais por leitura, histórico, abertura e cancelamento próprio. Revise antes de salvar; a workstation precisa permitir persistência separadamente.")}
+                          </p>
+                        </div>
+                      )}
+                    </fieldset>
                   )}
                   <Label className="flex min-h-11 items-center gap-3">
                     <input

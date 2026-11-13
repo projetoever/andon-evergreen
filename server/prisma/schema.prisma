@@ -645,6 +645,7 @@ model AccessUser {
   active                  Boolean  @default(true)
   isPrimaryAdmin          Boolean  @default(false)
   machineScope            String   @default("selected")
+  sessionPolicy           String   @default("standard")
   passwordHash            String
   adminRecoveryCodeHash    String?
   adminRecoveryCodeIssuedAt DateTime?

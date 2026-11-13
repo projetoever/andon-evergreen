@@ -20,6 +20,7 @@ export const userSelect = {
   active: true,
   isPrimaryAdmin: true,
   machineScope: true,
+  sessionPolicy: true,
   mustChangePassword: true,
   authorizationVersion: true,
   permissions: { select: { key: true } },
@@ -32,6 +33,7 @@ export type UserInput = {
   accountType: "person" | "kiosk";
   active: boolean;
   machineScope: "all" | "selected";
+  sessionPolicy?: "standard" | "persistent";
   permissions: string[];
   machineIds: string[];
   version?: number;
@@ -55,6 +57,8 @@ export function validateUser(input: UserInput) {
     new Set(input.permissions).size !== input.permissions.length ||
     new Set(input.machineIds).size !== input.machineIds.length ||
     (input.machineScope === "all" && input.machineIds.length) ||
+    (input.sessionPolicy !== undefined && !["standard", "persistent"].includes(input.sessionPolicy)) ||
+    (input.sessionPolicy === "persistent" && input.accountType !== "person") ||
     (input.accountType === "kiosk" && input.active)
   )
     throw new AccessError("invalid_user", 400);
@@ -66,8 +70,7 @@ export async function saveUser(
   id?: string,
 ) {
   validateUser(input);
-  // Kiosk provisionamento is dormant. Block new records through the API too;
-  // historical inactive records remain editable for audit-safe renaming.
+  // Kiosk enrollment is dormant. Historical inactive records remain editable.
   if (!id && input.accountType === "kiosk")
     throw new AccessError("invalid_user", 400);
   const initial = await requireUserAdmin(db, request);
@@ -96,6 +99,8 @@ export async function saveUser(
       accountType: input.accountType,
       active: input.active,
       machineScope: input.machineScope,
+      // Older clients omit policy; preserve an existing setting or default safely.
+      sessionPolicy: input.sessionPolicy ?? before?.sessionPolicy ?? "standard",
     };
     const user = id
       ? await tx.accessUser.update({

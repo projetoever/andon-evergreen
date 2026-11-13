@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { permitsPersistentOperationalAccount } from "./sessions.js";
+import { validateUser } from "./users.js";
 
 const user = {
-  accountType: "person", isPrimaryAdmin: false, mustChangePassword: false,
+  accountType: "person", sessionPolicy: "persistent", isPrimaryAdmin: false, mustChangePassword: false,
   permissions: [{ key: "andon.read" }, { key: "calls.open" }],
 };
 const station = {
@@ -43,4 +44,27 @@ test("REFINE15: no persistent Admin, security manager, unapproved station, or un
     { ...station, allowPersistentOperationalLogin: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user, station,
     [{ machineId: "39" }], "selected"), false);
+});
+
+
+test("SEC-18: trusted station never overrides user session opt-in", () => {
+  assert.equal(permitsPersistentOperationalAccount({ ...user, sessionPolicy: "standard" }, station, machines, "selected"), false);
+  assert.equal(permitsPersistentOperationalAccount({ ...user, sessionPolicy: undefined }, station, machines, "selected"), false);
+});
+
+test("SEC-18: a persistent Person account can be deactivated without changing its policy", () => {
+  const draft = {
+    login: "production37",
+    displayName: "Production terminal 37",
+    roleLabel: "Produção",
+    accountType: "person" as const,
+    active: false,
+    machineScope: "selected" as const,
+    sessionPolicy: "persistent" as const,
+    permissions: ["andon.read", "calls.open"],
+    machineIds: ["37"],
+  };
+  assert.doesNotThrow(() => validateUser({ ...draft }));
+  assert.throws(() => validateUser({ ...draft, accountType: "kiosk" }),
+    /invalid_user/);
 });

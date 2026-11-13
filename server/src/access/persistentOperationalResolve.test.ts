@@ -36,7 +36,7 @@ function fixture(changes: {
     },
     user: {
       id: "u-37", login: "producao", displayName: "Produção",
-      roleLabel: "Produção", accountType: "person", active: true,
+      roleLabel: "Produção", accountType: "person", sessionPolicy: "persistent", active: true,
       isPrimaryAdmin: changes.admin ?? false,
       mustChangePassword: false, machineScope: "selected",
       authorizationVersion: 4,
