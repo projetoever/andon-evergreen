@@ -307,20 +307,31 @@ test("SEC-17: new user defaults to Person; unsupported Kiosk enrollment is disab
   ]);
   assert.ok(panel.includes('accountType: "person",'));
   assert.ok(panel.includes('active: true,'));
-  assert.ok(panel.includes('value={draft.accountType}'));
-  assert.ok(panel.includes('disabled={Boolean(editing)}'));
-  assert.ok(panel.includes('<option value="person">'));
-  assert.ok(panel.includes('<option value="kiosk" disabled>'));
+  assert.ok(!panel.includes('value={draft.accountType}'));
+  assert.ok(!panel.includes('<option value="kiosk"'));
+  assert.ok(!panel.includes('aria-label={ui("Tipo de conta")}'));
   assert.ok(!panel.includes('accountType: e.target.value as "person" | "kiosk"'));
-  assert.ok(panel.includes('if (e.target.value !== "person") return;'));
   assert.ok(panel.includes('Cadastro Kiosk reservado — sem login e sem senha'));
   assert.ok(panel.includes('Kiosk sem login por senha'));
   assert.ok(panel.includes('disabled={draft.accountType === "kiosk"}'));
   assert.ok(panel.includes('editingUser.accountType === "person"'));
   assert.ok(users.includes('(input.accountType === "kiosk" && input.active)'));
+  assert.ok(users.includes('if (!id && input.accountType === "kiosk")'));
   assert.ok(users.includes('before.accountType !== input.accountType'));
   assert.ok(routes.includes('user.accountType !== "person"'));
   assert.ok(sessions.includes('user.accountType !== "person"'));
   assert.ok(trust.includes('PURE, dormant kiosk authorization contract'));
   assert.ok(!panel.includes('Kiosk disponível para login'));
+});
+
+
+test("SEC-17B: account editor does not offer Kiosk selection; legacy account is read-only", async () => {
+  const source = await readFile(new URL("../src/components/settings/UsersAccessSettings.tsx", import.meta.url), "utf8");
+  assert.match(source, /accountType: "person"/);
+  assert.doesNotMatch(source, /<option value="kiosk"/);
+  assert.doesNotMatch(source, /<select\s+aria-label=\{ui\("Tipo de conta"\)\}/);
+  assert.match(source, /draft\.accountType === "kiosk"/);
+  assert.match(source, /Kiosk sem login por senha/);
+  assert.match(source, /Senha indisponível — Kiosk/);
+  assert.match(source, /user\.accountType === "person" \?/);
 });

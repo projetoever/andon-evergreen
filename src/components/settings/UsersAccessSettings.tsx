@@ -746,25 +746,10 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         ))}
                       </select>
                     </Label>
-                    <Label className="space-y-2">
-                      {ui("Tipo de conta")}
-                      <select
-                        aria-label={ui("Tipo de conta")}
-                        className="block min-h-11 w-full rounded-md border bg-background p-2"
-                        disabled={Boolean(editing)}
-                        value={draft.accountType}
-                        onChange={(e) => {
-                          if (e.target.value !== "person") return;
-                          setDraft({ ...draft, accountType: "person", active: true });
-                        }}
-                      >
-                        <option value="person">{ui("Pessoa — acesso com senha")}</option>
-                        <option value="kiosk" disabled>{ui("Kiosk — provisionamento indisponível")}</option>
-                      </select>
-                    </Label>
+
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {ui("Pessoa é o tipo de conta disponível para login e senha. Kiosk é reservado para terminais industriais e ainda não pode ser provisionado, ativado ou receber senha no Hub. O perfil descreve a função; as permissões são escolhidas nos módulos ou em Avançado.")}
+                    {ui("Novos cadastros são contas de usuário com senha. O perfil descreve a função; selecione os módulos ou use Avançado para restringir ações.")}
                   </p>
                   {draft.accountType === "kiosk" && (
                     <div role="status" className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
@@ -1043,7 +1028,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                   <h3 className="break-words font-bold">{user.displayName}</h3>
                   <p className="break-all text-sm text-muted-foreground">
                     {user.login} · {ui(user.roleLabel)} ·{" "}
-                    {ui(user.accountType === "person" ? "Pessoa" : "Kiosk — cadastro inativo")}
+                    {user.accountType === "kiosk" ? ui("Kiosk legado — inativo") : ui("Usuário")}
                   </p>
                   <p className="text-sm">
                     {ui(user.active ? "Ativo" : "Inativo")} ·{" "}
@@ -1063,7 +1048,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       <Button variant="outline" disabled={busy} onClick={() => edit(user)}>
                         {ui("Editar")}
                       </Button>
-                      {user.accountType === "person" && (
+                      {user.accountType === "person" ? (
                         <Button
                           variant="outline"
                           disabled={busy}
@@ -1075,6 +1060,13 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         >
                           {ui("Redefinir senha")}
                         </Button>
+                      ) : (
+                        <span
+                          className="inline-flex min-h-10 items-center rounded-md border border-dashed px-3 text-sm text-muted-foreground"
+                          title={ui("Este Kiosk não possui login por senha. Para usar esse nome, renomeie o registro inativo e crie uma conta Pessoa.")}
+                        >
+                          {ui("Senha indisponível — Kiosk")}
+                        </span>
                       )}
                     </>
                   )}
