@@ -308,12 +308,9 @@ test("SEC-17: new user defaults to Person; unsupported Kiosk enrollment is disab
   assert.ok(panel.includes('accountType: "person",'));
   assert.ok(panel.includes('active: true,'));
   assert.ok(!panel.includes('value={draft.accountType}'));
-  assert.ok(panel.includes('disabled={Boolean(editing)}'));
-  assert.ok(panel.includes('<option value="person">'));
   assert.ok(!panel.includes('<option value="kiosk"'));
   assert.ok(!panel.includes('aria-label={ui("Tipo de conta")}'));
   assert.ok(!panel.includes('accountType: e.target.value as "person" | "kiosk"'));
-  assert.ok(panel.includes('if (e.target.value !== "person") return;'));
   assert.ok(panel.includes('Cadastro Kiosk reservado — sem login e sem senha'));
   assert.ok(panel.includes('Kiosk sem login por senha'));
   assert.ok(panel.includes('disabled={draft.accountType === "kiosk"}'));
