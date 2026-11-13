@@ -17,6 +17,7 @@ import { toast } from "@/i18n/toast";
 import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useAndon } from "@/context/AndonProvider";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
@@ -304,6 +305,9 @@ function FailureEventCard({
 
 export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProps) {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const globalHistoryAllowed = access?.centralAccessEnabled === true &&
+    access.globalHistory?.available === true && access.globalHistory?.allowed === true;
   const { machines, calls, updateMachineStopEventDescription, updateCallFailureDetails } =
     useAndon();
   const [expandedCallIds, setExpandedCallIds] = useState<string[]>([]);
@@ -577,6 +581,12 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
             <p className="text-sm text-muted-foreground">{machine.name}</p>
           </div>
         </div>
+        {globalHistoryAllowed && (
+          <Link to="/history" search={{ machineId }}
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-semibold text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {ui("Consultar esta máquina no Histórico Global")}
+          </Link>
+        )}
       </div>
 
       {catalogLoading && (
