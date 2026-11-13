@@ -530,12 +530,12 @@ export function registerAccessRoutes(
         return { users, total };
       },
     );
-    app.post<{ Body: UserInput }>(`${PREFIX}/users`, { schema: schema(userProperties) }, (req) =>
+    app.post<{ Body: UserInput }>(`${PREFIX}/users`, { schema: schema(userProperties, Object.keys(userProperties).filter(key => key !== "sessionPolicy")) }, (req) =>
       saveUser(db, requestAccess(req), req.body),
     );
     app.put<{ Params: { id: string }; Body: UserInput }>(
       `${PREFIX}/users/:id`,
-      { schema: schema({ ...userProperties, version: { type: "integer", minimum: 1 } }) },
+      { schema: schema({ ...userProperties, version: { type: "integer", minimum: 1 } }, [...Object.keys(userProperties).filter(key => key !== "sessionPolicy"), "version"]) },
       (req) => saveUser(db, requestAccess(req), req.body, req.params.id),
     );
     app.post<{ Params: { id: string }; Body: { reason: string } }>(
