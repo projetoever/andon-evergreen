@@ -324,3 +324,15 @@ test("SEC-17: new user defaults to Person; unsupported Kiosk enrollment is disab
   assert.ok(trust.includes('PURE, dormant kiosk authorization contract'));
   assert.ok(!panel.includes('Kiosk disponível para login'));
 });
+
+
+test("SEC-17B: account editor does not offer Kiosk selection; legacy account is read-only", async () => {
+  const source = await readFile(new URL("../src/components/settings/UsersAccessSettings.tsx", import.meta.url), "utf8");
+  assert.match(source, /accountType: "person"/);
+  assert.doesNotMatch(source, /<option value="kiosk"/);
+  assert.doesNotMatch(source, /<select\s+aria-label=\{ui\("Tipo de conta"\)\}/);
+  assert.match(source, /draft\.accountType === "kiosk"/);
+  assert.match(source, /Kiosk sem login por senha/);
+  assert.match(source, /Senha indisponível — Kiosk/);
+  assert.match(source, /user\.accountType === "person" \?/);
+});
