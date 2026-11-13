@@ -43,3 +43,28 @@ test("CFG-15B: local legacy mode remains writable while central feature flags fa
   assert.match(ui, /saved\.filterByCurrentShift/);
   assert.match(ui, /centralMode && \(/);
 });
+
+test("CFG-15D2: asset catalogs and whole-set policy use independent central feature gates", async () => {
+  const [panel, settings, catalogGuard] = await Promise.all([
+    source("../src/components/settings/MachineAssetCatalogPanel.tsx"),
+    source("../server/src/services/systemSettings.ts"),
+    source("../server/src/security/centralAssetTypeCatalogHttp.ts"),
+  ]);
+  assert.ok(panel.includes("const centralMode = access?.centralAccessEnabled === true"));
+  assert.ok(panel.includes("const canWriteCatalog = !centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true"));
+  assert.ok(panel.includes("const canWritePolicy = !centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true"));
+  assert.ok(panel.includes("setSystemSettings(null); // fail closed while refreshing capabilities"));
+  assert.ok(panel.includes("if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;"));
+  assert.ok(panel.includes("if (!canWritePolicy || isLoadingPolicy || isSavingPolicy || !systemSettings) return;"));
+  assert.ok(panel.includes("disabled={!systemSettings || isLoadingPolicy || isSavingPolicy || !canWritePolicy}"));
+  assert.ok(panel.includes("disabled={isSaving || isLoading || Boolean(loadError) || !canWriteCatalog}"));
+  assert.ok(panel.includes("disabled={isSaving || !canWriteCatalog}"));
+  assert.ok(panel.includes("disabled={!canWriteCatalog || isSaving}"));
+  assert.ok(panel.includes("if (centralMode || isSaving || isLoading || Boolean(loadError)) return;"));
+  assert.ok(panel.includes("{!centralMode && ("));
+  assert.ok(settings.includes("centralAssetTypeCatalogWriteEnabled: centralAssetTypeCatalogEnabled()"));
+  assert.ok(settings.includes("centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled()"));
+  assert.ok(catalogGuard.includes('if (method === "POST" && COLLECTIONS.has(path))'));
+  assert.ok(catalogGuard.includes('if (method !== "PATCH") return null'));
+  assert.ok(catalogGuard.includes("Do not enable"));
+});

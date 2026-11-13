@@ -1,6 +1,7 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState } from "react";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { Search, X } from "lucide-react";
 import { toast } from "@/i18n/toast";
 
@@ -106,6 +107,8 @@ function getErrorMessage(error: unknown) {
 
 export function MachineAssetCatalogPanel() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
   const [catalogKind, setCatalogKind] = useState<CatalogKind>("set");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -120,6 +123,9 @@ export function MachineAssetCatalogPanel() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
+  // These are feature gates, never grants. The API still checks ACL, CSRF and workstation.
+  const canWriteCatalog = !centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true;
+  const canWritePolicy = !centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true;
 
   const [isLoadingPolicy, setIsLoadingPolicy] = useState(false);
 
@@ -193,6 +199,7 @@ export function MachineAssetCatalogPanel() {
 
   async function loadSelectionPolicy() {
     setIsLoadingPolicy(true);
+    setSystemSettings(null); // fail closed while refreshing capabilities
 
     try {
       setSystemSettings(await getSystemSettings());
@@ -255,6 +262,7 @@ export function MachineAssetCatalogPanel() {
   }
 
   async function handleCreate() {
+    if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;
     try {
       const payload = buildCatalogPayload(newForm);
 
@@ -274,6 +282,7 @@ export function MachineAssetCatalogPanel() {
   }
 
   function startEdit(item: MachineAssetCatalogItem) {
+    if (!canWriteCatalog || isSaving) return;
     setEditingId(item.id);
     setEditForm(catalogToForm(item));
   }
@@ -284,6 +293,7 @@ export function MachineAssetCatalogPanel() {
   }
 
   async function handleSave(item: MachineAssetCatalogItem) {
+    if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;
     try {
       const payload = buildCatalogPayload(editForm);
 
@@ -311,6 +321,7 @@ export function MachineAssetCatalogPanel() {
   }
 
   async function handleToggleActive(item: MachineAssetCatalogItem) {
+    if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;
     try {
       setIsSaving(true);
 
@@ -329,6 +340,8 @@ export function MachineAssetCatalogPanel() {
   }
 
   async function handleDelete(item: MachineAssetCatalogItem) {
+    // The central API supports POST/PATCH only. Legacy DELETE must not be offered.
+    if (centralMode || isSaving || isLoading || Boolean(loadError)) return;
     const confirmed = window.confirm(
       ui(
         'Excluir o tipo "{0}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.',
@@ -360,6 +373,7 @@ export function MachineAssetCatalogPanel() {
   }
 
   async function handleWholeSetPolicyChange(allowWholeSetCalls: boolean) {
+    if (!canWritePolicy || isLoadingPolicy || isSavingPolicy || !systemSettings) return;
     try {
       setIsSavingPolicy(true);
 
@@ -404,7 +418,7 @@ export function MachineAssetCatalogPanel() {
               id="allow-whole-set-calls"
               checked={systemSettings?.allowWholeSetCalls ?? true}
               onCheckedChange={handleWholeSetPolicyChange}
-              disabled={!systemSettings || isLoadingPolicy || isSavingPolicy}
+              disabled={!systemSettings || isLoadingPolicy || isSavingPolicy || !canWritePolicy}
               aria-label={ui("Permitir chamados no conjunto inteiro")}
             />
           </div>
@@ -424,6 +438,7 @@ export function MachineAssetCatalogPanel() {
           <p className="text-sm text-muted-foreground">
             {ui("Estes tipos são globais e podem ser reutilizados em diferentes máquinas.")}
           </p>
+          {centralMode && !canWriteCatalog && <p role="status" className="text-sm font-semibold text-warning">{ui("Somente leitura")}</p>}
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -545,6 +560,7 @@ export function MachineAssetCatalogPanel() {
               <Label>{ui("Nome")}</Label>
               <Input
                 value={newForm.name}
+                disabled={!canWriteCatalog || isSaving}
                 onChange={(event) =>
                   updateNewForm({
                     name: event.target.value,
@@ -558,6 +574,7 @@ export function MachineAssetCatalogPanel() {
               <Label>{ui("Código")}</Label>
               <Input
                 value={newForm.code}
+                disabled={!canWriteCatalog || isSaving}
                 onChange={(event) =>
                   updateNewForm({
                     code: event.target.value,
@@ -571,6 +588,7 @@ export function MachineAssetCatalogPanel() {
               <Label>{ui("Ordem")}</Label>
               <Input
                 value={newForm.displayOrder}
+                disabled={!canWriteCatalog || isSaving}
                 onChange={(event) =>
                   updateNewForm({
                     displayOrder: event.target.value,
@@ -585,6 +603,7 @@ export function MachineAssetCatalogPanel() {
             <Label>{ui("Descrição")}</Label>
             <Input
               value={newForm.description}
+                disabled={!canWriteCatalog || isSaving}
               onChange={(event) =>
                 updateNewForm({
                   description: event.target.value,
@@ -598,6 +617,7 @@ export function MachineAssetCatalogPanel() {
             <div className="flex items-center gap-2">
               <Switch
                 checked={newForm.isActive}
+                disabled={!canWriteCatalog || isSaving}
                 onCheckedChange={(checked) =>
                   updateNewForm({
                     isActive: checked,
@@ -608,7 +628,7 @@ export function MachineAssetCatalogPanel() {
               <span className="text-sm font-bold">{ui("Criar como ativo")}</span>
             </div>
 
-            <Button type="button" onClick={handleCreate} disabled={isSaving || isLoading}>
+            <Button type="button" onClick={handleCreate} disabled={isSaving || isLoading || Boolean(loadError) || !canWriteCatalog}>
               {ui("Adicionar tipo")}
             </Button>
           </div>
@@ -669,6 +689,7 @@ export function MachineAssetCatalogPanel() {
                           <Label>{ui("Nome")}</Label>
                           <Input
                             value={editForm.name}
+                            disabled={!canWriteCatalog || isSaving}
                             onChange={(event) =>
                               updateEditForm({
                                 name: event.target.value,
@@ -681,7 +702,7 @@ export function MachineAssetCatalogPanel() {
                           <Label>{ui("Código")}</Label>
                           <Input
                             value={editForm.code}
-                            disabled={isCodeLocked}
+                            disabled={isCodeLocked || !canWriteCatalog || isSaving}
                             onChange={(event) =>
                               updateEditForm({
                                 code: event.target.value,
@@ -700,6 +721,7 @@ export function MachineAssetCatalogPanel() {
                           <Label>{ui("Ordem")}</Label>
                           <Input
                             value={editForm.displayOrder}
+                            disabled={!canWriteCatalog || isSaving}
                             inputMode="numeric"
                             onChange={(event) =>
                               updateEditForm({
@@ -714,6 +736,7 @@ export function MachineAssetCatalogPanel() {
                         <Label>{ui("Descrição")}</Label>
                         <Input
                           value={editForm.description}
+                            disabled={!canWriteCatalog || isSaving}
                           onChange={(event) =>
                             updateEditForm({
                               description: event.target.value,
@@ -726,6 +749,7 @@ export function MachineAssetCatalogPanel() {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={editForm.isActive}
+                            disabled={!canWriteCatalog || isSaving}
                             onCheckedChange={(checked) =>
                               updateEditForm({
                                 isActive: checked,
@@ -745,7 +769,7 @@ export function MachineAssetCatalogPanel() {
                             type="button"
                             size="sm"
                             onClick={() => handleSave(item)}
-                            disabled={isSaving}
+                            disabled={isSaving || !canWriteCatalog}
                           >
                             {ui("Salvar")}
                           </Button>
@@ -795,7 +819,7 @@ export function MachineAssetCatalogPanel() {
                           size="sm"
                           variant="outline"
                           onClick={() => startEdit(item)}
-                          disabled={isSaving}
+                          disabled={isSaving || !canWriteCatalog}
                         >
                           {ui("Editar")}
                         </Button>
@@ -805,20 +829,22 @@ export function MachineAssetCatalogPanel() {
                           size="sm"
                           variant="secondary"
                           onClick={() => handleToggleActive(item)}
-                          disabled={isSaving}
+                          disabled={isSaving || !canWriteCatalog}
                         >
                           {item.isActive ? ui("Inativar") : ui("Reativar")}
                         </Button>
 
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(item)}
-                          disabled={isSaving}
-                        >
-                          {ui("Excluir")}
-                        </Button>
+                        {!centralMode && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(item)}
+                            disabled={isSaving}
+                          >
+                            {ui("Excluir")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
