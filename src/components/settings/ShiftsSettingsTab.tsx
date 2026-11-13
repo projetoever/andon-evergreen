@@ -177,7 +177,8 @@ export function ShiftsSettingsTab() {
       });
       setFilterByCurrentShift(saved.filterByCurrentShift);
       toast.success(
-        enabled ? "Filtro por turno atual habilitado." : "Filtro por turno atual desabilitado.",
+        saved.filterByCurrentShift
+          ? "Filtro por turno atual habilitado." : "Filtro por turno atual desabilitado.",
       );
     } catch (error) {
       setFilterByCurrentShift(previous);
