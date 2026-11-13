@@ -673,3 +673,25 @@ test("R12-04G2: each browser can mute/unmute independently while the external ag
   assert.equal(readBrowserDashboardSoundState(t + 3 * 60_000, kiosk).muted, false);
   assert.equal(readBrowserDashboardSoundState(t + 3 * 60_000, office).muted, true);
 });
+
+test("CFG-15D4: dashboard sound timers are read-only when central operational writes are disabled", async () => {
+  const [panel, settings, service] = await Promise.all([
+    readFile(new URL("../src/components/settings/DashboardSoundMuteSettings.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/services/systemSettings.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.ok(panel.includes('const centralMode = access?.centralAccessEnabled === true'));
+  assert.ok(panel.includes('const canWriteCycle = !centralMode || centralWritable'));
+  assert.ok(panel.includes('setCentralWritable(false)'));
+  assert.ok(panel.includes('setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true)'));
+  assert.ok(panel.includes('if (!canWriteCycle || loading || saving || Boolean(loadError)) return;'));
+  assert.ok(panel.includes('disabled={loading || saving || Boolean(loadError) || !canWriteCycle}'));
+  assert.ok(panel.includes('disabled={loading || saving || !canWriteCycle}'));
+  assert.ok(panel.includes('await updateSystemSettings({'));
+  assert.ok(panel.includes('onClick={() => void loadSettings()}'));
+  assert.ok(settings.includes('centralOperationalSettingsWriteEnabled: centralOperationalSettingsEnabled()'));
+  assert.ok(service.includes('saveSoundConfig(')); // independent browser-stored sounds
+  assert.ok(service.includes('<DashboardSoundMuteSettings />'));
+  assert.ok(!panel.includes("ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED"));
+  assert.ok(!panel.includes("gpio") && !panel.includes("externalSiren"));
+});

@@ -1,6 +1,7 @@
 import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useState } from "react";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
@@ -14,6 +15,10 @@ import { DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES } from "@/utils/dashboard
 
 export function DashboardSoundMuteSettings() {
   useInterfaceLanguage();
+  const { access } = useModuleAccess();
+  const centralMode = access?.centralAccessEnabled === true;
+  const [centralWritable, setCentralWritable] = useState(false);
+  const canWriteCycle = !centralMode || centralWritable;
   const [autoMuteEnabled, setAutoMuteEnabled] = useState(false);
   const [activeDurationMinutes, setActiveDurationMinutes] = useState(
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
@@ -29,9 +34,11 @@ export function DashboardSoundMuteSettings() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setCentralWritable(false);
 
     try {
       const settings = await getSystemSettings();
+      setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
       setAutoMuteEnabled(settings.dashboardSoundAutoMuteTimerEnabled);
       setActiveDurationMinutes(settings.dashboardSoundActiveDurationMinutes);
       setTimerEnabled(settings.dashboardSoundMuteTimerEnabled);
@@ -53,6 +60,7 @@ export function DashboardSoundMuteSettings() {
   }, [loadSettings]);
 
   async function handleSave() {
+    if (!canWriteCycle || loading || saving || Boolean(loadError)) return;
     if (
       !isValidDashboardSoundMuteDuration(activeDurationMinutes) ||
       !isValidDashboardSoundMuteDuration(durationMinutes)
@@ -99,6 +107,12 @@ export function DashboardSoundMuteSettings() {
         </p>
       </div>
 
+      {centralMode && !canWriteCycle && (
+        <div role="status" className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm">
+          {ui("Somente leitura")}
+        </div>
+      )}
+
       {loadError && (
         <div
           role="alert"
@@ -128,7 +142,7 @@ export function DashboardSoundMuteSettings() {
             <Switch
               checked={autoMuteEnabled}
               onCheckedChange={setAutoMuteEnabled}
-              disabled={loading || saving || Boolean(loadError)}
+              disabled={loading || saving || Boolean(loadError) || !canWriteCycle}
               aria-label={ui("Silenciar automaticamente o som do dashboard")}
             />
           </label>
@@ -143,7 +157,7 @@ export function DashboardSoundMuteSettings() {
                   step={1}
                   value={activeDurationMinutes}
                   onChange={(event) => setActiveDurationMinutes(Number(event.target.value))}
-                  disabled={loading || saving}
+                  disabled={loading || saving || !canWriteCycle}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3"
                 />
                 <span className="text-muted-foreground">{ui("minutos")}</span>
@@ -163,7 +177,7 @@ export function DashboardSoundMuteSettings() {
             <Switch
               checked={timerEnabled}
               onCheckedChange={setTimerEnabled}
-              disabled={loading || saving || Boolean(loadError)}
+              disabled={loading || saving || Boolean(loadError) || !canWriteCycle}
               aria-label={ui("Reativar automaticamente o som do dashboard")}
             />
           </label>
@@ -178,7 +192,7 @@ export function DashboardSoundMuteSettings() {
                   step={1}
                   value={durationMinutes}
                   onChange={(event) => setDurationMinutes(Number(event.target.value))}
-                  disabled={loading || saving}
+                  disabled={loading || saving || !canWriteCycle}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3"
                 />
                 <span className="text-muted-foreground">{ui("minutos")}</span>
@@ -209,7 +223,7 @@ export function DashboardSoundMuteSettings() {
       <BigButton
         tone="primary"
         size="md"
-        disabled={loading || saving || Boolean(loadError)}
+        disabled={loading || saving || Boolean(loadError) || !canWriteCycle}
         onClick={() => void handleSave()}
       >
         {saving ? ui("Salvando...") : ui("Salvar ciclo do alarme")}
