@@ -5875,4 +5875,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["habilitada","enabled","已啟用"],
   ["bloqueada","blocked","已封鎖"],
   ["bloqueado","blocked","已封鎖"],
+  ["habilitado","enabled","已啟用"],
 ]; 
