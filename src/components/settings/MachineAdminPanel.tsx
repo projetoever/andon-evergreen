@@ -160,15 +160,15 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
         }
       });
 
-    const handleSettingsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ requireWorkOrderAtOpen?: boolean }>).detail;
-      if (detail) applySettings(detail);
-    };
-
-    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+    // CFG-15G: never trust a browser CustomEvent payload as the effective
+    // operational policy. Re-read the server before enabling any central write.
+    const revalidate = () => setCapabilityRetry(value => value + 1);
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
     return () => {
       active = false;
-      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
     };
   }, [centralAccess, capabilityRetry]);
 
