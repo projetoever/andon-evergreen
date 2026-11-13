@@ -13,6 +13,7 @@ export const PERMISSIONS = [
   "calls.followUp",
   "calls.returnToMaintenance",
   "machines.status.write",
+  "production.schedule.request", // One-shot request only; never authorizes an unattended change.
   "production.schedule.write",
   "diagnosis.edit",
   "analytics.reclassify",

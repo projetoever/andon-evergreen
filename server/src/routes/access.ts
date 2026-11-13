@@ -26,9 +26,10 @@ import {
   type UserInput,
 } from "../access/users.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
-import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie } from "../access/http.js";
+import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie, centralAccessEnabled } from "../access/http.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
+import { setCentralProductionModeWithCredential } from "../access/centralProductionModeCredential.js";
 import { centralOwnWorkstationPreferencesEnabled } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
@@ -329,6 +330,33 @@ export function registerAccessRoutes(
         });
         setCookie(reply, ACCESS_COOKIE, "", 0);
         return recovered;
+      },
+    );
+    // Production schedule changes are a one-shot credential proof, like
+    // screen unlock. The terminal only holds a request grant. This POST
+    // is CSRF/HTTPS/Origin-protected by this plugin's access hooks; the
+    // domain service atomically locks session, workstation, machine and audit.
+    app.post<{ Body: {
+      machineId: string; expectedProductionMode: "scheduled" | "not_scheduled";
+      productionMode: "scheduled" | "not_scheduled"; login: string; password: string;
+    } }>(
+      `${PREFIX}/machines/production-mode`,
+      { schema: schema({
+        machineId: string(160),
+        expectedProductionMode: { enum: ["scheduled", "not_scheduled"] },
+        productionMode: { enum: ["scheduled", "not_scheduled"] },
+        login: string(120), password: string(128),
+      }) },
+      async req => {
+        if (!centralAccessEnabled()) throw new AccessError("central_action_not_supported");
+        // Failed credential attempts are throttled per source AND login;
+        // never include the supplied password in logs or audit records.
+        limited(`production-mode:${req.ip}`, 16, 15 * 60_000);
+        limited(`production-login:${tokenHash(req.body.login.trim().toLowerCase())}`, 16, 15 * 60_000);
+        return setCentralProductionModeWithCredential(db, {
+          ...requestAccess(req), ...req.body,
+          requestId: req.id, ipAddress: req.ip,
+        });
       },
     );
     // Dedicated screen unlock: uses the current session and one-time verified

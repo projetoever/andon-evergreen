@@ -6,6 +6,7 @@ export const PERSISTENT_OPERATIONAL_ALLOWED_KEYS = [
   "andon.read", "history.read", "calls.open", "calls.cancel.own",
   "calls.attend", "calls.technicians.manage", "calls.finishMaintenance",
   "calls.finish", "calls.followUp", "calls.returnToMaintenance",
+  "production.schedule.request",
   "bi.read", "bi.export", "priorities.read",
 ] as const;
 

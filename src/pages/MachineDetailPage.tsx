@@ -20,6 +20,8 @@ import { MachineDetailHeader } from "@/components/machines/MachineDetailHeader";
 import { ProductionSchedulePanel } from "@/components/machines/ProductionSchedulePanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { CentralMachineScreenUnlockModal } from "@/components/machines/CentralMachineScreenUnlockModal";
+import { ProductionModeCredentialModal } from "@/components/machines/ProductionModeCredentialModal";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { useAndon } from "@/context/AndonProvider";
 import { useAndonOpenCallSound } from "@/hooks/useAndonOpenCallSound";
 import { useTicker } from "@/hooks/useTicker";
@@ -46,6 +48,7 @@ import { AudioPlaybackRecovery } from "@/components/common/AudioPlaybackRecovery
 import { getCurrentWorkstationId } from "@/services/workstationIdentityService";
 import { registerCurrentWorkstation } from "@/services/workstationService";
 import type { CallSubtype } from "@/types/andon";
+import type { ProductionMode } from "@/types/machine";
 import type { AndonCategoryConfig } from "@/types/settings";
 import { requiresMaintenanceTechnician } from "@/utils/callTypeUtils";
 import { diffMinutes, formatDurationMinutes } from "@/utils/durationUtils";
@@ -105,6 +108,39 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [machineSoundEnabled, setMachineSoundEnabledState] = useState(true);
   const [screenLock, setScreenLock] = useState(() => getMachineScreenLock());
   const [unlockLoginOpen, setUnlockLoginOpen] = useState(false);
+  const [pendingProductionMode, setPendingProductionMode] = useState<ProductionMode | null>(null);
+  useEffect(() => setPendingProductionMode(null), [machineId]);
+
+  async function requestProductionModeChange(next: ProductionMode) {
+    if (!machine || next === machine.productionMode) return;
+    if (access?.centralAccessEnabled === false) {
+      // Legacy deployments still require the existing Admin login proof.
+      setPendingProductionMode(next);
+      return;
+    }
+    if (accessChecking || access?.centralAccessEnabled !== true) {
+      toast(ui("Não foi possível verificar sua permissão. Tente novamente."), { className: "!bg-white !text-slate-900 !border-slate-200" });
+      return;
+    }
+    try {
+      const session = await accessRequest<AccessState>("/session");
+      const principal = session.principal;
+      const authorized = principal?.purpose === "normal" &&
+        (principal.isPrimaryAdmin === true ||
+          principal.permissions?.includes("production.schedule.request") === true ||
+          principal.permissions?.includes("production.schedule.write") === true) &&
+        (principal.machineScope === "all" ||
+          principal.machineIds?.includes(machine.id) === true);
+      if (!authorized) {
+        toast(ui("Você não tem permissão para alterar a programação desta máquina."), { className: "!bg-white !text-slate-900 !border-slate-200" });
+        return;
+      }
+      setPendingProductionMode(next);
+    } catch {
+      toast(ui("Não foi possível verificar sua permissão. Tente novamente."), { className: "!bg-white !text-slate-900 !border-slate-200" });
+    }
+  }
+
   const [startOpen, setStartOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
@@ -674,7 +710,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
       <ProductionSchedulePanel
         machine={machine}
-        onChange={(productionMode) => updateMachineProductionMode(machine.id, productionMode)}
+        onChange={(productionMode) => void requestProductionModeChange(productionMode)}
       />
 
       <div className="machine-detail-overview grid grid-cols-1 items-stretch gap-1.5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
@@ -842,6 +878,32 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         purpose="add"
         excludeNames={activeSessions.map((session) => session.technicianName)}
       />
+      {access?.centralAccessEnabled === true && (
+        <ProductionModeCredentialModal
+          open={pendingProductionMode !== null}
+          machineId={machineId}
+          currentMode={machine.productionMode}
+          requestedMode={pendingProductionMode}
+          onOpenChange={(open) => { if (!open) setPendingProductionMode(null); }}
+          onSuccess={() => toast.success(ui("Programação de produção atualizada com autorização."))}
+        />
+      )}
+      {access?.centralAccessEnabled === false && (
+        <AdminLoginModal
+          open={pendingProductionMode !== null}
+          onOpenChange={(open) => { if (!open) setPendingProductionMode(null); }}
+          onSuccess={() => {
+            if (pendingProductionMode) {
+              updateMachineProductionMode(machineId, pendingProductionMode);
+              toast.success(ui("Programação de produção atualizada."));
+            }
+            setPendingProductionMode(null);
+          }}
+          title={ui("Confirmar programação de produção")}
+          description={ui("Informe a credencial administrativa para alterar a programação desta máquina.")}
+          successLabel={ui("Confirmar alteração")}
+        />
+      )}
       {access?.centralAccessEnabled !== false ? (
         <CentralMachineScreenUnlockModal
           open={unlockLoginOpen}
