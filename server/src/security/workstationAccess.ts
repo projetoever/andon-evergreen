@@ -145,6 +145,17 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         markCentralMachineInventoryAuthorized(request, principal, workstation);
         return;
       }
+      // P0: a strictly minimal global technician busy indicator is required
+      // for consistent attendance UX across differently scoped users.
+      // A READ here is not permission to list calls from other machines.
+      // Handler independently validates the call, scope and live session.
+      if (request.method === "GET" && path === "/api/technicians/availability") {
+        assertModule(principal, workstation, "operational");
+        const attendancePermission = principal.permissions.includes("calls.attend")
+          ? "calls.attend" : "calls.technicians.manage";
+        assertPermission(principal, attendancePermission);
+        return;
+      }
       // Operational configuration and sanitized catalogs have no
       // machine-specific history. Selected-machine operators need them
       // to render dialogs and alarms; mutations keep their separate guards.
