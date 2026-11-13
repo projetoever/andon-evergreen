@@ -401,7 +401,7 @@ test("CFG-15: 11 abas exibem disponibilidade verificada sem prometer liberação
     readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/settings/CentralSettingsCapabilityNotice.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(panel, /CentralSettingsCapabilityNotice tab=\\{tab\\} open=\\{open\\}/);
+  assert.ok(panel.includes("<CentralSettingsCapabilityNotice tab={tab} open={open} />"));
   assert.doesNotMatch(panel, /Algumas operações de cadastro ainda não foram migradas/);
   assert.match(notice, /centralOperationalSettingsWriteEnabled === true/);
   assert.match(notice, /andonVisualPaletteWriteEnabled === true/);
@@ -409,5 +409,5 @@ test("CFG-15: 11 abas exibem disponibilidade verificada sem prometer liberação
   assert.match(notice, /centralCallReasonsCatalogEnabled === true/);
   assert.match(notice, /Disponibilidade não verificada/);
   assert.match(notice, /não há indicador central de disponibilidade/);
-  assert.doesNotMatch(notice, /updateSystemSettings|createCallReason|openCall\\(/);
+  assert.doesNotMatch(notice, /updateSystemSettings|createCallReason|openCall/);
 });
