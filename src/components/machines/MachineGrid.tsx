@@ -72,7 +72,7 @@ function MachinePageGrid({
           >
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -inset-1 hidden rounded-[1rem] border-2 border-orange-500/70 shadow-[0_0_0_1px_rgba(249,115,22,0.10)] lg:block"
+              className="andon-palette-priority-border pointer-events-none absolute -inset-1 hidden rounded-[1rem] border-2 border-orange-500/70 shadow-[0_0_0_1px_rgba(249,115,22,0.10)] lg:block"
             />
             {groupedPriorityMachines.map(renderMachineCard)}
           </div>
