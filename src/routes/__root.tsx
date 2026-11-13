@@ -54,7 +54,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, interactive-widget=resizes-content" },
-      { title: "Andon" },
+      { title: "ANDON" },
       {
         name: "description",
         content: "Sistema Andon industrial para acompanhar máquinas e chamados em tempo real.",

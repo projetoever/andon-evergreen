@@ -58,17 +58,17 @@ test("BI report retrieves current identity rather than assuming live main or sta
 
 test("BRAND-01: document title uses only the current Hub company, with safe fallback", async () => {
   const { formatAndonBrowserTitle } = await import("../src/utils/andonBrowserTitle.ts");
-  assert.equal(formatAndonBrowserTitle("Evergreen"), "Andon (Evergreen)");
-  assert.equal(formatAndonBrowserTitle("Evergreen do Brasil"), "Andon (Evergreen do Brasil)");
-  assert.equal(formatAndonBrowserTitle(" Fábrica São João "), "Andon (Fábrica São João)");
-  assert.equal(formatAndonBrowserTitle("長春企業"), "Andon (長春企業)");
-  assert.equal(formatAndonBrowserTitle("a"), "Andon");
-  assert.equal(formatAndonBrowserTitle(null), "Andon");
-  assert.equal(formatAndonBrowserTitle(123), "Andon");
-  assert.equal(formatAndonBrowserTitle(" "), "Andon");
-  assert.equal(formatAndonBrowserTitle("X".repeat(101)), "Andon");
-  assert.equal(formatAndonBrowserTitle("Main\u202e Admin"), "Andon (Main Admin)");
-  assert.equal(formatAndonBrowserTitle("AC\u0000ME"), "Andon (ACME)");
+  assert.equal(formatAndonBrowserTitle("Evergreen"), "ANDON Evergreen");
+  assert.equal(formatAndonBrowserTitle("Evergreen do Brasil"), "ANDON Evergreen do Brasil");
+  assert.equal(formatAndonBrowserTitle(" Fábrica São João "), "ANDON Fábrica São João");
+  assert.equal(formatAndonBrowserTitle("長春企業"), "ANDON 長春企業");
+  assert.equal(formatAndonBrowserTitle("a"), "ANDON");
+  assert.equal(formatAndonBrowserTitle(null), "ANDON");
+  assert.equal(formatAndonBrowserTitle(123), "ANDON");
+  assert.equal(formatAndonBrowserTitle(" "), "ANDON");
+  assert.equal(formatAndonBrowserTitle("X".repeat(101)), "ANDON");
+  assert.equal(formatAndonBrowserTitle("Main\u202e Admin"), "ANDON Main Admin");
+  assert.equal(formatAndonBrowserTitle("AC\u0000ME"), "ANDON ACME");
 });
 
 test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", async () => {
@@ -79,7 +79,7 @@ test("BRAND-01: only browser favicon changes; the Hub remains product-neutral", 
     load("../src/components/settings/HubClientIdentitySettings.tsx"),
     load("../src/services/systemSettingsService.ts"),
   ]);
-  assert.match(root, /\{ title: "Andon" \}/);
+  assert.match(root, /\{ title: "ANDON" \}/);
   assert.match(root, /rel: "icon"/);
   assert.match(root, /type: "image\/svg\+xml"/);
   assert.match(root, /href: "\/favicon\.svg\?v=2"/);
