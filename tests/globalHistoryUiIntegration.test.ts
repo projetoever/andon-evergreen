@@ -109,3 +109,14 @@ test("HIST-06A: machine history links only to authorized global view with safe f
   assert.match(sql, /callMachineReadWhere\(machineId, allowedMachineIds\)/);
   assert.match(module, /history\.read/);
 });
+
+
+test("HIST-07: optional hourly range is available only for a chosen date and validated before fetch", async () => {
+  const page = await source("../src/pages/GlobalCallHistoryPage.tsx");
+  assert.match(page, /draft\.period === "custom"/);
+  assert.match(page, /type="time" step=\{60\}/);
+  assert.match(page, /value=\{draft\.timeFrom \?\? ""\}/);
+  assert.match(page, /value=\{draft\.timeBefore \?\? ""\}/);
+  assert.match(page, /globalHistorySearchPath\(draft\)/);
+  assert.match(page, /setError\(cause instanceof Error/);
+});
