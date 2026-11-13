@@ -45,6 +45,7 @@ import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { AppearanceSettingsPreview } from "./AppearanceSettingsPreview";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
 import { SoundsSettingsTab } from "./SoundsSettingsTab";
+import { CentralSettingsCapabilityNotice } from "./CentralSettingsCapabilityNotice";
 
 type AdminNavigationGroup = "Sistema" | "Operação" | "Cadastros" | "Infraestrutura";
 
@@ -411,11 +412,7 @@ export function AdminSettingsModal({
                     {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
                   </p>
                 )}
-                {centralAccess && !["general", "appearance", "attendance"].includes(tab) && (
-                  <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
-                    {ui("Este painel foi preservado. Algumas operações de cadastro ainda não foram migradas para o acesso central e permanecem bloqueadas pela API até homologação.")}
-                  </p>
-                )}
+                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={open} />}
                 {renderTab()}
               </div>
             </div>
