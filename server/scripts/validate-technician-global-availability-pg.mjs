@@ -18,6 +18,8 @@ const nonce = randomUUID().replaceAll("-", "").slice(0, 12);
 const machineId = "ci-avail-main-" + nonce;
 const foreignMachineId = "ci-avail-foreign-" + nonce;
 const workstationId = "ws_" + randomUUID();
+const productionWorkstationId = "ws_" + randomUUID();
+const stationByToken = new Map();
 const technicianIds = ["ci-avail-tech-a-" + nonce, "ci-avail-tech-b-" + nonce];
 const accessUsers = [];
 const sessionIds = [];
@@ -32,9 +34,10 @@ try {
     { id: machineId, name: "CI availability selected", isActive: true },
     { id: foreignMachineId, name: "CI availability restricted", isActive: true },
   ] });
-  await db.workstation.create({ data: {
-    id: workstationId, active: true, pendingApproval: false, allowOperational: true,
-  } });
+  await db.workstation.createMany({ data: [
+    { id: workstationId, active: true, pendingApproval: false, allowOperational: true },
+    { id: productionWorkstationId, active: true, pendingApproval: false, allowOperational: true },
+  ] });
   for (let i = 0; i < 2; i++) {
     await db.technician.create({ data: {
       id: technicianIds[i], name: "CI availability tech " + i + " " + nonce,
@@ -64,6 +67,8 @@ try {
   ] });
   async function createUser(label, scope, canAttend) {
     const token = randomBytes(32).toString("hex");
+    const sessionStation = label === "production" ? productionWorkstationId : workstationId;
+    stationByToken.set(token, sessionStation);
     const user = await db.accessUser.create({ data: {
       login: "ci.availability." + label + "." + nonce,
       displayName: "CI availability " + label, roleLabel: label,
@@ -77,7 +82,7 @@ try {
     } });
     accessUsers.push(user.id);
     sessionIds.push((await db.accessSession.create({ data: {
-      tokenHash: tokenHash(token), userId: user.id, workstationId,
+      tokenHash: tokenHash(token), userId: user.id, workstationId: sessionStation,
       purpose: "normal", authorizationVersion: user.authorizationVersion,
       createdAt: now, lastInteractionAt: now, expiresAt: new Date(now.getTime() + 3600000),
     } })).id);
@@ -103,7 +108,7 @@ try {
       url: "/api/technicians/availability?callId=" + encodeURIComponent(callId),
       headers: {
         origin: "https://andon.test",
-        "x-andon-workstation-id": workstationId,
+        "x-andon-workstation-id": stationByToken.get(token) ?? workstationId,
         cookie: token ? "__Host-andon-access=" + token : "",
         ...headers,
       },
@@ -136,9 +141,9 @@ try {
   assert.deepEqual(refreshed.json().busyTechnicianIds, [technicianIds[1]],
     "Ended global session must make the technician available immediately");
 
-  await db.workstation.update({ where: { id: workstationId }, data: { pendingApproval: true } });
+  await db.workstation.update({ where: { id: productionWorkstationId }, data: { pendingApproval: true } });
   assert.equal((await request(productionToken)).statusCode, 403);
-  await db.workstation.update({ where: { id: workstationId }, data: { pendingApproval: false } });
+  await db.workstation.update({ where: { id: productionWorkstationId }, data: { pendingApproval: false } });
   await db.accessSession.update({ where: { id: sessionIds[1] }, data: { revokedAt: new Date() } });
   assert.equal((await request(productionToken)).statusCode, 401);
   console.log("P0 technician availability PG PASS: cross-scope parity, legacy, ended, foreign hidden, no PII, ACL, Origin, station and revocation");
@@ -157,7 +162,7 @@ try {
     await db.accessUser.update({ where: { id }, data: { active: false } });
   }
   await db.technician.deleteMany({ where: { id: { in: technicianIds } } });
-  await db.workstation.deleteMany({ where: { id: workstationId } });
+  await db.workstation.deleteMany({ where: { id: { in: [workstationId, productionWorkstationId] } } });
   await db.machine.deleteMany({ where: { id: { in: [machineId, foreignMachineId] } } });
   await db.$disconnect();
 }
