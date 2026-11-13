@@ -14,7 +14,7 @@ import {
 } from "@/services/categoryConfigService";
 import type { AndonCategoryConfig } from "@/types/settings";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
   useInterfaceLanguage();
@@ -103,16 +103,32 @@ export function CategoriesSettingsTab() {
     }
   }, []);
 
+  // CFG-15C: match the live server capability notice, not a stale mount-time
+  // snapshot. Browser events only request a fresh API read, never grant rights.
   useEffect(() => {
     if (!centralMode) return;
     let mounted = true;
-    setCentralCatalogWritable(false);
-    void getSystemSettings().then(settings => {
-      if (mounted) setCentralCatalogWritable(settings.centralCategorySettingsWriteEnabled === true);
-    }).catch(() => {
-      if (mounted) setCentralCatalogWritable(false);
-    });
-    return () => { mounted = false; };
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralCatalogWritable(false); // fail closed while the server is checked
+      void getSystemSettings().then(settings => {
+        if (mounted && request === requestVersion) {
+          setCentralCatalogWritable(settings.centralCategorySettingsWriteEnabled === true);
+        }
+      }).catch(() => {
+        if (mounted && request === requestVersion) setCentralCatalogWritable(false);
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      mounted = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
   }, [centralMode]);
 
   useEffect(() => {
