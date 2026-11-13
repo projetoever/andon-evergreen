@@ -82,6 +82,9 @@ try {
     method: "POST", url: "/api/access/machines/production-mode",
     headers: { ...headers, ...overrides }, payload: { ...body, ...changes },
   });
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
+  assert.equal((await post()).statusCode, 403, "Central schedule changes must be disabled in legacy mode");
+  process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   assert.equal((await post({ password: "incorrect" })).statusCode, 401);
   assert.equal((await post({}, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
   assert.equal((await post({}, { origin: "https://evil.test" })).statusCode, 403);
