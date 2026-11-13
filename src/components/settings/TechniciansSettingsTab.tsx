@@ -2,7 +2,7 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { Search, X } from "lucide-react";
 import { toast } from "@/i18n/toast";
 import { BigButton } from "@/components/common/BigButton";
@@ -98,21 +98,37 @@ export function TechniciansSettingsTab() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [shiftFilter, setShiftFilter] = useState("all");
 
+  // CFG-15E: re-check central create and update gates independently. Neither
+  // a browser event nor a stale GET may enable writes; keep technician drafts.
   useEffect(() => {
     if (!centralMode) return;
     let mounted = true;
-    setCentralCapabilities(null); // fail closed during each new capability check
-    void getSystemSettings().then(settings => {
-      if (!mounted) return;
-      setCentralCapabilities({
-        create: settings.centralTechnicianCreateEnabled === true,
-        update: settings.centralTechnicianUpdateEnabled === true,
-        error: false,
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralCapabilities(null); // fail closed during each new capability check
+      void getSystemSettings().then(settings => {
+        if (!mounted || request !== requestVersion) return;
+        setCentralCapabilities({
+          create: settings.centralTechnicianCreateEnabled === true,
+          update: settings.centralTechnicianUpdateEnabled === true,
+          error: false,
+        });
+      }).catch(() => {
+        if (mounted && request === requestVersion) {
+          setCentralCapabilities({ create: false, update: false, error: true });
+        }
       });
-    }).catch(() => {
-      if (mounted) setCentralCapabilities({ create: false, update: false, error: true });
-    });
-    return () => { mounted = false; };
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      mounted = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
   }, [centralMode, capabilityReload]);
 
   useEffect(() => {

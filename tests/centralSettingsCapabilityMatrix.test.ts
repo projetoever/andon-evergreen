@@ -128,3 +128,22 @@ test("CFG-15C: sectors re-check their OWN write gate after server settings chang
   assert.match(tab, /settings\.centralCategorySettingsWriteEnabled === true/);
   assert.doesNotMatch(tab, /event\.detail/);
 });
+
+test("CFG-15E: technicians revalidate central create/update gates while preserving unsaved drafts", async () => {
+  const tab = await get("../src/components/settings/TechniciansSettingsTab.tsx");
+  assert.match(tab, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(tab, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(tab, /const request = \+\+requestVersion/);
+  assert.match(tab, /request !== requestVersion/);
+  assert.match(tab, /setCentralCapabilities\(null\)/);
+  assert.match(tab, /settings\.centralTechnicianCreateEnabled === true/);
+  assert.match(tab, /settings\.centralTechnicianUpdateEnabled === true/);
+  assert.match(tab, /\[centralMode, capabilityReload\]/);
+  assert.doesNotMatch(tab, /event\.detail/);
+  // Capability refresh deliberately does not change selected technician data.
+  const revalidate = tab.slice(tab.indexOf("const revalidate = () =>"), tab.indexOf("  }, [centralMode, capabilityReload]);"));
+  assert.doesNotMatch(revalidate, /setDraft|setSelectedId|refreshTechnicians/);
+});
