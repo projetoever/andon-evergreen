@@ -110,6 +110,11 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
           return;
         }
         setCanWrite(latest.canWrite);
+        // A successful fresh GET must clear a previous transient error; a
+        // revoked gate must not retain an obsolete "saved" success notice.
+        setMessage(previous => !latest.canWrite ||
+          previous === "Não foi possível confirmar a disponibilidade da paleta. Nenhuma edição será enviada."
+          ? "" : previous);
       }).catch(() => {
         if (!active || version !== requestVersion) return;
         setCanWrite(false);
