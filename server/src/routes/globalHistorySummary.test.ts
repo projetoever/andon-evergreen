@@ -86,7 +86,7 @@ test("HIST-05: summary route requires flag, history.read and SQL machineScope", 
   assert.equal(groups,0);
   grants=["andon.read","history.read"];
   response=await app.inject({
-    url:"/api/andon-calls/history/summary?machineId=11&status=finished&origin=real",
+    url:"/api/andon-calls/history/summary?machineId=11&status=finished&origin=real&criticality=medium",
   });
   assert.equal(response.statusCode,200,response.body);
   assert.equal(response.headers["cache-control"],"no-store");
@@ -96,6 +96,7 @@ test("HIST-05: summary route requires flag, history.read and SQL machineScope", 
     {machineId:"11"},{machineId:{in:["15"]}},
   ]);
   assert.equal((lastWhere as any).status,"finished");
+  assert.equal((lastWhere as any).criticality,"medium");
   assert.equal((lastWhere as any).isSystemTest,false);
   response=await app.inject({url:"/api/andon-calls/history/summary?status=unknown"});
   assert.equal(response.statusCode,400);
