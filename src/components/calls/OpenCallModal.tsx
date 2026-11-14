@@ -514,7 +514,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
         ) : reasonCatalogStatus === "unavailable" ? (
           <div role="alert" className="space-y-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
             <p>{ui("Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.")}</p>
-            <BigButton tone="neutral" size="sm" onClick={() => setReasonReload(n => n + 1)}>
+            <BigButton tone="neutral" size="md" onClick={() => setReasonReload(n => n + 1)}>
               {ui("Tentar novamente")}
             </BigButton>
           </div>
