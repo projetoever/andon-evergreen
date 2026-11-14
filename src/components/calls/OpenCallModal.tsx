@@ -55,6 +55,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
   const [reasonReload, setReasonReload] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const openingInFlightRef = useRef(false);
   const [machineId, setMachineId] = useState<string | null>(preselectedMachineId ?? null);
   const [subtype, setSubtype] = useState<CallSubtype | null>(null);
   const [machineCondition, setMachineCondition] = useState<MachineStatus>("running");
@@ -369,7 +370,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   );
 
   async function handleConfirm() {
-    if (!machineId || !subtype || !canConfirm || isSubmitting) return;
+    if (!machineId || !subtype || !canConfirm || isSubmitting || openingInFlightRef.current) return;
     if (reasonCatalogStatus !== "legacy" && (
       reasonCatalogStatus !== "ready" ||
       !hierarchicalChoice || hierarchicalChoice.subtype !== subtype
@@ -430,6 +431,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       operatorNote: operatorNote.trim() || undefined,
     };
 
+    openingInFlightRef.current = true;
     setIsSubmitting(true);
     try {
       // Only a single POST. The server rechecks revisions, locks, workstation,
@@ -448,6 +450,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
     } catch (err) {
       toast.error(ui(err instanceof Error ? err.message : "Erro ao abrir ANDON"));
     } finally {
+      openingInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
