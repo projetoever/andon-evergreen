@@ -463,7 +463,11 @@ try {
     // The first-run form is gone; account validation now controls Admin access.
     primaryAdmin = false;
     await page.reload();
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.waitForURL((url) => url.pathname === "/hub");
+    await page.getByText(
+      "Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.",
+      { exact: true },
+    ).waitFor();
     assert.equal(await page.getByRole("button", { name: "Criar administrador e abrir painel" }).count(), 0);
     primaryAdmin = true;
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
@@ -661,7 +665,7 @@ try {
     assert.equal(await page.getByRole("link", { name: "Módulos e senhas" }).count(), 0);
     primaryAdmin = false;
     await page.reload();
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.waitForURL((url) => url.pathname === "/hub");
     assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
     await noOverflow();
 
@@ -684,7 +688,8 @@ try {
     // Managers cannot configure ANDON from the Hub, even with a presentation
     // grant. Their central module/settings access is authorized separately.
     await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.waitForURL((url) => url.pathname === "/hub/admin" && url.searchParams.get("section") === "overview");
+    await page.getByRole("heading", { name: "Painel do gerente" }).waitFor();
     assert.equal(await page.getByRole("heading", { name: "Configurações operacionais — consulta" }).count(), 0);
     operationalSettingsWriteEnabled = true;
     managerPermissions = ["workstations.read", "andon.read", "andon.settings.open", "hub.settings.presentation.write"];
@@ -711,17 +716,18 @@ try {
     assert.equal(illicit, 403, "a Manager cannot edit sensitive operational fields");
     operationalSettingsWriteEnabled = false;
     await page.goto("https://127.0.0.1:4188/hub/admin?section=hub");
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.waitForURL((url) => url.pathname === "/hub/admin" && url.searchParams.get("section") === "overview");
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
-    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).count(), 0);
+    await page.waitForURL((url) => url.pathname === "/hub/admin" && url.searchParams.get("section") === "overview");
+    await page.getByText("Esta seção exige a conta Admin principal.", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).getByRole("link").count(), 2);
     managerScope = "selected";
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.waitForURL((url) => url.pathname === "/hub");
     managerScope = "all";
     managerPermissions = [];
-    await page.reload();
-    await page.getByRole("heading", { name: "Acesso administrativo restrito" }).waitFor();
+    await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
+    await page.waitForURL((url) => url.pathname === "/hub");
     assert.equal(await page.getByRole("heading", { name: "Painel do gerente" }).count(), 0);
     await noOverflow();
 

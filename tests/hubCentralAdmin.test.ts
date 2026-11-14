@@ -13,7 +13,7 @@ test("Hub central Admin uses server-verified primary Admin, not legacy local tok
   assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
   assert.match(page, /session\.principal\.isPrimaryAdmin === true/);
   assert.match(page, /session\?\.principal\?\.purpose === "normal"/);
-  assert.match(page, /Acesso administrativo restrito/);
+  assert.match(page, /<HubRestrictedAccessRedirect/);
   assert.doesNotMatch(page, /isAdminAuthenticated/);
   assert.doesNotMatch(page, /AdminLoginModal/);
   assert.match(entry, /if \(access\?\.centralAccessEnabled\) return <HubCentralAdminPage \/>/);
@@ -119,4 +119,35 @@ test("Manager console relies on explicit full-scope grants, never the display ro
   assert.match(accessRoutes, /assertPermission\(principal, "workstations.read"\);\s+\/\/ Global workstations list includes identities from every terminal\.\s+assertFullMachineScope\(principal\)/);
   assert.match(presets, /"workstations.read"/);
   assert.doesNotMatch(manager, /"POST"\s*,\s*\{[^}]*\}(?=\s*,)/);
+});
+
+
+test("UX-SEC-21: unauthorized Hub admin deep links use bottom-right notification and safe redirects", async () => {
+  const [admin, manager, hub, redirect, toaster] = await Promise.all([
+    read("../src/pages/HubCentralAdminPage.tsx"),
+    read("../src/pages/HubCentralManagerPage.tsx"),
+    read("../src/pages/HubPage.tsx"),
+    read("../src/components/security/HubRestrictedAccessRedirect.tsx"),
+    read("../src/components/ui/sonner.tsx"),
+  ]);
+  assert.match(admin, /if \(!primaryAdmin\)/);
+  assert.match(admin, /if \(managerReadOnly && session\?\.principal\)/);
+  assert.match(admin, /destination="hub"/);
+  assert.doesNotMatch(admin, /<CentralAdminRecoveryForm onRecovered=\{refresh\}/);
+  assert.match(manager, /availableSections\.some/);
+  assert.match(manager, /destination="manager-overview"/);
+  assert.match(redirect, /toast\.error\(ui\(notice\)/);
+  assert.match(redirect, /useRef\(false\)/);
+  assert.match(redirect, /if \(notified\.current\) return/);
+  assert.match(redirect, /to: "\/hub", replace: true/);
+  assert.match(redirect, /to: "\/hub\/admin", search: \{ section: "overview" \}, replace: true/);
+  assert.doesNotMatch(redirect, /accessRequest|setCentralCsrf|isAdminAuthenticated/);
+  assert.match(toaster, /position="bottom-right"/);
+  assert.match(hub, /if \(window\.location\.protocol !== "https:"\)/);
+  assert.match(hub, /A autenticação central exige HTTPS/);
+  assert.match(admin, /cause\.message === "https_required"/);
+  assert.match(admin, /sessionError === "https_required"/);
+  assert.match(hub, /if \(!access\.principal \|\| access\.principal\.purpose !== "normal"\)/);
+  assert.match(hub, /toast\.error\(ui\("Identifique-se para acessar o Hub"\)\)/);
+  assert.match(hub, /void navigate\(\{ to: "\/hub\/admin" \}\)/);
 });

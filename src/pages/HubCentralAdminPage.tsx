@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubClientIdentitySettings } from "@/components/settings/HubClientIdentitySettings";
 import { HubCentralManagerPage } from "./HubCentralManagerPage";
+import { HubRestrictedAccessRedirect } from "@/components/security/HubRestrictedAccessRedirect";
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
-import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
@@ -90,13 +90,20 @@ export function HubCentralAdminPage() {
   const navigate = useNavigate();
   const { access, refresh: refreshModules } = useModuleAccess();
   const [session, setSession] = useState<AccessState | null>(null);
+  const [sessionError, setSessionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const refresh = useCallback(async () => {
-    try { setSession(await accessRequest<AccessState>("/session")); }
-    catch { setSession(null); }
-    finally { setLoading(false); }
+    try {
+      setSession(await accessRequest<AccessState>("/session"));
+      setSessionError("");
+    } catch (cause) {
+      setSession(null);
+      setSessionError(cause instanceof Error && cause.message === "https_required" ? "https_required" : "");
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => {
     void refresh();
@@ -184,18 +191,12 @@ export function HubCentralAdminPage() {
     if (managerReadOnly && session?.principal) {
       return <HubCentralManagerPage section={section} displayName={session.principal.displayName} />;
     }
-    return (
-      <main className="min-h-dvh bg-background p-6">
-        <div role="alert" className="mx-auto max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
-          <h1 className="text-lg font-bold">{ui("Acesso administrativo restrito")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {ui("Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.")}
-          </p>
-          {!session?.principal && <CentralAdminRecoveryForm onRecovered={refresh} />}
-          <Button asChild variant="outline"><Link to="/hub">{ui("Voltar ao Hub")}</Link></Button>
-        </div>
-      </main>
-    );
+    return <HubRestrictedAccessRedirect
+      destination="hub"
+      notice={sessionError === "https_required"
+        ? "A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado."
+        : "Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central."}
+    />;
   }
 
   const sections = [

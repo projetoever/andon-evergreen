@@ -834,5 +834,10 @@
   ["OS obrigatória nesta máquina.","Work order required on this machine.","此機台必須填寫工單。"],
   ["OS opcional nesta máquina.","Work order optional on this machine.","此機台工單為選填。"],
   ["Verificando disponibilidade do catálogo de motivos...","Checking call-reason catalog availability...","正在確認呼叫原因目錄的可用狀態…"],
-  ["Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.","Unable to verify catalog availability. No edits will be submitted.","無法確認目錄是否可用。不會提交任何編輯。"]
+  ["Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.","Unable to verify catalog availability. No edits will be submitted.","無法確認目錄是否可用。不會提交任何編輯。"],
+  ["Acesso administrativo restrito","Restricted administrative access","管理存取受限"],
+  ["Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.","Sign in to the Hub with an authorized primary Admin account. The legacy password does not grant central administration access.","請使用已授權的主要管理員帳號登入 Hub。舊版密碼無法授予中央管理權限。"],
+  ["Esta seção exige a conta Admin principal.","This section requires the primary Admin account.","此區域需要主要管理員帳號。"],
+  ["Identifique-se para acessar o Hub","Sign in to access the Hub","請先登入以存取 Hub"],
+  ["A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.","Central authentication requires HTTPS. Open the Hub using its configured secure address.","中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"]
 ]
