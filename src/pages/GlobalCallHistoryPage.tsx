@@ -295,9 +295,13 @@ export function GlobalCallHistoryPage() {
     setMobileDetail(false);
   };
   const reset = () => {
-    setDraft({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS });
-    setApplied({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS });
+    // An individual-machine history link must remain scoped to that machine
+    // after clearing other filters. The SQL machineScope still decides access.
+    const next = { ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId };
+    setDraft(next);
+    setApplied(next);
     setOffset(0);
+    setMobileDetail(false);
     setReload(current => current + 1);
   };
   const selected = result?.items.find(item => item.id === selectedId) ?? null;

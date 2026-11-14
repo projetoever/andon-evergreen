@@ -140,3 +140,17 @@ test("HIST-08: list/detail/summary/CSV use the current PT/EN/ZH locale without c
   assert.match(csv, /csvCell/);
   assert.match(detail, /showInstant/);
 });
+
+test("HIST-09: reset from machine-specific history keeps authorized machine context", async () => {
+  const page = await source("../src/pages/GlobalCallHistoryPage.tsx");
+  assert.match(page, /const requestedMachineId = linkedMachineId \|\| "all"/);
+  assert.match(page, /const reset = \(\) => \{/);
+  assert.match(page, /const next = \{ \.\.\.DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId \}/);
+  assert.match(page, /setDraft\(next\)/);
+  assert.match(page, /setApplied\(next\)/);
+  assert.match(page, /setOffset\(0\)/);
+  assert.match(page, /setMobileDetail\(false\)/);
+  assert.doesNotMatch(page, /setApplied\(\{ \.\.\.DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS \}\)/);
+  assert.match(page, /searchGlobalHistory\(applied, offset\)/);
+  assert.match(page, /scoped/);
+});
