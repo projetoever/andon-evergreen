@@ -98,5 +98,5 @@ test("HIST-12: page CSV neutralizes formula prefixes disguised by zero-width cha
   assert(csv.includes("\"'\u202E+1+1\""));
   assert(csv.includes("\"'\r=SUM("));
   assert(!csv.includes("undefined"));
-  assert(csv.includes(';"mechanical";"";"\\'\\u202E+1+1"'), "legacy nature stays blank without inventing KPI classification");
+  assert(csv.includes(";\"mechanical\";\"\";\"'\u202E+1+1\""), "legacy nature stays blank without inventing KPI classification");
 });
