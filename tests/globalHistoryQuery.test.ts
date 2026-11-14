@@ -7,14 +7,14 @@ import {
 import type { GlobalHistorySearchFilters } from "../src/services/globalHistoryService";
 
 const filters = (patch: Partial<GlobalHistorySearchFilters> = {}): GlobalHistorySearchFilters =>
-  ({ query:"", machineId:"all", subtype:"", status:"all", technician:"",
+  ({ query:"", machineId:"all", subtype:"", status:"all", criticality:"all", technician:"",
     failureClassification:"", reasonId:"", origin:"all", period:"30d", customDate:"",
     ...patch });
 
 test("HIST-03: query encodes machine, classification, text and all current filter families", () => {
   const url = globalHistorySearchPath(filters({
     query: "OS 22 & motor", machineId: "15", status: "finished",
-    subtype: "electrical", technician: "João Silva",
+    criticality: "high", subtype: "electrical", technician: "João Silva",
     failureClassification: "mechanical_failure", reasonId: "maintenance",
     origin: "real", period: "all",
   }), 25);
@@ -23,6 +23,7 @@ test("HIST-03: query encodes machine, classification, text and all current filte
   assert.equal(parsed.searchParams.get("query"), "OS 22 & motor");
   assert.equal(parsed.searchParams.get("machineId"), "15");
   assert.equal(parsed.searchParams.get("status"), "finished");
+  assert.equal(parsed.searchParams.get("criticality"), "high");
   assert.equal(parsed.searchParams.get("subtype"), "electrical");
   assert.equal(parsed.searchParams.get("technician"), "João Silva");
   assert.equal(parsed.searchParams.get("failureClassification"), "mechanical_failure");
@@ -34,7 +35,7 @@ test("HIST-03: query encodes machine, classification, text and all current filte
 
 test("HIST-03: all machines/period does not send fake server scope", () => {
   const p = new URL(globalHistorySearchPath(filters({ period: "all" })), "https://andon.test").searchParams;
-  for (const key of ["machineId", "status", "origin", "openedFrom", "openedBefore"]) {
+  for (const key of ["machineId", "status", "criticality", "origin", "openedFrom", "openedBefore"]) {
     assert.equal(p.has(key), false, key);
   }
 });
