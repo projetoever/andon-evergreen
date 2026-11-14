@@ -11,6 +11,7 @@ import {
   DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS,
   getGlobalHistoryCallDetail,
   getGlobalHistorySummary,
+  getAuditedGlobalHistoryExport,
   globalHistorySearchPath,
   listAuthorizedHistoryMachines,
   listGlobalHistoryCategoryOptions,
@@ -26,10 +27,12 @@ import {
   type GlobalHistorySummary,
 } from "@/services/globalHistoryService";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/i18n/toast";
+import { AndonApiError } from "@/api/andonApiClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GlobalHistoryDetailSections } from "@/components/history/GlobalHistoryDetailSections";
 import { GlobalHistorySummaryPanel } from "@/components/history/GlobalHistorySummaryPanel";
-import { downloadGlobalHistoryPageCsv } from "@/services/globalHistoryPageCsv";
+import { downloadGlobalHistoryPageCsv, downloadGlobalHistoryFilteredCsv } from "@/services/globalHistoryPageCsv";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Aberto",
@@ -164,6 +167,8 @@ export function GlobalCallHistoryPage() {
   const [summaryError, setSummaryError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const exportInFlightRef = useRef(false);
   const [offset, setOffset] = useState(0);
   const [reload, setReload] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -317,6 +322,31 @@ export function GlobalCallHistoryPage() {
   };
   const selected = result?.items.find(item => item.id === selectedId) ?? null;
 
+  async function exportFilteredCsv() {
+    if (!allowed || loading || exportInFlightRef.current) return;
+    exportInFlightRef.current = true; // synchronous double-click protection
+    setExportBusy(true);
+    try {
+      // Export only the APPLIED filter set, never unfinished draft inputs.
+      // A machine-originated link cannot broaden to all machines.
+      const requested = { ...applied,
+        machineId: machineContextLocked ? requestedMachineId : applied.machineId };
+      const payload = await getAuditedGlobalHistoryExport(requested);
+      if (payload.maxRows !== 500 || payload.total !== payload.items.length ||
+          payload.items.length === 0 || payload.items.length > 500)
+        throw new Error("invalid_history_export_response");
+      downloadGlobalHistoryFilteredCsv(payload.items);
+      toast.success(ui("CSV filtrado exportado com auditoria no servidor."));
+    } catch (cause) {
+      toast.error(cause instanceof AndonApiError && cause.code === "history_export_limit_exceeded"
+        ? ui("A exportação excede 500 registros. Refine os filtros e tente novamente.")
+        : ui("Não foi possível exportar o histórico filtrado."));
+    } finally {
+      exportInFlightRef.current = false;
+      setExportBusy(false);
+    }
+  }
+
   if (checking) return (
     <main className="min-h-dvh space-y-3 bg-background p-6" role="status">
       <p>{ui("Verificando autorização do Histórico Global…")}</p>
@@ -360,6 +390,13 @@ export function GlobalCallHistoryPage() {
               }}>
               <FileSpreadsheet className="mr-1 h-4 w-4" />
               {ui("CSV da página")}
+            </Button>
+            <Button variant="outline" size="sm"
+              title={ui("Exporta todos os registros dos filtros atuais quando houver até 500, com auditoria no servidor.")}
+              disabled={loading || exportBusy || !result?.total}
+              onClick={() => void exportFilteredCsv()}>
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              {ui(exportBusy ? "Exportando CSV..." : "CSV filtrado (até 500)")}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setReload(v => v + 1)}>
               <RefreshCw className="mr-1 h-4 w-4" /> {ui("Atualizar")}
