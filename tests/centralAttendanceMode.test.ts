@@ -36,7 +36,10 @@ test("central declared-name flows require server capability and preserve strong 
 
 test("admin explains declared identity and disables name option when feature is OFF", async () => {
   const source = await readFile(new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url), "utf8");
-  assert.match(source, /settings\.centralDeclaredAttendanceEnabled !== true/);
+  assert.match(source, /value\.centralDeclaredAttendanceEnabled === true/);
+  assert.match(source, /const canSelectName = !centralAttendance \|\| centralCapability\?\.declaredName === true/);
+  assert.match(source, /option\.id === "name" && !canSelectName/);
+  assert.match(source, /const canSaveAttendance = canWriteAttendance/);
   assert.match(source, /selecionar por nome declara o mantenedor/);
   assert.match(source, /workstation responsáveis serão auditados/);
 });

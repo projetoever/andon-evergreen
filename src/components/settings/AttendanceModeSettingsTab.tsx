@@ -6,7 +6,7 @@ import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
-import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, updateSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import type { AttendanceMode, RfidInputTerminator, SystemSettings } from "@/types/systemSettings";
 
@@ -53,10 +53,15 @@ export function AttendanceModeSettingsTab() {
   const { access } = useModuleAccess();
   const centralAttendance = access?.centralAccessEnabled === true;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
-  // The declared-name flag controls name selection separately. The global
-  // operational-settings flag controls the actual PATCH on Save.
-  const canWriteAttendance = !centralAttendance ||
-    settings?.centralOperationalSettingsWriteEnabled === true;
+  // These flags must reflect a fresh server GET, not the initial form snapshot.
+  // Revalidating capability must never overwrite unsaved PIN/RFID drafts.
+  const [centralCapability, setCentralCapability] = useState<{
+    write: boolean; declaredName: boolean;
+  } | null>(null);
+  const canWriteAttendance = !centralAttendance || centralCapability?.write === true;
+  const canSelectName = !centralAttendance || centralCapability?.declaredName === true;
+  const canSaveAttendance = canWriteAttendance &&
+    (settings?.attendanceMode !== "name" || canSelectName);
   const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,6 +91,35 @@ export function AttendanceModeSettingsTab() {
     void loadSettings();
   }, [loadSettings]);
 
+  useEffect(() => {
+    if (!centralAttendance || isLoading || loadError) return;
+    let active = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralCapability(null); // fail closed during GET/error/flag revocation
+      void getSystemSettings().then(value => {
+        if (active && request === requestVersion) {
+          setCentralCapability({
+            write: value.centralOperationalSettingsWriteEnabled === true,
+            declaredName: value.centralDeclaredAttendanceEnabled === true,
+          });
+        }
+      }).catch(() => {
+        if (active && request === requestVersion) setCentralCapability(null);
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      active = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [centralAttendance, isLoading, loadError]);
+
   const hasUnsavedChanges = useMemo(() => {
     if (!settings || !savedSettings) return false;
 
@@ -97,7 +131,7 @@ export function AttendanceModeSettingsTab() {
   }, [savedSettings, settings]);
 
   async function handleSave() {
-    if (!settings || !hasUnsavedChanges || !canWriteAttendance || isSaving) return;
+    if (!settings || !hasUnsavedChanges || !canSaveAttendance || isSaving) return;
 
     if (
       settings.rfidInputTerminator === "fixed_length" &&
@@ -184,8 +218,11 @@ export function AttendanceModeSettingsTab() {
               type="button"
               aria-pressed={selected}
               disabled={!canWriteAttendance ||
-                (centralAttendance && option.id === "name" && settings.centralDeclaredAttendanceEnabled !== true)}
-              onClick={() => setSettings({ ...settings, attendanceMode: option.id })}
+                (centralAttendance && option.id === "name" && !canSelectName)}
+              onClick={() => {
+                if (!canWriteAttendance || (option.id === "name" && !canSelectName)) return;
+                setSettings({ ...settings, attendanceMode: option.id });
+              }}
               className={cn(
                 "min-h-32 rounded-xl border-2 p-4 text-left transition-colors",
                 selected
@@ -269,7 +306,7 @@ export function AttendanceModeSettingsTab() {
             tone="primary"
             size="md"
             onClick={() => void handleSave()}
-            disabled={isSaving || !hasUnsavedChanges || !canWriteAttendance}
+            disabled={isSaving || !hasUnsavedChanges || !canSaveAttendance}
           >
             {isSaving ? ui("Salvando...") : ui("Salvar modo de atendimento")}
           </BigButton>
