@@ -132,3 +132,28 @@ test("UX-19: preset picker previews priority border, keeps safety warnings and r
   assert.doesNotMatch(css, /--andon-palette-danger|--andon-palette-warning/);
   assert.match(server, /priorityBorder/);
 });
+
+
+test("CFG-15E: palette write authorization follows live server focus/events without draft loss", async () => {
+  const preview = await source("src/components/settings/AppearanceSettingsPreview.tsx");
+  assert.match(preview, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(preview, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(preview, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(preview, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(preview, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(preview, /const version = \+\+requestVersion/);
+  assert.match(preview, /!active \|\| version !== requestVersion/);
+  assert.match(preview, /setCapabilityChecking\(true\)/);
+  assert.match(preview, /setCanWrite\(false\); \/\/ fail closed/);
+  assert.match(preview, /latest\.revision !== revision/);
+  assert.match(preview, /setConflict\(true\)/);
+  assert.match(preview, /setCanWrite\(latest\.canWrite\)/);
+  assert.match(preview, /setMessage\(previous => !latest\.canWrite/);
+  assert.match(preview, /!allowGlobalSave \|\| !canWrite \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict/);
+  assert.match(preview, /disabled=\{!canWrite \|\| !changed \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict/);
+  assert.match(preview, /disabled=\{!canWrite \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict\}/);
+  const revalidate = preview.split("const revalidate = () => {")[1]?.split('window.addEventListener("focus"')[0];
+  assert.ok(revalidate);
+  assert.doesNotMatch(revalidate, /setDraft\(|setSaved\(|setRevision\(|event\.detail/);
+  assert.match(preview, /Não foi possível confirmar a disponibilidade da paleta/);
+});
