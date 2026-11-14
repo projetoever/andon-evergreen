@@ -146,6 +146,31 @@ try {
   assert.equal(fresh.persistentOperational, true);
   assert.deepEqual(fresh.machineIds, [machineId]);
 
+  // A second browser with the SAME authenticated account and station
+  // identity must not sign the first browser out. Neither cookie is shared:
+  // this is two explicit password logins with separate HttpOnly tokens.
+  const sameUserAgain = await app.inject({
+    method: "POST", url: "/api/access/login",
+    headers: {
+      origin: "https://andon.test",
+      "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken),
+    },
+    payload: { login: operator.login, password: "CI-Updated-Only#2026" },
+  });
+  assert.equal(sameUserAgain.statusCode, 200, sameUserAgain.body);
+  assert.equal(sameUserAgain.json().persistentOperational, true);
+  const secondBrowserToken = String(sameUserAgain.headers["set-cookie"])
+    .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
+  assert(secondBrowserToken && secondBrowserToken !== afterChangeToken);
+  assert.equal((await resolveSession(db, {
+    token: secondBrowserToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+  assert.equal((await resolveSession(db, {
+    token: afterChangeToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+
   // Server explicitly ignores absolute and idle age for authorized operations.
   const s = await db.accessSession.findFirstOrThrow({
     where: { tokenHash: tokenHash(afterChangeToken) },
@@ -167,8 +192,9 @@ try {
   const logout = await adminRequest("POST", stationPath + "/remote-logout",
     { reason: "Operator shift handoff" });
   assert.equal(logout.statusCode, 200, logout.body);
-  assert(logout.json().revokedSessions > 0);
+  assert(logout.json().revokedSessions >= 2);
   await assert.rejects(resolveSession(db, { token: afterChangeToken, workstationId: targetStationId }));
+  await assert.rejects(resolveSession(db, { token: secondBrowserToken, workstationId: targetStationId }));
 
   const reLogin = await app.inject({ method: "POST", url: "/api/access/login",
     headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
