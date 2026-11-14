@@ -5,6 +5,7 @@ import type { GlobalHistoryCallSummary } from "../src/services/globalHistoryServ
 import {
   globalHistorySearchPath,
   globalHistorySummaryPath,
+  globalHistoryExportPath,
 } from "../src/utils/globalHistoryQuery";
 import type { GlobalHistorySearchFilters } from "../src/services/globalHistoryService";
 
@@ -99,4 +100,47 @@ test("HIST-12: page CSV neutralizes formula prefixes disguised by zero-width cha
   assert(csv.includes("\"'\r=SUM("));
   assert(!csv.includes("undefined"));
   assert(csv.includes(";\"mechanical\";\"\";\"'\u202E+1+1\""), "legacy nature stays blank without inventing KPI classification");
+});
+
+
+test("HIST-13: audited export URI preserves ALL applied filters but never page offset/limit", () => {
+  const url = new URL(globalHistoryExportPath(filters), "https://andon.test");
+  const summary = new URL(globalHistorySummaryPath(filters), "https://andon.test");
+  assert.equal(url.pathname, "/api/andon-calls/history/export");
+  assert.equal(url.searchParams.has("limit"), false);
+  assert.equal(url.searchParams.has("offset"), false);
+  assert.equal(url.searchParams.get("machineId"), "15");
+  assert.equal(url.searchParams.get("criticality"), "critical");
+  assert.equal(url.searchParams.get("reasonId"), "maintenance");
+  assert.equal(url.searchParams.get("origin"), "real");
+  assert.equal(url.searchParams.get("technician"), "Carlos");
+  assert.equal(url.searchParams.get("timeFrom"), null, "local times are converted to ISO");
+  assert.equal(url.searchParams.get("openedFrom"), summary.searchParams.get("openedFrom"));
+  assert.equal(url.searchParams.get("openedBefore"), summary.searchParams.get("openedBefore"));
+});
+
+test("HIST-13: full-history CSV source and UI never silently export only the current 25 rows", async () => {
+  const [page, service, csv, sqlRoute, scope, workstation] = await Promise.all([
+    import("node:fs/promises").then(x => x.readFile(new URL("../src/pages/GlobalCallHistoryPage.tsx", import.meta.url), "utf8")),
+    import("node:fs/promises").then(x => x.readFile(new URL("../src/services/globalHistoryService.ts", import.meta.url), "utf8")),
+    import("node:fs/promises").then(x => x.readFile(new URL("../src/services/globalHistoryPageCsv.ts", import.meta.url), "utf8")),
+    import("node:fs/promises").then(x => x.readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8")),
+    import("node:fs/promises").then(x => x.readFile(new URL("../server/src/security/centralScopedMachineReads.ts", import.meta.url), "utf8")),
+    import("node:fs/promises").then(x => x.readFile(new URL("../server/src/security/workstationAccess.ts", import.meta.url), "utf8")),
+  ]);
+  assert.match(page, /getAuditedGlobalHistoryExport\(requested\)/);
+  assert.match(page, /machineId: machineContextLocked \? requestedMachineId : applied\.machineId/);
+  assert.match(page, /payload\.total !== payload\.items\.length/);
+  assert.match(page, /downloadGlobalHistoryFilteredCsv\(payload\.items\)/);
+  assert.match(page, /exportInFlightRef\.current = true/);
+  assert.match(service, /globalHistoryExportPath\(filters\)/);
+  assert.match(csv, /saveHistoryCsv\(items, 500, "filtrado"\)/);
+  assert.match(csv, /saveHistoryCsv\(items, 25, "pagina"\)/);
+  assert.match(sqlRoute, /resolveSession\(tx/);
+  assert.match(sqlRoute, /appendAudit\(tx/);
+  assert.match(sqlRoute, /TransactionIsolationLevel\.RepeatableRead/);
+  assert.match(sqlRoute, /items\.length !== total/);
+  assert.match(sqlRoute, /HISTORY_EXPORT_MAX_ROWS = 500/);
+  assert.match(scope, /pathname === "\/api\/andon-calls\/history\/export"/);
+  assert.match(workstation, /path === "\/api\/andon-calls\/history\/export"/);
 });
