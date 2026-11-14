@@ -56,7 +56,9 @@ test("OPEN-12: duplicate active sector navigates to existing machine and double-
   assert.match(general, /\["open", "in_progress", "post_maintenance"\]\.includes\(call\.status\)/);
   assert.match(general, /if \(existing\) \{/);
   assert.match(general, /void navigate\(\{ to: "\/machines\/\$machineId", params: \{ machineId \} \}\)/);
-  assert.match(general, /if \(!machineId \|\| !subtype \|\| !canConfirm \|\| isSubmitting\) return/);
+  assert.match(general, /if \(!machineId \|\| !subtype \|\| !canConfirm \|\| isSubmitting \|\| openingInFlightRef\.current\) return/);
+  assert.match(general, /openingInFlightRef\.current = true/);
+  assert.match(general, /openingInFlightRef\.current = false/);
   assert.match(general, /setIsSubmitting\(true\)/);
   assert.match(general, /setIsSubmitting\(false\)/);
   assert.match(general, /disabled=\{!canConfirm \|\| isLoadingMachineSets \|\| isSubmitting\}/);
