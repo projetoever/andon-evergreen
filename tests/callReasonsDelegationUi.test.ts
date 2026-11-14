@@ -13,7 +13,7 @@ test("CFG-08A: explicit Admin status controls catalog create and KPI-sensitive c
   assert.match(server,/isPrimaryAdmin: principal\.isPrimaryAdmin/);
   assert.match(types,/isPrimaryAdmin\?: boolean/);
   assert.match(page,/access\?\.principal\?\.isPrimaryAdmin === true/);
-  assert.match(page,/isPrimaryAdmin \? values : \{/);
+  assert.match(page,/isPrimaryAdmin && policyReviewNeeded \? values : presentationOnly/);
   assert.match(page,/disabled=\{writeBlocked \|\| !isPrimaryAdmin\}/);
   assert.match(page,/disabled=\{writeBlocked \|\| \(Boolean\(chosen\) && !isPrimaryAdmin\)\}/);
   assert.match(page,/!chosen && !isPrimaryAdmin/);
@@ -124,4 +124,28 @@ test("CFG-15I: reasons revalidate live flag without accepting browser grants or 
   const revalidate=page.slice(page.indexOf("const revalidate = () =>"),
     page.indexOf("  }, [refresh]);"));
   assert.doesNotMatch(revalidate,/setDraft\(|setSelected\(|event\.detail|analytics\.policy\.manage/);
+});
+
+
+test("CFG-08C: presentation saves never resend KPI policy and material policy changes require confirmation", async () => {
+  const [page, server] = await Promise.all([
+    source("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    source("../server/src/access/centralCallReasonsWrite.ts"),
+  ]);
+  const presentation = page.split("const presentationOnly = {")[1]?.split("};")[0];
+  assert.ok(presentation, "separate presentation-only PATCH payload");
+  assert.match(presentation, /displayName: next\.displayName/);
+  assert.match(presentation, /color: next\.color/);
+  assert.match(presentation, /active: next\.active/);
+  assert.match(presentation, /displayOrder: next\.displayOrder/);
+  assert.doesNotMatch(presentation, /nature|maintenanceKpiPolicy|analyticsDisposition|suggestedResponsibility/);
+  assert.match(page, /chosen\.nature !== draft\.nature \|\| chosen\.maintenanceKpiPolicy !== draft\.maintenanceKpiPolicy/);
+  assert.match(page, /draft\.maintenanceKpiPolicy === "eligible"/);
+  assert.match(page, /if \(policyReviewNeeded && !policyAcknowledged\) return/);
+  assert.match(page, /isPrimaryAdmin && policyReviewNeeded \? values : presentationOnly/);
+  assert.match(page, /disabled=\{writeBlocked \|\| !draft\.displayName\.trim\(\) \|\| \(policyReviewNeeded && !policyAcknowledged\)\}/);
+  assert.match(page, /checked=\{policyAcknowledged\}/);
+  assert.match(page, /onChange=\{e => setPolicyAcknowledged\(e\.target\.checked\)\}/);
+  assert.match(page, /setPolicyAcknowledged\(false\)/);
+  assert.match(server, /additionalPermissions: safeDelegateAction \? \[\] : \["analytics\.policy\.manage"\]/);
 });
