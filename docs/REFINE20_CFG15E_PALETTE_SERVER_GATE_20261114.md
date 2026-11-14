@@ -14,6 +14,6 @@ A aba Aparência e cores consultava `andonVisualPaletteWriteEnabled` somente no 
 - Continuam valendo PATCH protegido, CSRF/Origin/session/workstation/ACL, optimistic concurrency, auditoria em PostgreSQL e proteção das cores críticas danger/warning.
 
 ## Escopo e homologação
-Somente `AppearanceSettingsPreview.tsx`, duas traduções e `tests/globalVisualPalette.test.ts`. Sem alteração de backend, políticas KPI, dados, migrations, flags, temas locais, CLPs/Node-RED/GPIO ou fábrica.
+Somente `AppearanceSettingsPreview.tsx`, duas traduções em `messages.ts` e `tests/globalVisualPalette.test.ts`. Sem alteração de backend, políticas KPI, dados, migrations, flags, temas locais, CLPs/Node-RED/GPIO ou fábrica.
 
 Teste manual: editar cor HEX/RGB e mudar foco; revogar flag/grant em outra sessão; GET falhar; reativar flag; outro Admin alterar revisão; cancelar/restaurar; trocar tema claro/escuro; confirmar ausência de perda do rascunho. CI Linux/PG/frontend/SSR/Windows antes de merge; notebook apenas pelo operador.
