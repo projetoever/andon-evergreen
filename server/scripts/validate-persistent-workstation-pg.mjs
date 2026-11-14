@@ -173,7 +173,7 @@ try {
   const reLogin = await app.inject({ method: "POST", url: "/api/access/login",
     headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
       cookie: "__Host-andon-preauth=" + loginToken, "x-andon-csrf": csrfToken(loginToken) },
-    payload: { login: operator.login, password: operatorPassword },
+    payload: { login: operator.login, password: "CI-Updated-Only#2026" },
   });
   assert.equal(reLogin.statusCode, 200, reLogin.body);
   const renewed = String(reLogin.headers["set-cookie"])
