@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { logoutAdmin } from "@/services/adminAuthService";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import type { FailureClassificationConfig, SettingsTab } from "@/types/settings";
 import { toast } from "@/i18n/toast";
 import {
@@ -457,17 +457,32 @@ function ClassificationsTab({ centralAccess }: { centralAccess: boolean }) {
   useEffect(() => {
     if (!centralAccess) return;
     let mounted = true;
-    setCentralWritable(false);
-    setCapabilityError(false);
-    void getSystemSettings().then(settings => {
-      if (mounted) setCentralWritable(settings.centralClassificationWriteEnabled === true);
-    }).catch(() => {
-      if (mounted) {
-        setCentralWritable(false);
-        setCapabilityError(true);
-      }
-    });
-    return () => { mounted = false; };
+    let requestVersion = 0;
+    // CFG-15J: unlike the catalog draft, the *effective permission* must
+    // refresh whenever the server policy or browser session may have changed.
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralWritable(false); // fail closed until a fresh server GET confirms
+      setCapabilityError(false);
+      void getSystemSettings().then(settings => {
+        if (mounted && request === requestVersion)
+          setCentralWritable(settings.centralClassificationWriteEnabled === true);
+      }).catch(() => {
+        if (mounted && request === requestVersion) {
+          setCentralWritable(false);
+          setCapabilityError(true);
+        }
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      mounted = false;
+      requestVersion += 1; // invalidate pending GET responses
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
   }, [centralAccess, capabilityRetry]);
 
   const filteredItems = useMemo(() => {
