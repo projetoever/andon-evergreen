@@ -45,3 +45,58 @@ test("HIST-05: page CSV quotes semicolons and neutralizes formulas in untrusted 
   const empty=buildGlobalHistoryPageCsv([]);
   assert.equal(empty.split("\r\n").length,1,"no invented records");
 });
+
+
+test("HIST-12: page CSV retains historical criticality, movement and immutable reason nature", () => {
+  const call = {
+    id: "history_123", machineId: "37", machine: { name: "Máquina 37" },
+    workOrderNumber: "OS-103", category: "maintenance", subtype: "mechanical",
+    status: "finished", criticality: "critical", failureClassification: "bearing",
+    technicianName: null, technicianNames: ["Ana", "Carlos"],
+    isSystemTest: false,
+    openedAt: "2026-11-14T10:00:00.000Z",
+    finishedAt: "2026-11-14T11:00:00.000Z",
+    updatedAt: "2026-11-14T12:30:00.000Z",
+    callReasonSnapshot: {
+      reasonId: "reason_01", reasonNameSnapshot: "Manutenção corretiva",
+      optionId: "mechanical_01", optionNameSnapshot: "Mecânica",
+      nature: "corrective_failure",
+    },
+  } satisfies GlobalHistoryCallSummary;
+  const csv = buildGlobalHistoryPageCsv([call]);
+  const [header, line] = csv.split("\r\n");
+  assert(header.includes('"Última movimentação"'));
+  assert(header.includes('"Criticidade"'));
+  assert(header.includes('"Natureza do chamado"'));
+  assert(line.includes('"critical"'));
+  assert(line.includes('"corrective_failure"'));
+  assert(line.includes('"Manutenção corretiva"'));
+  assert(line.includes('"Mecânica"'));
+  assert(line.includes('"Ana, Carlos"'));
+  assert(line.includes('"history_123"'));
+  assert.equal(line.split(";").length, header.split(";").length,
+    "columns must remain aligned for a simple authorized record");
+});
+
+test("HIST-12: page CSV neutralizes formula prefixes disguised by zero-width characters", () => {
+  const call = {
+    id: "history_456", machineId: "37",
+    machine: { name: "\u200B=HYPERLINK(\"https://invalid.example\")" },
+    workOrderNumber: "\u2060@SUM(1,2)",
+    category: "maintenance", subtype: "mechanical",
+    status: "finished", criticality: "high",
+    failureClassification: "\u202E+1+1",
+    technicianName: "\r=SUM(1,2)", technicianNames: [],
+    isSystemTest: false,
+    openedAt: "2026-11-14T10:00:00.000Z",
+    finishedAt: null, updatedAt: "2026-11-14T10:00:00.000Z",
+    callReasonSnapshot: null,
+  } satisfies GlobalHistoryCallSummary;
+  const csv = buildGlobalHistoryPageCsv([call]);
+  assert(csv.includes("\"'\u200B=HYPERLINK("));
+  assert(csv.includes("\"'\u2060@SUM("));
+  assert(csv.includes("\"'\u202E+1+1\""));
+  assert(csv.includes("\"'\r=SUM("));
+  assert(!csv.includes("undefined"));
+  assert(csv.includes(";\"mechanical\";\"\";\"'\u202E+1+1\""), "legacy nature stays blank without inventing KPI classification");
+});
