@@ -1,0 +1,7 @@
+# REFINE19 SEC-19 — Sessão operacional persistente após troca de senha
+
+Causa reproduzível no código: `changePassword` emitia `issueSession(...,"normal",now)` sem passar `persistentOperational`, mesmo em uma workstation aprovada, confiável e fixada e com a conta configurada como persistente. Assim o primeiro acesso com senha provisória podia deixar uma sessão padrão de 30 min/12 h até um segundo login.
+
+Correção: lock usuário → workstation, reverificação transacional do usuário/sessão/estação, nova senha e versão de autorização, elegibilidade recomputada com grants/escopo atuais, invalidação das sessões anteriores e emissão persistente somente com todos os gates existentes. A auditoria registra somente um booleano (não senha nem token). **Sem relaxar privilégios:** Admin, kiosk, conta com grants fora da allowlist, workstation não aprovada/sem máquina ou confiança desativada continuam padrão ou bloqueados. Não existe autenticação compartilhada entre navegadores: cada perfil usa cookie HttpOnly/Secure próprio; limpeza de cookies, logout e revogação exigem login.
+
+Testes PG isolado em `server/scripts/validate-persistent-workstation-pg.mjs`: login, troca de senha, cookie com Max-Age persistente, revogação do token anterior, autorização restrita à máquina e remote logout. CI Windows/Linux/PostgreSQL. Nenhum ambiente industrial ou flag alterado. Não homologado no notebook até retorno do usuário.

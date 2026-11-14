@@ -375,10 +375,15 @@ export async function changePassword(
   const passwordHash = await hashAccessPassword(newPassword);
   return db.$transaction(async (tx) => {
     await lockUser(tx, initial.userId);
+    // Login and workstation revocation use the same lock order: user -> station.
+    await lockWorkstationFlow(tx, request.workstationId);
     const principal = await resolveSession(tx, request);
     const current = await tx.accessUser.findUniqueOrThrow({ where: { id: principal.userId } });
     if (current.passwordHash !== credential.passwordHash)
       throw new AccessError("authentication_required", 401);
+    const station = await tx.workstation.findUnique({ where: { id: request.workstationId } });
+    if (!station || !station.active || station.pendingApproval)
+      throw new AccessError("workstation_denied");
     const now = new Date();
     const user = await tx.accessUser.update({
       where: { id: principal.userId },
@@ -390,15 +395,32 @@ export async function changePassword(
         authorizationVersion: { increment: 1 },
       },
     });
+    // The old flow always issued a standard 30m/12h session here, even on
+    // a trusted pinned workstation after a user's mandatory password change.
+    // Recompute eligibility from the updated account and live station state.
+    const permissions = await tx.accessPermission.findMany({ where: { userId: user.id } });
+    const machines = await tx.accessMachine.findMany({ where: { userId: user.id } });
+    const persistent = permitsPersistentOperationalAccount(
+      { ...user, permissions }, station, machines, user.machineScope,
+    );
     await tx.accessSession.updateMany({
-      where: { userId: user.id, revokedAt: null },
+      where: {
+        revokedAt: null,
+        ...(station.allowPersistentOperationalLogin && station.lockedMachineId
+          ? { OR: [{ userId: user.id }, { workstationId: station.id }] }
+          : { userId: user.id }),
+      },
       data: { revokedAt: now },
     });
-    const session = await issueSession(tx, user, request.workstationId, "normal", now);
+    const session = await issueSession(
+      tx, user, request.workstationId, "normal", now,
+      persistent, persistent ? station.lockedMachineId : null,
+    );
     await appendAudit(tx, actorFromPrincipal(principal), {
       action: "access.password.changed",
       resourceType: "access_user",
       resourceId: user.id,
+      after: { persistentOperational: session.persistentOperational },
     });
     return session;
   });

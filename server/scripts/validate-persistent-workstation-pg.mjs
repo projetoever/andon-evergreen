@@ -129,21 +129,38 @@ try {
   const token = String(cookie).match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(token, "secure persistent login cookie must be issued");
 
+  // Changing an operator password must preserve a qualified durable session.
+  const passwordChanged = await request("POST", "/password", token,
+    targetStationId, true, {
+      newPassword: "CI-Updated-Only#2026", currentPassword: operatorPassword,
+    });
+  assert.equal(passwordChanged.statusCode, 200, passwordChanged.body);
+  assert.equal(passwordChanged.json().persistentOperational, true);
+  const afterChangeToken = String(passwordChanged.headers["set-cookie"])
+    .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
+  assert(afterChangeToken && afterChangeToken !== token);
+  assert.match(String(passwordChanged.headers["set-cookie"]), /Max-Age=34560000/);
+  await assert.rejects(resolveSession(db, { token, workstationId: targetStationId }));
+  const fresh = await resolveSession(db,
+    { token: afterChangeToken, workstationId: targetStationId });
+  assert.equal(fresh.persistentOperational, true);
+  assert.deepEqual(fresh.machineIds, [machineId]);
+
   // Server explicitly ignores absolute and idle age for authorized operations.
   const s = await db.accessSession.findFirstOrThrow({
-    where: { tokenHash: tokenHash(token) },
+    where: { tokenHash: tokenHash(afterChangeToken) },
   });
   await db.accessSession.update({ where: { id: s.id }, data: {
     createdAt: new Date("2024-01-01T00:00:00Z"),
     lastInteractionAt: new Date("2024-12-01T00:00:00Z"),
     expiresAt: new Date("2025-01-01T00:00:00Z"),
   } });
-  const persisted = await resolveSession(db, { token, workstationId: targetStationId });
+  const persisted = await resolveSession(db, { token: afterChangeToken, workstationId: targetStationId });
   assert.equal(persisted.persistentOperational, true);
   assert.deepEqual(persisted.machineIds, [machineId]);
 
   // A non-admin cannot remotely log out their own or another workstation.
-  const selfDenied = await request("POST", stationPath + "/remote-logout", token,
+  const selfDenied = await request("POST", stationPath + "/remote-logout", afterChangeToken,
     targetStationId, true, { reason: "Not authorized" });
   assert.notEqual(selfDenied.statusCode, 200);
 
@@ -151,7 +168,7 @@ try {
     { reason: "Operator shift handoff" });
   assert.equal(logout.statusCode, 200, logout.body);
   assert(logout.json().revokedSessions > 0);
-  await assert.rejects(resolveSession(db, { token, workstationId: targetStationId }));
+  await assert.rejects(resolveSession(db, { token: afterChangeToken, workstationId: targetStationId }));
 
   const reLogin = await app.inject({ method: "POST", url: "/api/access/login",
     headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
