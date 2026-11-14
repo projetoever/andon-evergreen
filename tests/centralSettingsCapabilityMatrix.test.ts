@@ -184,3 +184,23 @@ test("CFG-15H: attendance PIN/RFID edits remain intact while central write and d
   assert.doesNotMatch(capabilityOnly, /setSettings\(|setSavedSettings\(|updateSystemSettings\(/);
   assert.doesNotMatch(capabilityOnly, /event\.detail/);
 });
+
+
+test("CFG-15J: Classifications editor revalidates its own write gate and never overwrites unsaved drafts", async () => {
+  const modal = await get("../src/components/settings/AdminSettingsModal.tsx");
+  assert.match(modal, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(modal, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(modal, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(modal, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(modal, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(modal, /const request = \+\+requestVersion/);
+  assert.match(modal, /mounted && request === requestVersion/);
+  assert.match(modal, /setCentralWritable\(false\)/);
+  assert.match(modal, /settings\.centralClassificationWriteEnabled === true/);
+  assert.match(modal, /const canWriteClassifications = !centralAccess \|\| centralWritable/);
+  assert.match(modal, /if \(!canWriteClassifications \|\| isSaving \|\| isLoading \|\| Boolean\(loadError\)\) return/);
+  assert.match(modal, /disabled=\{isSaving \|\| Boolean\(loadError\) \|\| !canWriteClassifications\}/);
+  const revalidate = modal.slice(modal.indexOf("const revalidate = () => {"),
+    modal.indexOf("  }, [centralAccess, capabilityRetry]);"));
+  assert.doesNotMatch(revalidate, /setDraft\(|setSelectedId\(|setItems\(|updateFailureClassification\(|event\.detail/);
+});
