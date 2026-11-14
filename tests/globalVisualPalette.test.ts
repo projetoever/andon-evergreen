@@ -148,6 +148,7 @@ test("CFG-15E: palette write authorization follows live server focus/events with
   assert.match(preview, /latest\.revision !== revision/);
   assert.match(preview, /setConflict\(true\)/);
   assert.match(preview, /setCanWrite\(latest\.canWrite\)/);
+  assert.match(preview, /setMessage\(previous => !latest\.canWrite/);
   assert.match(preview, /!allowGlobalSave \|\| !canWrite \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict/);
   assert.match(preview, /disabled=\{!canWrite \|\| !changed \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict/);
   assert.match(preview, /disabled=\{!canWrite \|\| busy \|\| loading \|\| capabilityChecking \|\| conflict\}/);
