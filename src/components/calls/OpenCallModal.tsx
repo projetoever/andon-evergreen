@@ -1,6 +1,7 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,11 @@ import type { MachineStatus } from "@/types/machine";
 import type { MachineSet } from "@/types/machineSet";
 import { listMachineSets } from "@/services/machineAssetService";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { AndonApiError } from "@/api/andonApiClient";
+import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
+import type { HierarchicalOpeningChoice } from "./QuickOpenCallModal";
+import { CallReasonOptionsModal } from "./CallReasonOptionsModal";
 import { CallTypeSelector } from "./CallTypeSelector";
 import { MachineAssetSelector } from "./MachineAssetSelector";
 import { BigButton } from "@/components/common/BigButton";
@@ -39,7 +45,17 @@ interface OpenCallModalProps {
 
 export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: OpenCallModalProps) {
   useInterfaceLanguage();
-  const { machines, openCall } = useAndon();
+  const { machines, calls, openCall } = useAndon();
+  const { access, checking: accessChecking } = useModuleAccess();
+  const navigate = useNavigate();
+  const [reasonCatalogStatus, setReasonCatalogStatus] =
+    useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
+  const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[]>([]);
+  const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
+  const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
+  const [reasonReload, setReasonReload] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const openingInFlightRef = useRef(false);
   const [machineId, setMachineId] = useState<string | null>(preselectedMachineId ?? null);
   const [subtype, setSubtype] = useState<CallSubtype | null>(null);
   const [machineCondition, setMachineCondition] = useState<MachineStatus>("running");
@@ -71,6 +87,9 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       machineConditionTouchedRef.current = false;
       setWorkOrderNumber("");
       setOperatorNote("");
+      setSelectedReasonId(null);
+      setHierarchicalChoice(null);
+      setReasonCatalogStatus("loading");
       return;
     }
 
@@ -85,6 +104,8 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
     machineConditionTouchedRef.current = false;
     setMachineId(nextMachineId);
     setSubtype(null);
+    setSelectedReasonId(null);
+    setHierarchicalChoice(null);
     setMachineSetId(null);
     setMachineSubsetId(null);
     setIsWholeSetSelected(false);
@@ -137,6 +158,42 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       isCurrent = false;
     };
   }, [open]);
+
+  // OPEN-12: only an explicit server "hierarchical_calls_disabled" response
+  // permits legacy opening in central mode. Network errors, 401/403, or an
+  // empty enabled catalog MUST block opening instead of silently downgrading.
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    setHierarchicalReasons([]);
+    setHierarchicalChoice(null);
+    setSelectedReasonId(null);
+    setSubtype(null);
+    setReasonCatalogStatus("loading");
+    if (accessChecking) return;
+    if (!access) {
+      setReasonCatalogStatus("unavailable");
+      return;
+    }
+    if (!access.centralAccessEnabled) {
+      setReasonCatalogStatus("legacy");
+      return;
+    }
+    void getOperationalCallReasons()
+      .then((reasons) => {
+        if (!current) return;
+        setHierarchicalReasons(reasons);
+        setReasonCatalogStatus(reasons.length > 0 ? "ready" : "unavailable");
+      })
+      .catch((error: unknown) => {
+        if (!current) return;
+        setReasonCatalogStatus(
+          error instanceof AndonApiError && error.code === "hierarchical_calls_disabled"
+            ? "legacy" : "unavailable",
+        );
+      });
+    return () => { current = false; };
+  }, [open, accessChecking, access?.centralAccessEnabled, reasonReload]);
 
   useEffect(() => {
     if (!open || !machineId || machineConditionTouchedRef.current) return;
@@ -195,6 +252,9 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
 
   function handleSelectMachine(nextMachineId: string) {
     setMachineId(nextMachineId);
+    setSelectedReasonId(null);
+    setHierarchicalChoice(null);
+    setSubtype(null);
     setMachineSetId(null);
     setMachineSubsetId(null);
     setMachineSets([]);
@@ -202,6 +262,37 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
 
     const selectedMachine = machinesRef.current.find((m) => m.id === nextMachineId);
     setMachineCondition(selectedMachine?.machineStatus ?? "running");
+  }
+
+  function handleSelectReasonOption(reasonId: string, optionId: string) {
+    const reason = hierarchicalReasons.find(item => item.id === reasonId);
+    const option = reason?.options.find(item => item.id === optionId);
+    if (reasonCatalogStatus !== "ready" || !reason || !option || !machineId) {
+      toast.error(ui("Não foi possível validar a especialidade selecionada."));
+      return;
+    }
+    const existing = calls.find(call =>
+      call.machineId === machineId &&
+      call.subtype === option.legacySubtype &&
+      ["open", "in_progress", "post_maintenance"].includes(call.status),
+    );
+    setSelectedReasonId(null);
+    if (existing) {
+      // Do not open a duplicate; use the existing machine call UI.
+      onOpenChange(false);
+      void navigate({ to: "/machines/$machineId", params: { machineId } });
+      return;
+    }
+    setHierarchicalChoice({
+      reasonId: reason.id,
+      optionId: option.id,
+      expectedReasonRevision: reason.revision,
+      expectedOptionRevision: option.revision,
+      category: option.legacyCategory,
+      subtype: option.legacySubtype,
+      label: option.displayName,
+    });
+    setSubtype(option.legacySubtype);
   }
 
   function handleSelectMachineSet(nextMachineSetId: string) {
@@ -269,6 +360,8 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   const canConfirm = Boolean(
     machineId &&
     subtype &&
+    (reasonCatalogStatus === "legacy" || (reasonCatalogStatus === "ready" && hierarchicalChoice?.subtype === subtype)) &&
+    !isSubmitting &&
     hasValidAssetSelection &&
     !isLoadingSystemSettings &&
     hasLoadedSystemSettings &&
@@ -277,7 +370,11 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   );
 
   async function handleConfirm() {
-    if (!machineId || !subtype) return;
+    if (!machineId || !subtype || !canConfirm || isSubmitting || openingInFlightRef.current) return;
+    if (reasonCatalogStatus !== "legacy" && (
+      reasonCatalogStatus !== "ready" ||
+      !hierarchicalChoice || hierarchicalChoice.subtype !== subtype
+    )) return;
     if (isLoadingSystemSettings || !hasLoadedSystemSettings || systemSettingsLoadFailed) {
       toast.error(
         "Não foi possível carregar as configurações de abertura. Feche e reabra o modal para tentar novamente.",
@@ -310,7 +407,9 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       return;
     }
 
-    const opt = getCallTypeOption(subtype);
+    const opt = reasonCatalogStatus === "ready" && hierarchicalChoice
+      ? { category: hierarchicalChoice.category }
+      : getCallTypeOption(subtype);
     if (!opt) return;
 
     const params = {
@@ -332,17 +431,33 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       operatorNote: operatorNote.trim() || undefined,
     };
 
+    openingInFlightRef.current = true;
+    setIsSubmitting(true);
     try {
-      await openCall(params);
+      // Only a single POST. The server rechecks revisions, locks, workstation,
+      // scope, machine and KPI policy before committing the immutable snapshot.
+      await openCall({
+        ...params,
+        ...(reasonCatalogStatus === "ready" && hierarchicalChoice ? {
+          reasonId: hierarchicalChoice.reasonId,
+          optionId: hierarchicalChoice.optionId,
+          expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
+          expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
+        } : {}),
+      });
       toast.success(`ANDON aberto para Máquina ${machineId}`);
       onOpenChange(false);
     } catch (err) {
       toast.error(ui(err instanceof Error ? err.message : "Erro ao abrir ANDON"));
+    } finally {
+      openingInFlightRef.current = false;
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open && selectedReasonId === null} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-3xl">{ui("Abrir ANDON")}</DialogTitle>
@@ -393,7 +508,40 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
           </div>
         )}
 
-        <CallTypeSelector value={subtype} onChange={setSubtype} />
+        {reasonCatalogStatus === "legacy" ? (
+          <CallTypeSelector value={subtype} onChange={setSubtype} />
+        ) : reasonCatalogStatus === "loading" ? (
+          <p role="status" className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+            {ui("Carregando motivos e subcategorias disponíveis...")}
+          </p>
+        ) : reasonCatalogStatus === "unavailable" ? (
+          <div role="alert" className="space-y-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
+            <p>{ui("Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.")}</p>
+            <BigButton tone="neutral" size="md" onClick={() => setReasonReload(n => n + 1)}>
+              {ui("Tentar novamente")}
+            </BigButton>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              {ui("Motivo do chamado")}
+            </h4>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {hierarchicalReasons.map(reason => (
+                <button key={reason.id} type="button" disabled={!machineId || isSubmitting}
+                  onClick={() => setSelectedReasonId(reason.id)}
+                  className="min-h-14 rounded-xl border-2 border-border bg-card px-4 py-3 text-left text-base font-bold text-foreground hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {reason.displayName}
+                </button>
+              ))}
+            </div>
+            {hierarchicalChoice && (
+              <p role="status" className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm font-semibold">
+                {ui("Especialidade selecionada")}: {hierarchicalChoice.label}
+              </p>
+            )}
+          </div>
+        )}
 
         {machineId &&
           (isLoadingMachineSets || isLoadingSystemSettings || !hasLoadedSystemSettings ? (
@@ -497,7 +645,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
             tone="warning"
             size="md"
             onClick={() => void handleConfirm()}
-            disabled={!canConfirm || isLoadingMachineSets}
+            disabled={!canConfirm || isLoadingMachineSets || isSubmitting}
           >
             {ui("Abrir ANDON")}
           </BigButton>
@@ -506,5 +654,21 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
         <span className="hidden">{CALL_TYPE_OPTIONS.length}</span>
       </DialogContent>
     </Dialog>
+    <CallReasonOptionsModal
+      open={open && selectedReasonId !== null}
+      busy={isSubmitting}
+      activeSubtypes={calls.filter(call => call.machineId === machineId &&
+        ["open", "in_progress", "post_maintenance"].includes(call.status)).map(call => call.subtype)}
+      reason={hierarchicalReasons.find(reason => reason.id === selectedReasonId)
+        ? {
+            ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
+            active: true,
+            options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options
+              .map(option => ({ ...option, active: true })),
+          } : null}
+      onOpenChange={next => { if (!next) setSelectedReasonId(null); }}
+      onSelect={handleSelectReasonOption}
+    />
+    </>
   );
 }

@@ -842,5 +842,11 @@
   ["A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.","Central authentication requires HTTPS. Open the Hub using its configured secure address.","中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"],
   ["Máquina vinculada ao histórico de origem","Machine fixed from the originating history","從原機台歷史記錄固定的機台"],
   ["Todas as criticidades","All criticality levels","所有緊急程度"],
-  ["Crítica","Critical","緊急"]
+  ["Crítica","Critical","緊急"],
+  ["Carregando motivos e subcategorias disponíveis...","Loading available call reasons and subcategories...","正在載入可用的通報原因與子類別…"],
+  ["Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.","Unable to retrieve authorized call reasons and subcategories. Opening a call remains blocked.","無法取得已授權的通報原因與子類別，暫時禁止建立通報。"],
+  ["Motivo do chamado","Call reason","通報原因"],
+  ["Especialidade selecionada","Selected specialty","已選擇專業類別"],
+  ["Não foi possível validar a especialidade selecionada.","Unable to validate the selected specialty.","無法驗證所選的專業類別。"],
+  ["Tentar novamente","Try again","重試"]
 ]
