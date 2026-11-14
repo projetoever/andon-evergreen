@@ -22,7 +22,7 @@ const adminStationId = "ws_" + randomUUID();
 const targetStationId = "ws_" + randomUUID();
 const adminToken = randomBytes(32).toString("hex");
 const operatorPassword = "Only-for-local-CI#2026";
-let app, adminUserId, operatorUserId;
+let app, adminUserId, operatorUserId, otherUserId;
 const oldEnv = { central: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
   origin: process.env.ANDON_ACCESS_ORIGIN };
 try {
@@ -146,6 +146,31 @@ try {
   assert.equal(fresh.persistentOperational, true);
   assert.deepEqual(fresh.machineIds, [machineId]);
 
+  // A second browser with the SAME authenticated account and station
+  // identity must not sign the first browser out. Neither cookie is shared:
+  // this is two explicit password logins with separate HttpOnly tokens.
+  const sameUserAgain = await app.inject({
+    method: "POST", url: "/api/access/login",
+    headers: {
+      origin: "https://andon.test",
+      "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken),
+    },
+    payload: { login: operator.login, password: "CI-Updated-Only#2026" },
+  });
+  assert.equal(sameUserAgain.statusCode, 200, sameUserAgain.body);
+  assert.equal(sameUserAgain.json().persistentOperational, true);
+  const secondBrowserToken = String(sameUserAgain.headers["set-cookie"])
+    .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
+  assert(secondBrowserToken && secondBrowserToken !== afterChangeToken);
+  assert.equal((await resolveSession(db, {
+    token: secondBrowserToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+  assert.equal((await resolveSession(db, {
+    token: afterChangeToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+
   // Server explicitly ignores absolute and idle age for authorized operations.
   const s = await db.accessSession.findFirstOrThrow({
     where: { tokenHash: tokenHash(afterChangeToken) },
@@ -167,8 +192,9 @@ try {
   const logout = await adminRequest("POST", stationPath + "/remote-logout",
     { reason: "Operator shift handoff" });
   assert.equal(logout.statusCode, 200, logout.body);
-  assert(logout.json().revokedSessions > 0);
+  assert(logout.json().revokedSessions >= 2);
   await assert.rejects(resolveSession(db, { token: afterChangeToken, workstationId: targetStationId }));
+  await assert.rejects(resolveSession(db, { token: secondBrowserToken, workstationId: targetStationId }));
 
   const reLogin = await app.inject({ method: "POST", url: "/api/access/login",
     headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
@@ -180,10 +206,39 @@ try {
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(renewed);
 
+  // A different authenticated account on the same trusted pinned station
+  // must displace ALL sessions belonging to the previous operator.
+  const other = await db.accessUser.create({ data: {
+    login: "ci.other.persistent." + n, displayName: "Second CI Production",
+    roleLabel: "Produção", accountType: "person", sessionPolicy: "persistent",
+    active: true, mustChangePassword: false, machineScope: "selected",
+    passwordHash: await hashAccessPassword("Other-Local-CI#2026"),
+    permissions: { create: [{ key: "andon.read" }, { key: "calls.open" }] },
+    machines: { create: [{ machineId }] },
+  } });
+  otherUserId = other.id;
+  const otherLogin = await app.inject({ method: "POST", url: "/api/access/login",
+    headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken) },
+    payload: { login: other.login, password: "Other-Local-CI#2026" },
+  });
+  assert.equal(otherLogin.statusCode, 200, otherLogin.body);
+  assert.equal(otherLogin.json().persistentOperational, true);
+  const otherToken = String(otherLogin.headers["set-cookie"])
+    .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
+  assert(otherToken);
+  await assert.rejects(resolveSession(db, {
+    token: renewed, workstationId: targetStationId,
+  }));
+  assert.equal((await resolveSession(db, {
+    token: otherToken, workstationId: targetStationId,
+  })).userId, otherUserId);
+
   // Admin turning trust OFF immediately revokes all persistent sessions.
   const off = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
   assert.equal(off.statusCode, 200, off.body);
-  await assert.rejects(resolveSession(db, { token: renewed, workstationId: targetStationId }));
+  await assert.rejects(resolveSession(db, { token: otherToken, workstationId: targetStationId }));
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
@@ -197,8 +252,8 @@ try {
   else process.env.ANDON_CENTRAL_ACCESS_ENABLED = oldEnv.central;
   if (oldEnv.origin === undefined) delete process.env.ANDON_ACCESS_ORIGIN;
   else process.env.ANDON_ACCESS_ORIGIN = oldEnv.origin;
-  if (adminUserId || operatorUserId) {
-    const ids = [adminUserId, operatorUserId].filter(Boolean);
+  if (adminUserId || operatorUserId || otherUserId) {
+    const ids = [adminUserId, operatorUserId, otherUserId].filter(Boolean);
     await db.accessSession.deleteMany({ where: { userId: { in: ids } } });
     await db.accessPermission.deleteMany({ where: { userId: { in: ids } } });
     await db.accessMachine.deleteMany({ where: { userId: { in: ids } } });
@@ -207,6 +262,9 @@ try {
     });
     if (operatorUserId) await db.accessUser.update({
       where: { id: operatorUserId }, data: { active: false },
+    });
+    if (otherUserId) await db.accessUser.update({
+      where: { id: otherUserId }, data: { active: false },
     });
   }
   await db.workstation.deleteMany({ where: { id: { in: [adminStationId, targetStationId] } } });

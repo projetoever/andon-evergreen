@@ -252,12 +252,16 @@ export async function login(
           data: { temporaryConsumedAt: now, authorizationVersion: { increment: 1 } },
         })
       : current;
-    // Preserve legacy multi-user sessions in ordinary workstations.
-    // Only a trusted pinned workstation invalidates previous browser logins
-    // when a different person signs in; Admin sessions are not durable.
+    // The same verified Person may sign in from another browser with the
+    // same approved station identity. Do not revoke their existing cookies;
+    // a DIFFERENT account still displaces them on a trusted pinned station.
+    // Normal stations retain their historical multiple-user behavior.
     if (station.allowPersistentOperationalLogin && station.lockedMachineId)
       await tx.accessSession.updateMany({
-        where: { workstationId: station.id, revokedAt: null },
+        where: {
+          workstationId: station.id, revokedAt: null,
+          userId: { not: effective.id },
+        },
         data: { revokedAt: now },
       });
     const session = await issueSession(
