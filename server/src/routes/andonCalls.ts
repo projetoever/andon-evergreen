@@ -32,6 +32,7 @@ import {
   restrictCentralCallListToActive,
   scopedMachineReadIds,
   scopedGlobalHistoryReadIds,
+  scopedGlobalHistoryPrincipal,
 } from "../security/centralScopedMachineReads.js";
 import { callMachineReadWhere } from "../security/callReadScope.js";
 import { buildScopedGlobalHistoryQuery, type GlobalHistoryQuery } from "../services/globalCallHistoryQuery.js";
@@ -39,6 +40,9 @@ import { scopedGlobalCallDetailWhere } from "../services/globalCallHistoryDetail
 import { summarizeScopedGlobalHistory } from "../services/globalCallHistorySummary.js";
 import { AccessError } from "../access/policy.js";
 import { centralAccessEnabled, ACCESS_COOKIE, readSecureCookie } from "../access/http.js";
+import { resolveSession } from "../access/sessions.js";
+import { assertPermission } from "../access/policy.js";
+import { actorFromPrincipal, appendAudit } from "../access/audit.js";
 import { isAuthorizedCentralAttendanceRequest } from "../security/centralAttendanceHttp.js";
 import { runCentralMultiTechnicianAttendancePrototype } from "../access/centralMultiAttendancePrototype.js";
 import { runCentralDeclaredAttendance } from "../access/centralDeclaredAttendance.js";
@@ -61,6 +65,21 @@ import { isAuthorizedCentralTechnicianAdd } from "../security/centralTechnicianA
 import { runCentralDiagnosisEdit } from "../access/centralDiagnosisEdit.js";
 import { isAuthorizedCentralDiagnosisEdit } from "../security/centralDiagnosisEditHttp.js";
 import type { LockedAttendanceContext } from "../access/centralCallTransactionalGuard.js";
+
+const globalHistoryCallSelect = {
+  id: true, machineId: true,
+  machine: { select: { name: true } },
+  category: true, subtype: true, status: true, criticality: true,
+  workOrderNumber: true, failureClassification: true,
+  technicianName: true, technicianNames: true,
+  isSystemTest: true, openedAt: true, finishedAt: true, updatedAt: true,
+  callReasonSnapshot: { select: {
+    reasonId: true, reasonNameSnapshot: true,
+    optionId: true, optionNameSnapshot: true, nature: true,
+  } },
+} satisfies Prisma.AndonCallSelect;
+
+const HISTORY_EXPORT_MAX_ROWS = 500;
 
 type AndonCallQuery = {
   machineId?: string;
@@ -2315,21 +2334,89 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           prisma.andonCall.count({ where }),
           prisma.andonCall.findMany({
             where, take, skip, orderBy,
-            select: {
-              id: true, machineId: true,
-              machine: { select: { name: true } },
-              category: true, subtype: true, status: true, criticality: true,
-              workOrderNumber: true, failureClassification: true,
-              technicianName: true, technicianNames: true,
-              isSystemTest: true, openedAt: true, finishedAt: true, updatedAt: true,
-              callReasonSnapshot: { select: {
-                reasonId: true, reasonNameSnapshot: true,
-                optionId: true, optionNameSnapshot: true, nature: true,
-              } },
-            },
+            select: globalHistoryCallSelect,
           }),
         ]);
         return { items, total, limit: take, offset: skip, hasMore: skip + items.length < total };
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    },
+  );
+
+  /**
+   * HIST-13: full filtered CSV source, but ONLY up to 500 authorized records.
+   * A fresh session and both module grants are revalidated inside the
+   * read/audit transaction. The CSV download is constructed client-side
+   * from this audited response, with spreadsheet injection protection.
+   * Never return a truncated result as if it were complete.
+   */
+  app.get<{ Querystring: GlobalHistoryQuery }>(
+    "/api/andon-calls/history/export",
+    async (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      // Fastify normally exposes an implicit HEAD for GET handlers; never
+      // initiate an export/audit on a HEAD probe.
+      if (request.method !== "GET")
+        return reply.status(405).send({ error: "history_export_method_denied" });
+      if (!centralAccessEnabled() ||
+          process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1") {
+        return reply.status(403).send({ error: "global_history_disabled" });
+      }
+      try {
+        const bound = scopedGlobalHistoryPrincipal(request);
+        const originalAllowedIds = scopedGlobalHistoryReadIds(request);
+        if (request.query.limit !== undefined || request.query.offset !== undefined)
+          throw new AccessError("invalid_history_export_pagination", 400);
+        const result = await prisma.$transaction(async tx => {
+          // A revoked token or changed ACL must not authorize a large export.
+          const current = await resolveSession(tx, {
+            token: readSecureCookie(request, ACCESS_COOKIE),
+            workstationId: bound.workstationId,
+          });
+          if (current.userId !== bound.userId || current.sessionId !== bound.sessionId ||
+              current.accountType !== "person" || current.purpose !== "normal")
+            throw new AccessError("authentication_required", 401);
+          assertPermission(current, "andon.read");
+          assertPermission(current, "history.read");
+          const freshIds = current.machineScope === "all" ? null : current.machineIds;
+          const allowedIds = originalAllowedIds === null
+            ? freshIds
+            : freshIds === null
+              ? originalAllowedIds
+              : originalAllowedIds.filter(id => freshIds.includes(id));
+          const { where, orderBy } = buildScopedGlobalHistoryQuery(
+            request.query, allowedIds,
+          );
+          const total = await tx.andonCall.count({ where });
+          if (total > HISTORY_EXPORT_MAX_ROWS)
+            throw new AccessError("history_export_limit_exceeded", 413);
+          const items = await tx.andonCall.findMany({
+            where, orderBy, take: HISTORY_EXPORT_MAX_ROWS + 1,
+            select: globalHistoryCallSelect,
+          });
+          if (items.length > HISTORY_EXPORT_MAX_ROWS || items.length !== total)
+            throw new AccessError("history_export_changed_retry", 409);
+          // Durable audit is committed BEFORE exposing downloaded records.
+          await appendAudit(tx, {
+            ...actorFromPrincipal(current),
+            requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
+          }, {
+            action: "history.export.csv", resourceType: "andon_call_history",
+            result: "success", after: {
+              recordCount: items.length,
+              maxRows: HISTORY_EXPORT_MAX_ROWS,
+              origin: "filtered",
+            },
+          });
+          return { items, total, maxRows: HISTORY_EXPORT_MAX_ROWS };
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+          maxWait: 2000, timeout: 10000,
+        });
+        return result;
       } catch (error) {
         if (error instanceof AccessError)
           return reply.status(error.statusCode).send({ error: error.code });

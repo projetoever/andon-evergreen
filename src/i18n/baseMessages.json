@@ -848,5 +848,11 @@
   ["Motivo do chamado","Call reason","通報原因"],
   ["Especialidade selecionada","Selected specialty","已選擇專業類別"],
   ["Não foi possível validar a especialidade selecionada.","Unable to validate the selected specialty.","無法驗證所選的專業類別。"],
-  ["Tentar novamente","Try again","重試"]
+  ["Tentar novamente","Try again","重試"],
+  ["CSV filtrado (até 500)","Filtered CSV (up to 500)","篩選 CSV（最多 500 筆）"],
+  ["Exportando CSV...","Exporting CSV...","正在匯出 CSV…"],
+  ["Exporta todos os registros dos filtros atuais quando houver até 500, com auditoria no servidor.","Exports all records matching the current filters, up to 500, with server-side auditing.","匯出符合目前篩選條件的全部紀錄（最多 500 筆），並在伺服器記錄稽核。"],
+  ["CSV filtrado exportado com auditoria no servidor.","Filtered CSV exported and audited on the server.","已匯出篩選 CSV，並於伺服器記錄稽核。"],
+  ["A exportação excede 500 registros. Refine os filtros e tente novamente.","The export exceeds 500 records. Narrow the filters and try again.","匯出超過 500 筆紀錄。請縮小篩選範圍後再試。"],
+  ["Não foi possível exportar o histórico filtrado.","Could not export the filtered history.","無法匯出篩選後的歷史紀錄。"]
 ]

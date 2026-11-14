@@ -99,3 +99,17 @@ export function globalHistorySummaryPath(
   params.delete("offset");
   return "/api/andon-calls/history/summary?" + params.toString();
 }
+
+
+/** The audited export must receive all active filters but no client-provided
+ * offset or limit. The server owns the 500-row all-or-nothing cap.
+ */
+export function globalHistoryExportPath(
+  filters: GlobalHistorySearchFilters,
+  now = new Date(),
+) {
+  const path = globalHistorySummaryPath(filters, now);
+  const prefix = "/api/andon-calls/history/summary?";
+  if (!path.startsWith(prefix)) throw new Error("invalid_history_export_path");
+  return "/api/andon-calls/history/export?" + path.slice(prefix.length);
+}

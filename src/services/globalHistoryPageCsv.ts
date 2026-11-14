@@ -49,9 +49,11 @@ export function buildGlobalHistoryPageCsv(
   return [header, ...rows].map(row => row.map(csvCell).join(";")).join("\r\n");
 }
 
-export function downloadGlobalHistoryPageCsv(items: readonly GlobalHistoryCallSummary[]) {
-  if (!items.length || items.length > 25)
-    throw new Error("history_csv_page_size_invalid");
+function saveHistoryCsv(
+  items: readonly GlobalHistoryCallSummary[], maxRows: number, name: string,
+) {
+  if (!items.length || items.length > maxRows)
+    throw new Error("history_csv_export_size_invalid");
   const text = buildGlobalHistoryPageCsv(items);
   const url = URL.createObjectURL(new Blob(["\uFEFF" + text], {
     type: "text/csv;charset=utf-8",
@@ -59,11 +61,23 @@ export function downloadGlobalHistoryPageCsv(items: readonly GlobalHistoryCallSu
   try {
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `andon-historico-pagina-${Date.now()}.csv`;
+    anchor.download = `andon-historico-${name}-${Date.now()}.csv`;
     document.body.appendChild(anchor);
     try { anchor.click(); }
     finally { anchor.remove(); }
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/** Existing page-only export is intentionally limited to the 25 visible rows. */
+export function downloadGlobalHistoryPageCsv(items: readonly GlobalHistoryCallSummary[]) {
+  if (!items.length || items.length > 25)
+    throw new Error("history_csv_page_size_invalid");
+  return saveHistoryCsv(items, 25, "pagina");
+}
+
+/** Only call after the server returned an audited, complete filtered result. */
+export function downloadGlobalHistoryFilteredCsv(items: readonly GlobalHistoryCallSummary[]) {
+  return saveHistoryCsv(items, 500, "filtrado");
 }
