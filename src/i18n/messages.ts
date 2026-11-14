@@ -5960,4 +5960,6 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Este cadastro permanece inativo porque ainda não existe provisionamento seguro de Kiosk. Não é possível ativá-lo, redefinir sua senha ou convertê-lo em Pessoa aqui.","This record remains inactive because secure Kiosk enrollment is not available yet. It cannot be activated, have a password reset or be converted to Person here.","此資料保持停用，因為安全的 Kiosk 註冊尚未開放。此處無法啟用、重設密碼或轉換為個人帳號。"],
   ["Para utilizar esse login na Produção, renomeie este cadastro inativo e salve; depois crie uma conta Pessoa com o login desejado, escopo de máquinas e permissões adequados.","To use this login in Production, rename and save this inactive record first; then create a Person account with the desired login, machine scope and appropriate permissions.","若要在生產環境使用此登入名稱，請先重新命名並儲存這筆停用資料；再建立個人帳號，設定所需登入名稱、機台範圍與適當權限。"],
   ["Kiosk sem login por senha","Kiosk without password login","Kiosk 不支援密碼登入"],
+  ["Verificando disponibilidade da paleta global...","Checking global palette availability...","正在確認全域配色可用性…"],
+  ["Não foi possível confirmar a disponibilidade da paleta. Nenhuma edição será enviada.","Could not verify palette availability. No changes will be submitted.","無法確認配色功能是否可用。不會送出任何變更。"],
 ]; 
