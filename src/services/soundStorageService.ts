@@ -51,16 +51,27 @@ function openDatabase(): Promise<IDBDatabase> {
 async function runTransaction<T>(mode: IDBTransactionMode, runner: (store: IDBObjectStore) => Promise<T>): Promise<T> {
   const db = await openDatabase();
   const tx = db.transaction(STORE_NAME, mode);
-  const store = tx.objectStore(STORE_NAME);
+  // Subscribe BEFORE any IndexedDB request is awaited. A fast transaction may
+  // complete between request.onsuccess and the resumption of the async runner.
+  // Registering oncomplete after runner(store) then waits forever.
+  const completed = new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("Erro na transação do IndexedDB"));
+    tx.onabort = () => reject(tx.error ?? new Error("Transação abortada no IndexedDB"));
+  });
+  // Also observe early aborts if the request promise rejects first.
+  void completed.catch(() => undefined);
 
   try {
-    const result = await runner(store);
-    await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("Erro na transação do IndexedDB"));
-      tx.onabort = () => reject(tx.error ?? new Error("Transação abortada no IndexedDB"));
-    });
+    const result = await runner(tx.objectStore(STORE_NAME));
+    await completed; // return only after the actual transaction commits
     return result;
+  } catch (error) {
+    // Do not leave partially queued writes running after a failed operation.
+    // IDBTransaction has no readyState property; abort() itself is the safe
+    // guard and throws InvalidStateError when already settled.
+    try { tx.abort(); } catch { /* already committed or aborted */ }
+    throw error;
   } finally {
     db.close();
   }
