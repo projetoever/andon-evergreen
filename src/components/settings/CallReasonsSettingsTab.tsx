@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { toast } from "@/i18n/toast";
 import { ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
-import { getSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
 import type { AndonCategoryConfig } from "@/types/settings";
 import {
@@ -42,6 +42,10 @@ export function CallReasonsSettingsTab() {
   const { access } = useModuleAccess();
   const isPrimaryAdmin = access?.principal?.isPrimaryAdmin === true;
   const [enabled, setEnabled] = useState(false);
+  const enabledRef = useRef(false);
+  const catalogLoadedRef = useRef(false);
+  const [capabilityChecking, setCapabilityChecking] = useState(false);
+  const [capabilityError, setCapabilityError] = useState(false);
   const [reasons, setReasons] = useState<CallReasonView[]>([]);
   const [areas, setAreas] = useState<AndonCategoryConfig[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -53,6 +57,7 @@ export function CallReasonsSettingsTab() {
   const [optionLabel, setOptionLabel] = useState("");
   const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const writeBlocked = busy || capabilityChecking || !enabled || Boolean(error) || loading;
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
   const restrictedDelegatedLink = !isPrimaryAdmin &&
     (chosen?.maintenanceKpiPolicy === "eligible" || chosen?.active !== true);
@@ -69,8 +74,11 @@ export function CallReasonsSettingsTab() {
     try {
       const settings = await getSystemSettings();
       const allowed = settings.centralCallReasonsCatalogEnabled === true;
+      enabledRef.current = allowed;
       setEnabled(allowed);
+      setCapabilityError(false);
       if (!allowed) {
+        catalogLoadedRef.current = false;
         setReasons([]);
         setAreas([]);
         return;
@@ -78,6 +86,7 @@ export function CallReasonsSettingsTab() {
       const [catalog, technicalAreas] = await Promise.all([
         getCallReasonsCatalog(), getCategoryConfigs(),
       ]);
+      catalogLoadedRef.current = true;
       setReasons(catalog);
       setAreas(technicalAreas);
       const found = catalog.find(item => item.id === preferred) ?? catalog[0] ?? null;
@@ -90,6 +99,8 @@ export function CallReasonsSettingsTab() {
         analyticsDisposition: found.analyticsDisposition,
       } : emptyDraft());
     } catch (err) {
+      enabledRef.current = false;
+      setEnabled(false);
       setError(err instanceof Error ? err.message : ui("Erro ao carregar motivos de chamados."));
     } finally {
       setLoading(false);
@@ -97,6 +108,46 @@ export function CallReasonsSettingsTab() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  // CFG-15I: a server feature gate can change while this tab stays open.
+  // A focus/event only checks capabilities; it never overwrites drafts.
+  useEffect(() => {
+    let active = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCapabilityChecking(true); // fail closed while GET is pending
+      setCapabilityError(false);
+      void getSystemSettings().then(value => {
+        if (!active || request !== requestVersion) return;
+        if (value.centralCallReasonsCatalogEnabled !== true) {
+          enabledRef.current = false;
+          catalogLoadedRef.current = false;
+          setEnabled(false);
+        } else if (!catalogLoadedRef.current) {
+          void refresh(); // first activation: protected catalog GET required
+        } else {
+          enabledRef.current = true;
+          setEnabled(true); // preserve the draft already being edited
+        }
+      }).catch(() => {
+        if (!active || request !== requestVersion) return;
+        enabledRef.current = false;
+        setEnabled(false);
+        setCapabilityError(true);
+      }).finally(() => {
+        if (active && request === requestVersion) setCapabilityChecking(false);
+      });
+    };
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      active = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [refresh]);
 
   function edit(reason: CallReasonView) {
     setEditingOptionId(null);
@@ -112,7 +163,7 @@ export function CallReasonsSettingsTab() {
   }
 
   async function saveReason() {
-    if (busy) return;
+    if (writeBlocked) return;
     const next: Draft = {
       ...draft,
       id: selected ?? makeId(draft.displayName),
@@ -153,7 +204,7 @@ export function CallReasonsSettingsTab() {
   }
 
   async function addArea() {
-    if (!chosen || !areaToAdd || busy || restrictedDelegatedLink) return;
+    if (!chosen || !areaToAdd || busy || restrictedDelegatedLink || writeBlocked) return;
     const area = areas.find(item => item.id === areaToAdd);
     if (!area?.active || !linkableAreas.some(item => item.id === area.id)) return;
     setBusy(true);
@@ -173,7 +224,7 @@ export function CallReasonsSettingsTab() {
   }
 
   async function toggleArea(optionId: string, revision: number, active: boolean) {
-    if (!chosen || busy) return;
+    if (!chosen || writeBlocked) return;
     setBusy(true);
     try {
       await updateCallReasonOption(chosen.id, optionId, revision, { active });
@@ -191,7 +242,7 @@ export function CallReasonsSettingsTab() {
   }
 
   async function saveOptionPresentation(option: CallReasonView["options"][number]) {
-    if (!chosen || busy || editingOptionId !== option.id) return;
+    if (!chosen || writeBlocked || editingOptionId !== option.id) return;
     const label = optionLabel.trim();
     const orderText = optionOrder.trim();
     const order = Number(orderText);
@@ -227,15 +278,38 @@ export function CallReasonsSettingsTab() {
         </p>
       </header>
       {loading && <p role="status">{ui("Carregando motivos...")}</p>}
+      {capabilityChecking && !loading && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {ui("Verificando disponibilidade do catálogo de motivos...")}
+        </p>
+      )}
+      {capabilityError && !loading && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/40 bg-danger/10 p-3 text-xs">
+          <span>{ui("Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.")}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
+            {ui("Tentar novamente")}
+          </Button>
+        </div>
+      )}
       {!loading && !enabled && (
         <div className="rounded-lg border border-warning/50 bg-card p-4" role="status">
           <p className="font-semibold">{ui("Catálogo em homologação — edição indisponível")}</p>
           <p className="mt-2 text-sm text-muted-foreground">
             {ui("A API de motivos ainda está desabilitada neste ambiente. Nenhuma configuração operacional foi alterada.")}
           </p>
+          <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void refresh()}>
+            {ui("Verificar novamente")}
+          </Button>
         </div>
       )}
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/40 p-3 text-sm text-danger">
+          <span>{error}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
+            {ui("Tentar novamente")}
+          </Button>
+        </div>
+      )}
       {!loading && enabled && !isPrimaryAdmin && !error && (
         <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
           {ui("Config. do ANDON: você pode cadastrar motivos conservadores, editar sua apresentação e vincular especialidades a motivos não elegíveis. Políticas de KPI continuam exclusivas do Admin principal.")}
@@ -246,7 +320,7 @@ export function CallReasonsSettingsTab() {
           <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Motivos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
-              <Button type="button" variant="outline" size="sm" disabled={busy}
+              <Button type="button" variant="outline" size="sm" disabled={writeBlocked}
                 onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); }}>
                 {ui("Novo motivo")}
               </Button>
@@ -272,12 +346,12 @@ export function CallReasonsSettingsTab() {
             <h3 className="font-semibold">{ui(chosen ? "Editar motivo" : "Criar motivo")}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <Label className="block space-y-2">{ui("Nome do motivo")}
-                <Input value={draft.displayName} maxLength={80} disabled={busy}
+                <Input value={draft.displayName} maxLength={80} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, displayName: e.target.value })} />
               </Label>
               <Label className="block space-y-2">{ui("Natureza do chamado")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.nature} disabled={busy || (Boolean(chosen) && !isPrimaryAdmin)}
+                  value={draft.nature} disabled={writeBlocked || (Boolean(chosen) && !isPrimaryAdmin)}
                   onChange={e => setDraft({
                     ...draft, nature: e.target.value as Draft["nature"],
                     maintenanceKpiPolicy: e.target.value === "corrective_failure" ? "pending" : "excluded",
@@ -287,14 +361,14 @@ export function CallReasonsSettingsTab() {
               </Label>
               <Label className="block space-y-2">{ui("Política de KPI corretivo")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.maintenanceKpiPolicy} disabled={busy || !isPrimaryAdmin}
+                  value={draft.maintenanceKpiPolicy} disabled={writeBlocked || !isPrimaryAdmin}
                   onChange={e => setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] })}>
                   {policyValues.filter(value => value !== "eligible" || draft.nature === "corrective_failure")
                     .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
                 </select>
               </Label>
               <Label className="block space-y-2">{ui("Cor do motivo")}
-                <Input type="color" value={draft.color} disabled={busy}
+                <Input type="color" value={draft.color} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, color: e.target.value })} />
               </Label>
             </div>
@@ -305,11 +379,11 @@ export function CallReasonsSettingsTab() {
             )}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={draft.active} disabled={busy}
+                <input type="checkbox" checked={draft.active} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, active: e.target.checked })} />
                 {ui("Motivo ativo")}
               </label>
-              <Button type="button" disabled={busy || !draft.displayName.trim()} onClick={() => void saveReason()}>
+              <Button type="button" disabled={writeBlocked || !draft.displayName.trim()} onClick={() => void saveReason()}>
                 {ui(chosen ? "Salvar motivo" : "Cadastrar motivo")}
               </Button>
             </div>
@@ -332,14 +406,14 @@ export function CallReasonsSettingsTab() {
                           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px]">
                             <Label className="block space-y-2">
                               {ui("Nome exibido da especialidade")}
-                              <Input maxLength={80} value={optionLabel} disabled={busy}
+                              <Input maxLength={80} value={optionLabel} disabled={writeBlocked}
                                 onChange={event => setOptionLabel(event.target.value)}
                                 placeholder={ui("Usar nome da área técnica")} />
                             </Label>
                             <Label className="block space-y-2">
                               {ui("Ordem de exibição")}
                               <Input type="number" min={0} max={9999} step={1}
-                                value={optionOrder} disabled={busy}
+                                value={optionOrder} disabled={writeBlocked}
                                 onChange={event => setOptionOrder(event.target.value)} />
                             </Label>
                           </div>
@@ -347,11 +421,11 @@ export function CallReasonsSettingsTab() {
                             {ui("Nome vazio utiliza a área técnica original. Essa edição não altera a especialidade vinculada nem a política de KPI.")}
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" disabled={busy}
+                            <Button type="button" size="sm" disabled={writeBlocked}
                               onClick={() => void saveOptionPresentation(option)}>
                               {ui("Salvar apresentação")}
                             </Button>
-                            <Button type="button" size="sm" variant="outline" disabled={busy}
+                            <Button type="button" size="sm" variant="outline" disabled={writeBlocked}
                               onClick={() => setEditingOptionId(null)}>
                               {ui("Cancelar")}
                             </Button>
@@ -361,13 +435,13 @@ export function CallReasonsSettingsTab() {
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Button type="button" size="sm" variant="outline"
-                        disabled={busy || (editingOptionId !== null && editingOptionId !== option.id)}
+                        disabled={writeBlocked || (editingOptionId !== null && editingOptionId !== option.id)}
                         onClick={() => editingOptionId === option.id
                           ? setEditingOptionId(null) : beginOptionEdit(option)}>
                         {ui(editingOptionId === option.id ? "Fechar edição" : "Editar apresentação")}
                       </Button>
                       <Button type="button" size="sm" variant="outline"
-                        disabled={busy || editingOptionId !== null}
+                        disabled={writeBlocked || editingOptionId !== null}
                         onClick={() => void toggleArea(option.id, option.revision, !option.active)}>
                         {ui(option.active ? "Inativar" : "Ativar")}
                       </Button>
@@ -377,14 +451,14 @@ export function CallReasonsSettingsTab() {
                 <div className="flex flex-wrap items-end gap-2">
                   <Label className="min-w-48 flex-1 space-y-2">{ui("Vincular especialidade")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                      value={areaToAdd} disabled={busy || restrictedDelegatedLink}
+                      value={areaToAdd} disabled={writeBlocked || restrictedDelegatedLink}
                       onChange={e => setAreaToAdd(e.target.value)}>
                       <option value="">{ui("Selecione uma especialidade")}</option>
                       {linkableAreas.map(area =>
                         <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
-                  <Button type="button" disabled={busy || !areaToAdd || restrictedDelegatedLink}
+                  <Button type="button" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
                     onClick={() => void addArea()}>
                     {ui("Vincular")}
                   </Button>
