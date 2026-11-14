@@ -2357,6 +2357,10 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     "/api/andon-calls/history/export",
     async (request, reply) => {
       reply.header("Cache-Control", "no-store");
+      // Fastify normally exposes an implicit HEAD for GET handlers; never
+      // initiate an export/audit on a HEAD probe.
+      if (request.method !== "GET")
+        return reply.status(405).send({ error: "history_export_method_denied" });
       if (!centralAccessEnabled() ||
           process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1") {
         return reply.status(403).send({ error: "global_history_disabled" });
