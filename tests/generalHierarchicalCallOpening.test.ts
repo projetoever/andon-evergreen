@@ -61,3 +61,19 @@ test("OPEN-12: duplicate active sector navigates to existing machine and double-
   assert.match(general, /setIsSubmitting\(false\)/);
   assert.match(general, /disabled=\{!canConfirm \|\| isLoadingMachineSets \|\| isSubmitting\}/);
 });
+
+test("OPEN-12: general-opening explanations are translated in PT/EN/ZH", async () => {
+  const messages = JSON.parse(await read("../src/i18n/baseMessages.json")) as string[][];
+  const expected = [
+    "Carregando motivos e subcategorias disponíveis...",
+    "Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.",
+    "Motivo do chamado",
+    "Especialidade selecionada",
+    "Não foi possível validar a especialidade selecionada.",
+    "Tentar novamente",
+  ];
+  for (const key of expected) {
+    const value = messages.find(row => row[0] === key);
+    assert(value && value.length === 3 && value.every(item => item.trim().length > 0), key);
+  }
+});
