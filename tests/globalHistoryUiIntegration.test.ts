@@ -117,7 +117,7 @@ test("HIST-07: optional hourly range is available only for a chosen date and val
   assert.match(page, /type="time" step=\{60\}/);
   assert.match(page, /value=\{draft\.timeFrom \?\? ""\}/);
   assert.match(page, /value=\{draft\.timeBefore \?\? ""\}/);
-  assert.match(page, /globalHistorySearchPath\(draft\)/);
+  assert.match(page, /globalHistorySearchPath\(next\)/);
   assert.match(page, /setError\(cause instanceof Error/);
 });
 
@@ -153,4 +153,25 @@ test("HIST-09: reset from machine-specific history keeps authorized machine cont
   assert.doesNotMatch(page, /setApplied\(\{ \.\.\.DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS \}\)/);
   assert.match(page, /searchGlobalHistory\(applied, offset\)/);
   assert.match(page, /scoped/);
+});
+
+
+test("HIST-10: machine-originated History keeps fixed machine across drafts, filtering and reset", async () => {
+  const [page, route, query] = await Promise.all([
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../src/routes/history.tsx"),
+    source("../server/src/services/globalCallHistoryQuery.ts"),
+  ]);
+  assert.match(page, /const machineContextLocked = requestedMachineId !== "all"/);
+  assert.match(page, /\.\.\.\(machineContextLocked \? \{ machineId: requestedMachineId \} : \{\}\)/);
+  assert.match(page, /machineId: machineContextLocked \? requestedMachineId : draft\.machineId/);
+  assert.match(page, /globalHistorySearchPath\(next\)/);
+  assert.match(page, /setApplied\(next\)/);
+  assert.match(page, /machineContextLocked \? \(/);
+  assert.match(page, /Máquina vinculada ao histórico de origem/);
+  assert.match(page, /machines\.find\(m => m\.id === requestedMachineId\)\?\.name \?\? requestedMachineId/);
+  assert.match(page, /<option value="all">/);
+  assert.match(route, /validateSearch:/);
+  assert.match(query, /callMachineReadWhere/);
+  assert.doesNotMatch(page, /searchGlobalHistory\(\{ \.\.\.applied, machineId: "all" \}/);
 });

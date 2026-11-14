@@ -839,5 +839,6 @@
   ["Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.","Sign in to the Hub with an authorized primary Admin account. The legacy password does not grant central administration access.","請使用已授權的主要管理員帳號登入 Hub。舊版密碼無法授予中央管理權限。"],
   ["Esta seção exige a conta Admin principal.","This section requires the primary Admin account.","此區域需要主要管理員帳號。"],
   ["Identifique-se para acessar o Hub","Sign in to access the Hub","請先登入以存取 Hub"],
-  ["A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.","Central authentication requires HTTPS. Open the Hub using its configured secure address.","中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"]
+  ["A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.","Central authentication requires HTTPS. Open the Hub using its configured secure address.","中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"],
+  ["Máquina vinculada ao histórico de origem","Machine fixed from the originating history","從原機台歷史記錄固定的機台"]
 ]
