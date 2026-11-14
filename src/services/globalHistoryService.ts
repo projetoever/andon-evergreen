@@ -1,6 +1,6 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
-import { globalHistorySearchPath, globalHistorySummaryPath } from "@/utils/globalHistoryQuery";
-export { globalHistorySearchPath, globalHistorySummaryPath, dateRangeForGlobalHistory } from "@/utils/globalHistoryQuery";
+import { globalHistorySearchPath, globalHistorySummaryPath, globalHistoryExportPath } from "@/utils/globalHistoryQuery";
+export { globalHistorySearchPath, globalHistorySummaryPath, globalHistoryExportPath, dateRangeForGlobalHistory } from "@/utils/globalHistoryQuery";
 
 const api = createAndonApiClient();
 
@@ -167,4 +167,13 @@ export interface GlobalHistorySummary {
 
 export function getGlobalHistorySummary(filters: GlobalHistorySearchFilters) {
   return api.get<GlobalHistorySummary>(globalHistorySummaryPath(filters));
+}
+
+/** Server rechecks HttpOnly session, workstation, history.read and machine scope,
+ * returning all matching rows ONLY if the transaction can audit <=500 records.
+ */
+export function getAuditedGlobalHistoryExport(filters: GlobalHistorySearchFilters) {
+  return api.get<{ items: GlobalHistoryCallSummary[]; total: number; maxRows: number }>(
+    globalHistoryExportPath(filters),
+  );
 }
