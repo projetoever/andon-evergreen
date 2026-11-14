@@ -162,3 +162,25 @@ test("CFG-15G: Machine Admin revalidates its own grants and OS policy from the s
   assert.doesNotMatch(machine, /CustomEvent<\{ requireWorkOrderAtOpen/);
   assert.doesNotMatch(machine, /applySettings\(detail\)/);
 });
+
+test("CFG-15H: attendance PIN/RFID edits remain intact while central write and declared-name gates refresh", async () => {
+  const tab = await get("../src/components/settings/AttendanceModeSettingsTab.tsx");
+  assert.match(tab, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(tab, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(tab, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(tab, /const request = \+\+requestVersion/);
+  assert.match(tab, /request === requestVersion/);
+  assert.match(tab, /setCentralCapability\(null\)/);
+  assert.match(tab, /value\.centralOperationalSettingsWriteEnabled === true/);
+  assert.match(tab, /value\.centralDeclaredAttendanceEnabled === true/);
+  assert.match(tab, /const canSaveAttendance = canWriteAttendance/);
+  assert.match(tab, /settings\?\.attendanceMode !== "name" \|\| canSelectName/);
+  assert.match(tab, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canSaveAttendance\}/);
+  assert.doesNotMatch(tab, /settings\.centralDeclaredAttendanceEnabled !== true/);
+  const capabilityOnly = tab.slice(tab.indexOf("const revalidate = () => {"),
+    tab.indexOf("  }, [centralAttendance, isLoading, loadError]);"));
+  assert.doesNotMatch(capabilityOnly, /setSettings\(|setSavedSettings\(|updateSystemSettings\(/);
+  assert.doesNotMatch(capabilityOnly, /event\.detail/);
+});

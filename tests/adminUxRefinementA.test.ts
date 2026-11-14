@@ -289,7 +289,7 @@ test("modo de atendimento possui retry, alterações pendentes e cancelamento", 
   assert.match(source, /Alterações não salvas/);
   assert.match(source, /Configuração sincronizada/);
   assert.match(source, /savedSettings && setSettings\(savedSettings\)/);
-  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canWriteAttendance\}/);
+  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canSaveAttendance\}/);
   assert.match(source, /Informe entre 4 e 64 caracteres para a leitura RFID/);
 });
 
@@ -443,11 +443,11 @@ test("CFG-15C: attendance mode never offers central write when flag OFF, includi
     readFile(new URL("../server/src/access/centralOperationalSettings.ts", import.meta.url), "utf8"),
   ]);
   assert.match(source, /const canWriteAttendance = !centralAttendance \|\|/);
-  assert.match(source, /settings\?\.centralOperationalSettingsWriteEnabled === true/);
-  assert.match(source, /if \(!settings \|\| !hasUnsavedChanges \|\| !canWriteAttendance \|\| isSaving\) return/);
+  assert.match(source, /value\.centralOperationalSettingsWriteEnabled === true/);
+  assert.match(source, /if \(!settings \|\| !hasUnsavedChanges \|\| !canSaveAttendance \|\| isSaving\) return/);
   assert.match(source, /disabled=\{!canWriteAttendance\}/);
-  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canWriteAttendance\}/);
-  assert.match(source, /centralDeclaredAttendanceEnabled !== true/);
+  assert.match(source, /disabled=\{isSaving \|\| !hasUnsavedChanges \|\| !canSaveAttendance\}/);
+  assert.match(source, /value\.centralDeclaredAttendanceEnabled === true/);
   assert.match(source, /Modo somente leitura: a gravação central/);
   assert.match(server, /"attendanceMode"/);
   assert.match(server, /"rfidInputTerminator"/);
