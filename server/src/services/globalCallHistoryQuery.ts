@@ -5,6 +5,7 @@ import { callMachineReadWhere } from "../security/callReadScope.js";
 export interface GlobalHistoryQuery {
   machineId?: string;
   status?: string;
+  criticality?: string;
   subtype?: string;
   technician?: string;
   failureClassification?: string;
@@ -34,6 +35,7 @@ export function buildScopedGlobalHistoryQuery(
   };
   const machineId = str(raw.machineId, 128);
   const status = str(raw.status, 30);
+  const criticality = str(raw.criticality, 16);
   const subtype = str(raw.subtype, 80);
   const technician = str(raw.technician, 120);
   const failureClassification = str(raw.failureClassification, 100);
@@ -41,6 +43,8 @@ export function buildScopedGlobalHistoryQuery(
   const origin = str(raw.origin, 15);
   const query = str(raw.query, 100);
   if (status && !["open", "in_progress", "post_maintenance", "finished", "cancelled"].includes(status))
+    throw new AccessError("invalid_history_filter", 400);
+  if (criticality && !["low", "medium", "high", "critical"].includes(criticality))
     throw new AccessError("invalid_history_filter", 400);
   if (origin && !["real", "system"].includes(origin))
     throw new AccessError("invalid_history_filter", 400);
@@ -76,6 +80,7 @@ export function buildScopedGlobalHistoryQuery(
   const where: Prisma.AndonCallWhereInput = {
     ...callMachineReadWhere(machineId, allowedMachineIds),
     ...(status ? { status } : {}),
+    ...(criticality ? { criticality } : {}),
     ...(subtype ? { subtype } : {}),
     ...(failureClassification ? { failureClassification } : {}),
     ...(origin ? { isSystemTest: origin === "system" } : {}),

@@ -66,6 +66,7 @@ export function globalHistorySearchPath(
   add("query", filters.query);
   if (filters.machineId !== "all") add("machineId", filters.machineId);
   if (filters.status !== "all") add("status", filters.status);
+  if (filters.criticality !== "all") add("criticality", filters.criticality);
   if (filters.origin !== "all") add("origin", filters.origin);
   add("subtype", filters.subtype);
   add("technician", filters.technician);

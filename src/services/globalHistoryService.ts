@@ -106,6 +106,7 @@ export interface GlobalHistorySearchFilters {
   machineId: string;
   subtype: string;
   status: string;
+  criticality: "all" | "low" | "medium" | "high" | "critical";
   technician: string;
   failureClassification: string;
   reasonId: string;
@@ -122,6 +123,7 @@ export const DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS: GlobalHistorySearchFilters =
   machineId: "all",
   subtype: "",
   status: "all",
+  criticality: "all",
   technician: "",
   failureClassification: "",
   reasonId: "",

@@ -175,3 +175,22 @@ test("HIST-10: machine-originated History keeps fixed machine across drafts, fil
   assert.match(query, /callMachineReadWhere/);
   assert.doesNotMatch(page, /searchGlobalHistory\(\{ \.\.\.applied, machineId: "all" \}/);
 });
+
+
+test("HIST-11: server-criticality controls list, exact authorized summary and page-only export", async () => {
+  const [page, types, params, sql] = await Promise.all([
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
+    source("../src/services/globalHistoryService.ts"),
+    source("../src/utils/globalHistoryQuery.ts"),
+    source("../server/src/services/globalCallHistoryQuery.ts"),
+  ]);
+  assert.match(page, /value=\{draft\.criticality\}/);
+  assert.match(page, /edit\(\{ criticality: e\.target\.value/);
+  assert.match(page, /value="critical"/);
+  assert.match(types, /criticality: "all" \| "low" \| "medium" \| "high" \| "critical"/);
+  assert.match(params, /add\("criticality", filters\.criticality\)/);
+  assert.match(sql, /criticality \? \{ criticality \} : \{\}/);
+  assert.match(sql, /criticality && !\["low", "medium", "high", "critical"\]/);
+  assert.match(page, /getGlobalHistorySummary\(applied\)/);
+  assert.match(page, /downloadGlobalHistoryPageCsv\(result\.items\)/);
+});

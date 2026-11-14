@@ -9,7 +9,7 @@ import {
 import type { GlobalHistorySearchFilters } from "../src/services/globalHistoryService";
 
 const filters: GlobalHistorySearchFilters = {
-  query:"motor & sensor",machineId:"15",subtype:"electrical",status:"finished",
+  query:"motor & sensor",machineId:"15",subtype:"electrical",status:"finished",criticality:"critical",
   technician:"Carlos",failureClassification:"failure",reasonId:"maintenance",
   origin:"real",period:"custom",customDate:"2026-11-12",timeFrom:"22:00",timeBefore:"06:00",
 };

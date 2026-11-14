@@ -426,6 +426,18 @@ export function GlobalCallHistoryPage() {
                     </select>
                   </label>
                   <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
+                    <span>{ui("Criticidade")}</span>
+                    <select value={draft.criticality}
+                      onChange={e => edit({ criticality: e.target.value as GlobalHistorySearchFilters["criticality"] })}
+                      className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm text-foreground">
+                      <option value="all">{ui("Todas as criticidades")}</option>
+                      <option value="low">{ui("Baixa")}</option>
+                      <option value="medium">{ui("Média")}</option>
+                      <option value="high">{ui("Alta")}</option>
+                      <option value="critical">{ui("Crítica")}</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
                     <span>{ui("Período de abertura")}</span>
                     <select value={draft.period}
                       onChange={e=>edit({period:e.target.value as GlobalHistorySearchFilters["period"]})}
