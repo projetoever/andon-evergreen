@@ -18,6 +18,7 @@ import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { getSafeHubHttpsUrl } from "@/utils/secureHubEntry";
+import { toast } from "@/i18n/toast";
 
 export function HubPage() {
   const { access, error, checking, refresh } = useModuleAccess();
@@ -90,6 +91,19 @@ export function HubPage() {
   };
   const enterAdministration = () => {
     if (access?.centralAccessEnabled) {
+      // Secure HttpOnly central session cookies cannot authenticate over HTTP.
+      if (window.location.protocol !== "https:") {
+        toast.error(ui("A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado."));
+        return;
+      }
+      // Never open the restricted route just to show an access-denied page
+      // when the Hub already knows there is no authenticated central user.
+      if (!access.principal || access.principal.purpose !== "normal") {
+        toast.error(ui("Identifique-se para acessar o Hub"));
+        return;
+      }
+      // Manager read-only vs Admin is decided from GET /session on the route;
+      // no role display label or local flag may grant privileged content.
       void navigate({ to: "/hub/admin" });
     } else if (isAdminAuthenticated()) {
       void navigate({ to: "/hub/admin" });

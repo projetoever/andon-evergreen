@@ -4,6 +4,7 @@ import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
+import { HubRestrictedAccessRedirect } from "@/components/security/HubRestrictedAccessRedirect";
 import { accessRequest, type ManagedWorkstation } from "@/services/accessService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
@@ -46,15 +47,10 @@ export function HubCentralManagerPage({
   // A direct URL to users, security or any future Admin-only section never
   // renders its content under a manager session.
   if (!availableSections.some((item) => item.id === section)) {
-    return (
-      <main className="min-h-dvh bg-background p-6">
-        <div role="alert" className="mx-auto max-w-lg space-y-4 rounded-xl border border-border bg-card p-6">
-          <h1 className="text-lg font-bold">{ui("Acesso administrativo restrito")}</h1>
-          <p className="text-sm text-muted-foreground">{ui("Esta seção exige a conta Admin principal.")}</p>
-          <Button asChild variant="outline"><Link to="/hub/admin" search={{ section: "overview" }}>{ui("Voltar à visão geral")}</Link></Button>
-        </div>
-      </main>
-    );
+    return <HubRestrictedAccessRedirect
+      destination="manager-overview"
+      notice="Esta seção exige a conta Admin principal."
+    />;
   }
 
   return (
