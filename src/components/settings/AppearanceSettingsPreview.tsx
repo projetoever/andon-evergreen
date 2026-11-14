@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { AlertCircle } from "lucide-react";
 import { AndonApiError } from "@/api/andonApiClient";
 import { readGlobalVisualPalette, saveGlobalVisualPalette } from "@/services/visualPaletteService";
@@ -38,6 +39,8 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
   const [canWrite, setCanWrite] = useState(false);
   const [loading, setLoading] = useState(allowGlobalSave);
   const [busy, setBusy] = useState(false);
+  const [capabilityChecking, setCapabilityChecking] = useState(false);
+  const [capabilityError, setCapabilityError] = useState(false);
   const [restorePending, setRestorePending] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [message, setMessage] = useState("");
@@ -73,11 +76,13 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
       setDraft(latest.palette);
       setRevision(latest.revision);
       setCanWrite(latest.canWrite);
+      setCapabilityError(false);
       setConflict(false);
       setRestorePending(false);
       setMessage("");
     } catch {
       setCanWrite(false);
+      setCapabilityError(true);
       setMessage("Não foi possível consultar a paleta global.");
     } finally {
       setLoading(false);
@@ -86,8 +91,46 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // CFG-15E: a browser event is only a hint. Recheck the server's write gate
+  // and revision on focus/settings change; do not overwrite unsaved previews.
+  useEffect(() => {
+    if (!allowGlobalSave || loading || busy) return;
+    let active = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const version = ++requestVersion;
+      setCapabilityChecking(true);
+      setCanWrite(false); // fail closed while GET is pending
+      setCapabilityError(false);
+      void readGlobalVisualPalette().then(latest => {
+        if (!active || version !== requestVersion) return;
+        if (latest.revision !== revision) {
+          setConflict(true);
+          setMessage("A paleta foi modificada por outro administrador. Recarregue antes de salvar.");
+          return;
+        }
+        setCanWrite(latest.canWrite);
+      }).catch(() => {
+        if (!active || version !== requestVersion) return;
+        setCanWrite(false);
+        setCapabilityError(true);
+        setMessage("Não foi possível confirmar a disponibilidade da paleta. Nenhuma edição será enviada.");
+      }).finally(() => {
+        if (active && version === requestVersion) setCapabilityChecking(false);
+      });
+    };
+    window.addEventListener("focus", revalidate);
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    return () => {
+      active = false;
+      requestVersion++;
+      window.removeEventListener("focus", revalidate);
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    };
+  }, [allowGlobalSave, loading, busy, revision]);
+
   async function persist(palette: VisualPaletteDraft) {
-    if (!allowGlobalSave || !canWrite || busy || loading || conflict) return;
+    if (!allowGlobalSave || !canWrite || busy || loading || capabilityChecking || conflict) return;
     setBusy(true);
     setMessage("");
     try {
@@ -264,20 +307,21 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
         <div className="space-y-3 rounded-lg border border-border bg-background/60 p-3">
           <p className="text-xs text-muted-foreground">
             {loading ? ui("Carregando paleta global...") :
+              capabilityChecking ? ui("Verificando disponibilidade da paleta global...") :
               canWrite ? ui("Paleta global autorizada para esta sessão. Revisão {0}.", { 0: revision }) :
               ui("Gravação global desabilitada no servidor ou nesta sessão. Prévia disponível.") }
           </p>
-          {message && <p role={conflict ? "alert" : "status"} className="flex items-center gap-2 text-sm text-foreground">
+          {message && <p role={conflict || capabilityError ? "alert" : "status"} className="flex items-center gap-2 text-sm text-foreground">
             {conflict && <AlertCircle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />}
             {ui(message)}
           </p>}
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={() => void persist(draft)}
-              disabled={!canWrite || !changed || busy || loading || conflict || restorePending}>
+              disabled={!canWrite || !changed || busy || loading || capabilityChecking || conflict || restorePending}>
               {busy ? ui("Salvando...") : ui("Salvar globalmente")}
             </Button>
             <Button type="button" variant="outline" onClick={() => setRestorePending(true)}
-              disabled={!canWrite || busy || loading || conflict || restorePending}>
+              disabled={!canWrite || busy || loading || capabilityChecking || conflict || restorePending}>
               {ui("Restaurar padrão global")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => void reload()} disabled={busy || loading}>
@@ -291,7 +335,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="destructive"
-                  disabled={busy} onClick={() => void persist(restoreDefaultVisualPalette())}>
+                  disabled={!canWrite || busy || loading || capabilityChecking || conflict} onClick={() => void persist(restoreDefaultVisualPalette())}>
                   {ui("Confirmar restauração global")}
                 </Button>
                 <Button type="button" variant="outline" disabled={busy} onClick={() => setRestorePending(false)}>
