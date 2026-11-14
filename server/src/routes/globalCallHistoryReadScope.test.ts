@@ -21,7 +21,7 @@ const identity = (grants: string[], machineIds = ["15"]): Principal => ({
 
 test("HIST-02: SQL query intersects machine scope with filters BEFORE pagination/count", () => {
   const query = buildScopedGlobalHistoryQuery({
-    machineId: "11", status: "finished", subtype: "electrical",
+    machineId: "11", status: "finished", criticality: "critical", subtype: "electrical",
     technician: "Carlos", failureClassification: "failure_electrical",
     reasonId: "maintenance", origin: "real", query: "OS-22",
     openedFrom: "2026-11-12T00:00:00-03:00",
@@ -35,6 +35,7 @@ test("HIST-02: SQL query intersects machine scope with filters BEFORE pagination
     { machineId: "11" }, { machineId: { in: ["15"] } },
   ]);
   assert.equal(query.where.status, "finished");
+  assert.equal(query.where.criticality, "critical");
   assert.equal(query.where.subtype, "electrical");
   assert.equal(query.where.isSystemTest, false);
   assert.deepEqual(query.where.callReasonSnapshot, { is: { reasonId: "maintenance" } });
@@ -48,7 +49,8 @@ test("HIST-02: SQL query intersects machine scope with filters BEFORE pagination
 
 test("HIST-02: invalid filters, dates and unbounded pagination fail before SQL", () => {
   const bad = [
-    { status: "drop" }, { origin: "unknown" }, { limit: "0" },
+    { status: "drop" }, { criticality: "urgent" }, { criticality: "all" },
+    { origin: "unknown" }, { limit: "0" },
     { limit: "9999" }, { offset: "-1" }, { offset: "999999" },
     { query: "A".repeat(101) }, { openedFrom: "2026-11-12" },
     { openedFrom: "2026-11-13T00:00:00Z", openedBefore: "2026-11-12T00:00:00Z" },
@@ -132,7 +134,7 @@ test("HIST-02: route is OFF by default and does not read DB without flag + autho
   assert.equal(reads,0);
   grants = ["andon.read","history.read"];
   response = await app.inject({
-    url:"/api/andon-calls/history/search?machineId=11&limit=10&offset=20&origin=real",
+    url:"/api/andon-calls/history/search?machineId=11&limit=10&offset=20&origin=real&criticality=critical",
   });
   assert.equal(response.statusCode,200,response.body);
   assert.deepEqual(response.json(), { items:[], total:0, limit:10, offset:20, hasMore:false });
@@ -141,6 +143,7 @@ test("HIST-02: route is OFF by default and does not read DB without flag + autho
     {machineId:"11"}, {machineId:{in:["15"]}},
   ]);
   assert.equal((lastWhere as any).isSystemTest,false);
+  assert.equal((lastWhere as any).criticality,"critical");
   response = await app.inject({url:"/api/andon-calls/history/search?limit=10000"});
   assert.equal(response.statusCode,400);
   assert.equal(reads,2, "invalid query must never reach DB");
