@@ -143,6 +143,9 @@ export function GlobalCallHistoryPage() {
   const userId = access?.principal?.userId;
   const { machineId: linkedMachineId } = useSearch({ from: "/history" });
   const requestedMachineId = linkedMachineId || "all";
+  // A history opened from an individual machine keeps that machine fixed
+  // until the operator explicitly returns to the unscoped Hub history URL.
+  const machineContextLocked = requestedMachineId !== "all";
   const previousRequestedMachineId = useRef(requestedMachineId);
   const [draft, setDraft] = useState<GlobalHistorySearchFilters>(
     () => ({ ...DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS, machineId: requestedMachineId }),
@@ -277,21 +280,29 @@ export function GlobalCallHistoryPage() {
   }, [allowed, userId, applied, reload]);
 
   const edit = useCallback((patch: Partial<GlobalHistorySearchFilters>) =>
-    setDraft(current => ({ ...current, ...patch })), []);
+    setDraft(current => ({
+      ...current, ...patch,
+      ...(machineContextLocked ? { machineId: requestedMachineId } : {}),
+    })), [machineContextLocked, requestedMachineId]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     // Validate local calendar and clock before updating the live query.
     // A malformed range must not crash a React effect or issue a broad search.
+    const next = {
+      ...draft,
+      machineId: machineContextLocked ? requestedMachineId : draft.machineId,
+    };
     try {
-      globalHistorySearchPath(draft);
+      globalHistorySearchPath(next);
     } catch (cause) {
       setError(cause instanceof Error ? ui(cause.message) : ui("Informe um horário válido."));
       return;
     }
     setError("");
     setOffset(0);
-    setApplied({ ...draft });
+    setDraft(next);
+    setApplied(next);
     setMobileDetail(false);
   };
   const reset = () => {
@@ -390,12 +401,22 @@ export function GlobalCallHistoryPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
                     <span>{ui("Máquina")}</span>
-                    <select value={draft.machineId} disabled={Boolean(machineError)}
-                      onChange={e=>edit({machineId:e.target.value})}
-                      className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm text-foreground">
-                      <option value="all">{ui("Todas permitidas")}</option>
-                      {machines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
+                    {machineContextLocked ? (
+                      <div role="status" aria-label={ui("Máquina vinculada ao histórico de origem")}
+                        className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-semibold">
+                        <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="min-w-0 truncate">
+                          {machines.find(m => m.id === requestedMachineId)?.name ?? requestedMachineId}
+                        </span>
+                      </div>
+                    ) : (
+                      <select value={draft.machineId} disabled={Boolean(machineError)}
+                        onChange={e=>edit({machineId:e.target.value})}
+                        className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm text-foreground">
+                        <option value="all">{ui("Todas permitidas")}</option>
+                        {machines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                    )}
                   </label>
                   <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
                     <span>{ui("Situação")}</span>
