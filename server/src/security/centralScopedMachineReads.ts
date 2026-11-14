@@ -53,13 +53,19 @@ export function scopedMachineReadIds(request: FastifyRequest): readonly string[]
  * a generic operational read: no service account/legacy fallback, no central
  * session without an explicit history grant, no unbound machine scope.
  */
-export function scopedGlobalHistoryReadIds(request: FastifyRequest): readonly string[] | null {
+export function scopedGlobalHistoryPrincipal(request: FastifyRequest): Principal {
   if (!centralAccessEnabled()) throw new AccessError("global_history_disabled");
   const principal = scopedPrincipals.get(request);
   if (!principal) throw new AccessError("central_read_context_required");
   if (principal.accountType !== "person" || principal.purpose !== "normal")
     throw new AccessError("permission_denied");
+  assertPermission(principal, "andon.read");
   assertPermission(principal, "history.read");
+  return principal;
+}
+
+export function scopedGlobalHistoryReadIds(request: FastifyRequest): readonly string[] | null {
+  const principal = scopedGlobalHistoryPrincipal(request);
   return principal.machineScope === "all" ? null : principal.machineIds;
 }
 
