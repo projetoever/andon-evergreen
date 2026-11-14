@@ -53,12 +53,18 @@ export function CallReasonsSettingsTab() {
   const [areaToAdd, setAreaToAdd] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [optionLabel, setOptionLabel] = useState("");
   const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
   const writeBlocked = busy || capabilityChecking || !enabled || Boolean(error) || loading;
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
+  // Display changes use a presentation-only payload. New analytical policy
+  // decisions require explicit human confirmation, then server authorization.
+  const policyReviewNeeded = isPrimaryAdmin && (chosen
+    ? chosen.nature !== draft.nature || chosen.maintenanceKpiPolicy !== draft.maintenanceKpiPolicy
+    : draft.maintenanceKpiPolicy === "eligible");
   const restrictedDelegatedLink = !isPrimaryAdmin &&
     (chosen?.maintenanceKpiPolicy === "eligible" || chosen?.active !== true);
   const linkableAreas = chosen ? areas.filter(area =>
@@ -150,6 +156,7 @@ export function CallReasonsSettingsTab() {
   }, [refresh]);
 
   function edit(reason: CallReasonView) {
+    setPolicyAcknowledged(false);
     setEditingOptionId(null);
     setSelected(reason.id);
     setAreaToAdd("");
@@ -164,6 +171,7 @@ export function CallReasonsSettingsTab() {
 
   async function saveReason() {
     if (writeBlocked) return;
+    if (policyReviewNeeded && !policyAcknowledged) return;
     const next: Draft = {
       ...draft,
       id: selected ?? makeId(draft.displayName),
@@ -186,10 +194,12 @@ export function CallReasonsSettingsTab() {
     try {
       if (chosen) {
         const { id: _id, ...values } = next;
-        await updateCallReason(chosen.id, chosen.revision, isPrimaryAdmin ? values : {
+        const presentationOnly = {
           displayName: next.displayName, color: next.color,
           active: next.active, displayOrder: next.displayOrder,
-        });
+        };
+        await updateCallReason(chosen.id, chosen.revision,
+          isPrimaryAdmin && policyReviewNeeded ? values : presentationOnly);
       } else {
         await createCallReason(isPrimaryAdmin ? next : {
           id: next.id, displayName: next.displayName, color: next.color,
@@ -197,6 +207,7 @@ export function CallReasonsSettingsTab() {
         });
       }
       await refresh(next.id);
+      setPolicyAcknowledged(false);
       toast.success(ui("Motivo de chamado salvo."));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar o motivo."));
@@ -321,7 +332,7 @@ export function CallReasonsSettingsTab() {
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
               <Button type="button" variant="outline" size="sm" disabled={writeBlocked}
-                onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); }}>
+                onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); setPolicyAcknowledged(false); }}>
                 {ui("Novo motivo")}
               </Button>
             </div>
@@ -352,17 +363,17 @@ export function CallReasonsSettingsTab() {
               <Label className="block space-y-2">{ui("Natureza do chamado")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                   value={draft.nature} disabled={writeBlocked || (Boolean(chosen) && !isPrimaryAdmin)}
-                  onChange={e => setDraft({
+                  onChange={e => { setPolicyAcknowledged(false); setDraft({
                     ...draft, nature: e.target.value as Draft["nature"],
                     maintenanceKpiPolicy: e.target.value === "corrective_failure" ? "pending" : "excluded",
-                  })}>
+                  }); }}>
                   {natures.map(([value, title]) => <option key={value} value={value}>{ui(title)}</option>)}
                 </select>
               </Label>
               <Label className="block space-y-2">{ui("Política de KPI corretivo")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                   value={draft.maintenanceKpiPolicy} disabled={writeBlocked || !isPrimaryAdmin}
-                  onChange={e => setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] })}>
+                  onChange={e => { setPolicyAcknowledged(false); setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] }); }}>
                   {policyValues.filter(value => value !== "eligible" || draft.nature === "corrective_failure")
                     .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
                 </select>
@@ -377,13 +388,20 @@ export function CallReasonsSettingsTab() {
                 {ui("Novos motivos não entram automaticamente nos KPIs corretivos. A política conservadora é definida no servidor e pode ser revista pelo Admin principal.")}
               </p>
             )}
+            {policyReviewNeeded && (
+              <label className="flex items-center gap-2 rounded-lg border border-warning/50 bg-warning/5 p-3 text-sm">
+                <input type="checkbox" checked={policyAcknowledged} disabled={writeBlocked}
+                  onChange={e => setPolicyAcknowledged(e.target.checked)} />
+                <span>{ui("Confirmar alteração")} · {ui("Política de KPI corretivo")}</span>
+              </label>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={draft.active} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, active: e.target.checked })} />
                 {ui("Motivo ativo")}
               </label>
-              <Button type="button" disabled={writeBlocked || !draft.displayName.trim()} onClick={() => void saveReason()}>
+              <Button type="button" disabled={writeBlocked || !draft.displayName.trim() || (policyReviewNeeded && !policyAcknowledged)} onClick={() => void saveReason()}>
                 {ui(chosen ? "Salvar motivo" : "Cadastrar motivo")}
               </Button>
             </div>
