@@ -11,7 +11,9 @@ export function buildGlobalHistoryPageCsv(
   const csvCell = (value: string | number | null | undefined): string => {
     let raw = value === null || value === undefined ? "" : String(value);
     raw = raw.replace(/\u0000/g, "");
-    if (/^[\s\uFEFF]*[=+\-@]/.test(raw) || /^[\t\r\n]/.test(raw))
+    // Spreadsheets may strip invisible format characters before recognizing a
+    // formula. Keep the original value, but prefix a literal text marker.
+    if (/^[\s\uFEFF\u200B-\u200F\u202A-\u202E\u2060-\u206F]*[=+\-@]/u.test(raw) || /^[\t\r\n]/.test(raw))
       raw = "'" + raw;
     return '"' + raw.replace(/"/g, '""') + '"';
   };
@@ -24,9 +26,9 @@ export function buildGlobalHistoryPageCsv(
   };
   const header = [
     ui("Máquina"), ui("ID"), ui("Número da OS"),
-    ui("Abertura"), ui("Finalização"),
-    ui("Situação"), ui("Categoria"), ui("Tipo / especialidade"),
-    ui("Classificação"), ui("Mantenedores"), ui("Origem"),
+    ui("Abertura"), ui("Finalização"), ui("Última movimentação"),
+    ui("Situação"), ui("Criticidade"), ui("Categoria"), ui("Tipo / especialidade"),
+    ui("Natureza do chamado"), ui("Classificação"), ui("Mantenedores"), ui("Origem"),
   ];
   const rows = items.map(c => [
     c.machine?.name || c.machineId,
@@ -34,9 +36,12 @@ export function buildGlobalHistoryPageCsv(
     c.workOrderNumber,
     time(c.openedAt),
     time(c.finishedAt),
+    time(c.updatedAt),
     c.status,
+    c.criticality,
     c.callReasonSnapshot?.reasonNameSnapshot || c.category,
     c.callReasonSnapshot?.optionNameSnapshot || c.subtype,
+    c.callReasonSnapshot?.nature ?? "",
     c.failureClassification,
     c.technicianNames?.join(", ") || c.technicianName,
     c.isSystemTest ? ui("Teste do sistema") : ui("Chamado real"),
