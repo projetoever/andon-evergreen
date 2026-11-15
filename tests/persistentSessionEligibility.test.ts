@@ -13,6 +13,8 @@ test("SEC-21: session duration never overwrites the selected profile grants", as
   assert.match(editor, /value=\{draft\.sessionPolicy\}/);
   assert.match(editor, /<option value="daily">/);
   assert.match(editor, /<option value="persistent">/);
+  assert.match(editor, /Não expirar — workstation confiável \(sem fixar tela\)/);
+  assert.doesNotMatch(editor, /máquina fixada e conta não administrativa|A sessão permanece limitada à máquina fixada/);
   assert.doesNotMatch(editor, /Usar permissões de Produção 24h/);
   assert.doesNotMatch(editor, /suggestedPersistentProductionGrants|persistentSessionIncompatibleGrants/);
   assert.match(access, /"standard" \| "daily" \| "persistent"/);
