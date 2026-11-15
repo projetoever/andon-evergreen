@@ -258,6 +258,15 @@ export function HubPage() {
                   {t("Acesso")}: {access.principal.roleLabel} · {access.principal.displayName}
                 </span>
               )}
+              {access.principal?.purpose === "normal" &&
+                access.principal.sessionPolicy === "persistent" && (
+                  <span role="status" className={access.principal.persistentOperational
+                    ? "font-bold text-success" : "font-bold text-warning"}>
+                    {ui(access.principal.persistentOperational
+                      ? "Sessão sem expiração confirmada pelo servidor"
+                      : "Sessão sem expiração não ativada — confira a workstation e entre novamente")}
+                  </span>
+                )}
             </footer>
           </>
         )}
