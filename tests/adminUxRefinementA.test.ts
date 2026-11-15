@@ -426,7 +426,7 @@ test("CFG-15C: General Settings exposes reads but disables mutations when centra
   ]);
   assert.match(source, /access\?\.centralAccessEnabled === true/);
   assert.match(source, /setCentralWritable\(settings\.centralOperationalSettingsWriteEnabled === true\)/);
-  assert.match(source, /const canWriteSettings = !centralMode \|\| centralWritable/);
+  assert.match(source, /const canWriteSettings = access !== null && \(!centralMode \|\| centralWritable\)/);
   assert.match(source, /setCentralWritable\(false\)/);
   assert.match(source, /if \(!canWriteSettings\) return/);
   assert.match(source, /disabled=\{isLoadingSettings \|\| Boolean\(settingsLoadError\) \|\| isSavingKeyboard \|\| !canWriteSettings\}/);
@@ -442,7 +442,7 @@ test("CFG-15C: attendance mode never offers central write when flag OFF, includi
     readFile(new URL("../src/components/settings/AttendanceModeSettingsTab.tsx", import.meta.url), "utf8"),
     readFile(new URL("../server/src/access/centralOperationalSettings.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(source, /const canWriteAttendance = !centralAttendance \|\|/);
+  assert.match(source, /const canWriteAttendance = access !== null && \(!centralAttendance \|\|/);
   assert.match(source, /value\.centralOperationalSettingsWriteEnabled === true/);
   assert.match(source, /if \(!settings \|\| !hasUnsavedChanges \|\| !canSaveAttendance \|\| isSaving\) return/);
   assert.match(source, /disabled=\{!canWriteAttendance\}/);
