@@ -28,7 +28,7 @@ export function rgbToHex({ r, g, b }: RgbColor): `#${string}` {
  */
 export function rgbDraftToHex(input: Readonly<{ r: string; g: string; b: string }>): `#${string}` | null {
   const channels = [input.r, input.g, input.b].map(value => value.trim());
-  if (channels.some(value => !/^\\d{1,3}$/.test(value))) return null;
+  if (channels.some(value => !/^\d{1,3}$/.test(value))) return null;
   const [r, g, b] = channels.map(Number);
   if ([r, g, b].some(value => value > 255)) return null;
   return rgbToHex({ r, g, b });
