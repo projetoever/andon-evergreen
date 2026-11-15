@@ -30,9 +30,8 @@ test("P0: Production and Admin use the same server-owned, global busy-set", asyn
 });
 
 test("P0: session policy never replaces selected permissions and station safeguards remain", async () => {
-  const [editor, policy, sessions] = await Promise.all([
+  const [editor, sessions] = await Promise.all([
     read("../src/components/settings/UsersAccessSettings.tsx"),
-    read("../src/services/persistentSessionEligibility.ts"),
     read("../server/src/access/sessions.ts"),
   ]);
   assert.doesNotMatch(editor, /Verificação de elegibilidade da conta/);
@@ -42,5 +41,6 @@ test("P0: session policy never replaces selected permissions and station safegua
   assert.doesNotMatch(editor, /suggestedPersistentProductionGrants/);
   assert.match(editor, /value="daily"/);
   assert.match(editor, /value="persistent"/);
-  assert.match(policy, /const PERSISTENT_OPERATIONAL_ALLOWED_KEYS/);
+  assert.match(sessions, /permissions: row\.user\.permissions\.map/);
+  assert.doesNotMatch(sessions, /TRUSTED_OPERATIONAL_GRANTS/);
 });
