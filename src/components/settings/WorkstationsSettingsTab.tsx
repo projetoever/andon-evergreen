@@ -19,6 +19,7 @@ import {
 } from "@/services/workstationService";
 import type { Workstation } from "@/types/workstation";
 import { compareWorkstationsForDisplay } from "@/services/workstationDisplayOrder";
+import { canManageWorkstationSettings } from "@/services/workstationManagementGate";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { WorkstationAdmissionSettings } from "./WorkstationAdmissionSettings";
 import { CentralWorkstationAdmissionPolicySettings } from "./CentralWorkstationAdmissionPolicySettings";
@@ -93,19 +94,9 @@ export function WorkstationsSettingsTab() {
   const [diagnosticBusy, setDiagnosticBusy] = useState(false);
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
   const [diagnosticResult, setDiagnosticResult] = useState<WorkstationCompletionDiagnostic | null>(null);
-  // Null/unknown Hub access is NOT the same as confirmed legacy mode.
-  // A transient session/network check must never expose administrative writes.
-  const centralAccessConfirmed =
-    CONFIGURED_DATA_MODE === "api" && !checking && access !== null;
-  const canManage =
-    CONFIGURED_DATA_MODE === "local" ||
-    (centralAccessConfirmed && (
-      access?.centralAccessEnabled === false ||
-      (centralAccess && Boolean(
-        accessSession?.principal?.isPrimaryAdmin ||
-        accessSession?.principal?.permissions?.includes("workstations.manage"),
-      ))
-    ));
+  const canManage = canManageWorkstationSettings(
+    CONFIGURED_DATA_MODE, checking, access, accessSession?.principal,
+  );
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = searchQuery
