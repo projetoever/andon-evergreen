@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   DEFAULT_VISUAL_PALETTE,
   INDUSTRIAL_VISUAL_PRESETS, paletteContrastRatio,
-  accentForTheme, parseVisualPalette, VISUAL_PALETTE_KEYS,
+  accentForTheme, parseVisualPalette, presentationSurfaceForTheme, VISUAL_PALETTE_KEYS,
 } from "../src/theme/andonVisualPalette";
 import { VISUAL_PALETTE_POLL_MS } from "../src/theme/GlobalVisualPaletteProvider";
 
@@ -12,7 +12,7 @@ const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url)
 
 test("UX-12: default global palette still avoids critical stop/warning colors", async () => {
   assert.equal(DEFAULT_VISUAL_PALETTE.cardBorder, "slate");
-  assert.equal(VISUAL_PALETTE_KEYS.length, 6);
+  assert.equal(VISUAL_PALETTE_KEYS.length, 10);
   assert.equal(VISUAL_PALETTE_POLL_MS, 30_000);
   for (const key of VISUAL_PALETTE_KEYS) {
     assert.match(accentForTheme(DEFAULT_VISUAL_PALETTE[key], "light"), /^#[0-9a-fA-F]{6}$/);
@@ -101,7 +101,7 @@ test("UX-19: old five-color palettes remain valid and preserve their configured 
   assert.equal(parseVisualPalette({ ...legacy, priorityBorder:"#fff" }), null);
 });
 
-test("UX-19: six curated palettes change only allowlisted accents and warn for low contrast", () => {
+test("UX-21: six curated palettes also change safe dashboard, fault and priority presentation" , () => {
   assert.equal(INDUSTRIAL_VISUAL_PRESETS.length, 6);
   assert.deepEqual(INDUSTRIAL_VISUAL_PRESETS.map(p => p.id),
     ["evergreen", "contrastDark", "contrastLight", "industrialBlue", "warm", "neutral"]);
