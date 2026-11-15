@@ -1,8 +1,6 @@
-import { systemMessage } from "@/i18n/translate";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
@@ -27,9 +25,10 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
   const definition = access?.modules.find((item) => item.id === module);
   const decision = workstationGateDecision(access, module, checkingRoute, error);
 
-  // An authenticated account with no grant should see its authorized Hub
-  // modules, not a misleading prompt to "approve this workstation".
-  const returnToHub = decision === "denied" && access?.workstation.active === true;
+  // Never render the obsolete full-page "restricted module" intermediary.
+  // A denied or temporarily unreachable route goes to the Hub, where the
+  // server-approved workstation and available modules are shown safely.
+  const returnToHub = decision === "denied" || decision === "error";
   useEffect(() => {
     if (returnToHub) void navigate({ to: "/hub", replace: true });
   }, [returnToHub, navigate]);
@@ -58,15 +57,9 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
   if (returnToHub)
     return (
       <main role="status" className="min-h-dvh bg-background p-6 text-muted-foreground">
-        {t("Ver módulos disponíveis")}
+        {t("Retornando ao Hub para verificar os módulos autorizados…")}
       </main>
     );
-
-  const deniedText = access?.workstation.pendingApproval
-    ? "Workstation aguardando aprovação do administrador do Hub."
-    : access?.workstation.active === false
-      ? "Solicite ao administrador a liberação desta workstation."
-      : "Acesso restrito ao perfil do usuário conectado.";
 
   // Central identification reuses the existing secure /api/access login and
   // admission flow, so deep links can authenticate without an intermediate
@@ -86,33 +79,11 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
           <DialogDescription className="sr-only">
             {t("Autenticação necessária para liberar os módulos autorizados nesta workstation.")}
           </DialogDescription>
-          {decision === "identity" && access ? (
+          {access && (
             <>
               <div className="flex justify-end px-1 pt-1"><LanguageSelector compact /></div>
               <HubIdentityPanel access={access} onChanged={refresh} />
             </>
-          ) : (
-            <section role="alert" className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-xl">
-              <p className="text-sm text-muted-foreground">
-                {error ? systemMessage(error) : t(deniedText)}
-              </p>
-              {access?.workstation.active === false && (
-                <p className="break-all font-mono text-xs text-muted-foreground">
-                  {access.workstation.id}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => void refresh()}>
-                  {t("Verificar novamente")}
-                </Button>
-                <Button asChild>
-                  <Link to="/hub">{t("Ver módulos disponíveis")}</Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/hub/admin">{t("Acesso administrativo")}</Link>
-                </Button>
-              </div>
-            </section>
           )}
         </DialogContent>
       </Dialog>
