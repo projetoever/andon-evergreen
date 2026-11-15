@@ -113,6 +113,29 @@ try {
   assert.equal(updatedPolicy.statusCode, 200, updatedPolicy.body);
   await assert.rejects(resolveSession(db, { token: standardToken, workstationId: targetStationId }));
 
+  // P0 regression: if a production profile requests permanent login before
+  // the Admin has approved station trust, do NOT misreport the short cookie
+  // as permanent. The response explains exactly which server precondition
+  // was not met; after enabling trust, one new login must issue a durable one.
+  const trustOff = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
+  assert.equal(trustOff.statusCode, 200, trustOff.body);
+  const fallback = await app.inject({
+    method: "POST", url: "/api/access/login",
+    headers: {
+      origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken),
+    },
+    payload: { login: operator.login, password: operatorPassword },
+  });
+  assert.equal(fallback.statusCode, 200, fallback.body);
+  assert.equal(fallback.json().sessionPolicy, "persistent");
+  assert.equal(fallback.json().persistentOperational, false);
+  assert.equal(fallback.json().persistenceBlocker, "workstation_not_trusted");
+  assert.doesNotMatch(String(fallback.headers["set-cookie"]), /Max-Age=34560000/);
+  const trustOn = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
+  assert.equal(trustOn.statusCode, 200, trustOn.body);
+
   const login = await app.inject({
     method: "POST", url: "/api/access/login",
     headers: {
@@ -124,6 +147,8 @@ try {
   });
   assert.equal(login.statusCode, 200, login.body);
   assert.equal(login.json().persistentOperational, true);
+  assert.equal(login.json().sessionPolicy, "persistent");
+  assert.equal(login.json().persistenceBlocker, null);
   const cookie = login.headers["set-cookie"];
   assert.match(String(cookie), /HttpOnly; Secure; SameSite=Strict/);
   const token = String(cookie).match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
