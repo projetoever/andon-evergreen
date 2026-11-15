@@ -204,3 +204,26 @@ test("CFG-15J: Classifications editor revalidates its own write gate and never o
     modal.indexOf("  }, [centralAccess, capabilityRetry]);"));
   assert.doesNotMatch(revalidate, /setDraft\(|setSelectedId\(|setItems\(|updateFailureClassification\(|event\.detail/);
 });
+
+
+test("CFG-15K: unknown Hub access cannot be mistaken for legacy write permission", async () => {
+  const [general, attendance, provider, guard] = await Promise.all([
+    get("../src/components/settings/GeneralSettingsTab.tsx"),
+    get("../src/components/settings/AttendanceModeSettingsTab.tsx"),
+    get("../src/context/ModuleAccessProvider.tsx"),
+    get("../server/src/security/centralOperationalSettingsHttp.ts"),
+  ]);
+  assert.match(provider, /const \[access, setAccess\] = useState<ModuleAccess \| null>\(null\)/);
+  assert.match(provider, /setAccess\(null\)/);
+  assert.match(general, /const canWriteSettings = access !== null && \(!centralMode \|\| centralWritable\)/);
+  assert.match(attendance, /const canWriteAttendance = access !== null && \(!centralAttendance \|\| centralCapability\?\.write === true\)/);
+  assert.match(attendance, /const canSelectName = access !== null && \(!centralAttendance \|\| centralCapability\?\.declaredName === true\)/);
+  assert.match(attendance, /const canSaveAttendance = canWriteAttendance/);
+  assert.match(general, /if \(!canWriteSettings\) return/);
+  assert.match(attendance, /if \(!settings \|\| !hasUnsavedChanges \|\| !canSaveAttendance \|\| isSaving\) return/);
+  assert.match(guard, /assertCentralOperationalSettingsPrivilege\(principal, request\.body\)/);
+  assert.match(guard, /checkCsrf\(/);
+  // A feature flag or a browser event is never a central ACL grant.
+  assert.doesNotMatch(general, /event\.detail\..*WriteEnabled/);
+  assert.doesNotMatch(attendance, /event\.detail\..*WriteEnabled/);
+});
