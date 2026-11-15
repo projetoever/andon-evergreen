@@ -238,7 +238,7 @@ try {
         Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }
  } catch {
-    # A Prisma DLL EPERM or build error happens AFTER Stop-AndonRuntime.
+    # A Prisma DLL EPERM or build error can occur after the runtime was stopped.
     # Attempt to restore service availability without touching data/backups,
     # while preserving the disabled/enabled state of scheduled tasks.
     if ($ContinueAfterSync -and $script:AndonUpdateStopped -and !$script:AndonUpdateStarted) {
