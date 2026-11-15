@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ export function ProductionModeCredentialModal({
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // Synchronous lock closes the interval before React commits busy=true.
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -33,8 +35,9 @@ export function ProductionModeCredentialModal({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (busy || !login.trim() || !password || !requestedMode ||
+    if (submittingRef.current || busy || !login.trim() || !password || !requestedMode ||
         currentMode === requestedMode) return;
+    submittingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -54,6 +57,7 @@ export function ProductionModeCredentialModal({
         ? ui("A programação foi alterada em outra estação. Feche, confira o estado atual e tente novamente.")
         : ui("Não foi possível confirmar. Verifique usuário, senha e autorização para esta máquina."));
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   };
@@ -70,22 +74,22 @@ export function ProductionModeCredentialModal({
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={event => void submit(event)}>
-          <label className="block space-y-1 text-sm font-semibold">
+          <label className="block space-y-2 text-sm font-semibold">
             <span>{ui("Usuário autorizado")}</span>
             <Input autoComplete="username" autoFocus required maxLength={120}
               value={login} onChange={event => setLogin(event.target.value)} />
           </label>
-          <label className="block space-y-1 text-sm font-semibold">
+          <label className="block space-y-2 text-sm font-semibold">
             <span>{ui("Senha")}</span>
             <Input type="password" autoComplete="current-password" required maxLength={128}
               value={password} onChange={event => setPassword(event.target.value)} />
           </label>
           {error && <p role="alert" className="text-sm font-semibold text-danger">{error}</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={busy || !login.trim() || !password || !requestedMode}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" type="submit" disabled={busy || !login.trim() || !password || !requestedMode}>
               {busy ? ui("Confirmando...") : ui("Confirmar alteração")}
             </Button>
-            <Button type="button" variant="secondary" disabled={busy}
+            <Button className="w-full sm:w-auto" type="button" variant="secondary" disabled={busy}
               onClick={() => onOpenChange(false)}>{ui("Cancelar")}</Button>
           </div>
         </form>

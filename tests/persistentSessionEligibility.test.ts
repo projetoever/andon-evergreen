@@ -90,3 +90,20 @@ test("REFINE23: persistent trusted login survives Firefox close and workstation 
   // login from a workstation UUID alone when the secure cookie was deleted.
   assert.doesNotMatch(provider, /localStorage\.setItem\([^)]*(?:token|password|session)/);
 });
+
+test("SEC21 workstation login: no concurrent POSTs or premature credential reset", async () => {
+  const identity = await read("../src/components/security/HubIdentityPanel.tsx");
+  const run = identity.split("const run = async (")[1]?.split("const authenticate =")[0] ?? "";
+  const authenticate = identity.split("const authenticate =")[1]?.split("const changePassword =")[0] ?? "";
+  assert.match(identity, /useRef\(false\)/);
+  assert.match(run, /if \(actionInFlight\.current\) return/);
+  assert.match(run, /actionInFlight\.current = true/);
+  assert.match(run, /actionInFlight\.current = false/);
+  assert.match(authenticate, /const form = event\.currentTarget/);
+  assert.match(authenticate, /await accessRequest<\{/);
+  assert.match(authenticate, /\}\>\("\/login", "POST", \{ login, password \}\)/);
+  assert.match(authenticate, /form\.reset\(\)/);
+  assert.doesNotMatch(authenticate, /event\.currentTarget\.reset\(\)/);
+  assert.ok(authenticate.indexOf('form.reset()') > authenticate.indexOf('"/login", "POST"'),
+    "The server must authenticate before the form is cleared");
+});
