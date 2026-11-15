@@ -33,7 +33,7 @@ export type UserInput = {
   accountType: "person" | "kiosk";
   active: boolean;
   machineScope: "all" | "selected";
-  sessionPolicy?: "standard" | "persistent";
+  sessionPolicy?: "standard" | "daily" | "persistent";
   permissions: string[];
   machineIds: string[];
   version?: number;
@@ -57,7 +57,7 @@ export function validateUser(input: UserInput) {
     new Set(input.permissions).size !== input.permissions.length ||
     new Set(input.machineIds).size !== input.machineIds.length ||
     (input.machineScope === "all" && input.machineIds.length) ||
-    (input.sessionPolicy !== undefined && !["standard", "persistent"].includes(input.sessionPolicy)) ||
+    (input.sessionPolicy !== undefined && !["standard", "daily", "persistent"].includes(input.sessionPolicy)) ||
     (input.sessionPolicy === "persistent" && input.accountType !== "person") ||
     (input.accountType === "kiosk" && input.active)
   )

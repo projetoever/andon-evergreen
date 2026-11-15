@@ -11,6 +11,8 @@ import { useRouterState } from "@tanstack/react-router";
 import { loadModuleAccess } from "@/services/moduleService";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
+import { toast } from "@/i18n/toast";
+import { persistentSessionMismatch, PERSISTENCE_NOT_ACTIVE } from "@/services/persistentSessionStatus";
 
 const ModuleAccessContext = createContext<{
   access: ModuleAccess | null;
@@ -26,6 +28,7 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [checkedPath, setCheckedPath] = useState<string | null>(null);
   const revision = useRef(0);
+  const warnedNonPersistent = useRef<string | null>(null);
   const refresh = useCallback(async () => {
     const requestRevision = ++revision.current;
     try {
@@ -33,6 +36,14 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       if (requestRevision !== revision.current) return;
       setAccess(next);
       setError(null);
+      const principal = next.principal;
+      if (persistentSessionMismatch(principal)) {
+        const warningKey = `${principal!.userId}:${next.workstation.id}`;
+        if (warnedNonPersistent.current !== warningKey) {
+          warnedNonPersistent.current = warningKey;
+          toast.warning(PERSISTENCE_NOT_ACTIVE, { duration: 10_000 });
+        }
+      } else warnedNonPersistent.current = null;
     } catch (cause) {
       if (requestRevision !== revision.current) return;
       setAccess(null);
@@ -59,6 +70,20 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       revision.current += 1;
     };
   }, [pathname, refresh]);
+
+  // Recover transient API failures without returning to Hub or asking for
+  // another password. A failed check cannot authorize a module: the gate
+  // remains closed until the next successful server response.
+  useEffect(() => {
+    if (!error) return;
+    const timer = window.setInterval(() => void refresh(), 5_000);
+    const onOnline = () => void refresh();
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [error, refresh]);
 
   useEffect(() => {
     if (!access?.centralAccessEnabled || access.principal?.purpose !== "normal") return;

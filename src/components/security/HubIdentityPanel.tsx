@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CentralAdminRecoveryForm } from "@/components/security/CentralAdminRecoveryForm";
 import { ui } from "@/i18n/translate";
+import { toast } from "@/i18n/toast";
+import { persistentBlockerMessage, PERSISTENCE_NOT_ACTIVE } from "@/services/persistentSessionStatus";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { personalPasswordHint } from "@/services/personalPasswordHint";
 import type { ModuleAccess } from "@/types/modules";
@@ -71,9 +73,19 @@ export function HubIdentityPanel({
     const password = String(values.get("password") ?? "");
     event.currentTarget.reset();
     void run(async () => {
-      await accessRequest("/login", "POST", { login, password });
+      const result = await accessRequest<{
+        sessionPolicy?: string; persistentOperational?: boolean; persistenceBlocker?: string | null;
+      }>("/login", "POST", { login, password });
       await refreshSession();
       await onChanged();
+      // No more silent fallback to a 30-minute idle session on a pinned
+      // production terminal. The login may be valid, but explicitly warn
+      // when server-side trust/scope prevented permanent issuance.
+      if (result.sessionPolicy === "persistent" && result.persistentOperational !== true)
+        toast.error(ui(PERSISTENCE_NOT_ACTIVE), {
+          description: ui(persistentBlockerMessage(result.persistenceBlocker)),
+          duration: 12_000,
+        });
     });
   };
   const changePassword = (event: FormEvent<HTMLFormElement>) => {

@@ -103,15 +103,47 @@ try {
   const standardToken = String(standardLogin.headers["set-cookie"])
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(standardToken);
+  // The FULL ANDON module bundle used by production must not silently
+  // disqualify no-expiry login merely because it contains advanced grants.
+  const fullAndonGrants = [
+    "andon.read", "history.read", "calls.open", "calls.cancel.own",
+    "calls.cancel.any", "calls.attend", "calls.technicians.manage",
+    "calls.finishMaintenance", "calls.finish", "calls.followUp",
+    "calls.returnToMaintenance", "machines.status.write",
+    "production.schedule.request", "diagnosis.edit", "workstations.screen.unlock",
+  ];
   const updatedPolicy = await adminRequest("PUT", "/users/" + operator.id, {
     login: operator.login, displayName: operator.displayName,
     roleLabel: operator.roleLabel, accountType: "person", active: true,
     machineScope: "selected", sessionPolicy: "persistent",
-    permissions: ["andon.read", "calls.open"], machineIds: [machineId],
+    permissions: fullAndonGrants, machineIds: [machineId],
     version: operator.authorizationVersion,
   });
   assert.equal(updatedPolicy.statusCode, 200, updatedPolicy.body);
   await assert.rejects(resolveSession(db, { token: standardToken, workstationId: targetStationId }));
+
+  // P0 regression: if a production profile requests permanent login before
+  // the Admin has approved station trust, do NOT misreport the short cookie
+  // as permanent. The response explains exactly which server precondition
+  // was not met; after enabling trust, one new login must issue a durable one.
+  const trustOff = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
+  assert.equal(trustOff.statusCode, 200, trustOff.body);
+  const fallback = await app.inject({
+    method: "POST", url: "/api/access/login",
+    headers: {
+      origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
+      cookie: "__Host-andon-preauth=" + loginToken,
+      "x-andon-csrf": csrfToken(loginToken),
+    },
+    payload: { login: operator.login, password: operatorPassword },
+  });
+  assert.equal(fallback.statusCode, 200, fallback.body);
+  assert.equal(fallback.json().sessionPolicy, "persistent");
+  assert.equal(fallback.json().persistentOperational, false);
+  assert.equal(fallback.json().persistenceBlocker, "workstation_not_trusted");
+  assert.doesNotMatch(String(fallback.headers["set-cookie"]), /Max-Age=34560000/);
+  const trustOn = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
+  assert.equal(trustOn.statusCode, 200, trustOn.body);
 
   const login = await app.inject({
     method: "POST", url: "/api/access/login",
@@ -124,6 +156,8 @@ try {
   });
   assert.equal(login.statusCode, 200, login.body);
   assert.equal(login.json().persistentOperational, true);
+  assert.equal(login.json().sessionPolicy, "persistent");
+  assert.equal(login.json().persistenceBlocker, null);
   const cookie = login.headers["set-cookie"];
   assert.match(String(cookie), /HttpOnly; Secure; SameSite=Strict/);
   const token = String(cookie).match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
@@ -145,6 +179,8 @@ try {
     { token: afterChangeToken, workstationId: targetStationId });
   assert.equal(fresh.persistentOperational, true);
   assert.deepEqual(fresh.machineIds, [machineId]);
+  assert.deepEqual([...fresh.permissions].sort(), [...fullAndonGrants].sort(),
+    "persistent Firefox-style login must keep every explicitly selected ANDON grant");
 
   // A second browser with the SAME authenticated account and station
   // identity must not sign the first browser out. Neither cookie is shared:
