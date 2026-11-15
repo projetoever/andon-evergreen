@@ -1538,7 +1538,14 @@ function Stop-AndonPrismaEngineNodeOwners {
         }).Count -gt 0
         if (!$ownsEngine) { continue }
         Write-AndonWarn "Processo Node PID $($process.ProcessId) ainda usa o Prisma do ANDON. Encerrando apenas esse processo."
-        Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+        try {
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+        } catch {
+            # The process may exit between enumeration and Stop-Process or
+            # the OS may deny termination. Keep the installer safe and let
+            # the bounded Prisma retry report the unresolved file lock.
+            Write-AndonWarn "PID $($process.ProcessId) nao foi encerrado: $($_.Exception.Message)"
+        }
     }
 }
 
