@@ -1,4 +1,4 @@
-# REFINE 21 — CFG-15L | Abas administrativas fail-closed com acesso Hub ainda não verificado
+# REFINE 21 — CFG-15L | Cinco abas administrativas fail-closed com acesso Hub ainda não verificado
 
 **Data:** 15/11/2026. **Base oficial congelada:** `05e46767faf982d0bebf242738d389622d906fe4` (patch P0 de login em homologação no notebook). **Issue:** #477.
 
@@ -11,6 +11,7 @@ Todos os controles desses quatro painéis passam a exigir a identidade de acesso
 - Setores: `centralCategorySettingsWriteEnabled`; botão e função de **exclusão** só existem/executam em modo legado confirmado (DELETE central continua proibido).
 - Mantenedores: gates independentes para criar/editar `centralTechnicianCreateEnabled` / `centralTechnicianUpdateEnabled`.
 - Catálogos de ativos: `centralAssetTypeCatalogWriteEnabled` e política `centralOperationalSettingsWriteEnabled`; **exclusão** apenas em modo legado confirmado.
+- Motivos/subcategorias: a função central já usava a flag `centralCallReasonsCatalogEnabled`, porém podia manter esse estado enquanto `access` passava a `null`. Agora a guarda de escrita exige também o Hub confirmado; o modo de prévia dos formulários não concede permissão.
 
 ## Correção de desatualização de permissões
 
@@ -20,7 +21,7 @@ A autorização no servidor continua soberana: todas as alterações requerem co
 
 ## Testes e limites
 
-- Novas asserções em `tests/centralUnknownAccessFailClosed.test.ts`, incluídas em `npm run test:ui`, verificam as quatro abas, bloqueios de DELETE, flags independentes e não mutação de drafts.
+- Novas asserções em `tests/centralUnknownAccessFailClosed.test.ts`, incluídas em `npm run test:ui`, verificam as cinco abas, bloqueios de DELETE, flags independentes e não mutação de drafts.
 - Atualizados os testes legados em `tests/adminUxRefinementA.test.ts`, `tests/centralShiftsDualGates.test.ts`, `tests/centralSettingsCapabilityMatrix.test.ts`.
 - Esperar CI Linux, PostgreSQL, compilação, UI e instalador Windows sem falhas.
 - Não modifica schema, migrações, configurações de ambiente, trabalho industrial, produção, privilégios de usuário ou flags. Não executa deploy; branch independente.
