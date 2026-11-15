@@ -198,7 +198,8 @@ export function registerAccessRoutes(
     });
     const sendSession = (
       reply: FastifyReply,
-      session: { token: string; expiresAt: Date; purpose: string; persistentOperational?: boolean },
+      session: { token: string; expiresAt: Date; purpose: string; persistentOperational?: boolean;
+        sessionPolicy?: string; persistenceBlocker?: string | null },
     ) => {
       setCookie(
         reply,
@@ -208,7 +209,9 @@ export function registerAccessRoutes(
           Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
       );
       return { csrf: csrfToken(session.token), purpose: session.purpose,
-        persistentOperational: session.persistentOperational === true };
+        persistentOperational: session.persistentOperational === true,
+        sessionPolicy: session.sessionPolicy ?? "standard",
+        persistenceBlocker: session.persistenceBlocker ?? null };
     };
     app.get(`${PREFIX}/session`, async (req, reply) => {
       let principal = null;
