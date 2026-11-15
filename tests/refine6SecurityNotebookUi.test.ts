@@ -57,7 +57,7 @@ test("SEC-18B: workstation trust is not mistaken for an active persistent Person
     read("../src/components/settings/WorkstationsSettingsTab.tsx"),
     read("../src/components/settings/UsersAccessSettings.tsx"),
   ]);
-  assert.match(workstations, /configurar a conta em Usuários e Acessos/);
+  assert.match(workstations, /selecionar Não expirar no perfil da conta em Usuários e Acessos/);
   assert.match(workstations, /lastLogin\?\.state === "valid"/);
   assert.match(workstations, /Terminal autorizado, mas sem login persistente confirmado/);
   assert.match(users, /value=\{draft\.sessionPolicy\}/);
