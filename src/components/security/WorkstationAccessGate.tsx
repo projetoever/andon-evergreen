@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
@@ -25,10 +26,10 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
   const definition = access?.modules.find((item) => item.id === module);
   const decision = workstationGateDecision(access, module, checkingRoute, error);
 
-  // Never render the obsolete full-page "restricted module" intermediary.
-  // A denied or temporarily unreachable route goes to the Hub, where the
-  // server-approved workstation and available modules are shown safely.
-  const returnToHub = decision === "denied" || decision === "error";
+  // Only a CONFIRMED denial routes to Hub. Temporary connection errors
+  // must never masquerade as logout; no protected children are rendered
+  // until the server becomes reachable and confirms the principal again.
+  const returnToHub = decision === "denied";
   useEffect(() => {
     if (returnToHub) void navigate({ to: "/hub", replace: true });
   }, [returnToHub, navigate]);
@@ -58,6 +59,20 @@ export function WorkstationAccessGate({ children }: { children: ReactNode }) {
     return (
       <main role="status" className="min-h-dvh bg-background p-6 text-muted-foreground">
         {t("Retornando ao Hub para verificar os módulos autorizados…")}
+      </main>
+    );
+
+  if (decision === "error")
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background p-4">
+        <section role="status" className="w-full max-w-md space-y-3 rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-sm font-semibold">
+            {t("Conexão temporariamente indisponível. Verificando novamente sem encerrar sua sessão.")}
+          </p>
+          <Button variant="outline" onClick={() => void refresh()}>
+            {t("Tentar novamente")}
+          </Button>
+        </section>
       </main>
     );
 
