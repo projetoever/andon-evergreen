@@ -21,6 +21,11 @@ test("REFINE20: machine schedule always requests approval with login + password"
   assert.match(modal, /accessRequest\("\/machines\/production-mode", "POST"/);
   assert.match(modal, /expectedProductionMode: currentMode/);
   assert.match(modal, /autoComplete="current-password"/);
+  assert.match(modal, /useRef\(false\)/);
+  assert.match(modal, /submittingRef\.current \|\| busy/);
+  assert.match(modal, /submittingRef\.current = true/);
+  assert.match(modal, /submittingRef\.current = false/);
+
   assert.match(endpoint, /setCentralProductionModeWithCredential\(db/);
   assert.match(endpoint, /production-mode:\$\{req\.ip\}/);
   assert.match(policy, /"production\.schedule\.request"/);
