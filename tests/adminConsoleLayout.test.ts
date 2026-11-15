@@ -8,8 +8,9 @@ test("painel admin usa console amplo com navegação lateral agrupada", async ()
     "utf8",
   );
 
-  assert.match(source, /h-\[96dvh\]/);
-  assert.match(source, /max-w-\[1600px\]/);
+  assert.match(source, /andon-screen-enter h-dvh min-h-0 w-full overflow-hidden/);
+  assert.match(source, /export function AdminSettingsWorkspace/);
+  assert.doesNotMatch(source, /<Dialog open=|<DialogContent|shadow-2xl sm:w-\[96vw\]/);
   assert.match(source, /lg:grid-cols-\[280px_minmax\(0,1fr\)\]/);
   assert.match(source, /Painel administrativo/);
   assert.match(source, /navigationGroups/);
@@ -94,4 +95,38 @@ test("Usuários diferencia bloqueio HTTPS de falha temporária", async () => {
   assert.match(users, /errorCode === "https_required"/);
   assert.match(users, /errorCode !== "https_required"/);
   assert.match(users, /Sessão central: \{0\} · \{1\}/);
+});
+
+test("REFINE21: Admin ANDON abre por rota fullscreen, nunca por modal no dashboard", async () => {
+  const [dashboard, page, route, admin] = await Promise.all([
+    readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/AndonAdminPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/routes/andon.admin.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /createFileRoute\("\/andon\/admin"\)/);
+  assert.match(dashboard, /navigate\(\{ to: "\/andon\/admin" \}\)/);
+  assert.doesNotMatch(dashboard, /<AdminSettingsModal|adminSettingsOpen|setAdminSettingsOpen/);
+  assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
+  assert.match(page, /principal\.permissions\?\.includes\("andon\.settings\.open"\)/);
+  assert.match(page, /<AdminSettingsWorkspace/);
+  assert.match(admin, /h-dvh min-h-0 w-full overflow-hidden/);
+  assert.doesNotMatch(admin, /<Dialog open=/);
+});
+
+test("REFINE21: Hub central, Gerente e legado usam tela inteira e barra lateral responsiva", async () => {
+  const paths = [
+    "../src/pages/HubAdminPage.tsx",
+    "../src/pages/HubCentralAdminPage.tsx",
+    "../src/pages/HubCentralManagerPage.tsx",
+  ];
+  for (const path of paths) {
+    const page = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(page, /max-w-none/);
+    assert.match(page, /lg:grid-cols-\[264px_minmax\(0,1fr\)\]/);
+    assert.match(page, /<aside className="min-w-0 lg:sticky/);
+    assert.match(page, /lg:flex-col lg:overflow-x-visible/);
+    assert.match(page, /overflow-x-auto/);
+    assert.match(page, /search=\{\{ section: item\.id \}\}/);
+  }
 });
