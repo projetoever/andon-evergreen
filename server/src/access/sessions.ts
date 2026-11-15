@@ -15,15 +15,9 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const IDLE = 30 * 60 * 1000;
-const TRUSTED_OPERATIONAL_GRANTS = new Set([
-  "andon.read", "history.read", "calls.open", "calls.cancel.own",
-  "calls.attend", "calls.technicians.manage", "calls.finishMaintenance",
-  "calls.finish", "calls.followUp", "calls.returnToMaintenance",
-  "production.schedule.request", // Only a password-confirmed, audited operation.
-  "bi.read", "bi.export", "priorities.read",
-]);
-// Intentionally allowlist, not blacklist: any newly introduced privilege
-// disqualifies a durable session until explicitly security-reviewed.
+// Grant selection belongs to the user's centrally managed ACL, not to the
+// duration setting. Durable sessions stay bound to an approved trusted,
+// machine-pinned workstation; permissions are checked on every API request.
 export function permitsPersistentOperationalAccount(user: {
   accountType: string; sessionPolicy?: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
   permissions: ReadonlyArray<{ key: string }>;
@@ -35,7 +29,7 @@ export function permitsPersistentOperationalAccount(user: {
     user.accountType === "person" && user.sessionPolicy === "persistent" &&
     !user.isPrimaryAdmin && !user.mustChangePassword &&
     user.permissions.length > 0 &&
-    user.permissions.every(permission => TRUSTED_OPERATIONAL_GRANTS.has(permission.key)) &&
+    // Do not silently turn the user's selected permissions into another preset.
     (machineScope === "all" ||
       machineIds.some(entry => entry.machineId === station.lockedMachineId));
 }
@@ -59,7 +53,8 @@ export async function resolveSession(
     !row.user.active ||
     row.authorizationVersion !== row.user.authorizationVersion ||
     row.workstationId !== request.workstationId ||
-    (!row.persistentOperational && row.lastInteractionAt.getTime() + IDLE <= now.getTime())
+    (!row.persistentOperational && row.user.sessionPolicy !== "daily" &&
+      row.lastInteractionAt.getTime() + IDLE <= now.getTime())
   )
     throw new AccessError("authentication_required", 401);
   if (row.persistentOperational &&
@@ -91,14 +86,13 @@ export async function resolveSession(
     machineIds: row.persistentOperational
       ? [row.persistentMachineId!]
       : row.user.machines.map((x) => x.machineId),
-    permissions: row.persistentOperational
-      ? row.user.permissions.map(x => x.key).filter(key => TRUSTED_OPERATIONAL_GRANTS.has(key))
-      : row.user.permissions.map((x) => x.key),
+    permissions: row.user.permissions.map((x) => x.key),
     sessionId: row.id,
     workstationId: row.workstationId,
     purpose: row.purpose,
     authenticatedAt: row.lastAuthenticatedAt ?? row.createdAt,
     persistentOperational: row.persistentOperational,
+    sessionPolicy: row.user.sessionPolicy,
   };
 }
 export async function lockUser(tx: Prisma.TransactionClient, id: string) {
@@ -112,6 +106,7 @@ export async function issueSession(
   now: Date,
   persistentOperational = false,
   persistentMachineId: string | null = null,
+  sessionPolicy: string = "standard",
 ) {
   const token = randomBytes(32).toString("hex");
   const row = await tx.accessSession.create({
@@ -128,7 +123,9 @@ export async function issueSession(
       // Legacy reporting retains expiresAt; persistent sessions use a separate
       // authorization bit and never infer access solely from this sentinel.
       expiresAt: persistentOperational ? new Date("9999-12-31T00:00:00.000Z") :
-        new Date(now.getTime() + (purpose === "normal" ? 12 * HOUR : 10 * 60 * 1000)),
+        new Date(now.getTime() + (purpose === "normal"
+          ? (sessionPolicy === "daily" && !persistentOperational ? 24 : 12) * HOUR
+          : 10 * 60 * 1000)),
     },
   });
   return { token, sessionId: row.id, expiresAt: row.expiresAt, purpose, persistentOperational };
@@ -283,6 +280,7 @@ export async function login(
           current.machineScope,
         ),
       station.lockedMachineId,
+      effective.sessionPolicy,
     );
     await appendAudit(
       tx,
@@ -418,7 +416,7 @@ export async function changePassword(
     });
     const session = await issueSession(
       tx, user, request.workstationId, "normal", now,
-      persistent, persistent ? station.lockedMachineId : null,
+      persistent, persistent ? station.lockedMachineId : null, user.sessionPolicy,
     );
     await appendAudit(tx, actorFromPrincipal(principal), {
       action: "access.password.changed",
@@ -508,7 +506,8 @@ export async function recordInteraction(db: PrismaClient, request: AccessRequest
         OR: [
           { persistentOperational: true },
           { persistentOperational: false, expiresAt: { gt: now },
-            lastInteractionAt: { gt: new Date(now.getTime() - IDLE) } },
+            ...(principal.sessionPolicy === "daily" ? {} :
+              { lastInteractionAt: { gt: new Date(now.getTime() - IDLE) } }) },
         ],
       },
       data: { lastInteractionAt: now },
