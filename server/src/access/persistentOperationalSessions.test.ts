@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { permitsPersistentOperationalAccount } from "./sessions.js";
+import { permitsPersistentOperationalAccount, persistentOperationalBlocker } from "./sessions.js";
 import { validateUser } from "./users.js";
 
 const user = {
@@ -68,4 +68,29 @@ test("SEC-18: a persistent Person account can be deactivated without changing it
   assert.doesNotThrow(() => validateUser({ ...draft }));
   assert.throws(() => validateUser({ ...draft, accountType: "kiosk" }),
     /invalid_user/);
+});
+
+
+test("SEC21 P0: persistent login must reveal its exact nonsecret failure reason", () => {
+  assert.equal(persistentOperationalBlocker(user, station, machines, "selected"), null);
+  const cases = [
+    { reason: "policy_not_persistent", u: { ...user, sessionPolicy: "daily" }, s: station, m: machines },
+    { reason: "account_type_not_supported", u: { ...user, accountType: "kiosk" }, s: station, m: machines },
+    { reason: "primary_admin_not_eligible", u: { ...user, isPrimaryAdmin: true }, s: station, m: machines },
+    { reason: "password_change_required", u: { ...user, mustChangePassword: true }, s: station, m: machines },
+    { reason: "workstation_not_approved", u: user, s: { ...station, active: false }, m: machines },
+    { reason: "workstation_not_approved", u: user, s: { ...station, pendingApproval: true }, m: machines },
+    { reason: "workstation_not_trusted", u: user, s: { ...station, allowPersistentOperationalLogin: false }, m: machines },
+    { reason: "machine_not_pinned", u: user, s: { ...station, lockedMachineId: null }, m: machines },
+    { reason: "no_selected_permissions", u: { ...user, permissions: [] }, s: station, m: machines },
+    { reason: "machine_scope_mismatch", u: user, s: station, m: [{ machineId: "39" }] },
+  ];
+  for (const entry of cases) {
+    assert.equal(persistentOperationalBlocker(entry.u, entry.s, entry.m, "selected"), entry.reason);
+    assert.equal(permitsPersistentOperationalAccount(entry.u, entry.s, entry.m, "selected"), false);
+  }
+  assert.equal(persistentOperationalBlocker(user, station, [], "all"), null);
+  assert.equal(persistentOperationalBlocker({
+    ...user, permissions: [...user.permissions, { key: "catalog.assets.manage" }],
+  }, station, machines, "selected"), null, "the profile ACL must never be replaced by session duration");
 });
