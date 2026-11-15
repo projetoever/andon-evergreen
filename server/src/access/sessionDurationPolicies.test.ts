@@ -9,9 +9,11 @@ const at = new Date("2026-11-15T12:00:00.000Z");
 const station = { active: true, pendingApproval: false,
   allowPersistentOperationalLogin: true, lockedMachineId: "37" };
 
-function reader({ policy, expiry, idleAt, permissions, persistent = false, revoked = false }: {
+function reader({ policy, expiry, idleAt, permissions, persistent = false, revoked = false,
+  scope = "selected", allowedMachineIds = ["37"], pinned = "37" }: {
   policy: string; expiry: Date; idleAt: Date; permissions: string[];
-  persistent?: boolean; revoked?: boolean;
+  persistent?: boolean; revoked?: boolean; scope?: string;
+  allowedMachineIds?: string[]; pinned?: string | null;
 }) {
   const token = "c".repeat(64);
   const record = {
@@ -22,13 +24,13 @@ function reader({ policy, expiry, idleAt, permissions, persistent = false, revok
     persistentOperational: persistent,
     persistentMachineId: persistent ? "37" : null,
     revokedAt: revoked ? new Date("2026-11-14T10:00:00.000Z") : null,
-    authorizationVersion: 5, workstation: station,
+    authorizationVersion: 5, workstation: { ...station, lockedMachineId: pinned },
     user: {
       id: "user-37", login: "operador", displayName: "Operador",
       roleLabel: "Produção", active: true, isPrimaryAdmin: false,
       accountType: "person", sessionPolicy: policy, mustChangePassword: false,
-      authorizationVersion: 5, machineScope: "selected",
-      machines: [{ machineId: "37" }],
+      authorizationVersion: 5, machineScope: scope,
+      machines: allowedMachineIds.map(machineId => ({ machineId })),
       permissions: permissions.map(key => ({ key })),
     },
   };
@@ -83,7 +85,7 @@ test("SEC21: session issuance stores exact 12/24-hour deadlines and never silent
   assert.equal(created[2].expiresAt.getUTCFullYear(), 9999);
 });
 
-test("SEC21: approved machine-pinned persistent sessions retain admin-selected grants without changing role", async () => {
+test("SEC21: approved trusted sessions retain admin-selected grants independently of screen pin", async () => {
   const grants = ["andon.read", "calls.open", "catalog.assets.manage", "andon.settings.open"];
   const args = reader({
     policy: "persistent", expiry: new Date("2026-01-01T00:00:00.000Z"),
@@ -97,4 +99,20 @@ test("SEC21: approved machine-pinned persistent sessions retain admin-selected g
   assert.deepEqual(principal.permissions, grants);
   assert.deepEqual(principal.machineIds, ["37"]);
   assert.equal(principal.machineScope, "selected");
+});
+
+test("SEC-P0 permanent workstation session without screen pin retains real multi-machine ACL", async () => {
+  const grants = ["andon.read", "calls.open", "history.read"];
+  const args = reader({
+    policy: "persistent", persistent: true, pinned: null, scope: "all",
+    allowedMachineIds: ["37", "39"],
+    expiry: new Date("2024-01-01T00:00:00.000Z"),
+    idleAt: new Date("2024-01-01T00:00:00.000Z"),
+    permissions: grants,
+  });
+  const principal = await resolveSession(args.db, args.request, at);
+  assert.equal(principal.persistentOperational, true);
+  assert.equal(principal.machineScope, "all");
+  assert.deepEqual(principal.machineIds, ["37", "39"]);
+  assert.deepEqual(principal.permissions, grants);
 });
