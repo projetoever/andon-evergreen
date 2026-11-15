@@ -21,7 +21,7 @@ import {
   updateMachineSetType,
   updateMachineSubsetType,
 } from "@/services/machineAssetService";
-import { getSystemSettings, updateSystemSettings } from "@/services/systemSettingsService";
+import { getSystemSettings, updateSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import type {
   MachineAssetCatalogItem,
   MachineCatalogDraft,
@@ -123,9 +123,13 @@ export function MachineAssetCatalogPanel() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
+  const [centralCapabilities, setCentralCapabilities] = useState<{
+    catalog: boolean; policy: boolean;
+  } | null>(null);
   // These are feature gates, never grants. The API still checks ACL, CSRF and workstation.
-  const canWriteCatalog = !centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true;
-  const canWritePolicy = !centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true;
+  // A temporarily absent access response does not mean legacy mode.
+  const canWriteCatalog = access !== null && (!centralMode || centralCapabilities?.catalog === true);
+  const canWritePolicy = access !== null && (!centralMode || centralCapabilities?.policy === true);
 
   const [isLoadingPolicy, setIsLoadingPolicy] = useState(false);
 
@@ -214,6 +218,38 @@ export function MachineAssetCatalogPanel() {
     void loadCatalogs();
     void loadSelectionPolicy();
   }, []);
+
+  // Revalidate the two independent HTTP capabilities on focus and global
+  // settings events. Preserve the form draft, catalog selection and the
+  // displayed opening policy while checking. Unknown/rejected results deny
+  // writes, and older responses can never re-enable a revoked capability.
+  useEffect(() => {
+    if (!centralMode) return;
+    let mounted = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralCapabilities(null);
+      void getSystemSettings().then(settings => {
+        if (!mounted || request !== requestVersion) return;
+        setCentralCapabilities({
+          catalog: settings.centralAssetTypeCatalogWriteEnabled === true,
+          policy: settings.centralOperationalSettingsWriteEnabled === true,
+        });
+      }).catch(() => {
+        if (mounted && request === requestVersion) setCentralCapabilities(null);
+      });
+    };
+    revalidate();
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      mounted = false;
+      requestVersion += 1;
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [centralMode]);
 
   useEffect(() => {
     setNewForm(createEmptyForm());
@@ -341,7 +377,7 @@ export function MachineAssetCatalogPanel() {
 
   async function handleDelete(item: MachineAssetCatalogItem) {
     // The central API supports POST/PATCH only. Legacy DELETE must not be offered.
-    if (centralMode || isSaving || isLoading || Boolean(loadError)) return;
+    if (access === null || centralMode || isSaving || isLoading || Boolean(loadError)) return;
     const confirmed = window.confirm(
       ui(
         'Excluir o tipo "{0}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.',
@@ -834,7 +870,7 @@ export function MachineAssetCatalogPanel() {
                           {item.isActive ? ui("Inativar") : ui("Reativar")}
                         </Button>
 
-                        {!centralMode && (
+                        {access !== null && !centralMode && (
                           <Button
                             type="button"
                             size="sm"

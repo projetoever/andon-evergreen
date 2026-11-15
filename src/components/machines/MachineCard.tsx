@@ -189,7 +189,7 @@ export function MachineCard({ machine, productionPriorityRank = null, attentionM
 
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-visible px-1 text-xs leading-tight text-muted-foreground 2xl:text-sm">
         {machine.machineStatus === "stopped" && !isNotScheduled && (
-          <div className="flex min-w-0 items-center justify-between gap-1.5 rounded-md bg-danger/10 px-2 py-1 font-bold text-danger ring-1 ring-danger/20 shadow-sm shadow-danger/20">
+          <div className="andon-palette-failure-highlight flex min-w-0 items-center justify-between gap-1.5 rounded-md bg-danger/10 px-2 py-1 font-bold text-danger ring-1 ring-danger/20 shadow-sm shadow-danger/20">
             <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {t("Em falha")}
             </span>

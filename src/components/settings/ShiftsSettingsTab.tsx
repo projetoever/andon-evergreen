@@ -53,8 +53,10 @@ export function ShiftsSettingsTab() {
   // Environment capabilities cannot override per-user authorization.
   const [centralShiftWritable, setCentralShiftWritable] = useState(false);
   const [centralFilterWritable, setCentralFilterWritable] = useState(false);
-  const canEditShift = !centralMode || centralShiftWritable;
-  const canEditFilter = !centralMode || centralFilterWritable;
+  // An unverified Hub session is NOT proof of legacy mode. Keep writes denied
+  // until the provider confirms the workstation and central/legacy policy.
+  const canEditShift = access !== null && (!centralMode || centralShiftWritable);
+  const canEditFilter = access !== null && (!centralMode || centralFilterWritable);
   const [items, setItems] = useState<ShiftConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ShiftConfig | null>(null);

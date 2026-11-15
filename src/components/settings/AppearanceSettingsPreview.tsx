@@ -14,6 +14,7 @@ import {
   VISUAL_PALETTE_KEYS,
   INDUSTRIAL_VISUAL_PRESETS,
   paletteContrastRatio,
+  presentationSurfaceForTheme,
   type VisualPaletteDraft,
   type VisualAccent,
   type VisualPaletteKey,
@@ -26,6 +27,10 @@ const fieldLabels: Readonly<Record<VisualPaletteKey, string>> = {
   operationAccent: "Acento dos botões de operação",
   focusAccent: "Foco e seleção",
   priorityBorder: "Contorno de prioridades",
+  dashboardBackground: "Fundo do Dashboard",
+  machineSurface: "Fundo de cards normais",
+  failureSurface: "Destaque visual de falhas",
+  prioritySurface: "Fundo do grupo prioritário",
 };
 /**
  * Preview remains draft-only in legacy mode. An authenticated ANDON
@@ -160,11 +165,11 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
 
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"
+    <section className="space-y-3 rounded-xl border border-border bg-card p-3"
       aria-label={ui("Aparência e cores")}>
       <div>
-        <h3 className="text-lg font-bold text-foreground">{ui("Aparência e cores")}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h3 className="text-base font-bold text-foreground">{ui("Aparência e cores")}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {allowGlobalSave
             ? ui("Prévia da paleta global. Alterações entram em vigor somente após Salvar globalmente com acesso autorizado.")
             : ui("Prévia local sem aplicação global. Utilize o Admin principal do Hub para salvar com auditoria.")}
@@ -173,7 +178,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
       <p className="text-xs text-muted-foreground">
         {ui("Escolha qualquer cor no seletor ou informe HEX/RGB. A prévia não altera alarmes críticos.")}
       </p>
-      <div className="space-y-3 rounded-xl border border-border bg-muted/15 p-3">
+      <div className="space-y-2 rounded-xl border border-border bg-muted/15 p-2.5">
         <div>
           <h4 className="font-semibold text-foreground">{ui("Paletas industriais prontas")}</h4>
           <p className="text-xs text-muted-foreground">
@@ -188,13 +193,13 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
               disabled={loading || busy}
               onClick={() => { setDraft({ ...preset.palette }); setRestorePending(false); }}
               aria-label={ui("Visualizar paleta {0}", { 0: ui(preset.label) })}
-              className="flex min-h-20 flex-col justify-between gap-2 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              className="flex min-h-14 flex-col justify-between gap-1 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             >
-              <span className="text-sm font-bold">{ui(preset.label)}</span>
+              <span className="text-xs font-bold">{ui(preset.label)}</span>
               <span className="text-xs text-muted-foreground">{ui(preset.description)}</span>
               <span className="flex gap-1" aria-hidden="true">
                 {VISUAL_PALETTE_KEYS.map(key => (
-                  <span key={key} className="h-3 flex-1 rounded-sm border border-border/40"
+                  <span key={key} className="h-2.5 flex-1 rounded-sm border border-border/40"
                     style={{ backgroundColor: accentForTheme(preset.palette[key], "dark") }}/>
                 ))}
               </span>
@@ -202,7 +207,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
           ))}
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {VISUAL_PALETTE_KEYS.map(key => (
           <button
             key={key}
@@ -210,9 +215,9 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
             aria-label={ui("Personalizar cor de {0}", { 0: ui(fieldLabels[key]) })}
             disabled={loading || busy}
             onClick={() => beginColorEdit(key)}
-            className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-background/50 p-3 text-left transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background/50 p-2 text-left transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
-            <span className="h-10 w-10 shrink-0 rounded-md border border-border shadow-sm"
+            <span className="h-7 w-7 shrink-0 rounded-md border border-border shadow-sm"
               style={{ backgroundColor: accentForTheme(draft[key], "dark") }} aria-hidden="true" />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-foreground">{ui(fieldLabels[key])}</span>
@@ -224,7 +229,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
         ))}
       </div>
       <Dialog open={editingKey !== null} onOpenChange={open => { if (!open) cancelColorEdit(); }}>
-        <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] max-w-[440px] overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] max-w-[400px] overflow-y-auto p-4">
           <DialogHeader>
             <DialogTitle>{editingKey ? ui(fieldLabels[editingKey]) : ui("Selecionar cor")}</DialogTitle>
             <DialogDescription>
@@ -252,14 +257,18 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
         {(["dark", "light"] as const).map(theme => {
           const dark = theme === "dark";
           const foreground = dark ? "#F8FAFC" : "#182531";
-          const background = dark ? "#1B2A36" : "#F8FAFC";
-          const card = dark ? "#273847" : "#FFFFFF";
+          const background = draft.dashboardBackground === DEFAULT_VISUAL_PALETTE.dashboardBackground
+            ? (dark ? "#1B2A36" : "#F8FAFC")
+            : presentationSurfaceForTheme(draft.dashboardBackground, theme, "dashboard");
+          const card = draft.machineSurface === DEFAULT_VISUAL_PALETTE.machineSurface
+            ? (dark ? "#273847" : "#FFFFFF")
+            : presentationSurfaceForTheme(draft.machineSurface, theme, "machine");
           return (
-            <div key={theme} className="rounded-xl border p-4"
+            <div key={theme} className="rounded-xl border p-3"
               style={{ backgroundColor: background, color: foreground, borderColor: dark ? "#526578" : "#C7D2DF" }}>
-              <p className="mb-3 text-xs font-black uppercase tracking-wide">{ui(dark ? "Tema escuro" : "Tema claro")}</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-wide">{ui(dark ? "Tema escuro" : "Tema claro")}</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border-2 p-3" style={{
+                <div className="rounded-lg border-2 p-2" style={{
                   backgroundColor: card, borderColor: accentForTheme(draft.cardBorder, theme),
                 }}>
                   <p className="text-xs font-bold">{ui("Máquina normal")}</p>
@@ -268,7 +277,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
                     borderColor: accentForTheme(draft.sectorSelection, theme),
                   }}>{ui("Setor selecionado")}</span>
                 </div>
-                <div className="rounded-lg border-[3px] p-3" style={{
+                <div className="rounded-lg border-[3px] p-2" style={{
                   backgroundColor: card, borderColor: accentForTheme(draft.selectedCardBorder, theme),
                 }}>
                   <p className="text-xs font-bold">{ui("Máquina selecionada")}</p>
@@ -278,12 +287,17 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
                   }}>{ui("Foco")}</span>
                 </div>
               </div>
-              <div className="mt-3 rounded-lg border-2 px-3 py-2 text-xs font-semibold" style={{
+              <div className="mt-2 rounded-lg border-2 px-2 py-2 text-xs font-semibold" style={{
                 borderColor: accentForTheme(draft.priorityBorder, theme),
+                backgroundColor: draft.prioritySurface === DEFAULT_VISUAL_PALETTE.prioritySurface
+                  ? "transparent"
+                  : `color-mix(in srgb, ${accentForTheme(draft.prioritySurface, theme)} 28%, transparent)`,
               }}>
                 {ui("Grupo de máquinas prioritárias — contorno configurável")}
               </div>
-              {VISUAL_PALETTE_KEYS.filter(key => draft[key] !== DEFAULT_VISUAL_PALETTE[key] &&
+              {VISUAL_PALETTE_KEYS.filter(key =>
+                !["dashboardBackground", "machineSurface", "failureSurface", "prioritySurface"].includes(key) &&
+                draft[key] !== DEFAULT_VISUAL_PALETTE[key] &&
                 paletteContrastRatio(accentForTheme(draft[key], theme),
                   key === "priorityBorder" ? background : card) < 3
               ).length > 0 && (
@@ -291,12 +305,19 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
                   {ui("Atenção: alguns contornos possuem contraste inferior a 3:1 neste modo. Ajuste as cores antes de publicar.")}
                 </p>
               )}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <span className="rounded-md border-2 px-3 py-1 text-xs font-bold" style={{
                   borderColor: accentForTheme(draft.operationAccent, theme),
                 }}>{ui("Ação operacional")}</span>
                 <span className="rounded-md border-2 px-3 py-1 text-xs font-bold"
-                  style={{ borderColor: "#D73A35", color: dark ? "#FF817B" : "#B22222" }}>
+                  style={{ borderColor: "#D73A35", color: dark ? "#FF817B" : "#B22222",
+                    backgroundColor: draft.failureSurface === DEFAULT_VISUAL_PALETTE.failureSurface
+                      ? "transparent"
+                      : `color-mix(in srgb, ${accentForTheme(draft.failureSurface, theme)} 14%, transparent)`,
+                    boxShadow: draft.failureSurface === DEFAULT_VISUAL_PALETTE.failureSurface
+                      ? undefined
+                      : `inset 3px 0 0 ${accentForTheme(draft.failureSurface, theme)}`,
+                  }}>
                   {ui("Parada — cor protegida")}
                 </span>
                 <span className="rounded-md border-2 px-3 py-1 text-xs font-bold"

@@ -83,8 +83,9 @@ export function TechniciansSettingsTab() {
     useTechnicians();
   const [centralCapabilities, setCentralCapabilities] = useState<{ create: boolean; update: boolean; error: boolean } | null>(null);
   const [capabilityReload, setCapabilityReload] = useState(0);
-  const canCreateTechnician = !centralMode || centralCapabilities?.create === true;
-  const canUpdateTechnician = !centralMode || centralCapabilities?.update === true;
+  // Fail closed while the central/legacy access response is unknown.
+  const canCreateTechnician = access !== null && (!centralMode || centralCapabilities?.create === true);
+  const canUpdateTechnician = access !== null && (!centralMode || centralCapabilities?.update === true);
   // Pure UI feature flags; the central API still enforces all session, ACL,
   // workstation and anti-CSRF checks for each individual write.
   const [selectedId, setSelectedId] = useState<string | null>(null);

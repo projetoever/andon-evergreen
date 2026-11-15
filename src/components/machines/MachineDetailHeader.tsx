@@ -13,6 +13,7 @@ interface MachineDetailHeaderProps {
   machine: Machine;
   machineSoundEnabled: boolean;
   screenLocked: boolean;
+  historyAllowed: boolean;
   onToggleMachineSound: () => void;
   onToggleScreenLock: () => void;
 }
@@ -21,6 +22,7 @@ export function MachineDetailHeader({
   machine,
   machineSoundEnabled,
   screenLocked,
+  historyAllowed,
   onToggleMachineSound,
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
@@ -77,7 +79,7 @@ export function MachineDetailHeader({
           className="text-xs md:text-sm"
         />
         <div className="inline-flex shrink-0 items-center gap-1.5">
-          <Link
+          {historyAllowed && <Link
             to="/machines/$machineId/call-history"
             params={{ machineId: machine.id }}
             className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
@@ -86,7 +88,7 @@ export function MachineDetailHeader({
           >
             <History className="h-4 w-4" />
             {t("Histórico")}
-          </Link>
+          </Link>}
           <button
             type="button"
             onClick={onToggleScreenLock}

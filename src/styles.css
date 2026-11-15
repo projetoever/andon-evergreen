@@ -426,12 +426,26 @@
 
 /* UX-12: globally approved non-critical accents only. Never override danger,
  * warning, real machine stop, alert rings, status badges or category colors. */
+.andon-palette-dashboard-root {
+  background-color: var(--andon-palette-dashboard-background, var(--background));
+}
+
 .andon-palette-machine-card {
   border-color: var(--andon-palette-card-border, var(--border));
+  background-color: var(--andon-palette-machine-surface, var(--card));
+}
+
+/* Presentation tint only: the stopped-machine danger text, badge, ring and
+ * severity classification always keep their dedicated semantic colors. */
+.andon-palette-failure-highlight {
+  background-color: color-mix(in srgb,
+    var(--andon-palette-failure-surface, var(--danger)) 12%, transparent);
+  border-inline-start: 3px solid var(--andon-palette-failure-surface, var(--danger));
 }
 /* Cosmetic production-priority grouping only; never redefine alarm colors. */
 .andon-palette-priority-border {
   border-color: var(--andon-palette-priority-border, rgba(249, 115, 22, 0.7));
+  background-color: color-mix(in srgb, var(--andon-palette-priority-surface, transparent) 28%, transparent);
 }
 
 .machine-sector-action:focus-visible {
