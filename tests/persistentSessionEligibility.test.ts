@@ -54,6 +54,12 @@ test("SEC21 P0: login and Hub must reveal whether the server really issued perma
   assert.match(gate, /<section role="status"/);
   assert.doesNotMatch(gate, /returnToHub = decision === "denied" \|\| decision === "error"/);
   assert.match(provider, /window\.setInterval\(\(\) => void refresh\(\), 5_000\)/);
+  // Browser cookie renewal is permitted only for a server-confirmed permanent session.
+  assert.match(provider, /renewPersistentCookie = access\.principal\?\.persistentOperational === true/);
+  assert.match(provider, /lastVerifiedAt >= 12 \* 60 \* 60 \* 1000/);
+  assert.match(provider, /accessRequest<AccessState>\("\/session"\)/);
+  assert.match(provider, /current\.principal\.persistentOperational !== true/);
+
   assert.match(provider, /window\.addEventListener\("online", onOnline\)/);
   assert.doesNotMatch(status, /cookie:|passwordHash|setItem|localStorage|sessionStorage/);
 });
