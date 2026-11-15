@@ -109,14 +109,26 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     let inFlight = false;
     let csrfLoaded = false;
+    let lastVerifiedAt = 0;
     const heartbeat = async () => {
       if (!mounted || inFlight || document.visibilityState !== "visible") return;
       inFlight = true;
       try {
-        if (!csrfLoaded) {
+        // Browsers cap durable cookies (typically ~400 days), so renew the
+        // server-validated HttpOnly cookie periodically for ONLY an already
+        // authenticated persistent session. This is never a password login,
+        // and it never extends ordinary timed sessions via /interaction.
+        const renewPersistentCookie = access.principal?.persistentOperational === true &&
+          Date.now() - lastVerifiedAt >= 12 * 60 * 60 * 1000;
+        if (!csrfLoaded || renewPersistentCookie) {
           const current = await accessRequest<AccessState>("/session");
           if (!mounted || current.principal?.purpose !== "normal") return;
+          if (renewPersistentCookie && current.principal.persistentOperational !== true) {
+            void refresh(); // Revoked/downgraded sessions must not remain displayed as durable.
+            return;
+          }
           csrfLoaded = true;
+          lastVerifiedAt = Date.now();
         }
         if (mounted) await accessRequest("/heartbeat", "POST", {});
       } catch {
@@ -137,7 +149,8 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, [access?.centralAccessEnabled, access?.principal?.purpose]);
+  }, [access?.centralAccessEnabled, access?.principal?.purpose,
+    access?.principal?.persistentOperational, refresh]);
 
   return (
     <ModuleAccessContext.Provider

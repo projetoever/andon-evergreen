@@ -971,9 +971,8 @@ export function registerAccessRoutes(
           if (req.body.allowPersistentOperationalLogin !== undefined) {
             assertRecentAdmin(principal);
             if (station.pendingApproval) throw new AccessError("workstation_denied", 409);
-            if (req.body.allowPersistentOperationalLogin &&
-                (!station.active || !station.lockedMachineId))
-              throw new AccessError("machine_screen_required", 409);
+            if (req.body.allowPersistentOperationalLogin && !station.active)
+              throw new AccessError("workstation_denied", 409);
           }
           const before = {
             allowPersistentOperationalLogin: station.allowPersistentOperationalLogin,

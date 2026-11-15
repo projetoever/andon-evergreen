@@ -6,10 +6,8 @@ export const PERSISTENCE_BLOCKER_HINTS: Readonly<Record<string, string>> = {
   password_change_required: "Conclua a troca de senha provisória antes de ativar a sessão permanente.",
   workstation_not_approved: "O administrador deve aprovar e ativar esta workstation.",
   workstation_not_trusted: "Habilite Não expirar login operacional na aba Workstations.",
-  machine_not_pinned: "Fixe a máquina na workstation nas configurações do Hub.",
   no_selected_permissions: "Selecione pelo menos uma permissão operacional para o perfil.",
-  machine_scope_mismatch: "Inclua a máquina fixada no escopo de máquinas do usuário.",
-  login_not_ready: "Confira confiança, máquina fixada e autorização antes de entrar novamente.",
+  login_not_ready: "Confira a política Não expirar do usuário, a aprovação da workstation e a autorização do terminal.",
 };
 
 export const PERSISTENCE_NOT_ACTIVE =

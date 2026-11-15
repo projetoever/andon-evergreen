@@ -85,6 +85,10 @@ try {
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
+  // P0: enable non-expiring login on a NOT-pinned workstation.
+  await db.workstation.update({
+    where: { id: targetStationId }, data: { lockedMachineId: null },
+  });
   const on = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
   assert.equal(on.statusCode, 200, on.body);
   const loginToken = randomBytes(32).toString("hex");
@@ -158,10 +162,32 @@ try {
   assert.equal(login.json().persistentOperational, true);
   assert.equal(login.json().sessionPolicy, "persistent");
   assert.equal(login.json().persistenceBlocker, null);
+  assert.equal((await db.workstation.findUniqueOrThrow({
+    where: { id: targetStationId },
+  })).lockedMachineId, null, "no pinned-machine prerequisite");
   const cookie = login.headers["set-cookie"];
   assert.match(String(cookie), /HttpOnly; Secure; SameSite=Strict/);
   const token = String(cookie).match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(token, "secure persistent login cookie must be issued");
+
+  // P0: a browser restarting after an idle period must resolve the original
+  // HttpOnly cookie without new credentials even on an UNPINNED station.
+  const restored = await request("GET", "/session", token, targetStationId);
+  assert.equal(restored.statusCode, 200, restored.body);
+  assert.equal(restored.json().principal?.persistentOperational, true);
+  assert.match(String(restored.headers["set-cookie"]), /Max-Age=34560000/);
+
+  // Pinning or unpinning is a screen preference, never a login revocation.
+  await db.workstation.update({
+    where: { id: targetStationId }, data: { lockedMachineId: machineId },
+  });
+  assert.equal((await request("GET", "/session", token, targetStationId))
+    .json().principal?.persistentOperational, true);
+  await db.workstation.update({
+    where: { id: targetStationId }, data: { lockedMachineId: null },
+  });
+  assert.equal((await request("GET", "/session", token, targetStationId))
+    .json().principal?.persistentOperational, true);
 
   // Changing an operator password must preserve a qualified durable session.
   const passwordChanged = await request("POST", "/password", token,
@@ -179,6 +205,9 @@ try {
     { token: afterChangeToken, workstationId: targetStationId });
   assert.equal(fresh.persistentOperational, true);
   assert.deepEqual(fresh.machineIds, [machineId]);
+  assert.equal((await db.accessSession.findFirstOrThrow({
+    where: { tokenHash: tokenHash(afterChangeToken) },
+  })).persistentMachineId, null, "no machine pin stored in durable session");
   assert.deepEqual([...fresh.permissions].sort(), [...fullAndonGrants].sort(),
     "persistent Firefox-style login must keep every explicitly selected ANDON grant");
 
@@ -242,8 +271,8 @@ try {
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(renewed);
 
-  // A different authenticated account on the same trusted pinned station
-  // must displace ALL sessions belonging to the previous operator.
+  // Another account login on the same trusted, unpinned station must not
+  // revoke the first user's unrelated session; only logout/Admin may do so.
   const other = await db.accessUser.create({ data: {
     login: "ci.other.persistent." + n, displayName: "Second CI Production",
     roleLabel: "Produção", accountType: "person", sessionPolicy: "persistent",
@@ -264,9 +293,9 @@ try {
   const otherToken = String(otherLogin.headers["set-cookie"])
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(otherToken);
-  await assert.rejects(resolveSession(db, {
+  assert.equal((await resolveSession(db, {
     token: renewed, workstationId: targetStationId,
-  }));
+  })).userId, operatorUserId);
   assert.equal((await resolveSession(db, {
     token: otherToken, workstationId: targetStationId,
   })).userId, otherUserId);
@@ -275,13 +304,14 @@ try {
   const off = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
   assert.equal(off.statusCode, 200, off.body);
   await assert.rejects(resolveSession(db, { token: otherToken, workstationId: targetStationId }));
+  await assert.rejects(resolveSession(db, { token: renewed, workstationId: targetStationId }));
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
   assert.equal(await db.auditEvent.count({
     where: { action: "workstation.session.remote_logout", resourceId: targetStationId },
   }), 1);
-  process.stdout.write("REFINE15 persistent station + remote logout PG PASS\n");
+  process.stdout.write("REFINE21 unpinned persistent workstation + no silent logout PG PASS\n");
 } finally {
   if (app) await app.close();
   if (oldEnv.central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;

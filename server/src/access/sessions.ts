@@ -15,9 +15,9 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const IDLE = 30 * 60 * 1000;
-// Grant selection belongs to the user's centrally managed ACL, not to the
-// duration setting. Durable sessions stay bound to an approved trusted,
-// machine-pinned workstation; permissions are checked on every API request.
+// Session duration does not change centrally managed permissions or machine scope.
+// Durable sessions bind to an approved trusted workstation, not a fixed machine.
+// Every API operation must still check current grants and workstation identity.
 type PersistentAccount = {
   accountType: string; sessionPolicy?: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
   permissions: ReadonlyArray<{ key: string }>;
@@ -29,7 +29,7 @@ type PersistentStation = {
 export type PersistentSessionBlocker =
   | "policy_not_persistent" | "account_type_not_supported" | "primary_admin_not_eligible"
   | "password_change_required" | "workstation_not_approved" | "workstation_not_trusted"
-  | "machine_not_pinned" | "no_selected_permissions" | "machine_scope_mismatch";
+  | "no_selected_permissions";
 
 /**
  * Return the FIRST factual blocker rather than silently issuing a 30-minute
@@ -38,7 +38,7 @@ export type PersistentSessionBlocker =
  */
 export function persistentOperationalBlocker(
   user: PersistentAccount, station: PersistentStation,
-  machineIds: ReadonlyArray<{ machineId: string }>, machineScope: string,
+  _machineIds: ReadonlyArray<{ machineId: string }>, _machineScope: string,
 ): PersistentSessionBlocker | null {
   if (user.sessionPolicy !== "persistent") return "policy_not_persistent";
   if (user.accountType !== "person") return "account_type_not_supported";
@@ -46,11 +46,8 @@ export function persistentOperationalBlocker(
   if (user.mustChangePassword) return "password_change_required";
   if (!station.active || station.pendingApproval) return "workstation_not_approved";
   if (!station.allowPersistentOperationalLogin) return "workstation_not_trusted";
-  if (!station.lockedMachineId) return "machine_not_pinned";
   if (!user.permissions.length) return "no_selected_permissions";
-  if (machineScope !== "all" &&
-      !machineIds.some(entry => entry.machineId === station.lockedMachineId))
-    return "machine_scope_mismatch";
+  // No pin prerequisite. Current machine scope is enforced on each operation.
   return null;
 }
 
@@ -86,8 +83,6 @@ export async function resolveSession(
     throw new AccessError("authentication_required", 401);
   if (row.persistentOperational &&
       (row.purpose !== "normal" ||
-        !row.persistentMachineId ||
-        row.persistentMachineId !== row.workstation.lockedMachineId ||
         !permitsPersistentOperationalAccount(row.user, row.workstation,
           row.user.machines, row.user.machineScope)))
     throw new AccessError("authentication_required", 401);
@@ -107,12 +102,9 @@ export async function resolveSession(
     roleLabel: row.user.roleLabel,
     accountType: row.user.accountType,
     isPrimaryAdmin: row.user.isPrimaryAdmin,
-    // Durable human sessions are bound to the machine shown on the pinned
-    // terminal. Never inherit broad all-machine/global catalogue privileges.
-    machineScope: row.persistentOperational ? "selected" : row.user.machineScope,
-    machineIds: row.persistentOperational
-      ? [row.persistentMachineId!]
-      : row.user.machines.map((x) => x.machineId),
+    // Duration must not change machine grants or expand the user's ACL.
+    machineScope: row.user.machineScope,
+    machineIds: row.user.machines.map((x) => x.machineId),
     permissions: row.user.permissions.map((x) => x.key),
     sessionId: row.id,
     workstationId: row.workstationId,
@@ -132,7 +124,7 @@ export async function issueSession(
   purpose: "normal" | "password_change" | "workstation_admission",
   now: Date,
   persistentOperational = false,
-  persistentMachineId: string | null = null,
+  _persistentMachineId: string | null = null,
   sessionPolicy: string = "standard",
 ) {
   const token = randomBytes(32).toString("hex");
@@ -146,7 +138,8 @@ export async function issueSession(
       createdAt: now,
       lastInteractionAt: now,
       persistentOperational,
-      persistentMachineId: persistentOperational ? persistentMachineId : null,
+      // Retained nullable legacy column. Not a pin or duration dependency.
+      persistentMachineId: null,
       // Legacy reporting retains expiresAt; persistent sessions use a separate
       // authorization bit and never infer access solely from this sentinel.
       expiresAt: persistentOperational ? new Date("9999-12-31T00:00:00.000Z") :
@@ -276,18 +269,8 @@ export async function login(
           data: { temporaryConsumedAt: now, authorizationVersion: { increment: 1 } },
         })
       : current;
-    // The same verified Person may sign in from another browser with the
-    // same approved station identity. Do not revoke their existing cookies;
-    // a DIFFERENT account still displaces them on a trusted pinned station.
-    // Normal stations retain their historical multiple-user behavior.
-    if (station.allowPersistentOperationalLogin && station.lockedMachineId)
-      await tx.accessSession.updateMany({
-        where: {
-          workstationId: station.id, revokedAt: null,
-          userId: { not: effective.id },
-        },
-        data: { revokedAt: now },
-      });
+    // Other account logins are not operator logout or Admin revocation:
+    // do not silently terminate existing authorized browser sessions.
     // Most logins (including the primary Admin and password-change flows)
     // never need a grants query. Inspect scopes only for an explicitly
     // requested operational session to preserve the existing Admin/legacy
@@ -315,7 +298,7 @@ export async function login(
           : "normal",
       now,
       persistent,
-      station.lockedMachineId,
+      null,
       effective.sessionPolicy,
     );
     await appendAudit(
@@ -440,8 +423,8 @@ export async function changePassword(
         authorizationVersion: { increment: 1 },
       },
     });
-    // The old flow always issued a standard 30m/12h session here, even on
-    // a trusted pinned workstation after a user's mandatory password change.
+    // Password change reissues the currently eligible durable workstation
+    // session without requiring a screen fixed to any machine.
     // Recompute eligibility from the updated account and live station state.
     const permissions = await tx.accessPermission.findMany({ where: { userId: user.id } });
     const machines = await tx.accessMachine.findMany({ where: { userId: user.id } });
@@ -451,15 +434,13 @@ export async function changePassword(
     await tx.accessSession.updateMany({
       where: {
         revokedAt: null,
-        ...(station.allowPersistentOperationalLogin && station.lockedMachineId
-          ? { OR: [{ userId: user.id }, { workstationId: station.id }] }
-          : { userId: user.id }),
+        userId: user.id,
       },
       data: { revokedAt: now },
     });
     const session = await issueSession(
       tx, user, request.workstationId, "normal", now,
-      persistent, persistent ? station.lockedMachineId : null, user.sessionPolicy,
+      persistent, null, user.sessionPolicy,
     );
     await appendAudit(tx, actorFromPrincipal(principal), {
       action: "access.password.changed",
