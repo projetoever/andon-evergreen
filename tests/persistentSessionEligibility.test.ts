@@ -55,3 +55,38 @@ test("SEC21 P0: login and Hub must reveal whether the server really issued perma
   assert.match(provider, /window\.addEventListener\("online", onOnline\)/);
   assert.doesNotMatch(status, /cookie:|passwordHash|setItem|localStorage|sessionStorage/);
 });
+
+
+test("REFINE23: persistent trusted login survives Firefox close and workstation reboot without storing passwords", async () => {
+  const [http, routes, sessions, identity, runtime, provider] = await Promise.all([
+    read("../server/src/access/http.ts"),
+    read("../server/src/routes/access.ts"),
+    read("../server/src/access/sessions.ts"),
+    read("../src/services/workstationIdentityService.ts"),
+    read("../installer/AndonInstaller.Runtime.ps1"),
+    read("../src/context/ModuleAccessProvider.tsx"),
+  ]);
+  // This is a *persistent secure browser cookie*, not a tab/session cookie.
+  assert.match(routes, /session\.persistentOperational \? 34560000/);
+  assert.match(routes, /principal\?\.persistentOperational && token/);
+  assert.match(routes, /setCookie\(reply, ACCESS_COOKIE, token, 34560000\)/);
+  assert.match(routes, /HttpOnly; Secure; SameSite=Strict; Max-Age=\$\{maxAge\}/);
+  assert.match(http, /__Host-andon-access/);
+  assert.match(sessions, /expiresAt: persistentOperational \? new Date\("9999-12-31T00:00:00\.000Z"\)/);
+  assert.match(sessions, /row\.persistentOperational &&/);
+  assert.match(sessions, /row\.persistentMachineId !== row\.workstation\.lockedMachineId/);
+  assert.match(sessions, /row\.authorizationVersion !== row\.user\.authorizationVersion/);
+
+  // Browser restart must reuse the same machine ID using a cookie and localStorage.
+  assert.match(identity, /WORKSTATION_COOKIE_MAX_AGE_SECONDS = 60 \* 60 \* 24 \* 365 \* 5/);
+  assert.match(identity, /window\.localStorage\.getItem\(key\)/);
+  assert.match(identity, /Path=\/; Max-Age=\$\{WORKSTATION_COOKIE_MAX_AGE_SECONDS\}; SameSite=Lax/);
+  assert.match(identity, /hasWorkstationIdentityConflict\(\)/);
+  // Service recovery after reboot is independent of the browser session.
+  assert.match(runtime, /New-ScheduledTaskTrigger -AtStartup/);
+  assert.match(runtime, /New-ScheduledTaskPrincipal/);
+  assert.match(runtime, /Start-AndonRuntime/);
+  // A user can choose private browsing / clear cookies; never invent an automatic
+  // login from a workstation UUID alone when the secure cookie was deleted.
+  assert.doesNotMatch(provider, /localStorage\.setItem\([^)]*(?:token|password|session)/);
+});

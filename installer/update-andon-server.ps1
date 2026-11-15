@@ -7,6 +7,9 @@
 
 $exitCode = 0
 $logStarted = $false
+$script:AndonUpdateStopped = $false
+$script:AndonUpdateStarted = $false
+$script:AndonPreviousTaskStates = @()
 
 function Invoke-AndonGitRead {
     param(
@@ -171,6 +174,17 @@ try {
 
         Write-AndonOk "Modo preservado: $($config.databaseMode)"
 
+        # Preserve prior task configuration so failed updates do not silently
+        # disable boot/watchdog or enable kiosk tasks that were originally OFF.
+        $script:AndonPreviousTaskStates = @(
+            foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
+                $existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                if ($existing) {
+                    [pscustomobject]@{ Name = $taskName; WasDisabled = ($existing.State -eq "Disabled") }
+                }
+            }
+        )
+        $script:AndonUpdateStopped = $true
         Stop-AndonRuntime
         # Hard gate: no migrations/build until a consistent dump has been restored
         # successfully in a throwaway PostgreSQL database on the same host.
@@ -207,6 +221,7 @@ try {
                 $centralActivated = Set-AndonCentralNotebookActivation -Config $config
             }
             Start-AndonRuntime
+            $script:AndonUpdateStarted = $true
             Invoke-AndonHealthCheck
         } catch {
             if ($centralActivated) {
@@ -222,7 +237,27 @@ try {
         Write-AndonHeader "ATUALIZACAO FINALIZADA"
         Write-AndonOk "Atualizacao concluida sem db:seed no SHA $pinnedCommit."
     }
-} catch {
+ } catch {
+    # A Prisma DLL EPERM or build error can occur after the runtime was stopped.
+    # Attempt to restore service availability without touching data/backups,
+    # while preserving the disabled/enabled state of scheduled tasks.
+    if ($ContinueAfterSync -and $script:AndonUpdateStopped -and !$script:AndonUpdateStarted) {
+        Write-AndonWarn "Atualizacao interrompida. Tentando recuperar runtime existente sem migrations ou seed."
+        $script:AndonUpdateStarted = $true
+        try {
+            Start-AndonRuntime
+            Write-AndonOk "Servicos recuperados; o update segue marcado como falha."
+        } catch {
+            Write-AndonWarn "Recuperacao automatica nao concluida: $($_.Exception.Message)"
+            Write-AndonWarn "Use a opcao 4 (Iniciar ANDON) ou a 6 (Saude) apos conferir os logs."
+        } finally {
+            foreach ($taskInfo in $script:AndonPreviousTaskStates) {
+                if ($taskInfo.WasDisabled) {
+                    Disable-ScheduledTask -TaskName $taskInfo.Name -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
+        }
+    }
     $exitCode = 1
     Write-AndonHeader "ERRO"
     Write-AndonFail "$($_.Exception.Message)"

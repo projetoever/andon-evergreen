@@ -23,6 +23,10 @@ jobs:
         shell: powershell
         run: .\installer\tests\installer-runtime-regression.ps1
 
+      - name: Simular EPERM de Prisma DLL e reutilização segura no PowerShell 5.1
+        shell: powershell
+        run: .\installer\tests\installer-prisma-eperm-regression.ps1
+
       - name: Validar backup e restauração obrigatórios antes de migrations
         shell: powershell
         run: .\installer\tests\update-backup-gate-regression.ps1
