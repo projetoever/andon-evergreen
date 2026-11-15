@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { GlobalVisualPaletteProvider } from "@/theme/GlobalVisualPaletteProvider";
 import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
 import { AndonBrowserIdentity } from "@/components/layout/AndonBrowserIdentity";
+import { canOpenPinnedMachineHistory } from "@/services/lockedMachineHistoryPolicy";
 
 import appCss from "../styles.css?url";
 
@@ -140,6 +141,7 @@ function RootContent() {
     lockedMachineId &&
     !isHubRoute &&
     !isIndependentModule &&
+    !canOpenPinnedMachineHistory(access, pathname) &&
     pathname !== `/machines/${encodeURIComponent(lockedMachineId)}`,
   );
   useEffect(() => {
