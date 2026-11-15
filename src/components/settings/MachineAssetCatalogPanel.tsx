@@ -124,8 +124,9 @@ export function MachineAssetCatalogPanel() {
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
   // These are feature gates, never grants. The API still checks ACL, CSRF and workstation.
-  const canWriteCatalog = !centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true;
-  const canWritePolicy = !centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true;
+  // A temporarily absent access response does not mean legacy mode.
+  const canWriteCatalog = access !== null && (!centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true);
+  const canWritePolicy = access !== null && (!centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true);
 
   const [isLoadingPolicy, setIsLoadingPolicy] = useState(false);
 
