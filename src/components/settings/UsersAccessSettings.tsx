@@ -773,11 +773,11 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         >
                           <option value="standard">{ui("Padrão — 30 minutos inativo / 12 horas máximo")}</option>
                           <option value="daily">{ui("24 horas — sessão sem expiração por inatividade")}</option>
-                          <option value="persistent">{ui("Não expirar — workstation confiável e máquina fixada")}</option>
+                          <option value="persistent">{ui("Não expirar — workstation confiável (sem fixar tela)")}</option>
                         </select>
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        {ui("A duração escolhida não modifica as permissões selecionadas. O modo sem expiração exige workstation aprovada e confiável, máquina fixada e conta não administrativa. A sessão permanece limitada à máquina fixada. Logout, revogação e alterações do perfil encerram a sessão.")}
+                        {ui("A duração escolhida não modifica as permissões selecionadas. O modo sem expiração exige conta Pessoa não administrativa e workstation aprovada e confiável, sem exigir tela fixada. O escopo de máquinas do usuário é preservado. Logout, revogação e alterações de segurança da conta podem encerrar a sessão.")}
                       </p>
                     </fieldset>
                   )}
