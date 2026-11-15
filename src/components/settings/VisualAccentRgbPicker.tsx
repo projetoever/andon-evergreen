@@ -95,8 +95,8 @@ export function VisualAccentRgbPicker({
   const rgb = hexToRgb(currentHex);
 
   return (
-    <fieldset disabled={disabled} className="min-w-0 space-y-3 rounded-xl border border-border bg-background/40 p-3">
-      <legend className="px-1 text-sm font-semibold text-foreground">{ui(label)}</legend>
+    <fieldset disabled={disabled} className="min-w-0 space-y-2 rounded-xl border border-border bg-background/40 p-2.5">
+      <legend className="sr-only">{ui(label)}</legend>
       <div className="flex min-w-0 items-stretch gap-2">
         <div
           role="slider"
@@ -121,7 +121,7 @@ export function VisualAccentRgbPicker({
               event.currentTarget.releasePointerCapture(event.pointerId);
           }}
           onKeyDown={event => { if (!disabled) onSpectrumKeyDown(event); }}
-          className="relative aspect-square min-w-0 flex-1 cursor-crosshair touch-none overflow-hidden rounded-md border border-border shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative aspect-square min-w-0 max-w-[300px] flex-1 cursor-crosshair touch-none overflow-hidden rounded-md border border-border shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           style={{
             backgroundImage: "linear-gradient(to top, #FFFFFF, rgba(255,255,255,0)), linear-gradient(to right, #FF0000 0%, #FFFF00 16.67%, #00FF00 33.33%, #00FFFF 50%, #0000FF 66.67%, #FF00FF 83.33%, #FF0000 100%)",
           }}
@@ -173,9 +173,10 @@ export function VisualAccentRgbPicker({
           />
         </label>
       </div>
-      <div className="grid gap-1.5" aria-label={ui("Canais RGB")}>
+      <div className="grid grid-cols-3 gap-2" aria-label={ui("Canais RGB")}>
         {channels.map(channel => (
-          <label key={channel} className="grid grid-cols-[minmax(0,112px)_1fr] items-center gap-3 text-xs font-semibold text-muted-foreground">
+          <label key={channel} className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-muted-foreground">
+            <span aria-hidden="true" className="shrink-0">{channel.toUpperCase()}</span>
             <input
               type="number"
               aria-label={`${ui(label)} · ${channel.toUpperCase()}`}
@@ -185,9 +186,8 @@ export function VisualAccentRgbPicker({
               onChange={event => setRgbInputs(previous => ({ ...previous, [channel]: event.target.value }))}
               onBlur={() => commitRgb(channel)}
               onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }}
-              className="h-9 w-full rounded-md border border-border bg-background px-2 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-1.5 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <span>{ui(channel === "r" ? "Vermelho" : channel === "g" ? "Verde" : "Azul")}</span>
           </label>
         ))}
       </div>
