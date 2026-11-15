@@ -32,8 +32,8 @@ test("CFG-15L: four ANDON tabs never infer legacy write permission from missing 
       "disabled={isLoading || Boolean(error) || isSaving || !canCreateTechnician}",
     ]],
     ["Catálogos de ativos", assets, [
-      "const canWriteCatalog = access !== null && (!centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true)",
-      "const canWritePolicy = access !== null && (!centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true)",
+      "const canWriteCatalog = access !== null && (!centralMode || centralCapabilities?.catalog === true)",
+      "const canWritePolicy = access !== null && (!centralMode || centralCapabilities?.policy === true)",
       "if (access === null || centralMode || isSaving || isLoading || Boolean(loadError)) return",
       "{access !== null && !centralMode && (",
       "if (!canWritePolicy || isLoadingPolicy || isSavingPolicy || !systemSettings) return",
@@ -57,6 +57,10 @@ test("CFG-15L: four ANDON tabs never infer legacy write permission from missing 
   assert.match(sectors, /setCentralCatalogWritable\(false\)/);
   assert.match(technicians, /setCentralCapabilities\(null\)/);
   assert.match(assets, /setSystemSettings\(null\)/);
+  assert.match(assets, /setCentralCapabilities\(null\)/);
+  assert.match(assets, /request !== requestVersion/);
+  const capabilityOnly = assets.slice(assets.indexOf("const revalidate = () =>"), assets.indexOf("  }, [centralMode]);"));
+  assert.doesNotMatch(capabilityOnly, /setNewForm|setEditForm|setEditingId|setSystemSettings\(/);
 });
 
 test("CFG-15L: an unresolved Hub response is denied regardless of server flags", () => {
