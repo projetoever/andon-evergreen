@@ -16,8 +16,8 @@ test("CFG-15B: shift metadata and technician filter respect independent central 
   assert.match(ui, /access\?\.centralAccessEnabled === true/);
   assert.match(ui, /capabilities\.centralShiftUpdateEnabled === true/);
   assert.match(ui, /capabilities\.centralOperationalSettingsWriteEnabled === true/);
-  assert.match(ui, /const canEditShift = !centralMode \|\| centralShiftWritable/);
-  assert.match(ui, /const canEditFilter = !centralMode \|\| centralFilterWritable/);
+  assert.match(ui, /const canEditShift = access !== null && \(!centralMode \|\| centralShiftWritable\)/);
+  assert.match(ui, /const canEditFilter = access !== null && \(!centralMode \|\| centralFilterWritable\)/);
   assert.match(ui, /if \(!draft \|\| !canEditShift \|\| isSaving\) return/);
   assert.match(ui, /if \(!canEditFilter \|\| isSavingFilter \|\| enabled === filterByCurrentShift\) return/);
   assert.match(ui, /disabled=\{!canEditShift\}/);
@@ -36,8 +36,8 @@ test("CFG-15B: shift metadata and technician filter respect independent central 
 
 test("CFG-15B: local legacy mode remains writable while central feature flags fail closed", async () => {
   const ui = await source("../src/components/settings/ShiftsSettingsTab.tsx");
-  assert.match(ui, /const canEditShift = !centralMode \|\| centralShiftWritable/);
-  assert.match(ui, /const canEditFilter = !centralMode \|\| centralFilterWritable/);
+  assert.match(ui, /const canEditShift = access !== null && \(!centralMode \|\| centralShiftWritable\)/);
+  assert.match(ui, /const canEditFilter = access !== null && \(!centralMode \|\| centralFilterWritable\)/);
   assert.match(ui, /setCentralShiftWritable\(capabilities\.centralShiftUpdateEnabled === true\)/);
   assert.match(ui, /setCentralFilterWritable\(capabilities\.centralOperationalSettingsWriteEnabled === true\)/);
   assert.match(ui, /saved\.filterByCurrentShift/);
@@ -51,8 +51,8 @@ test("CFG-15D2: asset catalogs and whole-set policy use independent central feat
     source("../server/src/security/centralAssetTypeCatalogHttp.ts"),
   ]);
   assert.ok(panel.includes("const centralMode = access?.centralAccessEnabled === true"));
-  assert.ok(panel.includes("const canWriteCatalog = !centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true"));
-  assert.ok(panel.includes("const canWritePolicy = !centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true"));
+  assert.ok(panel.includes("const canWriteCatalog = access !== null && (!centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true)"));
+  assert.ok(panel.includes("const canWritePolicy = access !== null && (!centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true)"));
   assert.ok(panel.includes("setSystemSettings(null); // fail closed while refreshing capabilities"));
   assert.ok(panel.includes("if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;"));
   assert.ok(panel.includes("if (!canWritePolicy || isLoadingPolicy || isSavingPolicy || !systemSettings) return;"));
