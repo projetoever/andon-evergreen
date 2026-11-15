@@ -22,6 +22,18 @@ export function rgbToHex({ r, g, b }: RgbColor): `#${string}` {
   return `#${components.map(value => value.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
+/** Parse all three draft channels atomically so blur/Enter cannot discard
+ * valid values typed into another RGB field before the parent rerenders.
+ * Invalid/partial input is rejected, never clamped silently.
+ */
+export function rgbDraftToHex(input: Readonly<{ r: string; g: string; b: string }>): `#${string}` | null {
+  const channels = [input.r, input.g, input.b].map(value => value.trim());
+  if (channels.some(value => !/^\\d{1,3}$/.test(value))) return null;
+  const [r, g, b] = channels.map(Number);
+  if ([r, g, b].some(value => value > 255)) return null;
+  return rgbToHex({ r, g, b });
+}
+
 export function rgbToHsv({ r, g, b }: RgbColor): HsvColor {
   const [red, green, blue] = [r, g, b].map(channel => channel / 255);
   const max = Math.max(red, green, blue);
