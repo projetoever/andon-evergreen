@@ -36,6 +36,7 @@ export interface AccessPrincipal {
   isPrimaryAdmin: boolean;
   purpose: string;
   persistentOperational?: boolean;
+  sessionPolicy?: "standard" | "daily" | "persistent";
   permissions?: string[];
   machineScope?: string;
   machineIds?: string[];
