@@ -288,14 +288,22 @@ export async function login(
         },
         data: { revokedAt: now },
       });
-    const [permissions, machines] = await Promise.all([
-      tx.accessPermission.findMany({ where: { userId: current.id } }),
-      tx.accessMachine.findMany({ where: { userId: current.id } }),
-    ]);
+    // Most logins (including the primary Admin and password-change flows)
+    // never need a grants query. Inspect scopes only for an explicitly
+    // requested operational session to preserve the existing Admin/legacy
+    // login contract and avoid unnecessary database reads.
+    const inspectOperationalGrants = effective.sessionPolicy === "persistent" &&
+      !current.isPrimaryAdmin && !current.mustChangePassword && !admission;
+    const [permissions, machines] = inspectOperationalGrants
+      ? await Promise.all([
+          tx.accessPermission.findMany({ where: { userId: current.id } }),
+          tx.accessMachine.findMany({ where: { userId: current.id } }),
+        ])
+      : [[], []];
     const blocker = persistentOperationalBlocker(
       { ...effective, permissions }, station, machines, effective.machineScope,
     );
-    const persistent = !admission && !current.mustChangePassword && blocker === null;
+    const persistent = inspectOperationalGrants && blocker === null;
     const session = await issueSession(
       tx,
       effective,
