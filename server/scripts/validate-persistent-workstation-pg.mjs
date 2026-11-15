@@ -103,11 +103,20 @@ try {
   const standardToken = String(standardLogin.headers["set-cookie"])
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(standardToken);
+  // The FULL ANDON module bundle used by production must not silently
+  // disqualify no-expiry login merely because it contains advanced grants.
+  const fullAndonGrants = [
+    "andon.read", "history.read", "calls.open", "calls.cancel.own",
+    "calls.cancel.any", "calls.attend", "calls.technicians.manage",
+    "calls.finishMaintenance", "calls.finish", "calls.followUp",
+    "calls.returnToMaintenance", "machines.status.write",
+    "production.schedule.request", "diagnosis.edit", "workstations.screen.unlock",
+  ];
   const updatedPolicy = await adminRequest("PUT", "/users/" + operator.id, {
     login: operator.login, displayName: operator.displayName,
     roleLabel: operator.roleLabel, accountType: "person", active: true,
     machineScope: "selected", sessionPolicy: "persistent",
-    permissions: ["andon.read", "calls.open"], machineIds: [machineId],
+    permissions: fullAndonGrants, machineIds: [machineId],
     version: operator.authorizationVersion,
   });
   assert.equal(updatedPolicy.statusCode, 200, updatedPolicy.body);
@@ -170,6 +179,8 @@ try {
     { token: afterChangeToken, workstationId: targetStationId });
   assert.equal(fresh.persistentOperational, true);
   assert.deepEqual(fresh.machineIds, [machineId]);
+  assert.deepEqual([...fresh.permissions].sort(), [...fullAndonGrants].sort(),
+    "persistent Firefox-style login must keep every explicitly selected ANDON grant");
 
   // A second browser with the SAME authenticated account and station
   // identity must not sign the first browser out. Neither cookie is shared:
