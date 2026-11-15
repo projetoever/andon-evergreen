@@ -29,18 +29,18 @@ test("P0: Production and Admin use the same server-owned, global busy-set", asyn
   assert.match(guard, /assertPermission\(principal, attendancePermission\)/);
 });
 
-test("P0: policy simplification removes the eligibility panel but not server safeguards", async () => {
-  const [editor, policy, sessions] = await Promise.all([
+test("P0: session policy never replaces selected permissions and station safeguards remain", async () => {
+  const [editor, sessions] = await Promise.all([
     read("../src/components/settings/UsersAccessSettings.tsx"),
-    read("../src/services/persistentSessionEligibility.ts"),
     read("../server/src/access/sessions.ts"),
   ]);
   assert.doesNotMatch(editor, /Verificação de elegibilidade da conta/);
   assert.doesNotMatch(editor, /persistentSessionIncompatibleGrants/);
   assert.match(editor, /value=\{draft\.sessionPolicy\}/);
-  assert.match(editor, /suggestedPersistentProductionGrants\(catalog\.permissions\)/);
-  assert.match(editor, /Usar permissões de Produção 24h/);
-  assert.match(editor, /Substitui as permissões atuais|substitui as permissões atuais/);
-  assert.match(policy, /PERSISTENT_OPERATIONAL_ALLOWED_KEYS/);
-  assert.match(sessions, /TRUSTED_OPERATIONAL_GRANTS/);
+  assert.doesNotMatch(editor, /Usar permissões de Produção 24h/);
+  assert.doesNotMatch(editor, /suggestedPersistentProductionGrants/);
+  assert.match(editor, /value="daily"/);
+  assert.match(editor, /value="persistent"/);
+  assert.match(sessions, /permissions: row\.user\.permissions\.map/);
+  assert.doesNotMatch(sessions, /TRUSTED_OPERATIONAL_GRANTS/);
 });

@@ -76,7 +76,23 @@ test("SEC-GATE-04: login reuses existing Hub workflow; denial never mounts opera
   assert.match(gate, /returnToHub.*decision === "denied"/);
   assert.match(gate, /navigate\(\{ to: "\/hub", replace: true \}\)/);
   assert.doesNotMatch(gate, /"Acesso ao módulo restrito"/);
-  assert.match(hub, /await accessRequest\("\/login", "POST", \{ login, password \}\)/);
+  assert.match(hub, /"\/login", "POST", \{ login, password \}/);
   assert.match(root, /<WorkstationAccessGate>/);
   assert.doesNotMatch(gate, /approve-self-in-lab|localStorage|sessionStorage|setCentralMode/);
+});
+
+test("SEC-GATE-05: obsolete restricted-module dialog never appears; confirmed denials go to Hub", async () => {
+  const gate = await readFile(
+    new URL("../src/components/security/WorkstationAccessGate.tsx", import.meta.url), "utf8",
+  );
+  assert.match(gate, /returnToHub = decision === "denied"/);
+  assert.match(gate, /if \(decision === "error"\)/);
+  assert.match(gate, /onClick=\{\(\) => void refresh\(\)\}/);
+  assert.match(gate, /navigate\(\{ to: "\/hub", replace: true \}\)/);
+  assert.doesNotMatch(gate, /Solicite ao administrador a liberação desta workstation/);
+  assert.doesNotMatch(gate, /Acesso ao módulo restrito/);
+  assert.doesNotMatch(gate, /<section role="alert"/);
+  // Identity dialog remains for a genuinely missing login. It is not a bypass.
+  assert.match(gate, /<HubIdentityPanel access=\{access\} onChanged=\{refresh\} \/>/);
+  assert.match(gate, /if \(decision === "allowed"\) return <>{children}<\/>/);
 });

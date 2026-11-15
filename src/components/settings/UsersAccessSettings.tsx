@@ -17,7 +17,6 @@ import {
 } from "@/services/accessService";
 
 import { permissionLabels } from "@/services/accessLabels";
-import { suggestedPersistentProductionGrants } from "@/services/persistentSessionEligibility";
 import {
   SIMPLE_MODULE_GROUPS,
   advancedModuleGrants,
@@ -769,30 +768,17 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                           value={draft.sessionPolicy}
                           onChange={(e) => setDraft({
                             ...draft,
-                            sessionPolicy: e.target.value as "standard" | "persistent",
+                            sessionPolicy: e.target.value as "standard" | "daily" | "persistent",
                           })}
                         >
                           <option value="standard">{ui("Padrão — 30 minutos inativo / 12 horas máximo")}</option>
-                          <option value="persistent">{ui("Produção — não expirar em workstation confiável")}</option>
+                          <option value="daily">{ui("24 horas — sessão sem expiração por inatividade")}</option>
+                          <option value="persistent">{ui("Não expirar — workstation confiável e máquina fixada")}</option>
                         </select>
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        {ui("Login sem expiração automática somente em workstation aprovada, máquina fixada e com permissões operacionais restritas. Sair ou desconectar pelo Admin encerra a sessão.")}
+                        {ui("A duração escolhida não modifica as permissões selecionadas. O modo sem expiração exige workstation aprovada e confiável, máquina fixada e conta não administrativa. A sessão permanece limitada à máquina fixada. Logout, revogação e alterações do perfil encerram a sessão.")}
                       </p>
-                      {draft.sessionPolicy === "persistent" && (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <Button type="button" variant="outline" size="sm" onClick={() => setDraft({
-                            ...draft,
-                            roleLabel: "Produção",
-                            permissions: suggestedPersistentProductionGrants(catalog.permissions),
-                          })}>
-                            {ui("Usar permissões de Produção 24h")}
-                          </Button>
-                          <p className="text-xs text-muted-foreground">
-                            {ui("Opcional: substitui as permissões atuais pelo conjunto restrito. Confira antes de salvar.")}
-                          </p>
-                        </div>
-                      )}
                     </fieldset>
                   )}
                   <Label className="flex min-h-11 items-center gap-3">
@@ -908,7 +894,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {ui("Os grupos não liberam administração do Hub, contas ou workstations. Ações como desfixar tela ainda exigem credenciais e validação da API. Para sessões persistentes de Produção, restrinja no Avançado as funções incompatíveis.")}
+                        {ui("Os grupos não liberam administração do Hub, contas ou workstations. Ações como desfixar tela ainda exigem credenciais e validação da API. A duração da sessão não altera as funções escolhidas. A API valida cada ação.")}
                       </p>
                     </fieldset>
                   )}

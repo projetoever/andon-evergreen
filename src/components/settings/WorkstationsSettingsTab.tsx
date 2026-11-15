@@ -842,7 +842,7 @@ export function WorkstationsSettingsTab() {
                           <div>
                             <p className="text-sm font-semibold">{ui("Não expirar login operacional")}</p>
                             <p className="text-xs text-muted-foreground">
-                              {ui("Esta opção autoriza o terminal, mas também é necessário configurar a conta em Usuários e Acessos como Produção — não expirar em workstation confiável. A estação deve estar aprovada, com máquina fixada e permissões operacionais compatíveis.")}
+                              {ui("Esta opção autoriza a workstation, mas é necessário selecionar Não expirar no perfil da conta em Usuários e Acessos. A estação deve estar aprovada e com a máquina fixada. As permissões selecionadas do perfil não são alteradas pela duração da sessão.")}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {ui("Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.")}

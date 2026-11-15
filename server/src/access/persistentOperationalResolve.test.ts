@@ -67,11 +67,11 @@ test("REFINE15: trusted operator remains authenticated past both idle and absolu
     e instanceof AccessError && e.statusCode === 401);
 });
 
-test("REFINE15: durable session stops immediately on revocation, trust-off, unpinning and role elevation", async () => {
+test("SEC21: durable session stops immediately on revocation, trust-off, unpinning and primary Admin escalation", async () => {
   for (const patch of [
     { revoked: true }, { trust: false }, { lockedMachineId: null },
     { lockedMachineId: "39" },
-    { active: false }, { admin: true }, { privileged: true },
+    { active: false }, { admin: true },
     { purpose: "password_change" }, { versionMismatch: true },
   ]) {
     await assert.rejects(resolveSession(fixture({

@@ -35,6 +35,8 @@ export interface ModuleAccess {
     roleLabel: string;
     isPrimaryAdmin?: boolean;
     purpose: string;
+    sessionPolicy?: "standard" | "daily" | "persistent";
+    persistentOperational?: boolean;
     machineScope: string;
     machineIds: string[];
   } | null;

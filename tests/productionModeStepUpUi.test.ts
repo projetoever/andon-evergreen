@@ -25,7 +25,8 @@ test("REFINE20: machine schedule always requests approval with login + password"
   assert.match(endpoint, /production-mode:\$\{req\.ip\}/);
   assert.match(policy, /"production\.schedule\.request"/);
   assert.match(preset, /"production\.schedule\.request"/);
-  assert.match(eligibility, /"production\.schedule\.request"/);
+  assert.match(eligibility, /permissions: row\.user\.permissions\.map/);
+  assert.doesNotMatch(eligibility, /TRUSTED_OPERATIONAL_GRANTS/);
   assert.doesNotMatch(page, /onChange=\{\(productionMode\) => updateMachineProductionMode/);
 });
 
