@@ -1473,8 +1473,12 @@ function Get-AndonKioskProcess {
 # Windows process still has its image mapped. Do not regenerate the client
 # unnecessarily, and never delete a valid client or kill unrelated Node apps.
 function Test-AndonPrismaClientReusable {
-    param([Parameter(Mandatory = $true)][string]$ServerPath)
+    param(
+        [Parameter(Mandatory = $true)][string]$ServerPath,
+        [ref]$FailureReason
+    )
 
+    if ($null -ne $FailureReason) { $FailureReason.Value = "" }
     $schemaPath = Join-Path $ServerPath "prisma\schema.prisma"
     $clientDir = Join-Path $ServerPath "node_modules\.prisma\client"
     $generatedSchemaPath = Join-Path $clientDir "schema.prisma"
@@ -1490,15 +1494,26 @@ function Test-AndonPrismaClientReusable {
         (Join-Path $ServerPath "node_modules\@prisma\client\default.js")
     )
     foreach ($path in $required) {
-        if (!(Test-Path -LiteralPath $path -PathType Leaf)) { return $false }
-        if ((Get-Item -LiteralPath $path -ErrorAction SilentlyContinue).Length -le 0) { return $false }
+        if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+            if ($null -ne $FailureReason) { $FailureReason.Value = "Artefato ausente: $path" }
+            return $false
+        }
+        if ((Get-Item -LiteralPath $path -ErrorAction SilentlyContinue).Length -le 0) {
+            if ($null -ne $FailureReason) { $FailureReason.Value = "Artefato vazio: $path" }
+            return $false
+        }
     }
 
     try {
         $prisma = Get-Content -LiteralPath $prismaManifest -Raw -ErrorAction Stop | ConvertFrom-Json
         $client = Get-Content -LiteralPath $clientManifest -Raw -ErrorAction Stop | ConvertFrom-Json
         if ([string]::IsNullOrWhiteSpace([string]$prisma.version) -or
-            [string]$prisma.version -ne [string]$client.version) { return $false }
+            [string]$prisma.version -ne [string]$client.version) {
+            if ($null -ne $FailureReason) {
+                $FailureReason.Value = "Versoes Prisma diferentes: prisma=$($prisma.version); client=$($client.version)"
+            }
+            return $false
+        }
         # Prisma 6 can normalize BOM and line endings in the emitted schema.
         # Never ignore model, field, datasource or generator differences.
         $source = [System.IO.File]::ReadAllText($schemaPath).TrimStart([char]0xFEFF)
@@ -1508,8 +1523,22 @@ function Test-AndonPrismaClientReusable {
         $cr = [string][char]13
         $source = $source.Replace($crlf, $lf).Replace($cr, $lf).TrimEnd()
         $generated = $generated.Replace($crlf, $lf).Replace($cr, $lf).TrimEnd()
-        return $source -ceq $generated
+        if ($source -cne $generated) {
+            if ($null -ne $FailureReason) {
+                $sha = [System.Security.Cryptography.SHA256]::Create()
+                try {
+                    $sourceHash = [BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($source))).Replace("-", "")
+                    $generatedHash = [BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($generated))).Replace("-", "")
+                } finally { $sha.Dispose() }
+                $FailureReason.Value = "Schema Prisma divergente: sourceChars=$($source.Length) generatedChars=$($generated.Length) sourceSHA256=$sourceHash generatedSHA256=$generatedHash"
+            }
+            return $false
+        }
+        return $true
     } catch {
+        if ($null -ne $FailureReason) {
+            $FailureReason.Value = "Falha ao validar manifestos/schema: $($_.Exception.GetType().Name)"
+        }
         return $false
     }
 }
@@ -1557,11 +1586,13 @@ function Invoke-AndonPrismaClientEnsure {
 
     # Complete Win64 engine, same Prisma/client versions and exact schema
     # content are mandatory. Never assume a stale client is safe.
-    if (Test-AndonPrismaClientReusable -ServerPath $ServerPath) {
+    $prismaValidationReason = ""
+    if (Test-AndonPrismaClientReusable -ServerPath $ServerPath -FailureReason ([ref]$prismaValidationReason)) {
         Write-AndonOk "Prisma Client Windows ja compativel com schema e versoes; DLL preservada."
         return
     }
 
+    if ($prismaValidationReason) { Write-AndonWarn "Prisma requer regeneracao: $prismaValidationReason" }
     $lastError = ""
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         if ($attempt -gt 1) {
@@ -1571,8 +1602,9 @@ function Invoke-AndonPrismaClientEnsure {
         Stop-AndonPrismaEngineNodeOwners -ServerPath $ServerPath
         try {
             Invoke-AndonNodeProcess $NpmPath @("run", "db:generate") $ServerPath
-            if (!(Test-AndonPrismaClientReusable -ServerPath $ServerPath)) {
-                throw "Prisma generate terminou, mas o schema/versao ou engine Windows nao foi validado."
+            $prismaValidationReason = ""
+            if (!(Test-AndonPrismaClientReusable -ServerPath $ServerPath -FailureReason ([ref]$prismaValidationReason))) {
+                throw "Prisma generate terminou, mas o schema/versao ou engine Windows nao foi validado. Motivo: $prismaValidationReason"
             }
             Write-AndonOk "Prisma Client gerado e validado na tentativa $attempt."
             return
