@@ -22,6 +22,7 @@ $originalGenerate = (Get-Item Function:\Invoke-AndonNodeProcess).ScriptBlock
 $originalEngineOwners = (Get-Item Function:\Stop-AndonPrismaEngineNodeOwners).ScriptBlock
 
 try {
+    Set-Content -LiteralPath (Join-Path $fixture "package-lock.json") -Value '{"lockfileVersion":3}'
     Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id }'
     Set-Content -LiteralPath $generatedPath -Value 'model Machine { id String @id }'
     Set-Content -LiteralPath (Join-Path $prismaDir "package.json") -Value '{"version":"6.19.3"}'
@@ -31,6 +32,10 @@ try {
     Set-Content -LiteralPath $enginePath -Value 'simulated engine'
 
     Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture) "Complete client with matching versions/schema must skip generate"
+    $reason = "stale previous reason"
+    Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason)) "Valid client must be reusable with a diagnostic receiver"
+    Assert-PrismaTest ($reason -eq "") "Successful validation must clear stale failure reason"
+
 
     $script:attempts = 0
     $script:engineChecks = 0
@@ -47,6 +52,10 @@ try {
 
     Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id; name String }'
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Changed Prisma schema requires regeneration"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Changed schema must fail with diagnostics"
+    Assert-PrismaTest ($reason.Contains("Schema Prisma divergente:") -and $reason.Contains("sourceSHA256=") -and $reason.Contains("generatedSHA256=")) "Schema divergence must be diagnosable without printing schema contents"
+
     $script:attempts = 0
     $script:engineChecks = 0
     Set-Item Function:\Stop-AndonPrismaEngineNodeOwners -Value {
@@ -63,11 +72,51 @@ try {
     Assert-PrismaTest ($script:attempts -eq 2 -and $script:engineChecks -eq 2) "Transient DLL EPERM must retry and validate generation"
     Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture) "Recovered client must match exact current schema"
 
+    # Real Prisma 6 may normalize its generated schema even though generation
+    # succeeded. Once the successful generate is verified, fingerprint the exact
+    # source+lock and allow the client to be reused on the next install.
+    Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id; name String; code String }'
+    $script:attempts = 0
+    Set-Item Function:\Invoke-AndonNodeProcess -Value {
+        $script:attempts++
+        Set-Content -LiteralPath $generatedPath -Value "// Prisma normalized schema copy: intentionally not byte-identical"
+    }
+    Invoke-AndonPrismaClientEnsure -ServerPath $fixture -NpmPath "mock-npm.cmd"
+    Assert-PrismaTest ($script:attempts -eq 1) "Successful generator with normalized schema must not retry unnecessarily"
+    $stampPath = Join-Path $generatedDir "andon-client-fingerprint.json"
+    Assert-PrismaTest (Test-Path -LiteralPath $stampPath -PathType Leaf) "Generated client must record a durable fingerprint"
+    Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture) "Fingerprint must permit reuse despite normalized generated schema"
+    $script:attempts = 0
+    Set-Item Function:\Invoke-AndonNodeProcess -Value {
+        $script:attempts++
+        throw "Fingerprint-valid client must not generate"
+    }
+    Invoke-AndonPrismaClientEnsure -ServerPath $fixture -NpmPath "mock-npm.cmd"
+    Assert-PrismaTest ($script:attempts -eq 0) "Next install must not regenerate a fingerprint-valid client"
+    Set-Content -LiteralPath (Join-Path $fixture "package-lock.json") -Value '{"lockfileVersion":3,"changed":true}'
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Changed lock must invalidate fingerprint"
+    Assert-PrismaTest ($reason.Contains("Fingerprint Prisma desatualizado")) "Stale lock must have explicit reason"
+    Set-Content -LiteralPath (Join-Path $fixture "package-lock.json") -Value '{"lockfileVersion":3}'
+    Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture) "Restored dependency lock should preserve fingerprint validation"
+    Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id; name String; changed Boolean }'
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Changed source schema invalidates fingerprint"
+    Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id; name String; code String }'
+
+
     Set-Content -LiteralPath (Join-Path $clientDir "package.json") -Value '{"version":"6.19.2"}'
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Version mismatch must deny client reuse"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Version mismatch must have diagnostic reason"
+    Assert-PrismaTest ($reason.Contains("Versoes Prisma diferentes:")) "Version divergence reason must be explicit"
+
     Set-Content -LiteralPath (Join-Path $clientDir "package.json") -Value '{"version":"6.19.3"}'
     Remove-Item -LiteralPath $enginePath
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Missing DLL must deny client reuse"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Missing engine must have diagnostic reason"
+    Assert-PrismaTest ($reason.Contains("Artefato ausente:") -and $reason.Contains("query_engine-windows.dll.node")) "Engine absence must be identified"
+
 } finally {
     Set-Item Function:\Invoke-AndonNodeProcess -Value $originalGenerate
     Set-Item Function:\Stop-AndonPrismaEngineNodeOwners -Value $originalEngineOwners

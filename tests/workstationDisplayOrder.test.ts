@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   compareWorkstationsForDisplay, workstationPresenceRank,
 } from "../src/services/workstationDisplayOrder";
+import { canManageWorkstationSettings } from "../src/services/workstationManagementGate";
 
 const station = (
   id: string,
@@ -69,4 +70,29 @@ test("REFINE16: visual badge distinguishes online without relying only on color"
   assert.match(source, /workstation\.active && !workstation\.pendingApproval/);
   assert.doesNotMatch(source, /if \(a\.id === currentWorkstationId\) return -1/,
     "current station may not outrank verified online presence");
+});
+
+test("SEC21: workstation write controls fail closed until Hub mode and grant are verified", async () => {
+  const admin = { isPrimaryAdmin: true, permissions: ["workstations.manage"] };
+  const manager = { isPrimaryAdmin: false, permissions: ["workstations.manage"] };
+  const operator = { isPrimaryAdmin: false, permissions: ["andon.read"] };
+  const central = { centralAccessEnabled: true };
+  const legacy = { centralAccessEnabled: false };
+  assert.equal(canManageWorkstationSettings("local", true, null, null), true);
+  for (const principal of [admin, manager, operator, null]) {
+    assert.equal(canManageWorkstationSettings("api", false, null, principal), false);
+    assert.equal(canManageWorkstationSettings("api", true, central, principal), false);
+    assert.equal(canManageWorkstationSettings("api", false, {}, principal), false);
+  }
+  assert.equal(canManageWorkstationSettings("api", false, central, admin), true);
+  assert.equal(canManageWorkstationSettings("api", false, central, manager), true);
+  assert.equal(canManageWorkstationSettings("api", false, central, operator), false);
+  assert.equal(canManageWorkstationSettings("api", false, central, null), false);
+  assert.equal(canManageWorkstationSettings("api", false, legacy, operator), true);
+  assert.equal(canManageWorkstationSettings("api", true, legacy, admin), false);
+  const component = await readFile(
+    new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url), "utf8");
+  const managementGate = component.split("const canManage =")[1]?.split("const filteredItems")[0] ?? "";
+  assert.match(managementGate, /canManageWorkstationSettings\(/);
+  assert.doesNotMatch(managementGate, /!centralAccess/);
 });

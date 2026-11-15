@@ -21,6 +21,15 @@ test("REFINE20: machine schedule always requests approval with login + password"
   assert.match(modal, /accessRequest\("\/machines\/production-mode", "POST"/);
   assert.match(modal, /expectedProductionMode: currentMode/);
   assert.match(modal, /autoComplete="current-password"/);
+  assert.match(modal, /useRef\(false\)/);
+  assert.match(modal, /submittingRef\.current \|\| busy/);
+  assert.match(modal, /submittingRef\.current = true/);
+  assert.match(modal, /submittingRef\.current = false/);
+  assert.match(modal, /className="block space-y-2 text-sm font-semibold"/);
+  assert.match(modal, /className="flex flex-col gap-2 sm:flex-row sm:justify-end"/);
+  assert.match(modal, /className="w-full sm:w-auto" type="submit"/);
+
+
   assert.match(endpoint, /setCentralProductionModeWithCredential\(db/);
   assert.match(endpoint, /production-mode:\$\{req\.ip\}/);
   assert.match(policy, /"production\.schedule\.request"/);
@@ -45,4 +54,18 @@ test("REFINE20: central transition maintains transactional proof, audit and lega
   assert.match(domain, /operatorSessionUnchanged: true/);
   assert.match(legacy, /"\/api\/machines\/:id\/production-mode"/);
   assert.doesNotMatch(workstation, /markCentralProductionModeDirectAuthorized/);
+});
+
+test("REFINE21 mobile: production schedule buttons remain readable at narrow widths", async () => {
+  const schedule = await read("../src/components/machines/ProductionSchedulePanel.tsx");
+  assert.match(schedule, /grid-cols-2/);
+  assert.match(schedule, /w-full min-w-0/);
+  assert.match(schedule, /min-h-11/);
+  assert.match(schedule, /whitespace-normal break-words text-center leading-tight/);
+  assert.doesNotMatch(schedule, /className="truncate"/);
+  assert.doesNotMatch(schedule, /min-w-\[220px\] shrink-0/);
+  assert.match(schedule, /onClick=\{\(\) => onChange\("scheduled"\)\}/);
+  assert.match(schedule, /onClick=\{\(\) => onChange\("not_scheduled"\)\}/);
+  assert.match(schedule, /disabled=\{machine\.productionMode === "scheduled"\}/);
+  assert.match(schedule, /disabled=\{machine\.productionMode === "not_scheduled"\}/);
 });

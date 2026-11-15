@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock3, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function HubIdentityPanel({
 }) {
   const [session, setSession] = useState<AccessState | null>(null);
   const [busy, setBusy] = useState(false);
+  const actionInFlight = useRef(false);
   const [error, setError] = useState("");
   const [newPasswordDraft, setNewPasswordDraft] = useState("");
   const admission = access.workstation.admission;
@@ -55,6 +56,10 @@ export function HubIdentityPanel({
     refreshSession,
   ]);
   const run = async (action: () => Promise<void>) => {
+    // Synchronous guard prevents two login/admission/password actions before
+    // React renders busy=true. No session token or password is stored here.
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     setBusy(true);
     setError("");
     try {
@@ -63,19 +68,23 @@ export function HubIdentityPanel({
       const code = cause instanceof Error ? cause.message : "";
       setError(messages[code] ?? "Não foi possível concluir. Tente novamente.");
     } finally {
+      actionInFlight.current = false;
       setBusy(false);
     }
   };
   const authenticate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const values = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const values = new FormData(form);
     const login = String(values.get("login") ?? "");
     const password = String(values.get("password") ?? "");
-    event.currentTarget.reset();
     void run(async () => {
       const result = await accessRequest<{
         sessionPolicy?: string; persistentOperational?: boolean; persistenceBlocker?: string | null;
       }>("/login", "POST", { login, password });
+      // Preserve the login field on rejected credentials; clear both fields
+      // only once the server acknowledges authentication.
+      form.reset();
       await refreshSession();
       await onChanged();
       // No more silent fallback to a 30-minute idle session on a pinned

@@ -6,7 +6,7 @@ import {
   type VisualAccent,
 } from "@/theme/andonVisualPalette";
 import {
-  hexToHsv, hexToRgb, hsvToHex, rgbToHex, type HsvColor,
+  hexToHsv, hexToRgb, hsvToHex, rgbDraftToHex, type HsvColor,
 } from "@/theme/colorPickerMath";
 
 type RgbChannel = "r" | "g" | "b";
@@ -58,7 +58,7 @@ export function VisualAccentRgbPicker({
     if (bounds.width <= 0 || bounds.height <= 0) return;
     const x = clamp((event.clientX - bounds.left) / bounds.width, 0, 1);
     const y = clamp((event.clientY - bounds.top) / bounds.height, 0, 1);
-    applyHsv({ h: x * 359.99, s: 1 - y, v: hsv.v });
+    applyHsv({ h: x * 359.99, s: 1 - y, v: hsv.v === 0 ? 1 : hsv.v });
   };
 
   const onSpectrumKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -79,16 +79,18 @@ export function VisualAccentRgbPicker({
     if (isCustomVisualHex(normalized)) onChange(normalized);
   };
 
-  const commitRgb = (channel: RgbChannel) => {
-    const raw = rgbInputs[channel].trim();
-    const original = hexToRgb(currentHex);
-    if (!/^\d{1,3}$/.test(raw) || Number(raw) > 255) {
+  const commitRgb = () => {
+    // Commit the complete RGB draft: editing R, G, B before leaving a field
+    // must never silently overwrite changes in another channel.
+    const next = rgbDraftToHex(rgbInputs);
+    if (next === null) {
+      const original = hexToRgb(currentHex);
       setRgbInputs({
         r: String(original.r), g: String(original.g), b: String(original.b),
       });
       return;
     }
-    onChange(rgbToHex({ ...original, [channel]: Number(raw) }));
+    if (next !== currentHex) onChange(next);
   };
 
   const fullBrightness = hsvToHex({ ...hsv, v: 1 });
@@ -184,7 +186,7 @@ export function VisualAccentRgbPicker({
               min={0} max={255} step={1}
               value={rgbInputs[channel]}
               onChange={event => setRgbInputs(previous => ({ ...previous, [channel]: event.target.value }))}
-              onBlur={() => commitRgb(channel)}
+              onBlur={commitRgb}
               onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }}
               className="h-9 min-w-0 w-full rounded-md border border-border bg-background px-1.5 font-mono text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
