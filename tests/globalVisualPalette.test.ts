@@ -157,3 +157,73 @@ test("CFG-15E: palette write authorization follows live server focus/events with
   assert.doesNotMatch(revalidate, /setDraft\(|setSaved\(|setRevision\(|event\.detail/);
   assert.match(preview, /Não foi possível confirmar a disponibilidade da paleta/);
 });
+
+
+test("UX-21: surface presets produce distinct dashboards and readable dark/light preview", async () => {
+  const keys = ["dashboardBackground", "machineSurface", "failureSurface", "prioritySurface"] as const;
+  const variations = INDUSTRIAL_VISUAL_PRESETS.map(preset =>
+    keys.map(key => preset.palette[key]).join("|"));
+  assert.equal(new Set(variations).size, INDUSTRIAL_VISUAL_PRESETS.length);
+  for (const preset of INDUSTRIAL_VISUAL_PRESETS) {
+    const parsed = parseVisualPalette(preset.palette);
+    assert.ok(parsed, preset.id);
+    for (const key of keys) assert.ok(parsed[key], preset.id + ": " + key);
+    for (const mode of ["light", "dark"] as const) {
+      const background = presentationSurfaceForTheme(preset.palette.dashboardBackground, mode, "dashboard");
+      const card = presentationSurfaceForTheme(preset.palette.machineSurface, mode, "machine");
+      assert.match(background, /^#[0-9A-F]{6}$/);
+      assert.match(card, /^#[0-9A-F]{6}$/);
+      const foreground = mode === "dark" ? "#F8FAFC" : "#182531";
+      assert.ok(paletteContrastRatio(background, foreground) >= 4.5, preset.id + " " + mode + ": dashboard");
+      assert.ok(paletteContrastRatio(card, foreground) >= 4.5, preset.id + " " + mode + ": card");
+    }
+  }
+
+  const [provider, css, card, grid, dashboard, picker, preview] = await Promise.all([
+    source("src/theme/GlobalVisualPaletteProvider.tsx"),
+    source("src/styles.css"),
+    source("src/components/machines/MachineCard.tsx"),
+    source("src/components/machines/MachineGrid.tsx"),
+    source("src/pages/DashboardPage.tsx"),
+    source("src/components/settings/VisualAccentRgbPicker.tsx"),
+    source("src/components/settings/AppearanceSettingsPreview.tsx"),
+  ]);
+  for (const variable of [
+    "--andon-palette-dashboard-background", "--andon-palette-machine-surface",
+    "--andon-palette-failure-surface", "--andon-palette-priority-surface",
+  ]) assert.match(provider + css, new RegExp(variable));
+  assert.match(dashboard, /andon-palette-dashboard-root/);
+  assert.match(card, /andon-palette-failure-highlight/);
+  assert.match(grid, /andon-palette-priority-border/);
+  assert.match(css, /color-mix\(in srgb/);
+  assert.match(provider, /presentationSurfaceForTheme\(/);
+  assert.doesNotMatch(provider, /--danger|--warning|--success|--primary/);
+  assert.match(preview, /fieldLabels/);
+  assert.match(preview, /draft\.failureSurface/);
+  assert.match(preview, /draft\.prioritySurface/);
+  assert.match(preview, /sm:grid-cols-2 xl:grid-cols-3/);
+  assert.match(picker, /className="grid grid-cols-3 gap-2" aria-label=\{ui\("Canais RGB"\)\}/);
+  assert.match(picker, /channel\.toUpperCase\(\)/);
+  assert.match(picker, /onPointerMove/);
+  assert.match(picker, /onSpectrumKeyDown/);
+});
+
+test("UX-21: persisted v1 five/six-color palettes upgrade additively and reject invalid surface payloads", () => {
+  const five = {
+    version: 1, cardBorder: "slate", selectedCardBorder: "evergreen",
+    sectorSelection: "ocean", operationAccent: "indigo", focusAccent: "violet",
+  };
+  const old = parseVisualPalette(five);
+  assert.ok(old);
+  assert.equal(old.dashboardBackground, DEFAULT_VISUAL_PALETTE.dashboardBackground);
+  assert.equal(old.machineSurface, DEFAULT_VISUAL_PALETTE.machineSurface);
+  assert.equal(old.failureSurface, DEFAULT_VISUAL_PALETTE.failureSurface);
+  assert.equal(old.prioritySurface, DEFAULT_VISUAL_PALETTE.prioritySurface);
+  const six = parseVisualPalette({ ...five, priorityBorder: "#FFB454" });
+  assert.equal(six?.priorityBorder, "#FFB454");
+  for (const bad of ["#fff", "rgba(1,2,3,0.5)", "var(--danger)", "transparent"]) {
+    assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, failureSurface: bad }), null);
+    assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, dashboardBackground: bad }), null);
+  }
+  assert.equal(parseVisualPalette({ ...DEFAULT_VISUAL_PALETTE, danger: "#FFFFFF" }), null);
+});
