@@ -32,7 +32,8 @@ test("UX-07: permission checks display neutral loading skeleton, not a forbidden
   assert.match(gate, /<section role="status"/);
   assert.match(gate, /motion-reduce:animate-none/);
   assert.doesNotMatch(gate, /<section role="alert"/);
-  assert.match(gate, /returnToHub = decision === "denied" \|\| decision === "error"/);
+  assert.match(gate, /returnToHub = decision === "denied"/);
+  assert.match(gate, /if \(decision === "error"\)/);
   assert.match(gate, /<ModuleLoginPanel/);
 });
 test("UX-07: ANDON machine skeleton only appears before first snapshot; real errors and empty differ", async () => {
