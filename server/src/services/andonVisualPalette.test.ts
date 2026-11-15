@@ -94,3 +94,32 @@ test("UX-19: server upgrades five-color stored palettes without losing values", 
   }
   assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder:"ocean", danger:"blue" }), null);
 });
+
+
+test("UX-21: additive surface accents preserve historical five/six-field JSON", () => {
+  const legacy = {
+    version: 1, cardBorder: "#123456", selectedCardBorder: "evergreen",
+    sectorSelection: "ocean", operationAccent: "indigo", focusAccent: "slate",
+  };
+  const parsed = parseStoredVisualPalette(legacy);
+  assert.ok(parsed);
+  for (const key of ["dashboardBackground", "machineSurface", "failureSurface", "prioritySurface"] as const)
+    assert.equal(parsed[key], DEFAULT_STORED_VISUAL_PALETTE[key]);
+  const six = parseStoredVisualPalette({ ...legacy, priorityBorder: "#FFB454" });
+  assert.equal(six?.priorityBorder, "#FFB454");
+  const extended = {
+    ...DEFAULT_STORED_VISUAL_PALETTE,
+    dashboardBackground: "#193854",
+    machineSurface: "#23526F",
+    failureSurface: "#AF3925",
+    prioritySurface: "#405A72",
+  };
+  assert.deepEqual(parseStoredVisualPalette(extended), extended);
+  for (const value of ["#fff", "rgba(0,0,0,.8)", "var(--danger)", "transparent", "url(evil)"]) {
+    for (const key of ["dashboardBackground", "machineSurface", "failureSurface", "prioritySurface"]) {
+      assert.equal(parseStoredVisualPalette({ ...extended, [key]: value }), null);
+    }
+  }
+  assert.equal(parseStoredVisualPalette({ ...extended, danger: "#111111" }), null);
+  assert.equal(parseStoredVisualPalette({ ...extended, warning: "evergreen" }), null);
+});
