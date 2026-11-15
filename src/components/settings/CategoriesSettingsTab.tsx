@@ -52,7 +52,8 @@ export function CategoriesSettingsTab() {
   const centralMode = access?.centralAccessEnabled === true;
   // Feature gate is an environment capability, not the person's ACL.
   const [centralCatalogWritable, setCentralCatalogWritable] = useState(false);
-  const canChangeCatalog = !centralMode || centralCatalogWritable;
+  // Unknown Hub access is never treated as legacy authorization.
+  const canChangeCatalog = access !== null && (!centralMode || centralCatalogWritable);
   const [items, setItems] = useState<AndonCategoryConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AndonCategoryConfig>(() => emptyCategory(10));
@@ -204,7 +205,7 @@ export function CategoriesSettingsTab() {
   async function handleRemove() {
     // Central HTTP only supports POST/PATCH. Never offer a DELETE that the
     // server intentionally rejects to protect historical sector references.
-    if (centralMode || !selectedId || isBusy) return;
+    if (access === null || centralMode || !selectedId || isBusy) return;
     const confirmed = window.confirm(
       ui('Remover o setor "{0}"? Setores que possuem histórico deverão ser apenas inativados.', {
         0: draft.displayName,
@@ -504,7 +505,7 @@ export function CategoriesSettingsTab() {
               tone="danger"
               size="md"
               onClick={() => void handleRemove()}
-              disabled={!selectedId || isBusy || centralMode}
+              disabled={!selectedId || isBusy || access === null || centralMode}
             >
               {ui("Remover setor")}
             </BigButton>

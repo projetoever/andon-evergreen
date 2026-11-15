@@ -5984,4 +5984,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Sessão sem expiração confirmada pelo servidor","No-expiry session confirmed by server","伺服器已確認不過期工作階段"],
   ["Sessão sem expiração não ativada — confira a workstation e entre novamente","No-expiry session not active — check workstation settings and sign in again","不過期工作階段未啟用——請確認工作站設定並重新登入"],
   ["Esta opção autoriza a workstation, mas é necessário selecionar Não expirar no perfil da conta em Usuários e Acessos. A estação deve estar aprovada e com a máquina fixada. As permissões selecionadas do perfil não são alteradas pela duração da sessão.","This option authorizes the workstation, but the account must also use No expiry under Users and Access. The workstation must be approved and pinned to a machine. Session duration does not change the selected profile permissions.","此選項授權工作站，但還需在使用者與存取設定中選擇不過期。工作站必須已核准並固定至機台。工作階段期間不會改變使用者已選取的權限。"],
+  ["Fundo do Dashboard","Dashboard background","儀表板背景"],
+  ["Fundo de cards normais","Normal machine card background","一般機台卡片背景"],
+  ["Destaque visual de falhas","Fault visual highlight","故障視覺強調色"],
+  ["Fundo do grupo prioritário","Priority group background","優先順序群組背景"],
 ]; 

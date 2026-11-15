@@ -119,6 +119,16 @@ export async function registerModuleRoutes(app: FastifyInstance) {
             purpose: principal.purpose,
             sessionPolicy: principal.sessionPolicy ?? "standard",
             persistentOperational: principal.persistentOperational === true,
+            // Presentation-only hint; API still enforces history.read and SQL scope.
+            canReadMachineHistory: principal.purpose === "normal" &&
+              principal.accountType === "person" && workstation.active &&
+              !workstation.pendingApproval && (() => {
+                try {
+                  assertPermission(principal!, "andon.read", workstation.lockedMachineId ?? undefined);
+                  assertPermission(principal!, "history.read", workstation.lockedMachineId ?? undefined);
+                  return true;
+                } catch { return false; }
+              })(),
             machineScope: principal.machineScope,
             machineIds: principal.machineIds,
           }

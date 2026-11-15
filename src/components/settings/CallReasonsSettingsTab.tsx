@@ -58,7 +58,8 @@ export function CallReasonsSettingsTab() {
   const [optionLabel, setOptionLabel] = useState("");
   const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const writeBlocked = busy || capabilityChecking || !enabled || Boolean(error) || loading;
+  // A cached feature flag never authorizes writes when Hub identity is unknown.
+  const writeBlocked = access === null || busy || capabilityChecking || !enabled || Boolean(error) || loading;
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
   // Display changes use a presentation-only payload. New analytical policy
   // decisions require explicit human confirmation, then server authorization.

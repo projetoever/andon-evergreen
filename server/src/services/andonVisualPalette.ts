@@ -10,6 +10,7 @@ export type VisualPaletteAccent = typeof VISUAL_PALETTE_ACCENTS[number] | `#${st
 export const VISUAL_PALETTE_FIELDS = [
   "cardBorder", "selectedCardBorder", "sectorSelection",
   "operationAccent", "focusAccent", "priorityBorder",
+  "dashboardBackground", "machineSurface", "failureSurface", "prioritySurface",
 ] as const;
 export type VisualPaletteField = typeof VISUAL_PALETTE_FIELDS[number];
 
@@ -21,6 +22,10 @@ export type StoredVisualPalette = Readonly<{
   operationAccent: VisualPaletteAccent;
   focusAccent: VisualPaletteAccent;
   priorityBorder: VisualPaletteAccent;
+  dashboardBackground: VisualPaletteAccent;
+  machineSurface: VisualPaletteAccent;
+  failureSurface: VisualPaletteAccent;
+  prioritySurface: VisualPaletteAccent;
 }>;
 
 /** Never change in place; newly deployed systems and existing kiosks share it. */
@@ -32,6 +37,10 @@ export const DEFAULT_STORED_VISUAL_PALETTE: StoredVisualPalette = Object.freeze(
   operationAccent: "evergreen",
   focusAccent: "evergreen",
   priorityBorder: "#F97316",
+  dashboardBackground: "#142330",
+  machineSurface: "#273847",
+  failureSurface: "#952B28",
+  prioritySurface: "#293641",
 });
 
 const permitted = new Set<string>(VISUAL_PALETTE_ACCENTS);
@@ -47,15 +56,16 @@ export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | nu
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const input = raw as Record<string, unknown>;
   const names = Object.keys(input);
-  // Old stored payloads have five accents: add only the new priority border
-  // default; never loosen validation for unknown fields or invalid CSS.
-  if ((names.length !== VISUAL_PALETTE_FIELDS.length + 1 &&
-       names.length !== VISUAL_PALETTE_FIELDS.length) ||
-      !names.includes("version") || input.version !== 1 ||
+  // Historical five/six-token v1 palettes remain valid. New surface
+  // tokens are optional, strictly #RRGGBB or the five named accents.
+  const optional = new Set<VisualPaletteField>([
+    "priorityBorder", "dashboardBackground", "machineSurface", "failureSurface", "prioritySurface",
+  ]);
+  if (!names.includes("version") || input.version !== 1 ||
       names.some(name => name !== "version" && !fields.has(name)) ||
       VISUAL_PALETTE_FIELDS.some(name =>
-        name !== "priorityBorder" && !isValidAccent(input[name])) ||
-      (input.priorityBorder !== undefined && !isValidAccent(input.priorityBorder))) return null;
+        optional.has(name) ? input[name] !== undefined && !isValidAccent(input[name])
+          : !isValidAccent(input[name]))) return null;
   return {
     version: 1,
     cardBorder: input.cardBorder as VisualPaletteAccent,
@@ -64,6 +74,10 @@ export function parseStoredVisualPalette(raw: unknown): StoredVisualPalette | nu
     operationAccent: input.operationAccent as VisualPaletteAccent,
     focusAccent: input.focusAccent as VisualPaletteAccent,
     priorityBorder: (input.priorityBorder ?? DEFAULT_STORED_VISUAL_PALETTE.priorityBorder) as VisualPaletteAccent,
+    dashboardBackground: (input.dashboardBackground ?? DEFAULT_STORED_VISUAL_PALETTE.dashboardBackground) as VisualPaletteAccent,
+    machineSurface: (input.machineSurface ?? DEFAULT_STORED_VISUAL_PALETTE.machineSurface) as VisualPaletteAccent,
+    failureSurface: (input.failureSurface ?? DEFAULT_STORED_VISUAL_PALETTE.failureSurface) as VisualPaletteAccent,
+    prioritySurface: (input.prioritySurface ?? DEFAULT_STORED_VISUAL_PALETTE.prioritySurface) as VisualPaletteAccent,
   };
 }
 

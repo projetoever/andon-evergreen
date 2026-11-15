@@ -20,7 +20,8 @@ export function GeneralSettingsTab() {
   // user ACL, approved workstation, CSRF, locking and audit on every mutation.
   const [centralWritable, setCentralWritable] = useState(false);
   const capabilityRequestVersion = useRef(0);
-  const canWriteSettings = !centralMode || centralWritable;
+  // Until the Hub confirms its access mode, never infer legacy write access.
+  const canWriteSettings = access !== null && (!centralMode || centralWritable);
   const priorityModuleAllowed = access?.modules.some(
     (module) => module.id === "priorities" && module.available && module.enabled && module.allowed,
   ) === true;

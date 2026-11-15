@@ -671,6 +671,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         machineSoundEnabled={machineSoundEnabled}
         screenLocked={screenLocked}
+        historyAllowed={access?.centralAccessEnabled === false ||
+          access?.principal?.canReadMachineHistory === true}
         onToggleScreenLock={() => void handleToggleScreenLock()}
         onToggleMachineSound={() => {
           const next = !machineSoundEnabled;

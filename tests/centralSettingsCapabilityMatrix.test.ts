@@ -49,10 +49,10 @@ test("CFG-15A: central sector actions fail closed on write flag and forbid DELET
   assert.match(tab, /useModuleAccess\(\)/);
   assert.match(tab, /centralAccessEnabled === true/);
   assert.match(tab, /centralCategorySettingsWriteEnabled === true/);
-  assert.match(tab, /const canChangeCatalog = !centralMode \|\| centralCatalogWritable/);
+  assert.match(tab, /const canChangeCatalog = access !== null && \(!centralMode \|\| centralCatalogWritable\)/);
   assert.match(tab, /if \(isBusy \|\| !canChangeCatalog\) return/);
-  assert.match(tab, /if \(centralMode \|\| !selectedId \|\| isBusy\) return/);
-  assert.match(tab, /disabled=\{!selectedId \|\| isBusy \|\| centralMode\}/);
+  assert.match(tab, /if \(access === null \|\| centralMode \|\| !selectedId \|\| isBusy\) return/);
+  assert.match(tab, /disabled=\{!selectedId \|\| isBusy \|\| access === null \|\| centralMode\}/);
   assert.match(tab, /disabled=\{isBusy \|\| !canChangeCatalog\}/);
   assert.match(tab, /disabled=\{isBusy \|\| isLoading \|\| Boolean\(loadError\) \|\| !canChangeCatalog\}/);
   assert.match(tab, /setCentralCatalogWritable\(false\)/);
@@ -203,4 +203,27 @@ test("CFG-15J: Classifications editor revalidates its own write gate and never o
   const revalidate = modal.slice(modal.indexOf("const revalidate = () => {"),
     modal.indexOf("  }, [centralAccess, capabilityRetry]);"));
   assert.doesNotMatch(revalidate, /setDraft\(|setSelectedId\(|setItems\(|updateFailureClassification\(|event\.detail/);
+});
+
+
+test("CFG-15K: unknown Hub access cannot be mistaken for legacy write permission", async () => {
+  const [general, attendance, provider, guard] = await Promise.all([
+    get("../src/components/settings/GeneralSettingsTab.tsx"),
+    get("../src/components/settings/AttendanceModeSettingsTab.tsx"),
+    get("../src/context/ModuleAccessProvider.tsx"),
+    get("../server/src/security/centralOperationalSettingsHttp.ts"),
+  ]);
+  assert.match(provider, /const \[access, setAccess\] = useState<ModuleAccess \| null>\(null\)/);
+  assert.match(provider, /setAccess\(null\)/);
+  assert.match(general, /const canWriteSettings = access !== null && \(!centralMode \|\| centralWritable\)/);
+  assert.match(attendance, /const canWriteAttendance = access !== null && \(!centralAttendance \|\| centralCapability\?\.write === true\)/);
+  assert.match(attendance, /const canSelectName = access !== null && \(!centralAttendance \|\| centralCapability\?\.declaredName === true\)/);
+  assert.match(attendance, /const canSaveAttendance = canWriteAttendance/);
+  assert.match(general, /if \(!canWriteSettings\) return/);
+  assert.match(attendance, /if \(!settings \|\| !hasUnsavedChanges \|\| !canSaveAttendance \|\| isSaving\) return/);
+  assert.match(guard, /assertCentralOperationalSettingsPrivilege\(principal, request\.body\)/);
+  assert.match(guard, /checkCsrf\(/);
+  // A feature flag or a browser event is never a central ACL grant.
+  assert.doesNotMatch(general, /event\.detail\..*WriteEnabled/);
+  assert.doesNotMatch(attendance, /event\.detail\..*WriteEnabled/);
 });

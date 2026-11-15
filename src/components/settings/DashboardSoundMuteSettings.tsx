@@ -10,6 +10,7 @@ import {
   getSystemSettings,
   isValidDashboardSoundMuteDuration,
   updateSystemSettings,
+  SYSTEM_SETTINGS_CHANGED_EVENT,
 } from "@/services/systemSettingsService";
 import { DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES } from "@/utils/dashboardSoundMuteUtils";
 
@@ -18,7 +19,8 @@ export function DashboardSoundMuteSettings() {
   const { access } = useModuleAccess();
   const centralMode = access?.centralAccessEnabled === true;
   const [centralWritable, setCentralWritable] = useState(false);
-  const canWriteCycle = !centralMode || centralWritable;
+  // A missing Hub access snapshot is not evidence of legacy mode.
+  const canWriteCycle = access !== null && (!centralMode || centralWritable);
   const [autoMuteEnabled, setAutoMuteEnabled] = useState(false);
   const [activeDurationMinutes, setActiveDurationMinutes] = useState(
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
@@ -58,6 +60,34 @@ export function DashboardSoundMuteSettings() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  // CFG-15J: unlike the local audio files, the alarm cycle is a GLOBAL
+  // operational setting. Recheck its server flag when access may have changed
+  // and never reset unsaved timer drafts during capability refresh.
+  useEffect(() => {
+    if (!centralMode || loading || saving || Boolean(loadError)) return;
+    let mounted = true;
+    let requestVersion = 0;
+    const revalidate = () => {
+      const request = ++requestVersion;
+      setCentralWritable(false); // fail closed until server confirms
+      void getSystemSettings().then(settings => {
+        if (mounted && request === requestVersion)
+          setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true);
+      }).catch(() => {
+        if (mounted && request === requestVersion) setCentralWritable(false);
+      });
+    };
+    revalidate();
+    window.addEventListener("focus", revalidate);
+    window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    return () => {
+      mounted = false;
+      requestVersion++;
+      window.removeEventListener("focus", revalidate);
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate);
+    };
+  }, [centralMode, loading, saving, loadError]);
 
   async function handleSave() {
     if (!canWriteCycle || loading || saving || Boolean(loadError)) return;
