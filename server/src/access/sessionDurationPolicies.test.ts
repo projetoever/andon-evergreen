@@ -32,8 +32,7 @@ function reader({ policy, expiry, idleAt, permissions, persistent = false, revok
       permissions: permissions.map(key => ({ key })),
     },
   };
-  const db = ({ accessSession: { findUnique: async () => record } }
-    as unknown as Pick<Prisma.TransactionClient, "accessSession">);
+  const db = { accessSession: { findUnique: async () => record } } as unknown as Pick<Prisma.TransactionClient, "accessSession">;
   return { db, request: { workstationId: "ws-37", token } };
 }
 
