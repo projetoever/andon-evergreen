@@ -61,7 +61,8 @@ test("SEC-18B: workstation trust is not mistaken for an active persistent Person
   assert.match(workstations, /lastLogin\?\.state === "valid"/);
   assert.match(workstations, /Terminal autorizado, mas sem login persistente confirmado/);
   assert.match(users, /value=\{draft\.sessionPolicy\}/);
-  assert.match(users, /Não expirar — workstation confiável e máquina fixada/);
+  assert.match(users, /Não expirar — workstation confiável \(sem fixar tela\)/);
+  assert.doesNotMatch(users, /Não expirar — workstation confiável e máquina fixada/);
   assert.doesNotMatch(workstations, /workstation-kiosk-trust-status/);
   assert.doesNotMatch(workstations, /Confiança Kiosk/);
 });
