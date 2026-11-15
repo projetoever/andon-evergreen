@@ -1469,6 +1469,122 @@ function Get-AndonKioskProcess {
     Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*chrome-profile*" -or $_.CommandLine -like "*C:\web-andon-industrial\andon\chrome-profile*" }
 }
 
+# REFINE23 / WIN-EPERM: Prisma's native DLL is not replaceable while a
+# Windows process still has its image mapped. Do not regenerate the client
+# unnecessarily, and never delete a valid client or kill unrelated Node apps.
+function Test-AndonPrismaClientReusable {
+    param([Parameter(Mandatory = $true)][string]$ServerPath)
+
+    $schemaPath = Join-Path $ServerPath "prisma\schema.prisma"
+    $clientDir = Join-Path $ServerPath "node_modules\.prisma\client"
+    $generatedSchemaPath = Join-Path $clientDir "schema.prisma"
+    $prismaManifest = Join-Path $ServerPath "node_modules\prisma\package.json"
+    $clientManifest = Join-Path $ServerPath "node_modules\@prisma\client\package.json"
+    $required = @(
+        $schemaPath,
+        $generatedSchemaPath,
+        $prismaManifest,
+        $clientManifest,
+        (Join-Path $clientDir "index.js"),
+        (Join-Path $clientDir "query_engine-windows.dll.node"),
+        (Join-Path $ServerPath "node_modules\@prisma\client\default.js")
+    )
+    foreach ($path in $required) {
+        if (!(Test-Path -LiteralPath $path -PathType Leaf)) { return $false }
+        if ((Get-Item -LiteralPath $path -ErrorAction SilentlyContinue).Length -le 0) { return $false }
+    }
+
+    try {
+        $prisma = Get-Content -LiteralPath $prismaManifest -Raw -ErrorAction Stop | ConvertFrom-Json
+        $client = Get-Content -LiteralPath $clientManifest -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ([string]::IsNullOrWhiteSpace([string]$prisma.version) -or
+            [string]$prisma.version -ne [string]$client.version) { return $false }
+        # Prisma 6 can normalize BOM and line endings in the emitted schema.
+        # Never ignore model, field, datasource or generator differences.
+        $source = [System.IO.File]::ReadAllText($schemaPath).TrimStart([char]0xFEFF)
+        $generated = [System.IO.File]::ReadAllText($generatedSchemaPath).TrimStart([char]0xFEFF)
+        $crlf = [string][char]13 + [char]10
+        $lf = [string][char]10
+        $cr = [string][char]13
+        $source = $source.Replace($crlf, $lf).Replace($cr, $lf).TrimEnd()
+        $generated = $generated.Replace($crlf, $lf).Replace($cr, $lf).TrimEnd()
+        return $source -ceq $generated
+    } catch {
+        return $false
+    }
+}
+
+function Stop-AndonPrismaEngineNodeOwners {
+    param([Parameter(Mandatory = $true)][string]$ServerPath)
+
+    $dllPath = Join-Path $ServerPath "node_modules\.prisma\client\query_engine-windows.dll.node"
+    if (!(Test-Path -LiteralPath $dllPath -PathType Leaf)) { return }
+    $expected = [System.IO.Path]::GetFullPath($dllPath).ToLowerInvariant()
+
+    # Only a node.exe process proven to have loaded THIS EXACT engine DLL
+    # qualifies. Do not stop Docker, PostgreSQL, other Node services or browsers.
+    $candidates = @(Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue)
+    foreach ($process in $candidates) {
+        $modules = @()
+        try {
+            $modules = @(Get-Process -Id $process.ProcessId -Module -ErrorAction Stop)
+        } catch {
+            # No reliable proof of DLL ownership => never terminate the PID.
+            continue
+        }
+        $ownsEngine = @($modules | Where-Object {
+            ![string]::IsNullOrWhiteSpace($_.FileName) -and
+            $_.FileName.Replace("/", "\").ToLowerInvariant() -eq $expected
+        }).Count -gt 0
+        if (!$ownsEngine) { continue }
+        Write-AndonWarn "Processo Node PID $($process.ProcessId) ainda usa o Prisma do ANDON. Encerrando apenas esse processo."
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+    }
+}
+
+function Invoke-AndonPrismaClientEnsure {
+    param(
+        [Parameter(Mandatory = $true)][string]$ServerPath,
+        [Parameter(Mandatory = $true)][string]$NpmPath
+    )
+
+    # Complete Win64 engine, same Prisma/client versions and exact schema
+    # content are mandatory. Never assume a stale client is safe.
+    if (Test-AndonPrismaClientReusable -ServerPath $ServerPath) {
+        Write-AndonOk "Prisma Client Windows ja compativel com schema e versoes; DLL preservada."
+        return
+    }
+
+    $lastError = ""
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        if ($attempt -gt 1) {
+            Write-AndonWarn "Nova tentativa segura de gerar Prisma ($attempt/3), sem excluir a DLL."
+            Start-Sleep -Seconds (2 * $attempt)
+        }
+        Stop-AndonPrismaEngineNodeOwners -ServerPath $ServerPath
+        try {
+            Invoke-AndonNodeProcess $NpmPath @("run", "db:generate") $ServerPath
+            if (!(Test-AndonPrismaClientReusable -ServerPath $ServerPath)) {
+                throw "Prisma generate terminou, mas o schema/versao ou engine Windows nao foi validado."
+            }
+            Write-AndonOk "Prisma Client gerado e validado na tentativa $attempt."
+            return
+        } catch {
+            $lastError = $_.Exception.Message
+            Write-AndonWarn "Prisma Client nao pronto: tentativa $attempt de 3 falhou."
+        }
+    }
+
+    throw (
+        "Prisma Client Windows nao pode ser gerado apos 3 tentativas. " +
+        "Possivel DLL bloqueada por processo ou antivirus. " +
+        "Nenhum cliente foi excluido manualmente. " +
+        "Use o log do instalador para verificar processos que carregam " +
+        "query_engine-windows.dll.node; nao apague node_modules ou o banco. " +
+        "Ultimo erro: $lastError"
+    )
+}
+
 function Invoke-AndonNodePipeline {
     param(
         [bool]$RunSeed = $false,
@@ -1488,7 +1604,7 @@ function Invoke-AndonNodePipeline {
     if (!(Test-Path $serverPath)) { throw "Backend nao encontrado: $serverPath" }
     Remove-Item Env:\NODE_ENV -ErrorAction SilentlyContinue
     if ($InstallDependencies) { Invoke-AndonNodeProcess $npm @("install", "--include=dev", "--no-audit", "--no-fund") $serverPath }
-    Invoke-AndonNodeProcess $npm @("run", "db:generate") $serverPath
+    Invoke-AndonPrismaClientEnsure -ServerPath $serverPath -NpmPath $npm
     Invoke-AndonNodeProcess $npm @("run", "db:migrate") $serverPath
     if ($RunSeed) {
         if (@("empty", "starter", "demo") -notcontains $SeedProfile) {
