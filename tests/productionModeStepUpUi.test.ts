@@ -46,3 +46,17 @@ test("REFINE20: central transition maintains transactional proof, audit and lega
   assert.match(legacy, /"\/api\/machines\/:id\/production-mode"/);
   assert.doesNotMatch(workstation, /markCentralProductionModeDirectAuthorized/);
 });
+
+test("REFINE21 mobile: production schedule buttons remain readable at narrow widths", async () => {
+  const schedule = await read("../src/components/machines/ProductionSchedulePanel.tsx");
+  assert.match(schedule, /grid-cols-2/);
+  assert.match(schedule, /w-full min-w-0/);
+  assert.match(schedule, /min-h-11/);
+  assert.match(schedule, /whitespace-normal break-words text-center leading-tight/);
+  assert.doesNotMatch(schedule, /className="truncate"/);
+  assert.doesNotMatch(schedule, /min-w-\[220px\] shrink-0/);
+  assert.match(schedule, /onClick=\{\(\) => onChange\("scheduled"\)\}/);
+  assert.match(schedule, /onClick=\{\(\) => onChange\("not_scheduled"\)\}/);
+  assert.match(schedule, /disabled=\{machine\.productionMode === "scheduled"\}/);
+  assert.match(schedule, /disabled=\{machine\.productionMode === "not_scheduled"\}/);
+});
