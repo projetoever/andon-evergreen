@@ -31,6 +31,10 @@ try {
     Set-Content -LiteralPath $enginePath -Value 'simulated engine'
 
     Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture) "Complete client with matching versions/schema must skip generate"
+    $reason = "stale previous reason"
+    Assert-PrismaTest (Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason)) "Valid client must be reusable with a diagnostic receiver"
+    Assert-PrismaTest ($reason -eq "") "Successful validation must clear stale failure reason"
+
 
     $script:attempts = 0
     $script:engineChecks = 0
@@ -47,6 +51,10 @@ try {
 
     Set-Content -LiteralPath $sourcePath -Value 'model Machine { id String @id; name String }'
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Changed Prisma schema requires regeneration"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Changed schema must fail with diagnostics"
+    Assert-PrismaTest ($reason.Contains("Schema Prisma divergente:") -and $reason.Contains("sourceSHA256=") -and $reason.Contains("generatedSHA256=")) "Schema divergence must be diagnosable without printing schema contents"
+
     $script:attempts = 0
     $script:engineChecks = 0
     Set-Item Function:\Stop-AndonPrismaEngineNodeOwners -Value {
@@ -65,9 +73,17 @@ try {
 
     Set-Content -LiteralPath (Join-Path $clientDir "package.json") -Value '{"version":"6.19.2"}'
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Version mismatch must deny client reuse"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Version mismatch must have diagnostic reason"
+    Assert-PrismaTest ($reason.Contains("Versoes Prisma diferentes:")) "Version divergence reason must be explicit"
+
     Set-Content -LiteralPath (Join-Path $clientDir "package.json") -Value '{"version":"6.19.3"}'
     Remove-Item -LiteralPath $enginePath
     Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture)) "Missing DLL must deny client reuse"
+    $reason = ""
+    Assert-PrismaTest (!(Test-AndonPrismaClientReusable -ServerPath $fixture -FailureReason ([ref]$reason))) "Missing engine must have diagnostic reason"
+    Assert-PrismaTest ($reason.Contains("Artefato ausente:") -and $reason.Contains("query_engine-windows.dll.node")) "Engine absence must be identified"
+
 } finally {
     Set-Item Function:\Invoke-AndonNodeProcess -Value $originalGenerate
     Set-Item Function:\Stop-AndonPrismaEngineNodeOwners -Value $originalEngineOwners
