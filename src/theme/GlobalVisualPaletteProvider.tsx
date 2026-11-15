@@ -6,6 +6,7 @@ import {
   accentForTheme,
   DEFAULT_VISUAL_PALETTE,
   VISUAL_PALETTE_KEYS,
+  presentationSurfaceForTheme,
   type VisualPaletteDraft,
 } from "@/theme/andonVisualPalette";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -18,6 +19,10 @@ const VARIABLES = {
   operationAccent: "--andon-palette-operation-accent",
   focusAccent: "--andon-palette-focus-accent",
   priorityBorder: "--andon-palette-priority-border",
+  dashboardBackground: "--andon-palette-dashboard-background",
+  machineSurface: "--andon-palette-machine-surface",
+  failureSurface: "--andon-palette-failure-surface",
+  prioritySurface: "--andon-palette-priority-surface",
 } as const;
 
 /**
@@ -69,7 +74,12 @@ export function GlobalVisualPaletteProvider({ children }: { children: ReactNode 
       // category identity colors exactly, including isolated component tests.
       if (current.palette[key] === DEFAULT_VISUAL_PALETTE[key])
         root.style.removeProperty(VARIABLES[key]);
-      else root.style.setProperty(VARIABLES[key], accentForTheme(current.palette[key], theme));
+      else root.style.setProperty(VARIABLES[key],
+        key === "dashboardBackground"
+          ? presentationSurfaceForTheme(current.palette[key], theme, "dashboard")
+          : key === "machineSurface"
+            ? presentationSurfaceForTheme(current.palette[key], theme, "machine")
+            : accentForTheme(current.palette[key], theme));
     }
     return () => {
       for (const key of VISUAL_PALETTE_KEYS)
