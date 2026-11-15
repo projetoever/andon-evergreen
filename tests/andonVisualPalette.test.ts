@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  hexToHsv, hexToRgb, hsvToHex, hsvToRgb, rgbToHex,
+  hexToHsv, hexToRgb, hsvToHex, hsvToRgb, rgbToHex, rgbDraftToHex,
 } from "../src/theme/colorPickerMath";
 import {
   DEFAULT_VISUAL_PALETTE, VISUAL_PALETTE_KEYS, VISUAL_ACCENTS,
@@ -95,4 +95,21 @@ test("UX-12 Windows color selector: HSV full spectrum round-trips RGB without al
   for (const invalid of [{ r: -1, g: 1, b: 1 }, { r: 256, g: 1, b: 1 }, { r: 1.5, g: 1, b: 1 }]) {
     assert.throws(() => rgbToHex(invalid), /invalid_rgb_channel/);
   }
+});
+
+test("REFINE21 UX-RGB: whole numeric draft is committed without losing other channels", async () => {
+  assert.equal(rgbDraftToHex({ r: " 12 ", g: "34", b: "255" }), "#0C22FF");
+  assert.equal(rgbDraftToHex({ r: "001", g: "0", b: "000" }), "#010000");
+  assert.equal(rgbDraftToHex({ r: "255", g: "255", b: "255" }), "#FFFFFF");
+  for (const invalid of [
+    { r: "", g: "2", b: "3" }, { r: "256", g: "2", b: "3" },
+    { r: "-1", g: "2", b: "3" }, { r: "1.5", g: "2", b: "3" },
+    { r: "1e2", g: "2", b: "3" }, { r: "1", g: "   ", b: "3" },
+    { r: "1234", g: "2", b: "3" }, { r: "1", g: "0x10", b: "3" },
+  ]) assert.equal(rgbDraftToHex(invalid), null, JSON.stringify(invalid));
+  const picker = await source("src/components/settings/VisualAccentRgbPicker.tsx");
+  assert.match(picker, /const next = rgbDraftToHex\(rgbInputs\)/);
+  assert.match(picker, /onBlur=\{commitRgb\}/);
+  assert.doesNotMatch(picker, /\[channel\]: Number\(raw\)/);
+  assert.match(picker, /hsv\.v === 0 \? 1 : hsv\.v/);
 });
