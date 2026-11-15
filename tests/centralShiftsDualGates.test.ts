@@ -51,8 +51,8 @@ test("CFG-15D2: asset catalogs and whole-set policy use independent central feat
     source("../server/src/security/centralAssetTypeCatalogHttp.ts"),
   ]);
   assert.ok(panel.includes("const centralMode = access?.centralAccessEnabled === true"));
-  assert.ok(panel.includes("const canWriteCatalog = access !== null && (!centralMode || systemSettings?.centralAssetTypeCatalogWriteEnabled === true)"));
-  assert.ok(panel.includes("const canWritePolicy = access !== null && (!centralMode || systemSettings?.centralOperationalSettingsWriteEnabled === true)"));
+  assert.ok(panel.includes("const canWriteCatalog = access !== null && (!centralMode || centralCapabilities?.catalog === true)"));
+  assert.ok(panel.includes("const canWritePolicy = access !== null && (!centralMode || centralCapabilities?.policy === true)"));
   assert.ok(panel.includes("setSystemSettings(null); // fail closed while refreshing capabilities"));
   assert.ok(panel.includes("if (!canWriteCatalog || isSaving || isLoading || Boolean(loadError)) return;"));
   assert.ok(panel.includes("if (!canWritePolicy || isLoadingPolicy || isSavingPolicy || !systemSettings) return;"));
