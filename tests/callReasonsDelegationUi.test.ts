@@ -117,7 +117,7 @@ test("CFG-15I: reasons revalidate live flag without accepting browser grants or 
   assert.match(page,/request !== requestVersion/);
   assert.match(page,/value\.centralCallReasonsCatalogEnabled !== true/);
   assert.match(page,/catalogLoadedRef\.current/);
-  assert.match(page,/const writeBlocked = busy \|\| capabilityChecking \|\| !enabled/);
+  assert.match(page,/const writeBlocked = access === null \|\| busy \|\| capabilityChecking \|\| !enabled/);
   assert.match(page,/if \(writeBlocked\) return/);
   assert.match(page,/if \(!chosen \|\| !areaToAdd \|\| busy \|\| restrictedDelegatedLink \|\| writeBlocked\) return/);
   assert.match(page,/Não foi possível confirmar a disponibilidade do catálogo/);
