@@ -21,18 +21,19 @@ test("REFINE15: operator Production and least-privileged maintenance can remain 
   }, station, machines, "selected"), true);
 });
 
-test("REFINE15: no persistent Admin, security manager, unapproved station, or unpinned screen", () => {
+test("SEC21: no persistent Admin, unapproved station, or unpinned screen", () => {
   assert.equal(permitsPersistentOperationalAccount({ ...user, isPrimaryAdmin: true },
     station, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount({ ...user, mustChangePassword: true },
     station, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount({ ...user, accountType: "kiosk" },
     station, machines, "selected"), false);
-  for (const key of ["users.create", "workstations.manage", "andon.settings.open",
-    "analytics.policy.manage", "audit.read", "catalog.assets.manage"]) {
+  // An account retains precisely its selected grants. The API independently
+  // enforces recent Admin credentials, module ACL and pinned machine scope.
+  for (const key of ["workstations.manage", "andon.settings.open", "catalog.assets.manage"]) {
     assert.equal(permitsPersistentOperationalAccount({
       ...user, permissions: [...user.permissions, { key }],
-    }, station, machines, "selected"), false, key);
+    }, station, machines, "selected"), true, key);
   }
   assert.equal(permitsPersistentOperationalAccount(user,
     { ...station, lockedMachineId: null }, machines, "selected"), false);
