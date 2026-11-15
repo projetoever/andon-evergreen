@@ -92,6 +92,7 @@ test("SEC21: workstation write controls fail closed until Hub mode and grant are
   assert.equal(canManageWorkstationSettings("api", true, legacy, admin), false);
   const component = await readFile(
     new URL("../src/components/settings/WorkstationsSettingsTab.tsx", import.meta.url), "utf8");
-  assert.match(component, /canManageWorkstationSettings\(/);
-  assert.doesNotMatch(component, /CONFIGURED_DATA_MODE === "local" \|\|\s*!centralAccess/);
+  const managementGate = component.split("const canManage =")[1]?.split("const filteredItems")[0] ?? "";
+  assert.match(managementGate, /canManageWorkstationSettings\(/);
+  assert.doesNotMatch(managementGate, /!centralAccess/);
 });
