@@ -63,7 +63,7 @@ const userProperties = {
   accountType: { enum: ["person", "kiosk"] },
   active: { type: "boolean" },
   machineScope: { enum: ["all", "selected"] },
-  sessionPolicy: { enum: ["standard", "persistent"] },
+  sessionPolicy: { enum: ["standard", "daily", "persistent"] },
   permissions: {
     type: "array",
     maxItems: PERMISSIONS.length,
@@ -760,6 +760,7 @@ export function registerAccessRoutes(
                   roleLabel: true,
                   active: true,
                   authorizationVersion: true,
+                  sessionPolicy: true,
                 },
               },
             },
@@ -775,7 +776,8 @@ export function registerAccessRoutes(
           latest &&
           !latest.revokedAt &&
           (latest.persistentOperational || latest.expiresAt > now) &&
-          (latest.persistentOperational || latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()) &&
+          (latest.persistentOperational || latest.user.sessionPolicy === "daily" ||
+            latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()) &&
           latest.user.active &&
           latest.authorizationVersion === latest.user.authorizationVersion &&
           station.active &&
@@ -790,7 +792,8 @@ export function registerAccessRoutes(
             : latest.revokedAt
               ? "revoked"
               : (!latest.persistentOperational && latest.expiresAt <= now) ||
-                  (!latest.persistentOperational && latest.lastInteractionAt.getTime() + 30 * 60 * 1000 <= now.getTime())
+                  (!latest.persistentOperational && latest.user.sessionPolicy !== "daily" &&
+                    latest.lastInteractionAt.getTime() + 30 * 60 * 1000 <= now.getTime())
                 ? "expired"
                 : !latest.user.active
                   ? "user_inactive"
@@ -856,13 +859,14 @@ export function registerAccessRoutes(
           const sessions = await tx.accessSession.findMany({
             where: { workstationId: id, revokedAt: null,
               OR: [{ persistentOperational: true }, { expiresAt: { gt: now } }], },
-            include: { user: { select: { isPrimaryAdmin: true, active: true } } },
+            include: { user: { select: { isPrimaryAdmin: true, active: true, sessionPolicy: true } } },
           });
           if (sessions.some(s => s.user.isPrimaryAdmin))
             throw new AccessError("admin_workstation_protected", 409);
           const ids = sessions
             .filter(s => s.user.active && s.purpose === "normal" &&
-              (s.persistentOperational || s.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()))
+              (s.persistentOperational || s.user.sessionPolicy === "daily" ||
+                s.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()))
             .map(s => s.id);
           if (!ids.length) throw new AccessError("no_active_session", 409);
           // The WHERE clause rechecks that sessions remain active. This only
