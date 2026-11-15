@@ -49,10 +49,10 @@ test("CFG-15A: central sector actions fail closed on write flag and forbid DELET
   assert.match(tab, /useModuleAccess\(\)/);
   assert.match(tab, /centralAccessEnabled === true/);
   assert.match(tab, /centralCategorySettingsWriteEnabled === true/);
-  assert.match(tab, /const canChangeCatalog = !centralMode \|\| centralCatalogWritable/);
+  assert.match(tab, /const canChangeCatalog = access !== null && \(!centralMode \|\| centralCatalogWritable\)/);
   assert.match(tab, /if \(isBusy \|\| !canChangeCatalog\) return/);
-  assert.match(tab, /if \(centralMode \|\| !selectedId \|\| isBusy\) return/);
-  assert.match(tab, /disabled=\{!selectedId \|\| isBusy \|\| centralMode\}/);
+  assert.match(tab, /if \(access === null \|\| centralMode \|\| !selectedId \|\| isBusy\) return/);
+  assert.match(tab, /disabled=\{!selectedId \|\| isBusy \|\| access === null \|\| centralMode\}/);
   assert.match(tab, /disabled=\{isBusy \|\| !canChangeCatalog\}/);
   assert.match(tab, /disabled=\{isBusy \|\| isLoading \|\| Boolean\(loadError\) \|\| !canChangeCatalog\}/);
   assert.match(tab, /setCentralCatalogWritable\(false\)/);
