@@ -73,3 +73,16 @@ test("CFG-15L: an unresolved Hub response is denied regardless of server flags",
   assert.equal(check({ centralAccessEnabled: false }, false), true);
   assert.equal(check({ centralAccessEnabled: false }, true), true);
 });
+
+
+test("CFG-15L: reasons/subcategories cannot write on a cached flag without confirmed Hub identity", async () => {
+  const tab = await source("../src/components/settings/CallReasonsSettingsTab.tsx");
+  assert.match(tab, /const \{ access \} = useModuleAccess\(\)/);
+  assert.match(tab, /const writeBlocked = access === null \|\| busy \|\| capabilityChecking \|\| !enabled \|\| Boolean\(error\) \|\| loading/);
+  assert.match(tab, /if \(writeBlocked\) return/);
+  assert.match(tab, /if \(!chosen \|\| !areaToAdd \|\| busy \|\| restrictedDelegatedLink \|\| writeBlocked\) return/);
+  assert.match(tab, /if \(!chosen \|\| writeBlocked \|\| editingOptionId !== option\.id\) return/);
+  assert.match(tab, /setCapabilityChecking\(true\)/);
+  assert.match(tab, /setEnabled\(false\)/);
+  assert.match(tab, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+});
