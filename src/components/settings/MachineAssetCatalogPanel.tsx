@@ -342,7 +342,7 @@ export function MachineAssetCatalogPanel() {
 
   async function handleDelete(item: MachineAssetCatalogItem) {
     // The central API supports POST/PATCH only. Legacy DELETE must not be offered.
-    if (centralMode || isSaving || isLoading || Boolean(loadError)) return;
+    if (access === null || centralMode || isSaving || isLoading || Boolean(loadError)) return;
     const confirmed = window.confirm(
       ui(
         'Excluir o tipo "{0}"? Vínculos apenas com ativos inativos serão preservados sem este tipo. Se houver ativo em uso, o tipo será inativado.',
@@ -835,7 +835,7 @@ export function MachineAssetCatalogPanel() {
                           {item.isActive ? ui("Inativar") : ui("Reativar")}
                         </Button>
 
-                        {!centralMode && (
+                        {access !== null && !centralMode && (
                           <Button
                             type="button"
                             size="sm"
