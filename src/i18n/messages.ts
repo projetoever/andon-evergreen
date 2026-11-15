@@ -5969,4 +5969,16 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Retornando ao Hub para verificar os módulos autorizados…","Returning to the Hub to check authorized modules…","返回模組中心以確認已授權的模組…"],
   ["Os grupos não liberam administração do Hub, contas ou workstations. Ações como desfixar tela ainda exigem credenciais e validação da API. A duração da sessão não altera as funções escolhidas. A API valida cada ação.","The groups do not grant Hub administration, user accounts, or workstation access. Actions like unpinning a screen still require credentials and API validation. Session duration does not change the selected functions. The API validates each action.","這些權限群組不授予中心管理、使用者帳號或工作站權限。解除機台畫面固定等操作仍需憑證及 API 驗證。工作階段期間不會變更所選功能；API 會驗證每項操作。"],
 
+  ["Selecione Não expirar na política de login deste usuário.","Select No expiry in this user's login policy.","在此使用者的登入政策中選擇不過期。"],
+  ["Utilize uma conta Pessoa, não um cadastro Kiosk inativo.","Use a Person account, not an inactive Kiosk record.","請使用個人帳號，而非未啟用的 Kiosk 記錄。"],
+  ["A conta Admin principal não pode ter sessão permanente.","The primary Admin account cannot have a permanent session.","主要管理員帳號不可使用永久工作階段。"],
+  ["Conclua a troca de senha provisória antes de ativar a sessão permanente.","Complete the temporary-password change before enabling a permanent session.","請先完成臨時密碼變更，再啟用永久工作階段。"],
+  ["O administrador deve aprovar e ativar esta workstation.","An administrator must approve and activate this workstation.","管理員必須核准並啟用此工作站。"],
+  ["Habilite Não expirar login operacional na aba Workstations.","Enable No expiry for operational login in the Workstations tab.","請在工作站分頁啟用操作登入不過期。"],
+  ["Fixe a máquina na workstation nas configurações do Hub.","Pin the machine to this workstation in Hub settings.","請在模組中心設定中將機台固定至此工作站。"],
+  ["Selecione pelo menos uma permissão operacional para o perfil.","Select at least one operational permission for this profile.","請為此角色至少選取一項操作權限。"],
+  ["Inclua a máquina fixada no escopo de máquinas do usuário.","Include the pinned machine in the user's machine scope.","請將固定機台加入使用者的機台範圍。"],
+  ["Confira confiança, máquina fixada e autorização antes de entrar novamente.","Verify trust, pinned machine and permission settings before signing in again.","再次登入前，請確認信任設定、固定機台及權限。"],
+  ["Sessão sem expiração NÃO ativada. Este login pode expirar por inatividade.","No-expiry session NOT active. This login may expire after inactivity.","不過期工作階段尚未啟用。此登入可能因閒置而到期。"],
+  ["Conexão temporariamente indisponível. Verificando novamente sem encerrar sua sessão.","Connection temporarily unavailable. Checking again without signing you out.","連線暫時無法使用。正在重新確認，不會主動將您登出。"],
 ]; 
