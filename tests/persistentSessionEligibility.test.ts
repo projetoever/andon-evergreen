@@ -18,8 +18,8 @@ test("SEC-21: session duration never overwrites the selected profile grants", as
   assert.match(access, /"standard" \| "daily" \| "persistent"/);
   assert.match(server, /permissions: row\.user\.permissions\.map\(\(x\) => x\.key\)/);
   assert.doesNotMatch(server, /TRUSTED_OPERATIONAL_GRANTS/);
-  assert.match(server, /row\.persistentOperational \? "selected" : row\.user\.machineScope/);
-  assert.match(server, /row\.persistentMachineId!/);
+  assert.match(server, /machineScope: row\.user\.machineScope/);
+  assert.match(server, /machineIds: row\.user\.machines\.map/);
 });
 
 
@@ -74,7 +74,8 @@ test("REFINE23: persistent trusted login survives Firefox close and workstation 
   assert.match(http, /__Host-andon-access/);
   assert.match(sessions, /expiresAt: persistentOperational \? new Date\("9999-12-31T00:00:00\.000Z"\)/);
   assert.match(sessions, /row\.persistentOperational &&/);
-  assert.match(sessions, /row\.persistentMachineId !== row\.workstation\.lockedMachineId/);
+  assert.doesNotMatch(sessions, /row\.persistentMachineId !== row\.workstation\.lockedMachineId/);
+  assert.match(sessions, /persistentMachineId: null/);
   assert.match(sessions, /row\.authorizationVersion !== row\.user\.authorizationVersion/);
 
   // Browser restart must reuse the same machine ID using a cookie and localStorage.
@@ -106,4 +107,21 @@ test("SEC21 workstation login: no concurrent POSTs or premature credential reset
   assert.doesNotMatch(authenticate, /event\.currentTarget\.reset\(\)/);
   assert.ok(authenticate.indexOf('form.reset()') > authenticate.indexOf('"/login", "POST"'),
     "The server must authenticate before the form is cleared");
+});
+
+test("P0 permanent login requires no pinned machine and is never implicitly revoked by another login", async () => {
+  const [sessions, workstations, hints, api] = await Promise.all([
+    read("../server/src/access/sessions.ts"),
+    read("../src/components/settings/WorkstationsSettingsTab.tsx"),
+    read("../src/services/persistentSessionStatus.ts"),
+    read("../server/src/routes/access.ts"),
+  ]);
+  assert.doesNotMatch(sessions, /machine_not_pinned|machine_scope_mismatch/);
+  assert.doesNotMatch(sessions, /userId: \{ not: effective\.id \}/);
+  assert.doesNotMatch(sessions, /row\.persistentMachineId !== row\.workstation\.lockedMachineId/);
+  assert.doesNotMatch(api, /throw new AccessError\("machine_screen_required", 409\)/);
+  assert.doesNotMatch(hints, /Fixe a máquina|máquina fixada/);
+  assert.doesNotMatch(workstations, /!workstation\.lockedMachineId &&\s*!workstation\.allowPersistentOperationalLogin/);
+  assert.match(sessions, /machineScope: row\.user\.machineScope/);
+  assert.match(sessions, /machineIds: row\.user\.machines\.map/);
 });
