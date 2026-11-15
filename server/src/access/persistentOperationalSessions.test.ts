@@ -21,7 +21,7 @@ test("REFINE15: operator Production and least-privileged maintenance can remain 
   }, station, machines, "selected"), true);
 });
 
-test("SEC21: no persistent Admin, unapproved station, or unpinned screen", () => {
+test("SEC21: no persistent Admin or unapproved station, but fixed machine is optional", () => {
   assert.equal(permitsPersistentOperationalAccount({ ...user, isPrimaryAdmin: true },
     station, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount({ ...user, mustChangePassword: true },
@@ -36,7 +36,7 @@ test("SEC21: no persistent Admin, unapproved station, or unpinned screen", () =>
     }, station, machines, "selected"), true, key);
   }
   assert.equal(permitsPersistentOperationalAccount(user,
-    { ...station, lockedMachineId: null }, machines, "selected"), false);
+    { ...station, lockedMachineId: null }, machines, "selected"), true);
   assert.equal(permitsPersistentOperationalAccount(user,
     { ...station, active: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user,
@@ -44,7 +44,8 @@ test("SEC21: no persistent Admin, unapproved station, or unpinned screen", () =>
   assert.equal(permitsPersistentOperationalAccount(user,
     { ...station, allowPersistentOperationalLogin: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user, station,
-    [{ machineId: "39" }], "selected"), false);
+    [{ machineId: "39" }], "selected"), true,
+    "session duration does not replace the user's machine scope");
 });
 
 
@@ -81,15 +82,15 @@ test("SEC21 P0: persistent login must reveal its exact nonsecret failure reason"
     { reason: "workstation_not_approved", u: user, s: { ...station, active: false }, m: machines },
     { reason: "workstation_not_approved", u: user, s: { ...station, pendingApproval: true }, m: machines },
     { reason: "workstation_not_trusted", u: user, s: { ...station, allowPersistentOperationalLogin: false }, m: machines },
-    { reason: "machine_not_pinned", u: user, s: { ...station, lockedMachineId: null }, m: machines },
     { reason: "no_selected_permissions", u: { ...user, permissions: [] }, s: station, m: machines },
-    { reason: "machine_scope_mismatch", u: user, s: station, m: [{ machineId: "39" }] },
   ];
   for (const entry of cases) {
     assert.equal(persistentOperationalBlocker(entry.u, entry.s, entry.m, "selected"), entry.reason);
     assert.equal(permitsPersistentOperationalAccount(entry.u, entry.s, entry.m, "selected"), false);
   }
   assert.equal(persistentOperationalBlocker(user, station, [], "all"), null);
+  assert.equal(persistentOperationalBlocker(user, { ...station, lockedMachineId: null }, machines, "selected"), null);
+  assert.equal(persistentOperationalBlocker(user, { ...station, lockedMachineId: "39" }, machines, "selected"), null);
   assert.equal(persistentOperationalBlocker({
     ...user, permissions: [...user.permissions, { key: "catalog.assets.manage" }],
   }, station, machines, "selected"), null, "the profile ACL must never be replaced by session duration");
