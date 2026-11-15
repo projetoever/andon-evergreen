@@ -681,7 +681,7 @@ test("CFG-15D4: dashboard sound timers are read-only when central operational wr
     readFile(new URL("../src/components/settings/SoundsSettingsTab.tsx", import.meta.url), "utf8"),
   ]);
   assert.ok(panel.includes('const centralMode = access?.centralAccessEnabled === true'));
-  assert.ok(panel.includes('const canWriteCycle = !centralMode || centralWritable'));
+  assert.ok(panel.includes('const canWriteCycle = access !== null && (!centralMode || centralWritable)'));
   assert.ok(panel.includes('setCentralWritable(false)'));
   assert.ok(panel.includes('setCentralWritable(settings.centralOperationalSettingsWriteEnabled === true)'));
   assert.ok(panel.includes('if (!canWriteCycle || loading || saving || Boolean(loadError)) return;'));
@@ -694,4 +694,33 @@ test("CFG-15D4: dashboard sound timers are read-only when central operational wr
   assert.ok(service.includes('<DashboardSoundMuteSettings />'));
   assert.ok(!panel.includes("ANDON_CENTRAL_OPERATIONAL_SETTINGS_HTTP_ENABLED"));
   assert.ok(!panel.includes("gpio") && !panel.includes("externalSiren"));
+});
+
+
+test("CFG-15J: sound timer gate revalidates on focus and settings events, preserving unsaved fields", async () => {
+  const panel = await readFile(
+    new URL("../src/components/settings/DashboardSoundMuteSettings.tsx", import.meta.url), "utf8",
+  );
+  assert.match(panel, /SYSTEM_SETTINGS_CHANGED_EVENT/);
+  assert.match(panel, /window\.addEventListener\("focus", revalidate\)/);
+  assert.match(panel, /window\.addEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(panel, /window\.removeEventListener\("focus", revalidate\)/);
+  assert.match(panel, /window\.removeEventListener\(SYSTEM_SETTINGS_CHANGED_EVENT, revalidate\)/);
+  assert.match(panel, /if \(!centralMode \|\| loading \|\| saving \|\| Boolean\(loadError\)\) return/);
+  assert.match(panel, /const request = \+\+requestVersion/);
+  assert.match(panel, /mounted && request === requestVersion/);
+  assert.match(panel, /setCentralWritable\(false\); \/\/ fail closed until server confirms/);
+  assert.match(panel, /settings\.centralOperationalSettingsWriteEnabled === true/);
+  assert.match(panel, /const canWriteCycle = access !== null && \(!centralMode \|\| centralWritable\)/);
+  const capabilityEffect = panel.split("  // CFG-15J:")[1]?.split("  async function handleSave()")[0];
+  assert.ok(capabilityEffect, "capability effect must exist");
+  for (const forbidden of [
+    "setAutoMuteEnabled(", "setTimerEnabled(",
+    "setActiveDurationMinutes(", "setDurationMinutes(",
+    "updateSystemSettings(", "event.detail",
+  ]) {
+    assert.ok(!capabilityEffect.includes(forbidden), "capability refresh overwrites draft: " + forbidden);
+  }
+  assert.match(panel, /disabled=\{loading \|\| saving \|\| Boolean\(loadError\) \|\| !canWriteCycle\}/);
+  assert.match(panel, /if \(!canWriteCycle \|\| loading \|\| saving \|\| Boolean\(loadError\)\) return/);
 });
