@@ -5962,4 +5962,9 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Kiosk sem login por senha","Kiosk without password login","Kiosk 不支援密碼登入"],
   ["Verificando disponibilidade da paleta global...","Checking global palette availability...","正在確認全域配色可用性…"],
   ["Não foi possível confirmar a disponibilidade da paleta. Nenhuma edição será enviada.","Could not verify palette availability. No changes will be submitted.","無法確認配色功能是否可用。不會送出任何變更。"],
+  ["24 horas — sessão sem expiração por inatividade","24 hours — no idle timeout","24 小時 — 不因閒置而登出"],
+  ["Não expirar — workstation confiável e máquina fixada","No expiry — trusted workstation and pinned machine","不過期 — 受信任工作站及固定機台"],
+  ["A duração escolhida não modifica as permissões selecionadas. O modo sem expiração exige workstation aprovada e confiável, máquina fixada e conta não administrativa. A sessão permanece limitada à máquina fixada. Logout, revogação e alterações do perfil encerram a sessão.","The chosen duration does not change selected permissions. No-expiry mode requires an approved trusted workstation, a pinned machine, and a non-admin account. The session remains scoped to that machine. Logout, revocation, or changes to the profile end the session.","選擇的期間不會變更已勾選的權限。不過期模式需要已核准且受信任的工作站、固定機台及非管理員帳號。工作階段仍限於固定機台；登出、撤銷或修改帳號權限都會終止工作階段。"],
+  ["A duração da sessão não altera as funções escolhidas. A API valida cada ação.","Session duration does not change the selected functions. The API validates every action.","工作階段期間不會改變所選功能；API 會驗證每項操作。"],
+  ["Retornando ao Hub para verificar os módulos autorizados…","Returning to the Hub to check authorized modules…","返回模組中心以確認已授權的模組…"],
 ]; 
