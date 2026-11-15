@@ -1472,10 +1472,53 @@ function Get-AndonKioskProcess {
 # REFINE23 / WIN-EPERM: Prisma's native DLL is not replaceable while a
 # Windows process still has its image mapped. Do not regenerate the client
 # unnecessarily, and never delete a valid client or kill unrelated Node apps.
+function Get-AndonPrismaClientFingerprint {
+    param([Parameter(Mandatory = $true)][string]$ServerPath)
+
+    $schemaPath = Join-Path $ServerPath "prisma\schema.prisma"
+    $lockPath = Join-Path $ServerPath "package-lock.json"
+    $prismaManifest = Join-Path $ServerPath "node_modules\prisma\package.json"
+    $clientManifest = Join-Path $ServerPath "node_modules\@prisma\client\package.json"
+    foreach ($path in @($schemaPath, $lockPath, $prismaManifest, $clientManifest)) {
+        if (!(Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    }
+    try {
+        $prisma = Get-Content -LiteralPath $prismaManifest -Raw -ErrorAction Stop | ConvertFrom-Json
+        $client = Get-Content -LiteralPath $clientManifest -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ([string]::IsNullOrWhiteSpace([string]$prisma.version) -or
+            [string]$prisma.version -ne [string]$client.version) { return $null }
+        return [pscustomobject]@{
+            schemaSha256 = (Get-FileHash -LiteralPath $schemaPath -Algorithm SHA256 -ErrorAction Stop).Hash
+            lockSha256 = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256 -ErrorAction Stop).Hash
+            prismaVersion = [string]$prisma.version
+            clientVersion = [string]$client.version
+        }
+    } catch { return $null }
+}
+
+function Save-AndonPrismaClientFingerprint {
+    param([Parameter(Mandatory = $true)][string]$ServerPath)
+
+    $current = Get-AndonPrismaClientFingerprint -ServerPath $ServerPath
+    if ($null -eq $current) { throw "Prisma Client nao pode registrar fingerprint: lock/schema/versoes invalidos." }
+    $clientDir = Join-Path $ServerPath "node_modules\.prisma\client"
+    $stampPath = Join-Path $clientDir "andon-client-fingerprint.json"
+    $tmpPath = Join-Path $clientDir ("andon-client-fingerprint-" + [guid]::NewGuid().ToString("N") + ".tmp")
+    try {
+        $current | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $tmpPath -Encoding UTF8 -ErrorAction Stop
+        Move-Item -LiteralPath $tmpPath -Destination $stampPath -Force -ErrorAction Stop
+    } finally {
+        if (Test-Path -LiteralPath $tmpPath) {
+            Remove-Item -LiteralPath $tmpPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Test-AndonPrismaClientReusable {
     param(
         [Parameter(Mandatory = $true)][string]$ServerPath,
-        [ref]$FailureReason
+        [ref]$FailureReason,
+        [switch]$JustGenerated
     )
 
     if ($null -ne $FailureReason) { $FailureReason.Value = "" }
@@ -1514,6 +1557,34 @@ function Test-AndonPrismaClientReusable {
             }
             return $false
         }
+        # A zero-exit prisma generate is authoritative for its normalized schema
+        # ONLY in the code path that just invoked it. On later runs, a matching
+        # fingerprint is required to avoid treating a stale generated client as fresh.
+        if ($JustGenerated) { return $true }
+        $stampPath = Join-Path $clientDir "andon-client-fingerprint.json"
+        if (Test-Path -LiteralPath $stampPath -PathType Leaf) {
+            $current = Get-AndonPrismaClientFingerprint -ServerPath $ServerPath
+            if ($null -eq $current) {
+                if ($null -ne $FailureReason) { $FailureReason.Value = "Fingerprint atual invalido: lock/schema/manifestos ausentes ou divergentes" }
+                return $false
+            }
+            try {
+                $saved = Get-Content -LiteralPath $stampPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                if ($saved.schemaSha256 -eq $current.schemaSha256 -and
+                    $saved.lockSha256 -eq $current.lockSha256 -and
+                    $saved.prismaVersion -eq $current.prismaVersion -and
+                    $saved.clientVersion -eq $current.clientVersion) {
+                    return $true
+                }
+            } catch {
+                if ($null -ne $FailureReason) { $FailureReason.Value = "Fingerprint do Prisma ilegivel" }
+                return $false
+            }
+            if ($null -ne $FailureReason) { $FailureReason.Value = "Fingerprint Prisma desatualizado: schema, lock ou versao mudou" }
+            return $false
+        }
+        # Pre-fingerprint installation: accept ONLY an exactly matching generated
+        # schema (after encoding/line ending normalization). Otherwise regenerate.
         # Prisma 6 can normalize BOM and line endings in the emitted schema.
         # Never ignore model, field, datasource or generator differences.
         $source = [System.IO.File]::ReadAllText($schemaPath).TrimStart([char]0xFEFF)
@@ -1584,8 +1655,8 @@ function Invoke-AndonPrismaClientEnsure {
         [Parameter(Mandatory = $true)][string]$NpmPath
     )
 
-    # Complete Win64 engine, same Prisma/client versions and exact schema
-    # content are mandatory. Never assume a stale client is safe.
+    # Complete Windows engine and matching versions are mandatory. Reuse requires
+    # a verified schema match or an exact fingerprint from prior successful generate.
     $prismaValidationReason = ""
     if (Test-AndonPrismaClientReusable -ServerPath $ServerPath -FailureReason ([ref]$prismaValidationReason)) {
         Write-AndonOk "Prisma Client Windows ja compativel com schema e versoes; DLL preservada."
@@ -1603,10 +1674,11 @@ function Invoke-AndonPrismaClientEnsure {
         try {
             Invoke-AndonNodeProcess $NpmPath @("run", "db:generate") $ServerPath
             $prismaValidationReason = ""
-            if (!(Test-AndonPrismaClientReusable -ServerPath $ServerPath -FailureReason ([ref]$prismaValidationReason))) {
-                throw "Prisma generate terminou, mas o schema/versao ou engine Windows nao foi validado. Motivo: $prismaValidationReason"
+            if (!(Test-AndonPrismaClientReusable -ServerPath $ServerPath -FailureReason ([ref]$prismaValidationReason) -JustGenerated)) {
+                throw "Prisma generate terminou, mas os artefatos/versoes Windows nao foram validados. Motivo: $prismaValidationReason"
             }
-            Write-AndonOk "Prisma Client gerado e validado na tentativa $attempt."
+            Save-AndonPrismaClientFingerprint -ServerPath $ServerPath
+            Write-AndonOk "Prisma Client gerado, artefatos verificados e fingerprint registrado na tentativa $attempt."
             return
         } catch {
             $lastError = $_.Exception.Message
