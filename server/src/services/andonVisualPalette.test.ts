@@ -15,7 +15,7 @@ test("UX-12: strict stored palette maintains the existing industrial default", (
   assert.deepEqual(parseStoredVisualPalette(DEFAULT_STORED_VISUAL_PALETTE), DEFAULT_STORED_VISUAL_PALETTE);
   assert.deepEqual(publicVisualPalette({}), DEFAULT_STORED_VISUAL_PALETTE);
   assert.ok(Object.isFrozen(DEFAULT_STORED_VISUAL_PALETTE));
-  assert.equal(VISUAL_PALETTE_FIELDS.length, 6);
+  assert.equal(VISUAL_PALETTE_FIELDS.length, 10);
   assert.equal(VISUAL_PALETTE_ACCENTS.length, 5);
   assert.equal(publicVisualPaletteRevision(0), 0);
   assert.equal(publicVisualPaletteRevision(2), 2);
@@ -86,6 +86,8 @@ test("UX-19: server upgrades five-color stored palettes without losing values", 
   assert.equal(palette.cardBorder, "#123456");
   assert.equal(palette.priorityBorder, DEFAULT_STORED_VISUAL_PALETTE.priorityBorder);
   assert.equal(publicVisualPalette(legacy).priorityBorder, "#F97316");
+  assert.equal(publicVisualPalette(legacy).dashboardBackground, DEFAULT_STORED_VISUAL_PALETTE.dashboardBackground);
+  assert.equal(publicVisualPalette(legacy).failureSurface, DEFAULT_STORED_VISUAL_PALETTE.failureSurface);
   assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder:"#abcdef" })?.priorityBorder, "#abcdef");
   for (const invalid of ["red", "#FFF", "var(--danger)", "#00000000"]) {
     assert.equal(parseStoredVisualPalette({ ...legacy, priorityBorder: invalid }), null);
