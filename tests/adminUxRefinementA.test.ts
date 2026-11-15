@@ -464,8 +464,8 @@ test("CFG-15D1: central technician catalog respects separate creation and update
   assert.match(tab, /const centralMode = access\?\.centralAccessEnabled === true/);
   assert.match(tab, /settings\.centralTechnicianCreateEnabled === true/);
   assert.match(tab, /settings\.centralTechnicianUpdateEnabled === true/);
-  assert.match(tab, /const canCreateTechnician = !centralMode \|\| centralCapabilities\?\.create === true/);
-  assert.match(tab, /const canUpdateTechnician = !centralMode \|\| centralCapabilities\?\.update === true/);
+  assert.match(tab, /const canCreateTechnician = access !== null && \(!centralMode \|\| centralCapabilities\?\.create === true\)/);
+  assert.match(tab, /const canUpdateTechnician = access !== null && \(!centralMode \|\| centralCapabilities\?\.update === true\)/);
   assert.match(tab, /const canEditSelected = selectedId \? canUpdateTechnician : canCreateTechnician/);
   assert.match(tab, /setCentralCapabilities\(null\)/);
   assert.match(tab, /error: true/);
