@@ -5962,4 +5962,8 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Kiosk sem login por senha","Kiosk without password login","Kiosk 不支援密碼登入"],
   ["Verificando disponibilidade da paleta global...","Checking global palette availability...","正在確認全域配色可用性…"],
   ["Não foi possível confirmar a disponibilidade da paleta. Nenhuma edição será enviada.","Could not verify palette availability. No changes will be submitted.","無法確認配色功能是否可用。不會送出任何變更。"],
+  ["Fundo do Dashboard","Dashboard background","儀表板背景"],
+  ["Fundo de cards normais","Normal machine card background","一般機台卡片背景"],
+  ["Destaque visual de falhas","Fault visual highlight","故障視覺強調色"],
+  ["Fundo do grupo prioritário","Priority group background","優先順序群組背景"],
 ]; 
