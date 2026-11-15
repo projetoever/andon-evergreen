@@ -37,6 +37,8 @@ export interface ModuleAccess {
     purpose: string;
     sessionPolicy?: "standard" | "daily" | "persistent";
     persistentOperational?: boolean;
+    /** Read-only server-derived history grant; the API independently checks scope. */
+    canReadMachineHistory?: boolean;
     machineScope: string;
     machineIds: string[];
   } | null;
