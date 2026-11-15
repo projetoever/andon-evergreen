@@ -58,8 +58,9 @@ export function AttendanceModeSettingsTab() {
   const [centralCapability, setCentralCapability] = useState<{
     write: boolean; declaredName: boolean;
   } | null>(null);
-  const canWriteAttendance = !centralAttendance || centralCapability?.write === true;
-  const canSelectName = !centralAttendance || centralCapability?.declaredName === true;
+  // A pending/failed module-access GET is not evidence of legacy mode.
+  const canWriteAttendance = access !== null && (!centralAttendance || centralCapability?.write === true);
+  const canSelectName = access !== null && (!centralAttendance || centralCapability?.declaredName === true);
   const canSaveAttendance = canWriteAttendance &&
     (settings?.attendanceMode !== "name" || canSelectName);
   const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
