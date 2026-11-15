@@ -5981,4 +5981,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Confira confiança, máquina fixada e autorização antes de entrar novamente.","Verify trust, pinned machine and permission settings before signing in again.","再次登入前，請確認信任設定、固定機台及權限。"],
   ["Sessão sem expiração NÃO ativada. Este login pode expirar por inatividade.","No-expiry session NOT active. This login may expire after inactivity.","不過期工作階段尚未啟用。此登入可能因閒置而到期。"],
   ["Conexão temporariamente indisponível. Verificando novamente sem encerrar sua sessão.","Connection temporarily unavailable. Checking again without signing you out.","連線暫時無法使用。正在重新確認，不會主動將您登出。"],
+  ["Sessão sem expiração confirmada pelo servidor","No-expiry session confirmed by server","伺服器已確認不過期工作階段"],
+  ["Sessão sem expiração não ativada — confira a workstation e entre novamente","No-expiry session not active — check workstation settings and sign in again","不過期工作階段未啟用——請確認工作站設定並重新登入"],
+  ["Esta opção autoriza a workstation, mas é necessário selecionar Não expirar no perfil da conta em Usuários e Acessos. A estação deve estar aprovada e com a máquina fixada. As permissões selecionadas do perfil não são alteradas pela duração da sessão.","This option authorizes the workstation, but the account must also use No expiry under Users and Access. The workstation must be approved and pinned to a machine. Session duration does not change the selected profile permissions.","此選項授權工作站，但還需在使用者與存取設定中選擇不過期。工作站必須已核准並固定至機台。工作階段期間不會改變使用者已選取的權限。"],
 ]; 
