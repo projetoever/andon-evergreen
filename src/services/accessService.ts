@@ -1,7 +1,7 @@
 import { DEFAULT_ANDON_API_CLIENT_CONFIG } from "@/api/andonApiClient";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
 import { setCentralCsrf, clearCentralCsrf } from "./centralCsrf";
-import { forgetConfirmedPersistentSession } from "./persistentSessionStatus";
+import { forgetConfirmedPersistentSession } from "./sessionRecoveryDiagnostics";
 import type { Workstation } from "@/types/workstation";
 export interface AccessUser {
   id: string;
