@@ -87,16 +87,31 @@ export function HubIdentityPanel({
       // Preserve the login field on rejected credentials; clear both fields
       // only once the server acknowledges authentication.
       form.reset();
-      await refreshSession();
+      // A successful POST only proves the server issued Set-Cookie. Confirm
+      // that this browser actually returns the cookie and workstation ID
+      // before presenting a persistent login as successful. Firefox privacy
+      // policies, changed HTTPS hosts and blocked cookies can reject storage.
+      const verified = await accessRequest<AccessState>("/session");
+      setSession(verified);
       await onChanged();
-      // No more silent fallback to a 30-minute idle session on a pinned
-      // production terminal. The login may be valid, but explicitly warn
-      // when server-side trust/scope prevented permanent issuance.
-      if (result.sessionPolicy === "persistent" && result.persistentOperational !== true)
-        toast.error(ui(PERSISTENCE_NOT_ACTIVE), {
-          description: ui(persistentBlockerMessage(result.persistenceBlocker)),
-          duration: 12_000,
-        });
+      if (result.sessionPolicy === "persistent") {
+        if (result.persistentOperational !== true) {
+          toast.error(ui(PERSISTENCE_NOT_ACTIVE), {
+            description: ui(persistentBlockerMessage(result.persistenceBlocker)),
+            duration: 12_000,
+          });
+        } else if (
+          verified.principal?.purpose !== "normal" ||
+          verified.principal.persistentOperational !== true
+        ) {
+          // Never recover credentials using the workstation UUID or localStorage.
+          // The diagnostic is display-only and contains no session secret.
+          toast.error(ui(PERSISTENCE_NOT_ACTIVE), {
+            description: ui(sessionLossMessage(verified.sessionDiagnostic)),
+            duration: 12_000,
+          });
+        }
+      }
     });
   };
   const changePassword = (event: FormEvent<HTMLFormElement>) => {
