@@ -158,7 +158,7 @@ export function AdminWorkspaceShell({
               <p className="text-xs text-muted-foreground">{subtitle}</p>
               <p className="mt-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{ui(selected?.group || "Administração")}</p>
               <h2 className="text-lg font-black text-foreground">{selected?.label || title}</h2>
-              {selected?.description && <p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>
+              {selected?.description && <p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>}
             </div>
             {headerActions && <div className="flex flex-wrap items-center gap-2">{headerActions}</div>}
           </div>
