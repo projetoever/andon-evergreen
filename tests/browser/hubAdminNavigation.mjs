@@ -575,7 +575,7 @@ try {
       const tabs = [
         "Configurações da operação", "Aparência e cores", "Sons do ANDON",
         "Modo de atendimento", "Mantenedores", "Turnos",
-        "Setores e categorias", "Grupos de chamados", "Classificações",
+        "Setores / categorias", "Grupos de chamados", "Classificações",
         "Catálogos de ativos", "Máquinas",
       ];
       for (const label of tabs) {
