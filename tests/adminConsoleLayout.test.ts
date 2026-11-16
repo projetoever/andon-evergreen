@@ -151,18 +151,20 @@ test("P1 route admin fullscreen: screen pin cannot redirect authorized settings 
   assert.doesNotMatch(page, /localStorage|sessionStorage|setCookie|accessToken/);
 });
 
-test("P1 full admin workspace keeps capability summary mounted and all 11 tabs", async () => {
+test("P1 full admin workspace has 10 menu entries and 11 gated catalog capabilities", async () => {
   const source = await readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8");
   const workspace = source.split("export function AdminSettingsWorkspace")[1]?.split("function ClassificationsTab")[0] ?? "";
-  assert.match(workspace, /CentralSettingsCapabilityNotice tab=\{tab\} open=\{true\}/);
+  assert.match(workspace, /CentralSettingsCapabilityNotice tab=\{capabilityTab\} open=\{true\}/);
   assert.doesNotMatch(workspace, /open=\{open\}|<DialogContent|<Dialog open=/);
   const shell = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
   assert.match(shell, /overflow-y-auto/);
   assert.match(shell, /max-w-none/);
   for (const tab of ["general","appearance","sounds","attendance","technicians",
-    "shifts","categories","callReasons","classifications","assetCatalogs","machines"]) {
+    "shifts","categories","classifications","assetCatalogs","machines"]) {
     assert.match(source, new RegExp('id: "' + tab + '"'));
   }
+  assert.doesNotMatch(source, /id: "callReasons",/);
+  assert.match(source, /tab === "categories" && catalogView === "reasons"/);
 });
 
 test("REFINE22: Hub and ANDON render exactly the same admin frame without overlay", async () => {
