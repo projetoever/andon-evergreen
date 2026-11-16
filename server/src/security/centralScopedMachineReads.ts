@@ -7,11 +7,18 @@ import { AccessError, assertPermission, type Principal } from "../access/policy.
  * authorization hook, never by client-provided headers, cookies or params.
  */
 const scopedPrincipals = new WeakMap<FastifyRequest, Principal>();
+// Admin ANDON delegates may read the full asset catalog only after the
+// dedicated catalog-read flag and privilege checks passed in the preHandler.
+const authorizedGlobalAssetReaders = new WeakSet<FastifyRequest>();
 
 export function isScopedMachineReadRoute(method: string, pathname: string) {
   return (method === "GET" || method === "HEAD") && (
     pathname === "/api/machines" ||
     /^\/api\/machines\/[^/]+$/.test(pathname) ||
+    // Operational maintenance must be able to load the technical location at
+    // opening/finalization without receiving permission to edit catalogs.
+    /^\/api\/machines\/[A-Za-z0-9_-]{1,160}\/sets$/.test(pathname) ||
+    /^\/api\/machine-sets\/[A-Za-z0-9_-]{1,160}\/subsets$/.test(pathname) ||
     pathname === "/api/andon-calls" ||
     pathname === "/api/failure-events" ||
     pathname === "/api/andon-calls/history" ||
@@ -89,4 +96,20 @@ export function bindAuthorizedMachineReadPrincipal(
 ) {
   if (principal.purpose !== "normal") throw new AccessError("password_change_required");
   scopedPrincipals.set(request, principal);
+}
+
+/** Bind only after a central settings delegate has passed the catalog's
+ * distinct read gate. This does not grant any new machine/call permission. */
+export function bindAuthorizedGlobalAssetCatalogReader(
+  request: FastifyRequest, principal: Principal,
+) {
+  bindAuthorizedMachineReadPrincipal(request, principal);
+  authorizedGlobalAssetReaders.add(request);
+}
+
+/** Both operational set/subset lists MUST query by this server-derived scope.
+ * The global override is restricted to the existing Admin ANDON catalog path. */
+export function scopedMachineAssetReadIds(request: FastifyRequest): readonly string[] | null {
+  const ids = scopedMachineReadIds(request); // fail closed without binding
+  return authorizedGlobalAssetReaders.has(request) ? null : ids;
 }
