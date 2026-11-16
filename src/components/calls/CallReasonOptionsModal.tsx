@@ -78,12 +78,17 @@ export function CallReasonOptionsModal({
                   ? " — " + ui("Chamado já aberto") : "")}
                 onClick={() => setSelectedOptionId(option.id)}
                 className={
-                  "min-h-16 rounded-xl border-2 px-3 py-3 text-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                  "relative min-h-16 overflow-hidden rounded-xl border-2 px-3 py-3 text-lg font-black uppercase tracking-wide transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                   (selectedOptionId === option.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-foreground hover:bg-accent")
                 }
+                style={{
+                  borderColor: selectedOptionId === option.id ? reason?.color : undefined,
+                }}
               >
+                <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1"
+                  style={{ backgroundColor: reason?.color }}/>
                 <span className="block break-words">{option.displayName}</span>
                 {option.legacySubtype && activeSubtypes.includes(option.legacySubtype) && (
                   <span className="mt-1 block text-xs font-semibold normal-case">
