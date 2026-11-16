@@ -265,6 +265,19 @@ try {
     token: secondBrowserToken, workstationId: targetStationId,
   })).persistentOperational, true);
 
+  // Diagnostic probes never authenticate or reveal cookie/user data.
+  const wrongStation = await request("GET", "/session", afterChangeToken, adminStationId);
+  assert.equal(wrongStation.statusCode, 200);
+  assert.equal(wrongStation.json().principal, null);
+  assert.equal(wrongStation.json().sessionDiagnostic, "workstation_identity_changed");
+  assert(!JSON.stringify(wrongStation.json()).includes(afterChangeToken));
+  const missingCookie = await app.inject({
+    method: "GET", url: "/api/access/session",
+    headers: { origin: "https://andon.test", "x-andon-workstation-id": targetStationId },
+  });
+  assert.equal(missingCookie.statusCode, 200, missingCookie.body);
+  assert.equal(missingCookie.json().sessionDiagnostic, "cookie_missing");
+
   // Server explicitly ignores absolute and idle age for authorized operations.
   const s = await db.accessSession.findFirstOrThrow({
     where: { tokenHash: tokenHash(afterChangeToken) },
@@ -287,6 +300,10 @@ try {
     { reason: "Operator shift handoff" });
   assert.equal(logout.statusCode, 200, logout.body);
   assert(logout.json().revokedSessions >= 2);
+  const remotelyRevoked = await request("GET", "/session", afterChangeToken, targetStationId);
+  assert.equal(remotelyRevoked.statusCode, 200);
+  assert.equal(remotelyRevoked.json().principal, null);
+  assert.equal(remotelyRevoked.json().sessionDiagnostic, "session_revoked");
   await assert.rejects(resolveSession(db, { token: afterChangeToken, workstationId: targetStationId }));
   await assert.rejects(resolveSession(db, { token: secondBrowserToken, workstationId: targetStationId }));
 
