@@ -218,7 +218,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       .then((reasons) => {
         if (cancelled) return;
         setHierarchicalReasons(reasons);
-        setReasonCatalogStatus(reasons.length ? "ready" : "unavailable");
+        // An empty group catalog is valid: direct sector buttons still work.
+        setReasonCatalogStatus("ready");
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -566,7 +567,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     const reason = hierarchicalReasons?.find(item => item.id === reasonId);
     const option = reason?.options.find(item => item.id === optionId);
     if (!reason || !option) {
-      toast.error(ui("Não foi possível validar a especialidade selecionada."));
+      toast.error(ui("Não foi possível validar o setor do grupo selecionado."));
       return;
     }
     const existing = activeCalls.find(call => call.subtype === option.legacySubtype);
@@ -594,8 +595,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   }
 
   async function handleOpenSubtype(subtype: CallSubtype) {
-    if (!machine || reasonCatalogStatus === "loading" || reasonCatalogStatus === "unavailable") return;
-
+    // Group catalog failures must never disable legacy sector calls.
+    if (!machine) return;
+    setHierarchicalChoice(null);
     setSelectedSubtype(subtype);
 
     if (machine.machineStatus !== "stopped" || !hasActiveStopOwner) {
@@ -816,8 +818,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         currentCall={currentCall}
         categories={categories}
-        hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons :
-          reasonCatalogStatus === "legacy" ? null : []}
+        hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons : null}
         reasonCatalogStatus={reasonCatalogStatus}
         onRetryReasonCatalog={() => setReasonCatalogReload(current => current + 1)}
         onOpenReason={(reasonId) => {
