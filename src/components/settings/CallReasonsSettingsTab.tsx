@@ -35,6 +35,16 @@ function makeId(name: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0,40);
 }
 
+// A mesma regra de legibilidade dos botões originais da máquina.
+function readableGroupTextColor(hex: string) {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return "#FFFFFF";
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return (red * 299 + green * 587 + blue * 114) / 1000 > 145 ? "#071015" : "#FFFFFF";
+}
+
 type Draft = CreateCallReason;
 const emptyDraft = (): Draft => ({
   id: "", displayName: "", color: "#64748B", active: true, displayOrder: 10,
@@ -417,16 +427,18 @@ export function CallReasonsSettingsTab() {
             <div className="max-h-[min(56dvh,35rem)] space-y-2 overflow-y-auto pr-1">
             {filteredReasons.map(reason => (
               <button type="button" key={reason.id}
+                data-group-preview="true"
                 onClick={() => edit(reason)}
                 aria-pressed={selected === reason.id}
-                className={"flex w-full items-center gap-2 rounded-lg border px-3 py-3 text-left " +
-                  (selected === reason.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40")}>
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: reason.color }} />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold">{reason.displayName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {ui(reason.nature)} · {reason.options.length} {ui("setores")}
-                  </span>
+                className={"machine-sector-action relative flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 px-3 py-2 text-center font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                  (selected === reason.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background " : "") +
+                  (!reason.active ? "opacity-55 " : "")}
+                style={{ backgroundColor: reason.color, borderColor: reason.color, color: readableGroupTextColor(reason.color) }}>
+                <span className="block min-w-0 break-words [overflow-wrap:anywhere]">
+                  {reason.displayName}
+                </span>
+                <span className="text-xs font-semibold normal-case opacity-90">
+                  {reason.options.length} {ui("setores")} · {ui(reason.active ? "Ativo" : "Inativo")}
                 </span>
               </button>
             ))}
@@ -434,6 +446,14 @@ export function CallReasonsSettingsTab() {
           </section>
           <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={ui("Editar grupo")}>
             <h3 className="font-semibold">{ui(chosen ? "Editar grupo" : "Criar grupo")}</h3>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/20 p-3"
+              aria-label={ui("Prévia do botão do grupo no ANDON")}>
+              <span className="text-xs font-semibold text-muted-foreground">{ui("Prévia no ANDON")}</span>
+              <div className="machine-sector-action flex min-h-16 min-w-32 max-w-full flex-1 items-center justify-center rounded-lg border-2 px-3 py-2 text-center text-base font-black uppercase tracking-wide shadow-sm sm:flex-none"
+                style={{ backgroundColor: draft.color, borderColor: draft.color, color: readableGroupTextColor(draft.color) }}>
+                <span className="break-words [overflow-wrap:anywhere]">{draft.displayName.trim() || ui("Novo grupo")}</span>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Label className="block space-y-2">{ui("Nome do grupo")}
                 <Input value={draft.displayName} maxLength={80} disabled={writeBlocked}
@@ -527,15 +547,22 @@ export function CallReasonsSettingsTab() {
               <section className="space-y-3 border-t border-border pt-4">
                 <h4 className="font-semibold">{ui("Setores vinculados ao grupo")}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {ui("Clique em SETUP para escolher um setor já existente, como Elétrica ou Mecânica. O setor continua independente; o grupo define apenas o contexto analítico dessa abertura.")}
+                  {ui("Vincule um ou mais setores existentes ao grupo selecionado. Elétrica, Mecânica e outros setores mantêm seus identificadores originais; a política analítica pertence ao grupo.")}
                 </p>
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum setor vinculado ao grupo.")}</p>}
                 {chosen.options.map(option => (
                   <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
                     <div className="min-w-0 flex-1 space-y-2">
-                      <div className="inline-flex min-h-10 max-w-full items-center rounded-lg border-2 px-3 py-2 font-black uppercase tracking-wide"
-                        style={{ borderColor: chosen.color, backgroundColor: "color-mix(in srgb, " + chosen.color + " 20%, transparent)" }}>
-                        {option.displayName ?? option.technicalArea.displayName}
+                      <div className="machine-sector-action inline-flex min-h-14 max-w-full items-center justify-center rounded-lg border-2 px-3 py-2 text-center font-black uppercase tracking-wide shadow-sm"
+                        style={{
+                          backgroundColor: areas.find(area => area.id === option.technicalAreaId)?.color ?? chosen.color,
+                          borderColor: areas.find(area => area.id === option.technicalAreaId)?.color ?? chosen.color,
+                          color: readableGroupTextColor(areas.find(area => area.id === option.technicalAreaId)?.color ?? chosen.color),
+                          opacity: option.active ? 1 : 0.55,
+                        }}>
+                        <span className="break-words [overflow-wrap:anywhere]">
+                          {option.displayName ?? option.technicalArea.displayName}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {ui("Área responsável")}: {option.technicalArea.displayName}
