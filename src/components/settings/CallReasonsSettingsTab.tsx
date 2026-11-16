@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CompactAndonColorField } from "./CompactAndonColorField";
 import { toast } from "@/i18n/toast";
 import { ui } from "@/i18n/translate";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -23,6 +24,12 @@ const natures = [
 ] as const;
 const policyValues = ["eligible", "excluded", "pending"] as const;
 const policyNames = { eligible: "Elegível — sujeito a evidências", excluded: "Excluído do KPI corretivo", pending: "Pendente de classificação" };
+const dispositionNames = [
+  ["include", "Ocorrência válida — aparece no BI operacional"],
+  ["test", "Teste — excluído das estatísticas"],
+  ["false_call", "Falso chamado — excluído das estatísticas"],
+  ["duplicate", "Duplicado — excluído das estatísticas"],
+] as const;
 const ID = /^[a-z0-9_]{2,40}$/;
 
 function makeId(name: string) {
@@ -53,6 +60,7 @@ export function CallReasonsSettingsTab() {
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [areaToAdd, setAreaToAdd] = useState("");
+  const [optionNameToAdd, setOptionNameToAdd] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
@@ -81,8 +89,10 @@ export function CallReasonsSettingsTab() {
   // Display changes use a presentation-only payload. New analytical policy
   // decisions require explicit human confirmation, then server authorization.
   const policyReviewNeeded = isPrimaryAdmin && (chosen
-    ? chosen.nature !== draft.nature || chosen.maintenanceKpiPolicy !== draft.maintenanceKpiPolicy
-    : draft.maintenanceKpiPolicy === "eligible");
+    ? chosen.nature !== draft.nature ||
+      chosen.maintenanceKpiPolicy !== draft.maintenanceKpiPolicy ||
+      chosen.analyticsDisposition !== draft.analyticsDisposition
+    : draft.maintenanceKpiPolicy === "eligible" || draft.analyticsDisposition !== "include");
   const restrictedDelegatedLink = !isPrimaryAdmin &&
     (chosen?.maintenanceKpiPolicy === "eligible" || chosen?.active !== true);
   const linkableAreas = chosen ? areas.filter(area =>
@@ -181,6 +191,7 @@ export function CallReasonsSettingsTab() {
       displayOrder: Math.min(9999, Math.max(0, ...reasons.map(reason => reason.displayOrder)) + 10),
     });
     setAreaToAdd("");
+    setOptionNameToAdd("");
     setEditingOptionId(null);
     setPolicyAcknowledged(false);
   }
@@ -190,6 +201,7 @@ export function CallReasonsSettingsTab() {
     setEditingOptionId(null);
     setSelected(reason.id);
     setAreaToAdd("");
+    setOptionNameToAdd("");
     setDraft({
       id: reason.id, displayName: reason.displayName, color: reason.color,
       active: reason.active, displayOrder: reason.displayOrder,
@@ -253,17 +265,24 @@ export function CallReasonsSettingsTab() {
     if (!chosen || !areaToAdd || busy || restrictedDelegatedLink || writeBlocked) return;
     const area = areas.find(item => item.id === areaToAdd);
     if (!area?.active || !linkableAreas.some(item => item.id === area.id)) return;
+    const displayName = optionNameToAdd.trim() || area.displayName;
+    if (!displayName || displayName.length > 80) {
+      toast.error(ui("Informe um nome de subcategoria com até 80 caracteres."));
+      return;
+    }
     setBusy(true);
     try {
       await addCallReasonOption(chosen.id, {
         id: makeId(chosen.id + "_" + area.id),
         technicalAreaId: area.id,
+        displayName,
         active: true,
         displayOrder: chosen.options.length * 10 + 10,
       });
       await refresh(chosen.id);
       setAreaToAdd("");
-      toast.success(ui("Especialidade vinculada ao motivo."));
+      setOptionNameToAdd("");
+      toast.success(ui("Subcategoria vinculada ao motivo."));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível vincular a especialidade."));
     } finally { setBusy(false); }
@@ -440,10 +459,9 @@ export function CallReasonsSettingsTab() {
                     .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
                 </select>
               </Label>
-              <Label className="block space-y-2">{ui("Cor do motivo")}
-                <Input type="color" value={draft.color} disabled={writeBlocked}
-                  onChange={e => setDraft({ ...draft, color: e.target.value })} />
-              </Label>
+              <CompactAndonColorField label="Cor do motivo" value={draft.color}
+                disabled={writeBlocked}
+                onChange={color => setDraft(previous => ({ ...previous, color }))} />
               <Label className="block space-y-2">{ui("Ordem de exibição do motivo")}
                 <Input type="number" min={0} max={9999} step={1}
                   value={draft.displayOrder} disabled={writeBlocked}
@@ -475,15 +493,21 @@ export function CallReasonsSettingsTab() {
             </div>
             {chosen && (
               <section className="space-y-3 border-t border-border pt-4">
-                <h4 className="font-semibold">{ui("Especialidades deste motivo")}</h4>
+                <h4 className="font-semibold">{ui("Subcategorias deste motivo")}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {ui("Vincule setores já cadastrados como subcategorias deste motivo. A vinculação não altera a política de KPI nem reclassifica chamados anteriores.")}
+                  {ui("Cada subcategoria funciona como um botão no modal do motivo (ex.: Setup → Elétrica ou Mecânica). Escolha a área técnica responsável e personalize o nome, sem alterar os indicadores anteriores.")}
                 </p>
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhuma especialidade vinculada.")}</p>}
                 {chosen.options.map(option => (
                   <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
                     <div className="min-w-0 flex-1 space-y-2">
-                      <p className="font-semibold">{option.displayName ?? option.technicalArea.displayName}</p>
+                      <div className="inline-flex min-h-10 max-w-full items-center rounded-lg border-2 px-3 py-2 font-black uppercase tracking-wide"
+                        style={{ borderColor: chosen.color, backgroundColor: "color-mix(in srgb, " + chosen.color + " 20%, transparent)" }}>
+                        {option.displayName ?? option.technicalArea.displayName}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Área responsável")}: {option.technicalArea.displayName}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {ui("KPI")}: {ui(option.effectivePolicy.effectiveKpiStatus)} ·
                         {option.effectivePolicy.correctiveCandidate
@@ -537,19 +561,24 @@ export function CallReasonsSettingsTab() {
                     </div>
                   </div>
                 ))}
-                <div className="flex flex-wrap items-end gap-2">
-                  <Label className="min-w-48 flex-1 space-y-2">{ui("Vincular especialidade")}
+                <div className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] sm:items-end">
+                  <Label className="min-w-0 space-y-2">{ui("Área técnica responsável")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                       value={areaToAdd} disabled={writeBlocked || restrictedDelegatedLink}
                       onChange={e => setAreaToAdd(e.target.value)}>
-                      <option value="">{ui("Selecione uma especialidade")}</option>
+                      <option value="">{ui("Selecione uma área técnica")}</option>
                       {linkableAreas.map(area =>
                         <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
+                  <Label className="min-w-0 space-y-2">{ui("Nome da subcategoria no botão")}
+                    <Input maxLength={80} value={optionNameToAdd} disabled={writeBlocked || restrictedDelegatedLink}
+                      onChange={event => setOptionNameToAdd(event.target.value)}
+                      placeholder={areas.find(area => area.id === areaToAdd)?.displayName ?? ui("Ex.: Elétrica")} />
+                  </Label>
                   <Button type="button" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
                     onClick={() => void addArea()}>
-                    {ui("Vincular")}
+                    {ui("Adicionar subcategoria")}
                   </Button>
                 </div>
                 {!isPrimaryAdmin && (
