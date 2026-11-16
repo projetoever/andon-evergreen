@@ -6008,4 +6008,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["A política permanente ou a confiança da workstation foi desativada após o login.","The no-expiry policy or workstation trust was disabled after login.","登入後，不過期政策或工作站信任設定已被停用。"],
   ["A sessão não pôde ser validada. Consulte o diagnóstico de acesso no Hub.","The session could not be validated. Review the access diagnosis in the Hub.","無法驗證工作階段。請查看模組中心的存取診斷。"],
   ["Ver diagnóstico do login anterior","View previous login diagnosis","查看先前登入診斷"],
+  ["Seções administrativas do ANDON","ANDON administrative sections","ANDON 管理選單"],
+  ["Administração","Administration","管理"],
+  ["Configuração controlada do ANDON Web Industrial.","Controlled settings for ANDON Web Industrial.","ANDON Web Industrial 的受控設定。"],
 ]; 

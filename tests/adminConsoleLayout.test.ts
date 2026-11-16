@@ -8,10 +8,12 @@ test("painel admin usa console amplo com navegação lateral agrupada", async ()
     "utf8",
   );
 
-  assert.match(source, /andon-screen-enter h-dvh min-h-0 w-full overflow-hidden/);
+  assert.match(source, /<AdminWorkspaceShell/);
+  const shared = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
+  assert.match(shared, /andon-screen-enter h-dvh min-h-0 w-full overflow-hidden/);
   assert.match(source, /export function AdminSettingsWorkspace/);
   assert.doesNotMatch(source, /<Dialog open=|<DialogContent|shadow-2xl sm:w-\[96vw\]/);
-  assert.match(source, /lg:grid-cols-\[280px_minmax\(0,1fr\)\]/);
+  assert.match(shared, /lg:grid-cols-\[280px_minmax\(0,1fr\)\]/);
   assert.match(source, /Painel administrativo/);
   assert.match(source, /navigationGroups/);
   assert.match(source, /"Sistema"/);
@@ -26,10 +28,11 @@ test("navegação admin permanece responsiva em telas menores", async () => {
     "utf8",
   );
 
-  assert.match(source, /overflow-x-auto/);
-  assert.match(source, /lg:hidden/);
+  const shared = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
+  assert.match(shared, /overflow-x-auto/);
+  assert.match(shared, /lg:hidden/);
   assert.match(source, /Sair do modo admin/);
-  assert.match(source, /Fechar painel administrativo/);
+  assert.match(source, /onBack=\{onClose\}/);
 });
 
 test("não cria aba de notificações sem necessidade funcional", async () => {
@@ -71,10 +74,11 @@ test("Hub usa uma única navegação administrativa persistida na rota", async (
   const route = await readFile(new URL("../src/routes/hub.admin.tsx", import.meta.url), "utf8");
   const types = await readFile(new URL("../src/types/modules.ts", import.meta.url), "utf8");
 
-  assert.equal((hub.match(/<nav/g) ?? []).length, 1);
+  const shell = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
+  assert.match(hub, /<AdminWorkspaceShell/);
   assert.match(hub, /sections\.map/);
-  assert.match(hub, /search=\{\{ section: item\.id \}\}/);
-  assert.match(hub, /aria-current=\{section === item\.id \? "page"/);
+  assert.match(shell, /to="\/hub\/admin" search=\{\{ section: item\.id as HubAdminSection \}\}/);
+  assert.match(shell, /aria-current=\{active \? "page"/);
   assert.doesNotMatch(hub, /PlatformAdminLinks|section === "priorities"/);
   assert.match(route, /validateSearch/);
   for (const section of ["overview", "users", "workstations", "security", "modules"])
@@ -115,7 +119,7 @@ test("REFINE21: Admin ANDON abre por rota fullscreen, nunca por modal no dashboa
   assert.ok(page.indexOf("<AndonProvider>") > page.indexOf('if (checking || !access || error'),
     "Operational contexts mount only after the protected-route authorization gate");
   assert.match(page, /<AdminSettingsWorkspace/);
-  assert.match(admin, /h-dvh min-h-0 w-full overflow-hidden/);
+  assert.match(admin, /<AdminWorkspaceShell/);
   assert.doesNotMatch(admin, /<Dialog open=/);
 });
 
@@ -127,12 +131,8 @@ test("REFINE21: Hub central, Gerente e legado usam tela inteira e barra lateral 
   ];
   for (const path of paths) {
     const page = await readFile(new URL(path, import.meta.url), "utf8");
-    assert.match(page, /max-w-none/);
-    assert.match(page, /lg:grid-cols-\[264px_minmax\(0,1fr\)\]/);
-    assert.match(page, /<aside className="min-w-0 lg:sticky/);
-    assert.match(page, /lg:flex-col lg:overflow-x-visible/);
-    assert.match(page, /overflow-x-auto/);
-    assert.match(page, /search=\{\{ section: item\.id \}\}/);
+    assert.match(page, /<AdminWorkspaceShell/);
+    assert.match(page, /hubNavigation/);
   }
 });
 
@@ -156,10 +156,35 @@ test("P1 full admin workspace keeps capability summary mounted and all 11 tabs",
   const workspace = source.split("export function AdminSettingsWorkspace")[1]?.split("function ClassificationsTab")[0] ?? "";
   assert.match(workspace, /CentralSettingsCapabilityNotice tab=\{tab\} open=\{true\}/);
   assert.doesNotMatch(workspace, /open=\{open\}|<DialogContent|<Dialog open=/);
-  assert.match(workspace, /overflow-y-auto/);
-  assert.match(workspace, /max-w-none/);
+  const shell = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
+  assert.match(shell, /overflow-y-auto/);
+  assert.match(shell, /max-w-none/);
   for (const tab of ["general","appearance","sounds","attendance","technicians",
     "shifts","categories","callReasons","classifications","assetCatalogs","machines"]) {
     assert.match(source, new RegExp('id: "' + tab + '"'));
   }
+});
+
+test("REFINE22: Hub and ANDON render exactly the same admin frame without overlay", async () => {
+  const paths = [
+    "../src/components/settings/AdminSettingsModal.tsx",
+    "../src/pages/HubAdminPage.tsx",
+    "../src/pages/HubCentralAdminPage.tsx",
+    "../src/pages/HubCentralManagerPage.tsx",
+  ];
+  for (const path of paths) {
+    const page = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(page, /<AdminWorkspaceShell/);
+    assert.doesNotMatch(page, /lg:grid-cols-\[264px_minmax\(0,1fr\)\]|<DialogContent/);
+  }
+  const frame = await readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8");
+  assert.match(frame, /h-dvh min-h-0 w-full overflow-hidden/);
+  assert.match(frame, /lg:grid-cols-\[280px_minmax\(0,1fr\)\]/);
+  assert.match(frame, /<aside className="hidden/);
+  assert.match(frame, /lg:flex lg:flex-col/);
+  assert.match(frame, /overflow-x-auto border-b/);
+  assert.match(frame, /flex-1 overflow-y-auto/);
+  assert.match(frame, /hubNavigation \? \(/);
+  assert.match(frame, /search=\{\{ section: item\.id as HubAdminSection \}\}/);
+  assert.doesNotMatch(frame, /setCookie|localStorage|password|accessRequest|authenticate\(/);
 });

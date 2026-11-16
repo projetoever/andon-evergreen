@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, LayoutGrid, LogOut, MonitorCog, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { AdminWorkspaceShell } from "@/components/settings/AdminWorkspaceShell";
 import { HubBuildVersionCard } from "@/components/settings/HubBuildVersionCard";
 import { HubRestrictedAccessRedirect } from "@/components/security/HubRestrictedAccessRedirect";
 import { accessRequest, type ManagedWorkstation } from "@/services/accessService";
@@ -54,57 +55,39 @@ export function HubCentralManagerPage({
   }
 
   return (
-    <main className="andon-screen-enter min-h-dvh w-full bg-background p-3 text-foreground md:p-5">
-      <div className="mx-auto w-full max-w-none space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon">
-              <Link to="/hub" aria-label={ui("Voltar ao Hub")}><ArrowLeft className="h-4 w-4"/></Link>
-            </Button>
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-black">{ui("Painel do gerente")}</h1>
-              <p className="text-xs text-muted-foreground">{ui("Sessão central")}: {displayName}</p>
-            </div>
-          </div>
-          <LanguageSelector compact />
-          <Button variant="outline" onClick={() => {
-            void (async () => {
-              setLogoutError(false);
-              try {
-                await accessRequest("/logout", "POST", {});
-                await refreshModules();
-                void navigate({ to: "/hub", replace: true });
-              } catch {
-                // Stay on the page; failed revocation is not a successful logout.
-                setLogoutError(true);
-              }
-            })();
-          }}>
-            <LogOut className="mr-2 h-4 w-4" />{ui("Sair desta sessão")}
-          </Button>
-        </header>
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-          <aside className="min-w-0 lg:sticky lg:top-5">
-        <nav aria-label={ui("Seções administrativas do Hub")}
-          className="flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-x-visible">
-          {availableSections.map((item) => {
-            const Icon = item.icon;
-            return <Button key={item.id} asChild
-              variant={section === item.id ? "default" : "ghost"}
-              className="h-auto min-h-11 shrink-0 justify-start whitespace-normal px-3 py-2 text-left lg:w-full">
-              <Link to="/hub/admin" search={{ section: item.id }}
-                aria-current={section === item.id ? "page" : undefined}>
-                <Icon className="mr-2 h-4 w-4 shrink-0" />{item.name}
-              </Link>
-            </Button>;
-          })}
-        </nav>
-          </aside>
-          <section className="min-w-0 space-y-4" aria-label={ui("Conteúdo gerencial do Hub")}>
-        {logoutError && <div role="alert" className="rounded-lg border border-danger p-3 text-sm text-danger">
-          {ui("Não foi possível encerrar a sessão. Tente novamente.")}
-        </div>}
+    <AdminWorkspaceShell
+      brand="HUB"
+      title={ui("Painel do gerente")}
+      ariaLabel={ui("Painel do gerente")}
+      navLabel={ui("Seções administrativas do Hub")}
+      subtitle={`${ui("Sessão central")}: ${displayName}`}
+      items={availableSections.map(item => ({ id: item.id, label: item.name, icon: item.icon, group: "Sistema" }))}
+      hubNavigation
+      activeId={section}
+      onSelect={() => undefined}
+      onBack={() => void navigate({ to: "/hub" })}
+      backLabel={ui("Voltar ao Hub")}
+      headerActions={<>
+        <LanguageSelector compact />
+        <Button variant="outline" onClick={() => {
+          void (async () => {
+            setLogoutError(false);
+            try {
+              await accessRequest("/logout", "POST", {});
+              await refreshModules();
+              void navigate({ to: "/hub", replace: true });
+            } catch {
+              setLogoutError(true);
+            }
+          })();
+        }}>
+          <LogOut className="mr-2 h-4 w-4" />{ui("Sair desta sessão")}
+        </Button>
+      </>}
+      alert={logoutError ? <div role="alert" className="rounded-lg border border-danger p-3 text-sm text-danger">
+        {ui("Não foi possível encerrar a sessão. Tente novamente.")}
+      </div> : null}
+    >
         <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
           {ui("Acesso gerencial somente leitura nesta etapa. Usuários, credenciais, aprovações e alterações globais exigem Admin principal.")}
         </div>
@@ -157,9 +140,7 @@ export function HubCentralManagerPage({
             <Button variant="outline" size="sm" onClick={() => void refresh()}>{ui("Atualizar")}</Button>
           </section>
         )}
-          </section>
-        </div>
-      </div>
-    </main>
+
+    </AdminWorkspaceShell>
   );
 }

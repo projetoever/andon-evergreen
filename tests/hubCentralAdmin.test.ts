@@ -29,7 +29,7 @@ test("Central Admin exposes only already centrally authorized tabs; sensitive le
   assert.match(page, /accessRequest<ManagedWorkstation\[\]>\("\/workstations"\)/);
   assert.doesNotMatch(page, /<HubSecuritySettings \/>/);
   assert.doesNotMatch(page, /<ModuleCredentialSettings \/>/);
-  assert.match(page, /!\["overview","users","workstations","integrations"\]\.includes\(section\)/);
+  assert.match(page, /!\["overview", "users", "workstations", "integrations"\]\.includes\(section\)/);
   assert.match(page, /<HubClientIdentitySettings \/>/);
   assert.match(page, /\["andon", "hub"\]\.includes/);
   assert.match(page, /const section = primaryAdmin && \["andon", "hub"\]\.includes/);

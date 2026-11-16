@@ -331,6 +331,13 @@ try {
     await page.getByRole("group",{name:"Registradas"}).getByText("3",{exact:true}).waitFor();
     const navigation = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     assert.equal(await navigation.getByRole("link").count(), 5);
+    const hubWorkspace = page.getByRole("region", { name: "Administração do Hub" });
+    await hubWorkspace.waitFor();
+    assert.equal(await page.getByRole("dialog", { name: "Administração do Hub" }).count(), 0);
+    const hubBounds = await hubWorkspace.boundingBox();
+    assert(hubBounds && Math.abs(hubBounds.width - viewport.width) <= 2,
+      "Hub settings must use the same full-width frame as ANDON");
+    assert.equal(await hubWorkspace.locator("aside").first().isVisible(), viewport.width >= 1024);
     assert.equal(await page.getByRole("link", { name: "Usuários e Acessos", exact: true }).count(), 1);
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-overview.png`, fullPage: true });
@@ -561,10 +568,34 @@ try {
       await page.screenshot({
         path: `${output}/${viewport.width}-andon-admin-fullscreen.png`, fullPage: true,
       });
-      assert.equal(await workspace.getByRole("button", { name: "Sons do ANDON" }).count(), 1);
-      assert.equal(await workspace.getByRole("button", { name: "Mantenedores" }).count(), 1);
-      await workspace.getByRole("button", { name: "Aparência e cores" }).click();
-      return workspace.getByRole("region", { name: "Aparência e cores" });
+      const andonNavigation = workspace.getByRole("navigation", { name: "Seções administrativas do ANDON" });
+      const tabs = [
+        "Configurações da operação", "Aparência e cores", "Sons do ANDON",
+        "Modo de atendimento", "Mantenedores", "Turnos",
+        "Setores / categorias", "Motivos e subcategorias", "Classificações",
+        "Catálogos de ativos", "Máquinas",
+      ];
+      for (const label of tabs) {
+        const tab = andonNavigation.getByRole("button", { name: label, exact: true });
+        await tab.waitFor();
+        await tab.click();
+        assert.equal(await tab.getAttribute("aria-current"), "page",
+          "Admin ANDON did not select tab: " + label);
+        assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
+          "Tab content heading must exist: " + label);
+      }
+      // P1 failed field test: verify Return works and re-entering config
+      // mounts the same fullscreen page without an overlay or lost session.
+      await workspace.getByRole("button", { name: "Voltar ao ANDON", exact: true }).click();
+      await page.waitForURL(url => url.pathname === "/andon");
+      await page.getByRole("button", { name: "Configurar sons do ANDON" }).click();
+      await page.waitForURL(url => url.pathname === "/andon/admin");
+      const reopened = page.getByRole("region", { name: "Painel administrativo do ANDON" });
+      await reopened.waitFor();
+      assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
+      await reopened.getByRole("navigation", { name: "Seções administrativas do ANDON" })
+        .getByRole("button", { name: "Aparência e cores", exact: true }).click();
+      return reopened.getByRole("region", { name: "Aparência e cores" });
     };
     // UX-12 still fails closed until the server authorizes palette writes.
     let appearance = await openAndonAppearance();

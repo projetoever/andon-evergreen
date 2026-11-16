@@ -1,5 +1,6 @@
 import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { AdminWorkspaceShell } from "@/components/settings/AdminWorkspaceShell";
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
@@ -132,95 +133,44 @@ export function HubAdminPage() {
   }
 
   return (
-    <main className="andon-screen-enter min-h-dvh w-full bg-background p-3 text-foreground md:p-5">
-      <div className="mx-auto w-full max-w-none space-y-4 md:space-y-5">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 md:p-4">
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon">
-              <Link to="/hub" aria-label={ui("Voltar ao Hub")}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {ui("ANDON WEB INDUSTRIAL")}
-              </p>
-              <h1 className="text-xl font-black">{ui("Administração do Hub")}</h1>
-            </div>
-          </div>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            {authenticated && (
-              <Badge variant="outline">
-                <span className="sm:hidden">{ui("Admin legado")}</span>
-                <span className="hidden sm:inline">{ui("Sessão Admin legado ativa")}</span>
-              </Badge>
-            )}
-            <LanguageSelector compact />
-            {authenticated && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  logoutAdmin();
-                  setAuthenticated(false);
-                  setLoginOpen(false);
-                  void navigate({ to: "/hub", replace: true });
-                }}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                {ui("Sair do Admin")}
-              </Button>
-            )}
-          </div>
-        </header>
-        <section role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-          {ui("Modo de administração legado ativo. O acesso central, as integrações API e a senha única só aparecem no ambiente HTTPS de homologação com gestão central habilitada. Não ative essas funções no servidor industrial sem homologação.")}
-        </section>
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-          <aside className="min-w-0 lg:sticky lg:top-5">
-        <nav
-          aria-label={ui("Seções administrativas do Hub")}
-          className="flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-x-visible"
-        >
-          {sections.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                variant={section === item.id ? "default" : "ghost"}
-                className="h-auto min-h-11 shrink-0 justify-start whitespace-normal px-3 py-2 text-left lg:w-full"
-                asChild
-              >
-                <Link
-                  to="/hub/admin"
-                  search={{ section: item.id }}
-                  aria-current={section === item.id ? "page" : undefined}
-                >
-                  <Icon className="mr-2 h-4 w-4 shrink-0" />
-                  {item.label}
-                </Link>
-              </Button>
-            );
-          })}
-        </nav>
-          </aside>
-          <section className="min-w-0" aria-label={ui("Conteúdo da administração do Hub")}>
-        <div key={section} className="andon-panel-enter min-w-0">
-          {section === "users" ? (
-            <UsersAccessSettings />
-          ) : section === "workstations" ? (
-            <WorkstationsSettingsTab />
-          ) : (
+    <AdminWorkspaceShell
+      brand="HUB"
+      title={ui("Administração do Hub")}
+      ariaLabel={ui("Administração do Hub")}
+      navLabel={ui("Seções administrativas do Hub")}
+      subtitle={ui("Sessão Admin legado ativa")}
+      items={sections.map(item => ({ id: item.id, label: item.label, icon: item.icon, group: "Sistema" }))}
+      hubNavigation
+      activeId={section}
+      onSelect={() => undefined}
+      onBack={() => void navigate({ to: "/hub" })}
+      backLabel={ui("Voltar ao Hub")}
+      headerActions={<>
+        <Badge variant="outline">{ui("Admin legado")}</Badge>
+        <LanguageSelector compact />
+        <Button variant="outline" onClick={() => {
+          logoutAdmin();
+          setAuthenticated(false);
+          setLoginOpen(false);
+          void navigate({ to: "/hub", replace: true });
+        }}>
+          <LogOut className="mr-2 h-4 w-4" />{ui("Sair do Admin")}
+        </Button>
+      </>}
+      alert={<section role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+        {ui("Modo de administração legado ativo. O acesso central, as integrações API e a senha única só aparecem no ambiente HTTPS de homologação com gestão central habilitada. Não ative essas funções no servidor industrial sem homologação.")}
+      </section>}
+    >
+      <div key={section} className="andon-panel-enter min-w-0">
+        {section === "users" ? <UsersAccessSettings /> :
+          section === "workstations" ? <WorkstationsSettingsTab /> : (
             <>
               {section === "overview" && <HubAdminOverview />}
               {section === "security" && <HubSecuritySettings />}
               {section === "modules" && <ModuleCredentialSettings />}
             </>
           )}
-        </div>
-          </section>
-        </div>
       </div>
-    </main>
+    </AdminWorkspaceShell>
   );
 }

@@ -10,6 +10,7 @@ import { UsersAccessSettings } from "@/components/settings/UsersAccessSettings";
 import { ServiceIdentitiesSettings } from "@/components/settings/ServiceIdentitiesSettings";
 import { WorkstationsSettingsTab } from "@/components/settings/WorkstationsSettingsTab";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { AdminWorkspaceShell } from "@/components/settings/AdminWorkspaceShell";
 import { accessRequest, type AccessState, type ManagedWorkstation } from "@/services/accessService";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { ui } from "@/i18n/translate";
@@ -206,58 +207,38 @@ export function HubCentralAdminPage() {
     { id: "integrations", name: ui("Integrações API"), icon: Plug },
   ] as const;
   return (
-    <main className="andon-screen-enter min-h-dvh w-full bg-background p-3 md:p-5">
-      <div className="mx-auto w-full max-w-none space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon">
-              <Link to="/hub" aria-label={ui("Voltar ao Hub")}><ArrowLeft className="h-4 w-4" /></Link>
-            </Button>
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-black">{ui("Administração do Hub")}</h1>
-              <p className="text-xs text-muted-foreground">
-                {ui("Sessão central")}: {session?.principal?.displayName}
-              </p>
-            </div>
-          </div>
-          <LanguageSelector compact />
-          <Button variant="outline" disabled={logoutBusy}
-            onClick={() => void endOwnSession()}>
-            <LogOut className="mr-2 h-4 w-4" />{ui("Sair desta sessão")}
-          </Button>
-        </header>
-        {logoutError && <p role="alert" className="text-sm text-danger">{logoutError}</p>}
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-          <aside className="min-w-0 lg:sticky lg:top-5">
-        <nav aria-label={ui("Seções administrativas do Hub")}
-          className="flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-x-visible">
-          {sections.map(item => {
-            const Icon = item.icon;
-            return <Button asChild key={item.id}
-              variant={section === item.id ? "default" : "ghost"}
-              className="h-auto min-h-11 shrink-0 justify-start whitespace-normal px-3 py-2 text-left lg:w-full">
-              <Link to="/hub/admin" search={{ section: item.id }}
-                aria-current={section === item.id ? "page" : undefined}>
-                <Icon className="mr-2 h-4 w-4 shrink-0" />{item.name}
-              </Link>
-            </Button>;
-          })}
-        </nav>
-          </aside>
-          <section className="min-w-0 space-y-4" aria-label={ui("Conteúdo da administração do Hub")}>
-        {section === "overview" && <CentralOverview />}
-        {section === "users" && <UsersAccessSettings />}
-        {section === "workstations" && <WorkstationsSettingsTab />}
-        {section === "integrations" && <ServiceIdentitiesSettings />}
-        {!["overview","users","workstations","integrations"].includes(section) && (
-          <div role="status" className="rounded-xl border border-border bg-card p-5">
-            {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
-          </div>
-        )}
-          </section>
+    <AdminWorkspaceShell
+      brand="HUB"
+      title={ui("Administração do Hub")}
+      ariaLabel={ui("Administração do Hub")}
+      navLabel={ui("Seções administrativas do Hub")}
+      subtitle={`${ui("Sessão central")}: ${session?.principal?.displayName ?? ""} · ${session?.principal?.login ?? ""}`}
+      items={sections.map(item => ({
+        id: item.id, label: item.name, icon: item.icon,
+        group: "Sistema",
+      }))}
+      hubNavigation
+      activeId={section}
+      onSelect={() => undefined}
+      onBack={() => void navigate({ to: "/hub" })}
+      backLabel={ui("Voltar ao Hub")}
+      headerActions={<>
+        <LanguageSelector compact />
+        <Button variant="outline" disabled={logoutBusy} onClick={() => void endOwnSession()}>
+          <LogOut className="mr-2 h-4 w-4"/>{ui("Sair desta sessão")}
+        </Button>
+      </>}
+      alert={logoutError ? <p role="alert" className="text-sm text-danger">{logoutError}</p> : null}
+    >
+      {section === "overview" && <CentralOverview />}
+      {section === "users" && <UsersAccessSettings />}
+      {section === "workstations" && <WorkstationsSettingsTab />}
+      {section === "integrations" && <ServiceIdentitiesSettings />}
+      {!["overview", "users", "workstations", "integrations"].includes(section) && (
+        <div role="status" className="rounded-xl border border-border bg-card p-5">
+          {ui("Configuração indisponível na administração central enquanto as operações sensíveis não estiverem migradas.")}
         </div>
-      </div>
-    </main>
+      )}
+    </AdminWorkspaceShell>
   );
 }
