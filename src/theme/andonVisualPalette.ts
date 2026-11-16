@@ -3,6 +3,8 @@
  * Only strict #RRGGBB values are accepted; critical stop/warning tokens stay
  * outside this schema and always retain their semantic CSS colors.
  */
+/** The legacy "evergreen" token is accepted only for saved v1 palette compatibility.
+ * No product-facing preset or interface label should use customer names. */
 export type PresetVisualAccent = "slate" | "evergreen" | "ocean" | "indigo" | "violet";
 export type VisualAccent = PresetVisualAccent | `#${string}`;
 export type VisualPaletteKey =
@@ -118,8 +120,8 @@ export function restoreDefaultVisualPalette(): VisualPaletteDraft {
  */
 export const INDUSTRIAL_VISUAL_PRESETS = Object.freeze([
   {
-    id: "evergreen", label: "Evergreen Industrial",
-    description: "Identidade verde com contornos equilibrados.",
+    id: "operationalGreen", label: "Verde Operacional",
+    description: "Tons verdes equilibrados para leitura industrial.",
     palette: { ...DEFAULT_VISUAL_PALETTE },
   },
   {

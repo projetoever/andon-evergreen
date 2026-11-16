@@ -61,7 +61,7 @@ export const Route = createRootRoute({
         content: "Sistema Andon industrial para acompanhar máquinas e chamados em tempo real.",
       },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Andon Evergreen" },
+      { property: "og:title", content: "ANDON Industrial" },
       {
         property: "og:description",
         content: "Sistema Andon industrial para acompanhar máquinas e chamados em tempo real.",

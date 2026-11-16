@@ -622,6 +622,11 @@ try {
     assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
     pinnedMachineId = null;
     paletteWriteEnabled = true;
+    // The preceding test used a server-mocked fixed-screen workstation.
+    // Reload once after releasing that fixture so the access snapshot cannot
+    // race a stale lockedMachineId redirect during this unrelated palette test.
+    await page.goto("https://127.0.0.1:4188/hub");
+    await page.reload();
     appearance = await openAndonAppearance();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
     const openColorDialog = async () => {
