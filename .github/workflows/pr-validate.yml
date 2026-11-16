@@ -182,6 +182,9 @@ jobs:
           # The actual Playwright browser runs below still fail the job if
           # the runner is missing any required library or browser binary.
           /tmp/andon-playwright/node_modules/.bin/playwright install chromium
+          # P0 Firefox: verify host-only Secure/HttpOnly cookie survives actual
+          # process closure with a persistent browser profile (not private).
+          /tmp/andon-playwright/node_modules/.bin/playwright install firefox
           mkdir -p /tmp/andon-admission-browser
           openssl req -x509 -newkey rsa:2048 -nodes \
             -keyout /tmp/andon-admission-browser/key.pem \
@@ -195,6 +198,10 @@ jobs:
             curl -fsS http://127.0.0.1:4187/hub >/dev/null && break
             sleep 1
           done
+          ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
+          ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
+          ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
+          node tests/browser/firefoxPersistentCookie.mjs
           ANDON_TEST_TLS_KEY=/tmp/andon-admission-browser/key.pem \
           ANDON_TEST_TLS_CERT=/tmp/andon-admission-browser/cert.pem \
           ANDON_PLAYWRIGHT_MODULE=/tmp/andon-playwright/node_modules/playwright/index.mjs \
