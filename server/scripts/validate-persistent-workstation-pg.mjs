@@ -81,18 +81,19 @@ try {
     request(method, path, adminToken, adminStationId, method !== "GET", payload);
   const stationPath = "/workstations/" + targetStationId;
 
-  // Defaults OFF; ordinary account must expire normally.
+  // Account policy determines duration, even when the legacy terminal flag is OFF.
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
-  // P0: enable non-expiring login on a NOT-pinned workstation.
   await db.workstation.update({
     where: { id: targetStationId }, data: { lockedMachineId: null },
   });
-  const on = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
-  assert.equal(on.statusCode, 200, on.body);
+  // The removed toggle is not a valid API configuration anymore.
+  const obsolete = await adminRequest("PATCH", stationPath,
+    { allowPersistentOperationalLogin: true });
+  assert.equal(obsolete.statusCode, 400, obsolete.body);
   const loginToken = randomBytes(32).toString("hex");
-  // Trusted workstation alone cannot grant persistent login to a standard user.
+  // Only the user policy, not any terminal flag, authorizes persistent login.
   const standardLogin = await app.inject({
     method: "POST", url: "/api/access/login",
     headers: {
@@ -126,28 +127,10 @@ try {
   assert.equal(updatedPolicy.statusCode, 200, updatedPolicy.body);
   await assert.rejects(resolveSession(db, { token: standardToken, workstationId: targetStationId }));
 
-  // P0 regression: if a production profile requests permanent login before
-  // the Admin has approved station trust, do NOT misreport the short cookie
-  // as permanent. The response explains exactly which server precondition
-  // was not met; after enabling trust, one new login must issue a durable one.
-  const trustOff = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
-  assert.equal(trustOff.statusCode, 200, trustOff.body);
-  const fallback = await app.inject({
-    method: "POST", url: "/api/access/login",
-    headers: {
-      origin: "https://andon.test", "x-andon-workstation-id": targetStationId,
-      cookie: "__Host-andon-preauth=" + loginToken,
-      "x-andon-csrf": csrfToken(loginToken),
-    },
-    payload: { login: operator.login, password: operatorPassword },
-  });
-  assert.equal(fallback.statusCode, 200, fallback.body);
-  assert.equal(fallback.json().sessionPolicy, "persistent");
-  assert.equal(fallback.json().persistentOperational, false);
-  assert.equal(fallback.json().persistenceBlocker, "workstation_not_trusted");
-  assert.doesNotMatch(String(fallback.headers["set-cookie"]), /Max-Age=34560000/);
-  const trustOn = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: true });
-  assert.equal(trustOn.statusCode, 200, trustOn.body);
+  // With account policy persistent, no second workstation toggle is required.
+  assert.equal((await db.workstation.findUniqueOrThrow({
+    where: { id: targetStationId },
+  })).allowPersistentOperationalLogin, false);
 
   const login = await app.inject({
     method: "POST", url: "/api/access/login",
@@ -346,18 +329,20 @@ try {
     token: otherToken, workstationId: targetStationId,
   })).userId, otherUserId);
 
-  // Admin turning trust OFF immediately revokes all persistent sessions.
-  const off = await adminRequest("PATCH", stationPath, { allowPersistentOperationalLogin: false });
-  assert.equal(off.statusCode, 200, off.body);
-  await assert.rejects(resolveSession(db, { token: otherToken, workstationId: targetStationId }));
-  await assert.rejects(resolveSession(db, { token: renewed, workstationId: targetStationId }));
+  // A legacy OFF setting does not revoke a user-owned permanent session.
+  assert.equal((await resolveSession(db, {
+    token: otherToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+  assert.equal((await resolveSession(db, {
+    token: renewed, workstationId: targetStationId,
+  })).persistentOperational, true);
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
   assert.equal(await db.auditEvent.count({
     where: { action: "workstation.session.remote_logout", resourceId: targetStationId },
   }), 1);
-  process.stdout.write("REFINE21 unpinned persistent workstation + no silent logout PG PASS\n");
+  process.stdout.write("REFINE22 profile-owned persistent login + no redundant workstation toggle PG PASS\n");
 } finally {
   if (app) await app.close();
   if (oldEnv.central === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
