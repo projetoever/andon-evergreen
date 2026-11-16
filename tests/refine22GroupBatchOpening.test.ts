@@ -68,7 +68,10 @@ test("REFINE22.2: batch snapshots committed within same transaction after duplic
   assert.match(security, /process\.env\.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1"/);
   assert.match(repo, /reasonSelections: params\.map/);
   assert.match(modal, /onSelectMany/);
-  assert.match(modal, /disabled=\{busy \|\| Boolean\(onSelectMany && alreadyOpen\)\}/);
+  assert.match(modal, /disabled=\{busy \|\| alreadyOpen\}/);
+  assert.match(modal, /data-call-sector-active=\{alreadyOpen \? "true" : "false"\}/);
+  assert.match(modal, /const selected = available\.filter/);
+  assert.match(modal, /Selecione um ou mais setores livres/);
   assert.match(modal, /min-h-12 min-w-40/);
   assert.match(modal, /sectorNames\[option\.legacySubtype/);
   assert.match(machine, /onSelectMany=\{handleSelectReasonOptions\}/);
