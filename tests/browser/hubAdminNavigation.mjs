@@ -67,6 +67,7 @@ try {
     let centralHasPrincipal = true;
     let logoutShouldFail = false;
     let centralWorkstationActive = true;
+    let pinnedMachineId = null;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
     let operationalSettingsWriteEnabled = false;
@@ -186,6 +187,7 @@ try {
             allowOperational: true,
             allowBi: true,
             allowPriorities: true,
+            lockedMachineId: pinnedMachineId,
           },
           // Central grants belong to the authenticated user; the approved
           // workstation no longer controls each module individually.
@@ -568,6 +570,14 @@ try {
     let appearance = await openAndonAppearance();
     await appearance.getByText("Gravação global desabilitada no servidor ou nesta sessão. Prévia disponível.").waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
+    // Authorized Admin settings remain accessible as an independent page even
+    // when the workstation screen is pinned. No dashboard redirect or modal.
+    pinnedMachineId = "37";
+    await page.goto("https://127.0.0.1:4188/andon/admin");
+    await page.getByRole("region", { name: "Painel administrativo do ANDON" }).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/andon/admin");
+    assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
+    pinnedMachineId = null;
     paletteWriteEnabled = true;
     appearance = await openAndonAppearance();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
