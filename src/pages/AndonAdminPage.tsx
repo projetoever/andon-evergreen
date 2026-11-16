@@ -3,6 +3,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminSettingsWorkspace } from "@/components/settings/AdminSettingsModal";
+import { AndonProvider } from "@/context/AndonProvider";
+import { TechnicianProvider } from "@/context/TechnicianProvider";
+import { VirtualKeyboard } from "@/components/common/VirtualKeyboard";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
@@ -89,11 +92,19 @@ export function AndonAdminPage() {
     );
   }
 
+  // Keep the same operating contexts available to every settings tab
+  // (MachineAdminPanel needs useAndon), but mount them ONLY after a verified
+  // admin grant. A dedicated page must not crash on inventory/technician tabs.
   return (
-    <AdminSettingsWorkspace
-      centralAccess={isCentral}
-      centralPrimaryAdmin={isPrimaryAdmin}
-      onClose={() => void navigate({ to: "/andon" })}
-    />
+    <AndonProvider>
+      <TechnicianProvider>
+        <AdminSettingsWorkspace
+          centralAccess={isCentral}
+          centralPrimaryAdmin={isPrimaryAdmin}
+          onClose={() => void navigate({ to: "/andon" })}
+        />
+        <VirtualKeyboard />
+      </TechnicianProvider>
+    </AndonProvider>
   );
 }
