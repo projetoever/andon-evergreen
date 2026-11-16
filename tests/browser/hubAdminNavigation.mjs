@@ -411,6 +411,9 @@ try {
       sessionStorage.removeItem("andonAdminSession");
     });
     await page.reload();
+    // REFINE22: an unresolved router state must never leave a global loading
+    // backdrop obscuring the Hub login or preventing an administrator click.
+    assert.equal(await page.getByRole("status", { name: "Carregando página…" }).count(), 0);
     await page.getByRole("button", { name: "Administração do Hub", exact: true }).click();
     const login = page.getByRole("dialog", { name: "Acesso administrativo" });
     await login.waitFor();
