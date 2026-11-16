@@ -89,3 +89,26 @@ test("GROUPS/V2: configuration changes never rewrite technical sector identifier
   assert.match(modal, /expectedOptionRevision: hierarchicalChoice\.expectedOptionRevision/);
   assert.doesNotMatch(groupEditor, /andonCategory\.delete|removeAndonCategory\(/);
 });
+
+test("REFINE22.1: active group is visible without enabling operational creation", async () => {
+  const [panel, page, security, routes, service, editor, opening] = await Promise.all([
+    read("src/components/machines/MachineActionPanel.tsx"),
+    read("src/pages/MachineDetailPage.tsx"),
+    read("server/src/security/centralCallReasonsHttp.ts"),
+    read("server/src/routes/callReasons.ts"),
+    read("src/services/callReasonsCatalogService.ts"),
+    read("src/components/settings/CallReasonsSettingsTab.tsx"),
+    read("server/src/services/callReasonOpening.ts"),
+  ]);
+  assert.match(routes, /openingEnabled: process\.env\.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1"/);
+  assert.match(service, /openingEnabled: boolean/);
+  assert.match(panel, /disabled=\{!reason\.openingEnabled \|\| reason\.options\.length === 0\}/);
+  assert.match(panel, /Grupo ativo, mas abertura por grupos não liberada nesta instalação/);
+  assert.match(page, /reason\.openingEnabled/);
+  assert.match(security, /if \(!centralCallReasonsHttpEnabled\(\)\)/);
+  assert.match(security, /assertPermission\(principal, "calls\.open"\)/);
+  assert.match(opening, /if \(!input\.catalogEnabled \|\| !input\.hierarchicalOpeningEnabled\)/);
+  assert.match(editor, /grid gap-2 md:grid-cols-2/);
+  assert.match(editor, /min-h-10 min-w-28 max-w-48/);
+  assert.doesNotMatch(editor, /machine-sector-action inline-flex min-h-14/);
+});
