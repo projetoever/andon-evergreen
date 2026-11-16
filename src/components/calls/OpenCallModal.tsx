@@ -528,7 +528,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
         {reasonCatalogStatus === "unavailable" && (
           <div role="alert" className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs">
             <p>{ui("Grupos indisponíveis; os setores diretos continuam habilitados.")}</p>
-            <BigButton tone="neutral" size="sm" onClick={() => setReasonReload(n => n + 1)}>
+            <BigButton tone="neutral" size="md" onClick={() => setReasonReload(n => n + 1)}>
               {ui("Tentar novamente")}
             </BigButton>
           </div>
