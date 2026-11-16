@@ -39,3 +39,22 @@ test("S3-A: KPI eligibility remains visible but is not silently promoted by UI",
   assert.match(panel, /option\.effectivePolicy\.correctiveCandidate/);
   assert.match(panel, /chosen && chosen\.nature === draft\.nature/);
 });
+
+test("REFINE22 P1: reason editing exposes hierarchy order and existing area links", async () => {
+  const [page, setup, api] = await Promise.all([
+    text("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    text("../src/components/settings/AdminSettingsModal.tsx"),
+    text("../server/src/security/centralCallReasonsHttp.ts"),
+  ]);
+  assert.match(setup, /catalogView === "reasons"/);
+  assert.match(page, /createReasonDraft\(\)/);
+  assert.match(page, /Math\.max\(0, \.\.\.reasons\.map\(reason => reason\.displayOrder\)\) \+ 10/);
+  assert.match(page, /Ordem de exibição do motivo/);
+  assert.match(page, /Number\.isSafeInteger\(next\.displayOrder\)/);
+  assert.match(page, /next\.displayOrder > 9999/);
+  assert.match(page, /Vincule setores já cadastrados como subcategorias deste motivo/);
+  assert.match(page, /addCallReasonOption\(chosen\.id/);
+  assert.match(page, /updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
+  assert.match(page, /restrictedDelegatedLink/);
+  assert.match(api, /assertPermission\(principal, "analytics\.policy\.manage"\)/);
+});
