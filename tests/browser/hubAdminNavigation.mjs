@@ -589,7 +589,7 @@ try {
       }
       // Groups have their own full-screen sidebar page; no nested motivos tab.
       await andonNavigation.getByRole("button", { name: "Grupos de chamados", exact: true }).click();
-      await workspace.getByRole("heading", { name: "Grupos de chamados" }).waitFor();
+      await workspace.getByRole("heading", { name: "Grupos de chamados", exact: true }).first().waitFor();
       assert.equal(await workspace.getByRole("navigation", { name: "Organização dos cadastros de chamados" }).count(), 0);
       await andonNavigation.getByRole("button", { name: "Setores / categorias", exact: true }).click();
       await workspace.getByRole("heading", { name: "Setores / categorias", exact: true }).waitFor();
