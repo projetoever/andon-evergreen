@@ -194,6 +194,7 @@ function Get-AndonRuntimeContext {
         TlsCertificatePath = $tlsCertificatePath
         TlsPrivateKeyPath = $tlsPrivateKeyPath
         CentralAccessEnabled = $centralAccessEnabled
+        InstalledCommit   = "$($config.installedCommit)".Trim().ToLowerInvariant()
         ApiBaseUrl        = "${transportMode}://${runtimeHost}:$apiPort"
         FrontendUrl       = "${transportMode}://${runtimeHost}:$frontendPort"
     }
@@ -276,6 +277,335 @@ function Test-AndonRuntimeHttp {
             Out-Null
 
         return $true
+    } catch {
+        return $false
+    }
+}
+
+# Somente leitura: o build reportado foi capturado pelo processo SSR no boot,
+# e nao reflete um manifesto novo gravado enquanto um Node antigo continua vivo.
+function Test-AndonRuntimeFrontendBuild {
+    $context = Get-AndonRuntimeContext
+    $expected = "$($context.InstalledCommit)".Trim().ToLowerInvariant()
+    if ($expected -notmatch '^[0-9a-f]{40}
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [int]$TimeoutSeconds = 120,
+
+        [int]$IntervalSeconds = 3
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+
+    do {
+        if (
+            Test-AndonRuntimeHttp `
+                -Url $Url `
+                -TimeoutSeconds 5
+        ) {
+            return $true
+        }
+
+        Start-Sleep -Seconds $IntervalSeconds
+    } while ((Get-Date) -lt $deadline)
+
+    return $false
+}
+
+function Test-AndonRuntimeApiBusinessReady {
+    $context = Get-AndonRuntimeContext
+
+    try {
+        $readiness = Invoke-RestMethod `
+            -Uri "$($context.ApiBaseUrl)/health/ready" `
+            -TimeoutSec 10
+
+        return (
+            $readiness.status -eq "ok" -and
+            $readiness.ready -is [bool] -and
+            $readiness.ready
+        )
+    } catch {
+        return $false
+    }
+}
+
+function Wait-AndonRuntimeApiBusinessReady {
+    param(
+        [int]$TimeoutSeconds = 240,
+        [int]$IntervalSeconds = 3
+    )
+
+    $deadline =
+        (Get-Date).AddSeconds($TimeoutSeconds)
+
+    do {
+        if (Test-AndonRuntimeApiBusinessReady) {
+            return $true
+        }
+
+        Start-Sleep -Seconds $IntervalSeconds
+    } while ((Get-Date) -lt $deadline)
+
+    return $false
+}
+
+function Test-AndonRuntimeTcp {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$HostName,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Port,
+
+        [int]$TimeoutMilliseconds = 3000
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+
+    try {
+        $asyncResult =
+            $client.BeginConnect(
+                $HostName,
+                $Port,
+                $null,
+                $null
+            )
+
+        if (
+            !$asyncResult.AsyncWaitHandle.WaitOne(
+                $TimeoutMilliseconds,
+                $false
+            )
+        ) {
+            return $false
+        }
+
+        $client.EndConnect($asyncResult)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
+function Get-AndonRuntimePortProcessIds {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    return @(
+        Get-NetTCPConnection `
+            -LocalPort $Port `
+            -State Listen `
+            -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.OwningProcess -gt 0
+            } |
+            Select-Object `
+                -ExpandProperty OwningProcess `
+                -Unique
+    )
+}
+
+function Get-AndonRuntimeProcessCommandLine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$ProcessId
+    )
+
+    $process = Get-CimInstance `
+        Win32_Process `
+        -Filter "ProcessId = $ProcessId" `
+        -ErrorAction SilentlyContinue
+
+    if (!$process) {
+        return ""
+    }
+
+    return "$($process.CommandLine)"
+}
+
+function Stop-AndonRuntimeOwnedPortProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Component,
+
+        [string[]]$ExpectedMarkers = @()
+    )
+
+    $context = Get-AndonRuntimeContext
+
+    foreach ($processId in Get-AndonRuntimePortProcessIds -Port $Port) {
+        $commandLine =
+            Get-AndonRuntimeProcessCommandLine `
+                -ProcessId $processId
+
+        if ([string]::IsNullOrWhiteSpace($commandLine)) {
+            throw (
+                "Porta $Port ocupada pelo PID $processId, mas nao foi " +
+                "possivel identificar sua linha de comando. " +
+                "O processo nao sera encerrado automaticamente."
+            )
+        }
+
+        $ownedByAndon =
+            $commandLine.IndexOf(
+                $context.ProjectPath,
+                [System.StringComparison]::OrdinalIgnoreCase
+            ) -ge 0
+
+        if (!$ownedByAndon) {
+            foreach ($marker in $ExpectedMarkers) {
+                if (
+                    ![string]::IsNullOrWhiteSpace($marker) -and
+                    $commandLine.IndexOf(
+                        $marker,
+                        [System.StringComparison]::OrdinalIgnoreCase
+                    ) -ge 0
+                ) {
+                    $ownedByAndon = $true
+                    break
+                }
+            }
+        }
+
+        if (!$ownedByAndon) {
+            throw (
+                "Porta $Port ocupada por processo externo PID $processId. " +
+                "O processo nao sera encerrado. Comando: $commandLine"
+            )
+        }
+
+        Write-AndonRuntimeLog `
+            -Component $Component `
+            -Level "AVISO" `
+            -Message (
+                "Finalizando processo ANDON PID $processId " +
+                "na porta $Port."
+            )
+
+        Stop-Process `
+            -Id $processId `
+            -Force `
+            -ErrorAction Stop
+    }
+}
+
+function Get-AndonRuntimeCommandPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandName,
+
+        [string[]]$FallbackPaths = @()
+    )
+
+    $command =
+        Get-Command `
+            $CommandName `
+            -ErrorAction SilentlyContinue
+
+    if ($command) {
+        return $command.Source
+    }
+
+    foreach ($fallbackPath in $FallbackPaths) {
+        if (Test-Path $fallbackPath -PathType Leaf) {
+            return $fallbackPath
+        }
+    }
+
+    throw "Comando nao encontrado: $CommandName"
+}
+
+function Get-AndonChromePath {
+    $candidates = @(
+        "C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+
+    $command =
+        Get-Command `
+            "chrome.exe" `
+            -ErrorAction SilentlyContinue
+
+    if ($command) {
+        return $command.Source
+    }
+
+    return $null
+}
+
+function Stop-AndonChromeProfileProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath
+    )
+
+    $processes = @(
+        Get-CimInstance `
+            Win32_Process `
+            -Filter "name = 'chrome.exe'" `
+            -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.CommandLine -like "*$ProfilePath*"
+            }
+    )
+
+    foreach ($process in $processes) {
+        Stop-Process `
+            -Id $process.ProcessId `
+            -Force `
+            -ErrorAction SilentlyContinue
+    }
+}
+
+function Clear-AndonChromeProfileLocks {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath
+    )
+
+    if (!(Test-Path $ProfilePath -PathType Container)) {
+        return
+    }
+
+    foreach ($lockName in @(
+        "SingletonCookie",
+        "SingletonLock",
+        "SingletonSocket"
+    )) {
+        $lockPath = Join-Path $ProfilePath $lockName
+
+        Remove-Item `
+            -Path $lockPath `
+            -Force `
+            -ErrorAction SilentlyContinue
+    }
+}
+) { return $false }
+    try {
+        $response = Invoke-RestMethod `
+            -Uri "$($context.FrontendUrl)/__andon/build" `
+            -TimeoutSec 5 `
+            -Headers @{ "Cache-Control" = "no-cache" }
+        return (
+            $null -ne $response.commit -and
+            "$($response.commit)".Trim().ToLowerInvariant() -ceq $expected
+        )
     } catch {
         return $false
     }
