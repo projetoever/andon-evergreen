@@ -857,6 +857,7 @@ function Get-AndonDefaultConfig {
         tlsPrivateKeyPath = ""
         centralAccessEnabled = $false
         centralSecurityValidationEnabled = $false
+        hierarchicalCallPilotEnabled = $false
     }
 }
 
@@ -894,13 +895,14 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled","centralSecurityValidationEnabled")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled","centralSecurityValidationEnabled","hierarchicalCallPilotEnabled")) {
                 $allowsEmptyValue = $key -in @(
                     "httpsHost",
                     "tlsCertificatePath",
                     "tlsPrivateKeyPath",
                     "centralAccessEnabled",
-                    "centralSecurityValidationEnabled"
+                    "centralSecurityValidationEnabled",
+                    "hierarchicalCallPilotEnabled"
                 )
                 if (
                     $null -ne $fileConfig.$key -and
@@ -945,6 +947,10 @@ function Save-AndonConfig {
         centralSecurityValidationEnabled = (
             $null -ne $Config.centralSecurityValidationEnabled -and
             "$($Config.centralSecurityValidationEnabled)".Trim().ToLowerInvariant() -eq "true"
+        )
+        hierarchicalCallPilotEnabled = (
+            $null -ne $Config.hierarchicalCallPilotEnabled -and
+            "$($Config.hierarchicalCallPilotEnabled)".Trim().ToLowerInvariant() -eq "true"
         )
     }
     $configToSave | ConvertTo-Json -Depth 6 | Set-Content $Global:AndonConfigPath -Encoding UTF8
@@ -1117,12 +1123,23 @@ function Write-AndonBackendEnv {
         "ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED",
         "ANDON_CENTRAL_SHIFT_UPDATE_HTTP_ENABLED",
         "ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED",
+        # REFINE22 P1: administration of reasons/options joins the existing
+        # EXPLICIT notebook HTTPS/local-PG security validation profile.
+        # This never activates operator-facing hierarchical call opening.
+        "ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
         "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED",
         "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
     )
+    # Operational hierarchical opening is ALWAYS separate from catalog CRUD
+    # and requires a second opt-in persisted only for the isolated HML profile.
+    $hierarchicalCallOpening = if (
+        $validationEnabled -and
+        $null -ne $Config.hierarchicalCallPilotEnabled -and
+        "$($Config.hierarchicalCallPilotEnabled)".Trim().ToLowerInvariant() -eq "true"
+    ) { "1" } else { "0" }
     $securityEnv = ($securityWriteFlags | ForEach-Object {
         "$_=$(if ($validationEnabled) { '1' } else { '0' })"
     }) -join "`r`n"
@@ -1141,6 +1158,8 @@ CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
 ANDON_ACCESS_ORIGIN="$($NetworkConfig.frontendUrl)"
 ANDON_CENTRAL_ACCESS_ENABLED=$centralAccessEnabled
 $securityEnv
+# Opening operational calls is independent of catalog CRUD and OFF by default.
+ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=$hierarchicalCallOpening
 $tlsEnvironment
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"

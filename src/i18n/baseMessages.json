@@ -864,5 +864,8 @@
   ["Nome, ID ou especialidade...","Name, ID or specialty...","名稱、識別碼或專業類別…"],
   ["Filtrar motivos por status","Filter reasons by status","依狀態篩選通報原因"],
   ["motivos","reasons","原因"],
-  ["Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.","No reasons found. Adjust the search or filter.","找不到通報原因。請調整搜尋或篩選條件。"]
+  ["Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.","No reasons found. Adjust the search or filter.","找不到通報原因。請調整搜尋或篩選條件。"],
+  ["Informe uma ordem de 0 a 9999 para o motivo.","Enter a reason display order from 0 to 9999.","請輸入 0 至 9999 的通報原因顯示順序。"],
+  ["Ordem de exibição do motivo","Reason display order","通報原因顯示順序"],
+  ["Vincule setores já cadastrados como subcategorias deste motivo. A vinculação não altera a política de KPI nem reclassifica chamados anteriores.","Link existing sectors as subcategories of this reason. Linking does not change KPI policies or reclassify earlier calls.","將現有部門連結為此通報原因的子類別。連結不會變更 KPI 政策，也不會重新分類先前的通報。"]
 ]
