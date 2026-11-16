@@ -178,13 +178,12 @@ try {
     }
 
     if (
-        Test-AndonRuntimeHttp `
-            -Url $context.FrontendUrl `
-            -TimeoutSeconds 5
+        (Test-AndonRuntimeHttp -Url $context.FrontendUrl -TimeoutSeconds 5) -and
+        (Test-AndonRuntimeFrontendBuild)
     ) {
         Write-WatchdogLog `
             -Level "OK" `
-            -Message "Frontend operacional."
+            -Message "Frontend operacional e SHA confirmado: $($context.InstalledCommit)."
     } else {
         Write-WatchdogLog `
             -Level "AVISO" `
@@ -197,18 +196,16 @@ try {
 
         if (
             !(
-                Wait-AndonRuntimeHttp `
-                    -Url $context.FrontendUrl `
-                    -TimeoutSeconds 150 `
-                    -IntervalSeconds 3
+                (Wait-AndonRuntimeFrontendBuild -TimeoutSeconds 150 -IntervalSeconds 3) -and
+                (Test-AndonRuntimeHttp -Url $context.FrontendUrl -TimeoutSeconds 5)
             )
         ) {
-            throw "Frontend nao ficou operacional no tempo esperado."
+            throw "Frontend nao confirmou o SHA instalado. Verifique processo, build e logs antes de liberar uso."
         }
 
         Write-WatchdogLog `
             -Level "OK" `
-            -Message "Frontend iniciado e operacional."
+            -Message "Frontend iniciado no SHA instalado: $($context.InstalledCommit)."
     }
 
     Write-WatchdogLog `
