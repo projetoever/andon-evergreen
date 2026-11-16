@@ -777,7 +777,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         </select>
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        {ui("A duração escolhida não modifica as permissões selecionadas. O modo sem expiração exige conta Pessoa não administrativa e workstation aprovada e confiável, sem exigir tela fixada. O escopo de máquinas do usuário é preservado. Logout, revogação e alterações de segurança da conta podem encerrar a sessão.")}
+                        {ui("A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.")}
                       </p>
                     </fieldset>
                   )}
