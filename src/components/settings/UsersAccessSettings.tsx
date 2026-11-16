@@ -773,7 +773,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         >
                           <option value="standard">{ui("Padrão — 30 minutos inativo / 12 horas máximo")}</option>
                           <option value="daily">{ui("24 horas — sessão sem expiração por inatividade")}</option>
-                          <option value="persistent">{ui("Não expirar — workstation confiável (sem fixar tela)")}</option>
+                          <option value="persistent">{ui("Não expirar — definido no perfil do usuário")}</option>
                         </select>
                       </Label>
                       <p className="text-xs text-muted-foreground">
