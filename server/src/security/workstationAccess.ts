@@ -13,6 +13,7 @@ import { resolveSession } from "../access/sessions.js";
 import { AccessError, assertModule, assertPermission, isAndonSettingsDelegate } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
+  bindAuthorizedGlobalAssetCatalogReader,
   isScopedMachineReadRoute,
 } from "./centralScopedMachineReads.js";
 import type { TLSSocket } from "node:tls";
@@ -182,11 +183,13 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
       if (isCentralMachineSetSettingsRead(request.method, path) &&
           isAndonSettingsDelegate(principal) && centralMachineSetSettingsEnabled()) {
         authorizeCentralMachineSetSettingsRead(principal, workstation);
+        bindAuthorizedGlobalAssetCatalogReader(request, principal);
         return;
       }
       if (isCentralMachineSubsetSettingsRead(request.method, path) &&
           isAndonSettingsDelegate(principal) && centralMachineSubsetSettingsEnabled()) {
         authorizeCentralMachineSubsetSettingsRead(principal, workstation);
+        bindAuthorizedGlobalAssetCatalogReader(request, principal);
         return;
       }
       const ownPreferencesReadTarget = centralOwnWorkstationPreferenceReadTarget(request.method, path);
