@@ -288,13 +288,12 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       call.subtype === option.legacySubtype &&
       ["open", "in_progress", "post_maintenance"].includes(call.status),
     );
-    setSelectedReasonId(null);
     if (existing) {
-      // Do not open a duplicate; use the existing machine call UI.
-      onOpenChange(false);
-      void navigate({ to: "/machines/$machineId", params: { machineId } });
+      // Same strict behavior in global and machine group selectors.
+      toast.error(ui("Indisponível: chamado ativo"));
       return;
     }
+    setSelectedReasonId(null);
     setHierarchicalChoice({
       reasonId: reason.id,
       optionId: option.id,
@@ -697,8 +696,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
         ? {
             ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
             active: true,
-            options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options
-              .map(option => ({ ...option, active: true })),
+            options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options,
           } : null}
       onOpenChange={next => { if (!next) setSelectedReasonId(null); }}
       onSelect={handleSelectReasonOption}
