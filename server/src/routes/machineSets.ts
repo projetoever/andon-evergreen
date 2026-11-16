@@ -9,6 +9,7 @@ import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access
 import { AccessError } from "../access/policy.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { isAuthorizedCentralMachineSetSettings } from "../security/centralMachineSetSettingsHttp.js";
+import { scopedMachineAssetReadIds } from "../security/centralScopedMachineReads.js";
 import { createCentralMachineSet, updateCentralMachineSet } from "../access/centralMachineSetSettings.js";
 import {
   badRequest,
@@ -187,11 +188,14 @@ export async function registerMachineSetRoutes(
   }>(
     "/api/machines/:machineId/sets",
     async (request, reply) => {
+      // Apply server-derived machine scope before checking existence.
+      const allowedMachineIds = scopedMachineAssetReadIds(request);
       const machine =
-        await prisma.machine.findUnique({
-          where: {
-            id: request.params.machineId,
-          },
+        await prisma.machine.findFirst({
+          where: { AND: [
+            { id: request.params.machineId },
+            ...(allowedMachineIds === null ? [] : [{ id: { in: [...allowedMachineIds] } }]),
+          ] },
           select: { id: true },
         });
 
