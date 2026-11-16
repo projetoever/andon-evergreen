@@ -451,12 +451,22 @@ export function CallReasonsSettingsTab() {
                   {natures.map(([value, title]) => <option key={value} value={value}>{ui(title)}</option>)}
                 </select>
               </Label>
-              <Label className="block space-y-2">{ui("Política de KPI corretivo")}
+              <Label className="block space-y-2">{ui("Participação nos KPIs de manutenção corretiva")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                   value={draft.maintenanceKpiPolicy} disabled={writeBlocked || !isPrimaryAdmin}
                   onChange={e => { setPolicyAcknowledged(false); setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] }); }}>
                   {policyValues.filter(value => value !== "eligible" || draft.nature === "corrective_failure")
                     .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
+                </select>
+              </Label>
+              <Label className="block space-y-2">{ui("Registro do chamado no BI")}
+                <select className="h-10 w-full rounded-md border border-input bg-background px-3"
+                  value={draft.analyticsDisposition} disabled={writeBlocked || !isPrimaryAdmin}
+                  onChange={event => { setPolicyAcknowledged(false); setDraft({
+                    ...draft, analyticsDisposition: event.target.value,
+                  }); }}>
+                  {dispositionNames.map(([value, label]) =>
+                    <option key={value} value={value}>{ui(label)}</option>)}
                 </select>
               </Label>
               <CompactAndonColorField label="Cor do motivo" value={draft.color}
@@ -468,6 +478,19 @@ export function CallReasonsSettingsTab() {
                   onChange={event => setDraft({ ...draft,
                     displayOrder: Number(event.target.value) })} />
               </Label>
+            </div>
+            <div role="note" className="space-y-1 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">{ui("Prévia do tratamento do chamado no BI")}</p>
+              <p>{ui("BI operacional")}: {ui(draft.analyticsDisposition === "include"
+                ? "Ocorrência válida — tempos e volume acompanhados"
+                : "Registro excluído das estatísticas por classificação de teste/falso/duplicado")}</p>
+              <p>{ui("KPIs de manutenção corretiva")}: {ui(draft.nature !== "corrective_failure" ||
+                draft.maintenanceKpiPolicy === "excluded" || draft.analyticsDisposition !== "include"
+                ? "Não integra MTTA, MTTR ou MTBF corretivos"
+                : draft.maintenanceKpiPolicy === "pending"
+                  ? "Pendente de classificação; não entra automaticamente"
+                  : "Apenas candidato, sujeito a evidências de falha e parada física")}</p>
+              <p>{ui("Downtime físico confirmado e tempos técnicos reais continuam registrados separadamente; configurar um motivo não apaga nem reclassifica chamados anteriores.")}</p>
             </div>
             {!chosen && !isPrimaryAdmin && (
               <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
