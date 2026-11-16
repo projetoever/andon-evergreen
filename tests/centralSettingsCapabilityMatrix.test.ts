@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const get = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("CFG-15A: 10 sections expose 11 server-verified capabilities", async () => {
+test("CFG-15A: 11 sections expose 11 server-verified capabilities", async () => {
   const [notice, server, type, modal] = await Promise.all([
     get("../src/components/settings/CentralSettingsCapabilityNotice.tsx"),
     get("../server/src/services/systemSettings.ts"),
@@ -17,8 +17,7 @@ test("CFG-15A: 10 sections expose 11 server-verified capabilities", async () => 
     "assetCatalogs", "machines",
   ]) {
     assert.match(notice, new RegExp(`case "${tab}"`), `missing capability status: ${tab}`);
-    if (tab !== "callReasons") assert.match(modal, new RegExp(`id: "${tab}"`), `missing admin tab: ${tab}`);
-    else assert.match(modal, /catalogView === "reasons" \? "callReasons" : tab/);
+    assert.match(modal, new RegExp(`id: "${tab}"`), `missing admin tab: ${tab}`);
   }
   const capabilityMatrix = [
     ["centralCategorySettingsWriteEnabled", "centralCategorySettingsEnabled"],
