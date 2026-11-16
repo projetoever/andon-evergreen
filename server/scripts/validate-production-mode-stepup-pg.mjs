@@ -30,7 +30,7 @@ try {
   } });
   await db.workstation.create({ data: {
     id: ws, active: true, pendingApproval: false, allowOperational: true,
-    allowPersistentOperationalLogin: true, lockedMachineId: machineId,
+    lockedMachineId: machineId,
   } });
   const verifier = await db.accessUser.create({ data: {
     login: "ci.prod.approver." + nonce, displayName: "CI verifier",
