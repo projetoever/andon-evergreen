@@ -17,7 +17,7 @@ test("CFG-08A: explicit Admin status controls catalog create and KPI-sensitive c
   assert.match(page,/disabled=\{writeBlocked \|\| !isPrimaryAdmin\}/);
   assert.match(page,/disabled=\{writeBlocked \|\| \(Boolean\(chosen\) && !isPrimaryAdmin\)\}/);
   assert.match(page,/!chosen && !isPrimaryAdmin/);
-  assert.match(page,/Políticas de KPI continuam exclusivas do Admin principal/);
+  assert.match(page,/Elegibilidade corretiva é exclusiva do Admin principal/);
 });
 
 test("CFG-08A: transaction rechecks delegated catalog role after session refresh", async () => {
