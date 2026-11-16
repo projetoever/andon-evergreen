@@ -16,7 +16,7 @@ O frontend consulta o valor real `centralCallReasonsCatalogEnabled` na API. O ba
 
 A partir deste pacote, `Write-AndonBackendEnv` inclui o catálogo **apenas no perfil de homologação central preexistente** (`centralSecurityValidationEnabled=true`), cujo preflight exige login central, HTTPS e PostgreSQL local. Em produção ou instalação legada sem esse opt-in o catálogo permanece desligado.
 
-`ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0` é emitido explicitamente: a liberação do catálogo **não habilita** botões hierárquicos na máquina, não envia nenhuma abertura de chamado e não altera a camada de BI. Abertura hierárquica requer revisão independente da compatibilidade de OS, concorrência, timestamps/snapshots e causalidade dos indicadores.
+`ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0` é emitido **por padrão**: a liberação do catálogo **não habilita** botões hierárquicos na máquina, não envia nenhuma abertura de chamado e não altera a camada de BI. Há um segundo opt-in persistente, `hierarchicalCallPilotEnabled`, inicialmente falso. Somente o script de homologação, após verificação do catálogo, parada explícita e confirmações `NOTEBOOK_ISOLADO` + `TESTAR_HIERARQUIA`, pode colocá-lo em true. A flag volta a 0 ao desabilitar a abertura. Nunca utilizar em servidor industrial.
 
 ### Atualização segura
 
@@ -25,6 +25,7 @@ A partir deste pacote, `Write-AndonBackendEnv` inclui o catálogo **apenas no pe
 3. Conferir no `C:\web-andon-industrial\andon-config.json` que `centralAccessEnabled=true`, `centralSecurityValidationEnabled=true`, `transportMode=https` e `postgresHost=127.0.0.1` (ou localhost), sem divulgar segredos. Se o perfil não estiver em modo de homologação, não alterar o banco; usar exclusivamente o procedimento isolado já autorizado `installer/configure-andon-security-validation.ps1`, com parada controlada e confirmação `NOTEBOOK_ISOLADO`.
 4. Conferir **somente os nomes das variáveis** em `server\.env`: catálogo = 1 e abertura hierárquica = 0. Nunca compartilhar `DATABASE_URL`, cookies ou senhas.
 5. Config ANDON > Setores, categorias e motivos > Motivos e subcategorias: a lista e o editor devem carregar sem a mensagem de recurso desabilitado.
+6. **Somente depois da homologação do catálogo**, se autorizado um ensaio operacional isolado, execute com privilégio administrativo `powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\web-andon-industrial\\installer\\configure-andon-security-validation.ps1`; selecione opção 3, confirme `NOTEBOOK_ISOLADO` e `TESTAR_HIERARQUIA`; então inicie pelo menu 4. A opção 4 do mesmo script desliga apenas a abertura, preservando o catálogo. A opção 2 desliga todo o perfil de homologação.
 
 ### Checklist de homologação
 
@@ -36,6 +37,8 @@ A partir deste pacote, `Write-AndonBackendEnv` inclui o catálogo **apenas no pe
 - [ ] Perfil de Config ANDON delegado pode apenas operações permitidas sem manipular KPI.
 - [ ] Página mantém leitura e mensagens corretas após refresh/voltar, foco e alteração real das capacidades.
 - [ ] Operador não recebe editor global; rota de abertura hierárquica segue 403 enquanto OFF.
+- [ ] Em ensaio isolado opcional (flag ON por autorização independente): modal categoria → especialidade, abertura segura com revisão/snapshot, OS e bloqueio de duplicidade, sem índices corretivos automáticos para setup/apoio.
+- [ ] Após ensaio, desativar apenas abertura com opção 4 do script; conferir flag `ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0`, reiniciar e verificar que o catálogo administrativo segue disponível.
 - [ ] Sem alteração de chamados reais, históricos, MTTA/MTTR/MTBF, downtime, CLP, GPIO ou Node-RED.
 
-**Estado após CI:** codificado e testado em ambientes isolados; **não homologado no notebook** até conferência manual. A fase de ativar e testar abertura hierárquica em chamados de teste será coordenada separadamente, sem modificar equipamento real.
+**Estado após CI:** codificado e testado em ambientes isolados; **não homologado no notebook** até conferência manual. A ativação da abertura hierárquica exige uma **segunda ação explícita de homologação**, isolada do catálogo e sem modificar equipamento real.
