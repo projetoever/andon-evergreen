@@ -822,7 +822,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         reasonCatalogStatus={reasonCatalogStatus}
         onRetryReasonCatalog={() => setReasonCatalogReload(current => current + 1)}
         onOpenReason={(reasonId) => {
-          if (reasonCatalogStatus !== "ready") return;
+          if (reasonCatalogStatus !== "ready" ||
+              !hierarchicalReasons?.some(reason => reason.id === reasonId && reason.openingEnabled)) return;
           setHierarchicalChoice(null);
           setSelectedReasonId(reasonId);
         }}
