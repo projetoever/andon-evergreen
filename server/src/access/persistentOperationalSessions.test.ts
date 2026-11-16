@@ -41,8 +41,9 @@ test("SEC21: no persistent Admin or unapproved station, but fixed machine is opt
     { ...station, active: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user,
     { ...station, pendingApproval: true }, machines, "selected"), false);
+  const stationWithLegacyFlagDisabled = { ...station, allowPersistentOperationalLogin: false };
   assert.equal(permitsPersistentOperationalAccount(user,
-    { ...station, allowPersistentOperationalLogin: false }, machines, "selected"), true,
+    stationWithLegacyFlagDisabled, machines, "selected"), true,
     "legacy workstation flag must not control user session duration");
   assert.equal(permitsPersistentOperationalAccount(user, station,
     [{ machineId: "39" }], "selected"), true,
