@@ -296,6 +296,11 @@ export function MachineActionPanel({
         </div>
       )}
 
+      {hierarchicalReasons?.some(reason => !reason.openingEnabled) && (
+        <p role="status" className="text-xs font-semibold text-warning">
+          {t("Grupo ativo, mas abertura por grupos não liberada nesta instalação.")}
+        </p>
+      )}
       <div
         className="grid gap-1.5"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
