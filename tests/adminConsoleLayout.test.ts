@@ -151,7 +151,7 @@ test("P1 route admin fullscreen: screen pin cannot redirect authorized settings 
   assert.doesNotMatch(page, /localStorage|sessionStorage|setCookie|accessToken/);
 });
 
-test("P1 full admin workspace has 10 menu entries and 11 gated catalog capabilities", async () => {
+test("P1 full admin workspace has 11 menu entries and 11 gated catalog capabilities", async () => {
   const source = await readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8");
   const workspace = source.split("export function AdminSettingsWorkspace")[1]?.split("function ClassificationsTab")[0] ?? "";
   assert.match(workspace, /CentralSettingsCapabilityNotice tab=\{capabilityTab\} open=\{true\}/);
@@ -163,8 +163,9 @@ test("P1 full admin workspace has 10 menu entries and 11 gated catalog capabilit
     "shifts","categories","classifications","assetCatalogs","machines"]) {
     assert.match(source, new RegExp('id: "' + tab + '"'));
   }
-  assert.doesNotMatch(source, /id: "callReasons",/);
-  assert.match(source, /tab === "categories" && catalogView === "reasons"/);
+  assert.match(source, /id: "callReasons",/);
+  assert.match(source, /capabilityTab: SettingsTab = tab/);
+  assert.doesNotMatch(source, /catalogView/);
 });
 
 test("REFINE22: Hub and ANDON render exactly the same admin frame without overlay", async () => {
