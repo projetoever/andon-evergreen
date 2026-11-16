@@ -447,15 +447,9 @@ export function CategoriesSettingsTab() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
-            <label className="text-sm font-semibold">
-              {ui("Cor do botão na tela da máquina")}
-              <div className="mt-1 flex h-12 items-center gap-3 rounded-md border border-border bg-background px-2">
-                <CompactAndonColorField label="Cor do botão na tela da máquina"
-                  value={draft.color} disabled={!canChangeCatalog || isBusy}
-                  onChange={color => setDraft(previous => ({ ...previous, color }))} />
-                <span className="font-mono text-sm font-bold">{draft.color.toUpperCase()}</span>
-              </div>
-            </label>
+            <CompactAndonColorField label="Cor do botão na tela da máquina"
+              value={draft.color} disabled={!canChangeCatalog || isBusy}
+              onChange={color => setDraft(previous => ({ ...previous, color }))} />
             <div>
               <span className="text-sm font-semibold">{ui("Prévia")}</span>
               <div
