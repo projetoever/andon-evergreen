@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as HubIndexRouteImport } from './routes/hub.index'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as HubAdminRouteImport } from './routes/hub.admin'
+import { Route as AndonAdminRouteImport } from './routes/andon_.admin'
 import { Route as MachinesMachineIdFailureHistoryRouteImport } from './routes/machines.$machineId_.failure-history'
 import { Route as MachinesMachineIdCallHistoryRouteImport } from './routes/machines.$machineId_.call-history'
 
@@ -78,6 +79,11 @@ const HubAdminRoute = HubAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => HubRoute,
 } as any)
+const AndonAdminRoute = AndonAdminRouteImport.update({
+  id: '/andon_/admin',
+  path: '/andon/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MachinesMachineIdFailureHistoryRoute =
   MachinesMachineIdFailureHistoryRouteImport.update({
     id: '/machines/$machineId_/failure-history',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/hub': typeof HubRouteWithChildren
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/andon/admin': typeof AndonAdminRoute
   '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/hub/': typeof HubIndexRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/andon/admin': typeof AndonAdminRoute
   '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/hub': typeof HubIndexRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/hub': typeof HubRouteWithChildren
   '/machine-priorities': typeof MachinePrioritiesRoute
   '/settings': typeof SettingsRoute
+  '/andon_/admin': typeof AndonAdminRoute
   '/hub/admin': typeof HubAdminRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
   '/hub/': typeof HubIndexRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/hub'
     | '/machine-priorities'
     | '/settings'
+    | '/andon/admin'
     | '/hub/admin'
     | '/machines/$machineId'
     | '/hub/'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/machine-priorities'
     | '/settings'
+    | '/andon/admin'
     | '/hub/admin'
     | '/machines/$machineId'
     | '/hub'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/hub'
     | '/machine-priorities'
     | '/settings'
+    | '/andon_/admin'
     | '/hub/admin'
     | '/machines/$machineId'
     | '/hub/'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   HubRoute: typeof HubRouteWithChildren
   MachinePrioritiesRoute: typeof MachinePrioritiesRoute
   SettingsRoute: typeof SettingsRoute
+  AndonAdminRoute: typeof AndonAdminRoute
   MachinesMachineIdRoute: typeof MachinesMachineIdRoute
   MachinesMachineIdCallHistoryRoute: typeof MachinesMachineIdCallHistoryRoute
   MachinesMachineIdFailureHistoryRoute: typeof MachinesMachineIdFailureHistoryRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HubAdminRouteImport
       parentRoute: typeof HubRoute
     }
+    '/andon_/admin': {
+      id: '/andon_/admin'
+      path: '/andon/admin'
+      fullPath: '/andon/admin'
+      preLoaderRoute: typeof AndonAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/machines/$machineId_/failure-history': {
       id: '/machines/$machineId_/failure-history'
       path: '/machines/$machineId/failure-history'
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   HubRoute: HubRouteWithChildren,
   MachinePrioritiesRoute: MachinePrioritiesRoute,
   SettingsRoute: SettingsRoute,
+  AndonAdminRoute: AndonAdminRoute,
   MachinesMachineIdRoute: MachinesMachineIdRoute,
   MachinesMachineIdCallHistoryRoute: MachinesMachineIdCallHistoryRoute,
   MachinesMachineIdFailureHistoryRoute: MachinesMachineIdFailureHistoryRoute,

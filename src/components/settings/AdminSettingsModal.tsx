@@ -19,13 +19,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BigButton } from "@/components/common/BigButton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { logoutAdmin } from "@/services/adminAuthService";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
@@ -191,14 +184,13 @@ function CardSection({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-export function AdminSettingsModal({
-  open,
-  onOpenChange,
+/** Full-screen ANDON configuration workspace. No dialog, overlay or portal. */
+export function AdminSettingsWorkspace({
+  onClose,
   centralAccess = false,
   centralPrimaryAdmin = true,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   centralAccess?: boolean;
   centralPrimaryAdmin?: boolean;
 }) {
@@ -214,7 +206,7 @@ export function AdminSettingsModal({
   const renderTab = () => {
     if (tab === "general") return <GeneralSettingsTab />;
     if (tab === "appearance") return <AppearanceSettingsPreview allowGlobalSave={centralAccess} />;
-    if (tab === "sounds") return <SoundsSettingsTab isOpen={open} isActive={tab === "sounds"} />;
+    if (tab === "sounds") return <SoundsSettingsTab isOpen={true} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
     if (tab === "categories") return <CategoriesSettingsTab />;
@@ -230,23 +222,12 @@ export function AdminSettingsModal({
     // Central login is a server-owned HttpOnly session, never a legacy token.
     // Closing the ANDON operational panel must not log out of the Hub.
     if (!centralAccess) logoutAdmin();
-    onOpenChange(false);
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideDefaultClose
-        onPointerDownOutside={(event) => event.preventDefault()}
-        className="h-[96dvh] max-h-[96dvh] w-[calc(100vw-1rem)] max-w-[1600px] gap-0 overflow-hidden rounded-2xl border-border/80 bg-background p-0 shadow-2xl sm:w-[96vw]"
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>{ui("Painel administrativo do ANDON")}</DialogTitle>
-          <DialogDescription>
-            {ui("Configurações, cadastros e infraestrutura do ANDON Web Industrial.")}
-          </DialogDescription>
-        </DialogHeader>
-
+    <section className="andon-screen-enter h-dvh min-h-0 w-full overflow-hidden bg-background text-foreground"
+      aria-label={ui("Painel administrativo do ANDON")}>
         <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
           <aside className="hidden min-h-0 border-r border-border bg-card/50 lg:flex lg:flex-col">
             <div className="border-b border-border px-5 py-5">
@@ -331,7 +312,7 @@ export function AdminSettingsModal({
             <button
               type="button"
               aria-label={ui("Fechar painel administrativo")}
-              onClick={() => onOpenChange(false)}
+              onClick={onClose}
               className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
             >
               <X className="h-5 w-5" />
@@ -382,7 +363,7 @@ export function AdminSettingsModal({
               <button
                 type="button"
                 aria-label={ui("Fechar painel administrativo")}
-                onClick={() => onOpenChange(false)}
+                onClick={onClose}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
               >
                 <X className="h-5 w-5" />
@@ -407,13 +388,13 @@ export function AdminSettingsModal({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
-              <div className="mx-auto w-full max-w-[1240px] space-y-4">
+              <div className="mx-auto w-full max-w-none space-y-4">
                 {centralAccess && !centralPrimaryAdmin && (
                   <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
                     {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
                   </p>
                 )}
-                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={open} />}
+                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={true} />}
                 {renderTab()}
               </div>
             </div>
@@ -422,14 +403,13 @@ export function AdminSettingsModal({
               <BigButton tone="danger" size="md" onClick={handleAdminLogout}>
                 {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
               </BigButton>
-              <BigButton tone="neutral" size="md" onClick={() => onOpenChange(false)}>
+              <BigButton tone="neutral" size="md" onClick={onClose}>
                 {ui("Fechar")}
               </BigButton>
             </div>
           </main>
         </div>
-      </DialogContent>
-    </Dialog>
+    </section>
   );
 }
 

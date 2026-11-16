@@ -132,8 +132,8 @@ export function HubAdminPage() {
   }
 
   return (
-    <main className="andon-screen-enter min-h-dvh bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
+    <main className="andon-screen-enter min-h-dvh w-full bg-background p-3 text-foreground md:p-5">
+      <div className="mx-auto w-full max-w-none space-y-4 md:space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 md:p-4">
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" size="icon">
@@ -176,9 +176,11 @@ export function HubAdminPage() {
         <section role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
           {ui("Modo de administração legado ativo. O acesso central, as integrações API e a senha única só aparecem no ambiente HTTPS de homologação com gestão central habilitada. Não ative essas funções no servidor industrial sem homologação.")}
         </section>
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
+          <aside className="min-w-0 lg:sticky lg:top-5">
         <nav
           aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-3 lg:grid-cols-5"
+          className="flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-x-visible"
         >
           {sections.map((item) => {
             const Icon = item.icon;
@@ -186,7 +188,7 @@ export function HubAdminPage() {
               <Button
                 key={item.id}
                 variant={section === item.id ? "default" : "ghost"}
-                className="h-auto min-h-11 whitespace-normal px-3 py-2 text-center"
+                className="h-auto min-h-11 shrink-0 justify-start whitespace-normal px-3 py-2 text-left lg:w-full"
                 asChild
               >
                 <Link
@@ -201,6 +203,8 @@ export function HubAdminPage() {
             );
           })}
         </nav>
+          </aside>
+          <section className="min-w-0" aria-label={ui("Conteúdo da administração do Hub")}>
         <div key={section} className="andon-panel-enter min-w-0">
           {section === "users" ? (
             <UsersAccessSettings />
@@ -213,6 +217,8 @@ export function HubAdminPage() {
               {section === "modules" && <ModuleCredentialSettings />}
             </>
           )}
+        </div>
+          </section>
         </div>
       </div>
     </main>

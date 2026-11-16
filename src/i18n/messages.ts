@@ -5987,5 +5987,13 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Fundo do Dashboard","Dashboard background","儀表板背景"],
   ["Fundo de cards normais","Normal machine card background","一般機台卡片背景"],
   ["Destaque visual de falhas","Fault visual highlight","故障視覺強調色"],
-  ["Fundo do grupo prioritário","Priority group background","優先順序群組背景"],
+  ["Fundo do grupo prioritário","Priority group background","優先順序群組背景"],  ["Administração do ANDON","ANDON administration","ANDON 管理"],
+  ["Verificando autorização da workstation e do usuário...","Checking workstation and user authorization...","正在驗證工作站和使用者的授權..."],
+  ["Acesso não autorizado. Entre pelo Hub ou solicite a permissão Config. ANDON.","Unauthorized access. Sign in through the Hub or request the ANDON Settings permission.","未獲授權。請從模組中心登入，或申請 ANDON 設定權限。"],
+  ["Voltar ao ANDON","Back to ANDON","返回 ANDON"],
+  ["Abrir Hub","Open Hub","開啟模組中心"],
+  ["Conteúdo da administração do Hub","Hub administration content","模組中心管理內容"],
+  ["Conteúdo gerencial do Hub","Hub manager content","模組中心經理內容"],
+  ["Verificar novamente","Check again","重新檢查"],
+
 ]; 

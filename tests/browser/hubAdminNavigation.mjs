@@ -67,6 +67,7 @@ try {
     let centralHasPrincipal = true;
     let logoutShouldFail = false;
     let centralWorkstationActive = true;
+    let pinnedMachineId = null;
     let customerIdentity = { clientName: "Evergreen", clientUnit: "" };
     let paletteWriteEnabled = false;
     let operationalSettingsWriteEnabled = false;
@@ -186,6 +187,7 @@ try {
             allowOperational: true,
             allowBi: true,
             allowPriorities: true,
+            lockedMachineId: pinnedMachineId,
           },
           // Central grants belong to the authenticated user; the approved
           // workstation no longer controls each module individually.
@@ -546,17 +548,36 @@ try {
       const button = page.getByRole("button", { name: "Configurar sons do ANDON" });
       await button.waitFor();
       await button.click();
-      const modal = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
-      await modal.waitFor();
-      assert.equal(await modal.getByRole("button", { name: "Sons do ANDON" }).count(), 1);
-      assert.equal(await modal.getByRole("button", { name: "Mantenedores" }).count(), 1);
-      await modal.getByRole("button", { name: "Aparência e cores" }).click();
-      return modal.getByRole("region", { name: "Aparência e cores" });
+      await page.waitForURL((url) => url.pathname === "/andon/admin");
+      const workspace = page.getByRole("region", { name: "Painel administrativo do ANDON" });
+      await workspace.waitFor();
+      assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
+      const bounds = await workspace.boundingBox();
+      assert(bounds && Math.abs(bounds.width - viewport.width) <= 2,
+        "ANDON admin must occupy full viewport width, not a centered overlay");
+      const desktopNav = workspace.locator("aside").first();
+      assert.equal(await desktopNav.isVisible(), viewport.width >= 1024);
+      await noOverflow();
+      await page.screenshot({
+        path: `${output}/${viewport.width}-andon-admin-fullscreen.png`, fullPage: true,
+      });
+      assert.equal(await workspace.getByRole("button", { name: "Sons do ANDON" }).count(), 1);
+      assert.equal(await workspace.getByRole("button", { name: "Mantenedores" }).count(), 1);
+      await workspace.getByRole("button", { name: "Aparência e cores" }).click();
+      return workspace.getByRole("region", { name: "Aparência e cores" });
     };
     // UX-12 still fails closed until the server authorizes palette writes.
     let appearance = await openAndonAppearance();
     await appearance.getByText("Gravação global desabilitada no servidor ou nesta sessão. Prévia disponível.").waitFor();
     assert.equal(await appearance.getByRole("button", { name: "Salvar globalmente" }).isDisabled(), true);
+    // Authorized Admin settings remain accessible as an independent page even
+    // when the workstation screen is pinned. No dashboard redirect or modal.
+    pinnedMachineId = "37";
+    await page.goto("https://127.0.0.1:4188/andon/admin");
+    await page.getByRole("region", { name: "Painel administrativo do ANDON" }).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/andon/admin");
+    assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
+    pinnedMachineId = null;
     paletteWriteEnabled = true;
     appearance = await openAndonAppearance();
     await appearance.getByText("Paleta global autorizada para esta sessão. Revisão 0.").waitFor();
@@ -695,8 +716,10 @@ try {
     managerPermissions = ["workstations.read", "andon.read", "andon.settings.open", "hub.settings.presentation.write"];
     await page.goto("https://127.0.0.1:4188/andon");
     await page.getByRole("button", { name: "Configurar sons do ANDON" }).click();
-    const managerAndon = page.getByRole("dialog", { name: "Painel administrativo do ANDON" });
+    await page.waitForURL((url) => url.pathname === "/andon/admin");
+    const managerAndon = page.getByRole("region", { name: "Painel administrativo do ANDON" });
     await managerAndon.waitFor();
+    assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
     await managerAndon.getByRole("button", { name: "Configurações da operação" }).click();
     const safeWrite = await page.evaluate(async () => {
       const res = await fetch("/api/system-settings", {
@@ -732,7 +755,7 @@ try {
     await noOverflow();
 
     assert.deepEqual(errors, []);
-    results.push({ viewport, navigationSections: 5, centralSections: 4, screenshots: 5, noOverflow: true, modalFirst: true });
+    results.push({ viewport, navigationSections: 5, centralSections: 4, screenshots: 6, noOverflow: true, adminFullscreen: true });
     await context.close();
   }
   await writeFile(

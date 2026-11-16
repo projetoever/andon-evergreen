@@ -15,7 +15,6 @@ import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
 import { BarChart3, ListOrdered, Volume2, VolumeX, Settings, Eye } from "lucide-react";
 import { DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode, type DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
-import { AdminSettingsModal } from "@/components/settings/AdminSettingsModal";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
@@ -92,8 +91,6 @@ export function DashboardPage() {
       (item) => item.id === id && item.available && item.enabled && item.allowed,
     );
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
-  const [adminSettingsOpen, setAdminSettingsOpen] = useState(false);
-  const [settingsPrimaryAdmin, setSettingsPrimaryAdmin] = useState(true);
   const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
   const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
@@ -566,15 +563,16 @@ export function DashboardPage() {
                     const canOpenSettings = principal?.purpose === "normal" &&
                       (principal.isPrimaryAdmin || principal.permissions?.includes("andon.settings.open"));
                     if (canOpenSettings) {
-                      setSettingsPrimaryAdmin(Boolean(principal?.isPrimaryAdmin));
-                      setAdminSettingsOpen(true);
+                      void navigate({ to: "/andon/admin" });
                     } else {
                       toast.error(t("Sem permissão para configurar o ANDON."));
                     }
                   })
                   .catch(() => toast.error(t("Não foi possível verificar o acesso central.")));
               } else {
-                isAdminAuthenticated() ? setAdminSettingsOpen(true) : setAdminLoginOpen(true);
+                isAdminAuthenticated()
+                  ? void navigate({ to: "/andon/admin" })
+                  : setAdminLoginOpen(true);
               }
             }}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
@@ -590,15 +588,9 @@ export function DashboardPage() {
             <AdminLoginModal
               open={adminLoginOpen}
               onOpenChange={setAdminLoginOpen}
-              onSuccess={() => setAdminSettingsOpen(true)}
+              onSuccess={() => void navigate({ to: "/andon/admin" })}
             />
           )}
-          <AdminSettingsModal
-            open={adminSettingsOpen}
-            onOpenChange={setAdminSettingsOpen}
-            centralAccess={access.centralAccessEnabled}
-            centralPrimaryAdmin={settingsPrimaryAdmin}
-          />
         </>
       )}
       <DashboardPriorityLoginModal

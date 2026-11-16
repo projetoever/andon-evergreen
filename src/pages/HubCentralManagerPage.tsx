@@ -54,8 +54,8 @@ export function HubCentralManagerPage({
   }
 
   return (
-    <main className="andon-screen-enter min-h-dvh bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-6xl space-y-4">
+    <main className="andon-screen-enter min-h-dvh w-full bg-background p-3 text-foreground md:p-5">
+      <div className="mx-auto w-full max-w-none space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" size="icon">
@@ -84,13 +84,15 @@ export function HubCentralManagerPage({
             <LogOut className="mr-2 h-4 w-4" />{ui("Sair desta sessão")}
           </Button>
         </header>
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
+          <aside className="min-w-0 lg:sticky lg:top-5">
         <nav aria-label={ui("Seções administrativas do Hub")}
-          className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-2">
+          className="flex min-w-0 gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-x-visible">
           {availableSections.map((item) => {
             const Icon = item.icon;
             return <Button key={item.id} asChild
               variant={section === item.id ? "default" : "ghost"}
-              className="h-auto min-h-11 whitespace-normal px-2 py-2 text-center">
+              className="h-auto min-h-11 shrink-0 justify-start whitespace-normal px-3 py-2 text-left lg:w-full">
               <Link to="/hub/admin" search={{ section: item.id }}
                 aria-current={section === item.id ? "page" : undefined}>
                 <Icon className="mr-2 h-4 w-4 shrink-0" />{item.name}
@@ -98,6 +100,8 @@ export function HubCentralManagerPage({
             </Button>;
           })}
         </nav>
+          </aside>
+          <section className="min-w-0 space-y-4" aria-label={ui("Conteúdo gerencial do Hub")}>
         {logoutError && <div role="alert" className="rounded-lg border border-danger p-3 text-sm text-danger">
           {ui("Não foi possível encerrar a sessão. Tente novamente.")}
         </div>}
@@ -153,6 +157,8 @@ export function HubCentralManagerPage({
             <Button variant="outline" size="sm" onClick={() => void refresh()}>{ui("Atualizar")}</Button>
           </section>
         )}
+          </section>
+        </div>
       </div>
     </main>
   );
