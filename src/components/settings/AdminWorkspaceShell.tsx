@@ -61,7 +61,6 @@ export function AdminWorkspaceShell({
                 <p className="text-base font-black leading-tight">{title}</p>
               </div>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{subtitle}</p>
           </div>
           <nav aria-label={navLabel} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
             {groups.map(group => (
