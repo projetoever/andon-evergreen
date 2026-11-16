@@ -1,4 +1,6 @@
 import { type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import type { HubAdminSection } from "@/types/modules";
 import { ArrowLeft, ShieldCheck, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ui } from "@/i18n/translate";
@@ -25,6 +27,7 @@ export interface AdminWorkspaceShellProps {
   backLabel: string;
   headerActions?: ReactNode;
   alert?: ReactNode;
+  hubNavigation?: boolean;
   children: ReactNode;
 }
 
@@ -35,7 +38,7 @@ export interface AdminWorkspaceShellProps {
 export function AdminWorkspaceShell({
   brand, title, subtitle, ariaLabel, navLabel,
   items, activeId, onSelect, onBack, backLabel,
-  headerActions, alert, children,
+  headerActions, alert, hubNavigation = false, children,
 }: AdminWorkspaceShellProps) {
   useInterfaceLanguage();
   const selected = items.find(item => item.id === activeId) ?? items[0];
@@ -68,20 +71,29 @@ export function AdminWorkspaceShell({
                   const Icon = item.icon;
                   const active = item.id === activeId;
                   return (
-                    <button
-                      type="button" key={item.id}
-                      aria-current={active ? "page" : undefined}
-                      onClick={() => onSelect(item.id)}
-                      className={cn(
-                        "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    <div key={item.id}>
+                      {hubNavigation ? (
+                        <Link to="/hub/admin" search={{ section: item.id as HubAdminSection }}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}>
+                          <Icon className="h-4 w-4 shrink-0"/>
+                          <span className="min-w-0 whitespace-normal break-words text-sm font-bold leading-tight">{item.label}</span>
+                        </Link>
+                      ) : (
+                        <button type="button" aria-current={active ? "page" : undefined}
+                          onClick={() => onSelect(item.id)}
+                          className={cn(
+                            "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}>
+                          <Icon className="h-4 w-4 shrink-0"/>
+                          <span className="min-w-0 whitespace-normal break-words text-sm font-bold leading-tight">{item.label}</span>
+                        </button>
                       )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 whitespace-normal break-words text-sm font-bold leading-tight">{item.label}</span>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -117,14 +129,25 @@ export function AdminWorkspaceShell({
             const Icon = item.icon;
             const active = item.id === activeId;
             return (
-              <button key={item.id} type="button" onClick={() => onSelect(item.id)}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
-                  active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
-                )}>
-                <Icon className="h-4 w-4 shrink-0"/>{item.label}
-              </button>
+              hubNavigation ? (
+                <Link key={item.id} to="/hub/admin" search={{ section: item.id as HubAdminSection }}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
+                    active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
+                  )}>
+                  <Icon className="h-4 w-4 shrink-0"/>{item.label}
+                </Link>
+              ) : (
+                <button key={item.id} type="button" onClick={() => onSelect(item.id)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
+                    active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
+                  )}>
+                  <Icon className="h-4 w-4 shrink-0"/>{item.label}
+                </button>
+              )
             );
           })}
         </nav>
@@ -132,9 +155,11 @@ export function AdminWorkspaceShell({
         <main className="flex min-h-0 min-w-0 flex-col lg:col-start-2 lg:row-start-1">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 lg:px-6">
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{ui(selected?.group || "Administração")}</p>
-              <h1 className="text-lg font-black text-foreground">{selected?.label || title}</h1>
-              {selected?.description && <p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>}
+              <h1 className="text-base font-black text-foreground">{title}</h1>
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+              <p className="mt-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{ui(selected?.group || "Administração")}</p>
+              <h2 className="text-lg font-black text-foreground">{selected?.label || title}</h2>
+              {selected?.description && <p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>
             </div>
             {headerActions && <div className="flex flex-wrap items-center gap-2">{headerActions}</div>}
           </div>
