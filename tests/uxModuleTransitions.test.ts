@@ -23,6 +23,7 @@ test("UX-07: route and tab transitions do not delay alarms or alter provider hie
   assert.doesNotMatch(root, /key=\{pathname\}/);
   assert.match(await load("../src/pages/AndonBiPage.tsx"), /key=\{activeTab\} className="andon-panel-enter/);
   assert.match(await load("../src/pages/HubAdminPage.tsx"), /key=\{section\} className="andon-panel-enter/);
+  assert.match(await load("../src/components/settings/AdminWorkspaceShell.tsx"), /andon-screen-enter/);
 });
 test("UX-07: permission checks display neutral loading skeleton, not a forbidden error", async () => {
   const gate = await load("../src/components/security/WorkstationAccessGate.tsx");
