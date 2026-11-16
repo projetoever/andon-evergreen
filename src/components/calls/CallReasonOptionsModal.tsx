@@ -14,7 +14,8 @@ export type CallReasonChoice = {
   options: ReadonlyArray<{
     id: string;
     displayName: string;
-    active: boolean;
+    /** Operational API already excludes inactive options; optional for other callers. */
+    active?: boolean;
     legacySubtype?: string;
   }>;
 };
@@ -50,7 +51,7 @@ export function CallReasonOptionsModal({
   // The API remains the authority for concurrent writes and rejects duplicates.
   const activeKey = JSON.stringify([...activeSubtypes].sort());
   const activeSet = new Set(activeSubtypes);
-  const available = reason?.active ? reason.options.filter(option => option.active) : [];
+  const available = reason?.active ? reason.options.filter(option => option.active !== false) : [];
   const isAlreadyOpen = (subtype?: string) => Boolean(subtype && activeSet.has(subtype));
   useEffect(() => { setSelectedOptionIds([]); }, [reason?.id, open]);
   useEffect(() => {
