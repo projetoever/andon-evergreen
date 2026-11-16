@@ -16,7 +16,7 @@ import {
 const HOUR = 60 * 60 * 1000;
 const IDLE = 30 * 60 * 1000;
 // Session duration does not change centrally managed permissions or machine scope.
-// Durable sessions bind to an approved trusted workstation, not a fixed machine.
+// Durable sessions follow the user policy. Station access still requires approval.
 // Every API operation must still check current grants and workstation identity.
 type PersistentAccount = {
   accountType: string; sessionPolicy?: string; isPrimaryAdmin: boolean; mustChangePassword: boolean;
@@ -24,11 +24,11 @@ type PersistentAccount = {
 };
 type PersistentStation = {
   active: boolean; pendingApproval: boolean;
-  allowPersistentOperationalLogin: boolean; lockedMachineId: string | null;
+  lockedMachineId: string | null;
 };
 export type PersistentSessionBlocker =
   | "policy_not_persistent" | "account_type_not_supported" | "primary_admin_not_eligible"
-  | "password_change_required" | "workstation_not_approved" | "workstation_not_trusted"
+  | "password_change_required" | "workstation_not_approved"
   | "no_selected_permissions";
 
 /**
@@ -45,7 +45,6 @@ export function persistentOperationalBlocker(
   if (user.isPrimaryAdmin) return "primary_admin_not_eligible";
   if (user.mustChangePassword) return "password_change_required";
   if (!station.active || station.pendingApproval) return "workstation_not_approved";
-  if (!station.allowPersistentOperationalLogin) return "workstation_not_trusted";
   if (!user.permissions.length) return "no_selected_permissions";
   // No pin prerequisite. Current machine scope is enforced on each operation.
   return null;
