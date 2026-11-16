@@ -167,7 +167,13 @@ test("REFINE22.1: operational group tiles are readable with catalog ON, opening 
     denied(() => authorizeCentralOperationalReasonRead(req, {
       ...operator, purpose: "password_change",
     }, station), "password_change_required");
-    assert.equal(isAuthorizedCentralOperationalReasonRead(req), false);
+    // A rejected second attempt does not revoke an already marked request;
+    // it also must never authorize a fresh denied request.
+    const deniedReq = fake("GET", "/api/call-reasons/operational");
+    denied(() => authorizeCentralOperationalReasonRead(deniedReq, {
+      ...operator, permissions: ["andon.read"],
+    }, station), "permission_denied");
+    assert.equal(isAuthorizedCentralOperationalReasonRead(deniedReq), false);
     authorizeCentralOperationalReasonRead(req, operator, station);
     assert.equal(isAuthorizedCentralOperationalReasonRead(req), true);
     process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
