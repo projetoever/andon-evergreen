@@ -15,6 +15,7 @@ import { Route as HubRouteImport } from './routes/hub'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as BiRouteImport } from './routes/bi'
 import { Route as AndonRouteImport } from './routes/andon'
+import { Route as AndonAdminRouteImport } from './routes/andon_.admin'
 import { Route as ActiveCallsRouteImport } from './routes/active-calls'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HubIndexRouteImport } from './routes/hub.index'
@@ -51,6 +52,11 @@ const BiRoute = BiRouteImport.update({
 const AndonRoute = AndonRouteImport.update({
   id: '/andon',
   path: '/andon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AndonAdminRoute = AndonAdminRouteImport.update({
+  id: '/andon_/admin',
+  path: '/andon/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActiveCallsRoute = ActiveCallsRouteImport.update({
@@ -93,6 +99,7 @@ const MachinesMachineIdCallHistoryRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/andon/admin': typeof AndonAdminRoute
   '/active-calls': typeof ActiveCallsRoute
   '/andon': typeof AndonRoute
   '/bi': typeof BiRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/andon/admin': typeof AndonAdminRoute
   '/active-calls': typeof ActiveCallsRoute
   '/andon': typeof AndonRoute
   '/bi': typeof BiRoute
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/andon_/admin': typeof AndonAdminRoute
   '/': typeof IndexRoute
   '/active-calls': typeof ActiveCallsRoute
   '/andon': typeof AndonRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/andon/admin'
     | '/active-calls'
     | '/andon'
     | '/bi'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/andon/admin'
     | '/active-calls'
     | '/andon'
     | '/bi'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/machines/$machineId/failure-history'
   id:
     | '__root__'
+    | '/andon_/admin'
     | '/'
     | '/active-calls'
     | '/andon'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActiveCallsRoute: typeof ActiveCallsRoute
   AndonRoute: typeof AndonRoute
+  AndonAdminRoute: typeof AndonAdminRoute
   BiRoute: typeof BiRoute
   HistoryRoute: typeof HistoryRoute
   HubRoute: typeof HubRouteWithChildren
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/andon'
       fullPath: '/andon'
       preLoaderRoute: typeof AndonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/andon_/admin': {
+      id: '/andon_/admin'
+      path: '/andon/admin'
+      fullPath: '/andon/admin'
+      preLoaderRoute: typeof AndonAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/active-calls': {
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActiveCallsRoute: ActiveCallsRoute,
   AndonRoute: AndonRoute,
+  AndonAdminRoute: AndonAdminRoute,
   BiRoute: BiRoute,
   HistoryRoute: HistoryRoute,
   HubRoute: HubRouteWithChildren,
