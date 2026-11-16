@@ -146,6 +146,8 @@ test("P1 route admin fullscreen: screen pin cannot redirect authorized settings 
   assert.match(page, /principal\.isPrimaryAdmin === true/);
   assert.match(page, /principal\.permissions\?\.includes\("andon\.settings\.open"\)/);
   assert.match(page, /requestId !== authorizationRequest\.current/);
+  assert.match(page, /CONFIGURED_DATA_MODE === "local" \|\| access\.centralAccessEnabled === false/);
+  assert.doesNotMatch(page, /if \(!isCentral\)\s*\{\s*setAuthorization\(isAdminAuthenticated\(\)/);
   assert.doesNotMatch(page, /localStorage|sessionStorage|setCookie|accessToken/);
 });
 
