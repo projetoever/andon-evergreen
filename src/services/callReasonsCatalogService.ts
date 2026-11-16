@@ -112,6 +112,8 @@ export interface OperationalReason {
   displayName: string;
   color: string;
   revision: number;
+  /** Server-owned, informational; call POST still independently validates. */
+  openingEnabled: boolean;
   options: OperationalReasonOption[];
 }
 

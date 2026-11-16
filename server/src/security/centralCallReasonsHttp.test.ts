@@ -138,7 +138,7 @@ test("R6/S2: standalone route never reads or writes database without trusted mar
   }
 });
 
-test("S3-B3: operational catalog read requires central session, both flags and calls.open", () => {
+test("REFINE22.1: operational group tiles are readable with catalog ON, opening remains separate", () => {
   const previous = {
     access: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
     catalog: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED,
@@ -157,7 +157,9 @@ test("S3-B3: operational catalog read requires central session, both flags and c
     process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
     process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
     process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
-    denied(() => authorizeCentralOperationalReasonRead(req, operator, station), "hierarchical_calls_disabled");
+    // Groups must be visible to operators even while opening is disabled.
+    authorizeCentralOperationalReasonRead(req, operator, station);
+    assert.equal(isAuthorizedCentralOperationalReasonRead(req), true);
     process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "1";
     denied(() => authorizeCentralOperationalReasonRead(req, {
       ...operator, permissions: ["andon.read"],
@@ -165,10 +167,18 @@ test("S3-B3: operational catalog read requires central session, both flags and c
     denied(() => authorizeCentralOperationalReasonRead(req, {
       ...operator, purpose: "password_change",
     }, station), "password_change_required");
-    assert.equal(isAuthorizedCentralOperationalReasonRead(req), false);
+    // A rejected second attempt does not revoke an already marked request;
+    // it also must never authorize a fresh denied request.
+    const deniedReq = fake("GET", "/api/call-reasons/operational");
+    denied(() => authorizeCentralOperationalReasonRead(deniedReq, {
+      ...operator, permissions: ["andon.read"],
+    }, station), "permission_denied");
+    assert.equal(isAuthorizedCentralOperationalReasonRead(deniedReq), false);
     authorizeCentralOperationalReasonRead(req, operator, station);
     assert.equal(isAuthorizedCentralOperationalReasonRead(req), true);
     process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
+    assert.equal(isAuthorizedCentralOperationalReasonRead(req), true);
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "0";
     assert.equal(isAuthorizedCentralOperationalReasonRead(req), false);
   } finally {
     for (const [key, value] of [

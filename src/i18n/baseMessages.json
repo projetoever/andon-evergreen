@@ -999,5 +999,20 @@
     "Vincule um ou mais setores existentes ao grupo selecionado. Elétrica, Mecânica e outros setores mantêm seus identificadores originais; a política analítica pertence ao grupo.",
     "Link one or more existing sectors to the selected group. Electrical, Mechanical, and other sectors retain their original IDs; the analytical policy belongs to the group.",
     "將一個或多個現有部門連結至所選群組。電氣、機械及其他部門保留原有 ID；分析政策由群組決定。"
+  ],
+  [
+    "Grupo ativo, mas abertura por grupos não liberada nesta instalação.",
+    "Group active, but opening calls through groups is not enabled for this installation.",
+    "群組已啟用，但此安裝尚未允許透過群組開啟呼叫。"
+  ],
+  [
+    "Abertura por grupos desativada",
+    "Opening calls through groups is disabled",
+    "已停用透過群組開啟呼叫"
+  ],
+  [
+    "Nenhum setor ativo vinculado a este grupo.",
+    "No active sector is linked to this group.",
+    "此群組未連結任何啟用中的部門。"
   ]
 ]

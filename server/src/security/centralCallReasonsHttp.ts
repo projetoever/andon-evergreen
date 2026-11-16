@@ -31,17 +31,16 @@ export function authorizeCentralOperationalReasonRead(
 ) {
   if (!isCentralOperationalReasonRead(request.method, request.url.split("?", 1)[0] ?? ""))
     throw new AccessError("central_route_not_supported");
-  if (!centralCallReasonsHttpEnabled() ||
-      process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED !== "1")
+  // Reading active group buttons is independent of permission to OPEN via
+  // group. Opening remains fail-closed in the transaction and central route.
+  if (!centralCallReasonsHttpEnabled())
     throw new AccessError("hierarchical_calls_disabled", 403);
   assertModule(principal, station, "operational");
   assertPermission(principal, "calls.open");
   validatedOperationalReads.add(request);
 }
 export function isAuthorizedCentralOperationalReasonRead(request: FastifyRequest) {
-  return centralCallReasonsHttpEnabled() &&
-    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1" &&
-    validatedOperationalReads.has(request);
+  return centralCallReasonsHttpEnabled() && validatedOperationalReads.has(request);
 }
 export function isCentralCallReasonWrite(method: string, path: string) {
   if (method === "POST" && path === "/api/call-reasons") return true;

@@ -296,6 +296,11 @@ export function MachineActionPanel({
         </div>
       )}
 
+      {hierarchicalReasons?.some(reason => !reason.openingEnabled) && (
+        <p role="status" className="text-xs font-semibold text-warning">
+          {t("Grupo ativo, mas abertura por grupos não liberada nesta instalação.")}
+        </p>
+      )}
       <div
         className="grid gap-1.5"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
@@ -323,7 +328,12 @@ export function MachineActionPanel({
             type="button"
             data-call-group-button="true"
             onClick={() => onOpenReason?.(reason.id)}
-            disabled={reason.options.length === 0}
+            disabled={!reason.openingEnabled || reason.options.length === 0}
+            title={!reason.openingEnabled
+              ? t("Grupo ativo, mas abertura por grupos não liberada nesta instalação.")
+              : reason.options.length === 0
+                ? t("Nenhum setor ativo vinculado a este grupo.")
+                : reason.displayName}
             className={cn(
               sectorActionClass,
               "relative isolate min-h-16 rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm",
@@ -335,7 +345,8 @@ export function MachineActionPanel({
               borderColor: reason.color,
               color: readableTextColor(reason.color),
             }}
-            aria-label={t("Abrir grupo de chamados") + ": " + reason.displayName}
+            aria-label={t("Abrir grupo de chamados") + ": " + reason.displayName +
+              (!reason.openingEnabled ? " — " + t("Abertura por grupos desativada") : "")}
           >
             <span className="block min-w-0 break-words text-center [overflow-wrap:anywhere]">
               {reason.displayName}
