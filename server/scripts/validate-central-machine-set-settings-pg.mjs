@@ -175,6 +175,27 @@ try {
   assert.equal((await send("GET", 2, null, undefined, { cookie: "" })).statusCode, 401);
   assert.equal((await send("GET", 2, null, undefined,
     { origin: "https://other.invalid" })).statusCode, 403);
+  // An existing machine outside the maintainer's grant is indistinguishable
+  // from a nonexistent machine even if it has identifiable active assets.
+  await db.machine.create({ data: {
+    id: "ci04d1-other-" + n, name: "Other test machine", isActive: true,
+  } });
+  await db.machineSet.create({ data: {
+    id: "ci04d1-other-set-" + n, machineId: "ci04d1-other-" + n,
+    code: "other_" + n, name: "Out-of-scope asset", isActive: true,
+  } });
+  const crossMachine = await app.inject({
+    method: "GET",
+    url: "/api/machines/ci04d1-other-" + n + "/sets?includeSubsets=list",
+    headers: {
+      origin: "https://andon.test", "x-andon-workstation-id": stationIds[2],
+      cookie: "__Host-andon-access=" + tokens[2],
+    },
+  });
+  assert.equal(crossMachine.statusCode, 404, crossMachine.body);
+  await db.workstation.update({ where: { id: stationIds[2] }, data: { active: false } });
+  assert.equal((await send("GET", 2, null)).statusCode, 403);
+  await db.workstation.update({ where: { id: stationIds[2] }, data: { active: true } });
 
 
   const changed = await send("PATCH", 1, setId, {
@@ -263,6 +284,8 @@ try {
   if (callId) await db.andonCall.deleteMany({ where: { id: callId } });
   if (subsetId) await db.machineSubset.deleteMany({ where: { id: subsetId } });
   if (sets.length) await db.machineSet.deleteMany({ where: { id: { in: sets } } });
+  await db.machineSet.deleteMany({ where: { id: "ci04d1-other-set-" + n } });
+  await db.machine.deleteMany({ where: { id: "ci04d1-other-" + n } });
   await db.machineSetType.deleteMany({ where: { id: typeId } });
   await db.machine.deleteMany({ where: { id: machineId } });
   for (const userId of userIds) {
