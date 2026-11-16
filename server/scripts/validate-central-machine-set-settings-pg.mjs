@@ -160,9 +160,22 @@ try {
   const listed = await send("GET", 1, null);
   assert.equal(listed.statusCode, 200, listed.body);
   assert(listed.json().some(row => row.id === setId));
-  // A catalog-only person with selected machineScope is not a global settings
-  // delegate and must not enumerate assets outside their operational scope.
-  assert.equal((await send("GET", 2, null)).statusCode, 403);
+  // Selected-machine maintenance cannot query any asset without its machine
+  // assignment. This is a silent 404, not an admin-catalog permission error.
+  assert.equal((await send("GET", 2, null)).statusCode, 404);
+  await db.accessMachine.create({ data: { userId: userIds[2], machineId } });
+  await db.accessPermission.deleteMany({
+    where: { userId: userIds[2], key: "catalog.assets.manage" },
+  });
+  const operationalRead = await send("GET", 2, null);
+  assert.equal(operationalRead.statusCode, 200, operationalRead.body);
+  assert(operationalRead.json().some(row => row.id === setId));
+  // Reading an asset for call completion must never imply permission to edit it.
+  assert.equal((await send("POST", 2, null, body("Never editable", "ci_no_write"))).statusCode, 403);
+  assert.equal((await send("GET", 2, null, undefined, { cookie: "" })).statusCode, 401);
+  assert.equal((await send("GET", 2, null, undefined,
+    { origin: "https://other.invalid" })).statusCode, 403);
+
 
   const changed = await send("PATCH", 1, setId, {
     name: "Spindle A", code: "SPINDLE A", description: "test of edit", displayOrder: 7,
