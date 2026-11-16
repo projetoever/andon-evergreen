@@ -52,24 +52,29 @@ test("R6/S2 domain: optimistic revision and field allowlists prevent stale or id
   denied(() => parseReasonPatch({ expectedRevision: 1, color: "javascript:alert(1)" }, corrective), "invalid_call_reason");
 });
 
-test("R6/S2 domain: option overrides validate as effective policy, including parent changes", () => {
+test("R6/S2 domain: group controls KPI; option overrides cannot change policy on new calls", () => {
   const parsed = parseOptionCreate({ id: "setup_mechanics", technicalAreaId: "mechanical", active: false });
   assert.equal(parsed.active, false);
   assert.equal(parsed.maintenanceKpiPolicyOverride, null);
   denied(() => parseOptionCreate({ id: "invalid", technicalAreaId: "mechanical",
     parentId: "maintenance" }), "invalid_call_reason");
   denied(() => parseOptionCreate({ id: "option", technicalAreaId: "../escape" }), "invalid_call_reason");
-  const updated = parseOptionPatch({
-    expectedRevision: 1, displayName: "Ajuste mecânico", maintenanceKpiPolicyOverride: "excluded",
-  }, option);
+  const updated = parseOptionPatch({ expectedRevision: 1,
+    displayName: "Ajuste mecânico" }, option);
   assert.equal(updated.displayName, "Ajuste mecânico");
-  assert.equal(updated.maintenanceKpiPolicyOverride, "excluded");
+  assert.equal(updated.maintenanceKpiPolicyOverride, null);
+  denied(() => parseOptionCreate({ id: "setup_mechanics", technicalAreaId: "mechanical",
+    maintenanceKpiPolicyOverride: "eligible" }), "group_policy_cannot_be_overridden_by_sector");
+  denied(() => parseOptionPatch({ expectedRevision: 1,
+    analyticsDispositionOverride: "test" }, option), "group_policy_cannot_be_overridden_by_sector");
+  assert.equal(parseOptionPatch({ expectedRevision: 1,
+    maintenanceKpiPolicyOverride: null }, option).maintenanceKpiPolicyOverride, null);
   denied(() => parseOptionPatch({ expectedRevision: 2, active: false }, option), "call_reason_revision_conflict");
   denied(() => parseOptionPatch({ expectedRevision: 1, technicalAreaId: "other" }, option), "invalid_call_reason");
   denied(() => parseOptionPatch({ expectedRevision: 1, reasonId: "setup" }, option), "invalid_call_reason");
-  denied(() => assertEffectiveReasonOption(corrective, {
+  assert.equal(assertEffectiveReasonOption(corrective, {
     ...option, natureOverride: "planned_setup",
-  }, mechanical), "invalid_reason_kpi_policy");
+  }, mechanical).nature, "corrective_failure");
   const setup = { ...corrective, id: "setup", nature: "planned_setup",
     maintenanceKpiPolicy: "excluded", suggestedResponsibility: "operations" };
   const setupOption = { ...option, reasonId: "setup" };
