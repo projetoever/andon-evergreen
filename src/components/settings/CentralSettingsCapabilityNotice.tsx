@@ -31,8 +31,8 @@ export function centralTabCapabilityNotice(
         : { status: "partial", message: "Seleção por nome não habilitada no acesso central. PIN e RFID seguem suas próprias autorizações e devem ser validados separadamente." };
     case "callReasons":
       return settings.centralCallReasonsCatalogEnabled === true
-        ? { status: "partial", message: "Catálogo de motivos habilitado no servidor. Edição, criação, vínculos e políticas de KPI exigem autorizações distintas; abertura hierárquica tem liberação independente." }
-        : { status: "disabled", message: "Catálogo de motivos e subcategorias desabilitado neste ambiente. Nenhuma configuração de abertura ou KPI foi ativada." };
+        ? { status: "partial", message: "Catálogo de grupos habilitado. Cada grupo reutiliza setores existentes; edição, políticas de KPI e abertura pelo grupo exigem autorizações independentes." }
+        : { status: "disabled", message: "Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI." };
     case "sounds":
       return { status: "unverified", message: "Áudios personalizados são locais deste terminal. Esta consulta não confirma disponibilidade de gravação de arquivos nem distribuição de sons para outras workstations." };
     case "categories":
