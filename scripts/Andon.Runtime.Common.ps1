@@ -314,6 +314,19 @@ function Test-AndonRuntimeFrontendBuild {
     return $false
 }
 
+function Wait-AndonRuntimeFrontendBuild {
+    param(
+        [int]$TimeoutSeconds = 150,
+        [int]$IntervalSeconds = 3
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        if (Test-AndonRuntimeFrontendBuild) { return $true }
+        Start-Sleep -Seconds $IntervalSeconds
+    } while ((Get-Date) -lt $deadline)
+    return $false
+}
+
 function Test-AndonRuntimeApiBusinessReady {
     $context = Get-AndonRuntimeContext
 
