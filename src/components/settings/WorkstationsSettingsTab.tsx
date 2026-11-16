@@ -281,25 +281,6 @@ export function WorkstationsSettingsTab() {
     }
   }
 
-  async function changePersistentOperational(workstation: ManagedWorkstation, enabled: boolean) {
-    if (!centralAccess || !accessSession?.principal?.isPrimaryAdmin || savingId) return;
-    setSavingId(workstation.id);
-    try {
-      await accessRequest(`/workstations/${encodeURIComponent(workstation.id)}`, "PATCH", {
-        allowPersistentOperationalLogin: enabled,
-      });
-      await load();
-      toast.success(ui(enabled
-        ? "Sessões operacionais sem expiração habilitadas nesta workstation."
-        : "Confiança desativada e sessões persistentes revogadas."));
-    } catch (error) {
-      toast.error(error instanceof Error ? systemMessage(error.message) :
-        ui("Não foi possível alterar a confiança da workstation."));
-    } finally {
-      setSavingId(null);
-    }
-  }
-
   async function remoteLogout(workstation: ManagedWorkstation) {
     const reason = (remoteLogoutReasons[workstation.id] ?? "").trim();
     if (!centralAccess || !accessSession?.principal?.isPrimaryAdmin ||
@@ -832,42 +813,9 @@ export function WorkstationsSettingsTab() {
                           ? formatLastSeen(workstation.lastHeartbeatAt) : ui("Nunca recebido")}
                       </p>
                     )}
-                    {centralAccess && accessSession?.principal?.isPrimaryAdmin && (
+                    {centralAccess && accessSession?.principal?.isPrimaryAdmin &&
+                      !isCurrent && workstation.lastLogin?.state === "valid" && (
                       <section className="space-y-3 rounded-lg border border-border p-3">
-                        <h4 className="font-semibold">{ui("Sessão operacional da workstation")}</h4>
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">{ui("Não expirar login operacional")}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {ui("Esta opção autoriza a workstation, mas é necessário selecionar Não expirar no perfil da conta em Usuários e Acessos. A estação deve estar aprovada e ativa; a tela pode permanecer livre. As permissões selecionadas do perfil não são alteradas pela duração da sessão.")}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {ui("Após habilitar, o operador deve efetuar novo login para iniciar a sessão sem expiração. Cookies apagados ou navegador anônimo exigem nova identificação.")}
-                            </p>
-                          </div>
-                          <Switch aria-label={ui("Não expirar login operacional")}
-                            checked={workstation.allowPersistentOperationalLogin === true}
-                            disabled={isSaving || !canManage || workstation.pendingApproval ||
-                              !workstation.active}
-                            onCheckedChange={value => void changePersistentOperational(workstation, value)} />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {ui("Estado da confiança")}: {workstation.allowPersistentOperationalLogin
-                            ? ui("Habilitada · revogável pelo Admin")
-                            : ui("Desativada")}
-                          {workstation.lastLogin?.state === "valid" &&
-                            workstation.lastLogin.persistentOperational
-                            ? " · " + ui("Sessão sem expiração automática")
-                            : ""}
-                        </p>
-                        {workstation.allowPersistentOperationalLogin &&
-                          (!workstation.lastLogin ||
-                            workstation.lastLogin.state !== "valid" ||
-                            workstation.lastLogin.persistentOperational !== true) && (
-                          <p role="status" className="text-xs text-warning">
-                            {ui("Terminal autorizado, mas sem login persistente confirmado. Verifique a política da conta e entre novamente.")}
-                          </p>
-                        )}
                         {!isCurrent && workstation.lastLogin?.state === "valid" && (
                           <div className="space-y-2 border-t border-border pt-3">
                             <Label className="block space-y-2">

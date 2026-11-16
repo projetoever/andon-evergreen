@@ -67,9 +67,9 @@ test("REFINE15: trusted operator remains authenticated past both idle and absolu
     e instanceof AccessError && e.statusCode === 401);
 });
 
-test("SEC21: durable session stops on explicit revocation, trust-off and account/security changes", async () => {
+test("SEC21: durable session stops on explicit revocation and account/security changes", async () => {
   for (const patch of [
-    { revoked: true }, { trust: false },
+    { revoked: true },
     { active: false }, { admin: true },
     { purpose: "password_change" }, { versionMismatch: true },
   ]) {
@@ -80,7 +80,9 @@ test("SEC21: durable session stops on explicit revocation, trust-off and account
   }
 });
 
-test("SEC-P0: unpin or change pinned machine never expires a trusted session", async () => {
+test("SEC-P0: workstation trust flag and screen pin do not change user duration", async () => {
+  const legacyFlagOff = await resolveSession(fixture({ persistentOperational: true, trust: false }), request, now);
+  assert.equal(legacyFlagOff.persistentOperational, true);
   for (const pinned of [null, "37", "39"]) {
     const principal = await resolveSession(fixture({
       persistentOperational: true, lockedMachineId: pinned,

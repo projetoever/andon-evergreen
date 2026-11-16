@@ -40,7 +40,7 @@ export async function diagnoseSessionLoss(
     return "workstation_blocked";
   if (session.persistentOperational &&
       (session.user.sessionPolicy !== "persistent" || session.user.accountType !== "person" ||
-        session.user.isPrimaryAdmin || !session.workstation.allowPersistentOperationalLogin ||
+        session.user.isPrimaryAdmin ||
         session.user.permissions.length === 0))
     return "persistent_trust_removed";
   if (!session.persistentOperational &&

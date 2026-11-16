@@ -71,7 +71,6 @@ export interface WorkstationArchivePreflight {
 }
 
 export interface ManagedWorkstation extends Workstation {
-  allowPersistentOperationalLogin?: boolean;
   presence: "online" | "offline" | "unknown";
   /** Read-only pre-enrollment metadata. Does not grant a kiosk session. */
   kioskTrust?: {

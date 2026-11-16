@@ -41,8 +41,10 @@ test("SEC21: no persistent Admin or unapproved station, but fixed machine is opt
     { ...station, active: false }, machines, "selected"), false);
   assert.equal(permitsPersistentOperationalAccount(user,
     { ...station, pendingApproval: true }, machines, "selected"), false);
+  const stationWithLegacyFlagDisabled = { ...station, allowPersistentOperationalLogin: false };
   assert.equal(permitsPersistentOperationalAccount(user,
-    { ...station, allowPersistentOperationalLogin: false }, machines, "selected"), false);
+    stationWithLegacyFlagDisabled, machines, "selected"), true,
+    "legacy workstation flag must not control user session duration");
   assert.equal(permitsPersistentOperationalAccount(user, station,
     [{ machineId: "39" }], "selected"), true,
     "session duration does not replace the user's machine scope");
@@ -81,7 +83,6 @@ test("SEC21 P0: persistent login must reveal its exact nonsecret failure reason"
     { reason: "password_change_required", u: { ...user, mustChangePassword: true }, s: station, m: machines },
     { reason: "workstation_not_approved", u: user, s: { ...station, active: false }, m: machines },
     { reason: "workstation_not_approved", u: user, s: { ...station, pendingApproval: true }, m: machines },
-    { reason: "workstation_not_trusted", u: user, s: { ...station, allowPersistentOperationalLogin: false }, m: machines },
     { reason: "no_selected_permissions", u: { ...user, permissions: [] }, s: station, m: machines },
   ];
   for (const entry of cases) {

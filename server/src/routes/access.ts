@@ -780,7 +780,7 @@ export function registerAccessRoutes(
         },
         orderBy: [{ pendingApproval: "desc" }, { active: "desc" }, { lastSeenAt: "desc" }],
       });
-      return rows.map(({ accessSessions, kioskTrustLease, ...station }) => {
+      return rows.map(({ accessSessions, kioskTrustLease, allowPersistentOperationalLogin: _legacyPersistentFlag, ...station }) => {
         const latest = accessSessions[0] ?? null;
         const valid = Boolean(
           latest &&
@@ -790,8 +790,8 @@ export function registerAccessRoutes(
             latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()) &&
           latest.user.active &&
           latest.authorizationVersion === latest.user.authorizationVersion &&
+          (!latest.persistentOperational || latest.user.sessionPolicy === "persistent") &&
           station.active &&
-          (!latest.persistentOperational || station.allowPersistentOperationalLogin) &&
           !station.pendingApproval &&
           latest.purpose === "normal",
         );
@@ -915,7 +915,6 @@ export function registerAccessRoutes(
         allowOperational?: boolean;
         allowBi?: boolean;
         allowPriorities?: boolean;
-        allowPersistentOperationalLogin?: boolean;
       };
     }>(
       `${PREFIX}/workstations/:id`,
@@ -927,7 +926,6 @@ export function registerAccessRoutes(
             allowOperational: { type: "boolean" },
             allowBi: { type: "boolean" },
             allowPriorities: { type: "boolean" },
-            allowPersistentOperationalLogin: { type: "boolean" },
           },
           [],
         ),
@@ -975,14 +973,7 @@ export function registerAccessRoutes(
             req.body.name === undefined
               ? undefined
               : req.body.name.trim().replace(/\s+/g, " ") || null;
-          if (req.body.allowPersistentOperationalLogin !== undefined) {
-            assertRecentAdmin(principal);
-            if (station.pendingApproval) throw new AccessError("workstation_denied", 409);
-            if (req.body.allowPersistentOperationalLogin && !station.active)
-              throw new AccessError("workstation_denied", 409);
-          }
           const before = {
-            allowPersistentOperationalLogin: station.allowPersistentOperationalLogin,
             name: station.name,
             active: station.active,
             allowOperational: station.allowOperational,
@@ -1001,15 +992,12 @@ export function registerAccessRoutes(
               ...(req.body.allowPriorities === undefined
                 ? {}
                 : { allowPriorities: req.body.allowPriorities }),
-              ...(req.body.allowPersistentOperationalLogin === undefined
-                ? {}
-                : { allowPersistentOperationalLogin: req.body.allowPersistentOperationalLogin }),
             },
           });
-          if (req.body.active === false || req.body.allowPersistentOperationalLogin === false)
+          if (req.body.active === false)
             await tx.accessSession.updateMany({
               where: { workstationId: id, revokedAt: null,
-                ...(req.body.active === false ? {} : { persistentOperational: true }) },
+              },
               data: { revokedAt: new Date() },
             });
           await appendAudit(tx, actorFromPrincipal(principal), {
@@ -1023,7 +1011,6 @@ export function registerAccessRoutes(
               allowOperational: updated.allowOperational,
               allowBi: updated.allowBi,
               allowPriorities: updated.allowPriorities,
-              allowPersistentOperationalLogin: updated.allowPersistentOperationalLogin,
             },
           });
           return { ok: true };

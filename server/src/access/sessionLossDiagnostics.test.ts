@@ -53,7 +53,7 @@ test("P0 Firefox diagnostic distinguishes revocation, workstation change and ses
     [{ authorizationChanged: true }, "ws_one", "account_security_changed"],
     [{ stationActive: false }, "ws_one", "workstation_blocked"],
     [{ pending: true }, "ws_one", "workstation_blocked"],
-    [{ trusted: false }, "ws_one", "persistent_trust_removed"],
+    [{ trusted: false }, "ws_one", "session_unavailable"],
     [{ policy: "standard" }, "ws_one", "persistent_trust_removed"],
     [{ permissions: 0 }, "ws_one", "persistent_trust_removed"],
     [{ persistent: false }, "ws_one", "session_expired"],
