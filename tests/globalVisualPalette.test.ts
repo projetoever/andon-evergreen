@@ -79,7 +79,10 @@ test("UX-12: global colors target non-critical components and never override dan
   assert.match(sector, /borderColor: !activeCall \|\| selected \? accentColor : undefined/);
   assert.match(css, /--andon-palette-sector-selection/);
   assert.match(css, /--andon-palette-selected-card-border/);
-  assert.match(css, /\.andon-palette-machine-card \{/);
+  assert.match(css, /\.andon-palette-machine-card,/);
+  assert.match(css, /\.andon-palette-summary-card \{/);
+  assert.match(await source("src/components/layout/StatusSummaryBar.tsx"),
+    /andon-palette-summary-card/);
   assert.match(css, /\.andon-palette-operation-button \{/);
   assert.match(provider, /--andon-palette-card-border/);
   assert.match(provider, /--andon-palette-priority-border/);
@@ -104,7 +107,10 @@ test("UX-19: old five-color palettes remain valid and preserve their configured 
 test("UX-21: six curated palettes also change safe dashboard, fault and priority presentation" , () => {
   assert.equal(INDUSTRIAL_VISUAL_PRESETS.length, 6);
   assert.deepEqual(INDUSTRIAL_VISUAL_PRESETS.map(p => p.id),
-    ["evergreen", "contrastDark", "contrastLight", "industrialBlue", "warm", "neutral"]);
+    ["operationalGreen", "contrastDark", "contrastLight", "industrialBlue", "warm", "neutral"]);
+  assert.ok(INDUSTRIAL_VISUAL_PRESETS.every(preset =>
+    !/evergreen/i.test(preset.label + " " + preset.description)),
+    "Palette labels must not expose a specific customer brand");
   for (const preset of INDUSTRIAL_VISUAL_PRESETS) {
     assert.ok(parseVisualPalette(preset.palette), preset.id);
     assert.deepEqual(Object.keys(preset.palette).sort(), ["version", ...VISUAL_PALETTE_KEYS].sort());
