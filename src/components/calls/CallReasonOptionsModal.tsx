@@ -95,6 +95,11 @@ export function CallReasonOptionsModal({
         <p role="status" className="text-sm font-semibold text-muted-foreground">
           {freeCount} {ui("setores disponíveis para abertura")}
         </p>
+        {onSelectMany && available.length > 1 && freeCount < 2 && (
+          <p role="status" className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+            {ui("A seleção múltipla exige pelo menos dois setores sem chamados ativos.")}
+          </p>
+        )}
         {available.length === 0 ? (
           <p role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-base">
             {ui("Nenhum setor ativo vinculado a este grupo. Solicite a configuração ao administrador.")}
