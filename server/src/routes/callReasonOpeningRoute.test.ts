@@ -17,8 +17,14 @@ test("S3-B2B: current legacy/batch opening remains distinct from central reason 
   assert.match(single, /tx\.andonCallReasonSnapshot\.create/);
   assert.match(single, /callId: createdCall\.id/);
   assert.match(single, /await tx\.andonCall\.create/);
-  assert.doesNotMatch(batch, /resolveOpeningReasonInTransaction\(tx/);
-  assert.doesNotMatch(batch, /andonCallReasonSnapshot\.create/);
+  // Legacy batches remain unclassified; only explicit group batches may
+  // resolve and persist a reason snapshot under the independent HML gate.
+  assert.match(batch, /const isGroupBatch = Object\.prototype\.hasOwnProperty\.call\(body, "reasonSelections"\)/);
+  assert.match(batch, /isGroupBatch && \(!centralBatch \|\| !centralGroupBatchOpenEnabled\(\)\)/);
+  assert.match(batch, /if \(groupSelections\)/);
+  assert.match(batch, /resolveOpeningReasonInTransaction\(tx/);
+  assert.match(batch, /const snapshot = groupSnapshots\.get\(subtype\)/);
+  assert.match(batch, /await tx\.andonCallReasonSnapshot\.create/);
 });
 
 test("S3-B2B: audit+authentication wrapper and duplicate OS guard are preserved", async () => {
