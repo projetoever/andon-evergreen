@@ -22,8 +22,9 @@ const clamp = (number: number, min: number, max: number) => Math.min(max, Math.m
  * and warning colors are protected separately by the semantic UI.
  */
 export function VisualAccentRgbPicker({
-  label, value, disabled, onChange,
+  label, value, disabled, onChange, compact = false,
 }: {
+  compact?: boolean;
   label: string;
   value: VisualAccent;
   disabled: boolean;
@@ -123,7 +124,7 @@ export function VisualAccentRgbPicker({
               event.currentTarget.releasePointerCapture(event.pointerId);
           }}
           onKeyDown={event => { if (!disabled) onSpectrumKeyDown(event); }}
-          className="relative aspect-square min-w-0 max-w-[300px] flex-1 cursor-crosshair touch-none overflow-hidden rounded-md border border-border shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`relative min-w-0 flex-1 cursor-crosshair touch-none overflow-hidden rounded-md border border-border shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${compact ? "h-36 max-w-[280px]" : "aspect-square max-w-[300px]"}`}
           style={{
             backgroundImage: "linear-gradient(to top, #FFFFFF, rgba(255,255,255,0)), linear-gradient(to right, #FF0000 0%, #FFFF00 16.67%, #00FF00 33.33%, #00FFFF 50%, #0000FF 66.67%, #FF00FF 83.33%, #FF0000 100%)",
           }}
