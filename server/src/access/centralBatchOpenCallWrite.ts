@@ -6,6 +6,8 @@ import { lockMachineFlow } from "../db/machineFlowLock.js";
 import { preflightCentralCallWrite } from "./centralCallWritePreflight.js";
 import { assertModule, assertPermission, AccessError, type Principal } from "./policy.js";
 import { appendAudit, actorFromPrincipal } from "./audit.js";
+import { centralGroupBatchOpenEnabled } from "../security/centralBatchOpenHttp.js";
+import { parseGroupBatchSelections } from "../services/groupBatchOpening.js";
 
 /** A batch is one transaction and all call audit events commit together.
  * This duplicates the single-open security sequence deliberately, rather
@@ -24,9 +26,14 @@ export function runCentralBatchOpenCallWrite<T extends { id: string; status: str
   if (!input.workstationId || typeof input.machineId !== "string" ||
       !input.machineId.trim() || input.machineId.length > 160)
     throw new AccessError("invalid_action_resource", 400);
+  const isGroupBatch = Object.prototype.hasOwnProperty.call(input.body, "reasonSelections");
+  if (isGroupBatch && !centralGroupBatchOpenEnabled())
+    throw new AccessError("hierarchical_calls_disabled");
+  if (!isGroupBatch && process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED !== "1")
+    throw new AccessError("central_action_not_supported");
   if (Object.keys(input.body).some(key => ![
     "machineId", "subtypes", "criticality", "machineCondition",
-    "workOrderNumber", "operatorNote",
+    "workOrderNumber", "operatorNote", ...(isGroupBatch ? ["reasonSelections"] : []),
   ].includes(key)))
     throw new AccessError("reserved_call_origin");
   const subtypes = input.body.subtypes;
@@ -34,6 +41,7 @@ export function runCentralBatchOpenCallWrite<T extends { id: string; status: str
       subtypes.some(s => typeof s !== "string" || !s.trim() || s.length > 120) ||
       new Set(subtypes).size !== subtypes.length)
     throw new AccessError("invalid_input", 400);
+  if (isGroupBatch) parseGroupBatchSelections(input.body.reasonSelections, subtypes as string[]);
   return db.$transaction(async tx => {
     const session = await tx.accessSession.findUnique({
       where: { tokenHash: tokenHash(input.token) }, select: { userId: true },
@@ -89,7 +97,8 @@ export function runCentralBatchOpenCallWrite<T extends { id: string; status: str
         action: "calls.open", resourceType: "andon_call",
         resourceId: call.id, machineId: input.machineId,
         after: { status: "open", origin: "kiosk", batch: true,
-          batchSize: created.length, batchIndex: index + 1 },
+          batchSize: created.length, batchIndex: index + 1,
+          ...(isGroupBatch ? { groupBatch: true } : {}) },
       });
     }
     return created;
