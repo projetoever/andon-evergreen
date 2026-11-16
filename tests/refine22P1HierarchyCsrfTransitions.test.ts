@@ -57,6 +57,9 @@ test("REFINE22 P1: same ANDON picker is compact; no false missing-machine screen
   assert.match(root, /<RouteTransitionOverlay/);
   assert.match(machine, /initialSnapshotState !== "ready"/);
   assert.match(machine, /<AndonLoadingTransition recovering=/);
+  const history = await source("src/pages/MachineCallHistoryPage.tsx");
+  assert.match(history, /initialSnapshotState !== "ready"/);
+  assert.match(history, /<AndonLoadingTransition recovering=/);
   assert.match(provider, /initialSnapshotState: "loading" \| "ready" \| "error"/);
   assert.match(loader, /motion-reduce:animate-none/);
 });
