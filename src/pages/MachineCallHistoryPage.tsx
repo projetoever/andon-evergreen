@@ -16,6 +16,7 @@ import { toast } from "@/i18n/toast";
 
 import { CallIdLabel } from "@/components/common/CallIdLabel";
 import { EmptyState } from "@/components/common/EmptyState";
+import { AndonLoadingTransition } from "@/components/common/AndonLoadingTransition";
 import { useAndon } from "@/context/AndonProvider";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
@@ -308,7 +309,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
   const { access } = useModuleAccess();
   const globalHistoryAllowed = access?.centralAccessEnabled === true &&
     access.globalHistory?.available === true && access.globalHistory?.allowed === true;
-  const { machines, calls, updateMachineStopEventDescription, updateCallFailureDetails } =
+  const { machines, initialSnapshotState, calls, updateMachineStopEventDescription, updateCallFailureDetails } =
     useAndon();
   const [expandedCallIds, setExpandedCallIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -363,6 +364,9 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     [classifications],
   );
 
+  if (!machine && initialSnapshotState !== "ready") {
+    return <AndonLoadingTransition recovering={initialSnapshotState === "error"}/>;
+  }
   if (!machine) {
     return (
       <EmptyState

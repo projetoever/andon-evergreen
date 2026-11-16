@@ -237,7 +237,7 @@ export function AppearanceSettingsPreview({ allowGlobalSave = false }: { allowGl
             </DialogDescription>
           </DialogHeader>
           {editingKey && (
-            <VisualAccentRgbPicker
+            <VisualAccentRgbPicker compact
               label={fieldLabels[editingKey]}
               disabled={loading || busy}
               value={draft[editingKey]}

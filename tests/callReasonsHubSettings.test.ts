@@ -52,7 +52,7 @@ test("REFINE22 P1: reason editing exposes hierarchy order and existing area link
   assert.match(page, /Ordem de exibição do motivo/);
   assert.match(page, /Number\.isSafeInteger\(next\.displayOrder\)/);
   assert.match(page, /next\.displayOrder > 9999/);
-  assert.match(page, /Vincule setores já cadastrados como subcategorias deste motivo/);
+  assert.match(page, /Cada subcategoria funciona como um botão no modal do motivo/);
   assert.match(page, /addCallReasonOption\(chosen\.id/);
   assert.match(page, /updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
   assert.match(page, /restrictedDelegatedLink/);

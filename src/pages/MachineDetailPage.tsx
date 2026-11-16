@@ -7,6 +7,7 @@ import { toast } from "@/i18n/toast";
 
 import { BigButton } from "@/components/common/BigButton";
 import { EmptyState } from "@/components/common/EmptyState";
+import { AndonLoadingTransition } from "@/components/common/AndonLoadingTransition";
 import { CancelCallModal } from "@/components/calls/CancelCallModal";
 import { EndTechnicianSessionModal } from "@/components/calls/EndTechnicianSessionModal";
 import { FinishCallModal } from "@/components/calls/FinishCallModal";
@@ -72,6 +73,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const { access, checking: accessChecking } = useModuleAccess();
   const {
     machines,
+    initialSnapshotState,
     calls,
     openCall,
     attendCall,
@@ -641,6 +643,11 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
   }
 
+  // On first mount the API snapshot starts empty. A missing row is not a
+  // genuine 404 until the initial server query has completed successfully.
+  if (!machine && initialSnapshotState !== "ready") {
+    return <AndonLoadingTransition recovering={initialSnapshotState === "error"}/>;
+  }
   if (!machine) {
     return (
       <EmptyState

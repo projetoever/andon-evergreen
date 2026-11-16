@@ -10,6 +10,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { LoaderCircle } from "lucide-react";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { AndonProvider } from "@/context/AndonProvider";
 import { TechnicianProvider } from "@/context/TechnicianProvider";
@@ -116,12 +117,27 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function RouteTransitionOverlay() {
+  const changingPage = useRouterState({ select: state => state.status === "pending" });
+  if (!changingPage) return null;
+  return (
+    <div role="status" aria-label={ui("Carregando página…")}
+      className="andon-route-loading pointer-events-none fixed inset-0 z-[90] flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-lg">
+        <LoaderCircle aria-hidden="true" className="h-6 w-6 animate-spin text-primary motion-reduce:animate-none"/>
+        <span className="text-sm font-semibold">{ui("Carregando página…")}</span>
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   useInterfaceLanguage();
   return (
     <ModuleAccessProvider>
       <AndonBrowserIdentity />
       <RootContent />
+      <RouteTransitionOverlay />
     </ModuleAccessProvider>
   );
 }

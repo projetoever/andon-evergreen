@@ -525,3 +525,15 @@ label:has(> select) > * {
   outline: 2px solid var(--ring);
   outline-offset: 4px;
 }
+
+/* P1 REFINE22: route changes never flash unloaded machine errors. */
+@keyframes andon-route-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.andon-route-loading {
+  animation: andon-route-enter 160ms ease-out 100ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .andon-route-loading { animation: none; }
+}
