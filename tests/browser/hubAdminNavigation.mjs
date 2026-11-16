@@ -591,7 +591,7 @@ try {
       await andonNavigation.getByRole("button", { name: "Grupos de chamados", exact: true }).click();
       await workspace.getByRole("heading", { name: "Grupos de chamados" }).waitFor();
       assert.equal(await workspace.getByRole("navigation", { name: "Organização dos cadastros de chamados" }).count(), 0);
-      await andonNavigation.getByRole("button", { name: "Setores e categorias", exact: true }).click();
+      await andonNavigation.getByRole("button", { name: "Setores / categorias", exact: true }).click();
       await workspace.getByRole("heading", { name: "Setores / categorias", exact: true }).waitFor();
       // P1 failed field test: verify Return works and re-entering config
       // mounts the same fullscreen page without an overlay or lost session.
