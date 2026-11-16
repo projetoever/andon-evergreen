@@ -813,7 +813,8 @@ export function WorkstationsSettingsTab() {
                           ? formatLastSeen(workstation.lastHeartbeatAt) : ui("Nunca recebido")}
                       </p>
                     )}
-                    {centralAccess && accessSession?.principal?.isPrimaryAdmin && (
+                    {centralAccess && accessSession?.principal?.isPrimaryAdmin &&
+                      !isCurrent && workstation.lastLogin?.state === "valid" && (
                       <section className="space-y-3 rounded-lg border border-border p-3">
                         {!isCurrent && workstation.lastLogin?.state === "valid" && (
                           <div className="space-y-2 border-t border-border pt-3">
