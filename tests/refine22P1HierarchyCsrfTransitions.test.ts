@@ -54,7 +54,11 @@ test("REFINE22 P1: same ANDON picker is compact; no false missing-machine screen
   assert.match(colorField, /<VisualAccentRgbPicker compact/);
   assert.match(reasonEditor, /<CompactAndonColorField/);
   assert.match(categoryEditor, /<CompactAndonColorField/);
-  assert.match(root, /<RouteTransitionOverlay/);
+  // Hub login and other interactive pages must never be covered by the
+  // router's global "pending" state: local machine/history loaders are enough.
+  assert.doesNotMatch(root, /<RouteTransitionOverlay/);
+  assert.doesNotMatch(root, /RouteTransitionOverlay/);
+  assert.doesNotMatch(root, /state\.status === "pending"/);
   assert.match(machine, /initialSnapshotState !== "ready"/);
   assert.match(machine, /<AndonLoadingTransition recovering=/);
   const history = await source("src/pages/MachineCallHistoryPage.tsx");
