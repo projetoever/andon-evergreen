@@ -32,7 +32,7 @@ function StatCard({ label, value, subtitle, tone, icon, pulse }: StatCardProps) 
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 shadow-sm",
+        "andon-palette-summary-card relative flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border-2 border-border bg-card px-3 py-2 shadow-md",
         pulse && value > 0 && "ring-2 ring-danger animate-andon-pulse",
       )}
     >
