@@ -1117,6 +1117,10 @@ function Write-AndonBackendEnv {
         "ANDON_CENTRAL_MACHINE_CREATE_HTTP_ENABLED",
         "ANDON_CENTRAL_SHIFT_UPDATE_HTTP_ENABLED",
         "ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED",
+        # REFINE22 P1: administration of reasons/options joins the existing
+        # EXPLICIT notebook HTTPS/local-PG security validation profile.
+        # This never activates operator-facing hierarchical call opening.
+        "ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
         "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
@@ -1141,6 +1145,9 @@ CORS_ORIGINS="$($NetworkConfig.corsOrigins)"
 ANDON_ACCESS_ORIGIN="$($NetworkConfig.frontendUrl)"
 ANDON_CENTRAL_ACCESS_ENABLED=$centralAccessEnabled
 $securityEnv
+# Operator-facing hierarchical opening is a separate, deliberately OFF gate.
+# It requires operational validation and explicit opt-in after catalog review.
+ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0
 $tlsEnvironment
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"
