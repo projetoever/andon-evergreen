@@ -194,6 +194,7 @@ function Get-AndonRuntimeContext {
         TlsCertificatePath = $tlsCertificatePath
         TlsPrivateKeyPath = $tlsPrivateKeyPath
         CentralAccessEnabled = $centralAccessEnabled
+        InstalledCommit   = "$($config.installedCommit)".Trim().ToLowerInvariant()
         ApiBaseUrl        = "${transportMode}://${runtimeHost}:$apiPort"
         FrontendUrl       = "${transportMode}://${runtimeHost}:$frontendPort"
     }
@@ -281,6 +282,25 @@ function Test-AndonRuntimeHttp {
     }
 }
 
+# A versao e capturada uma vez no boot pelo SSR, sem consultar GitHub.
+function Test-AndonRuntimeFrontendBuild {
+    $context = Get-AndonRuntimeContext
+    $expected = "$($context.InstalledCommit)".Trim().ToLowerInvariant()
+    if ($expected -notmatch '^[0-9a-f]{40}$') { return $false }
+    try {
+        $response = Invoke-RestMethod `
+            -Uri "$($context.FrontendUrl)/__andon/build" `
+            -TimeoutSec 5 `
+            -Headers @{ "Cache-Control" = "no-cache" }
+        return (
+            $null -ne $response.commit -and
+            "$($response.commit)".Trim().ToLowerInvariant() -ceq $expected
+        )
+    } catch {
+        return $false
+    }
+}
+
 function Wait-AndonRuntimeHttp {
     param(
         [Parameter(Mandatory = $true)]
@@ -305,6 +325,19 @@ function Wait-AndonRuntimeHttp {
         Start-Sleep -Seconds $IntervalSeconds
     } while ((Get-Date) -lt $deadline)
 
+    return $false
+}
+
+function Wait-AndonRuntimeFrontendBuild {
+    param(
+        [int]$TimeoutSeconds = 150,
+        [int]$IntervalSeconds = 3
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        if (Test-AndonRuntimeFrontendBuild) { return $true }
+        Start-Sleep -Seconds $IntervalSeconds
+    } while ((Get-Date) -lt $deadline)
     return $false
 }
 

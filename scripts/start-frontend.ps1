@@ -33,15 +33,18 @@ Write-FrontendLog `
     -Message "Verificando frontend em $($context.FrontendUrl)."
 
 if (
-    Test-AndonRuntimeHttp `
-        -Url $context.FrontendUrl `
-        -TimeoutSeconds 5
+    (Test-AndonRuntimeHttp -Url $context.FrontendUrl -TimeoutSeconds 5) -and
+    (Test-AndonRuntimeFrontendBuild)
 ) {
     Write-FrontendLog `
         -Level "OK" `
-        -Message "Frontend ja esta acessivel."
-
+        -Message "Frontend acessivel no SHA esperado: $($context.InstalledCommit)."
     exit 0
+}
+if (Test-AndonRuntimeHttp -Url $context.FrontendUrl -TimeoutSeconds 5) {
+    Write-FrontendLog `
+        -Level "AVISO" `
+        -Message "Porta 8080 responde, mas o frontend vivo nao confirma o SHA instalado. Reinicio controlado somente de processo ANDON."
 }
 
 if (!(Test-Path $clientBuildPath -PathType Container)) {

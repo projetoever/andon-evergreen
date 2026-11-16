@@ -1799,6 +1799,21 @@ function Invoke-AndonNodePipeline {
         }
     }
     if (!(Test-Path "$Global:AndonProjectPath\dist\client\assets")) { throw "Build frontend nao gerou dist\client\assets." }
+    if (!(Test-Path "$Global:AndonProjectPath\dist\server\server.js" -PathType Leaf)) {
+        throw "Build frontend nao gerou entrada SSR compilada."
+    }
+    # O manifesto e produzido APOS o build e tem o mesmo commit injetado pelo
+    # Vite. O processo Node o carrega somente no boot: um SSR antigo nao pode
+    # se declarar atualizado lendo um arquivo recem-sobrescrito.
+    $buildIdentityPath = Join-Path $Global:AndonProjectPath "dist\andon-frontend-build.json"
+    $buildIdentity = [ordered]@{ commit = $pinnedFrontendCommit }
+    $buildIdentityJson = $buildIdentity | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText(
+        $buildIdentityPath,
+        $buildIdentityJson,
+        (New-Object System.Text.UTF8Encoding($false))
+    )
+    Write-AndonOk "Manifesto do frontend compilado: $pinnedFrontendCommit"
     Write-AndonOk "Backend/frontend preparados."
 }
 

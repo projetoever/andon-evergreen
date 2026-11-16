@@ -64,6 +64,22 @@ function loadTlsConfiguration() {
   return { cert, key };
 }
 
+// Capture the artifact fingerprint ONCE at startup. A process that survives
+// an update must keep reporting its original commit instead of reading a
+// freshly overwritten file, so the installer can detect a stale SSR runtime.
+const buildIdentityPath = resolve(projectPath, "dist", "andon-frontend-build.json");
+let runningBuildCommit = null;
+try {
+  const serialized = readFileSync(buildIdentityPath, "utf8").replace(/^\uFEFF/, "");
+  const identity = JSON.parse(serialized);
+  if (typeof identity.commit === "string" && /^[0-9a-f]{40}$/.test(identity.commit)) {
+    runningBuildCommit = identity.commit;
+  }
+} catch {
+  // A non-installer build is allowed to start for local development. Its
+  // identity is unknown and must never pass an installed-commit health gate.
+}
+
 const tls = loadTlsConfiguration();
 
 if (process.argv.includes("--validate-tls")) {
@@ -142,6 +158,23 @@ function applyResponseHeaders(res, headers) {
 async function handleRequest(req, res) {
   const protocol = tls ? "https" : "http";
   const url = new URL(req.url || "/", `${protocol}://${req.headers.host || "localhost"}`);
+  if (url.pathname === "/__andon/build") {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "GET, HEAD");
+      res.end();
+      return;
+    }
+    const response = JSON.stringify({ commit: runningBuildCommit });
+    res.setHeader("Content-Length", Buffer.byteLength(response));
+    res.statusCode = 200;
+    res.end(req.method === "HEAD" ? undefined : response);
+    return;
+  }
   if (serveStatic(req, res, url)) return;
 
   const init = {

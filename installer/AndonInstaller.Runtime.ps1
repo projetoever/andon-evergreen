@@ -68,18 +68,39 @@ function Test-AndonFrontendReady {
     }
 }
 
+# SHA em config nao demonstra que o processo SSR que atende a porta 8080
+# foi reiniciado. O endpoint abaixo usa o manifesto carregado no boot.
+function Get-AndonFrontendLiveCommit {
+    try {
+        $response = Invoke-RestMethod `
+            -Uri "$(Get-AndonFrontendUrl)/__andon/build" `
+            -Headers @{ "Cache-Control" = "no-cache" } `
+            -TimeoutSec 5
+        $commit = "$($response.commit)".Trim().ToLowerInvariant()
+        if ($commit -match '^[0-9a-f]{40}$') { return $commit }
+    } catch {
+        # Frontend antigo ou resposta invalida nao satisfaz o gate.
+    }
+    return ""
+}
+
 function Wait-AndonFrontendReady {
     param([int]$TimeoutSeconds = 180)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $expectedCommit = "$((Import-AndonConfig).installedCommit)".Trim().ToLowerInvariant()
     do {
-        if (Test-AndonFrontendReady) {
-            Write-AndonOk "Frontend pronto: $(Get-AndonFrontendUrl)"
+        if (
+            (Test-AndonFrontendReady) -and
+            (Get-AndonFrontendLiveCommit) -ceq $expectedCommit -and
+            $expectedCommit -match '^[0-9a-f]{40}$'
+        ) {
+            Write-AndonOk "Frontend pronto no SHA confirmado: $expectedCommit"
             return $true
         }
         Start-Sleep -Seconds 3
     } while ((Get-Date) -lt $deadline)
 
-    Write-AndonWarn "Frontend nao ficou pronto no tempo esperado."
+    Write-AndonWarn "Frontend nao confirmou o SHA instalado na porta 8080."
     return $false
 }
 
@@ -560,6 +581,18 @@ function Invoke-AndonHealthCheck {
 
     if ($frontendReady) {
         Write-AndonOk "Frontend $(Get-AndonFrontendUrl) | $($frontendTimer.ElapsedMilliseconds) ms (primeira resposta)"
+        $expectedFrontendCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+        $liveFrontendCommit = Get-AndonFrontendLiveCommit
+        if (
+            $expectedFrontendCommit -notmatch '^[0-9a-f]{40}$' -or
+            $liveFrontendCommit -cne $expectedFrontendCommit
+        ) {
+            $hasCriticalError = $true
+            Write-AndonFail "DIVERGENCIA DE VERSAO: SHA instalado=$expectedFrontendCommit; frontend vivo=$(if ($liveFrontendCommit) { $liveFrontendCommit } else { 'indisponivel/antigo' })."
+            Write-AndonWarn "Menu 6 nao altera processos. Use opcao 4 apos verificar logs; nao reinstale o banco."
+        } else {
+            Write-AndonOk "SHA do frontend vivo corresponde ao instalado: $liveFrontendCommit"
+        }
         if ($frontendTimer.ElapsedMilliseconds -gt 1500) {
             Write-AndonWarn "Frontend respondeu lentamente. Avalie CPU, rede e renderizacao se for recorrente."
         }
