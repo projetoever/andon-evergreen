@@ -2964,7 +2964,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         // The operator never supplies a KPI policy or classification directly.
         const groupSnapshots = new Map<string, Awaited<ReturnType<typeof resolveOpeningReasonInTransaction>>>();
         if (groupSelections) {
-          for (const item of groupSelections) {
+          for (const item of [...groupSelections].sort((a, b) => a.subtype.localeCompare(b.subtype))) {
             const configured = categoryBySubtype.get(item.subtype);
             if (!configured) throw new AndonCallValidationError("Setor do grupo indisponível");
             const snapshot = await resolveOpeningReasonInTransaction(tx, {
