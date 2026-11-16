@@ -38,6 +38,9 @@ jobs:
       - name: Validar scripts HTTPS de homologação
         shell: powershell
         run: .\homologation\https\Test-AndonHttpsHomologation.ps1
+      - name: Validar catalogo de motivos no perfil isolado Windows
+        shell: powershell
+        run: .\installer\tests\call-reasons-hml-profile-regression.ps1
 
   validate:
     name: Build, PostgreSQL e fluxos críticos
