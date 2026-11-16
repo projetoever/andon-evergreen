@@ -130,3 +130,29 @@ test("REFINE21: Hub central, Gerente e legado usam tela inteira e barra lateral 
     assert.match(page, /search=\{\{ section: item\.id \}\}/);
   }
 });
+
+test("P1 route admin fullscreen: screen pin cannot redirect authorized settings to machine", async () => {
+  const root = await readFile(new URL("../src/routes/__root.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../src/pages/AndonAdminPage.tsx", import.meta.url), "utf8");
+  assert.match(root, /isAdminWorkspace = pathname === "\/andon\/admin"/);
+  assert.match(root, /!isAdminWorkspace &&\s*!canOpenPinnedMachineHistory/);
+  assert.match(root, /if \(isHubRoute \|\| isAdminWorkspace\)/);
+  assert.match(page, /principal\?\.purpose === "normal"/);
+  assert.match(page, /principal\.isPrimaryAdmin === true/);
+  assert.match(page, /principal\.permissions\?\.includes\("andon\.settings\.open"\)/);
+  assert.match(page, /requestId !== authorizationRequest\.current/);
+  assert.doesNotMatch(page, /localStorage|sessionStorage|setCookie|accessToken/);
+});
+
+test("P1 full admin workspace keeps capability summary mounted and all 11 tabs", async () => {
+  const source = await readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8");
+  const workspace = source.split("export function AdminSettingsWorkspace")[1]?.split("function ClassificationsTab")[0] ?? "";
+  assert.match(workspace, /CentralSettingsCapabilityNotice tab=\{tab\} open=\{true\}/);
+  assert.doesNotMatch(workspace, /open=\{open\}|<DialogContent|<Dialog open=/);
+  assert.match(workspace, /overflow-y-auto/);
+  assert.match(workspace, /max-w-none/);
+  for (const tab of ["general","appearance","sounds","attendance","technicians",
+    "shifts","categories","callReasons","classifications","assetCatalogs","machines"]) {
+    assert.match(source, new RegExp('id: "' + tab + '"'));
+  }
+});
