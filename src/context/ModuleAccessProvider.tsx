@@ -12,7 +12,8 @@ import { loadModuleAccess } from "@/services/moduleService";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
 import { toast } from "@/i18n/toast";
-import { persistentSessionMismatch, PERSISTENCE_NOT_ACTIVE, rememberConfirmedPersistentSession } from "@/services/persistentSessionStatus";
+import { persistentSessionMismatch, PERSISTENCE_NOT_ACTIVE } from "@/services/persistentSessionStatus";
+import { rememberConfirmedPersistentSession } from "@/services/sessionRecoveryDiagnostics";
 
 const ModuleAccessContext = createContext<{
   access: ModuleAccess | null;
