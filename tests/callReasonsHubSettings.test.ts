@@ -4,12 +4,17 @@ import { readFile } from "node:fs/promises";
 
 const text = async (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("S3-A: Hub exposes motive hierarchy as a dedicated administrative tab", async () => {
+test("REFINE22 P1: motive hierarchy is nested in sectors and categories", async () => {
   const [nav, types] = await Promise.all([
     text("../src/components/settings/AdminSettingsModal.tsx"),
     text("../src/types/settings.ts"),
   ]);
-  assert.match(nav, /id: "callReasons"/);
+  assert.match(nav, /id: "categories"/);
+  assert.doesNotMatch(nav, /id: "callReasons",/);
+  assert.match(nav, /catalogView === "sectors"/);
+  assert.match(nav, /catalogView === "reasons"/);
+  assert.match(nav, /<CategoriesSettingsTab \/>/);
+  assert.match(nav, /capabilityTab/);
   assert.match(nav, /<CallReasonsSettingsTab\s*\/>/);
   assert.match(types, /\| "callReasons"/);
 });

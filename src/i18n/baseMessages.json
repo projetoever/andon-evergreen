@@ -856,5 +856,13 @@
   ["A exportação excede 500 registros. Refine os filtros e tente novamente.","The export exceeds 500 records. Narrow the filters and try again.","匯出超過 500 筆紀錄。請縮小篩選範圍後再試。"],
   ["Não foi possível exportar o histórico filtrado.","Could not export the filtered history.","無法匯出篩選後的歷史紀錄。"],
   ["Não expirar — definido no perfil do usuário","No expiration — defined by the user profile","不自動過期 — 由使用者設定檔決定"],
-  ["A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.","Session duration does not change permissions. No expiration is set by the Person user profile (except the primary Admin). The workstation must be active and approved to allow access, but does not determine duration. Logout, revocation, and security changes end the session.","工作階段期限不會變更權限。不自動過期由個人使用者設定檔決定（主要管理員除外）。工作站必須已啟用並獲核准才能存取，但不決定工作階段期限。登出、撤銷與安全性變更會結束工作階段。"]
+  ["A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.","Session duration does not change permissions. No expiration is set by the Person user profile (except the primary Admin). The workstation must be active and approved to allow access, but does not determine duration. Logout, revocation, and security changes end the session.","工作階段期限不會變更權限。不自動過期由個人使用者設定檔決定（主要管理員除外）。工作站必須已啟用並獲核准才能存取，但不決定工作階段期限。登出、撤銷與安全性變更會結束工作階段。"],
+  ["Setores, categorias e motivos","Sectors, categories and reasons","部門、類別與通報原因"],
+  ["Organização dos setores, motivos e especialidades dos chamados.","Organization of call sectors, reasons and specialties.","通報部門、原因與專業類別的組織管理。"],
+  ["Organização dos cadastros de chamados","Call catalog organization","通報目錄管理"],
+  ["Pesquisar motivos e subcategorias","Search reasons and subcategories","搜尋通報原因與子類別"],
+  ["Nome, ID ou especialidade...","Name, ID or specialty...","名稱、識別碼或專業類別…"],
+  ["Filtrar motivos por status","Filter reasons by status","依狀態篩選通報原因"],
+  ["motivos","reasons","原因"],
+  ["Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.","No reasons found. Adjust the search or filter.","找不到通報原因。請調整搜尋或篩選條件。"]
 ]

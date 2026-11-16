@@ -572,7 +572,7 @@ try {
       const tabs = [
         "Configurações da operação", "Aparência e cores", "Sons do ANDON",
         "Modo de atendimento", "Mantenedores", "Turnos",
-        "Setores / categorias", "Motivos e subcategorias", "Classificações",
+        "Setores, categorias e motivos", "Classificações",
         "Catálogos de ativos", "Máquinas",
       ];
       for (const label of tabs) {
@@ -584,6 +584,15 @@ try {
         assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
           "Tab content heading must exist: " + label);
       }
+      // Motives share the sector/catalog workspace, without changing backend gates.
+      await andonNavigation.getByRole("button", { name: "Setores, categorias e motivos", exact: true }).click();
+      const catalogNav = workspace.getByRole("navigation", { name: "Organização dos cadastros de chamados" });
+      await catalogNav.getByRole("button", { name: "Motivos e subcategorias", exact: true }).click();
+      assert.equal(await catalogNav.getByRole("button", { name: "Motivos e subcategorias", exact: true })
+        .getAttribute("aria-current"), "page");
+      await workspace.getByRole("heading", { name: "Motivos e subcategorias de chamados" }).waitFor();
+      await catalogNav.getByRole("button", { name: "Setores / categorias", exact: true }).click();
+      await workspace.getByRole("heading", { name: "Setores / categorias", exact: true }).waitFor();
       // P1 failed field test: verify Return works and re-entering config
       // mounts the same fullscreen page without an overlay or lost session.
       await workspace.getByRole("button", { name: "Voltar ao ANDON", exact: true }).click();

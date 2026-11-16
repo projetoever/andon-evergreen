@@ -117,19 +117,10 @@ const tabs: AdminNavigationItem[] = [
   },
   {
     id: "categories",
-    get label() {
-      return ui("Setores / categorias");
-    },
+    get label() { return ui("Setores, categorias e motivos"); },
     get description() {
-      return ui("Áreas exibidas na abertura dos chamados e sua organização visual.");
+      return ui("Organização dos setores, motivos e especialidades dos chamados.");
     },
-    group: "Cadastros",
-    icon: Tags,
-  },
-  {
-    id: "callReasons",
-    get label() { return ui("Motivos e subcategorias"); },
-    get description() { return ui("Motivos principais, especialidades e política de KPI corretivo."); },
     group: "Cadastros",
     icon: Tags,
   },
@@ -197,6 +188,11 @@ export function AdminSettingsWorkspace({
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
+  // One catalog area with two independently gated editors.
+  // Only navigation is unified: category vs reason APIs and grants stay separate.
+  const [catalogView, setCatalogView] = useState<"sectors" | "reasons">("sectors");
+  const capabilityTab: SettingsTab =
+    tab === "categories" && catalogView === "reasons" ? "callReasons" : tab;
   // R10-07: the authenticated Hub grant "andon.settings.open" opens the
   // WHOLE ANDON administrative navigation. Do not infer write privileges from
   // tab visibility; the backend still enforces each catalog/setting action.
@@ -210,7 +206,29 @@ export function AdminSettingsWorkspace({
     if (tab === "sounds") return <SoundsSettingsTab isOpen={true} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
-    if (tab === "categories") return <CategoriesSettingsTab />;
+    if (tab === "categories") return (
+      <div className="space-y-4">
+        <nav aria-label={ui("Organização dos cadastros de chamados")}
+          className="grid gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-2">
+          <button type="button" aria-current={catalogView === "sectors" ? "page" : undefined}
+            onClick={() => setCatalogView("sectors")}
+            className={cn("min-h-11 rounded-lg px-3 py-2 text-sm font-bold transition-colors",
+              catalogView === "sectors"
+                ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
+            {ui("Setores / categorias")}
+          </button>
+          <button type="button" aria-current={catalogView === "reasons" ? "page" : undefined}
+            onClick={() => setCatalogView("reasons")}
+            className={cn("min-h-11 rounded-lg px-3 py-2 text-sm font-bold transition-colors",
+              catalogView === "reasons"
+                ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
+            {ui("Motivos e subcategorias")}
+          </button>
+        </nav>
+        {catalogView === "sectors" ? <CategoriesSettingsTab /> : <CallReasonsSettingsTab />}
+      </div>
+    );
+    // Keep the old type internally compatible without retaining a duplicate menu entry.
     if (tab === "callReasons") return <CallReasonsSettingsTab />;
     if (tab === "shifts") return <ShiftsSettingsTab />;
     if (tab === "classifications") return <ClassificationsTab centralAccess={centralAccess} />;
@@ -251,7 +269,7 @@ export function AdminSettingsWorkspace({
             {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
           </p>
         )}
-        {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={true} />}
+        {centralAccess && <CentralSettingsCapabilityNotice tab={capabilityTab} open={true} />}
       </>}
     >
       <div key={tab} className="andon-panel-enter min-w-0">

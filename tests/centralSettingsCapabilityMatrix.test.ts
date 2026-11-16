@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const get = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("CFG-15A: all 11 ANDON admin tabs display backend-grounded central availability", async () => {
+test("CFG-15A: 10 sections expose 11 server-verified capabilities", async () => {
   const [notice, server, type, modal] = await Promise.all([
     get("../src/components/settings/CentralSettingsCapabilityNotice.tsx"),
     get("../server/src/services/systemSettings.ts"),
@@ -17,7 +17,8 @@ test("CFG-15A: all 11 ANDON admin tabs display backend-grounded central availabi
     "assetCatalogs", "machines",
   ]) {
     assert.match(notice, new RegExp(`case "${tab}"`), `missing capability status: ${tab}`);
-    assert.match(modal, new RegExp(`id: "${tab}"`), `missing admin tab: ${tab}`);
+    if (tab !== "callReasons") assert.match(modal, new RegExp(`id: "${tab}"`), `missing admin tab: ${tab}`);
+    else assert.match(modal, /catalogView === "reasons" \? "callReasons" : tab/);
   }
   const capabilityMatrix = [
     ["centralCategorySettingsWriteEnabled", "centralCategorySettingsEnabled"],
@@ -99,7 +100,7 @@ test("CFG-15D3B: Machine Admin separates central machine creation from metadata 
 });
 
 
-test("CFG-15B: all 11 tabs revalidate backend capabilities after navigation/settings changes/focus", async () => {
+test("CFG-15B: independent capabilities revalidate after navigation/settings changes/focus", async () => {
   const notice = await get("../src/components/settings/CentralSettingsCapabilityNotice.tsx");
   assert.match(notice, /SYSTEM_SETTINGS_CHANGED_EVENT/);
   assert.match(notice, /window\.addEventListener\("focus", revalidate\)/);
