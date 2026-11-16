@@ -54,8 +54,9 @@ test("REFINE19: operator can distinguish an active sector call from a new openin
   assert.match(options, /Chamado já aberto/);
   assert.match(options, /Selecionar chamado existente/);
   assert.match(options, /w-\[calc\(100vw_-_1rem\)\]/);
-  assert.match(options, /aria-pressed=\{selectedOptionId === option\.id\}/);
-  assert.match(options, /onSelect\(reason\.id, selected\.id\)/);
+  assert.match(options, /aria-pressed=\{chosen\}/);
+  assert.match(options, /onSelect\(reason\.id, selected\[0\]\.id\)/);
+  assert.match(options, /onSelectMany\(reason\.id, selected\.map/);
   assert.match(admin, /Grupos são atalhos opcionais/);
   assert.doesNotMatch(admin, /Este cadastro ainda não altera os botões operacionais/);
 });
