@@ -109,6 +109,11 @@ test("REFINE21: Admin ANDON abre por rota fullscreen, nunca por modal no dashboa
   assert.doesNotMatch(dashboard, /<AdminSettingsModal|adminSettingsOpen|setAdminSettingsOpen/);
   assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
   assert.match(page, /principal\.permissions\?\.includes\("andon\.settings\.open"\)/);
+  assert.match(page, /<AndonProvider>/);
+  assert.match(page, /<TechnicianProvider>/);
+  assert.match(page, /<VirtualKeyboard \/>/);
+  assert.ok(page.indexOf("<AndonProvider>") > page.indexOf('if (checking || !access || error'),
+    "Operational contexts mount only after the protected-route authorization gate");
   assert.match(page, /<AdminSettingsWorkspace/);
   assert.match(admin, /h-dvh min-h-0 w-full overflow-hidden/);
   assert.doesNotMatch(admin, /<Dialog open=/);
