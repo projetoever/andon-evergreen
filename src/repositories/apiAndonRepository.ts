@@ -355,9 +355,31 @@ export class ApiAndonRepository implements AndonRepository {
       return this.openCall(_machines, _calls, first);
     }
 
+    // Group requests carry their own server-validated reason/option revisions;
+    // ordinary batches never acquire group permissions or KPI overrides.
+    const hasGroupSelection = params.some(item => item.reasonId !== undefined);
+    const groupId = first.reasonId;
+    if (hasGroupSelection && (
+      !groupId || params.some(item =>
+        item.reasonId !== groupId || !item.optionId ||
+        !Number.isSafeInteger(item.expectedReasonRevision) ||
+        !Number.isSafeInteger(item.expectedOptionRevision)) ||
+      new Set(params.map(item => item.subtype)).size !== params.length
+    )) {
+      throw new Error("Seleção de setores do grupo inválida para abertura múltipla");
+    }
     await this.apiClient.post<ApiAndonCall[]>("/api/andon-calls/batch", {
       machineId: first.machineId,
       subtypes: params.map((item) => item.subtype),
+      ...(hasGroupSelection ? {
+        reasonSelections: params.map(item => ({
+          reasonId: item.reasonId,
+          optionId: item.optionId,
+          expectedReasonRevision: item.expectedReasonRevision,
+          expectedOptionRevision: item.expectedOptionRevision,
+          subtype: item.subtype,
+        })),
+      } : {}),
       criticality: first.criticality ?? "medium",
       machineCondition: first.machineCondition,
       workOrderNumber: first.workOrderNumber,
