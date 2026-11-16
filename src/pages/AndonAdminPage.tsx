@@ -10,6 +10,7 @@ import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { ui } from "@/i18n/translate";
+import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 
 /** Route-owned fullscreen config: direct links never bypass Hub permissions. */
 export function AndonAdminPage() {
@@ -31,7 +32,12 @@ export function AndonAdminPage() {
       return;
     }
     if (!isCentral) {
-      setAuthorization(isAdminAuthenticated() ? "allowed" : "denied");
+      // Only an explicitly confirmed legacy server, or a locally configured
+      // development mode, may use the legacy Admin credential. An undefined
+      // central-mode field from an incomplete response is NOT legacy approval.
+      const legacyConfirmed =
+        CONFIGURED_DATA_MODE === "local" || access.centralAccessEnabled === false;
+      setAuthorization(legacyConfirmed && isAdminAuthenticated() ? "allowed" : "denied");
       setIsPrimaryAdmin(false);
       return;
     }
