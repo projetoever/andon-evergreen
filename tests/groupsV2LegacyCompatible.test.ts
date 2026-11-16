@@ -22,8 +22,8 @@ test("GROUPS/V2: existing sectors remain direct buttons beside optional group sh
   assert.match(general, /<CallTypeSelector value=\{hierarchicalChoice \? null : subtype\}/);
   assert.match(general, /setHierarchicalChoice\(null\); setSubtype\(value\)/);
   assert.match(general, /Grupos de chamados \(opcionais\)/);
-  assert.match(options, /Chamado já aberto/);
-  assert.match(machine, /setSelectedCallId\(existing\.id\)/);
+  assert.match(options, /Indisponível: chamado ativo/);
+  assert.match(machine, /toast\.error\(ui\("Indisponível: chamado ativo"\)\)/);
   assert.match(panel, /data-call-group-button="true"/);
   assert.match(panel, /backgroundColor: reason\.color/);
   assert.match(panel, /color: readableTextColor\(reason\.color\)/);

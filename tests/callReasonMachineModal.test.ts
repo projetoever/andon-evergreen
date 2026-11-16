@@ -14,7 +14,7 @@ test("S3-B3B: machine screen shows parent reasons, then option modal and scoped 
   assert.match(page, /<CallReasonOptionsModal/);
   assert.match(page, /handleSelectReasonOption/);
   assert.match(page, /existing = activeCalls\.find/);
-  assert.match(page, /setSelectedCallId\(existing\.id\)/);
+  assert.match(page, /toast\.error\(ui\("Indisponível: chamado ativo"\)\)/);
   assert.match(page, /onOpenReason=/);
   assert.match(page, /hierarchicalChoice=\{hierarchicalChoice\}/);
   assert.match(panel, /categories\.map/);
@@ -49,12 +49,12 @@ test("REFINE19: operator can distinguish an active sector call from a new openin
   ]);
   assert.match(page, /activeSubtypes=\{activeCalls\.map\(call => call\.subtype\)\}/);
   assert.match(page, /existing = activeCalls\.find\(call => call\.subtype === option\.legacySubtype\)/);
-  assert.match(page, /setSelectedCallId\(existing\.id\)/);
-  assert.match(options, /activeSubtypes\.includes\(option\.legacySubtype\)/);
-  assert.match(options, /Chamado já aberto/);
-  assert.match(options, /Selecionar chamado existente/);
+  assert.match(page, /toast\.error\(ui\("Indisponível: chamado ativo"\)\)/);
+  assert.match(options, /activeSet\.has\(subtype\)/);
+  assert.match(options, /Indisponível: chamado ativo/);
+  assert.match(options, /disabled=\{busy \|\| alreadyOpen\}/);
   assert.match(options, /w-\[calc\(100vw_-_1rem\)\]/);
-  assert.match(options, /aria-pressed=\{chosen\}/);
+  assert.match(options, /aria-pressed=\{alreadyOpen \? false : chosen\}/);
   assert.match(options, /onSelect\(reason\.id, selected\[0\]\.id\)/);
   assert.match(options, /onSelectMany\(reason\.id, selected\.map/);
   assert.match(admin, /Grupos são atalhos opcionais/);

@@ -603,15 +603,15 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     setHierarchicalChoices([]);
     const reason = hierarchicalReasons?.find(item => item.id === reasonId);
     const option = reason?.options.find(item => item.id === optionId);
-    if (!reason || !option) {
+    if (!reason?.openingEnabled || !option) {
       toast.error(ui("Não foi possível validar o setor do grupo selecionado."));
       return;
     }
     const existing = activeCalls.find(call => call.subtype === option.legacySubtype);
     if (existing) {
-      // A sector with an active call must SELECT it, never open a duplicate.
-      setSelectedCallId(existing.id);
-      setSelectedReasonId(null);
+      // A sector already handling an active call may not be selected from a
+      // group, even for a single opening. Keep the modal open and unchanged.
+      toast.error(ui("Indisponível: chamado ativo"));
       return;
     }
     setHierarchicalChoice({
@@ -890,8 +890,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           ? {
               ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
               active: true,
-              options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options
-                .map(option => ({ ...option, active: true })),
+              options: hierarchicalReasons.find(reason => reason.id === selectedReasonId)!.options,
             }
           : null}
         onOpenChange={(open) => { if (!open) setSelectedReasonId(null); }}
