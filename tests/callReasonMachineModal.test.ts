@@ -50,7 +50,7 @@ test("REFINE19: operator can distinguish an active sector call from a new openin
   assert.match(page, /activeSubtypes=\{activeCalls\.map\(call => call\.subtype\)\}/);
   assert.match(page, /existing = activeCalls\.find\(call => call\.subtype === option\.legacySubtype\)/);
   assert.match(page, /toast\.error\(ui\("Indisponível: chamado ativo"\)\)/);
-  assert.match(options, /activeSubtypes\.includes\(option\.legacySubtype\)/);
+  assert.match(options, /activeSet\.has\(subtype\)/);
   assert.match(options, /Indisponível: chamado ativo/);
   assert.match(options, /disabled=\{busy \|\| alreadyOpen\}/);
   assert.match(options, /w-\[calc\(100vw_-_1rem\)\]/);
