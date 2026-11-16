@@ -897,5 +897,6 @@
   ["Reconectando aos dados do ANDON…","Reconnecting to ANDON data…","正在重新連線 ANDON 資料…"],
   ["Verificando o estado da máquina antes de apresentar as operações.","Checking machine status before displaying operations.","正在確認設備狀態後再顯示操作。"],
   ["A conexão ainda não foi confirmada. Uma nova consulta será realizada automaticamente.","Connection not yet confirmed. Another request will run automatically.","尚未確認連線，系統將自動重新查詢。"],
-  ["Carregando página…","Loading page…","正在載入頁面…"]
+  ["Carregando página…","Loading page…","正在載入頁面…"],
+  ["Aplicar","Apply","套用"]
 ]
