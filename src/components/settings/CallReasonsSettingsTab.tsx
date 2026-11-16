@@ -133,7 +133,7 @@ export function CallReasonsSettingsTab() {
     } catch (err) {
       enabledRef.current = false;
       setEnabled(false);
-      setError(err instanceof Error ? err.message : ui("Erro ao carregar motivos de chamados."));
+      setError(err instanceof Error ? err.message : ui("Erro ao carregar os grupos de chamados."));
     } finally {
       setLoading(false);
     }
@@ -282,7 +282,7 @@ export function CallReasonsSettingsTab() {
       setOptionNameToAdd("");
       toast.success(ui("Setor vinculado ao grupo."));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : ui("Não foi possível vincular a especialidade."));
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível vincular o setor."));
     } finally { setBusy(false); }
   }
 
@@ -293,7 +293,7 @@ export function CallReasonsSettingsTab() {
       await updateCallReasonOption(chosen.id, optionId, revision, { active });
       await refresh(chosen.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : ui("Não foi possível alterar a especialidade."));
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível alterar o setor."));
     } finally { setBusy(false); }
   }
 
@@ -326,9 +326,9 @@ export function CallReasonsSettingsTab() {
         displayName: label || null, displayOrder: order,
       });
       await refresh(chosen.id);
-      toast.success(ui("Apresentação da especialidade atualizada."));
+      toast.success(ui("Apresentação do setor no grupo atualizada."));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar a especialidade."));
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar a apresentação do setor."));
     } finally { setBusy(false); }
   }
 
@@ -340,10 +340,10 @@ export function CallReasonsSettingsTab() {
           {ui("Grupos são atalhos opcionais para os setores já cadastrados. Os botões diretos continuam disponíveis; o grupo define a elegibilidade aos KPIs corretivos, sem alterar o setor, o alarme ou o histórico.")}
         </p>
       </header>
-      {loading && <p role="status">{ui("Carregando motivos...")}</p>}
+      {loading && <p role="status">{ui("Carregando grupos...")}</p>}
       {capabilityChecking && !loading && (
         <p role="status" className="text-xs text-muted-foreground">
-          {ui("Verificando disponibilidade do catálogo de motivos...")}
+          {ui("Verificando disponibilidade dos grupos...")}
         </p>
       )}
       {capabilityError && !loading && (
@@ -358,7 +358,7 @@ export function CallReasonsSettingsTab() {
         <div className="rounded-lg border border-warning/50 bg-card p-4" role="status">
           <p className="font-semibold">{ui("Catálogo em homologação — edição indisponível")}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {ui("A API de motivos ainda está desabilitada neste ambiente. Nenhuma configuração operacional foi alterada.")}
+            {ui("A configuração dos grupos está desabilitada neste ambiente. Os setores existentes continuam operacionais.")}
           </p>
           <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void refresh()}>
             {ui("Verificar novamente")}
@@ -375,7 +375,7 @@ export function CallReasonsSettingsTab() {
       )}
       {!loading && enabled && !isPrimaryAdmin && !error && (
         <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-          {ui("Config. do ANDON: você pode cadastrar motivos conservadores, editar sua apresentação e vincular especialidades a motivos não elegíveis. Políticas de KPI continuam exclusivas do Admin principal.")}
+          {ui("Config. do ANDON: você pode criar grupos conservadores e vincular setores existentes. Elegibilidade corretiva é exclusiva do Admin principal.")}
         </p>
       )}
       {!loading && enabled && !error && (
@@ -392,7 +392,7 @@ export function CallReasonsSettingsTab() {
               {ui("Pesquisar grupos e setores")}
               <Input type="search" value={reasonQuery}
                 onChange={event => setReasonQuery(event.target.value)}
-                placeholder={ui("Nome, ID ou especialidade...")}
+                placeholder={ui("Nome, ID ou setor...")}
                 aria-label={ui("Pesquisar grupos e setores")} />
             </label>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -404,7 +404,7 @@ export function CallReasonsSettingsTab() {
                 <select className="min-h-9 rounded-md border border-border bg-background px-2"
                   value={reasonStatus}
                   onChange={event => setReasonStatus(event.target.value as typeof reasonStatus)}
-                  aria-label={ui("Filtrar motivos por status")}>
+                  aria-label={ui("Filtrar grupos por status")}>
                   <option value="all">{ui("Todos")}</option>
                   <option value="active">{ui("Ativos")}</option>
                   <option value="inactive">{ui("Inativos")}</option>
@@ -425,7 +425,7 @@ export function CallReasonsSettingsTab() {
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{reason.displayName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {ui(reason.nature)} · {reason.options.length} {ui("especialidades")}
+                    {ui(reason.nature)} · {reason.options.length} {ui("setores")}
                   </span>
                 </span>
               </button>
@@ -499,11 +499,11 @@ export function CallReasonsSettingsTab() {
                 : draft.maintenanceKpiPolicy === "pending"
                   ? "Pendente de classificação; não entra automaticamente"
                   : "Apenas candidato, sujeito a evidências de falha e parada física")}</p>
-              <p>{ui("Downtime físico confirmado e tempos técnicos reais continuam registrados separadamente; configurar um motivo não apaga nem reclassifica chamados anteriores.")}</p>
+              <p>{ui("O histórico, os tempos reais e o downtime físico permanecem separados; configurar um grupo não altera chamados anteriores.")}</p>
             </div>
             {!chosen && !isPrimaryAdmin && (
               <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                {ui("Novos motivos não entram automaticamente nos KPIs corretivos. A política conservadora é definida no servidor e pode ser revista pelo Admin principal.")}
+                {ui("Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.")}
               </p>
             )}
             {policyReviewNeeded && (
@@ -550,7 +550,7 @@ export function CallReasonsSettingsTab() {
                         <div className="space-y-3 border-t border-border pt-3">
                           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px]">
                             <Label className="block space-y-2">
-                              {ui("Nome exibido da especialidade")}
+                              {ui("Nome exibido do setor no grupo")}
                               <Input maxLength={80} value={optionLabel} disabled={writeBlocked}
                                 onChange={event => setOptionLabel(event.target.value)}
                                 placeholder={ui("Usar nome da área técnica")} />
