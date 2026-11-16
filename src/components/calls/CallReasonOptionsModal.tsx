@@ -48,7 +48,7 @@ export function CallReasonOptionsModal({
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
   // Reconcile changes caused by another workstation while this dialog is open.
   // The API remains the authority for concurrent writes and rejects duplicates.
-  const activeKey = [...activeSubtypes].sort().join("|");
+  const activeKey = JSON.stringify([...activeSubtypes].sort());
   const activeSet = new Set(activeSubtypes);
   const available = reason?.active ? reason.options.filter(option => option.active) : [];
   const isAlreadyOpen = (subtype?: string) => Boolean(subtype && activeSet.has(subtype));
@@ -56,7 +56,8 @@ export function CallReasonOptionsModal({
   useEffect(() => {
     setSelectedOptionIds(current => current.filter(id =>
       !reason?.options.some(option => option.id === id &&
-        Boolean(option.legacySubtype && activeKey.split("|").includes(option.legacySubtype)))));
+        Boolean(option.legacySubtype &&
+          (JSON.parse(activeKey) as string[]).includes(option.legacySubtype)))));
   }, [activeKey, reason?.id]);
   const selected = available.filter(option =>
     selectedOptionIds.includes(option.id) && !isAlreadyOpen(option.legacySubtype));
