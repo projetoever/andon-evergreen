@@ -15,6 +15,7 @@ import {
   resetPassword,
   logout,
   recordInteraction,
+  promoteEligibleSessionToPersistent,
   lockUser,
 } from "../access/sessions.js";
 import {
@@ -267,6 +268,17 @@ export function registerAccessRoutes(
           await db.accessUser.findFirst({ where: { isPrimaryAdmin: true }, select: { id: true } }),
         ),
       };
+    });
+    // A valid previously timed cookie may be upgraded only by its bearer,
+    // if the account is ALREADY configured for no-expiry. CSRF/HTTPS/Origin,
+    // current user ACL and workstation approval are enforced on the server.
+    app.post(`${PREFIX}/session/upgrade`, { schema: schema({}, []) }, async (req, reply) => {
+      const request = requestAccess(req);
+      const result = await promoteEligibleSessionToPersistent(db, request);
+      if (result.persistentOperational) {
+        setCookie(reply, ACCESS_COOKIE, request.token, 34560000);
+      }
+      return { ...result, csrf: csrfToken(request.token) };
     });
     // Only a valid central normal session may report workstation presence.
     // Never use this endpoint to keep the human session alive.

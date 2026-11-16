@@ -113,6 +113,73 @@ export async function resolveSession(
     sessionPolicy: row.user.sessionPolicy,
   };
 }
+/**
+ * Promote only the holder of a currently valid, non-revoked browser session
+ * when their *current* account policy already authorizes permanent login.
+ * This is NOT a login, and cannot reconstruct an expired/missing cookie.
+ * Called by an explicit same-origin CSRF-protected POST, never a GET or poll.
+ */
+export async function promoteEligibleSessionToPersistent(
+  db: PrismaClient, request: AccessRequest,
+) {
+  return db.$transaction(async tx => {
+    const initial = await resolveSession(tx, request);
+    if (initial.purpose !== "normal") throw new AccessError("authentication_required", 401);
+    if (initial.persistentOperational)
+      return { persistentOperational: true, persistenceBlocker: null };
+    await lockUser(tx, initial.userId);
+    await lockWorkstationFlow(tx, initial.workstationId);
+    const now = new Date();
+    const principal = await resolveSession(tx, request, now);
+    if (principal.sessionId !== initial.sessionId ||
+        principal.userId !== initial.userId ||
+        principal.workstationId !== initial.workstationId)
+      throw new AccessError("authentication_required", 401);
+    if (principal.persistentOperational)
+      return { persistentOperational: true, persistenceBlocker: null };
+
+    const [user, station] = await Promise.all([
+      tx.accessUser.findUnique({
+        where: { id: principal.userId },
+        include: { permissions: true, machines: true },
+      }),
+      tx.workstation.findUnique({ where: { id: principal.workstationId } }),
+    ]);
+    if (!user || !station) throw new AccessError("authentication_required", 401);
+    const blocker = persistentOperationalBlocker(user, station, user.machines, user.machineScope);
+    if (blocker) return { persistentOperational: false, persistenceBlocker: blocker };
+
+    // Never turn a revoked, idle-expired or 12h-expired session into a permanent
+    // one. This remains bound to the authenticated cookie, station and ACL version.
+    const changed = await tx.accessSession.updateMany({
+      where: {
+        id: principal.sessionId,
+        userId: user.id,
+        workstationId: station.id,
+        authorizationVersion: user.authorizationVersion,
+        purpose: "normal",
+        persistentOperational: false,
+        revokedAt: null,
+        expiresAt: { gt: now },
+        lastInteractionAt: { gt: new Date(now.getTime() - IDLE) },
+      },
+      data: {
+        persistentOperational: true,
+        persistentMachineId: null,
+        expiresAt: new Date("9999-12-31T00:00:00.000Z"),
+      },
+    });
+    if (changed.count !== 1) throw new AccessError("authentication_required", 401);
+    await appendAudit(tx, actorFromPrincipal(principal), {
+      action: "access.session.promoted_to_persistent",
+      resourceType: "access_session",
+      resourceId: principal.sessionId,
+      after: { sessionPolicy: "persistent", persistentOperational: true },
+    });
+    return { persistentOperational: true, persistenceBlocker: null };
+  });
+}
+
 export async function lockUser(tx: Prisma.TransactionClient, id: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`andon-access:${id}`}))::text`;
 }

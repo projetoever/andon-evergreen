@@ -30,10 +30,36 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
   const [checkedPath, setCheckedPath] = useState<string | null>(null);
   const revision = useRef(0);
   const warnedNonPersistent = useRef<string | null>(null);
+  const attemptedDurationUpgrade = useRef<string | null>(null);
   const refresh = useCallback(async () => {
     const requestRevision = ++revision.current;
     try {
-      const next = await loadModuleAccess();
+      let next = await loadModuleAccess();
+      // Older sessions issued before the no-expiry fix may still carry a
+      // 12-hour cookie, even though the account is now configured persistent.
+      // The browser never decides eligibility: a protected backend POST
+      // validates the EXISTING session, user and station before promotion.
+      if (next.centralAccessEnabled && persistentSessionMismatch(next.principal)) {
+        const key = `${next.principal!.userId}:${next.workstation.id}`;
+        if (attemptedDurationUpgrade.current !== key) {
+          attemptedDurationUpgrade.current = key;
+          try {
+            const live = await accessRequest<AccessState>("/session");
+            if (live.principal?.userId === next.principal!.userId &&
+                live.principal?.purpose === "normal") {
+              const upgraded = await accessRequest<{ persistentOperational: boolean }>(
+                "/session/upgrade", "POST", {},
+              );
+              if (upgraded.persistentOperational) next = await loadModuleAccess();
+            } else {
+              next = await loadModuleAccess();
+            }
+          } catch (cause) {
+            attemptedDurationUpgrade.current = null;
+            throw cause;
+          }
+        }
+      }
       if (requestRevision !== revision.current) return;
       setAccess(next);
       setError(null);
@@ -48,7 +74,10 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
           warnedNonPersistent.current = warningKey;
           toast.warning(PERSISTENCE_NOT_ACTIVE, { duration: 10_000 });
         }
-      } else warnedNonPersistent.current = null;
+      } else {
+        warnedNonPersistent.current = null;
+        attemptedDurationUpgrade.current = null;
+      }
     } catch (cause) {
       if (requestRevision !== revision.current) return;
       setAccess(null);

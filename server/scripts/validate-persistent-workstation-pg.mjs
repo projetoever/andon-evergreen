@@ -105,6 +105,13 @@ try {
   });
   assert.equal(standardLogin.statusCode, 200, standardLogin.body);
   assert.equal(standardLogin.json().persistentOperational, false);
+  const deniedStandardUpgrade = await request("POST", "/session/upgrade",
+    String(standardLogin.headers["set-cookie"]).match(/__Host-andon-access=([a-f0-9]{64})/)?.[1],
+    targetStationId, true, {});
+  assert.equal(deniedStandardUpgrade.statusCode, 200, deniedStandardUpgrade.body);
+  assert.equal(deniedStandardUpgrade.json().persistentOperational, false);
+  assert.equal(deniedStandardUpgrade.json().persistenceBlocker, "policy_not_persistent");
+  assert.doesNotMatch(String(deniedStandardUpgrade.headers["set-cookie"] ?? ""), /Max-Age=34560000/);
   const standardToken = String(standardLogin.headers["set-cookie"])
     .match(/__Host-andon-access=([a-f0-9]{64})/)?.[1];
   assert(standardToken);
@@ -131,6 +138,46 @@ try {
   assert.equal((await db.workstation.findUniqueOrThrow({
     where: { id: targetStationId },
   })).allowPersistentOperationalLogin, false);
+
+  // P0 REFINE22: a timed cookie legitimately issued by the old app remains
+  // valid after rollout; the browser must not show a 12-hour expiration when
+  // the current user policy explicitly requests no expiration.
+  const staleSessionToken = randomBytes(32).toString("hex");
+  const currentOperator = await db.accessUser.findUniqueOrThrow({ where: { id: operator.id } });
+  const legacyCreatedAt = new Date();
+  const staleSession = await db.accessSession.create({ data: {
+    tokenHash: tokenHash(staleSessionToken), userId: operator.id,
+    workstationId: targetStationId, purpose: "normal",
+    authorizationVersion: currentOperator.authorizationVersion,
+    createdAt: legacyCreatedAt, lastInteractionAt: legacyCreatedAt,
+    lastAuthenticatedAt: legacyCreatedAt,
+    expiresAt: new Date(legacyCreatedAt.getTime() + 12 * 60 * 60_000),
+    persistentOperational: false,
+  } });
+  const legacyBefore = await request("GET", "/session", staleSessionToken, targetStationId);
+  assert.equal(legacyBefore.json().principal?.sessionPolicy, "persistent");
+  assert.equal(legacyBefore.json().principal?.persistentOperational, false);
+  const upgrade = await request("POST", "/session/upgrade",
+    staleSessionToken, targetStationId, true, {});
+  assert.equal(upgrade.statusCode, 200, upgrade.body);
+  assert.equal(upgrade.json().persistentOperational, true);
+  assert.match(String(upgrade.headers["set-cookie"]), /Max-Age=34560000/);
+  assert.equal((await db.accessSession.findUniqueOrThrow({
+    where: { id: staleSession.id },
+  })).expiresAt.getUTCFullYear(), 9999);
+  assert.equal((await request("GET", "/session", staleSessionToken, targetStationId))
+    .json().principal?.persistentOperational, true);
+  const upgradeAgain = await request("POST", "/session/upgrade",
+    staleSessionToken, targetStationId, true, {});
+  assert.equal(upgradeAgain.statusCode, 200);
+  assert.equal(upgradeAgain.json().persistentOperational, true);
+  assert.equal(await db.auditEvent.count({ where: {
+    action: "access.session.promoted_to_persistent", resourceId: staleSession.id,
+  } }), 1, "idempotent promotion is audited only once");
+  // A cookie invalidated by user-policy/security updates is never recovered.
+  const revokedUpgrade = await request("POST", "/session/upgrade",
+    standardToken, targetStationId, true, {});
+  assert.equal(revokedUpgrade.statusCode, 401);
 
   const login = await app.inject({
     method: "POST", url: "/api/access/login",
