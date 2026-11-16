@@ -49,10 +49,10 @@ test("REFINE22 P1: reason editing exposes hierarchy order and existing area link
   assert.match(setup, /catalogView === "reasons"/);
   assert.match(page, /createReasonDraft\(\)/);
   assert.match(page, /Math\.max\(0, \.\.\.reasons\.map\(reason => reason\.displayOrder\)\) \+ 10/);
-  assert.match(page, /Ordem de exibição do motivo/);
+  assert.match(page, /Ordem de exibição do grupo/);
   assert.match(page, /Number\.isSafeInteger\(next\.displayOrder\)/);
   assert.match(page, /next\.displayOrder > 9999/);
-  assert.match(page, /Cada subcategoria funciona como um botão no modal do motivo/);
+  assert.match(page, /Clique em SETUP para escolher um setor já existente/);
   assert.match(page, /addCallReasonOption\(chosen\.id/);
   assert.match(page, /updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
   assert.match(page, /restrictedDelegatedLink/);
