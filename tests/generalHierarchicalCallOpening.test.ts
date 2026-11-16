@@ -49,7 +49,7 @@ test("OPEN-12: generic opening selects reason then modal option, never sends a l
   assert.match(general, /operatorNote\.trim\(\) \|\| undefined/);
 });
 
-test("OPEN-12: duplicate active sector navigates to existing machine and double-click is prevented", async () => {
+test("OPEN-12: active sector cannot be selected from group and double-click is prevented", async () => {
   const general = await read("../src/components/calls/OpenCallModal.tsx");
   assert.match(general, /call\.machineId === machineId/);
   assert.match(general, /call\.subtype === option\.legacySubtype/);
