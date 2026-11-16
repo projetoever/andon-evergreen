@@ -50,3 +50,32 @@ test("build information is displayed inside the protected Admin page only", asyn
   const hub = await read("../src/pages/HubPage.tsx");
   assert.doesNotMatch(hub, /HubBuildVersionCard/);
 });
+
+test("REFINE22: updater and watchdog validate the live SSR commit, not only HTTP 200", async () => {
+  const [server, installer, runtime, launcher, watchdog, common] = await Promise.all([
+    read("../scripts/serve-frontend.mjs"),
+    read("../installer/AndonInstaller.Common.ps1"),
+    read("../installer/AndonInstaller.Runtime.ps1"),
+    read("../scripts/start-frontend.ps1"),
+    read("../scripts/watchdog-andon.ps1"),
+    read("../scripts/Andon.Runtime.Common.ps1"),
+  ]);
+  assert.match(installer, /andon-frontend-build\.json/);
+  assert.match(installer, /commit = \$pinnedFrontendCommit/);
+  assert.match(server, /const buildIdentityPath = resolve\(projectPath, "dist", "andon-frontend-build\.json"\)/);
+  assert.match(server, /url\.pathname === "\/__andon\/build"/);
+  assert.match(server, /"Cache-Control", "no-store, max-age=0"/);
+  assert.match(server, /commit: runningBuildCommit/);
+  assert(server.indexOf("const buildIdentityPath") < server.indexOf("async function handleRequest"),
+    "build identity must be frozen before request handling");
+  assert.match(runtime, /function Get-AndonFrontendLiveCommit/);
+  assert.match(runtime, /DIVERGENCIA DE VERSAO/);
+  assert.match(runtime, /\$hasCriticalError = \$true/);
+  assert.match(runtime, /Frontend nao confirmou o SHA instalado na porta 8080/);
+  assert.match(launcher, /Test-AndonRuntimeFrontendBuild/);
+  assert.match(launcher, /Stop-AndonRuntimeOwnedPortProcesses/);
+  assert.match(watchdog, /Wait-AndonRuntimeFrontendBuild/);
+  assert.match(common, /InstalledCommit\s+=/);
+  assert.match(common, /function Test-AndonRuntimeFrontendBuild/);
+  assert.match(common, /-ceq \$expected/);
+});
