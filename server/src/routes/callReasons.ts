@@ -98,6 +98,9 @@ export function registerCallReasonRoutes(app: FastifyInstance) {
     });
     return reasons.map(({ options, ...reason }) => ({
       ...reason,
+      // Visible does not imply callable. The server remains authoritative
+      // for opening on the transactional POST endpoint.
+      openingEnabled: process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1",
       options: options.map(({ technicalArea, ...option }) => ({
         ...option,
         displayName: option.displayName ?? technicalArea.displayName,
