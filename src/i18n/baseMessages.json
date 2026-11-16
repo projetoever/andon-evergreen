@@ -1044,5 +1044,25 @@
     "Informe uma ordem de 0 a 9999.",
     "Enter an order from 0 to 9999.",
     "請輸入 0 至 9999 的排序值。"
+  ],
+  [
+    "Indisponível: chamado ativo",
+    "Unavailable: active call",
+    "無法選取：已有進行中的呼叫"
+  ],
+  [
+    "setores disponíveis para abertura",
+    "sectors available for new calls",
+    "可開啟呼叫的部門"
+  ],
+  [
+    "Selecione um ou mais setores livres. Setores com chamados ativos estão bloqueados.",
+    "Select one or more available sectors. Sectors with active calls are blocked.",
+    "選擇一個或多個可用部門。已有進行中呼叫的部門無法選取。"
+  ],
+  [
+    "Selecione um setor livre. Setores com chamados ativos estão bloqueados.",
+    "Select an available sector. Sectors with active calls are blocked.",
+    "選擇可用部門。已有進行中呼叫的部門無法選取。"
   ]
 ]
