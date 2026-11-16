@@ -388,13 +388,13 @@ export function AdminSettingsWorkspace({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
-              <div className="mx-auto w-full max-w-[1240px] space-y-4">
+              <div className="mx-auto w-full max-w-none space-y-4">
                 {centralAccess && !centralPrimaryAdmin && (
                   <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
                     {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
                   </p>
                 )}
-                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={open} />}
+                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={true} />}
                 {renderTab()}
               </div>
             </div>
