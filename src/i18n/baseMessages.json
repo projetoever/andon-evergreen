@@ -957,5 +957,22 @@
   ["Informe uma ordem de 0 a 9999 para o grupo.","Enter a group display order between 0 and 9999.","請輸入 0 至 9999 的群組顯示順序。"],
   ["Nome vazio utiliza o setor original. A edição de apresentação não muda o setor, a API ou a política do grupo.","An empty name uses the original sector label. Appearance edits do not change the sector, API or group policy.","留空則使用原有部門名稱；修改外觀不會改變部門、API 或群組政策。"],
   ["Vínculo reservado ao Admin principal: este grupo está inativo ou possui política elegível para KPIs corretivos.","Only the primary Admin can link this inactive or corrective-eligible group.","此群組已停用或符合矯正 KPI 條件，只有主管理員可建立連結。"],
-  ["O novo vínculo usará a política do grupo e o mesmo identificador de setor. Vincule somente setores compatíveis e ativos.","New links inherit the group policy and preserve the sector ID. Link only compatible active sectors.","新連結繼承群組政策並保留部門 ID；僅連結相容且已啟用的部門。"]
+  ["O novo vínculo usará a política do grupo e o mesmo identificador de setor. Vincule somente setores compatíveis e ativos.","New links inherit the group policy and preserve the sector ID. Link only compatible active sectors.","新連結繼承群組政策並保留部門 ID；僅連結相容且已啟用的部門。"],
+  ["Erro ao carregar os grupos de chamados.","Unable to load call groups.","無法載入通報群組。"],
+  ["Não foi possível vincular o setor.","Unable to link sector.","無法連結部門。"],
+  ["Não foi possível alterar o setor.","Unable to modify sector.","無法修改部門。"],
+  ["Apresentação do setor no grupo atualizada.","Sector label in group updated.","群組部門顯示已更新。"],
+  ["Não foi possível salvar a apresentação do setor.","Unable to save the sector presentation.","無法儲存部門顯示設定。"],
+  ["Carregando grupos...","Loading groups...","正在載入群組…"],
+  ["Verificando disponibilidade dos grupos...","Checking group availability...","正在確認群組是否可用…"],
+  ["A configuração dos grupos está desabilitada neste ambiente. Os setores existentes continuam operacionais.","Group configuration is disabled here. Existing sectors remain operational.","此環境未啟用群組設定，現有部門仍可運作。"],
+  ["Config. do ANDON: você pode criar grupos conservadores e vincular setores existentes. Elegibilidade corretiva é exclusiva do Admin principal.","ANDON settings delegates may create conservative groups and link existing sectors. Only the primary Admin may enable corrective eligibility.","ANDON 設定代理人可建立保守群組並連結現有部門，只有主管理員能啟用矯正 KPI 納入資格。"],
+  ["Nome, ID ou setor...","Name, ID or sector...","名稱、ID 或部門…"],
+  ["Filtrar grupos por status","Filter groups by status","依狀態篩選群組"],
+  ["setores","sectors","部門"],
+  ["O histórico, os tempos reais e o downtime físico permanecem separados; configurar um grupo não altera chamados anteriores.","History, actual work times and physical downtime stay separate; changing groups never reclassifies earlier calls.","歷史紀錄、實際工作時間及實際停機時間分別保存，修改群組不會重新分類既有通報。"],
+  ["Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.","New groups do not automatically contribute to corrective KPIs. The primary Admin alone can authorize evidence-based eligibility.","新群組不會自動計入矯正 KPI，只有主管理員可依據證據授予納入資格。"],
+  ["Nome exibido do setor no grupo","Sector label in group","群組中的部門顯示名稱"],
+  ["Catálogo de grupos habilitado. Cada grupo reutiliza setores existentes; edição, políticas de KPI e abertura pelo grupo exigem autorizações independentes.","Group catalog enabled. Groups reuse existing sectors; edits, KPI policies and opening through groups have separate permissions.","群組目錄已啟用；群組重用現有部門，編輯、KPI 政策及群組通報需不同權限。"],
+  ["Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI.","Group catalog disabled here. Direct sector buttons remain available without changing BI policies.","此環境未啟用群組目錄，部門直接通報仍可使用且不改變 BI 政策。"]
 ]
