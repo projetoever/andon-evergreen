@@ -430,7 +430,8 @@
   background-color: var(--andon-palette-dashboard-background, var(--background));
 }
 
-.andon-palette-machine-card {
+.andon-palette-machine-card,
+.andon-palette-summary-card {
   border-color: var(--andon-palette-card-border, var(--border));
   background-color: var(--andon-palette-machine-surface, var(--card));
 }
