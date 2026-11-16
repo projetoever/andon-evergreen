@@ -117,7 +117,7 @@ const tabs: AdminNavigationItem[] = [
   },
   {
     id: "categories",
-    get label() { return ui("Setores e categorias"); },
+    get label() { return ui("Setores / categorias"); },
     get description() {
       return ui("Setores técnicos existentes, seus IDs e apresentação dos botões originais.");
     },
