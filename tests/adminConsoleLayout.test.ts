@@ -101,10 +101,10 @@ test("REFINE21: Admin ANDON abre por rota fullscreen, nunca por modal no dashboa
   const [dashboard, page, route, admin] = await Promise.all([
     readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/AndonAdminPage.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/routes/andon.admin.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/routes/andon_.admin.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(route, /createFileRoute\("\/andon\/admin"\)/);
+  assert.match(route, /createFileRoute\("\/andon_\/admin"\)/);
   assert.match(dashboard, /navigate\(\{ to: "\/andon\/admin" \}\)/);
   assert.doesNotMatch(dashboard, /<AdminSettingsModal|adminSettingsOpen|setAdminSettingsOpen/);
   assert.match(page, /accessRequest<AccessState>\("\/session"\)/);
