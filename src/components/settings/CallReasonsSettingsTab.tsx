@@ -68,12 +68,10 @@ export function CallReasonsSettingsTab() {
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [areaToAdd, setAreaToAdd] = useState("");
-  const [optionNameToAdd, setOptionNameToAdd] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
-  const [optionLabel, setOptionLabel] = useState("");
   const [optionOrder, setOptionOrder] = useState("");
   const [error, setError] = useState<string | null>(null);
   // A cached feature flag never authorizes writes when Hub identity is unknown.
@@ -273,23 +271,17 @@ export function CallReasonsSettingsTab() {
     if (!chosen || !areaToAdd || busy || restrictedDelegatedLink || writeBlocked) return;
     const area = areas.find(item => item.id === areaToAdd);
     if (!area?.active || !linkableAreas.some(item => item.id === area.id)) return;
-    const displayName = optionNameToAdd.trim() || area.displayName;
-    if (!displayName || displayName.length > 80) {
-      toast.error(ui("Informe um nome alternativo com até 80 caracteres."));
-      return;
-    }
     setBusy(true);
     try {
       await addCallReasonOption(chosen.id, {
         id: makeId(chosen.id + "_" + area.id),
         technicalAreaId: area.id,
-        displayName,
+        displayName: area.displayName,
         active: true,
         displayOrder: chosen.options.length * 10 + 10,
       });
       await refresh(chosen.id);
       setAreaToAdd("");
-      setOptionNameToAdd("");
       toast.success(ui("Setor vinculado ao grupo."));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível vincular o setor."));
@@ -310,21 +302,19 @@ export function CallReasonsSettingsTab() {
   function beginOptionEdit(option: CallReasonView["options"][number]) {
     if (busy) return;
     setEditingOptionId(option.id);
-    setOptionLabel(option.displayName ?? "");
     setOptionOrder(String(option.displayOrder));
   }
 
   async function saveOptionPresentation(option: CallReasonView["options"][number]) {
     if (!chosen || writeBlocked || editingOptionId !== option.id) return;
-    const label = optionLabel.trim();
     const orderText = optionOrder.trim();
     const order = Number(orderText);
-    if (label.length > 80 || !/^\d{1,4}$/.test(orderText) ||
+    if (!/^\d{1,4}$/.test(orderText) ||
         !Number.isSafeInteger(order) || order < 0 || order > 9999) {
-      toast.error(ui("Informe um nome de até 80 caracteres e uma ordem de 0 a 9999."));
+      toast.error(ui("Informe uma ordem de 0 a 9999."));
       return;
     }
-    if ((option.displayName ?? "") === label && option.displayOrder === order) {
+    if (option.displayOrder === order) {
       setEditingOptionId(null);
       return;
     }
@@ -333,7 +323,7 @@ export function CallReasonsSettingsTab() {
       // Only presentation fields are delegated: no specialty reassignment,
       // reason nature, KPI policy, responsibility or analytics override.
       await updateCallReasonOption(chosen.id, option.id, option.revision, {
-        displayName: label || null, displayOrder: order,
+        displayOrder: order,
       });
       await refresh(chosen.id);
       toast.success(ui("Apresentação do setor no grupo atualizada."));
@@ -564,7 +554,7 @@ export function CallReasonsSettingsTab() {
                           opacity: option.active ? 1 : 0.55,
                         }}>
                         <span className="break-words [overflow-wrap:anywhere]">
-                          {option.displayName ?? option.technicalArea.displayName}
+                          {option.technicalArea.displayName}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground"
@@ -581,23 +571,12 @@ export function CallReasonsSettingsTab() {
                       </p>
                       {editingOptionId === option.id && (
                         <div className="space-y-3 border-t border-border pt-3">
-                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px]">
-                            <Label className="block space-y-2">
-                              {ui("Nome exibido do setor no grupo")}
-                              <Input maxLength={80} value={optionLabel} disabled={writeBlocked}
-                                onChange={event => setOptionLabel(event.target.value)}
-                                placeholder={ui("Usar nome da área técnica")} />
-                            </Label>
-                            <Label className="block space-y-2">
-                              {ui("Ordem de exibição")}
-                              <Input type="number" min={0} max={9999} step={1}
-                                value={optionOrder} disabled={writeBlocked}
-                                onChange={event => setOptionOrder(event.target.value)} />
-                            </Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {ui("Nome vazio utiliza o setor original. A edição de apresentação não muda o setor, a API ou a política do grupo.")}
-                          </p>
+                          <Label className="block space-y-1">
+                            {ui("Ordem de exibição")}
+                            <Input type="number" min={0} max={9999} step={1}
+                              value={optionOrder} disabled={writeBlocked}
+                              onChange={event => setOptionOrder(event.target.value)} />
+                          </Label>
                           <div className="flex flex-wrap gap-2">
                             <Button type="button" size="sm" disabled={writeBlocked}
                               onClick={() => void saveOptionPresentation(option)}>
@@ -627,7 +606,7 @@ export function CallReasonsSettingsTab() {
                   </div>
                 ))}
                 </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] sm:items-end">
+                <div className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_auto] sm:items-end">
                   <Label className="min-w-0 space-y-2">{ui("Setor existente")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                       value={areaToAdd} disabled={writeBlocked || restrictedDelegatedLink}
@@ -636,11 +615,6 @@ export function CallReasonsSettingsTab() {
                       {linkableAreas.map(area =>
                         <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
-                  </Label>
-                  <Label className="min-w-0 space-y-2">{ui("Nome alternativo no modal (opcional)")}
-                    <Input maxLength={80} value={optionNameToAdd} disabled={writeBlocked || restrictedDelegatedLink}
-                      onChange={event => setOptionNameToAdd(event.target.value)}
-                      placeholder={areas.find(area => area.id === areaToAdd)?.displayName ?? ui("Ex.: Elétrica")} />
                   </Label>
                   <Button type="button" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
                     onClick={() => void addArea()}>
