@@ -2,6 +2,8 @@ import { diagnosisSnapshot, type DiagnosisSnapshot } from "../analytics/eligibil
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { resolveOpeningReasonInTransaction, type ReasonOpeningSelection } from "../services/callReasonOpening.js";
+import { parseGroupBatchSelections } from "../services/groupBatchOpening.js";
+import { centralGroupBatchOpenEnabled } from "../security/centralBatchOpenHttp.js";
 import { assertWorkOrderNumberAvailable, DuplicateWorkOrderNumberError } from "../services/workOrderUniqueness.js";
 import { normalizePin } from "../security/technicianCredentials.js";
 
@@ -129,6 +131,7 @@ type AddTechnicianBody = {
 type BatchOpenAndonCallsBody = {
   machineId?: unknown;
   subtypes?: unknown;
+  reasonSelections?: unknown;
   criticality?: unknown;
   machineCondition?: unknown;
   workOrderNumber?: unknown;
@@ -2856,9 +2859,12 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     if (centralBatch && !isAuthorizedCentralBatchOpen(request))
       throw new AccessError("central_action_not_supported");
     const body = request.body ?? {};
+    const isGroupBatch = Object.prototype.hasOwnProperty.call(body, "reasonSelections");
+    if (isGroupBatch && (!centralBatch || !centralGroupBatchOpenEnabled()))
+      return reply.status(403).send({ error: "hierarchical_calls_disabled" });
     if (centralBatch && Object.keys(body).some(key => ![
       "machineId", "subtypes", "criticality", "machineCondition",
-      "workOrderNumber", "operatorNote",
+      "workOrderNumber", "operatorNote", ...(isGroupBatch ? ["reasonSelections"] : []),
     ].includes(key)))
       return reply.status(403).send({ error: "reserved_call_origin" });
     const machineId = body.machineId === undefined ? undefined : String(body.machineId);
@@ -2875,6 +2881,16 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
     const machineCondition = optionalString(body.machineCondition);
     const workOrderNumber = normalizeWorkOrderNumber(body.workOrderNumber);
     const operatorNote = normalizeOperatorNote(body.operatorNote);
+    let groupSelections: ReturnType<typeof parseGroupBatchSelections> | null = null;
+    if (isGroupBatch) {
+      try {
+        groupSelections = parseGroupBatchSelections(body.reasonSelections, subtypes);
+      } catch (error) {
+        if (error instanceof AccessError)
+          return reply.status(error.statusCode).send({ error: error.code });
+        throw error;
+      }
+    }
 
     if (!machineId) return badRequest(reply, "Campo machineId é obrigatório");
     if (!subtypes.length || subtypes.length > 20) {
@@ -2943,6 +2959,25 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
           }
         }
 
+        // All selections are validated, row-locked and snapshotted BEFORE the
+        // first write. A failure rolls back the complete multi-sector batch.
+        // The operator never supplies a KPI policy or classification directly.
+        const groupSnapshots = new Map<string, Awaited<ReturnType<typeof resolveOpeningReasonInTransaction>>>();
+        if (groupSelections) {
+          for (const item of groupSelections) {
+            const configured = categoryBySubtype.get(item.subtype);
+            if (!configured) throw new AndonCallValidationError("Setor do grupo indisponível");
+            const snapshot = await resolveOpeningReasonInTransaction(tx, {
+              selection: item.selection,
+              legacyCategory: configured.categoryGroup,
+              legacySubtype: item.subtype,
+              catalogEnabled: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED === "1",
+              hierarchicalOpeningEnabled: process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1",
+            });
+            groupSnapshots.set(item.subtype, snapshot);
+          }
+        }
+
         const baseOpenedAt = new Date();
         const createdCalls = [];
         let stopOwnerAssigned = Boolean(failureState.activeOwnerEvent);
@@ -2973,6 +3008,13 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
               machineStatusAtOpen: effectiveMachineCondition,
             },
           });
+
+          const snapshot = groupSnapshots.get(subtype);
+          if (snapshot) {
+            await tx.andonCallReasonSnapshot.create({
+              data: { callId: createdCall.id, ...snapshot },
+            });
+          }
 
           if (effectiveMachineCondition === "stopped") {
             await ensureOpenFailureEventForStoppedCall(tx, {
