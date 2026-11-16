@@ -67,7 +67,7 @@ test("REASON/02: Setup -> same Mechanical technical area is legitimate but never
   assert.equal(confirmedCorrectiveKpiContribution(p, evidence), false);
 });
 
-test("REASON/03: explicit option overrides are effective, without rewriting the parent", () => {
+test("GROUPS/V2: linked sector cannot escalate parent KPI, even with legacy override columns", () => {
   const base = reason({ maintenanceKpiPolicy: "pending" });
   const opt = option({
     displayName: "Mecânica industrial",
@@ -75,12 +75,12 @@ test("REASON/03: explicit option overrides are effective, without rewriting the 
     suggestedResponsibilityOverride: "operations",
   });
   const p = resolveReasonOption(base, opt, mechanical);
-  assert.equal(p.maintenanceKpiPolicy, "eligible");
-  assert.equal(p.suggestedResponsibility, "operations");
+  assert.equal(p.maintenanceKpiPolicy, "pending");
+  assert.equal(p.suggestedResponsibility, "maintenance");
   assert.equal(p.optionNameSnapshot, "Mecânica industrial");
   assert.equal(base.maintenanceKpiPolicy, "pending");
-  assert.equal(base.suggestedResponsibility, "maintenance");
-  assert.equal(confirmedCorrectiveKpiContribution(p, { ...evidence, confirmedResponsibility: "operations" }), false);
+  assert.equal(p.correctiveCandidate, false);
+  assert.equal(confirmedCorrectiveKpiContribution(p, evidence), false);
 });
 
 test("REASON/04: setup/support and unclassified cannot be eligible, including overrides", () => {
@@ -93,13 +93,14 @@ test("REASON/04: setup/support and unclassified cannot be eligible, including ov
       /invalid_reason_kpi_policy/,
     );
   }
-  assert.throws(() => resolveReasonOption(
-    reason(), option({ natureOverride: "planned_setup" }), mechanical,
-  ), /invalid_reason_kpi_policy/);
-  assert.throws(() => resolveReasonOption(
+  assert.equal(resolveReasonOption(reason(),
+    option({ natureOverride: "planned_setup" }), mechanical).nature, "corrective_failure");
+  const setupWithOldOverride = resolveReasonOption(
     reason({ nature: "planned_setup", maintenanceKpiPolicy: "excluded" }),
     option({ maintenanceKpiPolicyOverride: "eligible" }), mechanical,
-  ), /invalid_reason_kpi_policy/);
+  );
+  assert.equal(setupWithOldOverride.correctiveCandidate, false);
+  assert.equal(setupWithOldOverride.maintenanceKpiPolicy, "excluded");
   assert.throws(() => resolveReasonOption(
     reason({ nature: "corrective_failure", maintenanceKpiPolicy: "eligible" }),
     option(), { ...mechanical, categoryGroup: "production" },

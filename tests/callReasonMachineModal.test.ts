@@ -17,9 +17,9 @@ test("S3-B3B: machine screen shows parent reasons, then option modal and scoped 
   assert.match(page, /setSelectedCallId\(existing\.id\)/);
   assert.match(page, /onOpenReason=/);
   assert.match(page, /hierarchicalChoice=\{hierarchicalChoice\}/);
-  assert.match(panel, /hierarchicalReasons !== null/);
-  assert.match(panel, /hierarchicalReasons\.map/);
-  assert.match(panel, /activeCalls\.some/);
+  assert.match(panel, /categories\.map/);
+  assert.match(panel, /hierarchicalReasons\?\.map/);
+  assert.match(panel, /activeCalls\.find/);
   assert.match(quick, /\.\.\.\(hierarchicalChoice/);
   assert.match(quick, /await openCall\(/);
   assert.doesNotMatch(quick, /await openCalls\(\[params\]\)/);
@@ -56,6 +56,6 @@ test("REFINE19: operator can distinguish an active sector call from a new openin
   assert.match(options, /w-\[calc\(100vw_-_1rem\)\]/);
   assert.match(options, /aria-pressed=\{selectedOptionId === option\.id\}/);
   assert.match(options, /onSelect\(reason\.id, selected\.id\)/);
-  assert.match(admin, /abertura hierárquica está habilitada/);
+  assert.match(admin, /Grupos são atalhos opcionais/);
   assert.doesNotMatch(admin, /Este cadastro ainda não altera os botões operacionais/);
 });

@@ -281,8 +281,8 @@ export function MachineActionPanel({
         >
           <span>
             {reasonCatalogStatus === "loading"
-              ? t("Carregando categorias de chamados...")
-              : t("Abertura de novos chamados indisponível: não foi possível validar as categorias.")}
+              ? t("Carregando grupos de chamados... Os setores continuam disponíveis.")
+              : t("Grupos indisponíveis no momento. Os botões dos setores continuam disponíveis.")}
           </span>
           {reasonCatalogStatus === "unavailable" && (
             <button
@@ -300,45 +300,10 @@ export function MachineActionPanel({
         className="grid gap-1.5"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}
       >
-        {hierarchicalReasons !== null ? (
-          <>
-            {hierarchicalReasons.map((reason) => (
-              <button
-                key={reason.id}
-                type="button"
-                onClick={() => onOpenReason?.(reason.id)}
-                className={cn(
-                  "machine-sector-action min-h-16 rounded-lg border-2 bg-card px-3 py-2 text-base font-black uppercase text-foreground",
-                  "transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                )}
-                style={{ borderColor: reason.color }}
-                aria-label={t("Abrir novo chamado") + ": " + reason.displayName}
-              >
-                {reason.displayName}
-              </button>
-            ))}
-            {/* Existing active sectors remain selectable. Never trigger a new
-                opening when an operator clicks a sector with an active call. */}
-            {categories.filter((category) =>
-              activeCalls.some((call) => call.subtype === category.id),
-            ).map((category) => {
-              const activeCall = activeCalls.find((call) => call.subtype === category.id);
-              return (
-                <MachineSectorButton
-                  key={category.id}
-                  category={category}
-                  activeCall={activeCall}
-                  selectedCallId={selectedCallId}
-                  className={sectorActionClass}
-                  onOpenSubtype={onOpenSubtype}
-                  onSelectCall={onSelectCall}
-                  translate={t}
-                />
-              );
-            })}
-          </>
-        ) : categories.map((category) => {
-          const activeCall = activeCalls.find((call) => call.subtype === category.id);
+        {/* Groups add shortcuts; every previously configured sector remains visible
+            and continues using its unchanged subtype, audio and GPIO contract. */}
+        {categories.map((category) => {
+          const activeCall = activeCalls.find(call => call.subtype === category.id);
           return (
             <MachineSectorButton
               key={category.id}
@@ -352,6 +317,22 @@ export function MachineActionPanel({
             />
           );
         })}
+        {hierarchicalReasons?.map(reason => (
+          <button
+            key={`group-${reason.id}`}
+            type="button"
+            onClick={() => onOpenReason?.(reason.id)}
+            disabled={reason.options.length === 0}
+            className={cn(
+              "machine-sector-action min-h-16 rounded-lg border-2 bg-card px-3 py-2 text-base font-black uppercase text-foreground",
+              "transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+            style={{ borderColor: reason.color }}
+            aria-label={t("Abrir grupo de chamados") + ": " + reason.displayName}
+          >
+            {reason.displayName}
+          </button>
+        ))}
       </div>
 
       {currentCall && (

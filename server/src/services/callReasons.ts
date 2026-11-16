@@ -84,11 +84,14 @@ export function resolveReasonOption(
   if (!["maintenance", "production"].includes(technicalArea.categoryGroup))
     throw new ReasonPolicyError("technical_area_group_invalid");
 
+  // V2: only the selected GROUP owns analytics and corrective eligibility.
+  // Existing option override columns remain readable for historical catalog
+  // compatibility, but cannot override the parent's new call snapshot.
   const policy = validateReasonPolicy({
-    nature: option.natureOverride ?? reason.nature,
-    suggestedResponsibility: option.suggestedResponsibilityOverride ?? reason.suggestedResponsibility,
-    maintenanceKpiPolicy: option.maintenanceKpiPolicyOverride ?? reason.maintenanceKpiPolicy,
-    analyticsDisposition: option.analyticsDispositionOverride ?? reason.analyticsDisposition,
+    nature: reason.nature,
+    suggestedResponsibility: reason.suggestedResponsibility,
+    maintenanceKpiPolicy: reason.maintenanceKpiPolicy,
+    analyticsDisposition: reason.analyticsDisposition,
   });
   if (policy.nature === "corrective_failure" && technicalArea.categoryGroup !== "maintenance")
     throw new ReasonPolicyError("corrective_reason_requires_maintenance_area");

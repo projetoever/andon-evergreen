@@ -55,19 +55,19 @@ export function CallReasonOptionsModal({
       <DialogContent className="max-h-[calc(100dvh_-_1.5rem)] w-[calc(100vw_-_1rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl sm:text-3xl">
-            {reason?.displayName ?? ui("Selecione a categoria")}
+            {reason?.displayName ?? ui("Selecione o grupo")}
           </DialogTitle>
           <DialogDescription className="text-base">
-            {ui("Selecione uma especialidade. Se já existir um chamado ativo para o setor, ele será selecionado sem abrir outro.")}
+            {ui("Selecione um setor deste grupo. Se ele já tiver chamado ativo, o sistema selecionará o existente, sem duplicar nem alterar sua classificação.")}
           </DialogDescription>
         </DialogHeader>
 
         {available.length === 0 ? (
           <p role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-base">
-            {ui("Nenhuma subcategoria ativa para este motivo. Solicite o cadastro ao administrador.")}
+            {ui("Nenhum setor ativo vinculado a este grupo. Solicite a configuração ao administrador.")}
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label={ui("Subcategorias disponíveis")}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label={ui("Setores disponíveis no grupo")}>
             {available.map(option => (
               <button
                 key={option.id}

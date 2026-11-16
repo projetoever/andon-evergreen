@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { isCorrectiveReasonCandidate } from "../server/src/analytics/correctiveReasonCohort";
+
+const read = (path: string) => readFile(new URL("../" + path, import.meta.url), "utf8");
+
+test("GROUPS/V2: existing sectors remain direct buttons beside optional group shortcuts", async () => {
+  const [panel, machine, general, options] = await Promise.all([
+    read("src/components/machines/MachineActionPanel.tsx"),
+    read("src/pages/MachineDetailPage.tsx"),
+    read("src/components/calls/OpenCallModal.tsx"),
+    read("src/components/calls/CallReasonOptionsModal.tsx"),
+  ]);
+  const direct = panel.indexOf("{categories.map((category)");
+  const group = panel.indexOf("{hierarchicalReasons?.map(reason");
+  assert(direct >= 0 && group > direct, "sectors must render before optional groups");
+  assert.match(panel, /activeCall = activeCalls\.find\(call => call\.subtype === category\.id\)/);
+  assert.match(panel, /onOpenSubtype=\{onOpenSubtype\}/);
+  assert.match(panel, /onSelectCall=\{onSelectCall\}/);
+  assert.match(machine, /if \(!machine\) return;\s+setHierarchicalChoice\(null\)/);
+  assert.match(general, /<CallTypeSelector value=\{hierarchicalChoice \? null : subtype\}/);
+  assert.match(general, /setHierarchicalChoice\(null\); setSubtype\(value\)/);
+  assert.match(general, /Grupos de chamados \(opcionais\)/);
+  assert.match(options, /Chamado já aberto/);
+  assert.match(machine, /setSelectedCallId\(existing\.id\)/);
+});
+
+test("GROUPS/V2: parent owns corrective eligibility; direct legacy and GPIO subtype stay stable", async () => {
+  const [policy, mutations, opening, calls, sound, service, schema] = await Promise.all([
+    read("server/src/services/callReasons.ts"),
+    read("server/src/services/callReasonMutations.ts"),
+    read("server/src/services/callReasonOpening.ts"),
+    read("server/src/routes/andonCalls.ts"),
+    read("src/hooks/useAndonOpenCallSound.ts"),
+    read("docs/INDUSTRIAL_SERVICE_IDENTITY.md"),
+    read("server/prisma/schema.prisma"),
+  ]);
+  for (const field of ["nature","suggestedResponsibility","maintenanceKpiPolicy","analyticsDisposition"]) {
+    assert.match(policy, new RegExp(field + ": reason\\." + field));
+  }
+  assert.match(mutations, /group_policy_cannot_be_overridden_by_sector/);
+  assert.match(opening, /option\.technicalAreaId !== selected\.legacySubtype/);
+  assert.match(calls, /const reasonSelection: ReasonOpeningSelection \| null = hasReasonSelection/);
+  assert.match(calls, /findDuplicateActiveSectorCall\(/);
+  assert.match(sound, /item\.key === call\.subtype/);
+  assert.match(service, /GET \/api\/andon-calls/);
+  assert.match(schema, /@@unique\(\[reasonId, technicalAreaId\]\)/);
+  const direct = isCorrectiveReasonCandidate(null);
+  const setup = isCorrectiveReasonCandidate({
+    nature: "planned_setup", maintenanceKpiPolicy: "excluded", analyticsDisposition: "include",
+  });
+  const maintenance = isCorrectiveReasonCandidate({
+    nature: "corrective_failure", maintenanceKpiPolicy: "eligible", analyticsDisposition: "include",
+  });
+  assert.equal(direct, true, "old calls retain original evidence-based evaluation");
+  assert.equal(setup, false, "setup cannot be a corrective KPI candidate");
+  assert.equal(maintenance, true, "eligible group is only a corrective candidate, not proof");
+});
+
+test("GROUPS/V2: configuration changes never rewrite technical sector identifiers", async () => {
+  const [nav, groupEditor, service, modal] = await Promise.all([
+    read("src/components/settings/AdminSettingsModal.tsx"),
+    read("src/components/settings/CallReasonsSettingsTab.tsx"),
+    read("src/services/callReasonsCatalogService.ts"),
+    read("src/components/calls/QuickOpenCallModal.tsx"),
+  ]);
+  assert.match(nav, /Grupos de chamados/);
+  assert.match(groupEditor, /Elegibilidade do grupo aos KPIs corretivos/);
+  assert.match(groupEditor, /Permitir contabilização corretiva mediante evidências/);
+  assert.match(groupEditor, /!isPrimaryAdmin \|\| draft\.nature !== "corrective_failure"/);
+  assert.match(groupEditor, /getCategoryConfigs\(\)/);
+  assert.match(groupEditor, /technicalAreaId: area\.id/);
+  assert.match(groupEditor, /addCallReasonOption\(chosen\.id/);
+  assert.match(service, /legacySubtype: string/);
+  assert.match(modal, /expectedReasonRevision: hierarchicalChoice\.expectedReasonRevision/);
+  assert.match(modal, /expectedOptionRevision: hierarchicalChoice\.expectedOptionRevision/);
+  assert.doesNotMatch(groupEditor, /andonCategory\.delete|removeAndonCategory\(/);
+});
