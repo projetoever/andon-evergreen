@@ -134,6 +134,7 @@ function RootContent() {
   const navigate = useNavigate();
   const lockedMachineId = access?.workstation.lockedMachineId;
   const isHubRoute = pathname === "/" || pathname === "/hub" || pathname.startsWith("/hub/");
+  const isAdminWorkspace = pathname === "/andon/admin";
   const isIndependentModule =
     pathname === "/bi" || pathname.startsWith("/bi/") || pathname === "/machine-priorities";
   const mustReturnToMachine = Boolean(
@@ -141,6 +142,7 @@ function RootContent() {
     lockedMachineId &&
     !isHubRoute &&
     !isIndependentModule &&
+    !isAdminWorkspace &&
     !canOpenPinnedMachineHistory(access, pathname) &&
     pathname !== `/machines/${encodeURIComponent(lockedMachineId)}`,
   );
@@ -163,7 +165,11 @@ function RootContent() {
         {ui("Retornando à tela fixada da máquina…")}
       </div>
     );
-  if (isHubRoute)
+  // Settings are an independent, route-guarded fullscreen workspace.
+  // Neither a pinned machine nor the operational-module login dialog should
+  // override an authorized administrator's /andon/admin page.
+  // AndonAdminPage separately verifies the live session + settings grant.
+  if (isHubRoute || isAdminWorkspace)
     return (
       <>
         <Outlet />
