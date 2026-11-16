@@ -168,7 +168,8 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
     setHierarchicalReasons([]);
     setHierarchicalChoice(null);
     setSelectedReasonId(null);
-    setSubtype(null);
+    // A group-only retry must not clear a direct sector already selected.
+    // Modal initialization above resets subtype on a fresh opening.
     setReasonCatalogStatus("loading");
     if (accessChecking) return;
     if (!access) {
