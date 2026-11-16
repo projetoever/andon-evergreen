@@ -268,7 +268,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   function handleSelectReasonOption(reasonId: string, optionId: string) {
     const reason = hierarchicalReasons.find(item => item.id === reasonId);
     const option = reason?.options.find(item => item.id === optionId);
-    if (reasonCatalogStatus !== "ready" || !reason || !option || !machineId) {
+    if (reasonCatalogStatus !== "ready" || !reason?.openingEnabled || !option || !machineId) {
       toast.error(ui("Não foi possível validar a especialidade selecionada."));
       return;
     }
@@ -534,15 +534,24 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
           </div>
         )}
         {reasonCatalogStatus === "ready" && hierarchicalReasons.length > 0 && (
-          <section className="space-y-3">
+          <section className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {ui("Grupos de chamados (opcionais)")}
             </h4>
+            {hierarchicalReasons.some(reason => !reason.openingEnabled) && (
+              <p role="status" className="text-xs font-semibold text-warning">
+                {ui("Grupo ativo, mas abertura por grupos não liberada nesta instalação.")}
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {hierarchicalReasons.map(reason => (
-                <button key={reason.id} type="button" disabled={!machineId || isSubmitting}
-                  onClick={() => setSelectedReasonId(reason.id)}
-                  className="min-h-14 rounded-xl border-2 border-border bg-card px-4 py-3 text-left text-base font-bold text-foreground hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <button key={reason.id} type="button"
+                  disabled={!machineId || isSubmitting || !reason.openingEnabled || reason.options.length === 0}
+                  title={!reason.openingEnabled
+                    ? ui("Abertura por grupos desativada") : reason.displayName}
+                  onClick={() => { if (reason.openingEnabled) setSelectedReasonId(reason.id); }}
+                  className="min-h-14 rounded-xl border-2 bg-card px-4 py-3 text-left text-base font-bold text-foreground transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ borderColor: reason.color }}>
                   {reason.displayName}
                 </button>
               ))}
