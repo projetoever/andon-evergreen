@@ -790,6 +790,7 @@ export function registerAccessRoutes(
             latest.lastInteractionAt.getTime() + 30 * 60 * 1000 > now.getTime()) &&
           latest.user.active &&
           latest.authorizationVersion === latest.user.authorizationVersion &&
+          (!latest.persistentOperational || latest.user.sessionPolicy === "persistent") &&
           station.active &&
           !station.pendingApproval &&
           latest.purpose === "normal",
