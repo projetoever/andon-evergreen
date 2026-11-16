@@ -133,3 +133,23 @@ test("P0 permanent login requires no pinned machine and is never implicitly revo
   assert.match(sessions, /machineScope: row\.user\.machineScope/);
   assert.match(sessions, /machineIds: row\.user\.machines\.map/);
 });
+
+test("P0 Firefox login diagnosis stays separate from authentication and never stores a token", async () => {
+  const [api, policy, reporter, panel, backend, modules] = await Promise.all([
+    read("../src/services/accessService.ts"),
+    read("../src/services/persistentSessionStatus.ts"),
+    read("../src/services/sessionRecoveryDiagnostics.ts"),
+    read("../src/components/security/HubIdentityPanel.tsx"),
+    read("../server/src/routes/access.ts"),
+    read("../server/src/routes/modules.ts"),
+  ]);
+  assert.doesNotMatch(policy, /localStorage|sessionStorage|setItem/);
+  assert.match(reporter, /localStorage\.setItem\(PREVIOUS_PERMANENT_SESSION_KEY, "1"\)/);
+  assert.doesNotMatch(reporter, /setItem\([^)]*(?:token|csrf|password|cookie)/i);
+  assert.match(api, /forgetConfirmedPersistentSession\(\)/);
+  assert.match(panel, /sessionLossMessage\(session\.sessionDiagnostic\)/);
+  assert.match(panel, /hadConfirmedPersistentSession\(\)/);
+  assert.match(backend, /diagnoseSessionLoss\(db, accessCookie/);
+  assert.match(modules, /if \(!\(error instanceof AccessError\)\) throw error/);
+  assert.doesNotMatch(modules, /catch \{\s*principal = null/);
+});
