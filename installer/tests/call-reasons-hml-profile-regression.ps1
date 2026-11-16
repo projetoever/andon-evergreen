@@ -23,16 +23,16 @@ try {
     $envPath = Join-Path $testRoot "server\.env"
     Write-AndonBackendEnv -Config $config -NetworkConfig $network
     $off = Get-Content -LiteralPath $envPath -Raw
-    Assert-ReasonsHml ($off -match '(?m)^ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=0$') "catalog must remain OFF outside security validation"
-    Assert-ReasonsHml ($off -match '(?m)^ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0$') "operational opening must remain OFF"
+    Assert-ReasonsHml ($off -match '(?m)^ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=0\r?$') "catalog must remain OFF outside security validation"
+    Assert-ReasonsHml ($off -match '(?m)^ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0\r?$') "operational opening must remain OFF"
 
     $config.centralSecurityValidationEnabled = $true
     Write-AndonBackendEnv -Config $config -NetworkConfig $network
     $on = Get-Content -LiteralPath $envPath -Raw
-    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=1$') "catalog should be ON with explicit notebook validation"
-    Assert-ReasonsHml ($on -match '(?m)^ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0$') "catalog approval must not activate machine call opening"
-    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_ACCESS_ENABLED=1$') "central login must remain enabled"
-    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED=1$') "sector editor remains independently gated"
+    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED=1\r?$') "catalog should be ON with explicit notebook validation"
+    Assert-ReasonsHml ($on -match '(?m)^ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=0\r?$') "catalog approval must not activate machine call opening"
+    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_ACCESS_ENABLED=1\r?$') "central login must remain enabled"
+    Assert-ReasonsHml ($on -match '(?m)^ANDON_CENTRAL_CATEGORY_SETTINGS_HTTP_ENABLED=1\r?$') "sector editor remains independently gated"
 
     foreach ($invalid in @(
         @{ transportMode = "http"; postgresHost = "127.0.0.1"; centralAccessEnabled = $true },
