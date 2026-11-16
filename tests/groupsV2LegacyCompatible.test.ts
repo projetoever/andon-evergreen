@@ -28,7 +28,7 @@ test("GROUPS/V2: existing sectors remain direct buttons beside optional group sh
   assert.match(panel, /backgroundColor: reason\.color/);
   assert.match(panel, /color: readableTextColor\(reason\.color\)/);
   assert.match(options, /sectorColors\?: Readonly<Record<string, string>>/);
-  assert.match(options, /backgroundColor: optionColor\(option\.legacySubtype\)/);
+  assert.match(options, /backgroundColor: color/);
   assert.match(machine, /sectorColors=\{Object\.fromEntries\(categories\.map/);
 });
 
