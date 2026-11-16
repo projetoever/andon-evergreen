@@ -16,9 +16,9 @@ test("OPEN-12: general modal enforces the same fail-closed catalog policy as mac
     assert.match(source, /"legacy"\s*:\s*"unavailable"/);
   }
   assert.match(general, /if \(!access\.centralAccessEnabled\)/);
-  assert.match(general, /setReasonCatalogStatus\(reasons\.length > 0 \? "ready" : "unavailable"\)/);
-  assert.match(general, /reasonCatalogStatus === "legacy" \? \(/);
-  assert.match(general, /reasonCatalogStatus === "unavailable" \? \(/);
+  assert.match(general, /setReasonCatalogStatus\("ready"\)/);
+  assert.match(general, /<CallTypeSelector value=\{hierarchicalChoice \? null : subtype\}/);
+  assert.match(general, /reasonCatalogStatus === "unavailable" && \(/);
   assert.match(general, /onClick=\{\(\) => setReasonReload\(n => n \+ 1\)\}/);
   assert.doesNotMatch(general, /getCallReasonsCatalog\(\)/, "no privileged admin list in operator modal");
   assert.match(client, /"\/api\/call-reasons\/operational"/);
