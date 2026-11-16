@@ -51,7 +51,7 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
   assert.match(page, /Nome exibido da especialidade/);
   assert.match(page, /Ordem de exibição/);
-  assert.match(page, /Nome vazio utiliza a área técnica original/);
+  assert.match(page, /Nome vazio utiliza o setor original/);
   assert.match(page, /disabled=\{writeBlocked \|\| editingOptionId !== null\}/);
   assert.match(service, /expectedRevision: revision/);
   assert.match(policy, /"displayName", "active", "displayOrder"/);
