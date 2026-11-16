@@ -25,8 +25,8 @@ test("REFINE22 P1: motive-to-option UI preserves technical area, policy and edit
     source("server/src/services/callReasons.ts"),
   ]);
   for (const item of [
-    /<CompactAndonColorField/, /optionNameToAdd/, /Nome da subcategoria no botão/,
-    /Área técnica responsável/, /addCallReasonOption\(chosen\.id/, /displayName,/,
+    /<CompactAndonColorField/, /optionNameToAdd/, /Nome alternativo no modal/, 
+    /Setor existente/, /addCallReasonOption\(chosen\.id/, /displayName,/,
     /draft\.analyticsDisposition/, /draft\.maintenanceKpiPolicy/, /policyReviewNeeded/,
   ]) assert.match(editor, item);
   assert.match(service, /displayName\?: string \| null/);
