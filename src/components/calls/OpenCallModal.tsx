@@ -183,7 +183,7 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       .then((reasons) => {
         if (!current) return;
         setHierarchicalReasons(reasons);
-        setReasonCatalogStatus(reasons.length > 0 ? "ready" : "unavailable");
+        setReasonCatalogStatus("ready"); // groups are optional, even when none exist
       })
       .catch((error: unknown) => {
         if (!current) return;
@@ -360,7 +360,8 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   const canConfirm = Boolean(
     machineId &&
     subtype &&
-    (reasonCatalogStatus === "legacy" || (reasonCatalogStatus === "ready" && hierarchicalChoice?.subtype === subtype)) &&
+    (!hierarchicalChoice ||
+      (reasonCatalogStatus === "ready" && hierarchicalChoice.subtype === subtype)) &&
     !isSubmitting &&
     hasValidAssetSelection &&
     !isLoadingSystemSettings &&
@@ -371,10 +372,9 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
 
   async function handleConfirm() {
     if (!machineId || !subtype || !canConfirm || isSubmitting || openingInFlightRef.current) return;
-    if (reasonCatalogStatus !== "legacy" && (
-      reasonCatalogStatus !== "ready" ||
-      !hierarchicalChoice || hierarchicalChoice.subtype !== subtype
-    )) return;
+    // A direct sector selection is never blocked by the optional group list.
+    if (hierarchicalChoice && (reasonCatalogStatus !== "ready" ||
+        hierarchicalChoice.subtype !== subtype)) return;
     if (isLoadingSystemSettings || !hasLoadedSystemSettings || systemSettingsLoadFailed) {
       toast.error(
         "Não foi possível carregar as configurações de abertura. Feche e reabra o modal para tentar novamente.",
@@ -508,23 +508,34 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
           </div>
         )}
 
-        {reasonCatalogStatus === "legacy" ? (
-          <CallTypeSelector value={subtype} onChange={setSubtype} />
-        ) : reasonCatalogStatus === "loading" ? (
-          <p role="status" className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
-            {ui("Carregando motivos e subcategorias disponíveis...")}
+        <section className="space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            {ui("Setor direto (modo existente)")}
+          </h4>
+          <CallTypeSelector value={hierarchicalChoice ? null : subtype} onChange={value => {
+            setHierarchicalChoice(null); setSubtype(value);
+          }} />
+          <p className="text-xs text-muted-foreground">
+            {ui("A abertura direta preserva a política de manutenção, o som e o setor atuais.")}
           </p>
-        ) : reasonCatalogStatus === "unavailable" ? (
-          <div role="alert" className="space-y-3 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
-            <p>{ui("Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.")}</p>
-            <BigButton tone="neutral" size="md" onClick={() => setReasonReload(n => n + 1)}>
+        </section>
+        {reasonCatalogStatus === "loading" && (
+          <p role="status" className="rounded-xl border border-border bg-muted/30 p-3 text-xs">
+            {ui("Carregando grupos opcionais...")}
+          </p>
+        )}
+        {reasonCatalogStatus === "unavailable" && (
+          <div role="alert" className="space-y-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs">
+            <p>{ui("Grupos indisponíveis; os setores diretos continuam habilitados.")}</p>
+            <BigButton tone="neutral" size="sm" onClick={() => setReasonReload(n => n + 1)}>
               {ui("Tentar novamente")}
             </BigButton>
           </div>
-        ) : (
-          <div className="space-y-3">
+        )}
+        {reasonCatalogStatus === "ready" && hierarchicalReasons.length > 0 && (
+          <section className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {ui("Motivo do chamado")}
+              {ui("Grupos de chamados (opcionais)")}
             </h4>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {hierarchicalReasons.map(reason => (
@@ -537,10 +548,10 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
             </div>
             {hierarchicalChoice && (
               <p role="status" className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm font-semibold">
-                {ui("Especialidade selecionada")}: {hierarchicalChoice.label}
+                {ui("Setor pelo grupo")}: {hierarchicalChoice.label}
               </p>
             )}
-          </div>
+          </section>
         )}
 
         {machineId &&
