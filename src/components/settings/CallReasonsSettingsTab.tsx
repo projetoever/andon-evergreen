@@ -47,6 +47,8 @@ export function CallReasonsSettingsTab() {
   const [capabilityChecking, setCapabilityChecking] = useState(false);
   const [capabilityError, setCapabilityError] = useState(false);
   const [reasons, setReasons] = useState<CallReasonView[]>([]);
+  const [reasonQuery, setReasonQuery] = useState("");
+  const [reasonStatus, setReasonStatus] = useState<"all" | "active" | "inactive">("all");
   const [areas, setAreas] = useState<AndonCategoryConfig[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -61,6 +63,21 @@ export function CallReasonsSettingsTab() {
   // A cached feature flag never authorizes writes when Hub identity is unknown.
   const writeBlocked = access === null || busy || capabilityChecking || !enabled || Boolean(error) || loading;
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
+  const filteredReasons = useMemo(() => {
+    const query = reasonQuery.trim().toLocaleLowerCase("pt-BR")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return reasons.filter(reason => {
+      if (reasonStatus === "active" && !reason.active) return false;
+      if (reasonStatus === "inactive" && reason.active) return false;
+      if (!query) return true;
+      const labels = [reason.id, reason.displayName, reason.nature,
+        ...reason.options.flatMap(option => [
+          option.displayName ?? "", option.technicalArea.displayName,
+        ])].join(" ").toLocaleLowerCase("pt-BR")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return labels.includes(query);
+    });
+  }, [reasons, reasonQuery, reasonStatus]);
   // Display changes use a presentation-only payload. New analytical policy
   // decisions require explicit human confirmation, then server authorization.
   const policyReviewNeeded = isPrimaryAdmin && (chosen
@@ -337,8 +354,34 @@ export function CallReasonsSettingsTab() {
                 {ui("Novo motivo")}
               </Button>
             </div>
+            <label className="block space-y-1 text-xs text-muted-foreground">
+              {ui("Pesquisar motivos e subcategorias")}
+              <Input type="search" value={reasonQuery}
+                onChange={event => setReasonQuery(event.target.value)}
+                placeholder={ui("Nome, ID ou especialidade...")}
+                aria-label={ui("Pesquisar motivos e subcategorias")} />
+            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {filteredReasons.length} {ui("de")} {reasons.length} {ui("motivos")}
+              </p>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                {ui("Status")}
+                <select className="min-h-9 rounded-md border border-border bg-background px-2"
+                  value={reasonStatus}
+                  onChange={event => setReasonStatus(event.target.value as typeof reasonStatus)}
+                  aria-label={ui("Filtrar motivos por status")}>
+                  <option value="all">{ui("Todos")}</option>
+                  <option value="active">{ui("Ativos")}</option>
+                  <option value="inactive">{ui("Inativos")}</option>
+                </select>
+              </label>
+            </div>
             {reasons.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum motivo cadastrado.")}</p>}
-            {reasons.map(reason => (
+            {reasons.length > 0 && filteredReasons.length === 0 &&
+              <p className="text-sm text-muted-foreground">{ui("Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.")}</p>}
+            <div className="max-h-[min(56dvh,35rem)] space-y-2 overflow-y-auto pr-1">
+            {filteredReasons.map(reason => (
               <button type="button" key={reason.id}
                 onClick={() => edit(reason)}
                 aria-pressed={selected === reason.id}
@@ -353,6 +396,7 @@ export function CallReasonsSettingsTab() {
                 </span>
               </button>
             ))}
+            </div>
           </section>
           <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={ui("Editar motivo")}>
             <h3 className="font-semibold">{ui(chosen ? "Editar motivo" : "Criar motivo")}</h3>
