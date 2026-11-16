@@ -251,6 +251,8 @@ try {
   restore("ANDON_CENTRAL_ACCESS_ENABLED", previous.access);
   restore("ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED", previous.subset);
   restore("ANDON_ACCESS_ORIGIN", previous.origin);
+  // Scoped test users reference the machine: remove assignments before deleting it.
+  await db.accessMachine.deleteMany({ where: { userId: { in: userIds } } });
   if (callId) await db.andonCall.deleteMany({ where: { id: callId } });
   await db.machineSubset.deleteMany({ where: { machineSetId: setId } });
   await db.machineSubsetType.deleteMany({ where: { id: subsetTypeId } });
