@@ -60,6 +60,14 @@ test("SEC21 P0: login and Hub must reveal whether the server really issued perma
   assert.match(provider, /accessRequest<AccessState>\("\/session"\)/);
   assert.match(provider, /current\.principal\.persistentOperational !== true/);
 
+  // Already-valid legacy 12h sessions must follow a newly fixed user-only
+  // permanent policy without inventing a token or showing a false warning.
+  assert.match(provider, /"\/session\/upgrade", "POST", \{\}/);
+  assert.match(provider, /if \(upgraded\.persistentOperational\) next = await loadModuleAccess\(\)/);
+  assert.match(route, /promoteEligibleSessionToPersistent\(db, request\)/);
+  assert.match(route, /setCookie\(reply, ACCESS_COOKIE, request\.token, 34560000\)/);
+  assert.match(sessions, /revokedAt: null/);
+  assert.match(sessions, /lastInteractionAt: \{ gt: new Date\(now\.getTime\(\) - IDLE\) \}/);
   assert.match(provider, /window\.addEventListener\("online", onOnline\)/);
   assert.doesNotMatch(status, /cookie:|passwordHash|setItem|localStorage|sessionStorage/);
 });
