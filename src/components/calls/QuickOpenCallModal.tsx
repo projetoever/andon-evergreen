@@ -43,6 +43,7 @@ interface QuickOpenCallModalProps {
   subtype: CallSubtype | null;
   forcedMachineCondition?: MachineStatus;
   hierarchicalChoice?: HierarchicalOpeningChoice | null;
+  hierarchicalChoices?: readonly HierarchicalOpeningChoice[];
 }
 
 export function QuickOpenCallModal({
@@ -52,9 +53,10 @@ export function QuickOpenCallModal({
   subtype,
   forcedMachineCondition,
   hierarchicalChoice = null,
+  hierarchicalChoices = [],
 }: QuickOpenCallModalProps) {
   useInterfaceLanguage();
-  const { machines, openCall } = useAndon();
+  const { machines, calls, openCall, openCalls } = useAndon();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -63,9 +65,13 @@ export function QuickOpenCallModal({
   const [workOrderNumber, setWorkOrderNumber] = useState("");
   const [operatorNote, setOperatorNote] = useState("");
   const [openingError, setOpeningError] = useState<string | null>(null);
+  const groupBatch = hierarchicalChoices.length > 1;
   const option = hierarchicalChoice
     ? { category: hierarchicalChoice.category, label: hierarchicalChoice.label }
     : subtype ? getCallTypeOption(subtype) : null;
+  const selectedLabel = groupBatch
+    ? hierarchicalChoices.map(choice => choice.label).join(", ")
+    : option?.label ?? ui("setor");
   const machineRequiresWorkOrder =
     machines.find((machine) => machine.id === machineId)?.requireWorkOrderAtOpen === true;
   const workOrderRequired = resolveWorkOrderRequirement(
@@ -118,7 +124,7 @@ export function QuickOpenCallModal({
   }, [open]);
 
   async function handleCondition(machineCondition: MachineStatus) {
-    if (!subtype || !option || isSubmitting || !canSubmit) return;
+    if (isSubmitting || !canSubmit || (!groupBatch && (!subtype || !option))) return;
 
     const normalizedWorkOrderNumber = normalizeWorkOrderNumber(workOrderNumber);
     setOpeningError(null);
@@ -126,28 +132,53 @@ export function QuickOpenCallModal({
     try {
       const params = {
         machineId,
-        category: option.category,
-        subtype,
         criticality: "medium" as const,
         machineCondition: forcedMachineCondition ?? machineCondition,
         workOrderNumber: normalizedWorkOrderNumber || undefined,
         operatorNote: operatorNote.trim() || undefined,
       };
-      // A single human opening always uses POST /api/andon-calls.
-      // The batch endpoint has an independent central opt-in and is only for
-      // genuine multi-sector requests. Never silently retry a rejected write.
-      await openCall({
-        ...params,
-        ...(hierarchicalChoice
-          ? {
-              reasonId: hierarchicalChoice.reasonId,
-              optionId: hierarchicalChoice.optionId,
-              expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
-              expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
-            }
-          : {}),
-      });
-      toast.success(`Chamado de ${option.label} aberto.`);
+      if (groupBatch) {
+        // The server rechecks active calls under machine/category locks.
+        // Client-side checks only improve feedback and NEVER authorize writes.
+        const selected = new Set(hierarchicalChoices.map(choice => choice.subtype));
+        const group = hierarchicalChoices[0]?.reasonId;
+        if (!group || selected.size !== hierarchicalChoices.length ||
+            hierarchicalChoices.some(choice => choice.reasonId !== group)) {
+          throw new Error(ui("Seleção de setores do grupo inválida para abertura múltipla"));
+        }
+        const duplicate = calls.find(call =>
+          call.machineId === machineId && selected.has(call.subtype) &&
+          ["open", "in_progress", "post_maintenance"].includes(call.status));
+        if (duplicate) {
+          throw new Error(ui("Já existe chamado ativo de um dos setores selecionados. Atualize e escolha novamente."));
+        }
+        await openCalls(hierarchicalChoices.map(choice => ({
+          ...params,
+          category: choice.category,
+          subtype: choice.subtype,
+          reasonId: choice.reasonId,
+          optionId: choice.optionId,
+          expectedReasonRevision: choice.expectedReasonRevision,
+          expectedOptionRevision: choice.expectedOptionRevision,
+        })));
+        toast.success(ui("Chamados do grupo abertos com sucesso."));
+      } else {
+        if (!subtype || !option) return;
+        await openCall({
+          ...params,
+          category: option.category,
+          subtype,
+          ...(hierarchicalChoice
+            ? {
+                reasonId: hierarchicalChoice.reasonId,
+                optionId: hierarchicalChoice.optionId,
+                expectedReasonRevision: hierarchicalChoice.expectedReasonRevision,
+                expectedOptionRevision: hierarchicalChoice.expectedOptionRevision,
+              }
+            : {}),
+        });
+        toast.success(`Chamado de ${option.label} aberto.`);
+      }
       onOpenChange(false);
     } catch (error) {
       const message = ui(error instanceof Error ? error.message : "Não foi possível abrir o chamado");
@@ -158,7 +189,7 @@ export function QuickOpenCallModal({
     }
   }
 
-  const buttonDisabled = isSubmitting || !option || !canSubmit;
+  const buttonDisabled = isSubmitting || (!option && !groupBatch) || !canSubmit;
 
   return (
     <Dialog open={open} onOpenChange={(value) => !isSubmitting && onOpenChange(value)}>
@@ -169,7 +200,7 @@ export function QuickOpenCallModal({
           </DialogTitle>
           <DialogDescription className="text-base">
             {ui("Informe a condição atual para abrir o chamado de ")}
-            {option?.label ?? ui("setor")}.
+            {selectedLabel}.
           </DialogDescription>
         </DialogHeader>
 

@@ -6,9 +6,11 @@ const source = (relative: string) => readFile(new URL(relative, import.meta.url)
 
 test("quick modal opens one maintenance call via single endpoint, preserving form on refusal", async () => {
   const modal = await source("../src/components/calls/QuickOpenCallModal.tsx");
-  assert.match(modal, /const \{ machines, openCall \} = useAndon\(\)/);
+  assert.match(modal, /const \{ machines, calls, openCall, openCalls \} = useAndon\(\)/);
   assert.match(modal, /await openCall\(\{/);
-  assert.doesNotMatch(modal, /await openCalls\(/);
+  assert.match(modal, /if \(groupBatch\) \{/);
+  assert.match(modal, /await openCalls\(hierarchicalChoices\.map/);
+  assert.match(modal, /await openCall\(\{/);
   assert.match(modal, /reasonId: hierarchicalChoice\.reasonId/);
   assert.match(modal, /setOpeningError\(message\)/);
   assert.match(modal, /role="alert"/);

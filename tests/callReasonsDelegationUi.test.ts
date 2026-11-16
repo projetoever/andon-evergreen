@@ -47,11 +47,11 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   assert.ok(editor, "specialty presentation save handler must exist");
   assert.ok(editor.includes(String.raw`!/^\d{1,4}$/.test(orderText)`));
   assert.match(editor, /await updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
-  assert.match(editor, /displayName: label \|\| null, displayOrder: order/);
+  assert.match(editor, /displayOrder: order/);
+  assert.doesNotMatch(editor, /displayName: label/);
   assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
-  assert.match(page, /Nome exibido do setor no grupo/);
   assert.match(page, /Ordem de exibição/);
-  assert.match(page, /Nome vazio utiliza o setor original/);
+  assert.match(page, /displayName: area\.displayName/);
   assert.match(page, /disabled=\{writeBlocked \|\| editingOptionId !== null\}/);
   assert.match(service, /expectedRevision: revision/);
   assert.match(policy, /"displayName", "active", "displayOrder"/);

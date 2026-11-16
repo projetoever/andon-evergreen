@@ -103,7 +103,9 @@ export function registerCallReasonRoutes(app: FastifyInstance) {
       openingEnabled: process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED === "1",
       options: options.map(({ technicalArea, ...option }) => ({
         ...option,
-        displayName: option.displayName ?? technicalArea.displayName,
+        // The operational label is always the sector's canonical name;
+        // optional catalog aliases never alter an operator's sector button.
+        displayName: technicalArea.displayName,
         legacyCategory: technicalArea.categoryGroup,
         legacySubtype: option.technicalAreaId,
       })),

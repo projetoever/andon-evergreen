@@ -1014,5 +1014,35 @@
     "Nenhum setor ativo vinculado a este grupo.",
     "No active sector is linked to this group.",
     "此群組未連結任何啟用中的部門。"
+  ],
+  [
+    "Selecione um ou mais setores. Setores com chamados ativos não podem ser incluídos novamente.",
+    "Select one or more sectors. Sectors with active calls cannot be added again.",
+    "選擇一個或多個部門。已有進行中呼叫的部門不可重複加入。"
+  ],
+  [
+    "setores selecionados",
+    "sectors selected",
+    "已選部門"
+  ],
+  [
+    "Chamados do grupo abertos com sucesso.",
+    "Group calls opened successfully.",
+    "已成功開啟群組呼叫。"
+  ],
+  [
+    "Já existe chamado ativo de um dos setores selecionados. Atualize e escolha novamente.",
+    "A selected sector already has an active call. Refresh and choose again.",
+    "所選部門已有進行中的呼叫。請重新整理後再選擇。"
+  ],
+  [
+    "Seleção de setores do grupo inválida para abertura múltipla",
+    "Invalid group sector selection for multiple call opening",
+    "多重呼叫的群組部門選擇無效"
+  ],
+  [
+    "Informe uma ordem de 0 a 9999.",
+    "Enter an order from 0 to 9999.",
+    "請輸入 0 至 9999 的排序值。"
   ]
 ]

@@ -56,3 +56,42 @@ test("multi-sector central opening is a distinct opt-in action with CSRF and per
     else process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = flag;
   }
 });
+
+test("REFINE22.2: group batch requires hierarchical flag, central access, valid CSRF and calls.open", () => {
+  const before = {
+    central: process.env.ANDON_CENTRAL_ACCESS_ENABLED,
+    generic: process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED,
+    catalog: process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED,
+    hierarchy: process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED,
+  };
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED = "0";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
+    const reqWithGroup = (csrf: string) => ({
+      ...req(csrf),
+      body: { machineId: "M37", subtypes: ["electrical", "mechanical"],
+        reasonSelections: [] },
+    }) as unknown as FastifyRequest;
+    denied(() => markCentralBatchOpenAuthorized(reqWithGroup(csrfToken(token)),
+      principal, station), "central_action_not_supported");
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "1";
+    denied(() => markCentralBatchOpenAuthorized(reqWithGroup("0".repeat(64)),
+      principal, station), "csrf_denied");
+    denied(() => markCentralBatchOpenAuthorized(reqWithGroup(csrfToken(token)),
+      { ...principal, permissions: ["andon.read"] }, station), "permission_denied");
+    const allowed = reqWithGroup(csrfToken(token));
+    markCentralBatchOpenAuthorized(allowed, principal, station);
+    assert.equal(isAuthorizedCentralBatchOpen(allowed), true);
+    process.env.ANDON_HIERARCHICAL_CALL_OPEN_ENABLED = "0";
+    assert.equal(isAuthorizedCentralBatchOpen(allowed), false);
+  } finally {
+    const restore = (key: string, value: string | undefined) =>
+      value === undefined ? delete process.env[key] : process.env[key] = value;
+    restore("ANDON_CENTRAL_ACCESS_ENABLED", before.central);
+    restore("ANDON_CENTRAL_BATCH_OPEN_HTTP_ENABLED", before.generic);
+    restore("ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED", before.catalog);
+    restore("ANDON_HIERARCHICAL_CALL_OPEN_ENABLED", before.hierarchy);
+  }
+});

@@ -104,6 +104,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [reasonCatalogReload, setReasonCatalogReload] = useState(0);
   const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
   const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
+  const [hierarchicalChoices, setHierarchicalChoices] = useState<HierarchicalOpeningChoice[]>([]);
   const [conditionDialogOpen, setConditionDialogOpen] = useState(false);
   const [finishCallId, setFinishCallId] = useState<string | null>(null);
   const [cancelCallId, setCancelCallId] = useState<string | null>(null);
@@ -563,7 +564,43 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
   }
 
+  function handleSelectReasonOptions(reasonId: string, optionIds: string[]) {
+    const reason = hierarchicalReasons?.find(item => item.id === reasonId);
+    const selected = optionIds.map(id => reason?.options.find(option => option.id === id));
+    if (!reason?.openingEnabled || optionIds.length < 2 ||
+        selected.some(option => !option) ||
+        new Set(optionIds).size !== optionIds.length ||
+        new Set(selected.map(option => option?.legacySubtype)).size !== optionIds.length) {
+      toast.error(ui("Seleção de setores do grupo inválida para abertura múltipla"));
+      return;
+    }
+    if (selected.some(option =>
+      activeCalls.some(call => call.subtype === option?.legacySubtype))) {
+      toast.error(ui("Já existe chamado ativo de um dos setores selecionados. Atualize e escolha novamente."));
+      return;
+    }
+    const choices: HierarchicalOpeningChoice[] = selected.map(option => ({
+      reasonId: reason.id,
+      optionId: option!.id,
+      expectedReasonRevision: reason.revision,
+      expectedOptionRevision: option!.revision,
+      category: option!.legacyCategory,
+      subtype: option!.legacySubtype,
+      label: categories.find(category => category.id === option!.legacySubtype)?.displayName ??
+        option!.displayName,
+    }));
+    setHierarchicalChoice(null);
+    setHierarchicalChoices(choices);
+    setSelectedSubtype(choices[0].subtype);
+    setForcedMachineCondition(
+      machine?.machineStatus === "stopped" && hasActiveStopOwner ? "stopped" : undefined,
+    );
+    setSelectedReasonId(null);
+    setConditionDialogOpen(true);
+  }
+
   function handleSelectReasonOption(reasonId: string, optionId: string) {
+    setHierarchicalChoices([]);
     const reason = hierarchicalReasons?.find(item => item.id === reasonId);
     const option = reason?.options.find(item => item.id === optionId);
     if (!reason || !option) {
@@ -598,6 +635,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     // Group catalog failures must never disable legacy sector calls.
     if (!machine) return;
     setHierarchicalChoice(null);
+    setHierarchicalChoices([]);
     setSelectedSubtype(subtype);
 
     if (machine.machineStatus !== "stopped" || !hasActiveStopOwner) {
@@ -846,6 +884,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         open={selectedReasonId !== null}
         activeSubtypes={activeCalls.map(call => call.subtype)}
         sectorColors={Object.fromEntries(categories.map(category => [category.id, category.color]))}
+        sectorNames={Object.fromEntries(categories.map(category => [category.id, category.displayName]))}
+        onSelectMany={handleSelectReasonOptions}
         reason={hierarchicalReasons?.find(reason => reason.id === selectedReasonId)
           ? {
               ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
@@ -865,11 +905,13 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
           if (!open) {
             setForcedMachineCondition(undefined);
             setHierarchicalChoice(null);
+            setHierarchicalChoices([]);
           }
         }}
         machineId={machine.id}
         subtype={selectedSubtype}
         hierarchicalChoice={hierarchicalChoice}
+        hierarchicalChoices={hierarchicalChoices}
         forcedMachineCondition={forcedMachineCondition}
       />
       <CancelCallModal
