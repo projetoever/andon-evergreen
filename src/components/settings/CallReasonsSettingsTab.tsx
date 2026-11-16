@@ -173,6 +173,18 @@ export function CallReasonsSettingsTab() {
     };
   }, [refresh]);
 
+  function createReasonDraft() {
+    if (writeBlocked) return;
+    setSelected(null);
+    setDraft({
+      ...emptyDraft(),
+      displayOrder: Math.min(9999, Math.max(0, ...reasons.map(reason => reason.displayOrder)) + 10),
+    });
+    setAreaToAdd("");
+    setEditingOptionId(null);
+    setPolicyAcknowledged(false);
+  }
+
   function edit(reason: CallReasonView) {
     setPolicyAcknowledged(false);
     setEditingOptionId(null);
@@ -206,6 +218,11 @@ export function CallReasonsSettingsTab() {
     };
     if (!ID.test(next.id) || !next.displayName) {
       toast.error(ui("Informe um nome e identificador válido para o motivo."));
+      return;
+    }
+    if (!Number.isSafeInteger(next.displayOrder) ||
+        next.displayOrder < 0 || next.displayOrder > 9999) {
+      toast.error(ui("Informe uma ordem de 0 a 9999 para o motivo."));
       return;
     }
     setBusy(true);
@@ -350,7 +367,7 @@ export function CallReasonsSettingsTab() {
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
               <Button type="button" variant="outline" size="sm" disabled={writeBlocked}
-                onClick={() => { setSelected(null); setDraft(emptyDraft()); setAreaToAdd(""); setPolicyAcknowledged(false); }}>
+                onClick={createReasonDraft}>
                 {ui("Novo motivo")}
               </Button>
             </div>
@@ -427,6 +444,12 @@ export function CallReasonsSettingsTab() {
                 <Input type="color" value={draft.color} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, color: e.target.value })} />
               </Label>
+              <Label className="block space-y-2">{ui("Ordem de exibição do motivo")}
+                <Input type="number" min={0} max={9999} step={1}
+                  value={draft.displayOrder} disabled={writeBlocked}
+                  onChange={event => setDraft({ ...draft,
+                    displayOrder: Number(event.target.value) })} />
+              </Label>
             </div>
             {!chosen && !isPrimaryAdmin && (
               <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
@@ -453,6 +476,9 @@ export function CallReasonsSettingsTab() {
             {chosen && (
               <section className="space-y-3 border-t border-border pt-4">
                 <h4 className="font-semibold">{ui("Especialidades deste motivo")}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {ui("Vincule setores já cadastrados como subcategorias deste motivo. A vinculação não altera a política de KPI nem reclassifica chamados anteriores.")}
+                </p>
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhuma especialidade vinculada.")}</p>}
                 {chosen.options.map(option => (
                   <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
