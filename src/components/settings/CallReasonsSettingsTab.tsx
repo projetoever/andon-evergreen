@@ -197,7 +197,6 @@ export function CallReasonsSettingsTab() {
       displayOrder: Math.min(9999, Math.max(0, ...reasons.map(reason => reason.displayOrder)) + 10),
     });
     setAreaToAdd("");
-    setOptionNameToAdd("");
     setEditingOptionId(null);
     setPolicyAcknowledged(false);
   }
@@ -207,7 +206,6 @@ export function CallReasonsSettingsTab() {
     setEditingOptionId(null);
     setSelected(reason.id);
     setAreaToAdd("");
-    setOptionNameToAdd("");
     setDraft({
       id: reason.id, displayName: reason.displayName, color: reason.color,
       active: reason.active, displayOrder: reason.displayOrder,
