@@ -104,6 +104,27 @@ test("Hub module access reflects the verified central login, not legacy module p
   assert.equal(provisional.modules.find((m: {id: string}) => m.id === "operational").allowed, false);
   assert.equal(provisional.modules.find((m: {id: string}) => m.id === "bi").authenticated, false);
 
+  // A database connection fault must NOT turn into principal=null/HTTP 200:
+  // that would show the production "log in again" dialog even though the
+  // browser still has a valid HttpOnly cookie. Real auth denials remain 200.
+  const dbReader = prisma.accessSession.findUnique;
+  try {
+    prisma.accessSession.findUnique = (async () => {
+      throw new Error("simulated_temporary_database_outage");
+    }) as unknown as typeof dbReader;
+    const outage = await app.inject({ url: "/api/modules/access", headers });
+    assert.equal(outage.statusCode, 500,
+      "transient query failure must reach retryable error state, never a login overlay");
+  } finally {
+    prisma.accessSession.findUnique = dbReader;
+  }
+  const invalid = await app.inject({ url: "/api/modules/access",
+    headers: { ...headers, cookie: ACCESS_COOKIE + "=malformed" },
+  });
+  assert.equal(invalid.statusCode, 200);
+  assert.equal(invalid.json().principal, null,
+    "invalid authentication is still handled without surfacing internal errors");
+
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
   const legacy = (await app.inject({ url: "/api/modules/access", headers })).json();
   assert.deepEqual(legacy.globalHistory, { available: false, allowed: false });

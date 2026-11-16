@@ -13,6 +13,7 @@ import { accessRequest, type AccessState } from "@/services/accessService";
 import type { ModuleAccess } from "@/types/modules";
 import { toast } from "@/i18n/toast";
 import { persistentSessionMismatch, PERSISTENCE_NOT_ACTIVE } from "@/services/persistentSessionStatus";
+import { rememberConfirmedPersistentSession } from "@/services/sessionRecoveryDiagnostics";
 
 const ModuleAccessContext = createContext<{
   access: ModuleAccess | null;
@@ -37,6 +38,10 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       setAccess(next);
       setError(null);
       const principal = next.principal;
+      // Record only that the server has confirmed a durable login once.
+      // This is a display diagnostic, not an authentication credential.
+      if (principal?.purpose === "normal" && principal.persistentOperational === true)
+        rememberConfirmedPersistentSession();
       if (persistentSessionMismatch(principal)) {
         const warningKey = `${principal!.userId}:${next.workstation.id}`;
         if (warnedNonPersistent.current !== warningKey) {

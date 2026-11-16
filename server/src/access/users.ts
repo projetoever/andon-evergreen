@@ -102,17 +102,35 @@ export async function saveUser(
       // Older clients omit policy; preserve an existing setting or default safely.
       sessionPolicy: input.sessionPolicy ?? before?.sessionPolicy ?? "standard",
     };
+    // A display-name edit or resaving an unchanged form MUST NOT log out
+    // an already-authenticated production terminal. Only real changes to
+    // identity, role, account state, session policy, privileges or machine
+    // scope require authorization-version rotation and session revocation.
+    const affectsAuthorization = Boolean(before && (
+      before.login !== data.login ||
+      before.roleLabel !== data.roleLabel ||
+      before.accountType !== data.accountType ||
+      before.active !== data.active ||
+      before.machineScope !== data.machineScope ||
+      before.sessionPolicy !== data.sessionPolicy ||
+      before.permissions.length !== input.permissions.length ||
+      before.permissions.some(({ key }) => !input.permissions.includes(key)) ||
+      before.machines.length !== input.machineIds.length ||
+      before.machines.some(({ machineId }) => !input.machineIds.includes(machineId))
+    ));
     const user = id
       ? await tx.accessUser.update({
           where: { id },
           data: {
             ...data,
-            authorizationVersion: { increment: 1 },
-            permissions: { deleteMany: {}, create: input.permissions.map((key) => ({ key })) },
-            machines: {
-              deleteMany: {},
-              create: input.machineIds.map((machineId) => ({ machineId })),
-            },
+            ...(affectsAuthorization ? {
+              authorizationVersion: { increment: 1 },
+              permissions: { deleteMany: {}, create: input.permissions.map((key) => ({ key })) },
+              machines: {
+                deleteMany: {},
+                create: input.machineIds.map((machineId) => ({ machineId })),
+              },
+            } : {}),
           },
           select: userSelect,
         })
@@ -127,7 +145,7 @@ export async function saveUser(
           },
           select: userSelect,
         });
-    if (id)
+    if (id && affectsAuthorization)
       await tx.accessSession.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },

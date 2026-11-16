@@ -5996,4 +5996,16 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Conteúdo gerencial do Hub","Hub manager content","模組中心經理內容"],
   ["Verificar novamente","Check again","重新檢查"],
 
+  ["Diagnóstico do login anterior","Previous login diagnosis","先前登入診斷"],
+  ["O Firefox não enviou o cookie de login. Confira se o perfil apaga cookies ao fechar, se está em modo privado e se usa o mesmo HTTPS.","Firefox did not send the login cookie. Check whether this profile clears cookies on exit, uses private mode, or opens a different HTTPS address.","Firefox 未傳送登入 Cookie。請檢查關閉時是否清除 Cookie、是否使用私密模式，以及 HTTPS 位址是否相同。"],
+  ["Identidade da workstation não enviada. Verifique os dados do site e o perfil do navegador.","Workstation identity was not sent. Check site data and the browser profile.","未傳送工作站身分。請檢查網站資料和瀏覽器設定檔。"],
+  ["O cookie apresentado não corresponde a uma sessão no servidor. Confira o endereço HTTPS e possíveis restaurações.","The supplied cookie does not match a server session. Verify the HTTPS address and any restorations.","提供的 Cookie 找不到對應的伺服器工作階段。請確認 HTTPS 位址及還原記錄。"],
+  ["A sessão foi revogada. Confira no Hub o histórico de logout remoto e as alterações de segurança.","The session was revoked. Review remote logout and security changes in the Hub.","工作階段已被撤銷。請在模組中心檢查遠端登出和安全性變更記錄。"],
+  ["O navegador enviou uma identidade de workstation diferente daquela usada no login.","The browser sent a different workstation identity from the one used at login.","瀏覽器傳送的工作站身分與登入時使用的身分不同。"],
+  ["A sessão anterior tinha prazo e expirou. Confirme a emissão de Não expirar após autenticar.","The previous session had a time limit and expired. Confirm No expiry was actually issued at login.","先前工作階段有時間限制且已到期。請確認登入時確實啟用了不過期。"],
+  ["Houve alteração de segurança, senha ou permissões da conta. Uma nova autenticação é necessária.","The account's security, password, or permissions changed. A new login is required.","帳號安全性、密碼或權限已變更。需要重新登入。"],
+  ["A workstation está inativa ou aguardando aprovação no Hub.","The workstation is inactive or awaiting approval in the Hub.","工作站未啟用或正在模組中心等待核准。"],
+  ["A política permanente ou a confiança da workstation foi desativada após o login.","The no-expiry policy or workstation trust was disabled after login.","登入後，不過期政策或工作站信任設定已被停用。"],
+  ["A sessão não pôde ser validada. Consulte o diagnóstico de acesso no Hub.","The session could not be validated. Review the access diagnosis in the Hub.","無法驗證工作階段。請查看模組中心的存取診斷。"],
+  ["Ver diagnóstico do login anterior","View previous login diagnosis","查看先前登入診斷"],
 ]; 

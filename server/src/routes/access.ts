@@ -27,6 +27,7 @@ import {
 } from "../access/users.js";
 import { parseWorkstationId } from "../services/workstationAuthorization.js";
 import { ACCESS_COOKIE, PREAUTH_COOKIE, readSecureCookie, centralAccessEnabled } from "../access/http.js";
+import { diagnoseSessionLoss } from "../access/sessionLossDiagnostics.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
 import { setCentralProductionModeWithCredential } from "../access/centralProductionModeCredential.js";
@@ -220,7 +221,10 @@ export function registerAccessRoutes(
       } catch (e) {
         if (!(e instanceof AccessError)) throw e;
       }
-      let token = readSecureCookie(req, ACCESS_COOKIE) || readSecureCookie(req, PREAUTH_COOKIE);
+      const accessCookie = readSecureCookie(req, ACCESS_COOKIE);
+      const sessionDiagnostic = principal ? null
+        : await diagnoseSessionLoss(db, accessCookie, requestAccess(req).workstationId);
+      let token = accessCookie || readSecureCookie(req, PREAUTH_COOKIE);
       // Refresh the browser-capped cookie on a genuine session check.
       // No anonymous heartbeat or background poll may extend authorization.
       if (principal?.persistentOperational && token)
@@ -254,6 +258,9 @@ export function registerAccessRoutes(
       );
       return {
         principal,
+        // Diagnostic only, for a user already at the local login screen.
+        // It never grants access and never returns secret/cookie/identity data.
+        sessionDiagnostic,
         labSelfAdmissionAvailable,
         csrf: csrfToken(token),
         initialized: Boolean(

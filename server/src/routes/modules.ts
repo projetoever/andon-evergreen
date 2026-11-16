@@ -8,7 +8,7 @@ import { hasModuleSession, isPasswordModule } from "../security/moduleAuthorizat
 import type { TLSSocket } from "node:tls";
 import { ACCESS_COOKIE, centralAccessEnabled, readSecureCookie } from "../access/http.js";
 import { resolveSession } from "../access/sessions.js";
-import { assertModule, assertFullMachineScope, assertPermission, type Principal } from "../access/policy.js";
+import { AccessError, assertModule, assertFullMachineScope, assertPermission, type Principal } from "../access/policy.js";
 import { centralPriorityHttpEnabled } from "../security/centralPriorityHttp.js";
 import { globalHistoryModuleAccess } from "../security/globalHistoryModuleAccess.js";
 
@@ -71,7 +71,11 @@ export async function registerModuleRoutes(app: FastifyInstance) {
           new Date(),
           true,
         );
-      } catch {
+      } catch (error) {
+        // A real auth denial is anonymous. A database/network fault is NOT:
+        // swallowing it as principal=null causes a false "log in again"
+        // overlay on production screens. Let the provider show its retry UI.
+        if (!(error instanceof AccessError)) throw error;
         principal = null;
       }
     }
