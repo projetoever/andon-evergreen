@@ -584,8 +584,18 @@ try {
         assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
           "Tab content heading must exist: " + label);
       }
-      await andonNavigation.getByRole("button", { name: "Aparência e cores" }).click();
-      return workspace.getByRole("region", { name: "Aparência e cores" });
+      // P1 failed field test: verify Return works and re-entering config
+      // mounts the same fullscreen page without an overlay or lost session.
+      await workspace.getByRole("button", { name: "Voltar ao ANDON", exact: true }).click();
+      await page.waitForURL(url => url.pathname === "/andon");
+      await page.getByRole("button", { name: "Configurar sons do ANDON" }).click();
+      await page.waitForURL(url => url.pathname === "/andon/admin");
+      const reopened = page.getByRole("region", { name: "Painel administrativo do ANDON" });
+      await reopened.waitFor();
+      assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
+      await reopened.getByRole("navigation", { name: "Seções administrativas do ANDON" })
+        .getByRole("button", { name: "Aparência e cores", exact: true }).click();
+      return reopened.getByRole("region", { name: "Aparência e cores" });
     };
     // UX-12 still fails closed until the server authorizes palette writes.
     let appearance = await openAndonAppearance();
