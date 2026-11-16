@@ -343,8 +343,8 @@ export function CallReasonsSettingsTab() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-1">
+    <div className="space-y-2">
+      <header className="space-y-0.5">
         <h2 className="text-lg font-bold">{ui("Grupos de chamados")}</h2>
         <p className="text-sm text-muted-foreground">
           {ui("Grupos são atalhos opcionais para os setores já cadastrados. Os botões diretos continuam disponíveis; o grupo define a elegibilidade aos KPIs corretivos, sem alterar o setor, o alarme ou o histórico.")}
@@ -389,8 +389,8 @@ export function CallReasonsSettingsTab() {
         </p>
       )}
       {!loading && enabled && !error && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)]">
-          <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Grupos cadastrados")}>
+        <div className="grid gap-2 lg:grid-cols-[minmax(200px,0.55fr)_minmax(0,1.6fr)]">
+          <section className="space-y-2 rounded-lg border border-border bg-card p-3" aria-label={ui("Grupos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Grupos cadastrados")}</h3>
               <Button type="button" variant="outline" size="sm" disabled={writeBlocked}
@@ -424,37 +424,39 @@ export function CallReasonsSettingsTab() {
             {reasons.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum grupo cadastrado.")}</p>}
             {reasons.length > 0 && filteredReasons.length === 0 &&
               <p className="text-sm text-muted-foreground">{ui("Nenhum grupo encontrado. Ajuste a pesquisa ou o filtro.")}</p>}
-            <div className="max-h-[min(56dvh,35rem)] space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[min(62dvh,36rem)] space-y-1 overflow-y-auto pr-1">
             {filteredReasons.map(reason => (
               <button type="button" key={reason.id}
                 data-group-preview="true"
                 onClick={() => edit(reason)}
                 aria-pressed={selected === reason.id}
-                className={"machine-sector-action relative flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 px-3 py-2 text-center font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                  (selected === reason.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background " : "") +
-                  (!reason.active ? "opacity-55 " : "")}
-                style={{ backgroundColor: reason.color, borderColor: reason.color, color: readableGroupTextColor(reason.color) }}>
-                <span className="block min-w-0 break-words [overflow-wrap:anywhere]">
-                  {reason.displayName}
-                </span>
-                <span className="text-xs font-semibold normal-case opacity-90">
-                  {reason.options.length} {ui("setores")} · {ui(reason.active ? "Ativo" : "Inativo")}
+                className={"flex min-h-12 w-full min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                  (selected === reason.id ? "border-primary bg-primary/10" : "border-border bg-background") +
+                  (!reason.active ? " opacity-60" : "")}>
+                <span aria-hidden="true" className="h-8 w-2 shrink-0 rounded-sm" style={{ backgroundColor: reason.color }} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold uppercase">{reason.displayName}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {reason.options.length} {ui("setores")} · {ui(reason.active ? "Ativo" : "Inativo")}
+                  </span>
                 </span>
               </button>
             ))}
             </div>
           </section>
-          <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={ui("Editar grupo")}>
-            <h3 className="font-semibold">{ui(chosen ? "Editar grupo" : "Criar grupo")}</h3>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/20 p-3"
-              aria-label={ui("Prévia do botão do grupo no ANDON")}>
-              <span className="text-xs font-semibold text-muted-foreground">{ui("Prévia no ANDON")}</span>
-              <div className="machine-sector-action flex min-h-16 min-w-32 max-w-full flex-1 items-center justify-center rounded-lg border-2 px-3 py-2 text-center text-base font-black uppercase tracking-wide shadow-sm sm:flex-none"
-                style={{ backgroundColor: draft.color, borderColor: draft.color, color: readableGroupTextColor(draft.color) }}>
-                <span className="break-words [overflow-wrap:anywhere]">{draft.displayName.trim() || ui("Novo grupo")}</span>
+          <section className="space-y-3 rounded-lg border border-border bg-card p-3" aria-label={ui("Editar grupo")}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold">{ui(chosen ? "Editar grupo" : "Criar grupo")}</h3>
+              <div className="flex min-w-0 items-center gap-2"
+                aria-label={ui("Prévia do botão do grupo no ANDON")}>
+                <span className="text-xs font-semibold text-muted-foreground">{ui("Prévia no ANDON")}</span>
+                <div className="flex min-h-10 min-w-28 max-w-48 items-center justify-center rounded-md border-2 px-2 py-1 text-center text-xs font-black uppercase shadow-sm"
+                  style={{ backgroundColor: draft.color, borderColor: draft.color, color: readableGroupTextColor(draft.color) }}>
+                  <span className="break-words [overflow-wrap:anywhere]">{draft.displayName.trim() || ui("Novo grupo")}</span>
+                </div>
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <Label className="block space-y-2">{ui("Nome do grupo")}
                 <Input value={draft.displayName} maxLength={80} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, displayName: e.target.value })} />
@@ -469,7 +471,7 @@ export function CallReasonsSettingsTab() {
                   {natures.map(([value, title]) => <option key={value} value={value}>{ui(title)}</option>)}
                 </select>
               </Label>
-              <label className="flex min-h-10 flex-col justify-center gap-2 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+              <label className="flex min-h-10 flex-col justify-center gap-1 rounded-lg border border-border bg-muted/20 p-2 text-sm">
                 <span className="font-semibold">{ui("Elegibilidade do grupo aos KPIs corretivos")}</span>
                 <span className="flex items-center gap-2">
                   <input type="checkbox"
@@ -508,7 +510,7 @@ export function CallReasonsSettingsTab() {
                     displayOrder: Number(event.target.value) })} />
               </Label>
             </div>
-            <div role="note" className="space-y-1 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <div role="note" className="space-y-0.5 rounded-lg border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
               <p className="font-semibold text-foreground">{ui("Prévia do tratamento do chamado no BI")}</p>
               <p>{ui("BI operacional")}: {ui(draft.analyticsDisposition === "include"
                 ? "Ocorrência válida — tempos e volume acompanhados"
@@ -544,16 +546,17 @@ export function CallReasonsSettingsTab() {
               </Button>
             </div>
             {chosen && (
-              <section className="space-y-3 border-t border-border pt-4">
+              <section className="space-y-2 border-t border-border pt-2">
                 <h4 className="font-semibold">{ui("Setores vinculados ao grupo")}</h4>
                 <p className="text-xs text-muted-foreground">
                   {ui("Vincule um ou mais setores existentes ao grupo selecionado. Elétrica, Mecânica e outros setores mantêm seus identificadores originais; a política analítica pertence ao grupo.")}
                 </p>
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum setor vinculado ao grupo.")}</p>}
+                <div className="grid gap-2 md:grid-cols-2">
                 {chosen.options.map(option => (
-                  <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="machine-sector-action inline-flex min-h-14 max-w-full items-center justify-center rounded-lg border-2 px-3 py-2 text-center font-black uppercase tracking-wide shadow-sm"
+                  <div key={option.id} className="flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-lg border border-border p-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="inline-flex min-h-10 max-w-full items-center justify-center rounded-md border-2 px-2 py-1 text-center text-xs font-black uppercase tracking-wide shadow-sm"
                         style={{
                           backgroundColor: areas.find(area => area.id === option.technicalAreaId)?.color ?? chosen.color,
                           borderColor: areas.find(area => area.id === option.technicalAreaId)?.color ?? chosen.color,
@@ -564,14 +567,9 @@ export function CallReasonsSettingsTab() {
                           {option.displayName ?? option.technicalArea.displayName}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {ui("Área responsável")}: {option.technicalArea.displayName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {ui("KPI")}: {ui(option.effectivePolicy.effectiveKpiStatus)} ·
-                        {option.effectivePolicy.correctiveCandidate
-                          ? ui("Candidata ao KPI corretivo mediante evidências")
-                          : ui("Não é falha corretiva automática")}
+                      <p className="text-[11px] text-muted-foreground">
+                        {ui("Área responsável")}: {option.technicalArea.displayName} ·
+                        {ui("KPI")}: {ui(option.effectivePolicy.effectiveKpiStatus)}
                       </p>
                       {editingOptionId === option.id && (
                         <div className="space-y-3 border-t border-border pt-3">
@@ -605,7 +603,7 @@ export function CallReasonsSettingsTab() {
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-1">
                       <Button type="button" size="sm" variant="outline"
                         disabled={writeBlocked || (editingOptionId !== null && editingOptionId !== option.id)}
                         onClick={() => editingOptionId === option.id
@@ -620,6 +618,7 @@ export function CallReasonsSettingsTab() {
                     </div>
                   </div>
                 ))}
+                </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] sm:items-end">
                   <Label className="min-w-0 space-y-2">{ui("Setor existente")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
