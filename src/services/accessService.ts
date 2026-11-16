@@ -1,6 +1,7 @@
 import { DEFAULT_ANDON_API_CLIENT_CONFIG } from "@/api/andonApiClient";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
 import { setCentralCsrf, clearCentralCsrf } from "./centralCsrf";
+import { forgetConfirmedPersistentSession } from "./persistentSessionStatus";
 import type { Workstation } from "@/types/workstation";
 export interface AccessUser {
   id: string;
@@ -44,6 +45,8 @@ export interface AccessPrincipal {
 export interface AccessState {
   csrf: string;
   initialized: boolean;
+  /** Non-secret read-only reason, only when server did not authenticate. */
+  sessionDiagnostic?: string | null;
   labSelfAdmissionAvailable?: boolean;
   principal: AccessPrincipal | null;
 }
@@ -132,6 +135,8 @@ export async function accessRequest<T>(path: string, method = "GET", body?: unkn
   if (path === "/logout" && method === "POST") {
     csrf = "";
     clearCentralCsrf();
+    // Explicit logout should not be misdiagnosed as browser cookie loss.
+    forgetConfirmedPersistentSession();
   }
   return data as T;
 }
