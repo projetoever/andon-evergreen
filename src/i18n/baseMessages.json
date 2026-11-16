@@ -900,5 +900,8 @@
   ["Carregando página…","Loading page…","正在載入頁面…"],
   ["Aplicar","Apply","套用"],
   ["Verde Operacional","Operational Green","營運綠"],
-  ["Tons verdes equilibrados para leitura industrial.","Balanced green shades for industrial readability.","均衡的綠色調，適合工業環境清晰辨識。"]
+  ["Tons verdes equilibrados para leitura industrial.","Balanced green shades for industrial readability.","均衡的綠色調，適合工業環境清晰辨識。"],
+  ["Não foi possível carregar os conjuntos. A finalização está protegida até a consulta ser confirmada.","Unable to load equipment groups. Call completion stays blocked until the lookup is confirmed.","無法載入設備組別。確認查詢成功前，結案功能將保持鎖定。"],
+  ["Diagnóstico","Diagnostic","診斷"],
+  ["Código do erro","Error code","錯誤代碼"]
 ]

@@ -160,9 +160,43 @@ try {
   const listed = await send("GET", 1, null);
   assert.equal(listed.statusCode, 200, listed.body);
   assert(listed.json().some(row => row.id === setId));
-  // A catalog-only person with selected machineScope is not a global settings
-  // delegate and must not enumerate assets outside their operational scope.
+  // Selected-machine maintenance cannot query any asset without its machine
+  // assignment. This is a silent 404, not an admin-catalog permission error.
+  assert.equal((await send("GET", 2, null)).statusCode, 404);
+  await db.accessMachine.create({ data: { userId: userIds[2], machineId } });
+  await db.accessPermission.deleteMany({
+    where: { userId: userIds[2], key: "catalog.assets.manage" },
+  });
+  const operationalRead = await send("GET", 2, null);
+  assert.equal(operationalRead.statusCode, 200, operationalRead.body);
+  assert(operationalRead.json().some(row => row.id === setId));
+  // Reading an asset for call completion must never imply permission to edit it.
+  assert.equal((await send("POST", 2, null, body("Never editable", "ci_no_write"))).statusCode, 403);
+  assert.equal((await send("GET", 2, null, undefined, { cookie: "" })).statusCode, 401);
+  assert.equal((await send("GET", 2, null, undefined,
+    { origin: "https://other.invalid" })).statusCode, 403);
+  // An existing machine outside the maintainer's grant is indistinguishable
+  // from a nonexistent machine even if it has identifiable active assets.
+  await db.machine.create({ data: {
+    id: "ci04d1-other-" + n, name: "Other test machine", isActive: true,
+  } });
+  await db.machineSet.create({ data: {
+    id: "ci04d1-other-set-" + n, machineId: "ci04d1-other-" + n,
+    code: "other_" + n, name: "Out-of-scope asset", isActive: true,
+  } });
+  const crossMachine = await app.inject({
+    method: "GET",
+    url: "/api/machines/ci04d1-other-" + n + "/sets?includeSubsets=list",
+    headers: {
+      origin: "https://andon.test", "x-andon-workstation-id": stationIds[2],
+      cookie: "__Host-andon-access=" + tokens[2],
+    },
+  });
+  assert.equal(crossMachine.statusCode, 404, crossMachine.body);
+  await db.workstation.update({ where: { id: stationIds[2] }, data: { active: false } });
   assert.equal((await send("GET", 2, null)).statusCode, 403);
+  await db.workstation.update({ where: { id: stationIds[2] }, data: { active: true } });
+
 
   const changed = await send("PATCH", 1, setId, {
     name: "Spindle A", code: "SPINDLE A", description: "test of edit", displayOrder: 7,
@@ -247,9 +281,13 @@ try {
   restore("ANDON_CENTRAL_ACCESS_ENABLED", old.central);
   restore("ANDON_CENTRAL_MACHINE_SET_SETTINGS_HTTP_ENABLED", old.sets);
   restore("ANDON_ACCESS_ORIGIN", old.origin);
+  // Scoped test users reference the machine: remove assignments before deleting it.
+  await db.accessMachine.deleteMany({ where: { userId: { in: userIds } } });
   if (callId) await db.andonCall.deleteMany({ where: { id: callId } });
   if (subsetId) await db.machineSubset.deleteMany({ where: { id: subsetId } });
   if (sets.length) await db.machineSet.deleteMany({ where: { id: { in: sets } } });
+  await db.machineSet.deleteMany({ where: { id: "ci04d1-other-set-" + n } });
+  await db.machine.deleteMany({ where: { id: "ci04d1-other-" + n } });
   await db.machineSetType.deleteMany({ where: { id: typeId } });
   await db.machine.deleteMany({ where: { id: machineId } });
   for (const userId of userIds) {

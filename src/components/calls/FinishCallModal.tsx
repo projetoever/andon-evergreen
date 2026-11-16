@@ -21,6 +21,7 @@ import { useAndon } from "@/context/AndonProvider";
 import { getCallTypeOption } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { listMachineSets } from "@/services/machineAssetService";
+import { AndonApiError } from "@/api/andonApiClient";
 import { getSystemSettings } from "@/services/systemSettingsService";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import type { MachineSet } from "@/types/machineSet";
@@ -99,6 +100,8 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
 
   const [assetLoadFailed, setAssetLoadFailed] = useState(false);
+  const [assetLoadErrorCode, setAssetLoadErrorCode] = useState<string | null>(null);
+  const [assetReload, setAssetReload] = useState(0);
 
   const [allowWholeSetCalls, setAllowWholeSetCalls] = useState(false);
 
@@ -297,6 +300,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
       setMachineSets([]);
       setIsLoadingAssets(false);
       setAssetLoadFailed(false);
+      setAssetLoadErrorCode(null);
 
       return;
     }
@@ -305,6 +309,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
 
     setIsLoadingAssets(true);
     setAssetLoadFailed(false);
+    setAssetLoadErrorCode(null);
 
     listMachineSets(currentMachineId, {
       includeInactive: true,
@@ -315,13 +320,16 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
           setMachineSets(sets);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!current) {
           return;
         }
 
         setMachineSets([]);
         setAssetLoadFailed(true);
+        setAssetLoadErrorCode(error instanceof AndonApiError
+          ? `${error.status ?? "rede"}${error.code ? " · " + error.code : ""}`
+          : "rede");
 
         toast.error("Não foi possível carregar os conjuntos da máquina");
       })
@@ -334,7 +342,7 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
     return () => {
       current = false;
     };
-  }, [open, callId, currentMachineId, requiresAssetConfirmation]);
+  }, [open, callId, currentMachineId, requiresAssetConfirmation, assetReload]);
 
   useEffect(() => {
     if (!open || !requiresAssetConfirmation) {
@@ -755,8 +763,17 @@ export function FinishCallModal({ open, onOpenChange, callId }: FinishCallModalP
                       {ui("Carregando conjuntos...")}
                     </div>
                   ) : assetLoadFailed ? (
-                    <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
-                      {ui("Não foi possível carregar os conjuntos. Feche e abra novamente.")}
+                    <div role="alert" className="space-y-2 rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+                      <p>{ui("Não foi possível carregar os conjuntos. A finalização está protegida até a consulta ser confirmada.")}</p>
+                      {assetLoadErrorCode && (
+                        <p className="font-mono text-xs" aria-label={ui("Código do erro")}>
+                          {ui("Diagnóstico")}: {assetLoadErrorCode}
+                        </p>
+                      )}
+                      <button type="button" onClick={() => setAssetReload(version => version + 1)}
+                        className="rounded-md border border-danger/50 px-3 py-2 font-bold text-foreground hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {ui("Tentar novamente")}
+                      </button>
                     </div>
                   ) : selectableMachineSets.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">

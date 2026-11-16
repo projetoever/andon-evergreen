@@ -4,8 +4,10 @@ import type { FastifyRequest } from "fastify";
 import type { Principal } from "../access/policy.js";
 import {
   bindAuthorizedMachineReadPrincipal,
+  bindAuthorizedGlobalAssetCatalogReader,
   isScopedMachineReadRoute,
   scopedMachineReadIds,
+  scopedMachineAssetReadIds,
 } from "./centralScopedMachineReads.js";
 
 const principal = (machineScope: "all" | "selected", machineIds: string[] = []): Principal => ({
@@ -29,6 +31,11 @@ const mockRequest = () => ({}) as FastifyRequest;
 test("only explicit machine GET routes are eligible for scoped central reads", () => {
   assert(isScopedMachineReadRoute("GET", "/api/machines"));
   assert(isScopedMachineReadRoute("GET", "/api/machines/37"));
+  assert(isScopedMachineReadRoute("GET", "/api/machines/37/sets"));
+  assert(isScopedMachineReadRoute("GET", "/api/machine-sets/set37/subsets"));
+  assert(isScopedMachineReadRoute("HEAD", "/api/machines/37/sets"));
+  assert(!isScopedMachineReadRoute("PATCH", "/api/machines/37/sets"));
+  assert(!isScopedMachineReadRoute("DELETE", "/api/machine-sets/set37/subsets"));
   assert(isScopedMachineReadRoute("GET", "/api/andon-calls"));
   assert(isScopedMachineReadRoute("GET", "/api/failure-events"));
   assert(isScopedMachineReadRoute("HEAD", "/api/failure-events"));
@@ -106,5 +113,33 @@ test("legacy transport never applies new selected-machine filtering", () => {
   } finally {
     if (before === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED = before;
+  }
+});
+
+test("P0 operational asset lists are scoped; global bypass only after authorized catalog binding", () => {
+  const old = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    assert.throws(() => scopedMachineAssetReadIds(mockRequest()), /central_read_context_required/);
+    const maintenance = mockRequest();
+    bindAuthorizedMachineReadPrincipal(maintenance, principal("selected", ["17"]));
+    assert.deepEqual(scopedMachineAssetReadIds(maintenance), ["17"]);
+    const none = mockRequest();
+    bindAuthorizedMachineReadPrincipal(none, principal("selected"));
+    assert.deepEqual(scopedMachineAssetReadIds(none), []);
+    const privileged = mockRequest();
+    bindAuthorizedGlobalAssetCatalogReader(privileged, {
+      ...principal("selected", ["17"]),
+      permissions: ["andon.read", "andon.settings.open"],
+    });
+    assert.equal(scopedMachineAssetReadIds(privileged), null);
+    // A catalog-only context must not broaden the ordinary machine/call lists.
+    assert.deepEqual(scopedMachineReadIds(privileged), ["17"]);
+    assert.throws(() => bindAuthorizedGlobalAssetCatalogReader(mockRequest(), {
+      ...principal("selected", ["17"]), purpose: "password_change",
+    }), /password_change_required/);
+  } finally {
+    if (old === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = old;
   }
 });

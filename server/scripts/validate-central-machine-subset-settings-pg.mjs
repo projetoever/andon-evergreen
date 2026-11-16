@@ -160,7 +160,18 @@ try {
   assert.equal((await audits(childId, "andon.machine_subset.settings.create")).length, 1);
   assert.equal((await send("POST", 0, null, body("Bearing B", "bearing_a"))).statusCode, 409);
   assert.equal((await send("GET", 1, null)).statusCode, 200);
-  assert.equal((await send("GET", 2, null)).statusCode, 403);
+  assert.equal((await send("GET", 2, null)).statusCode, 404);
+  await db.accessMachine.create({ data: { userId: userIds[2], machineId } });
+  await db.accessPermission.deleteMany({
+    where: { userId: userIds[2], key: "catalog.assets.manage" },
+  });
+  const scopedSubsets = await send("GET", 2, null);
+  assert.equal(scopedSubsets.statusCode, 200, scopedSubsets.body);
+  assert(scopedSubsets.json().some(row => row.id === childId));
+  assert.equal((await send("POST", 2, null, body("No write", "read_only"))).statusCode, 403);
+  assert.equal((await send("GET", 2, null, undefined, { cookie: "" })).statusCode, 401);
+  assert.equal((await send("GET", 2, null, undefined,
+    { origin: "https://other.invalid" })).statusCode, 403);
 
   const edit = await send("PATCH", 1, childId, {
     code: "BEARING B", name: "Bearing B", manufacturer: "CI Lab",
@@ -240,6 +251,8 @@ try {
   restore("ANDON_CENTRAL_ACCESS_ENABLED", previous.access);
   restore("ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED", previous.subset);
   restore("ANDON_ACCESS_ORIGIN", previous.origin);
+  // Scoped test users reference the machine: remove assignments before deleting it.
+  await db.accessMachine.deleteMany({ where: { userId: { in: userIds } } });
   if (callId) await db.andonCall.deleteMany({ where: { id: callId } });
   await db.machineSubset.deleteMany({ where: { machineSetId: setId } });
   await db.machineSubsetType.deleteMany({ where: { id: subsetTypeId } });
