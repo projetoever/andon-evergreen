@@ -33,7 +33,7 @@ export const SESSION_LOSS_MESSAGES: Readonly<Record<string, string>> = {
   session_expired: "A sessão anterior tinha prazo e expirou. Confirme a emissão de Não expirar após autenticar.",
   account_security_changed: "Houve alteração de segurança, senha ou permissões da conta. Uma nova autenticação é necessária.",
   workstation_blocked: "A workstation está inativa ou aguardando aprovação no Hub.",
-  persistent_trust_removed: "A política permanente ou a confiança da workstation foi desativada após o login.",
+  persistent_trust_removed: "A política Não expirar da conta foi alterada ou a conta perdeu a elegibilidade para sessão permanente.",
   session_unavailable: "A sessão não pôde ser validada. Consulte o diagnóstico de acesso no Hub.",
 };
 
