@@ -281,8 +281,8 @@ export function MachineActionPanel({
         >
           <span>
             {reasonCatalogStatus === "loading"
-              ? t("Carregando categorias de chamados...")
-              : t("Abertura de novos chamados indisponível: não foi possível validar as categorias.")}
+              ? t("Carregando grupos de chamados... Os setores continuam disponíveis.")
+              : t("Grupos indisponíveis no momento. Os botões dos setores continuam disponíveis.")}
           </span>
           {reasonCatalogStatus === "unavailable" && (
             <button
