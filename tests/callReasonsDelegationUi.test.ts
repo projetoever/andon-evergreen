@@ -139,7 +139,7 @@ test("CFG-08C: presentation saves never resend KPI policy and material policy ch
   assert.match(presentation, /active: next\.active/);
   assert.match(presentation, /displayOrder: next\.displayOrder/);
   assert.doesNotMatch(presentation, /nature|maintenanceKpiPolicy|analyticsDisposition|suggestedResponsibility/);
-  assert.match(page, /chosen\.nature !== draft\.nature \|\| chosen\.maintenanceKpiPolicy !== draft\.maintenanceKpiPolicy/);
+  assert.match(page, /chosen\.nature !== draft\.nature \|\|\s+chosen\.maintenanceKpiPolicy !== draft\.maintenanceKpiPolicy \|\|\s+chosen\.analyticsDisposition !== draft\.analyticsDisposition/);
   assert.match(page, /draft\.maintenanceKpiPolicy === "eligible"/);
   assert.match(page, /if \(policyReviewNeeded && !policyAcknowledged\) return/);
   assert.match(page, /isPrimaryAdmin && policyReviewNeeded \? values : presentationOnly/);
