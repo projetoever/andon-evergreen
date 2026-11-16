@@ -855,5 +855,6 @@
   ["CSV filtrado exportado com auditoria no servidor.","Filtered CSV exported and audited on the server.","已匯出篩選 CSV，並於伺服器記錄稽核。"],
   ["A exportação excede 500 registros. Refine os filtros e tente novamente.","The export exceeds 500 records. Narrow the filters and try again.","匯出超過 500 筆紀錄。請縮小篩選範圍後再試。"],
   ["Não foi possível exportar o histórico filtrado.","Could not export the filtered history.","無法匯出篩選後的歷史紀錄。"],
-  ["Não expirar — definido no perfil do usuário","No expiration — defined by the user profile","不自動過期 — 由使用者設定檔決定"]
+  ["Não expirar — definido no perfil do usuário","No expiration — defined by the user profile","不自動過期 — 由使用者設定檔決定"],
+  ["A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.","Session duration does not change permissions. No expiration is set by the Person user profile (except the primary Admin). The workstation must be active and approved to allow access, but does not determine duration. Logout, revocation, and security changes end the session.","工作階段期限不會變更權限。不自動過期由個人使用者設定檔決定（主要管理員除外）。工作站必須已啟用並獲核准才能存取，但不決定工作階段期限。登出、撤銷與安全性變更會結束工作階段。"]
 ]
