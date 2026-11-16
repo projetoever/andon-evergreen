@@ -3,6 +3,7 @@ import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 import { toast } from "@/i18n/toast";
+import { CompactAndonColorField } from "./CompactAndonColorField";
 
 import { BigButton } from "@/components/common/BigButton";
 import { cn } from "@/lib/utils";
@@ -449,14 +450,9 @@ export function CategoriesSettingsTab() {
             <label className="text-sm font-semibold">
               {ui("Cor do botão na tela da máquina")}
               <div className="mt-1 flex h-12 items-center gap-3 rounded-md border border-border bg-background px-2">
-                <input
-                  type="color"
-                  value={draft.color}
-                  onChange={(event) =>
-                    setDraft({ ...draft, color: event.target.value.toUpperCase() })
-                  }
-                  className="h-9 w-14 cursor-pointer rounded border-0 bg-transparent p-0"
-                />
+                <CompactAndonColorField label="Cor do botão na tela da máquina"
+                  value={draft.color} disabled={!canChangeCatalog || isBusy}
+                  onChange={color => setDraft(previous => ({ ...previous, color }))} />
                 <span className="font-mono text-sm font-bold">{draft.color.toUpperCase()}</span>
               </div>
             </label>
