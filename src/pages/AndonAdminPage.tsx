@@ -71,7 +71,7 @@ export function AndonAdminPage() {
           <ShieldCheck className="h-7 w-7 text-primary" aria-hidden="true" />
           <h1 className="text-xl font-bold">{ui("Administração do ANDON")}</h1>
           <p className="text-sm text-muted-foreground">
-            {authorization === "checking" && !error && !checking ? true : checking || !access
+            {checking || (authorization === "checking" && !error)
               ? ui("Verificando autorização da workstation e do usuário...")
               : ui("Acesso não autorizado. Entre pelo Hub ou solicite a permissão Config. ANDON.")}
           </p>
