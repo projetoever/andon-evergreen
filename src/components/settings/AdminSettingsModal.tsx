@@ -117,9 +117,9 @@ const tabs: AdminNavigationItem[] = [
   },
   {
     id: "categories",
-    get label() { return ui("Setores, categorias e motivos"); },
+    get label() { return ui("Setores, categorias e grupos"); },
     get description() {
-      return ui("Organização dos setores, motivos e especialidades dos chamados.");
+      return ui("Setores existentes e grupos opcionais para organizar os chamados.");
     },
     group: "Cadastros",
     icon: Tags,
@@ -222,7 +222,7 @@ export function AdminSettingsWorkspace({
             className={cn("min-h-11 rounded-lg px-3 py-2 text-sm font-bold transition-colors",
               catalogView === "reasons"
                 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-            {ui("Motivos e subcategorias")}
+            {ui("Grupos de chamados")}
           </button>
         </nav>
         {catalogView === "sectors" ? <CategoriesSettingsTab /> : <CallReasonsSettingsTab />}
