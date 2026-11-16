@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, LockKeyhole } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ui } from "@/i18n/translate";
@@ -46,20 +46,30 @@ export function CallReasonOptionsModal({
 }: CallReasonOptionsModalProps) {
   useLanguage();
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
-  useEffect(() => { setSelectedOptionIds([]); }, [reason?.id, open]);
+  // Reconcile changes caused by another workstation while this dialog is open.
+  // The API remains the authority for concurrent writes and rejects duplicates.
+  const activeKey = [...activeSubtypes].sort().join("|");
+  const activeSet = new Set(activeSubtypes);
   const available = reason?.active ? reason.options.filter(option => option.active) : [];
-  const selected = available.filter(option => selectedOptionIds.includes(option.id));
-  const hasExisting = selected.some(option =>
-    Boolean(option.legacySubtype && activeSubtypes.includes(option.legacySubtype)));
-  const canConfirm = Boolean(reason?.active && selected.length > 0 && !busy &&
-    (!onSelectMany || !hasExisting));
+  const isAlreadyOpen = (subtype?: string) => Boolean(subtype && activeSet.has(subtype));
+  useEffect(() => { setSelectedOptionIds([]); }, [reason?.id, open]);
+  useEffect(() => {
+    setSelectedOptionIds(current => current.filter(id =>
+      !reason?.options.some(option => option.id === id &&
+        Boolean(option.legacySubtype && activeKey.split("|").includes(option.legacySubtype)))));
+  }, [activeKey, reason?.id]);
+  const selected = available.filter(option =>
+    selectedOptionIds.includes(option.id) && !isAlreadyOpen(option.legacySubtype));
+  const freeCount = available.filter(option => !isAlreadyOpen(option.legacySubtype)).length;
+  const canConfirm = Boolean(reason?.active && selected.length > 0 && !busy);
   const sectorColor = (subtype?: string) =>
     sectorColors[subtype ?? ""] ?? reason?.color ?? "#64748B";
   const sectorName = (option: (typeof available)[number]) =>
     sectorNames[option.legacySubtype ?? ""] ?? option.displayName;
 
   function confirm() {
-    if (!reason || !canConfirm) return;
+    if (!reason || !canConfirm ||
+        selected.some(option => isAlreadyOpen(option.legacySubtype))) return;
     if (onSelectMany && selected.length > 1) {
       onSelectMany(reason.id, selected.map(option => option.id));
     } else {
@@ -76,11 +86,14 @@ export function CallReasonOptionsModal({
           </DialogTitle>
           <DialogDescription className="text-base">
             {onSelectMany
-              ? ui("Selecione um ou mais setores. Setores com chamados ativos não podem ser incluídos novamente.")
-              : ui("Selecione um setor deste grupo. Se ele já tiver chamado ativo, o sistema selecionará o existente, sem duplicar nem alterar sua classificação.")}
+              ? ui("Selecione um ou mais setores livres. Setores com chamados ativos estão bloqueados.")
+              : ui("Selecione um setor livre. Setores com chamados ativos estão bloqueados.")}
           </DialogDescription>
         </DialogHeader>
 
+        <p role="status" className="text-sm font-semibold text-muted-foreground">
+          {freeCount} {ui("setores disponíveis para abertura")}
+        </p>
         {available.length === 0 ? (
           <p role="status" className="rounded-lg border border-border bg-muted/30 p-4 text-base">
             {ui("Nenhum setor ativo vinculado a este grupo. Solicite a configuração ao administrador.")}
@@ -88,31 +101,41 @@ export function CallReasonOptionsModal({
         ) : (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={ui("Setores disponíveis no grupo")}>
             {available.map(option => {
-              const alreadyOpen = Boolean(option.legacySubtype && activeSubtypes.includes(option.legacySubtype));
-              const chosen = selectedOptionIds.includes(option.id);
+              const alreadyOpen = isAlreadyOpen(option.legacySubtype);
+              const chosen = selected.some(item => item.id === option.id);
               const color = sectorColor(option.legacySubtype);
               return (
                 <button
                   key={option.id}
                   type="button"
-                  disabled={busy || Boolean(onSelectMany && alreadyOpen)}
-                  aria-pressed={chosen}
-                  aria-label={sectorName(option) + (alreadyOpen ? " — " + ui("Chamado já aberto") : "")}
-                  onClick={() => setSelectedOptionIds(current =>
-                    onSelectMany
-                      ? chosen ? current.filter(id => id !== option.id) : [...current, option.id]
-                      : [option.id])}
+                  disabled={busy || alreadyOpen}
+                  data-call-sector-active={alreadyOpen ? "true" : "false"}
+                  aria-pressed={alreadyOpen ? false : chosen}
+                  aria-label={sectorName(option) + (alreadyOpen ? " — " + ui("Indisponível: chamado ativo") : "")}
+                  onClick={() => {
+                    if (busy || alreadyOpen) return;
+                    setSelectedOptionIds(current =>
+                      onSelectMany
+                        ? current.includes(option.id)
+                          ? current.filter(id => id !== option.id)
+                          : [...current, option.id]
+                        : [option.id]);
+                  }}
                   className={
-                    "machine-sector-action relative min-h-16 rounded-lg border-2 px-3 py-2 text-lg font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 " +
-                    (chosen ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "")
+                    "machine-sector-action relative min-h-16 rounded-lg border-2 px-3 py-2 text-lg font-black uppercase tracking-wide shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                    (alreadyOpen
+                      ? "cursor-not-allowed opacity-40 grayscale"
+                      : "hover:brightness-110") +
+                    (chosen ? " ring-2 ring-primary ring-offset-2 ring-offset-background" : "")
                   }
                   style={{ backgroundColor: color, borderColor: color, color: readableText(color) }}
                 >
                   <span className="block break-words">{sectorName(option)}</span>
                   {chosen && <Check className="absolute right-2 top-2 h-5 w-5" aria-hidden="true" />}
                   {alreadyOpen && (
-                    <span className="mt-1 block text-xs font-semibold normal-case">
-                      {ui("Chamado já aberto")}
+                    <span className="mt-1 flex items-center justify-center gap-1 text-xs font-semibold normal-case">
+                      <LockKeyhole aria-hidden="true" className="h-4 w-4" />
+                      {ui("Indisponível: chamado ativo")}
                     </span>
                   )}
                 </button>
@@ -134,7 +157,7 @@ export function CallReasonOptionsModal({
             )}
             <Button type="button" size="lg" className="min-h-12 min-w-40 px-6 text-base font-bold"
               disabled={!canConfirm} onClick={confirm}>
-              {ui(!onSelectMany && hasExisting ? "Selecionar chamado existente" : "Continuar")}
+              {ui("Continuar")}
             </Button>
           </div>
         </div>
