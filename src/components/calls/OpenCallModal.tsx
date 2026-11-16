@@ -17,6 +17,8 @@ import type { MachineStatus } from "@/types/machine";
 import type { MachineSet } from "@/types/machineSet";
 import { listMachineSets } from "@/services/machineAssetService";
 import { getSystemSettings } from "@/services/systemSettingsService";
+import { getCategoryConfigs } from "@/services/categoryConfigService";
+import type { AndonCategoryConfig } from "@/types/settings";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { AndonApiError } from "@/api/andonApiClient";
 import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
@@ -51,6 +53,15 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   const [reasonCatalogStatus, setReasonCatalogStatus] =
     useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
   const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[]>([]);
+  const [groupSectorConfigs, setGroupSectorConfigs] = useState<AndonCategoryConfig[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void getCategoryConfigs({ activeOnly: true })
+      .then(configs => { if (active) setGroupSectorConfigs(configs); })
+      .catch(() => { if (active) setGroupSectorConfigs([]); });
+    return () => { active = false; };
+  }, [open]);
   const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
   const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
   const [reasonReload, setReasonReload] = useState(0);
@@ -680,6 +691,8 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
       busy={isSubmitting}
       activeSubtypes={calls.filter(call => call.machineId === machineId &&
         ["open", "in_progress", "post_maintenance"].includes(call.status)).map(call => call.subtype)}
+      sectorColors={Object.fromEntries(groupSectorConfigs.map(category => [category.id, category.color]))}
+      sectorNames={Object.fromEntries(groupSectorConfigs.map(category => [category.id, category.displayName]))}
       reason={hierarchicalReasons.find(reason => reason.id === selectedReasonId)
         ? {
             ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
