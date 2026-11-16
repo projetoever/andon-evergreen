@@ -844,6 +844,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <CallReasonOptionsModal
         open={selectedReasonId !== null}
         activeSubtypes={activeCalls.map(call => call.subtype)}
+        sectorColors={Object.fromEntries(categories.map(category => [category.id, category.color]))}
         reason={hierarchicalReasons?.find(reason => reason.id === selectedReasonId)
           ? {
               ...hierarchicalReasons.find(reason => reason.id === selectedReasonId)!,
