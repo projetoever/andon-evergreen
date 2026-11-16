@@ -13,7 +13,7 @@ test("SEC-21: session duration never overwrites the selected profile grants", as
   assert.match(editor, /value=\{draft\.sessionPolicy\}/);
   assert.match(editor, /<option value="daily">/);
   assert.match(editor, /<option value="persistent">/);
-  assert.match(editor, /Não expirar — workstation confiável \(sem fixar tela\)/);
+  assert.match(editor, /Não expirar — definido no perfil do usuário/);
   assert.doesNotMatch(editor, /máquina fixada e conta não administrativa|A sessão permanece limitada à máquina fixada/);
   assert.doesNotMatch(editor, /Usar permissões de Produção 24h/);
   assert.doesNotMatch(editor, /suggestedPersistentProductionGrants|persistentSessionIncompatibleGrants/);
@@ -129,7 +129,9 @@ test("P0 permanent login requires no pinned machine and is never implicitly revo
   assert.doesNotMatch(sessions, /row\.persistentMachineId !== row\.workstation\.lockedMachineId/);
   assert.doesNotMatch(api, /throw new AccessError\("machine_screen_required", 409\)/);
   assert.doesNotMatch(hints, /Fixe a máquina|máquina fixada/);
-  assert.doesNotMatch(workstations, /!workstation\.lockedMachineId &&\s*!workstation\.allowPersistentOperationalLogin/);
+  assert.doesNotMatch(workstations, /allowPersistentOperationalLogin|changePersistentOperational/);
+  assert.doesNotMatch(sessions, /if \(!station\.allowPersistentOperationalLogin\)/);
+  assert.doesNotMatch(api, /allowPersistentOperationalLogin\?: boolean/);
   assert.match(sessions, /machineScope: row\.user\.machineScope/);
   assert.match(sessions, /machineIds: row\.user\.machines\.map/);
 });
