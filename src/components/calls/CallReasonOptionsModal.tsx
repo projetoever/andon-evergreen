@@ -29,12 +29,13 @@ export interface CallReasonOptionsModalProps {
   reason: CallReasonChoice | null;
   busy?: boolean;
   activeSubtypes?: readonly string[];
+  sectorColors?: Readonly<Record<string, string>>;
   onOpenChange: (open: boolean) => void;
   onSelect: (reasonId: string, optionId: string) => void;
 }
 
 export function CallReasonOptionsModal({
-  open, reason, busy = false, activeSubtypes = [], onOpenChange, onSelect,
+  open, reason, busy = false, activeSubtypes = [], sectorColors = {}, onOpenChange, onSelect,
 }: CallReasonOptionsModalProps) {
   useLanguage();
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -43,6 +44,15 @@ export function CallReasonOptionsModal({
   const available = reason?.active ? reason.options.filter(option => option.active) : [];
   const selected = available.find(option => option.id === selectedOptionId);
   const selectedAlreadyOpen = Boolean(selected?.legacySubtype && activeSubtypes.includes(selected.legacySubtype));
+  const optionColor = (legacySubtype?: string) =>
+    sectorColors[legacySubtype ?? ""] ?? reason?.color ?? "#64748B";
+  const readableText = (hex: string) => {
+    const normalized = hex.replace("#", "");
+    if (!/^[0-9a-f]{6}$/i.test(normalized)) return "#FFFFFF";
+    const rgb = [0, 2, 4].map(index => Number.parseInt(normalized.slice(index, index + 2), 16));
+    return (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 145
+      ? "#071015" : "#FFFFFF";
+  };
 
   function confirm() {
     if (!reason?.active || !selected || busy) return;
@@ -78,17 +88,15 @@ export function CallReasonOptionsModal({
                   ? " — " + ui("Chamado já aberto") : "")}
                 onClick={() => setSelectedOptionId(option.id)}
                 className={
-                  "relative min-h-16 overflow-hidden rounded-xl border-2 px-3 py-3 text-lg font-black uppercase tracking-wide transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                  (selectedOptionId === option.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground hover:bg-accent")
+                  "machine-sector-action relative min-h-16 rounded-lg border-2 px-3 py-2 text-lg font-black uppercase tracking-wide shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 " +
+                  (selectedOptionId === option.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "")
                 }
                 style={{
-                  borderColor: selectedOptionId === option.id ? reason?.color : undefined,
+                  backgroundColor: optionColor(option.legacySubtype),
+                  borderColor: optionColor(option.legacySubtype),
+                  color: readableText(optionColor(option.legacySubtype)),
                 }}
               >
-                <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1"
-                  style={{ backgroundColor: reason?.color }}/>
                 <span className="block break-words">{option.displayName}</span>
                 {option.legacySubtype && activeSubtypes.includes(option.legacySubtype) && (
                   <span className="mt-1 block text-xs font-semibold normal-case">

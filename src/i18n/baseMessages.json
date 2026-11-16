@@ -974,5 +974,30 @@
   ["Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.","New groups do not automatically contribute to corrective KPIs. The primary Admin alone can authorize evidence-based eligibility.","新群組不會自動計入矯正 KPI，只有主管理員可依據證據授予納入資格。"],
   ["Nome exibido do setor no grupo","Sector label in group","群組中的部門顯示名稱"],
   ["Catálogo de grupos habilitado. Cada grupo reutiliza setores existentes; edição, políticas de KPI e abertura pelo grupo exigem autorizações independentes.","Group catalog enabled. Groups reuse existing sectors; edits, KPI policies and opening through groups have separate permissions.","群組目錄已啟用；群組重用現有部門，編輯、KPI 政策及群組通報需不同權限。"],
-  ["Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI.","Group catalog disabled here. Direct sector buttons remain available without changing BI policies.","此環境未啟用群組目錄，部門直接通報仍可使用且不改變 BI 政策。"]
+  ["Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI.","Group catalog disabled here. Direct sector buttons remain available without changing BI policies.","此環境未啟用群組目錄，部門直接通報仍可使用且不改變 BI 政策。"],
+  [
+    "Setores técnicos existentes, seus IDs e apresentação dos botões originais.",
+    "Existing technical sectors, their IDs, and the original button appearance.",
+    "現有技術部門、其 ID 與原始按鈕外觀。"
+  ],
+  [
+    "Botões agrupadores, setores vinculados e política de KPI do grupo.",
+    "Group buttons, linked sectors, and the group's KPI policy.",
+    "群組按鈕、關聯部門及群組 KPI 政策。"
+  ],
+  [
+    "Prévia do botão do grupo no ANDON",
+    "Preview of the group button in ANDON",
+    "ANDON 群組按鈕預覽"
+  ],
+  [
+    "Prévia no ANDON",
+    "Preview in ANDON",
+    "ANDON 預覽"
+  ],
+  [
+    "Vincule um ou mais setores existentes ao grupo selecionado. Elétrica, Mecânica e outros setores mantêm seus identificadores originais; a política analítica pertence ao grupo.",
+    "Link one or more existing sectors to the selected group. Electrical, Mechanical, and other sectors retain their original IDs; the analytical policy belongs to the group.",
+    "將一個或多個現有部門連結至所選群組。電氣、機械及其他部門保留原有 ID；分析政策由群組決定。"
+  ]
 ]

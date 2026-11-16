@@ -24,6 +24,12 @@ test("GROUPS/V2: existing sectors remain direct buttons beside optional group sh
   assert.match(general, /Grupos de chamados \(opcionais\)/);
   assert.match(options, /Chamado já aberto/);
   assert.match(machine, /setSelectedCallId\(existing\.id\)/);
+  assert.match(panel, /data-call-group-button="true"/);
+  assert.match(panel, /backgroundColor: reason\.color/);
+  assert.match(panel, /color: readableTextColor\(reason\.color\)/);
+  assert.match(options, /sectorColors\?: Readonly<Record<string, string>>/);
+  assert.match(options, /backgroundColor: optionColor\(option\.legacySubtype\)/);
+  assert.match(machine, /sectorColors=\{Object\.fromEntries\(categories\.map/);
 });
 
 test("GROUPS/V2: parent owns corrective eligibility; direct legacy and GPIO subtype stay stable", async () => {
@@ -66,6 +72,12 @@ test("GROUPS/V2: configuration changes never rewrite technical sector identifier
     read("src/components/calls/QuickOpenCallModal.tsx"),
   ]);
   assert.match(nav, /Grupos de chamados/);
+  assert.match(nav, /id: "callReasons"/);
+  assert.match(nav, /id: "categories"/);
+  assert.doesNotMatch(nav, /catalogView/);
+  assert.match(groupEditor, /data-group-preview="true"/);
+  assert.match(groupEditor, /readableGroupTextColor/);
+  assert.match(groupEditor, /Prévia no ANDON/);
   assert.match(groupEditor, /Elegibilidade do grupo aos KPIs corretivos/);
   assert.match(groupEditor, /Permitir contabilização corretiva mediante evidências/);
   assert.match(groupEditor, /!isPrimaryAdmin \|\| draft\.nature !== "corrective_failure"/);

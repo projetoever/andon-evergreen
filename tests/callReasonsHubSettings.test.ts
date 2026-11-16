@@ -4,15 +4,14 @@ import { readFile } from "node:fs/promises";
 
 const text = async (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("REFINE22 P1: motive hierarchy is nested in sectors and categories", async () => {
+test("REFINE22 V2: sectors and groups have independent admin pages", async () => {
   const [nav, types] = await Promise.all([
     text("../src/components/settings/AdminSettingsModal.tsx"),
     text("../src/types/settings.ts"),
   ]);
   assert.match(nav, /id: "categories"/);
-  assert.doesNotMatch(nav, /id: "callReasons",/);
-  assert.match(nav, /catalogView === "sectors"/);
-  assert.match(nav, /catalogView === "reasons"/);
+  assert.match(nav, /id: "callReasons",/);
+  assert.doesNotMatch(nav, /catalogView/);
   assert.match(nav, /<CategoriesSettingsTab \/>/);
   assert.match(nav, /capabilityTab/);
   assert.match(nav, /<CallReasonsSettingsTab\s*\/>/);
@@ -46,13 +45,13 @@ test("REFINE22 P1: reason editing exposes hierarchy order and existing area link
     text("../src/components/settings/AdminSettingsModal.tsx"),
     text("../server/src/security/centralCallReasonsHttp.ts"),
   ]);
-  assert.match(setup, /catalogView === "reasons"/);
+  assert.match(setup, /id: "callReasons"/);
   assert.match(page, /createReasonDraft\(\)/);
   assert.match(page, /Math\.max\(0, \.\.\.reasons\.map\(reason => reason\.displayOrder\)\) \+ 10/);
   assert.match(page, /Ordem de exibição do grupo/);
   assert.match(page, /Number\.isSafeInteger\(next\.displayOrder\)/);
   assert.match(page, /next\.displayOrder > 9999/);
-  assert.match(page, /Clique em SETUP para escolher um setor já existente/);
+  assert.match(page, /Vincule um ou mais setores existentes ao grupo selecionado/);
   assert.match(page, /addCallReasonOption\(chosen\.id/);
   assert.match(page, /updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
   assert.match(page, /restrictedDelegatedLink/);

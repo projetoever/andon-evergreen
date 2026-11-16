@@ -321,16 +321,25 @@ export function MachineActionPanel({
           <button
             key={`group-${reason.id}`}
             type="button"
+            data-call-group-button="true"
             onClick={() => onOpenReason?.(reason.id)}
             disabled={reason.options.length === 0}
             className={cn(
-              "machine-sector-action min-h-16 rounded-lg border-2 bg-card px-3 py-2 text-base font-black uppercase text-foreground",
-              "transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              sectorActionClass,
+              "relative isolate min-h-16 rounded-lg border-2 px-2 py-1.5 font-black uppercase tracking-wide shadow-sm",
+              "transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "disabled:cursor-not-allowed disabled:opacity-50",
             )}
-            style={{ borderColor: reason.color }}
+            style={{
+              backgroundColor: reason.color,
+              borderColor: reason.color,
+              color: readableTextColor(reason.color),
+            }}
             aria-label={t("Abrir grupo de chamados") + ": " + reason.displayName}
           >
-            {reason.displayName}
+            <span className="block min-w-0 break-words text-center [overflow-wrap:anywhere]">
+              {reason.displayName}
+            </span>
           </button>
         ))}
       </div>

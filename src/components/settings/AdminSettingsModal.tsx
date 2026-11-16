@@ -117,12 +117,21 @@ const tabs: AdminNavigationItem[] = [
   },
   {
     id: "categories",
-    get label() { return ui("Setores, categorias e grupos"); },
+    get label() { return ui("Setores / categorias"); },
     get description() {
-      return ui("Setores existentes e grupos opcionais para organizar os chamados.");
+      return ui("Setores técnicos existentes, seus IDs e apresentação dos botões originais.");
     },
     group: "Cadastros",
     icon: Tags,
+  },
+  {
+    id: "callReasons",
+    get label() { return ui("Grupos de chamados"); },
+    get description() {
+      return ui("Botões agrupadores, setores vinculados e política de KPI do grupo.");
+    },
+    group: "Cadastros",
+    icon: Boxes,
   },
   {
     id: "classifications",
@@ -188,11 +197,8 @@ export function AdminSettingsWorkspace({
 }) {
   useInterfaceLanguage();
   const [tab, setTab] = useState<SettingsTab>("general");
-  // One catalog area with two independently gated editors.
-  // Only navigation is unified: category vs reason APIs and grants stay separate.
-  const [catalogView, setCatalogView] = useState<"sectors" | "reasons">("sectors");
-  const capabilityTab: SettingsTab =
-    tab === "categories" && catalogView === "reasons" ? "callReasons" : tab;
+  // Setores e Grupos são páginas independentes; APIs e permissões continuam separadas.
+  const capabilityTab: SettingsTab = tab;
   // R10-07: the authenticated Hub grant "andon.settings.open" opens the
   // WHOLE ANDON administrative navigation. Do not infer write privileges from
   // tab visibility; the backend still enforces each catalog/setting action.
@@ -206,29 +212,7 @@ export function AdminSettingsWorkspace({
     if (tab === "sounds") return <SoundsSettingsTab isOpen={true} isActive={tab === "sounds"} />;
     if (tab === "attendance") return <AttendanceModeSettingsTab />;
     if (tab === "technicians") return <TechniciansSettingsTab />;
-    if (tab === "categories") return (
-      <div className="space-y-4">
-        <nav aria-label={ui("Organização dos cadastros de chamados")}
-          className="grid gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-2">
-          <button type="button" aria-current={catalogView === "sectors" ? "page" : undefined}
-            onClick={() => setCatalogView("sectors")}
-            className={cn("min-h-11 rounded-lg px-3 py-2 text-sm font-bold transition-colors",
-              catalogView === "sectors"
-                ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-            {ui("Setores / categorias")}
-          </button>
-          <button type="button" aria-current={catalogView === "reasons" ? "page" : undefined}
-            onClick={() => setCatalogView("reasons")}
-            className={cn("min-h-11 rounded-lg px-3 py-2 text-sm font-bold transition-colors",
-              catalogView === "reasons"
-                ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-            {ui("Grupos de chamados")}
-          </button>
-        </nav>
-        {catalogView === "sectors" ? <CategoriesSettingsTab /> : <CallReasonsSettingsTab />}
-      </div>
-    );
-    // Keep the old type internally compatible without retaining a duplicate menu entry.
+    if (tab === "categories") return <CategoriesSettingsTab />;
     if (tab === "callReasons") return <CallReasonsSettingsTab />;
     if (tab === "shifts") return <ShiftsSettingsTab />;
     if (tab === "classifications") return <ClassificationsTab centralAccess={centralAccess} />;
