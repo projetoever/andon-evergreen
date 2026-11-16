@@ -52,17 +52,15 @@ test("REFINE 6 notebook: legacy page explains why main still displays old module
 });
 
 
-test("SEC-18B: workstation trust is not mistaken for an active persistent Person session", async () => {
+test("REFINE22 P0: persistent login duration belongs only to user; remote logout is preserved", async () => {
   const [workstations, users] = await Promise.all([
     read("../src/components/settings/WorkstationsSettingsTab.tsx"),
     read("../src/components/settings/UsersAccessSettings.tsx"),
   ]);
-  assert.match(workstations, /selecionar Não expirar no perfil da conta em Usuários e Acessos/);
+  assert.doesNotMatch(workstations, /allowPersistentOperationalLogin|changePersistentOperational/);
   assert.match(workstations, /lastLogin\?\.state === "valid"/);
-  assert.match(workstations, /Terminal autorizado, mas sem login persistente confirmado/);
+  assert.match(workstations, /Forçar logout da workstation/);
   assert.match(users, /value=\{draft\.sessionPolicy\}/);
-  assert.match(users, /Não expirar — workstation confiável \(sem fixar tela\)/);
-  assert.doesNotMatch(users, /Não expirar — workstation confiável e máquina fixada/);
-  assert.doesNotMatch(workstations, /workstation-kiosk-trust-status/);
-  assert.doesNotMatch(workstations, /Confiança Kiosk/);
+  assert.match(users, /Não expirar — definido no perfil do usuário/);
+  assert.doesNotMatch(workstations, /workstation-kiosk-trust-status|Confiança Kiosk/);
 });
