@@ -49,7 +49,7 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   assert.match(editor, /await updateCallReasonOption\(chosen\.id, option\.id, option\.revision/);
   assert.match(editor, /displayName: label \|\| null, displayOrder: order/);
   assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
-  assert.match(page, /Nome exibido da especialidade/);
+  assert.match(page, /Nome exibido do setor no grupo/);
   assert.match(page, /Ordem de exibição/);
   assert.match(page, /Nome vazio utiliza o setor original/);
   assert.match(page, /disabled=\{writeBlocked \|\| editingOptionId !== null\}/);
@@ -69,7 +69,7 @@ test("CFG-08B1: reason creation by settings delegates cannot choose KPI or creat
   assert.match(page, /await createCallReason\(isPrimaryAdmin \? next : \{/);
   assert.match(page, /id: next\.id, displayName: next\.displayName, color: next\.color/);
   assert.match(page, /nature: next\.nature/);
-  assert.match(page, /vincular especialidades a motivos não elegíveis/);
+  assert.match(page, /vincular setores existentes/);
   assert.match(service, /CreateCallReason \| DelegatedReasonCreate/);
   assert.match(helper, /SAFE_REASON_FIELDS/);
   assert.match(helper, /maintenanceKpiPolicy: operative \? "excluded" : "pending"/);
