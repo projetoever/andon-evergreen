@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import { prisma } from "../db/prisma.js";
 import { enforceWorkstationAccess } from "./workstationAccess.js";
 import { createAdminSession, enforceAdminAuthorization } from "./adminAuthorization.js";
-import { scopedMachineReadIds } from "./centralScopedMachineReads.js";
+import { scopedMachineReadIds, scopedMachineAssetReadIds } from "./centralScopedMachineReads.js";
 
 const id = "ws_00000000-0000-4000-8000-000000000037";
 
@@ -222,6 +222,12 @@ test("central access binds scoped machine/call reads and protects history with a
   app.get("/api/andon-calls", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
+  app.get("/api/machines/:id/sets", async request => ({
+    allowedMachineIds: scopedMachineAssetReadIds(request),
+  }));
+  app.get("/api/machine-sets/:id/subsets", async request => ({
+    allowedMachineIds: scopedMachineAssetReadIds(request),
+  }));
   app.get("/api/andon-calls/history", async (request) => ({
     allowedMachineIds: scopedMachineReadIds(request),
   }));
@@ -282,6 +288,16 @@ test("central access binds scoped machine/call reads and protects history with a
   const machineDetail = await app.inject({ url: "/api/machines/37", headers });
   assert.equal(machineDetail.statusCode, 200);
   assert.deepEqual(machineDetail.json().allowedMachineIds, ["37"]);
+  // P0: machine finalization must load reference assets without any
+  // catalog.assets.manage or andon.settings.open permission.
+  const maintenanceSets = await app.inject({
+    url: "/api/machines/37/sets?includeInactive=true&includeSubsets=list", headers,
+  });
+  assert.equal(maintenanceSets.statusCode, 200, maintenanceSets.body);
+  assert.deepEqual(maintenanceSets.json().allowedMachineIds, ["37"]);
+  const maintenanceSubsets = await app.inject({ url: "/api/machine-sets/set37/subsets", headers });
+  assert.equal(maintenanceSubsets.statusCode, 200, maintenanceSubsets.body);
+  assert.deepEqual(maintenanceSubsets.json().allowedMachineIds, ["37"]);
   const machineHead = await app.inject({ method: "HEAD", url: "/api/machines/37", headers });
   assert.equal(machineHead.statusCode, 200);
   const liveCalls = await app.inject({ url: "/api/andon-calls", headers });
