@@ -469,7 +469,7 @@ export function CallReasonsSettingsTab() {
                     <option key={value} value={value}>{ui(label)}</option>)}
                 </select>
               </Label>
-              <CompactAndonColorField label="Cor do motivo" value={draft.color}
+              <CompactAndonColorField label={ui("Cor do motivo")} value={draft.color}
                 disabled={writeBlocked}
                 onChange={color => setDraft(previous => ({ ...previous, color }))} />
               <Label className="block space-y-2">{ui("Ordem de exibição do motivo")}
