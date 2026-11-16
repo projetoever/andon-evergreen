@@ -567,9 +567,17 @@ export function CallReasonsSettingsTab() {
                           {option.displayName ?? option.technicalArea.displayName}
                         </span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground"
+                        title={ui(option.effectivePolicy.correctiveCandidate
+                          ? "Candidata ao KPI corretivo mediante evidências"
+                          : "Não é falha corretiva automática")}>
                         {ui("Área responsável")}: {option.technicalArea.displayName} ·
                         {ui("KPI")}: {ui(option.effectivePolicy.effectiveKpiStatus)}
+                        <span className="sr-only">
+                          {ui(option.effectivePolicy.correctiveCandidate
+                            ? "Candidata ao KPI corretivo mediante evidências"
+                            : "Não é falha corretiva automática")}
+                        </span>
                       </p>
                       {editingOptionId === option.id && (
                         <div className="space-y-3 border-t border-border pt-3">
