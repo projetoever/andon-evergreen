@@ -22,8 +22,6 @@ const natures = [
   ["production_support", "Apoio à produção"],
   ["unclassified", "Não classificado"],
 ] as const;
-const policyValues = ["eligible", "excluded", "pending"] as const;
-const policyNames = { eligible: "Elegível — sujeito a evidências", excluded: "Excluído do KPI corretivo", pending: "Pendente de classificação" };
 const dispositionNames = [
   ["include", "Ocorrência válida — aparece no BI operacional"],
   ["test", "Teste — excluído das estatísticas"],
@@ -229,12 +227,12 @@ export function CallReasonsSettingsTab() {
         draft.maintenanceKpiPolicy === "eligible" ? "excluded" : draft.maintenanceKpiPolicy,
     };
     if (!ID.test(next.id) || !next.displayName) {
-      toast.error(ui("Informe um nome e identificador válido para o motivo."));
+      toast.error(ui("Informe um nome e identificador válido para o grupo."));
       return;
     }
     if (!Number.isSafeInteger(next.displayOrder) ||
         next.displayOrder < 0 || next.displayOrder > 9999) {
-      toast.error(ui("Informe uma ordem de 0 a 9999 para o motivo."));
+      toast.error(ui("Informe uma ordem de 0 a 9999 para o grupo."));
       return;
     }
     setBusy(true);
@@ -255,9 +253,9 @@ export function CallReasonsSettingsTab() {
       }
       await refresh(next.id);
       setPolicyAcknowledged(false);
-      toast.success(ui("Motivo de chamado salvo."));
+      toast.success(ui("Grupo de chamados salvo."));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar o motivo."));
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar o grupo."));
     } finally { setBusy(false); }
   }
 
@@ -267,7 +265,7 @@ export function CallReasonsSettingsTab() {
     if (!area?.active || !linkableAreas.some(item => item.id === area.id)) return;
     const displayName = optionNameToAdd.trim() || area.displayName;
     if (!displayName || displayName.length > 80) {
-      toast.error(ui("Informe um nome de subcategoria com até 80 caracteres."));
+      toast.error(ui("Informe um nome alternativo com até 80 caracteres."));
       return;
     }
     setBusy(true);
@@ -282,7 +280,7 @@ export function CallReasonsSettingsTab() {
       await refresh(chosen.id);
       setAreaToAdd("");
       setOptionNameToAdd("");
-      toast.success(ui("Subcategoria vinculada ao motivo."));
+      toast.success(ui("Setor vinculado ao grupo."));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível vincular a especialidade."));
     } finally { setBusy(false); }
@@ -337,9 +335,9 @@ export function CallReasonsSettingsTab() {
   return (
     <div className="space-y-4">
       <header className="space-y-1">
-        <h2 className="text-lg font-bold">{ui("Motivos e subcategorias de chamados")}</h2>
+        <h2 className="text-lg font-bold">{ui("Grupos de chamados")}</h2>
         <p className="text-sm text-muted-foreground">
-          {ui("Configure os motivos e as especialidades que aparecem na máquina quando a abertura hierárquica está habilitada. Alterações de apresentação não mudam automaticamente a classificação dos KPIs; as políticas e os vínculos continuam sujeitos à validação e autorização no servidor.")}
+          {ui("Grupos são atalhos opcionais para os setores já cadastrados. Os botões diretos continuam disponíveis; o grupo define a elegibilidade aos KPIs corretivos, sem alterar o setor, o alarme ou o histórico.")}
         </p>
       </header>
       {loading && <p role="status">{ui("Carregando motivos...")}</p>}
@@ -382,24 +380,24 @@ export function CallReasonsSettingsTab() {
       )}
       {!loading && enabled && !error && (
         <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)]">
-          <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Motivos cadastrados")}>
+          <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ui("Grupos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold">{ui("Motivos cadastrados")}</h3>
+              <h3 className="font-semibold">{ui("Grupos cadastrados")}</h3>
               <Button type="button" variant="outline" size="sm" disabled={writeBlocked}
                 onClick={createReasonDraft}>
-                {ui("Novo motivo")}
+                {ui("Novo grupo")}
               </Button>
             </div>
             <label className="block space-y-1 text-xs text-muted-foreground">
-              {ui("Pesquisar motivos e subcategorias")}
+              {ui("Pesquisar grupos e setores")}
               <Input type="search" value={reasonQuery}
                 onChange={event => setReasonQuery(event.target.value)}
                 placeholder={ui("Nome, ID ou especialidade...")}
-                aria-label={ui("Pesquisar motivos e subcategorias")} />
+                aria-label={ui("Pesquisar grupos e setores")} />
             </label>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                {filteredReasons.length} {ui("de")} {reasons.length} {ui("motivos")}
+                {filteredReasons.length} {ui("de")} {reasons.length} {ui("grupos")}
               </p>
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 {ui("Status")}
@@ -413,9 +411,9 @@ export function CallReasonsSettingsTab() {
                 </select>
               </label>
             </div>
-            {reasons.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum motivo cadastrado.")}</p>}
+            {reasons.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum grupo cadastrado.")}</p>}
             {reasons.length > 0 && filteredReasons.length === 0 &&
-              <p className="text-sm text-muted-foreground">{ui("Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.")}</p>}
+              <p className="text-sm text-muted-foreground">{ui("Nenhum grupo encontrado. Ajuste a pesquisa ou o filtro.")}</p>}
             <div className="max-h-[min(56dvh,35rem)] space-y-2 overflow-y-auto pr-1">
             {filteredReasons.map(reason => (
               <button type="button" key={reason.id}
@@ -434,10 +432,10 @@ export function CallReasonsSettingsTab() {
             ))}
             </div>
           </section>
-          <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={ui("Editar motivo")}>
-            <h3 className="font-semibold">{ui(chosen ? "Editar motivo" : "Criar motivo")}</h3>
+          <section className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={ui("Editar grupo")}>
+            <h3 className="font-semibold">{ui(chosen ? "Editar grupo" : "Criar grupo")}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Label className="block space-y-2">{ui("Nome do motivo")}
+              <Label className="block space-y-2">{ui("Nome do grupo")}
                 <Input value={draft.displayName} maxLength={80} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, displayName: e.target.value })} />
               </Label>
@@ -451,15 +449,26 @@ export function CallReasonsSettingsTab() {
                   {natures.map(([value, title]) => <option key={value} value={value}>{ui(title)}</option>)}
                 </select>
               </Label>
-              <Label className="block space-y-2">{ui("Participação nos KPIs de manutenção corretiva")}
-                <select className="h-10 w-full rounded-md border border-input bg-background px-3"
-                  value={draft.maintenanceKpiPolicy} disabled={writeBlocked || !isPrimaryAdmin}
-                  onChange={e => { setPolicyAcknowledged(false); setDraft({ ...draft, maintenanceKpiPolicy: e.target.value as Draft["maintenanceKpiPolicy"] }); }}>
-                  {policyValues.filter(value => value !== "eligible" || draft.nature === "corrective_failure")
-                    .map(value => <option key={value} value={value}>{ui(policyNames[value])}</option>)}
-                </select>
-              </Label>
-              <Label className="block space-y-2">{ui("Registro do chamado no BI")}
+              <label className="flex min-h-10 flex-col justify-center gap-2 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+                <span className="font-semibold">{ui("Elegibilidade do grupo aos KPIs corretivos")}</span>
+                <span className="flex items-center gap-2">
+                  <input type="checkbox"
+                    checked={draft.maintenanceKpiPolicy === "eligible"}
+                    disabled={writeBlocked || !isPrimaryAdmin || draft.nature !== "corrective_failure"}
+                    onChange={event => { setPolicyAcknowledged(false); setDraft({
+                      ...draft, maintenanceKpiPolicy: event.target.checked ? "eligible" : "excluded",
+                    }); }} />
+                  {ui("Permitir contabilização corretiva mediante evidências")}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {ui(draft.maintenanceKpiPolicy === "pending"
+                    ? "Pendente: não habilitado até definição do Admin"
+                    : draft.maintenanceKpiPolicy === "excluded"
+                      ? "Excluído dos KPIs corretivos"
+                      : "Apenas candidato: exige classificação e prova de falha física")}
+                </span>
+              </label>
+              <Label className="block space-y-2">{ui("Registro no BI operacional (histórico e volume)")}
                 <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                   value={draft.analyticsDisposition} disabled={writeBlocked || !isPrimaryAdmin}
                   onChange={event => { setPolicyAcknowledged(false); setDraft({
@@ -469,10 +478,10 @@ export function CallReasonsSettingsTab() {
                     <option key={value} value={value}>{ui(label)}</option>)}
                 </select>
               </Label>
-              <CompactAndonColorField label={ui("Cor do motivo")} value={draft.color}
+              <CompactAndonColorField label={ui("Cor do grupo")} value={draft.color}
                 disabled={writeBlocked}
                 onChange={color => setDraft(previous => ({ ...previous, color }))} />
-              <Label className="block space-y-2">{ui("Ordem de exibição do motivo")}
+              <Label className="block space-y-2">{ui("Ordem de exibição do grupo")}
                 <Input type="number" min={0} max={9999} step={1}
                   value={draft.displayOrder} disabled={writeBlocked}
                   onChange={event => setDraft({ ...draft,
@@ -508,19 +517,19 @@ export function CallReasonsSettingsTab() {
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={draft.active} disabled={writeBlocked}
                   onChange={e => setDraft({ ...draft, active: e.target.checked })} />
-                {ui("Motivo ativo")}
+                {ui("Grupo ativo")}
               </label>
               <Button type="button" disabled={writeBlocked || !draft.displayName.trim() || (policyReviewNeeded && !policyAcknowledged)} onClick={() => void saveReason()}>
-                {ui(chosen ? "Salvar motivo" : "Cadastrar motivo")}
+                {ui(chosen ? "Salvar grupo" : "Cadastrar grupo")}
               </Button>
             </div>
             {chosen && (
               <section className="space-y-3 border-t border-border pt-4">
-                <h4 className="font-semibold">{ui("Subcategorias deste motivo")}</h4>
+                <h4 className="font-semibold">{ui("Setores vinculados ao grupo")}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {ui("Cada subcategoria funciona como um botão no modal do motivo (ex.: Setup → Elétrica ou Mecânica). Escolha a área técnica responsável e personalize o nome, sem alterar os indicadores anteriores.")}
+                  {ui("Clique em SETUP para escolher um setor já existente, como Elétrica ou Mecânica. O setor continua independente; o grupo define apenas o contexto analítico dessa abertura.")}
                 </p>
-                {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhuma especialidade vinculada.")}</p>}
+                {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum setor vinculado ao grupo.")}</p>}
                 {chosen.options.map(option => (
                   <div key={option.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3">
                     <div className="min-w-0 flex-1 space-y-2">
@@ -554,7 +563,7 @@ export function CallReasonsSettingsTab() {
                             </Label>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {ui("Nome vazio utiliza a área técnica original. Essa edição não altera a especialidade vinculada nem a política de KPI.")}
+                            {ui("Nome vazio utiliza o setor original. A edição de apresentação não muda o setor, a API ou a política do grupo.")}
                           </p>
                           <div className="flex flex-wrap gap-2">
                             <Button type="button" size="sm" disabled={writeBlocked}
@@ -585,30 +594,30 @@ export function CallReasonsSettingsTab() {
                   </div>
                 ))}
                 <div className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] sm:items-end">
-                  <Label className="min-w-0 space-y-2">{ui("Área técnica responsável")}
+                  <Label className="min-w-0 space-y-2">{ui("Setor existente")}
                     <select className="h-10 w-full rounded-md border border-input bg-background px-3"
                       value={areaToAdd} disabled={writeBlocked || restrictedDelegatedLink}
                       onChange={e => setAreaToAdd(e.target.value)}>
-                      <option value="">{ui("Selecione uma área técnica")}</option>
+                      <option value="">{ui("Selecione um setor")}</option>
                       {linkableAreas.map(area =>
                         <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
-                  <Label className="min-w-0 space-y-2">{ui("Nome da subcategoria no botão")}
+                  <Label className="min-w-0 space-y-2">{ui("Nome alternativo no modal (opcional)")}
                     <Input maxLength={80} value={optionNameToAdd} disabled={writeBlocked || restrictedDelegatedLink}
                       onChange={event => setOptionNameToAdd(event.target.value)}
                       placeholder={areas.find(area => area.id === areaToAdd)?.displayName ?? ui("Ex.: Elétrica")} />
                   </Label>
                   <Button type="button" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
                     onClick={() => void addArea()}>
-                    {ui("Adicionar subcategoria")}
+                    {ui("Adicionar setor ao grupo")}
                   </Button>
                 </div>
                 {!isPrimaryAdmin && (
                   <p role="note" className="text-xs text-muted-foreground">
                     {ui(restrictedDelegatedLink
-                      ? "Vínculo reservado ao Admin principal: este motivo está inativo ou possui política de KPI elegível."
-                      : "O novo vínculo herdará a política do motivo, sem alterar KPI. Vincule somente áreas compatíveis e ativas.")}
+                      ? "Vínculo reservado ao Admin principal: este grupo está inativo ou possui política elegível para KPIs corretivos."
+                      : "O novo vínculo usará a política do grupo e o mesmo identificador de setor. Vincule somente setores compatíveis e ativos.")}
                   </p>
                 )}
               </section>
