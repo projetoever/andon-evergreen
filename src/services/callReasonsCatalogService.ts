@@ -72,6 +72,7 @@ export function addCallReasonOption(
   reasonId: string, input: {
     id: string;
     technicalAreaId: string;
+    displayName?: string | null;
     active: boolean;
     displayOrder: number;
   },
