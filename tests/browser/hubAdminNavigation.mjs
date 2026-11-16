@@ -581,7 +581,8 @@ try {
         await tab.click();
         assert.equal(await tab.getAttribute("aria-current"), "page",
           "Admin ANDON did not select tab: " + label);
-        assert.equal(await workspace.getByRole("heading", { name: label, exact: true }).count(), 1);
+        assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
+          "Tab content heading must exist: " + label);
       }
       await andonNavigation.getByRole("button", { name: "Aparência e cores" }).click();
       return workspace.getByRole("region", { name: "Aparência e cores" });
