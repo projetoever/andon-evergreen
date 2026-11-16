@@ -829,150 +829,754 @@
     "Executive summary",
     "管理摘要"
   ],
-  ["OS obrigatória para todas as máquinas: regra global ativa.","Work order required on all machines: global rule active.","所有機台均須填寫工單：全域規則已啟用。"],
-  ["Aguardando confirmação da regra global de OS; opção individual indisponível.","Waiting for the global work order rule; per-machine option unavailable.","等待確認全域工單規則；單機選項暫不可用。"],
-  ["OS obrigatória nesta máquina.","Work order required on this machine.","此機台必須填寫工單。"],
-  ["OS opcional nesta máquina.","Work order optional on this machine.","此機台工單為選填。"],
-  ["Verificando disponibilidade do catálogo de motivos...","Checking call-reason catalog availability...","正在確認呼叫原因目錄的可用狀態…"],
-  ["Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.","Unable to verify catalog availability. No edits will be submitted.","無法確認目錄是否可用。不會提交任何編輯。"],
-  ["Acesso administrativo restrito","Restricted administrative access","管理存取受限"],
-  ["Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.","Sign in to the Hub with an authorized primary Admin account. The legacy password does not grant central administration access.","請使用已授權的主要管理員帳號登入 Hub。舊版密碼無法授予中央管理權限。"],
-  ["Esta seção exige a conta Admin principal.","This section requires the primary Admin account.","此區域需要主要管理員帳號。"],
-  ["Identifique-se para acessar o Hub","Sign in to access the Hub","請先登入以存取 Hub"],
-  ["A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.","Central authentication requires HTTPS. Open the Hub using its configured secure address.","中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"],
-  ["Máquina vinculada ao histórico de origem","Machine fixed from the originating history","從原機台歷史記錄固定的機台"],
-  ["Todas as criticidades","All criticality levels","所有緊急程度"],
-  ["Crítica","Critical","緊急"],
-  ["Carregando motivos e subcategorias disponíveis...","Loading available call reasons and subcategories...","正在載入可用的通報原因與子類別…"],
-  ["Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.","Unable to retrieve authorized call reasons and subcategories. Opening a call remains blocked.","無法取得已授權的通報原因與子類別，暫時禁止建立通報。"],
-  ["Motivo do chamado","Call reason","通報原因"],
-  ["Especialidade selecionada","Selected specialty","已選擇專業類別"],
-  ["Não foi possível validar a especialidade selecionada.","Unable to validate the selected specialty.","無法驗證所選的專業類別。"],
-  ["Tentar novamente","Try again","重試"],
-  ["CSV filtrado (até 500)","Filtered CSV (up to 500)","篩選 CSV（最多 500 筆）"],
-  ["Exportando CSV...","Exporting CSV...","正在匯出 CSV…"],
-  ["Exporta todos os registros dos filtros atuais quando houver até 500, com auditoria no servidor.","Exports all records matching the current filters, up to 500, with server-side auditing.","匯出符合目前篩選條件的全部紀錄（最多 500 筆），並在伺服器記錄稽核。"],
-  ["CSV filtrado exportado com auditoria no servidor.","Filtered CSV exported and audited on the server.","已匯出篩選 CSV，並於伺服器記錄稽核。"],
-  ["A exportação excede 500 registros. Refine os filtros e tente novamente.","The export exceeds 500 records. Narrow the filters and try again.","匯出超過 500 筆紀錄。請縮小篩選範圍後再試。"],
-  ["Não foi possível exportar o histórico filtrado.","Could not export the filtered history.","無法匯出篩選後的歷史紀錄。"],
-  ["Não expirar — definido no perfil do usuário","No expiration — defined by the user profile","不自動過期 — 由使用者設定檔決定"],
-  ["A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.","Session duration does not change permissions. No expiration is set by the Person user profile (except the primary Admin). The workstation must be active and approved to allow access, but does not determine duration. Logout, revocation, and security changes end the session.","工作階段期限不會變更權限。不自動過期由個人使用者設定檔決定（主要管理員除外）。工作站必須已啟用並獲核准才能存取，但不決定工作階段期限。登出、撤銷與安全性變更會結束工作階段。"],
-  ["Setores, categorias e motivos","Sectors, categories and reasons","部門、類別與通報原因"],
-  ["Organização dos setores, motivos e especialidades dos chamados.","Organization of call sectors, reasons and specialties.","通報部門、原因與專業類別的組織管理。"],
-  ["Organização dos cadastros de chamados","Call catalog organization","通報目錄管理"],
-  ["Pesquisar motivos e subcategorias","Search reasons and subcategories","搜尋通報原因與子類別"],
-  ["Nome, ID ou especialidade...","Name, ID or specialty...","名稱、識別碼或專業類別…"],
-  ["Filtrar motivos por status","Filter reasons by status","依狀態篩選通報原因"],
-  ["motivos","reasons","原因"],
-  ["Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.","No reasons found. Adjust the search or filter.","找不到通報原因。請調整搜尋或篩選條件。"],
-  ["Informe uma ordem de 0 a 9999 para o motivo.","Enter a reason display order from 0 to 9999.","請輸入 0 至 9999 的通報原因顯示順序。"],
-  ["Ordem de exibição do motivo","Reason display order","通報原因顯示順序"],
-  ["Vincule setores já cadastrados como subcategorias deste motivo. A vinculação não altera a política de KPI nem reclassifica chamados anteriores.","Link existing sectors as subcategories of this reason. Linking does not change KPI policies or reclassify earlier calls.","將現有部門連結為此通報原因的子類別。連結不會變更 KPI 政策，也不會重新分類先前的通報。"],
-  ["Participação nos KPIs de manutenção corretiva","Corrective maintenance KPI eligibility","矯正維護 KPI 納入資格"],
-  ["Registro do chamado no BI","Call reporting in BI","通報資料是否列入 BI"],
-  ["Ocorrência válida — aparece no BI operacional","Valid event — included in operational BI","有效事件－列入營運 BI"],
-  ["Teste — excluído das estatísticas","Test — excluded from statistics","測試－不列入統計"],
-  ["Falso chamado — excluído das estatísticas","False call — excluded from statistics","誤報－不列入統計"],
-  ["Duplicado — excluído das estatísticas","Duplicate — excluded from statistics","重複通報－不列入統計"],
-  ["Prévia do tratamento do chamado no BI","Call treatment preview in BI","BI 通報處理預覽"],
-  ["BI operacional","Operational BI","營運 BI"],
-  ["Ocorrência válida — tempos e volume acompanhados","Valid event — times and volume tracked","有效事件－記錄時間與數量"],
-  ["Registro excluído das estatísticas por classificação de teste/falso/duplicado","Excluded from statistics as test, false call, or duplicate","測試、誤報或重複通報－不列入統計"],
-  ["KPIs de manutenção corretiva","Corrective maintenance KPIs","矯正維護 KPI"],
-  ["Não integra MTTA, MTTR ou MTBF corretivos","Excluded from corrective MTTA, MTTR and MTBF","不納入矯正 MTTA、MTTR、MTBF"],
-  ["Pendente de classificação; não entra automaticamente","Classification pending; not included automatically","待分類－不會自動納入"],
-  ["Apenas candidato, sujeito a evidências de falha e parada física","Candidate only; requires failure and physical downtime evidence","僅為候選－需有故障與實際停機證據"],
-  ["Downtime físico confirmado e tempos técnicos reais continuam registrados separadamente; configurar um motivo não apaga nem reclassifica chamados anteriores.","Confirmed physical downtime and actual technician times remain recorded separately; configuring a reason does not change earlier calls.","確認的實際停機與技術人員時間仍分別記錄；修改原因不會變更既有通報。"],
-  ["Subcategorias deste motivo","Subcategories for this reason","此原因的子類別"],
-  ["Cada subcategoria funciona como um botão no modal do motivo (ex.: Setup → Elétrica ou Mecânica). Escolha a área técnica responsável e personalize o nome, sem alterar os indicadores anteriores.","Each subcategory appears as a button in the reason modal (e.g., Setup → Electrical or Mechanical). Choose its technical area and customize its name without changing previous KPIs.","每個子類別會顯示為原因視窗中的按鈕（例如：設定 → 電氣或機械）；請設定技術領域及名稱，不影響過去的 KPI。"],
-  ["Área responsável","Responsible area","負責部門"],
-  ["Área técnica responsável","Responsible technical area","負責技術領域"],
-  ["Nome da subcategoria no botão","Subcategory button label","子類別按鈕名稱"],
-  ["Selecione uma área técnica","Select a technical area","選取技術領域"],
-  ["Ex.: Elétrica","E.g., Electrical","例如：電氣"],
-  ["Adicionar subcategoria","Add subcategory","新增子類別"],
-  ["Subcategoria vinculada ao motivo.","Subcategory linked to reason.","子類別已連結至原因。"],
-  ["Informe um nome de subcategoria com até 80 caracteres.","Enter a subcategory name of up to 80 characters.","請輸入不超過 80 個字元的子類別名稱。"],
-  ["Carregando dados da máquina…","Loading machine data…","正在載入設備資料…"],
-  ["Reconectando aos dados do ANDON…","Reconnecting to ANDON data…","正在重新連線 ANDON 資料…"],
-  ["Verificando o estado da máquina antes de apresentar as operações.","Checking machine status before displaying operations.","正在確認設備狀態後再顯示操作。"],
-  ["A conexão ainda não foi confirmada. Uma nova consulta será realizada automaticamente.","Connection not yet confirmed. Another request will run automatically.","尚未確認連線，系統將自動重新查詢。"],
-  ["Carregando página…","Loading page…","正在載入頁面…"],
-  ["Aplicar","Apply","套用"],
-  ["Verde Operacional","Operational Green","營運綠"],
-  ["Tons verdes equilibrados para leitura industrial.","Balanced green shades for industrial readability.","均衡的綠色調，適合工業環境清晰辨識。"],
-  ["Não foi possível carregar os conjuntos. A finalização está protegida até a consulta ser confirmada.","Unable to load equipment groups. Call completion stays blocked until the lookup is confirmed.","無法載入設備組別。確認查詢成功前，結案功能將保持鎖定。"],
-  ["Diagnóstico","Diagnostic","診斷"],
-  ["Código do erro","Error code","錯誤代碼"],
-  ["Setores, categorias e grupos","Sectors, categories and groups","部門、類別與群組"],
-  ["Setores existentes e grupos opcionais para organizar os chamados.","Existing sectors and optional groups for organizing calls.","使用現有部門與選用群組管理通報。"],
-  ["Grupos de chamados","Call groups","通報群組"],
-  ["Abrir grupo de chamados","Open call group","開啟通報群組"],
-  ["Carregando grupos de chamados... Os setores continuam disponíveis.","Loading call groups... Direct sectors remain available.","正在載入通報群組，原有部門仍可使用。"],
-  ["Grupos indisponíveis no momento. Os botões dos setores continuam disponíveis.","Groups are currently unavailable. Direct sector buttons remain available.","群組暫時無法使用；部門按鈕仍可使用。"],
-  ["Setor direto (modo existente)","Direct sector (existing mode)","直接選擇部門（現有模式）"],
-  ["A abertura direta preserva a política de manutenção, o som e o setor atuais.","Direct opening retains existing maintenance rules, sounds and sector routing.","直接通報維持目前的維護規則、音效與部門路由。"],
-  ["Carregando grupos opcionais...","Loading optional groups...","正在載入選用群組…"],
-  ["Grupos indisponíveis; os setores diretos continuam habilitados.","Groups unavailable; direct sector opening is still enabled.","群組不可用，但仍可直接選擇部門。"],
-  ["Grupos de chamados (opcionais)","Call groups (optional)","通報群組（選用）"],
-  ["Setor pelo grupo","Sector selected through group","透過群組選擇的部門"],
-  ["Selecione o grupo","Select a group","選擇群組"],
-  ["Selecione um setor deste grupo. Se ele já tiver chamado ativo, o sistema selecionará o existente, sem duplicar nem alterar sua classificação.","Choose a sector from this group. If a call is already active, the existing call is selected without duplicating or reclassifying it.","請從群組選擇部門。如果已有通報進行中，將選取現有通報，不會重複建立或重新分類。"],
-  ["Nenhum setor ativo vinculado a este grupo. Solicite a configuração ao administrador.","No active sector is linked to this group. Ask an administrator to configure it.","此群組沒有已啟用的部門，請管理員設定。"],
-  ["Setores disponíveis no grupo","Sectors in this group","群組中的可用部門"],
-  ["Não foi possível validar o setor do grupo selecionado.","Unable to validate the selected group sector.","無法驗證所選群組部門。"],
-  ["Grupos são atalhos opcionais para os setores já cadastrados. Os botões diretos continuam disponíveis; o grupo define a elegibilidade aos KPIs corretivos, sem alterar o setor, o alarme ou o histórico.","Groups are optional shortcuts for existing sectors. Direct buttons remain available. The group controls corrective KPI eligibility without changing sector IDs, alarms or history.","群組是現有部門的選用捷徑，原有按鈕仍可使用；群組僅決定矯正維護 KPI 的納入資格，不改變部門、警報或歷史。"],
-  ["Grupos cadastrados","Configured groups","已建立的群組"],
-  ["Novo grupo","New group","新增群組"],
-  ["Pesquisar grupos e setores","Search groups and sectors","搜尋群組與部門"],
-  ["grupos","groups","群組"],
-  ["Nenhum grupo cadastrado.","No groups configured.","尚未建立群組。"],
-  ["Nenhum grupo encontrado. Ajuste a pesquisa ou o filtro.","No groups found. Adjust search or filter.","找不到群組，請調整搜尋或篩選。"],
-  ["Editar grupo","Edit group","編輯群組"],
-  ["Criar grupo","Create group","建立群組"],
-  ["Nome do grupo","Group name","群組名稱"],
-  ["Elegibilidade do grupo aos KPIs corretivos","Group eligibility for corrective KPIs","群組是否符合矯正 KPI 條件"],
-  ["Permitir contabilização corretiva mediante evidências","Allow corrective KPI contribution when supported by evidence","有證據時允許納入矯正維護 KPI"],
-  ["Pendente: não habilitado até definição do Admin","Pending: not enabled until Admin approval","待定：經管理員確認前不啟用"],
-  ["Excluído dos KPIs corretivos","Excluded from corrective KPIs","不列入矯正 KPI"],
-  ["Apenas candidato: exige classificação e prova de falha física","Candidate only: requires classification and physical failure evidence","僅為候選：須有分類與實際故障證據"],
-  ["Registro no BI operacional (histórico e volume)","Operational BI reporting (history and volume)","營運 BI 記錄（歷史與數量）"],
-  ["Cor do grupo","Group color","群組顏色"],
-  ["Ordem de exibição do grupo","Group display order","群組顯示順序"],
-  ["Grupo ativo","Active group","啟用群組"],
-  ["Salvar grupo","Save group","儲存群組"],
-  ["Cadastrar grupo","Create group","建立群組"],
-  ["Setores vinculados ao grupo","Sectors linked to the group","已連結的部門"],
-  ["Clique em SETUP para escolher um setor já existente, como Elétrica ou Mecânica. O setor continua independente; o grupo define apenas o contexto analítico dessa abertura.","Open SETUP to choose an existing sector such as Electrical or Mechanical. Sectors remain independent; the group defines the reporting context for this call.","在 SETUP 群組中選擇現有部門（如電氣或機械）；部門仍獨立存在，群組僅定義此通報的分析脈絡。"],
-  ["Nenhum setor vinculado ao grupo.","No sectors linked to the group.","尚未連結部門。"],
-  ["Setor existente","Existing sector","現有部門"],
-  ["Selecione um setor","Choose a sector","選擇部門"],
-  ["Nome alternativo no modal (opcional)","Alternate button label (optional)","按鈕的其他名稱（選用）"],
-  ["Adicionar setor ao grupo","Add sector to group","新增部門至群組"],
-  ["Setor vinculado ao grupo.","Sector linked to group.","部門已連結至群組。"],
-  ["Informe um nome alternativo com até 80 caracteres.","Enter an alternate name of up to 80 characters.","請輸入不超過 80 字元的其他名稱。"],
-  ["Grupo de chamados salvo.","Call group saved.","通報群組已儲存。"],
-  ["Não foi possível salvar o grupo.","Unable to save group.","無法儲存群組。"],
-  ["Informe um nome e identificador válido para o grupo.","Enter a valid group name and identifier.","請輸入有效的群組名稱與識別碼。"],
-  ["Informe uma ordem de 0 a 9999 para o grupo.","Enter a group display order between 0 and 9999.","請輸入 0 至 9999 的群組顯示順序。"],
-  ["Nome vazio utiliza o setor original. A edição de apresentação não muda o setor, a API ou a política do grupo.","An empty name uses the original sector label. Appearance edits do not change the sector, API or group policy.","留空則使用原有部門名稱；修改外觀不會改變部門、API 或群組政策。"],
-  ["Vínculo reservado ao Admin principal: este grupo está inativo ou possui política elegível para KPIs corretivos.","Only the primary Admin can link this inactive or corrective-eligible group.","此群組已停用或符合矯正 KPI 條件，只有主管理員可建立連結。"],
-  ["O novo vínculo usará a política do grupo e o mesmo identificador de setor. Vincule somente setores compatíveis e ativos.","New links inherit the group policy and preserve the sector ID. Link only compatible active sectors.","新連結繼承群組政策並保留部門 ID；僅連結相容且已啟用的部門。"],
-  ["Erro ao carregar os grupos de chamados.","Unable to load call groups.","無法載入通報群組。"],
-  ["Não foi possível vincular o setor.","Unable to link sector.","無法連結部門。"],
-  ["Não foi possível alterar o setor.","Unable to modify sector.","無法修改部門。"],
-  ["Apresentação do setor no grupo atualizada.","Sector label in group updated.","群組部門顯示已更新。"],
-  ["Não foi possível salvar a apresentação do setor.","Unable to save the sector presentation.","無法儲存部門顯示設定。"],
-  ["Carregando grupos...","Loading groups...","正在載入群組…"],
-  ["Verificando disponibilidade dos grupos...","Checking group availability...","正在確認群組是否可用…"],
-  ["A configuração dos grupos está desabilitada neste ambiente. Os setores existentes continuam operacionais.","Group configuration is disabled here. Existing sectors remain operational.","此環境未啟用群組設定，現有部門仍可運作。"],
-  ["Config. do ANDON: você pode criar grupos conservadores e vincular setores existentes. Elegibilidade corretiva é exclusiva do Admin principal.","ANDON settings delegates may create conservative groups and link existing sectors. Only the primary Admin may enable corrective eligibility.","ANDON 設定代理人可建立保守群組並連結現有部門，只有主管理員能啟用矯正 KPI 納入資格。"],
-  ["Nome, ID ou setor...","Name, ID or sector...","名稱、ID 或部門…"],
-  ["Filtrar grupos por status","Filter groups by status","依狀態篩選群組"],
-  ["setores","sectors","部門"],
-  ["O histórico, os tempos reais e o downtime físico permanecem separados; configurar um grupo não altera chamados anteriores.","History, actual work times and physical downtime stay separate; changing groups never reclassifies earlier calls.","歷史紀錄、實際工作時間及實際停機時間分別保存，修改群組不會重新分類既有通報。"],
-  ["Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.","New groups do not automatically contribute to corrective KPIs. The primary Admin alone can authorize evidence-based eligibility.","新群組不會自動計入矯正 KPI，只有主管理員可依據證據授予納入資格。"],
-  ["Nome exibido do setor no grupo","Sector label in group","群組中的部門顯示名稱"],
-  ["Catálogo de grupos habilitado. Cada grupo reutiliza setores existentes; edição, políticas de KPI e abertura pelo grupo exigem autorizações independentes.","Group catalog enabled. Groups reuse existing sectors; edits, KPI policies and opening through groups have separate permissions.","群組目錄已啟用；群組重用現有部門，編輯、KPI 政策及群組通報需不同權限。"],
-  ["Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI.","Group catalog disabled here. Direct sector buttons remain available without changing BI policies.","此環境未啟用群組目錄，部門直接通報仍可使用且不改變 BI 政策。"]
+  [
+    "OS obrigatória para todas as máquinas: regra global ativa.",
+    "Work order required on all machines: global rule active.",
+    "所有機台均須填寫工單：全域規則已啟用。"
+  ],
+  [
+    "Aguardando confirmação da regra global de OS; opção individual indisponível.",
+    "Waiting for the global work order rule; per-machine option unavailable.",
+    "等待確認全域工單規則；單機選項暫不可用。"
+  ],
+  [
+    "OS obrigatória nesta máquina.",
+    "Work order required on this machine.",
+    "此機台必須填寫工單。"
+  ],
+  [
+    "OS opcional nesta máquina.",
+    "Work order optional on this machine.",
+    "此機台工單為選填。"
+  ],
+  [
+    "Verificando disponibilidade do catálogo de motivos...",
+    "Checking call-reason catalog availability...",
+    "正在確認呼叫原因目錄的可用狀態…"
+  ],
+  [
+    "Não foi possível confirmar a disponibilidade do catálogo. Nenhuma edição será enviada.",
+    "Unable to verify catalog availability. No edits will be submitted.",
+    "無法確認目錄是否可用。不會提交任何編輯。"
+  ],
+  [
+    "Acesso administrativo restrito",
+    "Restricted administrative access",
+    "管理存取受限"
+  ],
+  [
+    "Identifique-se no Hub com uma conta Admin principal autorizada. A senha legada não libera a administração central.",
+    "Sign in to the Hub with an authorized primary Admin account. The legacy password does not grant central administration access.",
+    "請使用已授權的主要管理員帳號登入 Hub。舊版密碼無法授予中央管理權限。"
+  ],
+  [
+    "Esta seção exige a conta Admin principal.",
+    "This section requires the primary Admin account.",
+    "此區域需要主要管理員帳號。"
+  ],
+  [
+    "Identifique-se para acessar o Hub",
+    "Sign in to access the Hub",
+    "請先登入以存取 Hub"
+  ],
+  [
+    "A autenticação central exige HTTPS. Abra o Hub pelo endereço seguro configurado.",
+    "Central authentication requires HTTPS. Open the Hub using its configured secure address.",
+    "中央身分驗證需要 HTTPS。請使用已設定的安全位址開啟 Hub。"
+  ],
+  [
+    "Máquina vinculada ao histórico de origem",
+    "Machine fixed from the originating history",
+    "從原機台歷史記錄固定的機台"
+  ],
+  [
+    "Todas as criticidades",
+    "All criticality levels",
+    "所有緊急程度"
+  ],
+  [
+    "Crítica",
+    "Critical",
+    "緊急"
+  ],
+  [
+    "Carregando motivos e subcategorias disponíveis...",
+    "Loading available call reasons and subcategories...",
+    "正在載入可用的通報原因與子類別…"
+  ],
+  [
+    "Não foi possível consultar os motivos e subcategorias autorizados. A abertura permanece bloqueada.",
+    "Unable to retrieve authorized call reasons and subcategories. Opening a call remains blocked.",
+    "無法取得已授權的通報原因與子類別，暫時禁止建立通報。"
+  ],
+  [
+    "Motivo do chamado",
+    "Call reason",
+    "通報原因"
+  ],
+  [
+    "Especialidade selecionada",
+    "Selected specialty",
+    "已選擇專業類別"
+  ],
+  [
+    "Não foi possível validar a especialidade selecionada.",
+    "Unable to validate the selected specialty.",
+    "無法驗證所選的專業類別。"
+  ],
+  [
+    "Tentar novamente",
+    "Try again",
+    "重試"
+  ],
+  [
+    "CSV filtrado (até 500)",
+    "Filtered CSV (up to 500)",
+    "篩選 CSV（最多 500 筆）"
+  ],
+  [
+    "Exportando CSV...",
+    "Exporting CSV...",
+    "正在匯出 CSV…"
+  ],
+  [
+    "Exporta todos os registros dos filtros atuais quando houver até 500, com auditoria no servidor.",
+    "Exports all records matching the current filters, up to 500, with server-side auditing.",
+    "匯出符合目前篩選條件的全部紀錄（最多 500 筆），並在伺服器記錄稽核。"
+  ],
+  [
+    "CSV filtrado exportado com auditoria no servidor.",
+    "Filtered CSV exported and audited on the server.",
+    "已匯出篩選 CSV，並於伺服器記錄稽核。"
+  ],
+  [
+    "A exportação excede 500 registros. Refine os filtros e tente novamente.",
+    "The export exceeds 500 records. Narrow the filters and try again.",
+    "匯出超過 500 筆紀錄。請縮小篩選範圍後再試。"
+  ],
+  [
+    "Não foi possível exportar o histórico filtrado.",
+    "Could not export the filtered history.",
+    "無法匯出篩選後的歷史紀錄。"
+  ],
+  [
+    "Não expirar — definido no perfil do usuário",
+    "No expiration — defined by the user profile",
+    "不自動過期 — 由使用者設定檔決定"
+  ],
+  [
+    "A duração não modifica as permissões. Não expirar é definido pelo perfil Pessoa (exceto Admin principal). A workstation deve estar ativa e aprovada para permitir acesso, mas não define a duração. Logout, revogação e alterações de segurança encerram a sessão.",
+    "Session duration does not change permissions. No expiration is set by the Person user profile (except the primary Admin). The workstation must be active and approved to allow access, but does not determine duration. Logout, revocation, and security changes end the session.",
+    "工作階段期限不會變更權限。不自動過期由個人使用者設定檔決定（主要管理員除外）。工作站必須已啟用並獲核准才能存取，但不決定工作階段期限。登出、撤銷與安全性變更會結束工作階段。"
+  ],
+  [
+    "Setores, categorias e motivos",
+    "Sectors, categories and reasons",
+    "部門、類別與通報原因"
+  ],
+  [
+    "Organização dos setores, motivos e especialidades dos chamados.",
+    "Organization of call sectors, reasons and specialties.",
+    "通報部門、原因與專業類別的組織管理。"
+  ],
+  [
+    "Organização dos cadastros de chamados",
+    "Call catalog organization",
+    "通報目錄管理"
+  ],
+  [
+    "Pesquisar motivos e subcategorias",
+    "Search reasons and subcategories",
+    "搜尋通報原因與子類別"
+  ],
+  [
+    "Nome, ID ou especialidade...",
+    "Name, ID or specialty...",
+    "名稱、識別碼或專業類別…"
+  ],
+  [
+    "Filtrar motivos por status",
+    "Filter reasons by status",
+    "依狀態篩選通報原因"
+  ],
+  [
+    "motivos",
+    "reasons",
+    "原因"
+  ],
+  [
+    "Nenhum motivo encontrado. Ajuste a pesquisa ou o filtro.",
+    "No reasons found. Adjust the search or filter.",
+    "找不到通報原因。請調整搜尋或篩選條件。"
+  ],
+  [
+    "Informe uma ordem de 0 a 9999 para o motivo.",
+    "Enter a reason display order from 0 to 9999.",
+    "請輸入 0 至 9999 的通報原因顯示順序。"
+  ],
+  [
+    "Ordem de exibição do motivo",
+    "Reason display order",
+    "通報原因顯示順序"
+  ],
+  [
+    "Vincule setores já cadastrados como subcategorias deste motivo. A vinculação não altera a política de KPI nem reclassifica chamados anteriores.",
+    "Link existing sectors as subcategories of this reason. Linking does not change KPI policies or reclassify earlier calls.",
+    "將現有部門連結為此通報原因的子類別。連結不會變更 KPI 政策，也不會重新分類先前的通報。"
+  ],
+  [
+    "Participação nos KPIs de manutenção corretiva",
+    "Corrective maintenance KPI eligibility",
+    "矯正維護 KPI 納入資格"
+  ],
+  [
+    "Registro do chamado no BI",
+    "Call reporting in BI",
+    "通報資料是否列入 BI"
+  ],
+  [
+    "Ocorrência válida — aparece no BI operacional",
+    "Valid event — included in operational BI",
+    "有效事件－列入營運 BI"
+  ],
+  [
+    "Teste — excluído das estatísticas",
+    "Test — excluded from statistics",
+    "測試－不列入統計"
+  ],
+  [
+    "Falso chamado — excluído das estatísticas",
+    "False call — excluded from statistics",
+    "誤報－不列入統計"
+  ],
+  [
+    "Duplicado — excluído das estatísticas",
+    "Duplicate — excluded from statistics",
+    "重複通報－不列入統計"
+  ],
+  [
+    "Prévia do tratamento do chamado no BI",
+    "Call treatment preview in BI",
+    "BI 通報處理預覽"
+  ],
+  [
+    "BI operacional",
+    "Operational BI",
+    "營運 BI"
+  ],
+  [
+    "Ocorrência válida — tempos e volume acompanhados",
+    "Valid event — times and volume tracked",
+    "有效事件－記錄時間與數量"
+  ],
+  [
+    "Registro excluído das estatísticas por classificação de teste/falso/duplicado",
+    "Excluded from statistics as test, false call, or duplicate",
+    "測試、誤報或重複通報－不列入統計"
+  ],
+  [
+    "KPIs de manutenção corretiva",
+    "Corrective maintenance KPIs",
+    "矯正維護 KPI"
+  ],
+  [
+    "Não integra MTTA, MTTR ou MTBF corretivos",
+    "Excluded from corrective MTTA, MTTR and MTBF",
+    "不納入矯正 MTTA、MTTR、MTBF"
+  ],
+  [
+    "Pendente de classificação; não entra automaticamente",
+    "Classification pending; not included automatically",
+    "待分類－不會自動納入"
+  ],
+  [
+    "Apenas candidato, sujeito a evidências de falha e parada física",
+    "Candidate only; requires failure and physical downtime evidence",
+    "僅為候選－需有故障與實際停機證據"
+  ],
+  [
+    "Downtime físico confirmado e tempos técnicos reais continuam registrados separadamente; configurar um motivo não apaga nem reclassifica chamados anteriores.",
+    "Confirmed physical downtime and actual technician times remain recorded separately; configuring a reason does not change earlier calls.",
+    "確認的實際停機與技術人員時間仍分別記錄；修改原因不會變更既有通報。"
+  ],
+  [
+    "Subcategorias deste motivo",
+    "Subcategories for this reason",
+    "此原因的子類別"
+  ],
+  [
+    "Cada subcategoria funciona como um botão no modal do motivo (ex.: Setup → Elétrica ou Mecânica). Escolha a área técnica responsável e personalize o nome, sem alterar os indicadores anteriores.",
+    "Each subcategory appears as a button in the reason modal (e.g., Setup → Electrical or Mechanical). Choose its technical area and customize its name without changing previous KPIs.",
+    "每個子類別會顯示為原因視窗中的按鈕（例如：設定 → 電氣或機械）；請設定技術領域及名稱，不影響過去的 KPI。"
+  ],
+  [
+    "Área responsável",
+    "Responsible area",
+    "負責部門"
+  ],
+  [
+    "Área técnica responsável",
+    "Responsible technical area",
+    "負責技術領域"
+  ],
+  [
+    "Nome da subcategoria no botão",
+    "Subcategory button label",
+    "子類別按鈕名稱"
+  ],
+  [
+    "Selecione uma área técnica",
+    "Select a technical area",
+    "選取技術領域"
+  ],
+  [
+    "Ex.: Elétrica",
+    "E.g., Electrical",
+    "例如：電氣"
+  ],
+  [
+    "Adicionar subcategoria",
+    "Add subcategory",
+    "新增子類別"
+  ],
+  [
+    "Subcategoria vinculada ao motivo.",
+    "Subcategory linked to reason.",
+    "子類別已連結至原因。"
+  ],
+  [
+    "Informe um nome de subcategoria com até 80 caracteres.",
+    "Enter a subcategory name of up to 80 characters.",
+    "請輸入不超過 80 個字元的子類別名稱。"
+  ],
+  [
+    "Carregando dados da máquina…",
+    "Loading machine data…",
+    "正在載入設備資料…"
+  ],
+  [
+    "Reconectando aos dados do ANDON…",
+    "Reconnecting to ANDON data…",
+    "正在重新連線 ANDON 資料…"
+  ],
+  [
+    "Verificando o estado da máquina antes de apresentar as operações.",
+    "Checking machine status before displaying operations.",
+    "正在確認設備狀態後再顯示操作。"
+  ],
+  [
+    "A conexão ainda não foi confirmada. Uma nova consulta será realizada automaticamente.",
+    "Connection not yet confirmed. Another request will run automatically.",
+    "尚未確認連線，系統將自動重新查詢。"
+  ],
+  [
+    "Carregando página…",
+    "Loading page…",
+    "正在載入頁面…"
+  ],
+  [
+    "Aplicar",
+    "Apply",
+    "套用"
+  ],
+  [
+    "Verde Operacional",
+    "Operational Green",
+    "營運綠"
+  ],
+  [
+    "Tons verdes equilibrados para leitura industrial.",
+    "Balanced green shades for industrial readability.",
+    "均衡的綠色調，適合工業環境清晰辨識。"
+  ],
+  [
+    "Não foi possível carregar os conjuntos. A finalização está protegida até a consulta ser confirmada.",
+    "Unable to load equipment groups. Call completion stays blocked until the lookup is confirmed.",
+    "無法載入設備組別。確認查詢成功前，結案功能將保持鎖定。"
+  ],
+  [
+    "Diagnóstico",
+    "Diagnostic",
+    "診斷"
+  ],
+  [
+    "Código do erro",
+    "Error code",
+    "錯誤代碼"
+  ],
+  [
+    "Setores, categorias e grupos",
+    "Sectors, categories and groups",
+    "部門、類別與群組"
+  ],
+  [
+    "Setores existentes e grupos opcionais para organizar os chamados.",
+    "Existing sectors and optional groups for organizing calls.",
+    "使用現有部門與選用群組管理通報。"
+  ],
+  [
+    "Grupos de chamados",
+    "Call groups",
+    "通報群組"
+  ],
+  [
+    "Abrir grupo de chamados",
+    "Open call group",
+    "開啟通報群組"
+  ],
+  [
+    "Carregando grupos de chamados... Os setores continuam disponíveis.",
+    "Loading call groups... Direct sectors remain available.",
+    "正在載入通報群組，原有部門仍可使用。"
+  ],
+  [
+    "Grupos indisponíveis no momento. Os botões dos setores continuam disponíveis.",
+    "Groups are currently unavailable. Direct sector buttons remain available.",
+    "群組暫時無法使用；部門按鈕仍可使用。"
+  ],
+  [
+    "Setor direto (modo existente)",
+    "Direct sector (existing mode)",
+    "直接選擇部門（現有模式）"
+  ],
+  [
+    "A abertura direta preserva a política de manutenção, o som e o setor atuais.",
+    "Direct opening retains existing maintenance rules, sounds and sector routing.",
+    "直接通報維持目前的維護規則、音效與部門路由。"
+  ],
+  [
+    "Carregando grupos opcionais...",
+    "Loading optional groups...",
+    "正在載入選用群組…"
+  ],
+  [
+    "Grupos indisponíveis; os setores diretos continuam habilitados.",
+    "Groups unavailable; direct sector opening is still enabled.",
+    "群組不可用，但仍可直接選擇部門。"
+  ],
+  [
+    "Grupos de chamados (opcionais)",
+    "Call groups (optional)",
+    "通報群組（選用）"
+  ],
+  [
+    "Setor pelo grupo",
+    "Sector selected through group",
+    "透過群組選擇的部門"
+  ],
+  [
+    "Selecione o grupo",
+    "Select a group",
+    "選擇群組"
+  ],
+  [
+    "Selecione um setor deste grupo. Se ele já tiver chamado ativo, o sistema selecionará o existente, sem duplicar nem alterar sua classificação.",
+    "Choose a sector from this group. If a call is already active, the existing call is selected without duplicating or reclassifying it.",
+    "請從群組選擇部門。如果已有通報進行中，將選取現有通報，不會重複建立或重新分類。"
+  ],
+  [
+    "Nenhum setor ativo vinculado a este grupo. Solicite a configuração ao administrador.",
+    "No active sector is linked to this group. Ask an administrator to configure it.",
+    "此群組沒有已啟用的部門，請管理員設定。"
+  ],
+  [
+    "Setores disponíveis no grupo",
+    "Sectors in this group",
+    "群組中的可用部門"
+  ],
+  [
+    "Não foi possível validar o setor do grupo selecionado.",
+    "Unable to validate the selected group sector.",
+    "無法驗證所選群組部門。"
+  ],
+  [
+    "Grupos são atalhos opcionais para os setores já cadastrados. Os botões diretos continuam disponíveis; o grupo define a elegibilidade aos KPIs corretivos, sem alterar o setor, o alarme ou o histórico.",
+    "Groups are optional shortcuts for existing sectors. Direct buttons remain available. The group controls corrective KPI eligibility without changing sector IDs, alarms or history.",
+    "群組是現有部門的選用捷徑，原有按鈕仍可使用；群組僅決定矯正維護 KPI 的納入資格，不改變部門、警報或歷史。"
+  ],
+  [
+    "Grupos cadastrados",
+    "Configured groups",
+    "已建立的群組"
+  ],
+  [
+    "Novo grupo",
+    "New group",
+    "新增群組"
+  ],
+  [
+    "Pesquisar grupos e setores",
+    "Search groups and sectors",
+    "搜尋群組與部門"
+  ],
+  [
+    "grupos",
+    "groups",
+    "群組"
+  ],
+  [
+    "Nenhum grupo cadastrado.",
+    "No groups configured.",
+    "尚未建立群組。"
+  ],
+  [
+    "Nenhum grupo encontrado. Ajuste a pesquisa ou o filtro.",
+    "No groups found. Adjust search or filter.",
+    "找不到群組，請調整搜尋或篩選。"
+  ],
+  [
+    "Editar grupo",
+    "Edit group",
+    "編輯群組"
+  ],
+  [
+    "Criar grupo",
+    "Create group",
+    "建立群組"
+  ],
+  [
+    "Nome do grupo",
+    "Group name",
+    "群組名稱"
+  ],
+  [
+    "Elegibilidade do grupo aos KPIs corretivos",
+    "Group eligibility for corrective KPIs",
+    "群組是否符合矯正 KPI 條件"
+  ],
+  [
+    "Permitir contabilização corretiva mediante evidências",
+    "Allow corrective KPI contribution when supported by evidence",
+    "有證據時允許納入矯正維護 KPI"
+  ],
+  [
+    "Pendente: não habilitado até definição do Admin",
+    "Pending: not enabled until Admin approval",
+    "待定：經管理員確認前不啟用"
+  ],
+  [
+    "Excluído dos KPIs corretivos",
+    "Excluded from corrective KPIs",
+    "不列入矯正 KPI"
+  ],
+  [
+    "Apenas candidato: exige classificação e prova de falha física",
+    "Candidate only: requires classification and physical failure evidence",
+    "僅為候選：須有分類與實際故障證據"
+  ],
+  [
+    "Registro no BI operacional (histórico e volume)",
+    "Operational BI reporting (history and volume)",
+    "營運 BI 記錄（歷史與數量）"
+  ],
+  [
+    "Cor do grupo",
+    "Group color",
+    "群組顏色"
+  ],
+  [
+    "Ordem de exibição do grupo",
+    "Group display order",
+    "群組顯示順序"
+  ],
+  [
+    "Grupo ativo",
+    "Active group",
+    "啟用群組"
+  ],
+  [
+    "Salvar grupo",
+    "Save group",
+    "儲存群組"
+  ],
+  [
+    "Cadastrar grupo",
+    "Create group",
+    "建立群組"
+  ],
+  [
+    "Setores vinculados ao grupo",
+    "Sectors linked to the group",
+    "已連結的部門"
+  ],
+  [
+    "Clique em SETUP para escolher um setor já existente, como Elétrica ou Mecânica. O setor continua independente; o grupo define apenas o contexto analítico dessa abertura.",
+    "Open SETUP to choose an existing sector such as Electrical or Mechanical. Sectors remain independent; the group defines the reporting context for this call.",
+    "在 SETUP 群組中選擇現有部門（如電氣或機械）；部門仍獨立存在，群組僅定義此通報的分析脈絡。"
+  ],
+  [
+    "Nenhum setor vinculado ao grupo.",
+    "No sectors linked to the group.",
+    "尚未連結部門。"
+  ],
+  [
+    "Setor existente",
+    "Existing sector",
+    "現有部門"
+  ],
+  [
+    "Selecione um setor",
+    "Choose a sector",
+    "選擇部門"
+  ],
+  [
+    "Nome alternativo no modal (opcional)",
+    "Alternate button label (optional)",
+    "按鈕的其他名稱（選用）"
+  ],
+  [
+    "Adicionar setor ao grupo",
+    "Add sector to group",
+    "新增部門至群組"
+  ],
+  [
+    "Setor vinculado ao grupo.",
+    "Sector linked to group.",
+    "部門已連結至群組。"
+  ],
+  [
+    "Informe um nome alternativo com até 80 caracteres.",
+    "Enter an alternate name of up to 80 characters.",
+    "請輸入不超過 80 字元的其他名稱。"
+  ],
+  [
+    "Grupo de chamados salvo.",
+    "Call group saved.",
+    "通報群組已儲存。"
+  ],
+  [
+    "Não foi possível salvar o grupo.",
+    "Unable to save group.",
+    "無法儲存群組。"
+  ],
+  [
+    "Informe um nome e identificador válido para o grupo.",
+    "Enter a valid group name and identifier.",
+    "請輸入有效的群組名稱與識別碼。"
+  ],
+  [
+    "Informe uma ordem de 0 a 9999 para o grupo.",
+    "Enter a group display order between 0 and 9999.",
+    "請輸入 0 至 9999 的群組顯示順序。"
+  ],
+  [
+    "Nome vazio utiliza o setor original. A edição de apresentação não muda o setor, a API ou a política do grupo.",
+    "An empty name uses the original sector label. Appearance edits do not change the sector, API or group policy.",
+    "留空則使用原有部門名稱；修改外觀不會改變部門、API 或群組政策。"
+  ],
+  [
+    "Vínculo reservado ao Admin principal: este grupo está inativo ou possui política elegível para KPIs corretivos.",
+    "Only the primary Admin can link this inactive or corrective-eligible group.",
+    "此群組已停用或符合矯正 KPI 條件，只有主管理員可建立連結。"
+  ],
+  [
+    "O novo vínculo usará a política do grupo e o mesmo identificador de setor. Vincule somente setores compatíveis e ativos.",
+    "New links inherit the group policy and preserve the sector ID. Link only compatible active sectors.",
+    "新連結繼承群組政策並保留部門 ID；僅連結相容且已啟用的部門。"
+  ],
+  [
+    "Erro ao carregar os grupos de chamados.",
+    "Unable to load call groups.",
+    "無法載入通報群組。"
+  ],
+  [
+    "Não foi possível vincular o setor.",
+    "Unable to link sector.",
+    "無法連結部門。"
+  ],
+  [
+    "Não foi possível alterar o setor.",
+    "Unable to modify sector.",
+    "無法修改部門。"
+  ],
+  [
+    "Apresentação do setor no grupo atualizada.",
+    "Sector label in group updated.",
+    "群組部門顯示已更新。"
+  ],
+  [
+    "Não foi possível salvar a apresentação do setor.",
+    "Unable to save the sector presentation.",
+    "無法儲存部門顯示設定。"
+  ],
+  [
+    "Carregando grupos...",
+    "Loading groups...",
+    "正在載入群組…"
+  ],
+  [
+    "Verificando disponibilidade dos grupos...",
+    "Checking group availability...",
+    "正在確認群組是否可用…"
+  ],
+  [
+    "A configuração dos grupos está desabilitada neste ambiente. Os setores existentes continuam operacionais.",
+    "Group configuration is disabled here. Existing sectors remain operational.",
+    "此環境未啟用群組設定，現有部門仍可運作。"
+  ],
+  [
+    "Config. do ANDON: você pode criar grupos conservadores e vincular setores existentes. Elegibilidade corretiva é exclusiva do Admin principal.",
+    "ANDON settings delegates may create conservative groups and link existing sectors. Only the primary Admin may enable corrective eligibility.",
+    "ANDON 設定代理人可建立保守群組並連結現有部門，只有主管理員能啟用矯正 KPI 納入資格。"
+  ],
+  [
+    "Nome, ID ou setor...",
+    "Name, ID or sector...",
+    "名稱、ID 或部門…"
+  ],
+  [
+    "Filtrar grupos por status",
+    "Filter groups by status",
+    "依狀態篩選群組"
+  ],
+  [
+    "setores",
+    "sectors",
+    "部門"
+  ],
+  [
+    "O histórico, os tempos reais e o downtime físico permanecem separados; configurar um grupo não altera chamados anteriores.",
+    "History, actual work times and physical downtime stay separate; changing groups never reclassifies earlier calls.",
+    "歷史紀錄、實際工作時間及實際停機時間分別保存，修改群組不會重新分類既有通報。"
+  ],
+  [
+    "Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.",
+    "New groups do not automatically contribute to corrective KPIs. The primary Admin alone can authorize evidence-based eligibility.",
+    "新群組不會自動計入矯正 KPI，只有主管理員可依據證據授予納入資格。"
+  ],
+  [
+    "Nome exibido do setor no grupo",
+    "Sector label in group",
+    "群組中的部門顯示名稱"
+  ],
+  [
+    "Catálogo de grupos habilitado. Cada grupo reutiliza setores existentes; edição, políticas de KPI e abertura pelo grupo exigem autorizações independentes.",
+    "Group catalog enabled. Groups reuse existing sectors; edits, KPI policies and opening through groups have separate permissions.",
+    "群組目錄已啟用；群組重用現有部門，編輯、KPI 政策及群組通報需不同權限。"
+  ],
+  [
+    "Catálogo de grupos desabilitado neste ambiente. Os setores diretos continuam disponíveis, sem alterar a política de BI.",
+    "Group catalog disabled here. Direct sector buttons remain available without changing BI policies.",
+    "此環境未啟用群組目錄，部門直接通報仍可使用且不改變 BI 政策。"
+  ],
+  [
+    "Setores técnicos existentes, seus IDs e apresentação dos botões originais.",
+    "Existing technical sectors, their IDs, and the original button appearance.",
+    "現有技術部門、其 ID 與原始按鈕外觀。"
+  ],
+  [
+    "Botões agrupadores, setores vinculados e política de KPI do grupo.",
+    "Group buttons, linked sectors, and the group's KPI policy.",
+    "群組按鈕、關聯部門及群組 KPI 政策。"
+  ],
+  [
+    "Prévia do botão do grupo no ANDON",
+    "Preview of the group button in ANDON",
+    "ANDON 群組按鈕預覽"
+  ],
+  [
+    "Prévia no ANDON",
+    "Preview in ANDON",
+    "ANDON 預覽"
+  ]
 ]
