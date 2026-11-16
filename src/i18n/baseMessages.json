@@ -1064,5 +1064,10 @@
     "Selecione um setor livre. Setores com chamados ativos estão bloqueados.",
     "Select an available sector. Sectors with active calls are blocked.",
     "選擇可用部門。已有進行中呼叫的部門無法選取。"
+  ],
+  [
+    "A seleção múltipla exige pelo menos dois setores sem chamados ativos.",
+    "Multiple selection requires at least two sectors without active calls.",
+    "多重選取至少需要兩個沒有進行中呼叫的部門。"
   ]
 ]
