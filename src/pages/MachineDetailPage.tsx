@@ -603,7 +603,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     setHierarchicalChoices([]);
     const reason = hierarchicalReasons?.find(item => item.id === reasonId);
     const option = reason?.options.find(item => item.id === optionId);
-    if (!reason?.openingEnabled || !option?.active) {
+    if (!reason?.openingEnabled || !option) {
       toast.error(ui("Não foi possível validar o setor do grupo selecionado."));
       return;
     }
