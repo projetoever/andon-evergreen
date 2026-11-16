@@ -6007,4 +6007,5 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["A workstation está inativa ou aguardando aprovação no Hub.","The workstation is inactive or awaiting approval in the Hub.","工作站未啟用或正在模組中心等待核准。"],
   ["A política permanente ou a confiança da workstation foi desativada após o login.","The no-expiry policy or workstation trust was disabled after login.","登入後，不過期政策或工作站信任設定已被停用。"],
   ["A sessão não pôde ser validada. Consulte o diagnóstico de acesso no Hub.","The session could not be validated. Review the access diagnosis in the Hub.","無法驗證工作階段。請查看模組中心的存取診斷。"],
+  ["Ver diagnóstico do login anterior","View previous login diagnosis","查看先前登入診斷"],
 ]; 
