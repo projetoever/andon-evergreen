@@ -40,6 +40,7 @@ import { AppearanceSettingsPreview } from "./AppearanceSettingsPreview";
 import { ShiftsSettingsTab } from "./ShiftsSettingsTab";
 import { SoundsSettingsTab } from "./SoundsSettingsTab";
 import { CentralSettingsCapabilityNotice } from "./CentralSettingsCapabilityNotice";
+import { AdminWorkspaceShell } from "./AdminWorkspaceShell";
 
 type AdminNavigationGroup = "Sistema" | "Operação" | "Cadastros" | "Infraestrutura";
 
@@ -226,190 +227,37 @@ export function AdminSettingsWorkspace({
   };
 
   return (
-    <section className="andon-screen-enter h-dvh min-h-0 w-full overflow-hidden bg-background text-foreground"
-      aria-label={ui("Painel administrativo do ANDON")}>
-        <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-          <aside className="hidden min-h-0 border-r border-border bg-card/50 lg:flex lg:flex-col">
-            <div className="border-b border-border px-5 py-5">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                  <ShieldCheck className="h-6 w-6" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-                    ANDON
-                  </p>
-                  <p className="truncate text-base font-black text-foreground">
-                    {ui("Painel administrativo")}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                {ui("Configuração controlada do ANDON Web Industrial.")}
-              </p>
-            </div>
-
-            <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
-              {navigationGroups.filter((group) => visibleTabs.some((item) => item.group === group)).map((group) => (
-                <div key={group} className="space-y-1">
-                  <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                    {ui(group)}
-                  </p>
-                  {visibleTabs
-                    .filter((item) => item.group === group)
-                    .map((item) => {
-                      const Icon = item.icon;
-                      const active = item.id === tab;
-
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          onClick={() => setTab(item.id)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-                            active
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                          )}
-                        >
-                          <Icon className="h-4.5 w-4.5 shrink-0" />
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-bold">{item.label}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                </div>
-              ))}
-            </nav>
-
-            <div className="border-t border-border p-3">
-              <button
-                type="button"
-                onClick={handleAdminLogout}
-                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
-              >
-                <LogOut className="h-4 w-4" />
-                {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
-              </button>
-            </div>
-          </aside>
-
-          <header className="flex items-center justify-between gap-3 border-b border-border bg-card/70 px-4 py-3 lg:hidden">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <ShieldCheck className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">
-                  ANDON
-                </p>
-                <p className="truncate text-sm font-black">{ui("Painel administrativo")}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label={ui("Fechar painel administrativo")}
-              onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </header>
-
-          <nav className="flex gap-2 overflow-x-auto border-b border-border bg-background px-3 py-2 lg:hidden">
-            {visibleTabs.map((item) => {
-              const Icon = item.icon;
-              const active = item.id === tab;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setTab(item.id)}
-                  className={cn(
-                    "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-muted-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          <main className="flex min-h-0 min-w-0 flex-col lg:col-start-2 lg:row-start-1">
-            <div className="hidden shrink-0 items-start justify-between gap-6 border-b border-border bg-background/95 px-7 py-5 lg:flex">
-              <div className="flex min-w-0 items-start gap-4">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                  <ActiveIcon className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    {ui(activeTab.group)}
-                  </p>
-                  <h2 className="mt-0.5 text-2xl font-black tracking-tight text-foreground">
-                    {activeTab.label}
-                  </h2>
-                  <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                    {activeTab.description}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label={ui("Fechar painel administrativo")}
-                onClick={onClose}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="shrink-0 border-b border-border bg-muted/20 px-4 py-3 lg:hidden">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <ActiveIcon className="h-4.5 w-4.5" />
-                </span>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    {ui(activeTab.group)}
-                  </p>
-                  <h2 className="font-black text-foreground">{activeTab.label}</h2>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    {activeTab.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
-              <div className="mx-auto w-full max-w-none space-y-4">
-                {centralAccess && !centralPrimaryAdmin && (
-                  <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
-                    {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
-                  </p>
-                )}
-                {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={true} />}
-                {renderTab()}
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-background px-3 py-2 lg:hidden">
-              <BigButton tone="danger" size="md" onClick={handleAdminLogout}>
-                {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
-              </BigButton>
-              <BigButton tone="neutral" size="md" onClick={onClose}>
-                {ui("Fechar")}
-              </BigButton>
-            </div>
-          </main>
-        </div>
-    </section>
+    <AdminWorkspaceShell
+      brand="ANDON"
+      title={ui("Painel administrativo do ANDON")}
+      ariaLabel={ui("Painel administrativo do ANDON")}
+      navLabel={ui("Seções administrativas do ANDON")}
+      subtitle={ui("Configuração controlada do ANDON Web Industrial.")}
+      items={visibleTabs}
+      activeId={tab}
+      onSelect={(id) => setTab(id as SettingsTab)}
+      onBack={onClose}
+      backLabel={ui("Voltar ao ANDON")}
+      headerActions={
+        <button type="button" onClick={handleAdminLogout}
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-sm font-bold text-muted-foreground hover:bg-accent">
+          <LogOut className="h-4 w-4" />
+          {ui(centralAccess ? "Fechar painel" : "Sair do modo admin")}
+        </button>
+      }
+      alert={<>
+        {centralAccess && !centralPrimaryAdmin && (
+          <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-muted-foreground">
+            {ui("A permissão Configurações do ANDON permite gerenciar o painel em qualquer perfil. Funções ainda em migração continuam bloqueadas até homologação.")}
+          </p>
+        )}
+        {centralAccess && <CentralSettingsCapabilityNotice tab={tab} open={true} />}
+      </>}
+    >
+      <div key={tab} className="andon-panel-enter min-w-0">
+        {renderTab()}
+      </div>
+    </AdminWorkspaceShell>
   );
 }
 
