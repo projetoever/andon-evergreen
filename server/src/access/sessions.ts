@@ -188,7 +188,7 @@ export async function login(
     if (current.isPrimaryAdmin && !current.mustChangePassword)
       await lockWorkstationFlow(tx, input.workstationId);
     // The workstation lock serializes new logins with remote logout and
-    // trust toggles; the old browser session cannot outlive a user switch.
+    // administrative workstation actions; account logins do not revoke peers.
     if (!current.isPrimaryAdmin || current.mustChangePassword)
       await lockWorkstationFlow(tx, input.workstationId);
     const station = await tx.workstation.findUnique({
