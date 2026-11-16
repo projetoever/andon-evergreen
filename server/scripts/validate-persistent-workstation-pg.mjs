@@ -236,6 +236,35 @@ try {
     token: afterChangeToken, workstationId: targetStationId,
   })).persistentOperational, true);
 
+  // Re-saving a production profile or correcting only its display label must
+  // NOT invalidate either browser's permanent session. An ACL/security edit
+  // still revokes, as validated in validate-access-http.mjs.
+  const versionBeforeCosmetic = (await db.accessUser.findUniqueOrThrow({
+    where: { id: operator.id },
+  })).authorizationVersion;
+  const baseProfile = {
+    login: operator.login, displayName: operator.displayName,
+    roleLabel: operator.roleLabel, accountType: "person", active: true,
+    machineScope: "selected", sessionPolicy: "persistent",
+    permissions: fullAndonGrants, machineIds: [machineId],
+    version: versionBeforeCosmetic,
+  };
+  const noopSave = await adminRequest("PUT", "/users/" + operator.id, baseProfile);
+  assert.equal(noopSave.statusCode, 200, noopSave.body);
+  const rename = await adminRequest("PUT", "/users/" + operator.id, {
+    ...baseProfile, displayName: "CI Production Shift A",
+  });
+  assert.equal(rename.statusCode, 200, rename.body);
+  assert.equal((await db.accessUser.findUniqueOrThrow({
+    where: { id: operator.id },
+  })).authorizationVersion, versionBeforeCosmetic);
+  assert.equal((await resolveSession(db, {
+    token: afterChangeToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+  assert.equal((await resolveSession(db, {
+    token: secondBrowserToken, workstationId: targetStationId,
+  })).persistentOperational, true);
+
   // Server explicitly ignores absolute and idle age for authorized operations.
   const s = await db.accessSession.findFirstOrThrow({
     where: { tokenHash: tokenHash(afterChangeToken) },
