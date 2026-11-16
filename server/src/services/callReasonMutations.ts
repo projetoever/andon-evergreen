@@ -56,6 +56,18 @@ function optionalOverride(value: unknown): string | null {
   if (value === null) return null;
   return string(value, 80);
 }
+
+/** KPI policy is owned by the group, never an individual linked sector.
+ * Permit explicit null when migrating legacy override fields conservatively. */
+function assertGroupOwnsPolicy(body: Record<string, unknown>) {
+  for (const key of [
+    "natureOverride", "suggestedResponsibilityOverride",
+    "maintenanceKpiPolicyOverride", "analyticsDispositionOverride",
+  ]) {
+    if (body[key] !== undefined && body[key] !== null)
+      throw new AccessError("group_policy_cannot_be_overridden_by_sector", 400);
+  }
+}
 function validatePolicy(policy: ReasonPolicy) {
   try { validateReasonPolicy(policy); }
   catch (error) {
@@ -115,6 +127,7 @@ export function parseReasonPatch(raw: unknown, current: ReasonRecord & {
 export function parseOptionCreate(raw: unknown) {
   const body = object(raw);
   unknownKeys(body, optionKeys);
+  assertGroupOwnsPolicy(body);
   return {
     id: id(body.id),
     technicalAreaId: id(body.technicalAreaId),
@@ -134,6 +147,7 @@ export function parseOptionCreate(raw: unknown) {
 export function parseOptionPatch(raw: unknown, current: ReasonOptionRecord & { displayOrder: number }) {
   const body = object(raw);
   unknownKeys(body, [...optionKeys.filter(key => key !== "id" && key !== "technicalAreaId"), "expectedRevision"]);
+  assertGroupOwnsPolicy(body);
   if (body.expectedRevision === undefined) return fail();
   const expectedRevision = revision(body.expectedRevision);
   if (current.revision !== expectedRevision) throw new AccessError("call_reason_revision_conflict", 409);
