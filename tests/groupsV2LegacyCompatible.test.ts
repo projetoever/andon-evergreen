@@ -108,6 +108,9 @@ test("REFINE22.1: active group is visible without enabling operational creation"
   assert.match(security, /if \(!centralCallReasonsHttpEnabled\(\)\)/);
   assert.match(security, /assertPermission\(principal, "calls\.open"\)/);
   assert.match(opening, /if \(!input\.catalogEnabled \|\| !input\.hierarchicalOpeningEnabled\)/);
+  const globalOpen = await read("src/components/calls/OpenCallModal.tsx");
+  assert.match(globalOpen, /!reason\?\.openingEnabled/);
+  assert.match(globalOpen, /!reason\.openingEnabled \|\| reason\.options\.length === 0/);
   assert.match(editor, /grid gap-2 md:grid-cols-2/);
   assert.match(editor, /min-h-10 min-w-28 max-w-48/);
   assert.doesNotMatch(editor, /machine-sector-action inline-flex min-h-14/);
