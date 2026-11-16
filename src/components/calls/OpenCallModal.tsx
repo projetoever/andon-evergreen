@@ -1,7 +1,6 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +48,6 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
   useInterfaceLanguage();
   const { machines, calls, openCall } = useAndon();
   const { access, checking: accessChecking } = useModuleAccess();
-  const navigate = useNavigate();
   const [reasonCatalogStatus, setReasonCatalogStatus] =
     useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
   const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[]>([]);
