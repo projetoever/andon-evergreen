@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,18 @@ export function AndonAdminPage() {
   const navigate = useNavigate();
   const { access, checking, error } = useModuleAccess();
   const [authorization, setAuthorization] = useState<"checking" | "allowed" | "denied">("checking");
+  const authorizationRequest = useRef(0);
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const isCentral = access?.centralAccessEnabled === true;
 
   const verifyAccess = useCallback(async () => {
-    if (checking || !access || error) {
+    const requestId = ++authorizationRequest.current;
+    if (checking || !access) {
       setAuthorization("checking");
+      return;
+    }
+    if (error) {
+      setAuthorization("denied");
       return;
     }
     if (!isCentral) {
@@ -30,6 +36,7 @@ export function AndonAdminPage() {
     // not a substitute for the server-owned user permissions.
     try {
       const session = await accessRequest<AccessState>("/session");
+      if (requestId !== authorizationRequest.current) return;
       const principal = session.principal;
       const allowed = principal?.purpose === "normal" &&
         (principal.isPrimaryAdmin === true ||
@@ -37,6 +44,7 @@ export function AndonAdminPage() {
       setIsPrimaryAdmin(principal?.isPrimaryAdmin === true);
       setAuthorization(allowed ? "allowed" : "denied");
     } catch {
+      if (requestId !== authorizationRequest.current) return;
       setAuthorization("denied");
     }
   }, [checking, access, error, isCentral]);
@@ -48,6 +56,7 @@ export function AndonAdminPage() {
     window.addEventListener("andon:module-session-changed", revalidate);
     const interval = window.setInterval(revalidate, 30_000);
     return () => {
+      authorizationRequest.current += 1;
       window.removeEventListener("focus", revalidate);
       window.removeEventListener("andon:module-session-changed", revalidate);
       window.clearInterval(interval);
@@ -62,7 +71,7 @@ export function AndonAdminPage() {
           <ShieldCheck className="h-7 w-7 text-primary" aria-hidden="true" />
           <h1 className="text-xl font-bold">{ui("Administração do ANDON")}</h1>
           <p className="text-sm text-muted-foreground">
-            {authorization === "checking" || checking
+            {authorization === "checking" && !error && !checking ? true : checking || !access
               ? ui("Verificando autorização da workstation e do usuário...")
               : ui("Acesso não autorizado. Entre pelo Hub ou solicite a permissão Config. ANDON.")}
           </p>
