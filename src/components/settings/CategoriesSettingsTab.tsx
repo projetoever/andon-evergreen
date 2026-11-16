@@ -447,7 +447,7 @@ export function CategoriesSettingsTab() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
-            <CompactAndonColorField label="Cor do botão na tela da máquina"
+            <CompactAndonColorField label={ui("Cor do botão na tela da máquina")}
               value={draft.color} disabled={!canChangeCatalog || isBusy}
               onChange={color => setDraft(previous => ({ ...previous, color }))} />
             <div>
