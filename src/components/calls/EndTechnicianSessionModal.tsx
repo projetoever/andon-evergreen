@@ -131,7 +131,7 @@ export function EndTechnicianSessionModal({
         technicianName: target.technicianName,
         credential,
         endReason: reason,
-        notes: notes.trim() || null,
+        notes: notes.trim() || undefined,
       });
       toast.success(
         isFollowUp
@@ -391,6 +391,7 @@ export function EndTechnicianSessionModal({
               className="mt-1"
               rows={2}
               value={notes}
+              maxLength={4000}
               onChange={(event) => setNotes(event.target.value)}
               placeholder={ui("Descreva a condição deixada para o próximo mantenedor.")}
             />

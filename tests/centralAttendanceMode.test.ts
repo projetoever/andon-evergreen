@@ -43,3 +43,27 @@ test("admin explains declared identity and disables name option when feature is 
   assert.match(source, /selecionar por nome declara o mantenedor/);
   assert.match(source, /workstation responsáveis serão auditados/);
 });
+
+test("REFINE22.4: individual technician end omits empty notes; central accepts legacy null only for optional notes", async () => {
+  const [modal, repository, guard, route, pg] = await Promise.all([
+    readFile(new URL("../src/components/calls/EndTechnicianSessionModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/repositories/apiAndonRepository.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/access/centralTechnicianEnd.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/src/routes/andonCalls.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/scripts/validate-central-technician-end-pg.mjs", import.meta.url), "utf8"),
+  ]);
+  assert.match(modal, /notes: notes\.trim\(\) \|\| undefined/);
+  assert.match(modal, /maxLength=\{4000\}/);
+  assert.match(repository, /typeof params\.notes === "string" && params\.notes\.trim\(\)/);
+  assert.match(repository, /\? \{ notes: params\.notes\.trim\(\) \}/);
+  assert.match(guard, /input\.notes !== undefined && input\.notes !== null/);
+  assert.match(guard, /typeof input\.notes !== "string" \|\| input\.notes\.length > 4000/);
+  assert.match(pg, /notes: null/);
+  assert.match(pg, /badNotes\.json\(\)\.error, "invalid_input"/);
+  assert.match(route, /runCentralTechnicianEnd\(prisma/);
+  // The security contract remains credential or authorized declared name,
+  // and ending the last maintenance participant remains guarded in the domain.
+  assert.match(guard, /normalizeCredential\(/);
+  assert.match(guard, /assertPermission\(latest, "calls\.technicians\.manage", reference\.machineId\)/);
+  assert.match(guard, /endActiveTechnicianSession\(tx/);
+});

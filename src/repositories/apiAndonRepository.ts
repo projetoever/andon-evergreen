@@ -456,7 +456,11 @@ export class ApiAndonRepository implements AndonRepository {
           ? { technicianId: session?.technicianId }
           : { credential: params.credential }),
         reason: params.endReason,
-        notes: params.notes,
+        // Missing optional notes must be omitted, not sent as null: the
+        // central technician-end contract treats notes as an optional string.
+        ...(typeof params.notes === "string" && params.notes.trim()
+          ? { notes: params.notes.trim() }
+          : {}),
       },
     );
     return this.loadResult();
