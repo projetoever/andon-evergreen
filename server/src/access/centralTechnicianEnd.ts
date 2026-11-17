@@ -46,7 +46,7 @@ export function runCentralTechnicianEnd(
     throw new AccessError("technician_credential_required", 400);
   if ((input.reason !== undefined &&
        (typeof input.reason !== "string" || input.reason.length > 2000)) ||
-      (input.notes !== undefined &&
+      (input.notes !== undefined && input.notes !== null &&
        (typeof input.notes !== "string" || input.notes.length > 4000)))
     throw new AccessError("invalid_input", 400);
 
