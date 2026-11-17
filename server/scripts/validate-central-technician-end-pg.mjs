@@ -112,6 +112,9 @@ try {
   assert.equal((await send(0, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
   assert.equal((await send(0, {}, { ...payload(0), technicianName: "spoof" })).statusCode, 400);
   assert.equal((await send(0, {}, { reason: "no credential" })).statusCode, 400);
+  const badNotes = await send(0, {}, { ...payload(0), notes: 42 });
+  assert.equal(badNotes.statusCode, 400);
+  assert.equal(badNotes.json().error, "invalid_input");
   assert.equal(await count(), 2);
 
   // An audit insert error must roll back technician session termination.
@@ -124,7 +127,13 @@ try {
 
   // Machine+technician advisory locks prevent both concurrent requests
   // from removing the last maintainer (2->1 allowed, 1->0 denied).
-  const race = await Promise.all([send(0), send(1)]);
+  // Empty optional notes from older clients must behave as omitted, while
+  // still rejecting non-string notes. Both concurrent candidates carry null
+  // so the one winning the machine lock verifies the successful transition.
+  const race = await Promise.all([
+    send(0, {}, { ...payload(0), notes: null }),
+    send(1, {}, { ...payload(1), notes: null }),
+  ]);
   assert.deepEqual(race.map(x => x.statusCode).sort(), [200, 400],
     race.map(x => x.body).join("\n"));
   assert.equal(await count(), 1);
