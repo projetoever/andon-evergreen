@@ -12,10 +12,10 @@ test("GROUPS/V2: existing sectors remain direct buttons beside optional group sh
     read("src/components/calls/OpenCallModal.tsx"),
     read("src/components/calls/CallReasonOptionsModal.tsx"),
   ]);
-  const direct = panel.indexOf("{categories.map((category)");
+  const direct = panel.indexOf("{sectorTiles.map(({ category, activeCall, temporarilyVisible })");
   const group = panel.indexOf("{hierarchicalReasons?.map(reason");
   assert(direct >= 0 && group > direct, "sectors must render before optional groups");
-  assert.match(panel, /activeCall = activeCalls\.find\(call => call\.subtype === category\.id\)/);
+  assert.match(panel, /deriveMachineSectorTiles\(categories, catalogCategories \?\? categories, activeCalls\)/);
   assert.match(panel, /onOpenSubtype=\{onOpenSubtype\}/);
   assert.match(panel, /onSelectCall=\{onSelectCall\}/);
   assert.match(machine, /if \(!machine\) return;\s+setHierarchicalChoice\(null\)/);
@@ -29,7 +29,7 @@ test("GROUPS/V2: existing sectors remain direct buttons beside optional group sh
   assert.match(panel, /color: readableTextColor\(reason\.color\)/);
   assert.match(options, /sectorColors\?: Readonly<Record<string, string>>/);
   assert.match(options, /backgroundColor: color/);
-  assert.match(machine, /sectorColors=\{Object\.fromEntries\(categories\.map/);
+  assert.match(machine, /sectorColors=\{Object\.fromEntries\(categoryCatalog\.map/);
 });
 
 test("GROUPS/V2: parent owns corrective eligibility; direct legacy and GPIO subtype stay stable", async () => {
