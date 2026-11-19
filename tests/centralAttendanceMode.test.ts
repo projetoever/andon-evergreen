@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { effectiveAttendanceMode, allowedAttendanceModes } from "../src/utils/attendanceModePolicy";
+import { buildTechnicianEndPayload } from "../src/services/technicianEndPayload";
 
 test("REFINE13: configured name is available only when central server declares capability", () => {
   assert.equal(effectiveAttendanceMode("name", true), "pin");
@@ -66,4 +67,25 @@ test("REFINE22.4: individual technician end omits empty notes; central accepts l
   assert.match(guard, /normalizeCredential\(/);
   assert.match(guard, /assertPermission\(latest, "calls\.technicians\.manage", reference\.machineId\)/);
   assert.match(guard, /endActiveTechnicianSession\(tx/);
+});
+
+test("REFINE22.5: a single safe payload contract handles declared name, PIN and empty notes", () => {
+  const params = { callId: "call_1", sessionId: "session_1",
+    technicianName: "Mantenedor A", endReason: "support_finished" as const, notes: null };
+  const session = { technicianId: "tech_a", technicianName: "Mantenedor A" };
+  assert.deepEqual(buildTechnicianEndPayload(params, session, true),
+    { technicianId: "tech_a", reason: "support_finished" });
+  assert.deepEqual(buildTechnicianEndPayload({
+    ...params, credential: { method: "pin", value: "1234" },
+  }, session, true), {
+    credential: { method: "pin", value: "1234" }, reason: "support_finished",
+  });
+  assert.deepEqual(buildTechnicianEndPayload({ ...params, notes: "  Serviço concluído  " },
+    session, false), {
+    technicianName: "Mantenedor A", reason: "support_finished", notes: "Serviço concluído",
+  });
+  assert.throws(() => buildTechnicianEndPayload(params, undefined, true),
+    /sem identificação válida/);
+  assert.throws(() => buildTechnicianEndPayload({ ...params, notes: "X".repeat(4001) },
+    session, true), /4\.000/);
 });
