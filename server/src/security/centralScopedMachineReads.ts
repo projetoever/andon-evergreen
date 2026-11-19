@@ -69,6 +69,7 @@ export function scopedGlobalHistoryPrincipal(request: FastifyRequest): Principal
     throw new AccessError("permission_denied");
   assertPermission(principal, "andon.read");
   assertPermission(principal, "history.read");
+  assertPermission(principal, "history.global.read");
   return principal;
 }
 
