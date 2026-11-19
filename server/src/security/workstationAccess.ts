@@ -353,6 +353,12 @@ export async function enforceWorkstationAccess(request: FastifyRequest, reply: F
         // Data-quality detail rows contain diagnoses, work orders, and names;
         // BI dashboard permission alone must not unlock that historical PII.
         assertPermission(principal, "history.read");
+        if (path === "/api/andon-calls/history/search" ||
+            path === "/api/andon-calls/history/summary" ||
+            path === "/api/andon-calls/history/export" ||
+            /^\/api\/andon-calls\/history\/detail\/[A-Za-z0-9_-]{1,160}$/.test(path)) {
+          assertPermission(principal, "history.global.read");
+        }
       }
       if (isScopedMachineReadRoute(request.method, path)) {
         bindAuthorizedMachineReadPrincipal(request, principal);
