@@ -1,5 +1,10 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Setor habilitado para chamados e grupos", "Sector enabled for calls and groups", "部門可透過直接按鈕或群組建立通報"],
+  ["Ocultar o botão direto não inativa o setor nem o remove dos grupos. Quando houver chamado ativo, ele aparece temporariamente para atendimento.", "Hiding the direct button does not disable the sector or remove it from groups. It appears temporarily for attendance while a call is active.", "隱藏直接按鈕不會停用部門或將其從群組移除。通報進行期間，按鈕會暫時顯示以便處理。"],
+  ["Setor inativo: não é possível abrir novos chamados, mesmo se estiver vinculado a um grupo.", "Inactive sector: new calls are blocked even if the sector remains linked to a group.", "部門已停用：即使仍連結至群組，也無法建立新通報。"],
+  ["Exibir setor na tela da máquina", "Show direct sector button on machine screen", "在機台畫面顯示部門直接按鈕"],
+
   ["Remover do grupo", "Remove from group", "從群組移除"],
   ["Remover somente o vínculo com o grupo", "Remove only this group link", "只移除此群組連結"],
   ["Somente o Admin principal pode desvincular setores", "Only the primary Admin may unlink sectors", "只有主要管理員可解除部門連結"],
