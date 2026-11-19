@@ -65,7 +65,7 @@ test("HIST-04: OFF, no history grant, out-of-scope IDs never disclose records",a
   });
   const app=Fastify();
   app.addHook("preHandler",async req=>bindAuthorizedMachineReadPrincipal(req,
-    principal(canSee?["andon.read","history.read"]:["andon.read"])));
+    principal(canSee?["andon.read","history.read","history.global.read"]:["andon.read"])));
   await registerAndonCallRoutes(app);
   t.after(()=>app.close());
   process.env.ANDON_CENTRAL_ACCESS_ENABLED="1";
