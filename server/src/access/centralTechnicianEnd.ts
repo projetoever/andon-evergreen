@@ -44,11 +44,15 @@ export function runCentralTechnicianEnd(
     normalizeCredential(input.credential?.method, input.credential?.value);
   if (!declared && !credential)
     throw new AccessError("technician_credential_required", 400);
-  if ((input.reason !== undefined &&
-       (typeof input.reason !== "string" || input.reason.length > 2000)) ||
-      (input.notes !== undefined && input.notes !== null &&
-       (typeof input.notes !== "string" || input.notes.length > 4000)))
-    throw new AccessError("invalid_input", 400);
+  // Diagnose rejected optional fields separately. Both fields are optional;
+  // older clients may send JSON null, which is equivalent to omission.
+  // Never return the raw value (it may contain sensitive free-text notes).
+  if (input.reason !== undefined && input.reason !== null &&
+      (typeof input.reason !== "string" || input.reason.length > 2000))
+    throw new AccessError("invalid_technician_end_reason", 400);
+  if (input.notes !== undefined && input.notes !== null &&
+      (typeof input.notes !== "string" || input.notes.length > 4000))
+    throw new AccessError("invalid_technician_end_notes", 400);
 
   return db.$transaction(async (tx) => {
     const session = await tx.accessSession.findUnique({

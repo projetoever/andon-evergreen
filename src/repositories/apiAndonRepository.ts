@@ -14,6 +14,7 @@ import type {
   StartAttendanceParams,
 } from "@/services/andonService";
 import { normalizeAndonCall, normalizeMachine } from "@/services/andonService";
+import { buildTechnicianEndPayload } from "@/services/technicianEndPayload";
 import {
   getLastServerTimestampIso,
   getServerNowIso,
@@ -447,22 +448,23 @@ export class ApiAndonRepository implements AndonRepository {
       params.sessionId ? item.id === params.sessionId : item.technicianName === params.technicianName,
     );
     if (!params.credential && !session) throw new Error("Sessão de mantenedor não encontrada");
+    const central = isCentralMode();
+    const payload = buildTechnicianEndPayload(params, session, central);
 
-    await this.apiClient.patch(
-      `/api/andon-calls/${params.callId}/technicians/end`,
-      {
-        ...(!isCentralMode() ? { technicianName: params.technicianName ?? session?.technicianName } : {}),
-        ...(isCentralMode() && !params.credential
-          ? { technicianId: session?.technicianId }
-          : { credential: params.credential }),
-        reason: params.endReason,
-        // Missing optional notes must be omitted, not sent as null: the
-        // central technician-end contract treats notes as an optional string.
-        ...(typeof params.notes === "string" && params.notes.trim()
-          ? { notes: params.notes.trim() }
-          : {}),
-      },
-    );
+    try {
+      await this.apiClient.patch(`/api/andon-calls/${params.callId}/technicians/end`, payload);
+    } catch (error) {
+      // Keep the actual server code visible. Legacy 'invalid_input' must not
+      // masquerade as a new cause. The UI never logs PINs or supplied notes.
+      if (error instanceof Error && error.message.includes("HTTP 400 · invalid_input")) {
+        throw new Error(
+          "A API recusou o encerramento individual (invalid_input). " +
+          "Confira se o SHA vivo do backend corresponde à versão instalada; " +
+          "se persistir, registre o código e a rota no diagnóstico, sem divulgar credenciais.",
+        );
+      }
+      throw error;
+    }
     return this.loadResult();
   }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { effectiveAttendanceMode, allowedAttendanceModes } from "../src/utils/attendanceModePolicy";
+import { buildTechnicianEndPayload } from "../src/services/technicianEndPayload";
 
 test("REFINE13: configured name is available only when central server declares capability", () => {
   assert.equal(effectiveAttendanceMode("name", true), "pin");
@@ -31,7 +32,9 @@ test("central declared-name flows require server capability and preserve strong 
     assert.match(source, /declara|declaração|seleção por nome registra/);
   }
   assert.match(files[2], /technicianIds/);
-  assert.match(files[2], /technicianId:/);
+  assert.match(files[2], /buildTechnicianEndPayload/);
+  const payload = await readFile(new URL("../src/services/technicianEndPayload.ts", import.meta.url), "utf8");
+  assert.match(payload, /technicianId: session!/);
 });
 
 test("admin explains declared identity and disables name option when feature is OFF", async () => {
@@ -54,16 +57,39 @@ test("REFINE22.4: individual technician end omits empty notes; central accepts l
   ]);
   assert.match(modal, /notes: notes\.trim\(\) \|\| undefined/);
   assert.match(modal, /maxLength=\{4000\}/);
-  assert.match(repository, /typeof params\.notes === "string" && params\.notes\.trim\(\)/);
-  assert.match(repository, /\? \{ notes: params\.notes\.trim\(\) \}/);
+  assert.match(repository, /buildTechnicianEndPayload\(params, session, central\)/);
+  const payloadContract = await readFile(new URL("../src/services/technicianEndPayload.ts", import.meta.url), "utf8");
+  assert.match(payloadContract, /typeof params\.notes === "string" \? params\.notes\.trim\(\)/);
+  assert.match(payloadContract, /\.\.\.\(notes \? \{ notes \} : \{\}\)/);
   assert.match(guard, /input\.notes !== undefined && input\.notes !== null/);
   assert.match(guard, /typeof input\.notes !== "string" \|\| input\.notes\.length > 4000/);
   assert.match(pg, /notes: null/);
-  assert.match(pg, /badNotes\.json\(\)\.error, "invalid_input"/);
+  assert.match(pg, /badNotes\.json\(\)\.error, "invalid_technician_end_notes"/);
   assert.match(route, /runCentralTechnicianEnd\(prisma/);
   // The security contract remains credential or authorized declared name,
   // and ending the last maintenance participant remains guarded in the domain.
   assert.match(guard, /normalizeCredential\(/);
   assert.match(guard, /assertPermission\(latest, "calls\.technicians\.manage", reference\.machineId\)/);
   assert.match(guard, /endActiveTechnicianSession\(tx/);
+});
+
+test("REFINE22.5: a single safe payload contract handles declared name, PIN and empty notes", () => {
+  const params = { callId: "call_1", sessionId: "session_1",
+    technicianName: "Mantenedor A", endReason: "support_finished" as const, notes: null };
+  const session = { technicianId: "tech_a", technicianName: "Mantenedor A" };
+  assert.deepEqual(buildTechnicianEndPayload(params, session, true),
+    { technicianId: "tech_a", reason: "support_finished" });
+  assert.deepEqual(buildTechnicianEndPayload({
+    ...params, credential: { method: "pin", value: "1234" },
+  }, session, true), {
+    credential: { method: "pin", value: "1234" }, reason: "support_finished",
+  });
+  assert.deepEqual(buildTechnicianEndPayload({ ...params, notes: "  Serviço concluído  " },
+    session, false), {
+    technicianName: "Mantenedor A", reason: "support_finished", notes: "Serviço concluído",
+  });
+  assert.throws(() => buildTechnicianEndPayload(params, undefined, true),
+    /sem identificação válida/);
+  assert.throws(() => buildTechnicianEndPayload({ ...params, notes: "X".repeat(4001) },
+    session, true), /4\.000/);
 });

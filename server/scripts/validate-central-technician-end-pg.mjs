@@ -114,7 +114,13 @@ try {
   assert.equal((await send(0, {}, { reason: "no credential" })).statusCode, 400);
   const badNotes = await send(0, {}, { ...payload(0), notes: 42 });
   assert.equal(badNotes.statusCode, 400);
-  assert.equal(badNotes.json().error, "invalid_input");
+  assert.equal(badNotes.json().error, "invalid_technician_end_notes");
+  const badReason = await send(0, {}, { ...payload(0), reason: { invalid: true } });
+  assert.equal(badReason.statusCode, 400);
+  assert.equal(badReason.json().error, "invalid_technician_end_reason");
+  const tooLongNotes = await send(0, {}, { ...payload(0), notes: "x".repeat(4001) });
+  assert.equal(tooLongNotes.statusCode, 400);
+  assert.equal(tooLongNotes.json().error, "invalid_technician_end_notes");
   assert.equal(await count(), 2);
 
   // An audit insert error must roll back technician session termination.

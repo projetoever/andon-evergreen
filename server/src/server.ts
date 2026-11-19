@@ -75,9 +75,15 @@ export function buildServer() {
     });
   });
 
+  // Snapshot the commit from the process environment at API boot. Reading
+  // the current Git checkout here would give false reassurance when an old
+  // Node process is still bound to port 3001 after a frontend-only update.
+  const runningCommit = (process.env.ANDON_API_RUNTIME_COMMIT ?? "").trim().toLowerCase();
+  const verifiedRunningCommit = /^[a-f0-9]{40}$/.test(runningCommit) ? runningCommit : null;
   app.get("/health", async () => ({
     status: "ok",
     service: "andon-evergreen-api",
+    buildCommit: verifiedRunningCommit,
     timestamp: new Date().toISOString(),
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   }));

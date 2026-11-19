@@ -553,6 +553,21 @@ function Invoke-AndonHealthCheck {
             if ($url -like "*/health/ready" -and ($health.status -ne "ok" -or $health.ready -ne $true)) { throw "Schema indisponivel." }
             $probeTimer.Stop()
             Write-AndonOk "$url | $($probeTimer.ElapsedMilliseconds) ms"
+            if ($url -like "*/health") {
+                $expectedApiCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
+                $liveApiCommit = "$($health.buildCommit)".Trim().ToLowerInvariant()
+                if ($expectedApiCommit -match '^[0-9a-f]{40}$') {
+                    if ($liveApiCommit -cne $expectedApiCommit) {
+                        $hasCriticalError = $true
+                        Write-AndonFail "DIVERGENCIA DE VERSAO API: SHA instalado=$expectedApiCommit; API viva=$(if ($liveApiCommit) { $liveApiCommit } else { 'sem identificacao/antiga' })."
+                        Write-AndonWarn "API anterior pode continuar na porta 3001. Menu 6 e somente leitura; use opcao 4 para reiniciar servicos apos verificar logs."
+                    } else {
+                        Write-AndonOk "SHA da API viva corresponde ao instalado: $liveApiCommit"
+                    }
+                } else {
+                    Write-AndonWarn "SHA instalado ausente: a verificacao da versao da API foi ignorada."
+                }
+            }
             if ($probeTimer.ElapsedMilliseconds -gt 1500) {
                 Write-AndonWarn "Resposta lenta (acima de 1,5 s): avaliar carga e conectividade local."
             }

@@ -123,6 +123,7 @@ try {
 
   const ended = await inject("PATCH", "/technicians/end", {
     technicianId: technicianIds[0], reason: "support_finished",
+    notes: null, // Legacy clients may send optional notes as null.
   });
   assert.equal(ended.statusCode, 200, ended.body);
   assert.equal(await db.technicianSession.count({ where: { callId, endedAt: null } }), 1);
