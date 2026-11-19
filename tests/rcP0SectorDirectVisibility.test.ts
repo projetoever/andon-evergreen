@@ -73,10 +73,11 @@ test("RC P0: two references to same sector or a removed group do not duplicate/h
 
 test("RC P0: API/UI/schema use explicit presentation flag, not category inactivation", async () => {
   const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
-  const [editor, screen, direct, central, legacy, operational, schema, migration] = await Promise.all([
+  const [editor, screen, direct, general, central, legacy, operational, schema, migration] = await Promise.all([
     read("../src/components/settings/CategoriesSettingsTab.tsx"),
     read("../src/pages/MachineDetailPage.tsx"),
     read("../src/components/calls/CallTypeSelector.tsx"),
+    read("../src/components/calls/OpenCallModal.tsx"),
     read("../server/src/access/centralCategorySettings.ts"),
     read("../server/src/routes/andonCategories.ts"),
     read("../server/src/routes/callReasons.ts"),
@@ -88,6 +89,9 @@ test("RC P0: API/UI/schema use explicit presentation flag, not category inactiva
   assert.match(editor, /showDirectButton: draft\.showDirectButton/);
   assert.match(screen, /setCategories\(items\.filter\(isDirectSectorButtonEnabled\)\)/);
   assert.match(direct, /CALL_TYPE_OPTIONS\.filter\(isDirectSectorButtonEnabled\)/);
+  assert.match(general, /getCategoryConfigs\(\)/);
+  assert.match(general, /sectorCatalogLoaded \? \(/);
+  assert.doesNotMatch(general, /getCategoryConfigs\(\{ activeOnly: true \}\)/);
   assert.match(central, /"showDirectButton"/);
   assert.match(central, /showDirectButton: parsed\.showDirectButton \?\? true/);
   assert.match(central, /showDirectButton: category\.showDirectButton/);
