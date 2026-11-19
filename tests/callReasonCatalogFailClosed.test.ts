@@ -24,6 +24,6 @@ test("S3-B6: operators can retry failed catalog without losing existing-call act
   assert.match(panel, /reasonCatalogStatus === "unavailable"/);
   assert.match(panel, /role=\{reasonCatalogStatus === "unavailable" \? "alert" : "status"\}/);
   assert.match(panel, /onClick=\{onRetryReasonCatalog\}/);
-  assert.match(panel, /categories\.map/);
+  assert.match(panel, /sectorTiles\.map/);
   assert.match(panel, /onSelectCall=\{onSelectCall\}/);
 });
