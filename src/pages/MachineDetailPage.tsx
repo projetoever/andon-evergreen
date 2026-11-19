@@ -39,6 +39,7 @@ import {
 } from "@/services/machineSoundPreferenceService";
 import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
+import { isDirectSectorButtonEnabled } from "@/utils/sectorDirectVisibility";
 import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
 import { AndonApiError } from "@/api/andonApiClient";
 import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
@@ -244,7 +245,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       .then((items) => {
         if (!cancelled) {
           setCategoryCatalog(items);
-          setCategories(items.filter(category => category.active && category.showDirectButton !== false));
+          setCategories(items.filter(isDirectSectorButtonEnabled));
         }
       })
       .catch((error) => {
