@@ -21,6 +21,8 @@ export function buildAndonApiErrorMessage(
     hierarchical_calls_disabled: "A abertura com motivo e especialidade não está habilitada no servidor.",
     reserved_call_origin: "O servidor recusou metadados de origem do chamado. Atualize a interface e tente novamente.",
     rate_limited: "Muitas solicitações seguidas. Aguarde e tente novamente.",
+    invalid_technician_end_reason: "O servidor recusou o motivo informado para encerrar o atendimento. Selecione novamente um motivo válido.",
+    invalid_technician_end_notes: "O servidor recusou a observação do encerramento. Use apenas texto de até 4.000 caracteres.",
   };
   if (typeof code === "string" && Object.prototype.hasOwnProperty.call(knownErrors, code)) {
     return `${knownErrors[code]} (HTTP ${status} · ${code})`;
