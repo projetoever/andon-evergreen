@@ -244,7 +244,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       .then((items) => {
         if (!cancelled) {
           setCategoryCatalog(items);
-          setCategories(items.filter(category => category.active));
+          setCategories(items.filter(category => category.active && category.showDirectButton !== false));
         }
       })
       .catch((error) => {
