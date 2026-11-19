@@ -12,7 +12,7 @@ import { getCategoryConfigs } from "@/services/categoryConfigService";
 import type { AndonCategoryConfig } from "@/types/settings";
 import {
   addCallReasonOption, createCallReason, getCallReasonsCatalog,
-  updateCallReason, updateCallReasonOption,
+  updateCallReason, updateCallReasonOption, removeCallReasonOption,
   type CallReasonView, type CreateCallReason,
 } from "@/services/callReasonsCatalogService";
 
@@ -73,6 +73,7 @@ export function CallReasonsSettingsTab() {
   const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [optionOrder, setOptionOrder] = useState("");
+  const [confirmRemoveOptionId, setConfirmRemoveOptionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A cached feature flag never authorizes writes when Hub identity is unknown.
   const writeBlocked = access === null || busy || capabilityChecking || !enabled || Boolean(error) || loading;
@@ -111,6 +112,7 @@ export function CallReasonsSettingsTab() {
     setLoading(true);
     setError(null);
     setEditingOptionId(null);
+    setConfirmRemoveOptionId(null);
     try {
       const settings = await getSystemSettings();
       const allowed = settings.centralCallReasonsCatalogEnabled === true;
@@ -191,6 +193,7 @@ export function CallReasonsSettingsTab() {
 
   function createReasonDraft() {
     if (writeBlocked) return;
+    setConfirmRemoveOptionId(null);
     setSelected(null);
     setDraft({
       ...emptyDraft(),
@@ -202,6 +205,7 @@ export function CallReasonsSettingsTab() {
   }
 
   function edit(reason: CallReasonView) {
+    setConfirmRemoveOptionId(null);
     setPolicyAcknowledged(false);
     setEditingOptionId(null);
     setSelected(reason.id);
@@ -299,6 +303,7 @@ export function CallReasonsSettingsTab() {
 
   function beginOptionEdit(option: CallReasonView["options"][number]) {
     if (busy) return;
+    setConfirmRemoveOptionId(null);
     setEditingOptionId(option.id);
     setOptionOrder(String(option.displayOrder));
   }
@@ -328,6 +333,21 @@ export function CallReasonsSettingsTab() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : ui("Não foi possível salvar a apresentação do setor."));
     } finally { setBusy(false); }
+  }
+
+  async function removeArea(option: CallReasonView["options"][number]) {
+    if (!chosen || !isPrimaryAdmin || writeBlocked || confirmRemoveOptionId !== option.id) return;
+    setBusy(true);
+    try {
+      await removeCallReasonOption(chosen.id, option.id, option.revision);
+      await refresh(chosen.id);
+      toast.success(ui("Setor removido do grupo. Seu cadastro e os chamados existentes foram preservados."));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : ui("Não foi possível remover o setor do grupo."));
+    } finally {
+      setBusy(false);
+      setConfirmRemoveOptionId(null);
+    }
   }
 
   return (
@@ -377,7 +397,7 @@ export function CallReasonsSettingsTab() {
         </p>
       )}
       {!loading && enabled && !error && (
-        <div className="grid gap-2 lg:grid-cols-[minmax(200px,0.55fr)_minmax(0,1.6fr)]">
+        <div className="grid min-w-0 gap-2 lg:grid-cols-[minmax(190px,0.5fr)_minmax(0,1.8fr)]">
           <section className="space-y-2 rounded-lg border border-border bg-card p-3" aria-label={ui("Grupos cadastrados")}>
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold">{ui("Grupos cadastrados")}</h3>
@@ -498,8 +518,9 @@ export function CallReasonsSettingsTab() {
                     displayOrder: Number(event.target.value) })} />
               </Label>
             </div>
-            <div role="note" className="space-y-0.5 rounded-lg border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">{ui("Prévia do tratamento do chamado no BI")}</p>
+            <details className="rounded-lg border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-semibold text-foreground">{ui("Prévia do tratamento do chamado no BI")}</summary>
+              <div className="mt-2 space-y-1">
               <p>{ui("BI operacional")}: {ui(draft.analyticsDisposition === "include"
                 ? "Ocorrência válida — tempos e volume acompanhados"
                 : "Registro excluído das estatísticas por classificação de teste/falso/duplicado")}</p>
@@ -510,7 +531,8 @@ export function CallReasonsSettingsTab() {
                   ? "Pendente de classificação; não entra automaticamente"
                   : "Apenas candidato, sujeito a evidências de falha e parada física")}</p>
               <p>{ui("O histórico, os tempos reais e o downtime físico permanecem separados; configurar um grupo não altera chamados anteriores.")}</p>
-            </div>
+              </div>
+            </details>
             {!chosen && !isPrimaryAdmin && (
               <p role="note" className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
                 {ui("Novos grupos não entram automaticamente nos KPIs corretivos. Somente o Admin principal pode autorizar elegibilidade mediante evidências.")}
@@ -542,7 +564,7 @@ export function CallReasonsSettingsTab() {
                 {chosen.options.length === 0 && <p className="text-sm text-muted-foreground">{ui("Nenhum setor vinculado ao grupo.")}</p>}
                 <div className="grid gap-2 md:grid-cols-2">
                 {chosen.options.map(option => (
-                  <div key={option.id} className="flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-lg border border-border p-2">
+                  <div key={option.id} className="flex min-w-0 flex-col justify-between gap-2 rounded-lg border border-border bg-background p-2">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="inline-flex min-h-10 max-w-full items-center justify-center rounded-md border-2 px-2 py-1 text-center text-xs font-black uppercase tracking-wide shadow-sm"
                         style={{
@@ -588,19 +610,37 @@ export function CallReasonsSettingsTab() {
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-1">
-                      <Button type="button" size="sm" variant="outline"
-                        disabled={writeBlocked || (editingOptionId !== null && editingOptionId !== option.id)}
+                    <div className="flex min-w-0 flex-wrap items-center gap-1 border-t border-border pt-2">
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs"
+                        disabled={writeBlocked || confirmRemoveOptionId !== null || (editingOptionId !== null && editingOptionId !== option.id)}
                         onClick={() => editingOptionId === option.id
                           ? setEditingOptionId(null) : beginOptionEdit(option)}>
-                        {ui(editingOptionId === option.id ? "Fechar edição" : "Editar apresentação")}
+                        {ui(editingOptionId === option.id ? "Cancelar edição" : "Editar")}
                       </Button>
-                      <Button type="button" size="sm" variant="outline"
-                        disabled={writeBlocked || editingOptionId !== null}
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs"
+                        disabled={writeBlocked || editingOptionId !== null || confirmRemoveOptionId !== null}
                         onClick={() => void toggleArea(option.id, option.revision, !option.active)}>
                         {ui(option.active ? "Inativar" : "Ativar")}
                       </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs text-destructive"
+                        title={isPrimaryAdmin ? ui("Remover somente o vínculo com o grupo") : ui("Somente o Admin principal pode desvincular setores")}
+                        aria-label={ui("Remover do grupo") + ": " + option.technicalArea.displayName}
+                        disabled={writeBlocked || !isPrimaryAdmin || editingOptionId !== null || confirmRemoveOptionId !== null}
+                        onClick={() => setConfirmRemoveOptionId(option.id)}>
+                        {ui("Remover do grupo")}
+                      </Button>
                     </div>
+                    {confirmRemoveOptionId === option.id && (
+                      <div role="group" aria-label={ui("Confirmar remoção do vínculo")} className="space-y-2 rounded-md border border-warning/50 bg-warning/5 p-2 text-xs">
+                        <p>{ui("Desvincular este setor do grupo? O setor original, os chamados e o histórico não serão excluídos.")}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" size="sm" variant="destructive" className="h-9 px-3 text-xs" disabled={writeBlocked}
+                            onClick={() => void removeArea(option)}>{ui("Confirmar remoção")}</Button>
+                          <Button type="button" size="sm" variant="outline" className="h-9 px-3 text-xs" disabled={busy}
+                            onClick={() => setConfirmRemoveOptionId(null)}>{ui("Cancelar")}</Button>
+                        </div>
+                      </div>
+                    )
                   </div>
                 ))}
                 </div>
@@ -614,7 +654,7 @@ export function CallReasonsSettingsTab() {
                         <option key={area.id} value={area.id}>{area.displayName}</option>)}
                     </select>
                   </Label>
-                  <Button type="button" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
+                  <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" disabled={writeBlocked || !areaToAdd || restrictedDelegatedLink}
                     onClick={() => void addArea()}>
                     {ui("Adicionar setor ao grupo")}
                   </Button>
