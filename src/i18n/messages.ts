@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Histórico Global: visualizar", "Global History: view", "全域歷史：檢視"],
+  ["Histórico Global: consultar máquinas autorizadas", "Global History: view authorized machines", "全域歷史：檢視授權機台"],
+  ["Voltar aos 5 módulos", "Back to 5 modules", "返回五大模組"],
+  ["Cada módulo concede somente suas funções. Histórico Global exige concessão individual e permite consultar apenas máquinas autorizadas; não libera chamadas, BI ou administração. Ajuste exceções em Avançado.", "Each module grants only its own functions. Global History requires a separate grant and shows only authorized machines; it does not enable calls, BI, or administration. Use Advanced to restrict permissions.", "每個模組僅授予各自功能。全域歷史需要個別授權，且只能查詢已授權的機台；不會開放叫修、BI 或管理功能。可於進階設定限制權限。"],
+  ["Estas permissões não são selecionadas por nenhum dos 5 módulos. Habilite-as individualmente somente quando necessárias.", "These permissions are not part of any of the five modules. Enable them individually only when necessary.", "這些權限不屬於五大模組。僅在必要時個別啟用。"],
+
   ["Setores indisponíveis para abertura direta até confirmar o catálogo.", "Direct sector opening is unavailable until the catalog has been verified.", "在確認部門目錄前，無法透過直接按鈕建立通報。"],
 
   ["Setor habilitado para chamados e grupos", "Sector enabled for calls and groups", "部門可透過直接按鈕或群組建立通報"],
