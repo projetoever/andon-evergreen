@@ -14,15 +14,15 @@ const CATEGORY_GROUPS = new Set(["maintenance", "production"]);
 const CATEGORY_ID = /^[a-z0-9_]{2,40}$/;
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
 const LIVE_STATUSES = ["open", "in_progress", "post_maintenance"];
-const PATCH_FIELDS = new Set(["displayName", "categoryGroup", "color", "active", "displayOrder"]);
+const PATCH_FIELDS = new Set(["displayName", "categoryGroup", "color", "active", "showDirectButton", "displayOrder"]);
 const CREATE_FIELDS = new Set([...PATCH_FIELDS, "id"]);
 type CategoryPatch = {
   displayName?: string; categoryGroup?: string; color?: string;
-  active?: boolean; displayOrder?: number;
+  active?: boolean; showDirectButton?: boolean; displayOrder?: number;
 };
 type CategoryCreate = CategoryPatch & {
   id: string; displayName: string; categoryGroup: string; color: string;
-  active: boolean; displayOrder: number;
+  active: boolean; showDirectButton: boolean; displayOrder: number;
 };
 
 function cleanName(value: unknown) {
@@ -61,6 +61,11 @@ function parseFields(body: Record<string, unknown>): CategoryPatch {
       throw new AccessError("invalid_input", 400);
     patch.active = body.active;
   }
+  if ("showDirectButton" in body) {
+    if (typeof body.showDirectButton !== "boolean")
+      throw new AccessError("invalid_input", 400);
+    patch.showDirectButton = body.showDirectButton;
+  }
   if ("displayOrder" in body) {
     if (typeof body.displayOrder !== "number" ||
         !Number.isInteger(body.displayOrder) ||
@@ -83,6 +88,7 @@ export function parseCentralCategoryCreate(body: unknown): CategoryCreate {
     categoryGroup: parsed.categoryGroup,
     color: parsed.color,
     active: parsed.active ?? true,
+    showDirectButton: parsed.showDirectButton ?? true,
     displayOrder: parsed.displayOrder ?? 0,
   };
 }
@@ -91,12 +97,13 @@ export function parseCentralCategoryPatch(body: unknown): CategoryPatch {
 }
 function snapshot(category: {
   id: string; displayName: string; categoryGroup: string;
-  color: string; active: boolean; displayOrder: number;
+  color: string; active: boolean; showDirectButton: boolean; displayOrder: number;
 }) {
   return {
     id: category.id, displayName: category.displayName,
     categoryGroup: category.categoryGroup, color: category.color,
-    active: category.active, displayOrder: category.displayOrder,
+    active: category.active, showDirectButton: category.showDirectButton,
+    displayOrder: category.displayOrder,
   };
 }
 async function authorizedCategoryMutation<T>(

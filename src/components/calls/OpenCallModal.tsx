@@ -52,12 +52,26 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
     useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
   const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[]>([]);
   const [groupSectorConfigs, setGroupSectorConfigs] = useState<AndonCategoryConfig[]>([]);
+  const [sectorCatalogLoaded, setSectorCatalogLoaded] = useState(false);
   useEffect(() => {
     if (!open) return;
     let active = true;
-    void getCategoryConfigs({ activeOnly: true })
-      .then(configs => { if (active) setGroupSectorConfigs(configs); })
-      .catch(() => { if (active) setGroupSectorConfigs([]); });
+    setSectorCatalogLoaded(false);
+    // Load the entire canonical catalog so direct button visibility can never
+    // fall back to stale static options on a newly opened dashboard.
+    void getCategoryConfigs()
+      .then(configs => {
+        if (active) {
+          setGroupSectorConfigs(configs.filter(category => category.active));
+          setSectorCatalogLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGroupSectorConfigs([]);
+          setSectorCatalogLoaded(false);
+        }
+      });
     return () => { active = false; };
   }, [open]);
   const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
@@ -521,9 +535,15 @@ export function OpenCallModal({ open, onOpenChange, preselectedMachineId }: Open
           <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             {ui("Setor direto (modo existente)")}
           </h4>
-          <CallTypeSelector value={hierarchicalChoice ? null : subtype} onChange={value => {
-            setHierarchicalChoice(null); setSubtype(value);
-          }} />
+          {sectorCatalogLoaded ? (
+            <CallTypeSelector value={hierarchicalChoice ? null : subtype} onChange={value => {
+              setHierarchicalChoice(null); setSubtype(value);
+            }} />
+          ) : (
+            <p role="status" className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              {ui("Setores indisponíveis para abertura direta até confirmar o catálogo.")}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             {ui("A abertura direta preserva a política de manutenção, o som e o setor atuais.")}
           </p>

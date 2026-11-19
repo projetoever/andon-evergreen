@@ -163,5 +163,7 @@ export interface CallTypeOption {
   colorClass: string;
   color: string;
   active: boolean;
+  /** Presentation only. Group availability still follows active. */
+  showDirectButton?: boolean;
   displayOrder: number;
 }

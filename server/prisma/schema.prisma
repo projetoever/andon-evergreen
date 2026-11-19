@@ -103,6 +103,7 @@ model AndonCategory {
   categoryGroup             String
   color                     String
   active                    Boolean                   @default(true)
+  showDirectButton          Boolean                   @default(true)
   displayOrder              Int                       @default(0)
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt

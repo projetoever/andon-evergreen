@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { deriveMachineSectorTiles } from "../src/utils/deriveMachineSectorTiles";
+import { isDirectSectorButtonEnabled } from "../src/utils/sectorDirectVisibility";
 import type { AndonCall } from "../src/types/andon";
 import type { AndonCategoryConfig } from "../src/types/settings";
 
@@ -62,7 +63,7 @@ test("REFINE23: operational panel maps temporary tiles to selection without crea
   assert.match(panel, /data-temporary-active=\{temporarilyVisible \? "true" : undefined\}/);
   assert.match(panel, /activeCall \? onSelectCall\(activeCall\.id\) : onOpenSubtype\(category\.id\)/);
   assert.match(machine, /catalogCategories=\{categoryCatalog\}/);
-  assert.match(machine, /setCategories\(items\.filter\(category => category\.active\)\)/);
+  assert.match(machine, /setCategories\(items\.filter\(isDirectSectorButtonEnabled\)\)/);
   assert.match(server, /tx\.callReasonOption\.delete\(/);
   assert.doesNotMatch(server, /tx\.andonCategory\.delete\(/);
   assert.match(snapshot, /model AndonCallReasonSnapshot/);

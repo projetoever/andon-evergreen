@@ -61,6 +61,7 @@ function toCallTypeOption(category: AndonCategoryConfig): CallTypeOption {
         : "bg-info text-info-foreground",
     color: category.color,
     active: category.active,
+    showDirectButton: category.showDirectButton !== false,
     displayOrder: category.displayOrder,
   };
 }

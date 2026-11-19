@@ -1,0 +1,104 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { isDirectSectorButtonEnabled } from "../src/utils/sectorDirectVisibility";
+import { deriveMachineSectorTiles } from "../src/utils/deriveMachineSectorTiles";
+import type { AndonCategoryConfig } from "../src/types/settings";
+import type { AndonCall } from "../src/types/andon";
+import { resolveReasonOption } from "../server/src/services/callReasons";
+
+const category = (active: boolean, showDirectButton?: boolean): AndonCategoryConfig => ({
+  id: "pneumatica", displayName: "Pneumática", color: "#FFEDE4",
+  categoryGroup: "maintenance", active, showDirectButton, displayOrder: 60,
+});
+const call = (status: string, id = "ch-1"): AndonCall =>
+  ({ id, machineId: "M37", subtype: "pneumatica", status, isSystemTest: false } as AndonCall);
+
+test("RC P0: hidden direct button and sector activation are independent (default visible)", () => {
+  assert.equal(isDirectSectorButtonEnabled(category(true)), true);
+  assert.equal(isDirectSectorButtonEnabled(category(true, true)), true);
+  assert.equal(isDirectSectorButtonEnabled(category(true, false)), false);
+  assert.equal(isDirectSectorButtonEnabled(category(false, true)), false);
+  assert.equal(isDirectSectorButtonEnabled(category(false, false)), false);
+});
+
+test("RC P0: Pneumática remains openable through TESTE group when direct button is hidden", () => {
+  const area = category(true, false);
+  assert.equal(isDirectSectorButtonEnabled(area), false);
+  const reason = {
+    id: "teste", displayName: "TESTE", active: true, revision: 1,
+    nature: "planned_setup", suggestedResponsibility: "unassigned",
+    maintenanceKpiPolicy: "excluded", analyticsDisposition: "test",
+  };
+  const option = {
+    id: "teste_pneumatica", reasonId: "teste", technicalAreaId: "pneumatica",
+    displayName: null, active: true, revision: 1,
+    natureOverride: null, suggestedResponsibilityOverride: null,
+    maintenanceKpiPolicyOverride: null, analyticsDispositionOverride: null,
+  };
+  const resolved = resolveReasonOption(reason, option, area);
+  assert.equal(resolved.technicalAreaId, "pneumatica");
+  assert.equal(resolved.optionNameSnapshot, "Pneumática");
+  assert.equal(resolved.analyticsDisposition, "test");
+  assert.equal(resolved.correctiveCandidate, false);
+});
+
+test("RC P0: initially hidden sector appears as occupied only while real call is active", () => {
+  const pneumatica = category(true, false);
+  const visible = [pneumatica].filter(isDirectSectorButtonEnabled);
+  assert.equal(visible.length, 0);
+  for (const status of ["open", "in_progress", "post_maintenance"]) {
+    const tiles = deriveMachineSectorTiles(visible, [pneumatica], [call(status)]);
+    assert.equal(tiles.length, 1);
+    assert.equal(tiles[0].activeCall?.id, "ch-1");
+    assert.equal(tiles[0].temporarilyVisible, true);
+    assert.equal(tiles[0].category.color, "#FFEDE4");
+  }
+  assert.deepEqual(deriveMachineSectorTiles(visible, [pneumatica], [call("finished")]), []);
+  assert.deepEqual(deriveMachineSectorTiles(visible, [pneumatica], [call("cancelled")]), []);
+  assert.equal(pneumatica.showDirectButton, false);
+  assert.equal(pneumatica.active, true);
+});
+
+test("RC P0: two references to same sector or a removed group do not duplicate/hide live call", () => {
+  const pneumatica = category(true, false);
+  // The pure derivation does not consult mutable group links at all.
+  const tiles = deriveMachineSectorTiles([], [pneumatica], [
+    call("in_progress", "ch-1"), call("post_maintenance", "ch-2"),
+  ]);
+  assert.equal(tiles.length, 1);
+  assert.equal(tiles[0].activeCall?.id, "ch-1");
+  assert.deepEqual(deriveMachineSectorTiles([], [pneumatica], []), []);
+});
+
+test("RC P0: API/UI/schema use explicit presentation flag, not category inactivation", async () => {
+  const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
+  const [editor, screen, direct, general, central, legacy, operational, schema, migration] = await Promise.all([
+    read("../src/components/settings/CategoriesSettingsTab.tsx"),
+    read("../src/pages/MachineDetailPage.tsx"),
+    read("../src/components/calls/CallTypeSelector.tsx"),
+    read("../src/components/calls/OpenCallModal.tsx"),
+    read("../server/src/access/centralCategorySettings.ts"),
+    read("../server/src/routes/andonCategories.ts"),
+    read("../server/src/routes/callReasons.ts"),
+    read("../server/prisma/schema.prisma"),
+    read("../server/prisma/migrations/20261119130000_category_direct_button_visibility/migration.sql"),
+  ]);
+  assert.match(editor, /checked=\{draft\.showDirectButton !== false\}/);
+  assert.match(editor, /checked=\{draft\.active\}/);
+  assert.match(editor, /showDirectButton: draft\.showDirectButton/);
+  assert.match(screen, /setCategories\(items\.filter\(isDirectSectorButtonEnabled\)\)/);
+  assert.match(direct, /CALL_TYPE_OPTIONS\.filter\(isDirectSectorButtonEnabled\)/);
+  assert.match(general, /getCategoryConfigs\(\)/);
+  assert.match(general, /sectorCatalogLoaded \? \(/);
+  assert.doesNotMatch(general, /getCategoryConfigs\(\{ activeOnly: true \}\)/);
+  assert.match(central, /"showDirectButton"/);
+  assert.match(central, /showDirectButton: parsed\.showDirectButton \?\? true/);
+  assert.match(central, /showDirectButton: category\.showDirectButton/);
+  assert.match(legacy, /showDirectButton/);
+  assert.match(operational, /technicalArea: \{ active: true \}/);
+  assert.doesNotMatch(operational, /technicalArea: \{[^}]*showDirectButton: true/);
+  assert.match(schema, /showDirectButton\s+Boolean\s+@default\(true\)/);
+  assert.match(migration, /ADD COLUMN "showDirectButton" BOOLEAN NOT NULL DEFAULT TRUE/);
+  assert.doesNotMatch(migration, /UPDATE\s+"andon_categories"\s+SET\s+"active"/i);
+});

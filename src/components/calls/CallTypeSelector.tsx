@@ -1,6 +1,7 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
+import { isDirectSectorButtonEnabled } from "@/utils/sectorDirectVisibility";
 import type { CallSubtype } from "@/types/andon";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ export function CallTypeSelector({ value, onChange }: CallTypeSelectorProps) {
       </h4>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {CALL_TYPE_OPTIONS.map((opt) => {
+        {CALL_TYPE_OPTIONS.filter(isDirectSectorButtonEnabled).map((opt) => {
           const isSelected = value === opt.id;
           const isMaintenance = opt.category === "maintenance";
 

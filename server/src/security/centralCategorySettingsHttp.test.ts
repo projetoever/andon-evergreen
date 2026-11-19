@@ -110,7 +110,7 @@ test("R12-04C: strict category body, only technical area fields and valid colors
   }), {
     id: "mechanical", displayName: "Mecânica",
     categoryGroup: "maintenance", color: "#AABBCC",
-    active: true, displayOrder: 0,
+    active: true, showDirectButton: true, displayOrder: 0,
   });
   assert.deepEqual(parseCentralCategoryPatch({
     displayName: " Processo ", active: false, displayOrder: 5,
@@ -123,9 +123,10 @@ test("R12-04C: strict category body, only technical area fields and valid colors
     { id: "ok", displayName: " ", categoryGroup: "maintenance", color: "#AA0000" },
     { id: "ok", displayName: "X", categoryGroup: "maintenance", color: "#AA0000", isSystemTest: true },
   ]) assert.throws(() => parseCentralCategoryCreate(invalid), AccessError);
+  assert.deepEqual(parseCentralCategoryPatch({ showDirectButton: false }), { showDirectButton: false });
   for (const invalid of [
     null, [], {}, { id: "fictitious" }, { color: "#000" },
-    { active: "false" }, { displayOrder: -1 },
+    { showDirectButton: "false" }, { showDirectButton: 0 }, { active: "false" }, { displayOrder: -1 },
     { categoryGroup: "quality" }, { displayName: "\u0000" },
   ]) assert.throws(() => parseCentralCategoryPatch(invalid), AccessError);
 });
