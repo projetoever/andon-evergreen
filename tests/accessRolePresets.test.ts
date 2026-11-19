@@ -339,3 +339,29 @@ test("SEC-17B: account editor does not offer Kiosk selection; legacy account is 
   assert.match(source, /Senha indisponível — Kiosk/);
   assert.match(source, /user\.accountType === "person" \?/);
 });
+
+test("RC02 P0: Global History is an independent opt-in, never bundled with ANDON", () => {
+  const all = [...new Set([...catalog, "andon.settings.open", "workstations.screen.unlock"])];
+  const operational = toggleSimpleModule([], "andon", "Manutenção", all, true);
+  assert(!operational.includes("history.global.read"), "ANDON must not silently grant global scope");
+  const global = toggleSimpleModule([], "globalHistory", "Produção", all, true);
+  assert.deepEqual(new Set(global), new Set(["history.global.read", "history.read", "andon.read"]));
+  assert.equal(simpleModuleState(global, "globalHistory", "Produção", all), "on");
+  for (const forbidden of ["calls.open", "calls.attend", "calls.finish", "bi.read",
+    "users.create", "workstations.manage", "audit.read"]) {
+    assert(!global.includes(forbidden), "global history elevated access to " + forbidden);
+  }
+  assert.equal(simpleModuleState(["history.global.read"], "globalHistory", "Produção", all), "partial");
+  const byAdvanced = toggleAndonModulePermission([], "history.global.read", true);
+  assert.deepEqual(new Set(byAdvanced), new Set(global), "advanced permission has same prerequisites");
+  assert(!toggleAndonModulePermission(byAdvanced, "andon.read", false).includes("history.global.read"));
+  assert(!toggleAndonModulePermission(byAdvanced, "history.read", false).includes("history.global.read"));
+  const both = toggleSimpleModule(operational, "globalHistory", "Manutenção", all, true);
+  const withoutAndon = toggleSimpleModule(both, "andon", "Manutenção", all, false);
+  assert(withoutAndon.includes("history.global.read"));
+  assert(withoutAndon.includes("history.read") && withoutAndon.includes("andon.read"));
+  assert(!withoutAndon.includes("calls.open") && !withoutAndon.includes("calls.finish"));
+  const withoutHistory = toggleSimpleModule(withoutAndon, "globalHistory", "Manutenção", all, false);
+  assert(!withoutHistory.includes("history.global.read"), "revocation must remove global grant");
+  assert(advancedIndependentGrants(all).every(key => key !== "history.global.read"));
+});
