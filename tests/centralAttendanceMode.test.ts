@@ -32,7 +32,9 @@ test("central declared-name flows require server capability and preserve strong 
     assert.match(source, /declara|declaração|seleção por nome registra/);
   }
   assert.match(files[2], /technicianIds/);
-  assert.match(files[2], /technicianId:/);
+  assert.match(files[2], /buildTechnicianEndPayload/);
+  const payload = await readFile(new URL("../src/services/technicianEndPayload.ts", import.meta.url), "utf8");
+  assert.match(payload, /technicianId: session!/);
 });
 
 test("admin explains declared identity and disables name option when feature is OFF", async () => {
