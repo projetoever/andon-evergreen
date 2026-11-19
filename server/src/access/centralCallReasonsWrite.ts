@@ -3,7 +3,7 @@ import { AccessError, isAndonSettingsDelegate, type Principal } from "./policy.j
 import { runCentralGlobalCatalogTransaction } from "./centralGlobalCatalogTransaction.js";
 import {
   parseReasonCreate, parseReasonPatch, parseOptionCreate,
-  parseOptionPatch, assertEffectiveReasonOption,
+  parseOptionPatch, parseOptionDelete, assertEffectiveReasonOption,
 } from "../services/callReasonMutations.js";
 import { centralCallReasonsHttpEnabled } from "../security/centralCallReasonsHttp.js";
 import { isReasonPresentationOnlyPatch } from "../security/callReasonPresentationPolicy.js";
@@ -13,7 +13,7 @@ import { assertDelegatedOptionLinkPolicy, isDelegatedOptionCreate } from "../sec
 export type CallReasonWrite = {
   token: string;
   workstationId: string;
-  operation: "reason.create" | "reason.update" | "option.create" | "option.update";
+  operation: "reason.create" | "reason.update" | "option.create" | "option.update" | "option.delete";
   reasonId?: string;
   optionId?: string;
   body: unknown;
@@ -38,7 +38,7 @@ export function runCentralCallReasonWrite(
     throw new AccessError("invalid_action_resource", 400);
   if (input.operation === "option.create" && (input.optionId || !ID.test(input.reasonId ?? "")))
     throw new AccessError("invalid_action_resource", 400);
-  if (input.operation === "option.update" &&
+  if ((input.operation === "option.update" || input.operation === "option.delete") &&
       (!ID.test(input.reasonId ?? "") || !ID.test(input.optionId ?? "")))
     throw new AccessError("invalid_action_resource", 400);
 
@@ -59,7 +59,7 @@ export function runCentralCallReasonWrite(
   return runCentralGlobalCatalogTransaction<CallReason | CallReasonOption>(db, {
     token: input.token,
     workstationId: input.workstationId,
-    method: input.operation.endsWith("create") ? "POST" : "PATCH",
+    method: input.operation.endsWith("create") ? "POST" : input.operation === "option.delete" ? "DELETE" : "PATCH",
     path: route,
     requestId: input.requestId,
     ipAddress: input.ipAddress,
@@ -143,6 +143,17 @@ export function runCentralCallReasonWrite(
       });
       if (!current || current.reasonId !== reasonId)
         throw new AccessError("call_reason_option_not_found", 404);
+      if (input.operation === "option.delete") {
+        parseOptionDelete(input.body, current);
+        // Historical AndonCallReasonSnapshot rows store immutable scalar IDs,
+        // names and KPI policy; no FK to this mutable link exists.
+        const { reason: _reason, technicalArea: _area, ...before } = current;
+        const deleted = await tx.callReasonOption.delete({ where: { id: current.id } });
+        return {
+          value: deleted, resourceType: "call_reason_option", resourceId: deleted.id,
+          before, after: null,
+        };
+      }
       const data = parseOptionPatch(input.body, current);
       if (data.active && !current.technicalArea.active)
         throw new AccessError("technical_area_inactive", 409);

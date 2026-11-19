@@ -17,9 +17,9 @@ test("S3-B3B: machine screen shows parent reasons, then option modal and scoped 
   assert.match(page, /toast\.error\(ui\("Indisponível: chamado ativo"\)\)/);
   assert.match(page, /onOpenReason=/);
   assert.match(page, /hierarchicalChoice=\{hierarchicalChoice\}/);
-  assert.match(panel, /categories\.map/);
+  assert.match(panel, /sectorTiles\.map/);
   assert.match(panel, /hierarchicalReasons\?\.map/);
-  assert.match(panel, /activeCalls\.find/);
+  assert.match(panel, /deriveMachineSectorTiles\(categories, catalogCategories \?\? categories, activeCalls\)/);
   assert.match(quick, /\.\.\.\(hierarchicalChoice/);
   assert.match(quick, /await openCall\(/);
   assert.doesNotMatch(quick, /await openCalls\(\[params\]\)/);

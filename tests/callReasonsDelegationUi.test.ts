@@ -52,7 +52,7 @@ test("CFG-08A2: delegated specialty editor changes presentation, not linked area
   assert.doesNotMatch(editor, /natureOverride:|technicalAreaId:|maintenanceKpiPolicyOverride:/);
   assert.match(page, /Ordem de exibição/);
   assert.match(page, /displayName: area\.displayName/);
-  assert.match(page, /disabled=\{writeBlocked \|\| editingOptionId !== null\}/);
+  assert.match(page, /disabled=\{writeBlocked \|\| editingOptionId !== null \|\| confirmRemoveOptionId !== null\}/);
   assert.match(service, /expectedRevision: revision/);
   assert.match(policy, /"displayName", "active", "displayOrder"/);
 });

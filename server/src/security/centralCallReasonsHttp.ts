@@ -46,7 +46,7 @@ export function isCentralCallReasonWrite(method: string, path: string) {
   if (method === "POST" && path === "/api/call-reasons") return true;
   if (method === "PATCH" && new RegExp(`^/api/call-reasons/${ID}$`).test(path)) return true;
   if (method === "POST" && new RegExp(`^/api/call-reasons/${ID}/options$`).test(path)) return true;
-  if (method === "PATCH" && new RegExp(`^/api/call-reasons/${ID}/options/${ID}$`).test(path)) return true;
+  if ((method === "PATCH" || method === "DELETE") && new RegExp(`^/api/call-reasons/${ID}/options/${ID}$`).test(path)) return true;
   return false;
 }
 type Station = { allowOperational: boolean; allowBi: boolean; allowPriorities: boolean };

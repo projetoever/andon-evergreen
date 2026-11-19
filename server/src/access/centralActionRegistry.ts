@@ -73,6 +73,7 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "PATCH", route: "/api/call-reasons/:reasonId", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/call-reasons/:reasonId/options", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "PATCH", route: "/api/call-reasons/:reasonId/options/:optionId", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
+  { method: "DELETE", route: "/api/call-reasons/:reasonId/options/:optionId", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "POST", route: "/api/andon-categories", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "PATCH", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },
   { method: "DELETE", route: "/api/andon-categories/:id", permission: "catalog.reasons.manage", scope: "module_global", module: "operational" },

@@ -166,6 +166,16 @@ export function parseOptionPatch(raw: unknown, current: ReasonOptionRecord & { d
   };
 }
 
+/** Removing a group link requires a current revision, no other client fields. */
+export function parseOptionDelete(raw: unknown, current: ReasonOptionRecord) {
+  const body = object(raw);
+  unknownKeys(body, ["expectedRevision"]);
+  if (Object.keys(body).length !== 1) return fail();
+  if (current.revision !== revision(body.expectedRevision))
+    throw new AccessError("call_reason_revision_conflict", 409);
+  return { expectedRevision: current.revision };
+}
+
 /** Catalog validation ignores active flags but never bypasses invalid policies. */
 export function assertEffectiveReasonOption(
   reason: ReasonRecord,

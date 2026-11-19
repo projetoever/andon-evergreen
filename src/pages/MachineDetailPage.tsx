@@ -96,6 +96,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [selectedSubtype, setSelectedSubtype] = useState<CallSubtype | null>(null);
   const [forcedMachineCondition, setForcedMachineCondition] = useState<"stopped" | undefined>();
   const [categories, setCategories] = useState<AndonCategoryConfig[]>([]);
+  const [categoryCatalog, setCategoryCatalog] = useState<AndonCategoryConfig[]>([]);
   const [hierarchicalReasons, setHierarchicalReasons] = useState<OperationalReason[] | null>(null);
   // Fail closed: a failed catalog request must not silently switch operators
   // back to legacy opening once hierarchical mode may be enabled.
@@ -239,9 +240,12 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getCategoryConfigs({ activeOnly: true })
+    getCategoryConfigs()
       .then((items) => {
-        if (!cancelled) setCategories(items);
+        if (!cancelled) {
+          setCategoryCatalog(items);
+          setCategories(items.filter(category => category.active));
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -856,6 +860,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         machine={machine}
         currentCall={currentCall}
         categories={categories}
+        catalogCategories={categoryCatalog}
         hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons : null}
         reasonCatalogStatus={reasonCatalogStatus}
         onRetryReasonCatalog={() => setReasonCatalogReload(current => current + 1)}
@@ -883,8 +888,8 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <CallReasonOptionsModal
         open={selectedReasonId !== null}
         activeSubtypes={activeCalls.map(call => call.subtype)}
-        sectorColors={Object.fromEntries(categories.map(category => [category.id, category.color]))}
-        sectorNames={Object.fromEntries(categories.map(category => [category.id, category.displayName]))}
+        sectorColors={Object.fromEntries(categoryCatalog.map(category => [category.id, category.color]))}
+        sectorNames={Object.fromEntries(categoryCatalog.map(category => [category.id, category.displayName]))}
         onSelectMany={handleSelectReasonOptions}
         reason={hierarchicalReasons?.find(reason => reason.id === selectedReasonId)
           ? {

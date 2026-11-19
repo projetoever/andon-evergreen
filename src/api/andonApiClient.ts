@@ -103,7 +103,7 @@ export function createAndonApiClient(
       (method === "PATCH" && /^\/api\/andon-categories\/[a-z0-9_]{2,40}$/.test(path)) ||
       // REFINE22 P1: reason and subcategory CRUD is an authenticated central
       // mutation. Omission previously caused 403 csrf_denied at the server.
-      ((method === "POST" || method === "PATCH") &&
+      ((method === "POST" || method === "PATCH" || method === "DELETE") &&
        /^\/api\/call-reasons(?:\/[a-z0-9_]{2,40}(?:\/options(?:\/[a-z0-9_]{2,40})?)?)?$/.test(path)) ||
       (method === "POST" && /^\/api\/machines\/[A-Za-z0-9_-]{1,160}\/sets$/.test(path)) ||
       (method === "PATCH" && /^\/api\/machine-sets\/[A-Za-z0-9_-]{1,160}$/.test(path)) ||

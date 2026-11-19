@@ -130,4 +130,10 @@ export function registerCallReasonRoutes(app: FastifyInstance) {
     (request, reply) =>
       mutateReason(request, reply, "option.update", request.params.reasonId, request.params.optionId),
   );
+
+  app.delete<{ Params: { reasonId: string; optionId: string } }>(
+    "/api/call-reasons/:reasonId/options/:optionId",
+    (request, reply) =>
+      mutateReason(request, reply, "option.delete", request.params.reasonId, request.params.optionId),
+  );
 }

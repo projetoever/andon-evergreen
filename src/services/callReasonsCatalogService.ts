@@ -93,6 +93,15 @@ export function updateCallReasonOption(
   );
 }
 
+/** Remove only the mutable group-to-sector link. Existing call snapshots remain unchanged. */
+export function removeCallReasonOption(reasonId: string, optionId: string, revision: number) {
+  return api.request<CallReasonOptionView>(
+    "/api/call-reasons/" + encodeURIComponent(reasonId) +
+      "/options/" + encodeURIComponent(optionId),
+    { method: "DELETE", body: JSON.stringify({ expectedRevision: revision }) },
+  );
+}
+
 /**
  * Read-only, authenticated operational list for machine-screen reason buttons.
  * This endpoint is distinct from the Admin catalog; server returns only
