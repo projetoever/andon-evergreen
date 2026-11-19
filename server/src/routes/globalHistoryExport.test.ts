@@ -163,9 +163,9 @@ test("HIST-13: bound module/history scope, session revalidation, 500 cap and aud
   assert.equal(counts, 0);
   sessionRevoked = false;
 
-  freshGrants = ["andon.read"];
+  freshGrants = ["andon.read", "history.read"];
   response = await app.inject({ url: query, headers });
-  assert.equal(response.statusCode, 403);
+  assert.equal(response.statusCode, 403, "revoking Global History alone must stop export");
   assert.equal(counts, 0);
   freshGrants = ["andon.read", "history.read", "history.global.read"];
 
