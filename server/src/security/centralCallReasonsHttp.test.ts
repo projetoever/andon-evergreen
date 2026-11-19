@@ -64,6 +64,7 @@ test("R6/S2: only exact GET/POST/PATCH catalog methods are authorized", () => {
     ["PATCH", "/api/call-reasons/maintenance"],
     ["POST", "/api/call-reasons/maintenance/options"],
     ["PATCH", "/api/call-reasons/maintenance/options/option_01"],
+    ["DELETE", "/api/call-reasons/maintenance/options/option_01"],
   ]) assert.equal(isCentralCallReasonWrite(method, path), true, path);
   for (const [method, path] of [
     ["DELETE", "/api/call-reasons"],
@@ -72,6 +73,8 @@ test("R6/S2: only exact GET/POST/PATCH catalog methods are authorized", () => {
     ["POST", "/api/call-reasons/maintenance/options/option_01"],
     ["POST", "/api/andon-calls"],
     ["PATCH", "/api/call-reasons/maintenance/options/../../etc"],
+    ["DELETE", "/api/call-reasons/maintenance"],
+    ["DELETE", "/api/andon-categories/electrical"],
   ]) assert.equal(isCentralCallReasonWrite(method, path), false, method + " " + path);
 });
 
@@ -130,6 +133,7 @@ test("R6/S2: standalone route never reads or writes database without trusted mar
     { method: "PATCH", url: "/api/call-reasons/setup", payload: { expectedRevision: 1 } },
     { method: "POST", url: "/api/call-reasons/setup/options", payload: { id: "mech" } },
     { method: "PATCH", url: "/api/call-reasons/setup/options/mech", payload: { expectedRevision: 1 } },
+    { method: "DELETE", url: "/api/call-reasons/setup/options/mech", payload: { expectedRevision: 1 } },
   ]) {
     const res = await app.inject({ method: method as "GET" | "POST" | "PATCH", url, ...(payload ? { payload } : {}) });
     assert.equal(res.statusCode, 403, method + " " + url);
