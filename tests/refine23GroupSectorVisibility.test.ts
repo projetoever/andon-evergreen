@@ -62,7 +62,7 @@ test("REFINE23: operational panel maps temporary tiles to selection without crea
   assert.match(panel, /data-temporary-active=\{temporarilyVisible \? "true" : undefined\}/);
   assert.match(panel, /activeCall \? onSelectCall\(activeCall\.id\) : onOpenSubtype\(category\.id\)/);
   assert.match(machine, /catalogCategories=\{categoryCatalog\}/);
-  assert.match(machine, /setCategories\(items\.filter\(category => category\.active\)\)/);
+  assert.match(machine, /setCategories\(items\.filter\(category => category\.active && category\.showDirectButton !== false\)\)/);
   assert.match(server, /tx\.callReasonOption\.delete\(/);
   assert.doesNotMatch(server, /tx\.andonCategory\.delete\(/);
   assert.match(snapshot, /model AndonCallReasonSnapshot/);
