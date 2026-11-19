@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
+import { withHubTransientRetry, isRetryableHubTransitionFailure } from "../src/services/hubTransitionRetry";
 
 const load = (relative: string) => readFile(new URL(relative, import.meta.url), "utf8");
 test("UX-07: route and tab transitions do not delay alarms or alter provider hierarchy", async () => {
@@ -58,4 +59,34 @@ test("UX-07: BI and Priorities skeletons do not confuse empty, loading and failu
   assert.match(priorities, /loadingError \? \(/);
   assert.match(priorities, /rows\.length === 0 \? \(/);
   assert.match(priorities, /onClick=\{\(\) => void loadOrder\(\)\}/);
+});
+
+test("REFINE22.5: Hub retries only transient failures, never authorization denials", async () => {
+  let calls = 0;
+  let waits = 0;
+  const result = await withHubTransientRetry(async () => {
+    calls++;
+    if (calls === 1) throw Object.assign(new Error("Temporary 503"), { status: 503 });
+    return { permission: "server-confirmed" };
+  }, async (delay) => { assert.equal(delay, 320); waits++; });
+  assert.deepEqual(result, { permission: "server-confirmed" });
+  assert.equal(calls, 2);
+  assert.equal(waits, 1);
+
+  calls = 0;
+  await assert.rejects(withHubTransientRetry(async () => {
+    calls++;
+    throw Object.assign(new Error("permission_denied"), { status: 403 });
+  }, async () => { throw new Error("must never wait after 403"); }), /permission_denied/);
+  assert.equal(calls, 1);
+  assert.equal(isRetryableHubTransitionFailure(new Error("authentication_required")), false);
+  assert.equal(isRetryableHubTransitionFailure({ name: "AndonApiError", status: 401 }), false);
+  assert.equal(isRetryableHubTransitionFailure({ name: "AndonApiError", status: 502 }), true);
+
+  const hub = await load("../src/pages/HubPage.tsx");
+  const provider = await load("../src/context/ModuleAccessProvider.tsx");
+  assert.match(hub, /withHubTransientRetry\(getAdminAuthStatus\)/);
+  assert.match(hub, /role="status" aria-live="polite"/);
+  assert.match(provider, /withHubTransientRetry\(loadModuleAccess\)/);
+  assert.match(provider, /setAccess\(null\)/);
 });
