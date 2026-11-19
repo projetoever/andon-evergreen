@@ -116,6 +116,9 @@ try {
     $env:HOST = $bindHost
     $env:ANDON_ACCESS_ORIGIN = $context.FrontendUrl
     $env:ANDON_CENTRAL_ACCESS_ENABLED = if ($context.CentralAccessEnabled) { "1" } else { "0" }
+    # Snapshot the installed version in the API process environment once at
+    # boot. A stale API process cannot impersonate a newly installed SHA.
+    $env:ANDON_API_RUNTIME_COMMIT = "$($context.InstalledCommit)".Trim().ToLowerInvariant()
 
     if ($context.TransportMode -eq "https") {
         $env:ANDON_TLS_CERT = $context.TlsCertificatePath
