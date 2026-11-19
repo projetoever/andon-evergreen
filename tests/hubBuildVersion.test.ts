@@ -79,3 +79,20 @@ test("REFINE22: updater and watchdog validate the live SSR commit, not only HTTP
   assert.match(common, /function Test-AndonRuntimeFrontendBuild/);
   assert.match(common, /-ceq \$expected/);
 });
+
+test("REFINE22.5: read-only menu 6 verifies the running API SHA, not the repository checkout", async () => {
+  const [server, launcher, runtime, common] = await Promise.all([
+    read("../server/src/server.ts"),
+    read("../scripts/start-api.ps1"),
+    read("../installer/AndonInstaller.Runtime.ps1"),
+    read("../scripts/Andon.Runtime.Common.ps1"),
+  ]);
+  assert.match(server, /process\.env\.ANDON_API_RUNTIME_COMMIT/);
+  assert.match(server, /buildCommit: verifiedRunningCommit/);
+  assert.match(launcher, /\$env:ANDON_API_RUNTIME_COMMIT = "\$\(\$context\.InstalledCommit\)"/);
+  assert.match(runtime, /DIVERGENCIA DE VERSAO API/);
+  assert.match(runtime, /SHA da API viva corresponde ao instalado/);
+  assert.match(runtime, /\$hasCriticalError = \$true/);
+  assert.match(runtime, /Menu 6 e somente leitura/);
+  assert.match(common, /InstalledCommit\s+=/);
+});
