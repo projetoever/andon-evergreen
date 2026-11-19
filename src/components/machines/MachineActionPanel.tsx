@@ -8,11 +8,13 @@ import type { AndonCall, CallSubtype } from "@/types/andon";
 import type { Machine } from "@/types/machine";
 import type { AndonCategoryConfig } from "@/types/settings";
 import type { OperationalReason } from "@/services/callReasonsCatalogService";
+import { deriveMachineSectorTiles } from "@/utils/deriveMachineSectorTiles";
 
 interface MachineActionPanelProps {
   machine: Machine;
   currentCall: AndonCall | null;
   categories: AndonCategoryConfig[];
+  catalogCategories?: AndonCategoryConfig[];
   activeCalls: AndonCall[];
   selectedCallId: string | null;
   hasActiveStopOwner: boolean;
@@ -109,6 +111,7 @@ interface MachineSectorButtonProps {
   activeCall: AndonCall | undefined;
   selectedCallId: string | null;
   className: string;
+  temporarilyVisible?: boolean;
   onOpenSubtype: (subtype: CallSubtype) => void;
   onSelectCall: (callId: string) => void;
   translate?: (source: string) => string;
@@ -119,6 +122,7 @@ export function MachineSectorButton({
   activeCall,
   selectedCallId,
   className,
+  temporarilyVisible = false,
   onOpenSubtype,
   onSelectCall,
   translate,
@@ -129,9 +133,11 @@ export function MachineSectorButton({
   const callState = !activeCall ? "free" : selected ? "selected" : "active";
   const accentColor = activeCall ? getActiveAccentColor(category.color) : category.color;
   const actionLabel = activeCall
-    ? selected
-      ? `${t("Selecionado: chamado")} ${category.displayName}`
-      : `${t("Selecionar chamado")} ${category.displayName}`
+    ? temporarilyVisible
+      ? `${t("Chamado ativo — selecionar ocorrência")}: ${category.displayName}`
+      : selected
+        ? `${t("Selecionado: chamado")} ${category.displayName}`
+        : `${t("Selecionar chamado")} ${category.displayName}`
     : `${t("Abrir novo chamado")} ${category.displayName}`;
 
   return (
@@ -140,6 +146,7 @@ export function MachineSectorButton({
       aria-label={actionLabel}
       aria-pressed={activeCall ? selected : undefined}
       data-call-state={callState}
+      data-temporary-active={temporarilyVisible ? "true" : undefined}
       title={actionLabel}
       onClick={() => (activeCall ? onSelectCall(activeCall.id) : onOpenSubtype(category.id))}
       className={cn(
@@ -202,7 +209,7 @@ export function MachineSectorButton({
             )}
             style={{ borderColor: selected ? accentColor : undefined }}
           >
-            {selected ? t("Selecionado") : t("Ativo")}
+            {temporarilyVisible ? t("Chamado ativo") : selected ? t("Selecionado") : t("Ativo")}
           </span>
         )}
       </span>
@@ -232,6 +239,7 @@ export function MachineActionPanel({
   machine,
   currentCall,
   categories,
+  catalogCategories,
   activeCalls,
   selectedCallId,
   hasActiveStopOwner,
@@ -251,6 +259,7 @@ export function MachineActionPanel({
   maintenanceCompletionHintTone = "warning",
 }: MachineActionPanelProps) {
   const { t } = useLanguage();
+  const sectorTiles = deriveMachineSectorTiles(categories, catalogCategories ?? categories, activeCalls);
   // Size by the viewport, never by attendance provenance or warning text.
   const sectorActionClass = "machine-sector-action text-base lg:text-lg";
   const workflowActionClass =
@@ -307,13 +316,13 @@ export function MachineActionPanel({
       >
         {/* Groups add shortcuts; every previously configured sector remains visible
             and continues using its unchanged subtype, audio and GPIO contract. */}
-        {categories.map((category) => {
-          const activeCall = activeCalls.find(call => call.subtype === category.id);
+        {sectorTiles.map(({ category, activeCall, temporarilyVisible }) => {
           return (
             <MachineSectorButton
               key={category.id}
               category={category}
               activeCall={activeCall}
+              temporarilyVisible={temporarilyVisible}
               selectedCallId={selectedCallId}
               className={sectorActionClass}
               onOpenSubtype={onOpenSubtype}
