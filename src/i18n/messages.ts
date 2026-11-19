@@ -1,5 +1,13 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Grupo sem setores disponíveis para abertura. Verifique os setores habilitados.", "Group has no sectors available for opening. Check which sectors are enabled.", "此群組沒有可建立通報的部門。請確認部門是否已啟用。"],
+  ["Não foi possível atualizar o catálogo do grupo. Tente novamente.", "Could not refresh the group catalog. Please try again.", "無法更新群組目錄。請再試一次。"],
+  ["setores vinculados", "linked sectors", "已連結的部門"],
+  ["disponíveis para abertura", "available for opening", "可建立通報"],
+  ["setores disponíveis no modal operacional", "sectors available in the operational dialog", "操作視窗中可用的部門"],
+  ["Setor inativo no cadastro: não aparece no modal do grupo. Em Setores / categorias, habilite o setor para chamados e grupos; mantenha a exibição direta desmarcada se desejar ocultar o botão.", "Sector inactive in catalog: it is not shown in the group dialog. In Sectors / categories, enable it for calls and groups; leave direct display unchecked if you want to hide its button.", "部門在目錄中已停用，因此不會顯示於群組視窗。請在「部門／類別」中啟用通報及群組功能；如需隱藏直接按鈕，保持直接顯示未勾選。"],
+  ["Vínculo inativo neste grupo: clique em Ativar para disponibilizar o setor no modal de abertura.", "Group link inactive: choose Activate to make this sector available in the opening dialog.", "此群組連結已停用：請按「啟用」，讓部門出現在通報視窗中。"],
+
   ["Setores indisponíveis para abertura direta até confirmar o catálogo.", "Direct sector opening is unavailable until the catalog has been verified.", "在確認部門目錄前，無法透過直接按鈕建立通報。"],
 
   ["Setor habilitado para chamados e grupos", "Sector enabled for calls and groups", "部門可透過直接按鈕或群組建立通報"],

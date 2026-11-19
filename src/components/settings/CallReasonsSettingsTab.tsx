@@ -78,6 +78,10 @@ export function CallReasonsSettingsTab() {
   // A cached feature flag never authorizes writes when Hub identity is unknown.
   const writeBlocked = access === null || busy || capabilityChecking || !enabled || Boolean(error) || loading;
   const chosen = useMemo(() => reasons.find(reason => reason.id === selected) ?? null, [reasons, selected]);
+  // An active link to an inactive sector is still listed in the Admin catalog,
+  // but is intentionally excluded from the operational group opener.
+  const availableOptionCount = chosen?.options.filter(option =>
+    chosen.active && option.active && option.technicalArea.active).length ?? 0;
   const filteredReasons = useMemo(() => {
     const query = reasonQuery.trim().toLocaleLowerCase("pt-BR")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -445,7 +449,8 @@ export function CallReasonsSettingsTab() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold uppercase">{reason.displayName}</span>
                   <span className="block text-[11px] text-muted-foreground">
-                    {reason.options.length} {ui("setores")} · {ui(reason.active ? "Ativo" : "Inativo")}
+                    {reason.options.length} {ui("setores vinculados")} · {" "}
+                    {reason.options.filter(option => reason.active && option.active && option.technicalArea.active).length} {ui("disponíveis para abertura")}
                   </span>
                 </span>
               </button>
@@ -558,6 +563,9 @@ export function CallReasonsSettingsTab() {
             {chosen && (
               <section className="space-y-2 border-t border-border pt-2">
                 <h4 className="font-semibold">{ui("Setores vinculados ao grupo")}</h4>
+                <p role="status" data-group-availability-summary="true" className="text-xs font-medium text-muted-foreground">
+                  {availableOptionCount} {ui("de")} {chosen.options.length} {ui("setores disponíveis no modal operacional")}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {ui("Vincule um ou mais setores existentes ao grupo selecionado. Elétrica, Mecânica e outros setores mantêm seus identificadores originais; a política analítica pertence ao grupo.")}
                 </p>
@@ -589,6 +597,18 @@ export function CallReasonsSettingsTab() {
                             : "Não é falha corretiva automática")}
                         </span>
                       </p>
+                      {!option.technicalArea.active && (
+                        <p role="status" data-group-sector-status="catalog-inactive"
+                          className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs font-semibold text-warning">
+                          {ui("Setor inativo no cadastro: não aparece no modal do grupo. Em Setores / categorias, habilite o setor para chamados e grupos; mantenha a exibição direta desmarcada se desejar ocultar o botão.")}
+                        </p>
+                      )}
+                      {option.technicalArea.active && !option.active && (
+                        <p role="status" data-group-sector-status="link-inactive"
+                          className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs font-semibold text-warning">
+                          {ui("Vínculo inativo neste grupo: clique em Ativar para disponibilizar o setor no modal de abertura.")}
+                        </p>
+                      )}
                       {editingOptionId === option.id && (
                         <div className="space-y-3 border-t border-border pt-3">
                           <Label className="block space-y-1">

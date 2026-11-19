@@ -102,3 +102,50 @@ test("RC P0: API/UI/schema use explicit presentation flag, not category inactiva
   assert.match(migration, /ADD COLUMN "showDirectButton" BOOLEAN NOT NULL DEFAULT TRUE/);
   assert.doesNotMatch(migration, /UPDATE\s+"andon_categories"\s+SET\s+"active"/i);
 });
+
+test("RC P0: linked but formerly inactivated Pneumática is NOT silently reopened by display flag", () => {
+  const area = category(false, false);
+  const reason = {
+    id: "teste", displayName: "TESTE", active: true, revision: 1,
+    nature: "planned_setup", suggestedResponsibility: "unassigned",
+    maintenanceKpiPolicy: "excluded", analyticsDisposition: "test",
+  };
+  const option = {
+    id: "teste_pneumatica", reasonId: "teste", technicalAreaId: "pneumatica",
+    displayName: null, active: true, revision: 1,
+    natureOverride: null, suggestedResponsibilityOverride: null,
+    maintenanceKpiPolicyOverride: null, analyticsDispositionOverride: null,
+  };
+  assert.throws(() => resolveReasonOption(reason, option, area), /reason_option_inactive/);
+  // Only an explicit Admin/authorized catalog update may reactivate a sector.
+  assert.deepEqual({ ...area, active: true }.showDirectButton, false);
+  assert.equal(resolveReasonOption(reason, option, { ...area, active: true }).technicalAreaId, "pneumatica");
+});
+
+test("RC P0: group settings distinguish linked sector from operable option", async () => {
+  const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
+  const [groupAdmin, operational] = await Promise.all([
+    read("../src/components/settings/CallReasonsSettingsTab.tsx"),
+    read("../server/src/routes/callReasons.ts"),
+  ]);
+  assert.match(groupAdmin, /chosen\.active && option\.active && option\.technicalArea\.active/);
+  assert.match(groupAdmin, /data-group-availability-summary="true"/);
+  assert.match(groupAdmin, /data-group-sector-status="catalog-inactive"/);
+  assert.match(groupAdmin, /data-group-sector-status="link-inactive"/);
+  assert.match(operational, /where: \{ active: true, technicalArea: \{ active: true \} \}/);
+  // No runtime bypass for inactive sectors, no mass data reactivation.
+  assert.doesNotMatch(operational, /showDirectButton: true/);
+});
+
+test("RC P0: operator group modal revalidates the live catalog after Admin changes in another tab", async () => {
+  const machine = await readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8");
+  assert.match(machine, /async function handleOpenReason\(reasonId: string\)/);
+  assert.match(machine, /getOperationalCallReasons\(\), getCategoryConfigs\(\)/);
+  assert.match(machine, /setHierarchicalReasons\(freshReasons\)/);
+  assert.match(machine, /setCategories\(freshCategories\.filter\(isDirectSectorButtonEnabled\)\)/);
+  assert.match(machine, /currentMachineIdRef\.current !== openingMachineId/);
+  assert.match(machine, /reasonOpenInFlightRef\.current/);
+  assert.match(machine, /onOpenReason=\{\(reasonId\) => void handleOpenReason\(reasonId\)\}/);
+  assert.match(machine, /setReasonCatalogStatus\(error instanceof AndonApiError/);
+  assert.doesNotMatch(machine, /onOpenReason=\{\(reasonId\) => \{\s*if \(reasonCatalogStatus/);
+});

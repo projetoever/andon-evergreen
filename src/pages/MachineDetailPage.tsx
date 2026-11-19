@@ -104,6 +104,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
   const [reasonCatalogStatus, setReasonCatalogStatus] =
     useState<"loading" | "legacy" | "ready" | "unavailable">("loading");
   const [reasonCatalogReload, setReasonCatalogReload] = useState(0);
+  const reasonOpenInFlightRef = useRef(false);
+  const currentMachineIdRef = useRef(machineId);
+  currentMachineIdRef.current = machineId;
   const [selectedReasonId, setSelectedReasonId] = useState<string | null>(null);
   const [hierarchicalChoice, setHierarchicalChoice] = useState<HierarchicalOpeningChoice | null>(null);
   const [hierarchicalChoices, setHierarchicalChoices] = useState<HierarchicalOpeningChoice[]>([]);
@@ -569,6 +572,41 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
     }
   }
 
+  async function handleOpenReason(reasonId: string) {
+    if (reasonOpenInFlightRef.current || reasonCatalogStatus !== "ready" ||
+        !hierarchicalReasons?.some(reason => reason.id === reasonId && reason.openingEnabled)) return;
+    reasonOpenInFlightRef.current = true;
+    const openingMachineId = machineId;
+    try {
+      // Refresh before each group opening: settings may have changed in another
+      // Admin tab without the machine page being reloaded. Never use a stale
+      // option list to suggest an inactive sector is available.
+      const [freshReasons, freshCategories] = await Promise.all([
+        getOperationalCallReasons(), getCategoryConfigs(),
+      ]);
+      if (currentMachineIdRef.current !== openingMachineId) return;
+      setHierarchicalReasons(freshReasons);
+      setCategoryCatalog(freshCategories);
+      setCategories(freshCategories.filter(isDirectSectorButtonEnabled));
+      const currentGroup = freshReasons.find(reason => reason.id === reasonId);
+      if (!currentGroup?.openingEnabled || currentGroup.options.length === 0) {
+        toast.error(ui("Grupo sem setores disponíveis para abertura. Verifique os setores habilitados."));
+        return;
+      }
+      setHierarchicalChoice(null);
+      setSelectedReasonId(reasonId);
+    } catch (error) {
+      if (currentMachineIdRef.current !== openingMachineId) return;
+      setHierarchicalReasons(null);
+      setSelectedReasonId(null);
+      setReasonCatalogStatus(error instanceof AndonApiError && error.code === "hierarchical_calls_disabled"
+        ? "legacy" : "unavailable");
+      toast.error(ui("Não foi possível atualizar o catálogo do grupo. Tente novamente."));
+    } finally {
+      reasonOpenInFlightRef.current = false;
+    }
+  }
+
   function handleSelectReasonOptions(reasonId: string, optionIds: string[]) {
     const reason = hierarchicalReasons?.find(item => item.id === reasonId);
     const selected = optionIds.map(id => reason?.options.find(option => option.id === id));
@@ -865,12 +903,7 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
         hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons : null}
         reasonCatalogStatus={reasonCatalogStatus}
         onRetryReasonCatalog={() => setReasonCatalogReload(current => current + 1)}
-        onOpenReason={(reasonId) => {
-          if (reasonCatalogStatus !== "ready" ||
-              !hierarchicalReasons?.some(reason => reason.id === reasonId && reason.openingEnabled)) return;
-          setHierarchicalChoice(null);
-          setSelectedReasonId(reasonId);
-        }}
+        onOpenReason={(reasonId) => void handleOpenReason(reasonId)}
         activeCalls={activeCalls}
         selectedCallId={selectedCallId}
         hasActiveStopOwner={hasActiveStopOwner}
