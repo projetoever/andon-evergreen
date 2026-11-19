@@ -2384,6 +2384,7 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             throw new AccessError("authentication_required", 401);
           assertPermission(current, "andon.read");
           assertPermission(current, "history.read");
+          assertPermission(current, "history.global.read");
           const freshIds = current.machineScope === "all" ? null : current.machineIds;
           const allowedIds = originalAllowedIds === null
             ? freshIds
