@@ -27,6 +27,7 @@ type CategoryBody = {
   categoryGroup?: unknown;
   color?: unknown;
   active?: unknown;
+  showDirectButton?: unknown;
   displayOrder?: unknown;
 };
 
@@ -83,6 +84,10 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
     const categoryGroup = requiredString(request.body?.categoryGroup);
     const color = requiredString(request.body?.color)?.toUpperCase();
     const active = parseBoolean(request.body?.active) ?? true;
+    const showDirectButton = parseBoolean(request.body?.showDirectButton) ?? true;
+    if ("showDirectButton" in (request.body ?? {}) &&
+        parseBoolean(request.body?.showDirectButton) === undefined)
+      return badRequest(reply, "Visibilidade do botão inválida");
     const displayOrder = parseDisplayOrder(request.body?.displayOrder) ?? 0;
 
     if (!id || !CATEGORY_ID_PATTERN.test(id)) {
@@ -102,7 +107,7 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
     if (existing) return conflict(reply, "Já existe um setor com este ID");
 
     const category = await prisma.andonCategory.create({
-      data: { id, displayName, categoryGroup, color, active, displayOrder },
+      data: { id, displayName, categoryGroup, color, active, showDirectButton, displayOrder },
     });
     return reply.status(201).send(category);
   });
@@ -143,6 +148,8 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
           : undefined;
       const active =
         "active" in (request.body ?? {}) ? parseBoolean(request.body.active) : undefined;
+      const showDirectButton = "showDirectButton" in (request.body ?? {})
+        ? parseBoolean(request.body.showDirectButton) : undefined;
       const displayOrder =
         "displayOrder" in (request.body ?? {})
           ? parseDisplayOrder(request.body.displayOrder)
@@ -162,6 +169,9 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
       }
       if ("active" in (request.body ?? {}) && active === undefined) {
         return badRequest(reply, "Status do setor inválido");
+      }
+      if ("showDirectButton" in (request.body ?? {}) && showDirectButton === undefined) {
+        return badRequest(reply, "Visibilidade do botão inválida");
       }
       if ("displayOrder" in (request.body ?? {}) && displayOrder === undefined) {
         return badRequest(reply, "Ordem de exibição inválida");
@@ -216,6 +226,7 @@ export async function registerAndonCategoryRoutes(app: FastifyInstance) {
               ...(categoryGroup ? { categoryGroup } : {}),
               ...(color ? { color } : {}),
               ...(active !== undefined ? { active } : {}),
+              ...(showDirectButton !== undefined ? { showDirectButton } : {}),
               ...(displayOrder !== undefined ? { displayOrder } : {}),
             },
           });
