@@ -5,7 +5,7 @@
  * This MUST be checked by both HTTP prehandler and transaction adapter.
  */
 export type ReasonCatalogOperation =
-  | "reason.create" | "reason.update" | "option.create" | "option.update";
+  | "reason.create" | "reason.update" | "option.create" | "option.update" | "option.delete";
 
 const REASON_PRESENTATION = new Set([
   "expectedRevision", "displayName", "color", "active", "displayOrder",
