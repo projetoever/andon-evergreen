@@ -22,6 +22,7 @@ import {
 const catalog = [
   "andon.read",
   "history.read",
+  "history.global.read",
   "calls.open",
   "calls.cancel.own",
   "calls.attend",
@@ -71,7 +72,7 @@ test("suggestions are strictly limited to the permitted catalog", () => {
   assert.deepEqual(suggestedPermissions("Produção", []), []);
   assert.deepEqual(
     MODULE_ENTRY_PERMISSIONS.map((item) => item.key),
-    ["andon.read", "bi.read", "priorities.read", "andon.settings.open"],
+    ["andon.read", "bi.read", "priorities.read", "andon.settings.open", "history.global.read"],
   );
 });
 
@@ -161,9 +162,9 @@ test("REFINE 16 P0: opening a call is explicitly granted, never inferred from AN
 });
 
 
-test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never individual call controls", async () => {
+test("RC02 P0: simple editor exposes five grouped modules, never individual call controls", async () => {
   assert.deepEqual(SIMPLE_MODULE_GROUPS.map((entry) => entry.label), [
-    "ANDON", "BI", "Prioridades", "Config. do ANDON",
+    "ANDON", "BI", "Prioridades", "Config. do ANDON", "Histórico Global",
   ]);
   const source = await readFile(
     new URL("../src/components/settings/UsersAccessSettings.tsx", import.meta.url), "utf8",
@@ -185,7 +186,7 @@ test("REFINE 16 P0: simple editor exposes exactly four grouped modules, never in
 });
 
 
-test("SEC-16: all four essential modules grant their entire catalog regardless of profile", () => {
+test("RC02: all five essential modules grant only their allowed catalog regardless of profile", () => {
   const fullCatalog = [
     ...catalog,
     "andon.settings.open", "machines.status.write", "production.schedule.request", "production.schedule.write",
@@ -208,7 +209,7 @@ test("SEC-16: all four essential modules grant their entire catalog regardless o
     "catalog.classifications.manage", "catalog.technicians.manage",
   ];
   for (const role of ["Produção", "Manutenção", "Líder", "Gestor/Gerente", "Desconhecido"]) {
-    const byRole = (group: "andon" | "bi" | "priorities" | "andonSettings") =>
+    const byRole = (group: "andon" | "bi" | "priorities" | "andonSettings" | "globalHistory") =>
       simpleModuleGrants(group, role, fullCatalog);
     assert.deepEqual(byRole("andon"), requiredAndon, role + " ANDON");
     assert(!byRole("andon").includes("production.schedule.write"), "Credential approval is never bundled with terminal requests");
@@ -216,6 +217,7 @@ test("SEC-16: all four essential modules grant their entire catalog regardless o
     assert.deepEqual(byRole("bi"), requiredBi, role + " BI");
     assert.deepEqual(byRole("priorities"), requiredPriorities, role + " priorities");
     assert.deepEqual(byRole("andonSettings"), requiredSettings, role + " config");
+    assert.deepEqual(byRole("globalHistory"), ["history.global.read"], role + " global history");
     const enabled = toggleSimpleModule([], "andon", role, fullCatalog, true);
     assert.equal(simpleModuleState(enabled, "andon", role, fullCatalog), "on");
     for (const key of requiredAndon) assert(enabled.includes(key), "ANDON misses " + key);
@@ -280,7 +282,7 @@ test("SEC-16: each group can be revoked without losing unrelated modules or Hub 
   assert(withoutPriorities.includes("audit.read") && withoutPriorities.includes("workstations.read"));
 });
 
-test("SEC-16: four grouped Advanced sections cover each module action exactly once", () => {
+test("RC02: five grouped Advanced sections cover each module action exactly once", () => {
   const all = [...new Set([...catalog,
     "andon.settings.open", "workstations.screen.unlock",
     "catalog.assets.manage", "catalog.reasons.manage",
@@ -336,4 +338,30 @@ test("SEC-17B: account editor does not offer Kiosk selection; legacy account is 
   assert.match(source, /Kiosk sem login por senha/);
   assert.match(source, /Senha indisponível — Kiosk/);
   assert.match(source, /user\.accountType === "person" \?/);
+});
+
+test("RC02 P0: Global History is an independent opt-in, never bundled with ANDON", () => {
+  const all = [...new Set([...catalog, "andon.settings.open", "workstations.screen.unlock"])];
+  const operational = toggleSimpleModule([], "andon", "Manutenção", all, true);
+  assert(!operational.includes("history.global.read"), "ANDON must not silently grant global scope");
+  const global = toggleSimpleModule([], "globalHistory", "Produção", all, true);
+  assert.deepEqual(new Set(global), new Set(["history.global.read", "history.read", "andon.read"]));
+  assert.equal(simpleModuleState(global, "globalHistory", "Produção", all), "on");
+  for (const forbidden of ["calls.open", "calls.attend", "calls.finish", "bi.read",
+    "users.create", "workstations.manage", "audit.read"]) {
+    assert(!global.includes(forbidden), "global history elevated access to " + forbidden);
+  }
+  assert.equal(simpleModuleState(["history.global.read"], "globalHistory", "Produção", all), "partial");
+  const byAdvanced = toggleAndonModulePermission([], "history.global.read", true);
+  assert.deepEqual(new Set(byAdvanced), new Set(global), "advanced permission has same prerequisites");
+  assert(!toggleAndonModulePermission(byAdvanced, "andon.read", false).includes("history.global.read"));
+  assert(!toggleAndonModulePermission(byAdvanced, "history.read", false).includes("history.global.read"));
+  const both = toggleSimpleModule(operational, "globalHistory", "Manutenção", all, true);
+  const withoutAndon = toggleSimpleModule(both, "andon", "Manutenção", all, false);
+  assert(withoutAndon.includes("history.global.read"));
+  assert(withoutAndon.includes("history.read") && withoutAndon.includes("andon.read"));
+  assert(!withoutAndon.includes("calls.open") && !withoutAndon.includes("calls.finish"));
+  const withoutHistory = toggleSimpleModule(withoutAndon, "globalHistory", "Manutenção", all, false);
+  assert(!withoutHistory.includes("history.global.read"), "revocation must remove global grant");
+  assert(advancedIndependentGrants(all).every(key => key !== "history.global.read"));
 });

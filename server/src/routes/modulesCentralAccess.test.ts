@@ -48,7 +48,7 @@ test("Hub module access reflects the verified central login, not legacy module p
       mustChangePassword: purpose !== "normal", authorizationVersion: 1,
       machineScope: "all", machines: [],
       permissions: [{ key: "andon.read" }, { key: "bi.read" },
-        { key: "priorities.read" }, ...(grantHistory ? [{ key: "history.read" }] : [])],
+        { key: "priorities.read" }, ...(grantHistory ? [{ key: "history.read" }, { key: "history.global.read" }] : [])],
     },
   })) as unknown as typeof originals.session;
   t.after(() => {
@@ -89,7 +89,7 @@ test("Hub module access reflects the verified central login, not legacy module p
     "central read-only priority access must not require a second login");
   assert.equal(priorities.authenticated, true);
 
-  // Fourth Hub card is server-authorized, but NOT a new coarse permission.
+  // Fifth Hub card requires an independent Global History account grant.
   assert.deepEqual(response.json().globalHistory, { available: false, allowed: false });
   process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED = "1";
   const missing = (await app.inject({ url: "/api/modules/access", headers })).json();

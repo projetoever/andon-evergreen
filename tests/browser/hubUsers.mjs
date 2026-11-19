@@ -254,6 +254,7 @@ try {
       "Admin can still explicitly grant full-machine scope");
     assert.equal(await page.getByRole("button", { name: "Permissões avançadas (opcional)" }).count(), 0);
     assert.equal(await page.getByRole("checkbox", { name: "Config. do ANDON", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("checkbox", { name: "Histórico Global", exact: true }).count(), 1);
     await page.getByLabel("Nome", { exact: true }).fill("Marina — Supervisão de Produção");
     await page.getByLabel("Usuário", { exact: true }).fill("marina.producao");
     await page.getByLabel("Perfil", { exact: true }).selectOption("Líder");
@@ -289,7 +290,7 @@ try {
       "Priorities module must grant write, not only view");
     assert(users.every(u => u.login !== "marina.producao" ||
       !u.permissions.some(p => p.key === "users.create" || p.key === "workstations.manage")),
-      "four module selections must never grant Hub identity/workstation administration");
+      "five module selections must never grant Hub identity/workstation administration");
     await page.getByText("Senha provisória — exibição única", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Copiar senha", exact: true }).waitFor();
     await page.getByText("Copiar a senha deixa o segredo temporariamente na área de transferência do dispositivo.", { exact: true }).waitFor();
@@ -440,7 +441,7 @@ try {
         "list",
         "search",
         "create",
-        "explicit machine scope and four grouped modules",
+        "explicit machine scope and five grouped modules",
         "one-time secret",
         "reload persistence (stateful fixture)",
         "edit/no-change disabled",

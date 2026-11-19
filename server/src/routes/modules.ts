@@ -100,9 +100,9 @@ export async function registerModuleRoutes(app: FastifyInstance) {
       workstation,
       centralAccessEnabled: central,
       // Never expose the central editor as active unless the server-side
-      // opt-in is enabled and this exact account/device has full global grant.
-      // A fourth Hub card uses existing history.read and machineScope.
-      // Never create a fifth checkbox or trust frontend permission hints.
+      // opt-in is enabled and this exact account/device has all three grants
+      // (andon.read + history.read + history.global.read) and valid workstation.
+      // Client checkbox never replaces server-side machine scope.
       globalHistory: globalHistoryModuleAccess(principal, workstation),
       prioritiesWriteEnabled: Boolean(central && centralPriorityHttpEnabled() &&
         principal?.purpose === "normal" && permitted(MODULE_REGISTRY[2]) &&

@@ -65,7 +65,7 @@ test("HIST-05: summary route requires flag, history.read and SQL machineScope", 
     else process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED=old.history;
   });
   const app=Fastify();
-  let grants=["andon.read","history.read"];
+  let grants=["andon.read","history.read","history.global.read"];
   app.addHook("preHandler",async request=>{
     bindAuthorizedMachineReadPrincipal(request,person(grants));
   });
@@ -85,6 +85,10 @@ test("HIST-05: summary route requires flag, history.read and SQL machineScope", 
   assert.equal(response.statusCode,403,response.body);
   assert.equal(groups,0);
   grants=["andon.read","history.read"];
+  response=await app.inject({url:"/api/andon-calls/history/summary"});
+  assert.equal(response.statusCode,403,"global history must be explicitly granted");
+  assert.equal(groups,0);
+  grants=["andon.read","history.read","history.global.read"];
   response=await app.inject({
     url:"/api/andon-calls/history/summary?machineId=11&status=finished&origin=real&criticality=medium",
   });

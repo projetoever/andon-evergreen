@@ -75,7 +75,7 @@ test("HIST-02: central feature and bound history.read are mandatory for a global
     bindAuthorizedMachineReadPrincipal(noGrant, identity(["andon.read"]));
     assert.throws(() => scopedGlobalHistoryReadIds(noGrant), /permission_denied/);
     const yes = {} as FastifyRequest;
-    bindAuthorizedMachineReadPrincipal(yes, identity(["andon.read", "history.read"], []));
+    bindAuthorizedMachineReadPrincipal(yes, identity(["andon.read", "history.read", "history.global.read"], []));
     assert.deepEqual(scopedGlobalHistoryReadIds(yes), [], "empty selected scope stays empty");
     process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
     assert.throws(() => scopedGlobalHistoryReadIds(yes), /global_history_disabled/);
@@ -114,7 +114,7 @@ test("HIST-02: route is OFF by default and does not read DB without flag + autho
     else process.env.ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED = flags.global;
   });
   const app = Fastify();
-  let grants = ["andon.read", "history.read"];
+  let grants = ["andon.read", "history.read", "history.global.read"];
   app.addHook("preHandler", async req => {
     bindAuthorizedMachineReadPrincipal(req, identity(grants));
   });
@@ -133,6 +133,10 @@ test("HIST-02: route is OFF by default and does not read DB without flag + autho
   assert.equal(response.json().error,"permission_denied");
   assert.equal(reads,0);
   grants = ["andon.read","history.read"];
+  response = await app.inject({url:"/api/andon-calls/history/search"});
+  assert.equal(response.statusCode,403, "machine history grants cannot view Global History");
+  assert.equal(reads,0);
+  grants = ["andon.read","history.read","history.global.read"];
   response = await app.inject({
     url:"/api/andon-calls/history/search?machineId=11&limit=10&offset=20&origin=real&criticality=critical",
   });

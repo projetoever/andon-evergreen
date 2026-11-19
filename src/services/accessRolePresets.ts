@@ -70,6 +70,7 @@ export const MODULE_ENTRY_PERMISSIONS = [
   { key: "bi.read", label: "BI: visualizar" },
   { key: "priorities.read", label: "Prioridades: visualizar" },
   { key: "andon.settings.open", label: "Configurações do ANDON: acessar" },
+  { key: "history.global.read", label: "Histórico Global: visualizar" },
 ] as const;
 
 /** Pilot editor: visible, individually revocable action grants.
@@ -86,7 +87,7 @@ export const PILOT_OPERATIONAL_ACTIONS = [
 ] as const;
 
 /**
- * REFINE 16 — Exactly four pilot controls. These are explicit Admin-issued
+ * RC02 — Five pilot controls, including independent Global History. Explicit Admin-issued
  * full bundles of existing server permissions, explicitly chosen by Admin.
  * The selected role label is descriptive and NEVER attenuates a checked bundle.
  * Backend keeps checking each action, workstation, session, machine and flag.
@@ -99,6 +100,7 @@ export const SIMPLE_MODULE_GROUPS = [
   { id: "bi", label: "BI" },
   { id: "priorities", label: "Prioridades" },
   { id: "andonSettings", label: "Config. do ANDON" },
+  { id: "globalHistory", label: "Histórico Global" },
 ] as const;
 export type SimpleModuleGroup = (typeof SIMPLE_MODULE_GROUPS)[number]["id"];
 
@@ -122,6 +124,7 @@ const ANDON_OPERATION_GRANTS = [
 ] as const;
 const BI_GRANTS = ["bi.read", "bi.export", "analytics.reclassify", "analytics.policy.manage"] as const;
 const PRIORITY_GRANTS = ["priorities.read", "priorities.write"] as const;
+const GLOBAL_HISTORY_GRANTS = ["history.global.read"] as const;
 const ANDON_CONFIG_GRANTS = [
   "andon.settings.open",
   "catalog.assets.manage",
@@ -136,6 +139,7 @@ function ownedByGroup(group: SimpleModuleGroup): readonly string[] {
     case "bi": return BI_GRANTS;
     case "priorities": return PRIORITY_GRANTS;
     case "andonSettings": return ANDON_CONFIG_GRANTS;
+    case "globalHistory": return GLOBAL_HISTORY_GRANTS;
   }
 }
 
@@ -151,7 +155,7 @@ export function simpleModuleGrants(
 }
 
 /** Organized advanced permission groups, with unrelated security/Hub grants
- * kept outside the four essential modules. Also used by the UI for clarity.
+ * kept outside the five essential modules. Also used by the UI for clarity.
  */
 export function advancedModuleGrants(
   group: SimpleModuleGroup, catalog: readonly string[],
@@ -174,6 +178,8 @@ export function simpleModuleState(
   const expected = simpleModuleGrants(group, roleLabel, catalog);
   if (!expected.length) return "off";
   const granted = expected.filter(key => current.includes(key)).length;
+  if (group === "globalHistory" && granted > 0 &&
+      (!current.includes("andon.read") || !current.includes("history.read"))) return "partial";
   return granted === expected.length ? "on" : granted > 0 ? "partial" : "off";
 }
 
@@ -186,6 +192,11 @@ export function toggleSimpleModule(
     for (const key of simpleModuleGrants(group, roleLabel, catalog)) next.add(key);
     // ANDON settings live in /andon, so even a config-only account needs read.
     if (group === "andonSettings" && catalog.includes("andon.read")) next.add("andon.read");
+    if (group === "globalHistory") {
+      // Read-only prerequisites; no opening/attendance/BI/Hub administration.
+      if (catalog.includes("andon.read")) next.add("andon.read");
+      if (catalog.includes("history.read")) next.add("history.read");
+    }
   } else {
     for (const key of ownedByGroup(group)) next.delete(key);
     if (group === "andon") {
@@ -194,6 +205,12 @@ export function toggleSimpleModule(
       // Keep only the minimum module entry required by the independent config
       // bundle when it remains enabled. Never retain operational call grants.
       if (next.has("andon.settings.open")) next.add("andon.read");
+      if (next.has("history.global.read")) {
+        // Switching off ANDON operational actions cannot silently revoke
+        // separately granted Global History. Keep read-only dependencies.
+        if (catalog.includes("andon.read")) next.add("andon.read");
+        if (catalog.includes("history.read")) next.add("history.read");
+      }
     }
   }
   return [...next];
@@ -224,12 +241,18 @@ export function toggleAndonModulePermission(
   if (checked) {
     next.add(key);
     if (key === "andon.settings.open" || key === SCREEN_UNLOCK_PERMISSION) next.add("andon.read");
+    if (key === "history.global.read") {
+      next.add("andon.read");
+      next.add("history.read");
+    }
   } else {
     next.delete(key);
     if (key === "andon.read") {
       next.delete("andon.settings.open");
       next.delete(SCREEN_UNLOCK_PERMISSION);
+      next.delete("history.global.read");
     }
+    if (key === "history.read") next.delete("history.global.read");
   }
   return [...next];
 }

@@ -46,6 +46,7 @@ test("HIST-03: chronology, period and selected-machine filtering cannot bypass s
   assert.match(sql,/callMachineReadWhere\(machineId, allowedMachineIds\)/);
   assert.match(sql,/openedAt: "desc" as const/);
   assert.match(scope,/assertPermission\(principal, "history.read"\)/);
+  assert.match(scope,/assertPermission\(principal, "history.global.read"\)/);
 });
 
 test("HIST-04: individual details only load for server-authorized selected calls", async () => {

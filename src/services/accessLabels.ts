@@ -1,6 +1,7 @@
 export const permissionLabels: Record<string, string> = {
   "andon.read": "ANDON: visualizar",
   "history.read": "Histórico: visualizar",
+  "history.global.read": "Histórico Global: consultar máquinas autorizadas",
   "calls.open": "Chamados: abrir",
   "calls.cancel.own": "Chamados: cancelar próprios",
   "calls.cancel.any": "Chamados: cancelar qualquer",

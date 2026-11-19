@@ -1,9 +1,9 @@
 import { centralAccessEnabled } from "../access/http.js";
 import { assertPermission, type Principal } from "../access/policy.js";
 
-/** History is an optional fourth Hub CARD, not an extra coarse-grained user
- * permission. It relies on the existing explicit history.read and andon.read.
- * Machine scope is applied in the SQL layer, never at this UI boundary.
+/** Fifth Hub module is an explicit primary-Admin-issued grant for Global History.
+ * Distinct from per-machine history.read; central feature opt-in, person session,
+ * approved workstation and server SQL scope remain independent requirements.
  */
 export function globalHistoryModuleAccess(
   principal: Principal | null,
@@ -18,6 +18,7 @@ export function globalHistoryModuleAccess(
   try {
     assertPermission(principal, "andon.read");
     assertPermission(principal, "history.read");
+    assertPermission(principal, "history.global.read");
     return { available, allowed: true };
   } catch {
     return { available, allowed: false };

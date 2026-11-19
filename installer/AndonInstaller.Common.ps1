@@ -1131,7 +1131,12 @@ function Write-AndonBackendEnv {
         "ANDON_CENTRAL_MACHINE_SUBSET_SETTINGS_HTTP_ENABLED",
         "ANDON_CENTRAL_ASSET_TYPE_CATALOG_HTTP_ENABLED",
         "ANDON_CENTRAL_MACHINE_INVENTORY_HTTP_ENABLED",
-        "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED"
+        "ANDON_CENTRAL_PRIORITY_HTTP_ENABLED",
+        # RC02/HIST-A: enable read-only Global History ONLY in the explicit
+        # central security validation profile (HTTPS + local PostgreSQL).
+        # Each user still requires the separate history.global.read permission;
+        # factory/general deployments remain OFF unless this opt-in is set.
+        "ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED"
     )
     # Operational hierarchical opening is ALWAYS separate from catalog CRUD
     # and requires a second opt-in persisted only for the isolated HML profile.
