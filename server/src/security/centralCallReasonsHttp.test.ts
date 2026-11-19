@@ -123,6 +123,33 @@ test("R6/S2: permissions, primary Admin, machine scope, module, CSRF and marker 
   }
 });
 
+test("REFINE23: unlink is Admin-only, scoped, CSRF-guarded and never delegated", () => {
+  const a = process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+  const b = process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+  const path = "/api/call-reasons/setup/options/setup_mechanical";
+  const req = (csrf = csrfToken(token)) =>
+    Object.assign(fake("DELETE", path, csrf), { body: { expectedRevision: 1 } });
+  try {
+    process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
+    process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = "1";
+    markCentralCallReasonAuthorized(req(), admin, station);
+    const delegate: Principal = {
+      ...admin, isPrimaryAdmin: false, machineScope: "selected", machineIds: ["37"],
+      permissions: ["andon.read", "andon.settings.open"],
+    };
+    denied(() => markCentralCallReasonAuthorized(req(), delegate, station), "primary_admin_required");
+    denied(() => markCentralCallReasonAuthorized(req("0".repeat(64)), admin, station), "csrf_denied");
+    denied(() => markCentralCallReasonAuthorized(req(), {
+      ...admin, isPrimaryAdmin: false, permissions: ["andon.read"],
+    }, station), "permission_denied");
+  } finally {
+    if (a === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
+    else process.env.ANDON_CENTRAL_ACCESS_ENABLED = a;
+    if (b === undefined) delete process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED;
+    else process.env.ANDON_CENTRAL_CALL_REASONS_HTTP_ENABLED = b;
+  }
+});
+
 test("R6/S2: standalone route never reads or writes database without trusted markers", async (t) => {
   const app = Fastify();
   t.after(() => app.close());
