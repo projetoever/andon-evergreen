@@ -49,8 +49,8 @@ test("HIST-13: bound module/history scope, session revalidation, 500 cap and aud
   assert.equal(isScopedMachineReadRoute("HEAD", "/api/andon-calls/history/export"), true);
   assert.equal(isScopedMachineReadRoute("POST", "/api/andon-calls/history/export"), false);
 
-  let firstGrants = ["andon.read", "history.read"];
-  let freshGrants = ["andon.read", "history.read"];
+  let firstGrants = ["andon.read", "history.read", "history.global.read"];
+  let freshGrants = ["andon.read", "history.read", "history.global.read"];
   let sessionRevoked = false;
   let shouldFailAudit = false;
   let fullCount = 1;
@@ -145,7 +145,7 @@ test("HIST-13: bound module/history scope, session revalidation, 500 cap and aud
   assert.equal(response.statusCode, 403);
   assert.equal(transactions, 0);
 
-  firstGrants = ["andon.read", "history.read"];
+  firstGrants = ["andon.read", "history.read", "history.global.read"];
   response = await app.inject({ method: "HEAD", url: query, headers });
   assert.equal(response.statusCode, 405);
   assert.equal(transactions, 0, "HEAD must not issue downloads");
@@ -167,7 +167,7 @@ test("HIST-13: bound module/history scope, session revalidation, 500 cap and aud
   response = await app.inject({ url: query, headers });
   assert.equal(response.statusCode, 403);
   assert.equal(counts, 0);
-  freshGrants = ["andon.read", "history.read"];
+  freshGrants = ["andon.read", "history.read", "history.global.read"];
 
   fullCount = 501;
   response = await app.inject({ url: query, headers });
