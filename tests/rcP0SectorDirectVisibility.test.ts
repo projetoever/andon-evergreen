@@ -136,3 +136,16 @@ test("RC P0: group settings distinguish linked sector from operable option", asy
   // No runtime bypass for inactive sectors, no mass data reactivation.
   assert.doesNotMatch(operational, /showDirectButton: true/);
 });
+
+test("RC P0: operator group modal revalidates the live catalog after Admin changes in another tab", async () => {
+  const machine = await readFile(new URL("../src/pages/MachineDetailPage.tsx", import.meta.url), "utf8");
+  assert.match(machine, /async function handleOpenReason\(reasonId: string\)/);
+  assert.match(machine, /getOperationalCallReasons\(\), getCategoryConfigs\(\)/);
+  assert.match(machine, /setHierarchicalReasons\(freshReasons\)/);
+  assert.match(machine, /setCategories\(freshCategories\.filter\(isDirectSectorButtonEnabled\)\)/);
+  assert.match(machine, /currentMachineIdRef\.current !== openingMachineId/);
+  assert.match(machine, /reasonOpenInFlightRef\.current/);
+  assert.match(machine, /onOpenReason=\{\(reasonId\) => void handleOpenReason\(reasonId\)\}/);
+  assert.match(machine, /setReasonCatalogStatus\(error instanceof AndonApiError/);
+  assert.doesNotMatch(machine, /onOpenReason=\{\(reasonId\) => \{\s*if \(reasonCatalogStatus/);
+});
