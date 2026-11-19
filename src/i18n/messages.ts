@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Grupo sem setores disponíveis para abertura. Verifique os setores habilitados.", "Group has no sectors available for opening. Check which sectors are enabled.", "此群組沒有可建立通報的部門。請確認部門是否已啟用。"],
+  ["Não foi possível atualizar o catálogo do grupo. Tente novamente.", "Could not refresh the group catalog. Please try again.", "無法更新群組目錄。請再試一次。"],
   ["setores vinculados", "linked sectors", "已連結的部門"],
   ["disponíveis para abertura", "available for opening", "可建立通報"],
   ["setores disponíveis no modal operacional", "sectors available in the operational dialog", "操作視窗中可用的部門"],
