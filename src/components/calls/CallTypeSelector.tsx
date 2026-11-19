@@ -18,7 +18,7 @@ export function CallTypeSelector({ value, onChange }: CallTypeSelectorProps) {
       </h4>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {CALL_TYPE_OPTIONS.map((opt) => {
+        {CALL_TYPE_OPTIONS.filter(opt => opt.active && opt.showDirectButton !== false).map((opt) => {
           const isSelected = value === opt.id;
           const isMaintenance = opt.category === "maintenance";
 
