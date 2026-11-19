@@ -192,7 +192,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
         }
       : {
           ...emptyDraft(),
-          // A new account starts without grants. Four module choices require
+          // A new account starts without grants. Five module choices require
           // an explicit decision by the primary Admin before creating it.
         };
     // Existing custom grants remain intact. A historical user must never open
@@ -849,14 +849,14 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       variant="outline"
                       onClick={() => setAdvancedPermissions((value) => !value)}
                     >
-                      {ui(advancedPermissions ? "Voltar aos 4 módulos" : "Avançado — restringir funções")}
+                      {ui(advancedPermissions ? "Voltar aos 5 módulos" : "Avançado — restringir funções")}
                     </Button>
                   </div>
                   {!advancedPermissions && (
                     <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
                       <legend className="px-1 font-bold">{ui("Acesso aos módulos e configurações")}</legend>
                       <p className="text-sm text-muted-foreground">
-                        {ui("Marcar ANDON habilita abrir, atender, acompanhar, concluir, finalizar, cancelar, editar diagnóstico, alterar status e desfixar tela com credencial. As outras três opções selecionam todas as funções de seus respectivos conjuntos. Ajuste exceções em Avançado.")}
+                        {ui("Cada módulo concede somente suas funções. Histórico Global exige concessão individual e permite consultar apenas máquinas autorizadas; não libera chamadas, BI ou administração. Ajuste exceções em Avançado.")}
                       </p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {SIMPLE_MODULE_GROUPS.map((entry) => {
@@ -927,7 +927,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                     <section className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
                       <h4 className="font-bold">{ui("Segurança e administração — permissões independentes")}</h4>
                       <p className="text-xs text-muted-foreground">
-                        {ui("Estas permissões não são selecionadas por nenhum dos 4 módulos. Habilite-as individualmente somente quando necessárias.")}
+                        {ui("Estas permissões não são selecionadas por nenhum dos 5 módulos. Habilite-as individualmente somente quando necessárias.")}
                       </p>
                       <div className="grid gap-2 md:grid-cols-2">
                         {advancedIndependentGrants(catalog.permissions).map((key) => (
