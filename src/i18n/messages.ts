@@ -1,5 +1,16 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Remover do grupo", "Remove from group", "從群組移除"],
+  ["Remover somente o vínculo com o grupo", "Remove only this group link", "只移除此群組連結"],
+  ["Somente o Admin principal pode desvincular setores", "Only the primary Admin may unlink sectors", "只有主要管理員可解除部門連結"],
+  ["Confirmar remoção do vínculo", "Confirm unlink", "確認解除連結"],
+  ["Desvincular este setor do grupo? O setor original, os chamados e o histórico não serão excluídos.", "Unlink this sector from the group? The original sector, calls and history will be preserved.", "要解除此部門與群組的連結嗎？原始部門、通報及歷史紀錄都會保留。"],
+  ["Confirmar remoção", "Confirm removal", "確認移除"],
+  ["Setor removido do grupo. Seu cadastro e os chamados existentes foram preservados.", "Sector unlinked. Its catalog entry and existing calls were preserved.", "已將部門從群組移除。部門資料及既有通報均已保留。"],
+  ["Não foi possível remover o setor do grupo.", "Could not unlink this sector from the group.", "無法解除此部門與群組的連結。"],
+  ["Cancelar edição", "Cancel editing", "取消編輯"],
+  ["Chamado ativo — selecionar ocorrência", "Active call — select occurrence", "進行中通報 — 選擇通報"],
+
   ["O perfil determina as funções do ANDON agrupadas; apenas o Admin define quais módulos estão habilitados.","The profile determines the bundled ANDON functions; only the Admin chooses which modules are enabled.","角色決定 ANDON 模組內的功能權限；僅管理員能選擇啟用哪些模組。"],
   ["ANDON","ANDON","ANDON"],
   ["BI","BI","BI"],
