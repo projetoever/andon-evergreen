@@ -3,7 +3,7 @@ import test from "node:test";
 import { AccessError } from "../access/policy.js";
 import {
   parseReasonCreate, parseReasonPatch, parseOptionCreate,
-  parseOptionPatch, assertEffectiveReasonOption,
+  parseOptionPatch, parseOptionDelete, assertEffectiveReasonOption,
 } from "./callReasonMutations.js";
 
 const corrective = {
@@ -50,6 +50,15 @@ test("R6/S2 domain: optimistic revision and field allowlists prevent stale or id
   denied(() => parseReasonPatch({ expectedRevision: 1, nature: "planned_setup" }, corrective), "invalid_reason_kpi_policy");
   denied(() => parseReasonPatch({ expectedRevision: 1, displayOrder: -1 }, corrective), "invalid_call_reason");
   denied(() => parseReasonPatch({ expectedRevision: 1, color: "javascript:alert(1)" }, corrective), "invalid_call_reason");
+});
+
+test("REFINE23: unlink requires exact expectedRevision and never accepts a sector mutation", () => {
+  assert.deepEqual(parseOptionDelete({ expectedRevision: 1 }, option), { expectedRevision: 1 });
+  denied(() => parseOptionDelete({ expectedRevision: 2 }, option), "call_reason_revision_conflict");
+  denied(() => parseOptionDelete({}, option), "invalid_call_reason");
+  denied(() => parseOptionDelete({ expectedRevision: 1, technicalAreaId: "electrical" }, option), "invalid_call_reason");
+  denied(() => parseOptionDelete({ expectedRevision: 1, destroyCategory: true }, option), "invalid_call_reason");
+  denied(() => parseOptionDelete(null, option), "invalid_call_reason");
 });
 
 test("R6/S2 domain: group controls KPI; option overrides cannot change policy on new calls", () => {
