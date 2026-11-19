@@ -89,7 +89,7 @@ export interface AndonCategoryConfig {
   color: string;
   active: boolean;
   /** Global direct machine-screen button; group availability uses active only. */
-  showDirectButton: boolean;
+  showDirectButton?: boolean;
   displayOrder: number;
   createdAt?: string;
   updatedAt?: string;
