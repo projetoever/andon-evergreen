@@ -3,6 +3,8 @@ export const PERMISSIONS = [
   // Visible access to the ANDON settings panel; field-specific writes remain guarded.
   "andon.settings.open",
   "history.read",
+  // Dedicated opt-in for cross-machine Global History, distinct from machine history.
+  "history.global.read",
   "calls.open",
   "calls.cancel.own",
   "calls.cancel.any",
