@@ -640,7 +640,7 @@ export function CallReasonsSettingsTab() {
                             onClick={() => setConfirmRemoveOptionId(null)}>{ui("Cancelar")}</Button>
                         </div>
                       </div>
-                    )
+                    )}
                   </div>
                 ))}
                 </div>
