@@ -28,16 +28,19 @@ test("HIST-03: history card is OFF and locked without explicit feature opt-in", 
     assert.deepEqual(globalHistoryModuleAccess(
       person(["history.read"]), station), {available:true, allowed:false});
     assert.deepEqual(globalHistoryModuleAccess(
-      person(["andon.read","history.read"]), station), {available:true, allowed:true});
+      person(["andon.read","history.read"]), station), {available:true, allowed:false},
+      "ANDON machine history grants alone must never unlock Global History");
     assert.deepEqual(globalHistoryModuleAccess(
-      person(["andon.read","history.read"]), {...station,pendingApproval:true}), {available:true, allowed:false});
+      person(["andon.read","history.read","history.global.read"]), station), {available:true, allowed:true});
     assert.deepEqual(globalHistoryModuleAccess(
-      person(["andon.read","history.read"]), {...station,active:false}), {available:true, allowed:false});
+      person(["andon.read","history.read","history.global.read"]), {...station,pendingApproval:true}), {available:true, allowed:false});
     assert.deepEqual(globalHistoryModuleAccess(
-      {...person(["andon.read","history.read"]),purpose:"password_change"}, station),
+      person(["andon.read","history.read","history.global.read"]), {...station,active:false}), {available:true, allowed:false});
+    assert.deepEqual(globalHistoryModuleAccess(
+      {...person(["andon.read","history.read","history.global.read"]),purpose:"password_change"}, station),
       {available:true, allowed:false});
     assert.deepEqual(globalHistoryModuleAccess(
-      {...person(["andon.read","history.read"]),accountType:"service"}, station),
+      {...person(["andon.read","history.read","history.global.read"]),accountType:"service"}, station),
       {available:true, allowed:false});
     assert.deepEqual(globalHistoryModuleAccess(null,station),
       {available:true,allowed:false});
