@@ -55,12 +55,14 @@ test("REFINE22.4: individual technician end omits empty notes; central accepts l
   ]);
   assert.match(modal, /notes: notes\.trim\(\) \|\| undefined/);
   assert.match(modal, /maxLength=\{4000\}/);
-  assert.match(repository, /typeof params\.notes === "string" && params\.notes\.trim\(\)/);
-  assert.match(repository, /\? \{ notes: params\.notes\.trim\(\) \}/);
+  assert.match(repository, /buildTechnicianEndPayload\(params, session, central\)/);
+  const payloadContract = await readFile(new URL("../src/services/technicianEndPayload.ts", import.meta.url), "utf8");
+  assert.match(payloadContract, /typeof params\.notes === "string" \? params\.notes\.trim\(\)/);
+  assert.match(payloadContract, /\.\.\.\(notes \? \{ notes \} : \{\}\)/);
   assert.match(guard, /input\.notes !== undefined && input\.notes !== null/);
   assert.match(guard, /typeof input\.notes !== "string" \|\| input\.notes\.length > 4000/);
   assert.match(pg, /notes: null/);
-  assert.match(pg, /badNotes\.json\(\)\.error, "invalid_input"/);
+  assert.match(pg, /badNotes\.json\(\)\.error, "invalid_technician_end_notes"/);
   assert.match(route, /runCentralTechnicianEnd\(prisma/);
   // The security contract remains credential or authorized declared name,
   // and ending the last maintenance participant remains guarded in the domain.
