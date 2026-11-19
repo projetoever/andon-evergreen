@@ -34,6 +34,7 @@ function emptyCategory(displayOrder: number): AndonCategoryConfig {
     displayName: "",
     color: "#F5B700",
     active: true,
+    showDirectButton: true,
     displayOrder,
   };
 }
@@ -171,6 +172,7 @@ export function CategoriesSettingsTab() {
           categoryGroup: draft.categoryGroup,
           color: draft.color.toUpperCase(),
           active: draft.active,
+          showDirectButton: draft.showDirectButton,
           displayOrder: Number(draft.displayOrder) || 0,
         });
       } else {
@@ -180,6 +182,7 @@ export function CategoriesSettingsTab() {
           categoryGroup: draft.categoryGroup,
           color: draft.color.toUpperCase(),
           active: draft.active,
+          showDirectButton: draft.showDirectButton,
           displayOrder: Number(draft.displayOrder) || 0,
         });
       }
@@ -461,14 +464,26 @@ export function CategoriesSettingsTab() {
             </div>
           </div>
 
-          <label className="flex h-10 items-center gap-2 rounded-md border border-border px-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={draft.active}
-              onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-            />
-            {ui("Exibir setor na tela da máquina")}
-          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold">
+              <input type="checkbox" checked={draft.active}
+                onChange={event => setDraft(current => ({ ...current, active: event.target.checked }))} />
+              {ui("Setor habilitado para chamados e grupos")}
+            </label>
+            <label className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold">
+              <input type="checkbox" checked={draft.showDirectButton}
+                onChange={event => setDraft(current => ({ ...current, showDirectButton: event.target.checked }))} />
+              {ui("Exibir setor na tela da máquina")}
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {ui("Ocultar o botão direto não inativa o setor nem o remove dos grupos. Quando houver chamado ativo, ele aparece temporariamente para atendimento.")}
+          </p>
+          {!draft.active && (
+            <p role="note" className="text-xs font-semibold text-warning">
+              {ui("Setor inativo: não é possível abrir novos chamados, mesmo se estiver vinculado a um grupo.")}
+            </p>
+          )}
 
           <p className="text-xs text-muted-foreground">
             {ui(
