@@ -471,7 +471,7 @@ export function CategoriesSettingsTab() {
               {ui("Setor habilitado para chamados e grupos")}
             </label>
             <label className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-semibold">
-              <input type="checkbox" checked={draft.showDirectButton}
+              <input type="checkbox" checked={draft.showDirectButton !== false}
                 onChange={event => setDraft(current => ({ ...current, showDirectButton: event.target.checked }))} />
               {ui("Exibir setor na tela da máquina")}
             </label>
