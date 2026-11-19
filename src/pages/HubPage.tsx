@@ -18,6 +18,7 @@ import { InitialAdminSetup } from "@/components/security/InitialAdminSetup";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { getSafeHubHttpsUrl } from "@/utils/secureHubEntry";
+import { withHubTransientRetry } from "@/services/hubTransitionRetry";
 import { toast } from "@/i18n/toast";
 
 export function HubPage() {
@@ -50,7 +51,9 @@ export function HubPage() {
     if (CONFIGURED_DATA_MODE !== "api") return;
     setInitialStatusPending(true);
     try {
-      setInitialStatus(await getAdminAuthStatus());
+      // A short transient failure during route navigation is not a real
+      // first-run configuration failure. No cached status grants access.
+      setInitialStatus(await withHubTransientRetry(getAdminAuthStatus));
       setInitialStatusError("");
     } catch {
       setInitialStatusError(ui("Não foi possível verificar a configuração administrativa inicial."));
@@ -113,10 +116,23 @@ export function HubPage() {
   };
   if (CONFIGURED_DATA_MODE === "api") {
     if (initialStatusPending) return (
-      <main className="min-h-dvh bg-background p-6 text-foreground" role="status">
-        {clientHydrated
-          ? ui("Verificando a configuração inicial do administrador...")
-          : "Verificando a configuração inicial do administrador..."}
+      <main className="min-h-dvh bg-background p-6 text-foreground">
+        <section role="status" aria-live="polite" className="mx-auto max-w-6xl space-y-5 py-6">
+          <p className="text-sm font-semibold text-muted-foreground">
+            {clientHydrated
+              ? ui("Verificando a configuração inicial do administrador...")
+              : "Verificando a configuração inicial do administrador..."}
+          </p>
+          <div className="grid gap-4 md:grid-cols-3" aria-hidden="true">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="space-y-4 rounded-xl border border-border bg-card p-6">
+                <Skeleton className="h-10 w-10 motion-reduce:animate-none" />
+                <Skeleton className="h-6 w-3/4 motion-reduce:animate-none" />
+                <Skeleton className="h-4 w-full motion-reduce:animate-none" />
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
     );
     if (initialStatusError || !initialStatus) return (
