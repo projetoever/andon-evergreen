@@ -1,4 +1,5 @@
 import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -47,6 +48,19 @@ export function BiDowntimeTrendCard({
 
       {data.length ? (
         <div className="mt-2 h-60 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+          <BiChartExplorer
+            title={ui("Tempo de parada por dia")}
+            description={ui("Horas de parada em cada data · dias parciais no período móvel")}
+            unit="minutes"
+            color="#ef4444"
+            caution={ui("Distribuição de minutos de parada por dia no período filtrado; as datas de borda podem estar incompletas. Não indica causalidade nem melhora automática.")}
+            rows={data.map((day) => ({
+              id: day.date,
+              label: formatDateLabel(day.date),
+              value: day.downtimeMinutes,
+            }))}
+            className="h-full"
+          >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ left: 1, right: 2 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -83,6 +97,7 @@ export function BiDowntimeTrendCard({
               />
             </BarChart>
           </ResponsiveContainer>
+          </BiChartExplorer>
         </div>
       ) : (
         <div className="mt-2 flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">

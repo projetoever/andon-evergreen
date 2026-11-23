@@ -1,8 +1,10 @@
 import { ui, systemMessage } from "@/i18n/translate";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, CalendarDays, Clock3, TimerReset } from "lucide-react";
+import { Activity, CalendarDays, Clock3, Maximize2, TimerReset } from "lucide-react";
 import type { AnalyticsTemporalPatterns } from "@/types/analytics";
 
 type Metric = "calls" | "downtime";
@@ -59,6 +61,8 @@ export function BiTemporalPatterns({
   useInterfaceLanguage();
   const [metric, setMetric] = useState<Metric>("calls");
   const [selected, setSelected] = useState<{ weekday: number; hour: number } | null>(null);
+  const [heatmapOpen, setHeatmapOpen] = useState(false);
+  const heatmapExpandRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setSelected(null);
   }, [metric, data]);
@@ -175,6 +179,16 @@ export function BiTemporalPatterns({
                 {ui("Horário local · totais dentro da janela filtrada")}
               </p>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button"
+                ref={heatmapExpandRef}
+                aria-label={ui("Ampliar mapa de calor")}
+                title={ui("Ampliar mapa de calor")}
+                onClick={() => setHeatmapOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/80 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Maximize2 aria-hidden="true" className="h-4 w-4" />
+              </button>
             <div
               className="flex shrink-0 rounded-lg border border-border bg-background/50 p-1"
               role="group"
@@ -196,6 +210,7 @@ export function BiTemporalPatterns({
               >
                 {ui("Tempo de parada")}
               </button>
+            </div>
             </div>
           </header>
 
@@ -241,7 +256,7 @@ export function BiTemporalPatterns({
                         key={cell.hour}
                         title={tip}
                         aria-label={tip}
-                        onClick={() => setSelected({ weekday: cell.weekday, hour: cell.hour })}
+                        onClick={() => { setSelected({ weekday: cell.weekday, hour: cell.hour }); setHeatmapOpen(true); }}
                         className={`min-w-0 rounded-sm border transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-sky-300 ${chosen ? "border-white" : "border-white/5"}`}
                         style={{ backgroundColor: color }}
                       />
@@ -280,6 +295,21 @@ export function BiTemporalPatterns({
               {ui(" Distribuição por horário")}
             </h3>
             <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <BiChartExplorer
+                title={ui("Distribuição por horário")}
+                description={ui("Horário local · totais dentro da janela filtrada")}
+                unit={metric === "calls" ? "count" : "minutes"}
+                color={metric === "calls" ? "#f59e0b" : "#ef4444"}
+                caution={metric === "calls"
+                  ? ui("Aberturas por hora local na janela filtrada. O pico pode refletir volume e duração da janela, não risco horário.")
+                  : ui("Parada física acumulada por hora local. Uma única parada pode atravessar várias faixas; não interpretar como quantidade de falhas.")}
+                rows={byHour.map((hour) => ({
+                  id: hour.hourLabel,
+                  label: `${hour.hourLabel}${ui("h")}`,
+                  value: hour.count,
+                }))}
+                className="h-full"
+              >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byHour} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -314,6 +344,7 @@ export function BiTemporalPatterns({
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </BiChartExplorer>
             </div>
           </article>
           <article className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-3">
@@ -322,6 +353,21 @@ export function BiTemporalPatterns({
               {ui(" Distribuição por dia da semana")}
             </h3>
             <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <BiChartExplorer
+                title={ui("Distribuição por dia da semana")}
+                description={ui("Horário local · totais dentro da janela filtrada")}
+                unit={metric === "calls" ? "count" : "minutes"}
+                color={metric === "calls" ? "#f59e0b" : "#ef4444"}
+                caution={metric === "calls"
+                  ? ui("Aberturas por dia da semana na janela filtrada. Dias parciais e distribuição desigual de datas impedem inferir risco relativo.")
+                  : ui("Parada física acumulada por dia da semana. Uma ocorrência longa pode contribuir para vários dias; não representa taxa de risco.")}
+                rows={byWeekday.map((day) => ({
+                  id: day.day,
+                  label: day.day,
+                  value: day.count,
+                }))}
+                className="h-full"
+              >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byWeekday} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -354,6 +400,7 @@ export function BiTemporalPatterns({
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </BiChartExplorer>
             </div>
           </article>
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-2 text-[11px] leading-4 text-muted-foreground">
@@ -369,6 +416,66 @@ export function BiTemporalPatterns({
           </div>
         </aside>
       </div>
+      <Dialog open={heatmapOpen} onOpenChange={setHeatmapOpen}>
+        <DialogContent
+          onCloseAutoFocus={(event) => { event.preventDefault(); heatmapExpandRef.current?.focus(); }}
+          className="flex max-h-[94dvh] w-[min(96vw,1120px)] max-w-none flex-col gap-3 overflow-hidden p-3 sm:p-5">
+          <DialogHeader className="shrink-0 pr-9 text-left">
+            <DialogTitle>{ui("Leitura ampliada do mapa de calor")}</DialogTitle>
+            <DialogDescription>
+              {ui("Horário local · totais dentro da janela filtrada")} · {metricName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card p-3">
+            <div className="grid min-w-[880px] grid-cols-[58px_minmax(0,1fr)] gap-x-2 gap-y-1">
+              <span />
+              <div className="grid gap-1 text-center text-[11px] text-muted-foreground"
+                style={{ gridTemplateColumns: "repeat(24,minmax(0,1fr))" }}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <span key={h}>{h % 2 === 0 ? String(h).padStart(2, "0") : ""}</span>
+                ))}
+              </div>
+              {rows.map((cells, weekday) => (
+                <div key={weekday} className="col-span-2 grid grid-cols-[58px_minmax(0,1fr)] items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">{ui(DAYS[weekday])}</span>
+                  <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(24,minmax(0,1fr))" }}>
+                    {cells.map((cell) => {
+                      const value = metricValue(cell, metric);
+                      const ratio = max > 0 ? value / max : 0;
+                      const chosen = selected?.weekday === cell.weekday && selected.hour === cell.hour;
+                      const label = `${ui(DAYS[cell.weekday] ?? cell.day)} ${String(cell.hour).padStart(2, "0")}:00 — ${formatter(value)}`;
+                      return (
+                        <button key={cell.hour} type="button" aria-label={label} title={label}
+                          aria-pressed={chosen}
+                          onClick={() => setSelected({ weekday: cell.weekday, hour: cell.hour })}
+                          className={`h-11 min-w-0 rounded border transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${chosen ? "border-foreground ring-2 ring-ring" : "border-border"}`}
+                          style={{ backgroundColor: metric === "calls"
+                            ? `rgba(245,158,11,${value > 0 ? 0.23 + 0.72 * ratio : 0.045})`
+                            : `rgba(239,68,68,${value > 0 ? 0.23 + 0.72 * ratio : 0.045})` }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="shrink-0 space-y-1 rounded-lg border border-border bg-muted/20 p-3">
+            <p className="text-sm font-semibold">
+              {selection
+                ? ui("{0} {1}h · {2}", {
+                    0: ui(DAYS[selection.weekday] ?? selection.day),
+                    1: String(selection.hour).padStart(2, "0"),
+                    2: formatter(metricValue(selection, metric)),
+                  })
+                : ui("Clique em qualquer célula para ver o valor por dia e hora.")}
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {ui("Uma célula resume a janela filtrada naquele dia e horário; não prova causas, taxas por turno ou risco.")}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

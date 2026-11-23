@@ -1,4 +1,5 @@
 import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { AnalyticsProductionMetrics } from "@/types/analytics";
@@ -35,6 +36,23 @@ export function BiDailyAvailabilityCard({
       </p>
       {available ? (
         <div className="mt-2 h-60 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+          <BiChartExplorer
+            title={ui("Disponibilidade por dia")}
+            description={ui("Tempo programado sem paradas registradas · percentual")}
+            unit="percent"
+            color="#10b981"
+            caution={ui("Dias sem programação não são zero por cento. Compare somente dias com histórico verificável; a média simples não substitui o KPI consolidado.")}
+            rows={data!.daily.map((day) => ({
+              id: day.date,
+              label: dayLabel(day.date),
+              value: day.scheduledMinutes > 0 ? day.availabilityPercent : null,
+              details: [
+                { label: ui("Programado"), value: minutes(day.scheduledMinutes) },
+                { label: ui("Parada na programação"), value: minutes(day.scheduledDowntimeMinutes) },
+              ],
+            }))}
+            className="h-full"
+          >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data!.daily} margin={{ left: 0, right: 2, top: 0, bottom: 0 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -93,6 +111,7 @@ export function BiDailyAvailabilityCard({
               />
             </BarChart>
           </ResponsiveContainer>
+          </BiChartExplorer>
         </div>
       ) : (
         <div className="mt-2 flex min-h-0 flex-1 items-center justify-center text-center text-xs text-muted-foreground">
