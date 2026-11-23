@@ -3,7 +3,7 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Download, Maximize2 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 
 export type BiChartRow = {
   id: string;
@@ -61,6 +61,8 @@ export function BiChartExplorer({
 }: BiChartExplorerProps) {
   useLanguage();
   const [open, setOpen] = useState(false);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const drilldownNavigationRef = useRef(false);
   const [view, setView] = useState<"chart" | "table">("chart");
   const [ranked, setRanked] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -133,6 +135,7 @@ export function BiChartExplorer({
         </div>
         <button
           type="button"
+          ref={expandButtonRef}
           aria-label={ui("Ampliar análise do gráfico: {0}", { 0: title })}
           title={ui("Abrir análise ampliada")}
           onClick={openExplorer}
@@ -144,6 +147,11 @@ export function BiChartExplorer({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (!drilldownNavigationRef.current) expandButtonRef.current?.focus();
+            drilldownNavigationRef.current = false;
+          }}
           className="flex max-h-[94dvh] w-[min(96vw,1080px)] max-w-none flex-col gap-3 overflow-hidden p-4 sm:p-5"
         >
           <DialogHeader className="shrink-0 pr-9 text-left">
@@ -277,7 +285,7 @@ export function BiChartExplorer({
                       <p key={item.label} className="mt-1 text-xs text-muted-foreground">{item.label}: {item.value}</p>
                     ))}
                     {onInspectRow && (
-                      <button type="button" onClick={() => { setOpen(false); onInspectRow(selected); }}
+                      <button type="button" onClick={() => { drilldownNavigationRef.current = true; setOpen(false); onInspectRow(selected); }}
                         className="mt-2 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
                         {ui("Abrir detalhamento da máquina")}
                       </button>
