@@ -37,7 +37,9 @@ test("API de prioridades usa hash, sessão e salvamento transacional", async () 
   assert.match(source, /prisma\.\$transaction/);
   assert.match(source, /lockMachinePriorityFlow/);
   assert.match(source, /priorityOrder: index \+ 1/);
-  assert.doesNotMatch(source, /AndonCall|machineStatus|andonStatus|productionMode/);
+  const orderMutation = source.slice(source.indexOf('  app.put<{ Body: OrderBody }>'));
+  assert.doesNotMatch(orderMutation, /AndonCall|machineStatus|andonStatus|productionMode/);
+  assert.match(source, /productionMode: true/);
 });
 
 test("Admin deixa explícito que prioridade é somente visual", async () => {
