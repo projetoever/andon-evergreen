@@ -1,4 +1,5 @@
 import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
+import { biMeasurementStartAt, effectiveBiPeriodStart } from "../analytics/measurementBaseline.js";
 import { correctiveReasonCandidateWhere } from "../analytics/correctiveReasonCohort.js";
 import { buildCausalEpisodes, buildCorrectiveCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
 import { isCorrectiveReasonCandidate } from "../analytics/correctiveReasonCohort.js";
@@ -57,7 +58,10 @@ function parseAnalyticsPeriod(query: AnalyticsOverviewQuery) {
   const end = parseAnalyticsInstant(query.endDate);
 
   if (!start || !end || start.getTime() >= end.getTime()) return null;
-  return { start, end };
+  // RC23: all BI endpoints share this calendar cutover. A period wholly
+  // before measurement begins has a zero-length effective window, not
+  // invented zero-duration failures or historical production exposure.
+  return { start: effectiveBiPeriodStart(start, end, biMeasurementStartAt()), end };
 }
 
 function parseDrilldownLimit(value: unknown) {
@@ -436,8 +440,29 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         filters,
       });
 
+      // Do not show growth/deterioration against a previous period that
+      // crosses the new measurement baseline. Its population is incomplete.
+      const comparison = buildOverviewComparison(currentOverview, previousOverview);
+      const baselineForComparison = biMeasurementStartAt();
+      if (baselineForComparison && previousStart < baselineForComparison) {
+        for (const key of ["callsOpened", "downtimeMinutes", "mttaMinutes",
+          "mttrMinutes", "mtbfEstimatedMinutes"] as const) {
+          comparison[key] = {
+            ...comparison[key], previous: null, deltaPercent: null,
+            direction: "unavailable" as const,
+          };
+        }
+        comparison.maintenanceReturnRate = {
+          current: currentOverview.kpis.maintenanceReturnRatePercent,
+          previous: null, deltaPoints: null,
+        };
+      }
+
       return {
         ...currentOverview,
+        // Explicit cohort metadata for BI screens and reports; never silently
+        // advertise historical minutes as post-baseline measurement.
+        biMeasurementStartAt: biMeasurementStartAt()?.toISOString() ?? null,
         production,
         responsibility: {
           downtime: summarizeCausalDowntime(currentData.causalEpisodes, period.start, effectiveEnd),
@@ -449,7 +474,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             start: previousStart.toISOString(),
             end: previousEnd.toISOString(),
           },
-          ...buildOverviewComparison(currentOverview, previousOverview),
+          ...comparison,
         },
         highlights: buildExecutiveHighlights(currentOverview),
       };
