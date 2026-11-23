@@ -54,6 +54,25 @@ export interface GlobalHistoryFailureEvent {
   source: string;
   durationSeconds: number | null;
 }
+/** Sanitized call-specific audit events. Never expose IP, raw JSON or session metadata. */
+export interface GlobalHistoryAuditEvent {
+  id: string;
+  occurredAt: string;
+  action: string;
+  result: string;
+  actorName: string | null;
+}
+export interface GlobalHistoryDiagnosisAudit {
+  id: string;
+  createdAt: string;
+  technicianName: string;
+  previousClassification: string | null;
+  newClassification: string | null;
+  previousResponsibility: string | null;
+  newResponsibility: string | null;
+  previousDisposition: string | null;
+  newDisposition: string | null;
+}
 export interface GlobalHistoryCallDetail extends GlobalHistoryCallSummary {
   attendedAt: string | null;
   maintenanceCompletedAt: string | null;
@@ -70,6 +89,9 @@ export interface GlobalHistoryCallDetail extends GlobalHistoryCallSummary {
   technicianSessions: GlobalHistoryTechnicianSession[];
   impactIntervals: GlobalHistoryImpactInterval[];
   failureEvents: GlobalHistoryFailureEvent[];
+  auditEvents: GlobalHistoryAuditEvent[];
+  diagnosisAudits: GlobalHistoryDiagnosisAudit[];
+  auditTruncated: boolean;
 }
 
 export interface GlobalHistorySearchResult {
