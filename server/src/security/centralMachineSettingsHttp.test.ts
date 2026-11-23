@@ -102,9 +102,12 @@ test("RC P0: per-machine visibility is a strict, revisioned, presentation-only a
     { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: -1 },
     { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 1.1 },
     { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: "0" },
-    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, isActive: false },
-    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, requireWorkOrderAtOpen: true },
+
     { name: "M37", expectedSectorVisibilityRevision: 0 },
     { hiddenDirectSectorIds: Array(101).fill("pneumatica"), expectedSectorVisibilityRevision: 0 },
   ]) denied(() => parseCentralMachineMetadataPatch(payload), "invalid_sector_visibility");
+  for (const mixed of [
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, isActive: false },
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, requireWorkOrderAtOpen: true },
+  ]) assert.throws(() => parseCentralMachineMetadataPatch(mixed));
 });
