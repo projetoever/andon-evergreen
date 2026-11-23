@@ -30,7 +30,7 @@ test("PENTE 2: the first lot leaves priority writes and production scheduling se
   assert.match(page, /activeSection === "overview" &&/);
   assert.match(page, /activeSection === "help" &&/);
   assert.match(page, /\.filter\(\(row\) => row\.isActive\)\s*\.slice\(0, 5\)/);
-  assert.match(page, /saveDashboardPriorityOrder\(rows\.map\(\(row\) => row\.id\)\)/);
+  assert.match(page, /saveDashboardPriorityOrder\(rows\.map\(\(row\) => row\.id\), savedIds\)/);
   assert.match(page, /centralReadOnly = access\?\.centralAccessEnabled === true/);
   assert.match(page, /access\?\.principal\?\.machineScope !== "all"/);
   assert.match(page, /if \(centralReadOnly \|\| !hasUnsavedChanges \|\| isSaving\) return/);
