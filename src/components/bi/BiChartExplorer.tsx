@@ -205,7 +205,9 @@ export function BiChartExplorer({
             </div>
             {view === "chart" ? (
               <div className="min-w-0 rounded-lg border border-border bg-card p-2 sm:p-3">
-                <div className="h-[min(44dvh,400px)] min-h-[240px] min-w-0">
+                <div className="max-h-[44dvh] min-w-0 overflow-y-auto">
+                  <div className="min-h-[240px] min-w-0"
+                    style={{ height: orientation === "horizontal" ? Math.max(320, displayRows.length * 36) : 380 }}>
                   {validRows.length ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -247,6 +249,7 @@ export function BiChartExplorer({
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{ui("Sem amostra")}</div>
                   )}
+                  </div>
                 </div>
                 <p className="pt-1 text-center text-[11px] text-muted-foreground">
                   {ui("Selecione uma barra para inspecionar o ponto")}
