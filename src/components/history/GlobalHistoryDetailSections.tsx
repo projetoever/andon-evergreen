@@ -60,6 +60,22 @@ function callTimeline(call: GlobalHistoryCallDetail): EventLine[] {
       label: ui("Revisão de diagnóstico registrada"),
       description: [diagnosis.technicianName, changes.join(", ")].filter(Boolean).join(" · ") });
   }
+  // Machine-stop impacts are a distinct time series; display raw timestamps
+  // and source without merging them into attendance or total call durations.
+  for (const interval of call.impactIntervals || []) {
+    if (interval.startedAt) entries.push({
+      id: "impact-start-" + interval.id,
+      at: interval.startedAt,
+      label: ui("Início de impacto de parada"),
+      description: interval.source,
+    });
+    if (interval.endedAt) entries.push({
+      id: "impact-end-" + interval.id,
+      at: interval.endedAt,
+      label: ui("Fim de impacto de parada"),
+      description: interval.source,
+    });
+  }
   for (const e of call.failureEvents || []) {
     entries.push({
       id:"failure-start-"+e.id,at:e.startedAt,label:ui("Início de evento de falha"),
