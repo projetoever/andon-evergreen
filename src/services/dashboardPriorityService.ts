@@ -1,6 +1,6 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
-import type { Machine } from "@/types/machine";
+import type { Machine, ProductionMode } from "@/types/machine";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
 
 const apiClient = createAndonApiClient();
@@ -36,6 +36,8 @@ export interface DashboardPriorityMachine {
   isActive: boolean;
   priorityOrder: number | null;
   displayOrder: number | null;
+  productionMode: ProductionMode | null;
+  productionModeChangedAt: string | null;
 }
 
 export interface DashboardPriorityOrderSnapshot {
@@ -90,6 +92,8 @@ function sortPriorityMachines(machines: Machine[], orderIds: string[] = []) {
       isActive: machine.isActive,
       priorityOrder: explicitOrder.get(machine.id) ?? machine.priorityOrder ?? null,
       displayOrder: machine.displayOrder ?? null,
+      productionMode: machine.productionMode === "scheduled" || machine.productionMode === "not_scheduled" ? machine.productionMode : null,
+      productionModeChangedAt: machine.productionModeChangedAt ?? null,
     }))
     .sort((current, next) => {
       const currentOrder =
