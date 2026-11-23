@@ -39,7 +39,7 @@ import {
 } from "@/services/machineSoundPreferenceService";
 import { cn } from "@/lib/utils";
 import { getCategoryConfigs } from "@/services/categoryConfigService";
-import { isDirectSectorButtonEnabled } from "@/utils/sectorDirectVisibility";
+import { isDirectSectorButtonEnabled, isMachineDirectSectorButtonEnabled } from "@/utils/sectorDirectVisibility";
 import { getOperationalCallReasons, type OperationalReason } from "@/services/callReasonsCatalogService";
 import { AndonApiError } from "@/api/andonApiClient";
 import { SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
@@ -860,7 +860,9 @@ export function MachineDetailPage({ machineId }: { machineId: string }) {
       <MachineActionPanel
         machine={machine}
         currentCall={currentCall}
-        categories={categories}
+        categories={categories.filter(category => isMachineDirectSectorButtonEnabled(
+          category, machine?.hiddenDirectSectorIds ?? [],
+        ))}
         catalogCategories={categoryCatalog}
         hierarchicalReasons={reasonCatalogStatus === "ready" ? hierarchicalReasons : null}
         reasonCatalogStatus={reasonCatalogStatus}

@@ -203,6 +203,8 @@ function mapMachine(machine: ApiMachine, stopHistory: MachineStopEvent[] = [], n
     stopHistory: sortedStopHistory,
     productionMode: machine.productionMode === "not_scheduled" ? "not_scheduled" : "scheduled",
     requireWorkOrderAtOpen: machine.requireWorkOrderAtOpen === true,
+    hiddenDirectSectorIds: machine.hiddenDirectSectorIds ?? [],
+    sectorVisibilityRevision: machine.sectorVisibilityRevision ?? 0,
     isActive: machine.isActive ?? true,
     displayOrder: machine.displayOrder ?? null,
     priorityOrder: machine.priorityOrder ?? null,

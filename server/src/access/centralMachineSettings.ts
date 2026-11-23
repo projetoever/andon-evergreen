@@ -10,15 +10,33 @@ import { parseWorkstationId } from "../services/workstationAuthorization.js";
 
 /** Exact allowlist. No production mode, status, activation, priority or KPI writes. */
 export function parseCentralMachineMetadataPatch(body: unknown):
-  { name?: string; requireWorkOrderAtOpen?: boolean } {
+  { name?: string; requireWorkOrderAtOpen?: boolean;
+    hiddenDirectSectorIds?: string[]; expectedSectorVisibilityRevision?: number } {
   if (!body || typeof body !== "object" || Array.isArray(body))
     throw new AccessError("invalid_input", 400);
   const fields = Object.keys(body);
   if (!fields.length || fields.length > 2 ||
-      fields.some(key => key !== "name" && key !== "requireWorkOrderAtOpen"))
+      fields.some(key => !["name", "requireWorkOrderAtOpen",
+        "hiddenDirectSectorIds", "expectedSectorVisibilityRevision"].includes(key)))
     throw new AccessError("invalid_input", 400);
   const values = body as Record<string, unknown>;
-  const patch: { name?: string; requireWorkOrderAtOpen?: boolean } = {};
+  const patch: { name?: string; requireWorkOrderAtOpen?: boolean;
+    hiddenDirectSectorIds?: string[]; expectedSectorVisibilityRevision?: number } = {};
+  const visibility = Object.hasOwn(values, "hiddenDirectSectorIds");
+  if (visibility) {
+    if (fields.length !== 2 || !Object.hasOwn(values, "expectedSectorVisibilityRevision") ||
+        !Array.isArray(values.hiddenDirectSectorIds) || values.hiddenDirectSectorIds.length > 100 ||
+        values.hiddenDirectSectorIds.some(id => typeof id !== "string" || !/^[a-z0-9_]{2,40}$/.test(id)) ||
+        new Set(values.hiddenDirectSectorIds).size !== values.hiddenDirectSectorIds.length ||
+        !Number.isSafeInteger(values.expectedSectorVisibilityRevision) ||
+        (values.expectedSectorVisibilityRevision as number) < 0)
+      throw new AccessError("invalid_sector_visibility", 400);
+    patch.hiddenDirectSectorIds = [...values.hiddenDirectSectorIds].sort();
+    patch.expectedSectorVisibilityRevision = values.expectedSectorVisibilityRevision as number;
+    return patch;
+  }
+  if (Object.hasOwn(values, "expectedSectorVisibilityRevision"))
+    throw new AccessError("invalid_sector_visibility", 400);
   if ("name" in values) {
     if (typeof values.name !== "string" || /[\x00-\x1f\x7f]/.test(values.name))
       throw new AccessError("invalid_input", 400);
@@ -92,7 +110,8 @@ export async function updateCentralMachineMetadata(
 
     const before = await tx.machine.findUnique({
       where: { id: input.machineId },
-      select: { id: true, name: true, requireWorkOrderAtOpen: true },
+      select: { id: true, name: true, requireWorkOrderAtOpen: true,
+        hiddenDirectSectorIds: true, sectorVisibilityRevision: true },
     });
     if (!before) throw new AccessError("machine_not_found", 404);
     // A delegated settings editor may edit another machine's metadata, but
@@ -100,18 +119,36 @@ export async function updateCentralMachineMetadata(
     // for a machine outside their operational machineScope.
     const canReadOperational = latest.machineScope === "all" ||
       latest.machineIds.includes(input.machineId);
-    const changedKeys = Object.keys(patch).filter(key =>
-      before[key as keyof typeof before] !== patch[key as keyof typeof patch]);
+    const { expectedSectorVisibilityRevision, ...mutablePatch } = patch;
+    if (patch.hiddenDirectSectorIds !== undefined) {
+      if (!canReadOperational) throw new AccessError("machine_scope_denied");
+      if (expectedSectorVisibilityRevision !== before.sectorVisibilityRevision)
+        throw new AccessError("sector_visibility_conflict", 409);
+      const catalog = await tx.andonCategory.findMany({
+        where: { id: { in: patch.hiddenDirectSectorIds } }, select: { id: true },
+      });
+      if (catalog.length !== patch.hiddenDirectSectorIds.length)
+        throw new AccessError("invalid_sector_visibility", 400);
+    }
+    const changedKeys = Object.keys(mutablePatch).filter(key =>
+      JSON.stringify(before[key as keyof typeof before]) !==
+        JSON.stringify(mutablePatch[key as keyof typeof mutablePatch]));
     if (!changedKeys.length) return { id: before.id, changed: false, canReadOperational };
     const after = await tx.machine.update({
-      where: { id: input.machineId }, data: patch,
-      select: { id: true, name: true, requireWorkOrderAtOpen: true },
+      where: { id: input.machineId }, data: {
+        ...mutablePatch,
+        ...(mutablePatch.hiddenDirectSectorIds !== undefined
+          ? { sectorVisibilityRevision: { increment: 1 } } : {}),
+      },
+      select: { id: true, name: true, requireWorkOrderAtOpen: true,
+        hiddenDirectSectorIds: true, sectorVisibilityRevision: true },
     });
     await appendAudit(tx, {
       ...actorFromPrincipal(latest),
       ipAddress: input.ipAddress, requestId: input.requestId,
     }, {
-      action: "andon.machine.metadata.update",
+      action: patch.hiddenDirectSectorIds === undefined
+        ? "andon.machine.metadata.update" : "andon.machine.sector_visibility.update",
       resourceType: "machine", resourceId: before.id, machineId: before.id,
       before: { values: before, changedKeys },
       after: { values: after, changedKeys },

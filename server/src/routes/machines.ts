@@ -68,6 +68,8 @@ const machineSelect = {
   andonStatus: true,
   productionMode: true,
   requireWorkOrderAtOpen: true,
+  hiddenDirectSectorIds: true,
+  sectorVisibilityRevision: true,
   isActive: true,
   displayOrder: true,
   priorityOrder: true,

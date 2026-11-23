@@ -59,6 +59,9 @@ export interface Machine {
   stopHistory: MachineStopEvent[];
   productionMode: ProductionMode;
   requireWorkOrderAtOpen: boolean;
+  /** Local display-only exceptions. An active call overrides hiding temporarily. */
+  hiddenDirectSectorIds?: string[];
+  sectorVisibilityRevision?: number;
   isActive: boolean;
   displayOrder?: number | null;
   priorityOrder?: number | null;

@@ -16,6 +16,7 @@ if (process.env.ANDON_INTEGRATION_TEST !== "1" ||
 const db = new PrismaClient();
 const n = randomUUID().replaceAll("-", "").slice(0, 12);
 const machineId = "ci-metadata-" + n;
+const categoryId = "sector_" + n;
 const workstationId = "ws_" + randomUUID();
 const login = "ci.machine." + n;
 const token = randomBytes(32).toString("hex");
@@ -24,7 +25,7 @@ const old = {
   flag: process.env.ANDON_CENTRAL_MACHINE_SETTINGS_HTTP_ENABLED,
   origin: process.env.ANDON_ACCESS_ORIGIN,
 };
-let app, userId, sessionId, machineCreated = false, workstationCreated = false;
+let app, userId, sessionId, machineCreated = false, workstationCreated = false, categoryCreated = false;
 try {
   await db.machine.create({ data: {
     id: machineId, name: "Machine original", isActive: true,
@@ -32,6 +33,11 @@ try {
     requireWorkOrderAtOpen: false,
   } });
   machineCreated = true;
+  await db.andonCategory.create({ data: {
+    id: categoryId, displayName: "Pneumática CI", categoryGroup: "maintenance",
+    color: "#3B82F6", active: true, showDirectButton: true,
+  } });
+  categoryCreated = true;
   await db.workstation.create({ data: {
     id: workstationId, active: true, pendingApproval: false, allowOperational: true,
   } });
@@ -105,6 +111,49 @@ try {
   assert.equal(event.after.values.name, first.name);
   assert(!JSON.stringify(event).includes(token), "credentials never appear in audit");
 
+  const scopedVisibility = { hiddenDirectSectorIds: [categoryId], expectedSectorVisibilityRevision: 0 };
+  const offScope = await send(scopedVisibility);
+  assert.equal(offScope.statusCode, 403, offScope.body);
+  assert.equal(offScope.json().error, "machine_scope_denied");
+  assert.equal((await db.machine.findUniqueOrThrow({where:{id:machineId}})).sectorVisibilityRevision,0);
+  await db.accessMachine.create({ data: { userId, machineId } });
+  const invalidSector = await send({
+    hiddenDirectSectorIds: ["nonexistent_sector"], expectedSectorVisibilityRevision: 0,
+  });
+  assert.equal(invalidSector.statusCode, 400, invalidSector.body);
+  const deniedCsrf = await send(scopedVisibility, {"x-andon-csrf":"0".repeat(64)});
+  assert.equal(deniedCsrf.statusCode, 403, deniedCsrf.body);
+  const write = await send(scopedVisibility);
+  assert.equal(write.statusCode, 200, write.body);
+  assert.deepEqual(write.json().hiddenDirectSectorIds, [categoryId]);
+  assert.equal(write.json().sectorVisibilityRevision, 1);
+  const row = await db.machine.findUniqueOrThrow({where:{id:machineId}});
+  assert.deepEqual(row.hiddenDirectSectorIds, [categoryId]);
+  assert.equal(row.sectorVisibilityRevision, 1);
+  assert.equal(row.machineStatus, "running");
+  assert.equal(row.requireWorkOrderAtOpen, true);
+  const auditVisibility = () => db.auditEvent.count({
+    where: { action: "andon.machine.sector_visibility.update", resourceId: machineId },
+  });
+  assert.equal(await auditVisibility(), 1);
+  assert.equal((await send(scopedVisibility)).statusCode, 409, "stale terminal must not overwrite");
+  assert.equal(await auditVisibility(), 1, "stale retry never duplicates audit");
+  const unhide = await send({hiddenDirectSectorIds:[],expectedSectorVisibilityRevision:1});
+  assert.equal(unhide.statusCode, 200, unhide.body);
+  assert.deepEqual(unhide.json().hiddenDirectSectorIds, []);
+  assert.equal(unhide.json().sectorVisibilityRevision, 2);
+  assert.equal(await auditVisibility(), 2);
+  // Unchanged updates at the current revision are idempotent and unaudited.
+  const unchanged = await send({hiddenDirectSectorIds:[],expectedSectorVisibilityRevision:2});
+  assert.equal(unchanged.statusCode, 200, unchanged.body);
+  assert.equal((await db.machine.findUniqueOrThrow({where:{id:machineId}})).sectorVisibilityRevision, 2);
+  assert.equal(await auditVisibility(), 2);
+  const visAudit = await db.auditEvent.findFirstOrThrow({
+    where: {action:"andon.machine.sector_visibility.update",resourceId:machineId},
+    orderBy:{occurredAt:"asc"},
+  });
+  assert(!JSON.stringify(visAudit).includes(token), "visibility audit must not leak credentials");
+
   // A deleted grant is effective on the very next request; no stale role or
   // in-memory permission can authorize a second metadata mutation.
   await db.accessPermission.deleteMany({
@@ -133,6 +182,7 @@ try {
   }
   if (workstationCreated) await db.workstation.deleteMany({ where: { id: workstationId } });
   if (machineCreated) await db.machine.deleteMany({ where: { id: machineId } });
+  if (categoryCreated) await db.andonCategory.deleteMany({ where: { id: categoryId } });
   await db.$disconnect();
   for (const [key, value] of Object.entries({
     ANDON_CENTRAL_ACCESS_ENABLED: old.central,
