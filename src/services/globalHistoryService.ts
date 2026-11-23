@@ -112,6 +112,8 @@ export interface GlobalHistorySearchFilters {
   reasonId: string;
   origin: "all" | "real" | "system";
   period: GlobalHistoryPeriod;
+  /** Applied to the SQL list and filtered export; opening is the default. */
+  sort: "opened" | "updated" | "finished";
   customDate: string;
   /** Optional local clock bounds, only applied for one selected calendar date. */
   timeFrom?: string;
@@ -129,6 +131,7 @@ export const DEFAULT_GLOBAL_HISTORY_SEARCH_FILTERS: GlobalHistorySearchFilters =
   reasonId: "",
   origin: "all",
   period: "30d",
+  sort: "opened",
   customDate: "",
   timeFrom: "",
   timeBefore: "",
