@@ -557,7 +557,7 @@ function Invoke-AndonHealthCheck {
         if ($listener) {
             Write-AndonOk "Porta $port em uso."
         } else {
-            Write-AndonWarn "Porta $port: listener nao identificado nesta sondagem Windows; conferir servico por HTTPS/DB."
+            Write-AndonWarn "Porta ${port}: listener nao identificado nesta sondagem Windows; conferir servico por HTTPS/DB."
         }
     }
 
