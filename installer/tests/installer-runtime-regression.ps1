@@ -694,7 +694,7 @@ Assert-AndonTest -Condition (
     $updateScript.Contains("Start-AndonRuntime -PreserveAutomaticTasks") -and
     $updateScript.Contains('Restore-AndonUpdateTaskStates') -and
     $updateScript.Contains('if ($ContinueAfterSync -and $script:AndonUpdateStopped)') -and
-    $runtimePolicySource.Contains("param([switch]$PreserveAutomaticTasks)") -and
+    $runtimePolicySource.Contains('param([switch]$PreserveAutomaticTasks)') -and
     $runtimePolicySource.Contains('if (!$PreserveAutomaticTasks)') -and
     $runtimePolicySource.Contains('PreserveDisabledTaskNames')
 ) -Message "Option 2 deve preservar Boot/Kiosk/Watchdog anteriores no sucesso e na recuperacao"
