@@ -272,6 +272,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           isActive: true,
           priorityOrder: true,
           displayOrder: true,
+          productionMode: true,
         },
       }),
       prisma.dashboardPriorityConfig.findUnique({
@@ -283,6 +284,24 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       }),
     ]);
 
+    // Production mode comes from the authoritative Machine record. Read only
+    // event timestamps for machines already returned by scoped SQL. Missing
+    // or inconsistent events MUST NOT be replaced with Machine.updatedAt.
+    const events = machines.length
+      ? await prisma.machineProductionEvent.findMany({
+          where: {
+            machineId: { in: machines.map((machine) => machine.id) },
+            endedAt: null,
+          },
+          orderBy: { startedAt: "desc" },
+          select: { machineId: true, productionMode: true, startedAt: true },
+        })
+      : [];
+    const currentProductionEvent = new Map<string, { productionMode: string; startedAt: Date }>();
+    for (const event of events)
+      if (!currentProductionEvent.has(event.machineId))
+        currentProductionEvent.set(event.machineId, event);
+
     machines.sort(
       (current, next) =>
         machineOrderValue(current) - machineOrderValue(next) ||
@@ -290,7 +309,13 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     );
 
     return {
-      machines,
+      machines: machines.map((machine) => ({
+        ...machine,
+        productionModeChangedAt:
+          currentProductionEvent.get(machine.id)?.productionMode === machine.productionMode
+            ? currentProductionEvent.get(machine.id)?.startedAt.toISOString() ?? null
+            : null,
+      })),
       // Global change attribution must not leak activity on inaccessible assets.
       lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
       lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
