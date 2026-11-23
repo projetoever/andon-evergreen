@@ -75,6 +75,11 @@ export function BiOverviewWorkspace({
 
   return (
     <div className="grid min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(12rem,1fr)] lg:overflow-y-auto">
+      {overview?.biMeasurementStartAt && <p role="note" className="text-xs text-muted-foreground">
+        {ui("Indicadores a partir de {0}. Histórico anterior preservado para auditoria.", {
+          0: new Date(overview.biMeasurementStartAt).toLocaleString(getInterfaceLocale()),
+        })}
+      </p>}
       <section className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <BiKpiCard
           label={t("Disponibilidade")}
@@ -98,7 +103,7 @@ export function BiOverviewWorkspace({
           tooltip={ui(
             "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível.",
           )}
-          value={loading && !overview ? "…" : formatMinutes(scheduled?.plannedMtbfMinutes ?? null)}
+          value={!overview ? "—" : scheduled?.plannedMtbfMinutes == null ? ui("Sem amostra") : formatMinutes(scheduled.plannedMtbfMinutes)}
           detail={
             scheduled && scheduled.plannedMtbfMinutes === null
               ? explainMissingMtbf(scheduled)
@@ -130,7 +135,7 @@ export function BiOverviewWorkspace({
           tooltip={ui(
             "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
           )}
-          value={loading && !overview ? "…" : formatMinutes(scheduled?.resolvedMttrMinutes ?? null)}
+          value={!overview ? "—" : scheduled?.resolvedMttrMinutes == null ? ui("Sem amostra") : formatMinutes(scheduled.resolvedMttrMinutes)}
           detail={
             scheduled && scheduled.resolvedMttrMinutes === null
               ? explainMissingMttr(scheduled)
