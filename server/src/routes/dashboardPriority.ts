@@ -311,6 +311,8 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     return {
       machines: machines.map((machine) => ({
         ...machine,
+        productionMode: machine.productionMode === "scheduled" || machine.productionMode === "not_scheduled"
+          ? machine.productionMode : null,
         productionModeChangedAt:
           currentProductionEvent.get(machine.id)?.productionMode === machine.productionMode
             ? currentProductionEvent.get(machine.id)?.startedAt.toISOString() ?? null
