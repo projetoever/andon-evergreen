@@ -72,6 +72,8 @@ export function globalHistorySearchPath(
   add("technician", filters.technician);
   add("failureClassification", filters.failureClassification);
   add("reasonId", filters.reasonId);
+  // Send explicit selection to all SQL-backed reads, including audited export.
+  if (filters.sort && filters.sort !== "opened") add("sort", filters.sort);
   const range = dateRangeForGlobalHistory(
     filters.period, filters.customDate, now, filters.timeFrom ?? "", filters.timeBefore ?? "",
   );
