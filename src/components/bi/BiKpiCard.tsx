@@ -1,11 +1,19 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import type { LucideIcon } from "lucide-react";
+import { CircleHelp, type LucideIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import type { AnalyticsMetricComparison } from "@/types/analytics";
 
 type KpiTone = "amber" | "blue" | "red" | "green" | "neutral";
 type TrendMeaning = "neutral" | "lowerBetter" | "higherBetter";
+
+type BiKpiHelp = Readonly<{
+  measure: string;
+  formula: string;
+  interpretation: string;
+  whenUnavailable?: string;
+}>;
 
 const TONE_CLASSES: Record<KpiTone, string> = {
   amber:
@@ -63,6 +71,7 @@ export function BiKpiCard({
   trendMeaning = "neutral",
   sampleSize,
   tooltip,
+  help,
 }: {
   label: string;
   value: string;
@@ -73,18 +82,64 @@ export function BiKpiCard({
   trendMeaning?: TrendMeaning;
   sampleSize?: number;
   tooltip?: string;
+  help?: BiKpiHelp;
 }) {
   useInterfaceLanguage();
   const comparisonLabel = trend ? trendLabel(trend) : null;
   const lowSample = typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5;
 
   return (
-    <article className={`min-w-0 rounded-xl border p-3 lg:p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={tooltip}>
+    <article className={`min-w-0 rounded-xl border p-3 lg:p-4 shadow-sm ${TONE_CLASSES[tone]}`} title={help ? undefined : tooltip}>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <Icon className={`h-4 w-4 ${ICON_CLASSES[tone]}`} />
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 text-xs font-black uppercase tracking-wide text-muted-foreground">
+            {label}
+          </span>
+          {help && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={ui("Explicação do indicador: {0}", { 0: label })}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                side="bottom"
+                sideOffset={8}
+                collisionPadding={12}
+                aria-label={ui("Explicação do indicador: {0}", { 0: label })}
+                className="w-[min(20rem,calc(100vw-1.5rem))] max-h-[70vh] overflow-y-auto p-3"
+              >
+                <div className="space-y-3 text-xs leading-5">
+                  <h3 className="text-sm font-black">{label}</h3>
+                  <section>
+                    <h4 className="font-bold text-foreground">{ui("O que mede")}</h4>
+                    <p className="text-muted-foreground">{help.measure}</p>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-foreground">{ui("Como é calculado")}</h4>
+                    <p className="text-muted-foreground">{help.formula}</p>
+                  </section>
+                  <section>
+                    <h4 className="font-bold text-foreground">{ui("Como interpretar")}</h4>
+                    <p className="text-muted-foreground">{help.interpretation}</p>
+                  </section>
+                  {help.whenUnavailable && (
+                    <section>
+                      <h4 className="font-bold text-foreground">{ui("Quando fica indisponível")}</h4>
+                      <p className="text-muted-foreground">{help.whenUnavailable}</p>
+                    </section>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+        <Icon className={`h-4 w-4 shrink-0 ${ICON_CLASSES[tone]}`} aria-hidden="true" />
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">

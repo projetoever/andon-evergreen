@@ -89,7 +89,7 @@ export function BiDataHealthPanel({
 
   return (
     <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 gap-3 rounded-xl border border-border bg-card p-4">
-      <header className="flex shrink-0 items-start justify-between gap-2">
+      <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wide">
             {ui("Qualidade dos dados · Investigação")}
@@ -99,8 +99,11 @@ export function BiDataHealthPanel({
               "Selecione uma categoria para investigar os registros. Sem alterações operacionais.",
             )}
           </p>
+          <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+            {ui("Alertas indicam registros a conferir, não falhas confirmadas. O mesmo registro pode aparecer em mais de uma categoria.")}
+          </p>
         </div>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground sm:max-w-[10rem] sm:text-right">
           {ui("Dados do ambiente conectado · somente leitura")}
         </span>
       </header>
@@ -260,6 +263,9 @@ export function BiDataHealthPanel({
             {ui("Leitura do alerta")}
           </div>
           <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
+            <p>
+              {ui("O contador da aba soma alertas por categoria, não registros únicos. Zero em uma categoria indica ausência de alertas naquele recorte.")}
+            </p>
             <p>
               {ui(
                 "Chamados, eventos e sessões em aberto são snapshots atuais. Não dependem do período histórico nem da classificação escolhida.",

@@ -73,6 +73,45 @@ export function BiOverviewWorkspace({
       ? "—"
       : `${value.toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 2 })}%`;
 
+  const help = {
+    availability: {
+      measure: ui("Percentual do tempo programado em que as máquinas com histórico completo ficaram sem parada física."),
+      formula: ui("100 × (minutos programados − minutos de parada coincidentes, sem sobreposição por máquina) ÷ minutos programados."),
+      interpretation: ui("Quanto maior, melhor. Depende da cobertura de produção verificável e não representa OEE."),
+      whenUnavailable: ui("Sem programação verificável ou com filtro por setor ou classificação, o valor pode ficar indisponível."),
+    },
+    mtbf: {
+      measure: ui("Tempo programado de operação por início elegível de falha física atribuída exclusivamente à Manutenção."),
+      formula: ui("Minutos programados sem paradas físicas ÷ inícios elegíveis de episódios de Manutenção durante a programação."),
+      interpretation: ui("Quanto maior, melhor, com atenção ao número de falhas. Não é intervalo de calendário entre chamados."),
+      whenUnavailable: ui("Sem início de falha elegível ou com responsabilidade pendente ou mista, não há MTBF confiável."),
+    },
+    mtta: {
+      measure: ui("Espera média da abertura do chamado ao primeiro atendimento nos chamados atendidos no período."),
+      formula: ui("Soma dos minutos da abertura ao primeiro atendimento ÷ quantidade de chamados com primeiro atendimento no período."),
+      interpretation: ui("Quanto menor, mais rápida a resposta. Não mede reparo físico nem horas individuais dos técnicos."),
+      whenUnavailable: ui("Sem primeiro atendimento válido na janela, não existe amostra para a média."),
+    },
+    mttr: {
+      measure: ui("Tempo médio de restabelecimento físico de paradas encerradas atribuídas integralmente à Manutenção."),
+      formula: ui("Soma das durações integrais das paradas elegíveis encerradas na janela ÷ quantidade desses episódios."),
+      interpretation: ui("Quanto menor, melhor. Não soma trabalho de técnicos; uma parada pode ter começado antes do período."),
+      whenUnavailable: ui("Sem episódios encerrados elegíveis de Manutenção, não há amostra; paradas abertas não contam como zero."),
+    },
+    downtime: {
+      measure: ui("Parada física total no período, de qualquer responsabilidade, inclusive fora da Produção Programada."),
+      formula: ui("União dos intervalos físicos por máquina, recortada ao período; os totais de máquinas diferentes são somados."),
+      interpretation: ui("Quanto menor, menos tempo parado. Não confundir com paradas restritas à Produção Programada para Disponibilidade."),
+      whenUnavailable: ui("Sem paradas registradas, zero pode ser legítimo. Erro de consulta não deve ser apresentado como zero."),
+    },
+    returnRate: {
+      measure: ui("Percentual dos chamados concluídos de Manutenção com motivo corretivo elegível que tiveram retorno ao atendimento."),
+      formula: ui("100 × chamados concluídos de Manutenção com motivo corretivo elegível e retorno ÷ total de chamados concluídos de Manutenção com motivo corretivo elegível."),
+      interpretation: ui("Quanto menor, menos retornos no mesmo chamado. Não equivale à reincidência registrada em um novo chamado."),
+      whenUnavailable: ui("Sem chamados concluídos elegíveis de Manutenção, a taxa não possui amostra."),
+    },
+  } as const;
+
   return (
     <div className="grid min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(12rem,1fr)] lg:overflow-y-auto">
       {overview?.biMeasurementStartAt && <p role="note" className="text-xs text-muted-foreground">
@@ -83,6 +122,7 @@ export function BiOverviewWorkspace({
       <section className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <BiKpiCard
           label={t("Disponibilidade")}
+          help={help.availability}
           tooltip={ui(
             "Disponibilidade nas horas registradas como Produção Programada, somente nas máquinas com histórico completo. Não é OEE nem calendário de turnos.",
           )}
@@ -100,6 +140,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTBF")}
+          help={help.mtbf}
           tooltip={ui(
             "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível.",
           )}
@@ -117,6 +158,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTA")}
+          help={help.mtta}
           tooltip={ui(
             "Tempo médio da abertura ao primeiro atendimento dos chamados atendidos no período.",
           )}
@@ -132,6 +174,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("MTTR")}
+          help={help.mttr}
           tooltip={ui(
             "MTTR de restabelecimento: duração integral média de paradas encerradas na janela e inteiramente atribuídas à manutenção. Outras áreas e causas pendentes ficam fora da amostra. Horas técnicas são contabilizadas separadamente.",
           )}
@@ -149,6 +192,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Tempo de parada")}
+          help={help.downtime}
           tooltip={ui(
             "Parada física total, inclusive fora da Produção Programada, em união temporal por máquina. Difere da parada descontada da disponibilidade.",
           )}
@@ -163,6 +207,7 @@ export function BiOverviewWorkspace({
         />
         <BiKpiCard
           label={t("Taxa de retorno")}
+          help={help.returnRate}
           tooltip={ui(
             "Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado.",
           )}
