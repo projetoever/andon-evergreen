@@ -76,6 +76,7 @@ export function DashboardPriorityPage() {
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
+  const scheduleSubmittingRef = useRef(false);
   const [scheduleRequester, setScheduleRequester] = useState<{
     fullScope: boolean; machineIds: string[]; canWrite: boolean;
   } | null>(null);
@@ -260,7 +261,7 @@ export function DashboardPriorityPage() {
   }
 
   async function requestScheduleChange(machine: DashboardPriorityMachine) {
-    if (scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
+    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
         !machine.isActive || !machine.productionMode ||
         access?.centralAccessEnabled !== true) return;
     if (hasUnsavedChanges) {
@@ -273,6 +274,8 @@ export function DashboardPriorityPage() {
       toast.error(ui("A programação exige acesso autorizado ao ANDON operacional."));
       return;
     }
+    // Synchronous guard also covers rapid consecutive clicks before React paints.
+    scheduleSubmittingRef.current = true;
     setScheduleCheckingId(machine.id);
     try {
       // Recheck the live session before choosing the explicit write route.
@@ -324,6 +327,7 @@ export function DashboardPriorityPage() {
         toast.error(ui("Não foi possível alterar a programação. Confira a conexão e tente novamente."));
       }
     } finally {
+      scheduleSubmittingRef.current = false;
       setScheduleCheckingId(null);
     }
   }
