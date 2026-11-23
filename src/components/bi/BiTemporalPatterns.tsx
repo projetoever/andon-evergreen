@@ -1,4 +1,5 @@
 import { ui, systemMessage } from "@/i18n/translate";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -280,6 +281,21 @@ export function BiTemporalPatterns({
               {ui(" Distribuição por horário")}
             </h3>
             <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <BiChartExplorer
+                title={ui("Distribuição por horário")}
+                description={ui("Horário local · totais dentro da janela filtrada")}
+                unit={metric === "calls" ? "count" : "minutes"}
+                color={metric === "calls" ? "#f59e0b" : "#ef4444"}
+                caution={metric === "calls"
+                  ? ui("Aberturas por hora local na janela filtrada. O pico pode refletir volume e duração da janela, não risco horário.")
+                  : ui("Parada física acumulada por hora local. Uma única parada pode atravessar várias faixas; não interpretar como quantidade de falhas.")}
+                rows={byHour.map((hour) => ({
+                  id: hour.hourLabel,
+                  label: `${hour.hourLabel}${ui("h")}`,
+                  value: hour.count,
+                }))}
+                className="h-full"
+              >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byHour} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -314,6 +330,7 @@ export function BiTemporalPatterns({
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </BiChartExplorer>
             </div>
           </article>
           <article className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-3">
@@ -322,6 +339,21 @@ export function BiTemporalPatterns({
               {ui(" Distribuição por dia da semana")}
             </h3>
             <div className="mt-2 h-56 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <BiChartExplorer
+                title={ui("Distribuição por dia da semana")}
+                description={ui("Horário local · totais dentro da janela filtrada")}
+                unit={metric === "calls" ? "count" : "minutes"}
+                color={metric === "calls" ? "#f59e0b" : "#ef4444"}
+                caution={metric === "calls"
+                  ? ui("Aberturas por dia da semana na janela filtrada. Dias parciais e distribuição desigual de datas impedem inferir risco relativo.")
+                  : ui("Parada física acumulada por dia da semana. Uma ocorrência longa pode contribuir para vários dias; não representa taxa de risco.")}
+                rows={byWeekday.map((day) => ({
+                  id: day.day,
+                  label: day.day,
+                  value: day.count,
+                }))}
+                className="h-full"
+              >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byWeekday} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -354,6 +386,7 @@ export function BiTemporalPatterns({
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </BiChartExplorer>
             </div>
           </article>
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-2 text-[11px] leading-4 text-muted-foreground">
