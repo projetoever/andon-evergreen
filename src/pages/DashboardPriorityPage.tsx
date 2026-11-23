@@ -172,13 +172,16 @@ export function DashboardPriorityPage() {
 
     setIsSaving(true);
     try {
-      const result = await saveDashboardPriorityOrder(rows.map((row) => row.id));
+      const result = await saveDashboardPriorityOrder(rows.map((row) => row.id), savedIds);
       setSavedIds(rows.map((row) => row.id));
       setLastOrderUpdatedAt(result.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(result.lastOrderUpdatedBy);
       toast.success("Sequência visual de prioridades salva.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a sequência.");
+      const message = error instanceof Error ? error.message : "";
+      toast.error(/priority_order_changed|priority_machine_catalog_changed/.test(message)
+        ? ui("A sequência foi alterada em outra estação. Recarregue e revise antes de salvar.")
+        : message || ui("Não foi possível salvar a sequência."));
     } finally {
       setIsSaving(false);
     }
@@ -497,6 +500,14 @@ export function DashboardPriorityPage() {
               : ui("Sequência sincronizada.")}
           </p>
           <div className="flex gap-2">
+            <Button type="button" variant="outline" disabled={isSaving || isLoading}
+              onClick={() => {
+                if (!hasUnsavedChanges ||
+                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
+                  void loadOrder();
+              }}>
+              {ui("Recarregar sequência")}
+            </Button>
             <Button
               type="button"
               variant="outline"
