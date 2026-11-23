@@ -3,6 +3,7 @@ import { Activity, BarChart3, Clock3, RotateCcw, TimerReset, Wrench } from "luci
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
@@ -250,6 +251,30 @@ export function BiOverviewWorkspace({
 
           {overview?.machinePareto.length ? (
             <div className="mt-2 h-60 min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
+              <BiChartExplorer
+                title={t("Máquinas com maior parada")}
+                description={ui("Parada acumulada por máquina · clique para detalhar")}
+                unit="minutes"
+                color="#ef4444"
+                orientation="horizontal"
+                caution={ui("Ranking das máquinas por duração de parada física observada na seleção. Não confundir quantidade de chamados com minutos parados.")}
+                rows={overview.machinePareto.map((machine) => ({
+                  id: machine.machineId,
+                  label: machine.machineName,
+                  value: machine.downtimeMinutes,
+                  details: [{ label: ui("Ocorrências"), value: String(machine.occurrences) }],
+                }))}
+                className="h-full"
+                allowRank
+                onInspectRow={(row) => {
+                  const machine = overview.machinePareto.find((item) => item.machineId === row.id);
+                  if (machine) onDrilldown({
+                    dimension: "machine",
+                    value: machine.machineId,
+                    label: machine.machineName,
+                  });
+                }}
+              >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={overview.machinePareto.slice(0, 6)}
@@ -283,26 +308,11 @@ export function BiOverviewWorkspace({
                     dataKey="downtimeMinutes"
                     fill="#ef4444"
                     radius={[0, 4, 4, 0]}
-                    cursor="pointer"
-                    onClick={(entry: unknown) => {
-                      const item = entry as {
-                        machineId?: unknown;
-                        machineName?: unknown;
-                      };
-                      if (
-                        typeof item.machineId === "string" &&
-                        typeof item.machineName === "string"
-                      ) {
-                        onDrilldown({
-                          dimension: "machine",
-                          value: item.machineId,
-                          label: item.machineName,
-                        });
-                      }
-                    }}
+                    cursor="zoom-in"
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </BiChartExplorer>
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 items-center justify-center text-xs text-muted-foreground">
