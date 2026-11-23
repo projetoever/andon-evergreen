@@ -1,5 +1,26 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Sequência de Prioridades","Priority Sequence","優先順序"],
+  ["Histórico e Auditoria","History and Audit","歷史與稽核"],
+  ["Ajuda e Orientações","Help and Guidance","說明與指引"],
+  ["Seção atual","Current section","目前區段"],
+  ["Abrir navegação de Prioridades","Open Priorities navigation","開啟優先順序導覽"],
+  ["Navegação de Prioridades","Priorities navigation","優先順序導覽"],
+  ["Escolha uma seção do módulo de Prioridades.","Choose a section of the Priorities module.","選擇優先順序模組的區段。"],
+  ["Existem alterações de prioridade não salvas.","There are unsaved priority changes.","有尚未儲存的優先順序變更。"],
+  ["Voltar para a sequência","Back to the sequence","返回順序"],
+  ["Máquinas na sequência","Machines in the sequence","順序中的機台"],
+  ["Cinco primeiras máquinas ativas","Top five active machines","前五部啟用機台"],
+  ["O destaque P1–P5 é determinado pela ordem das máquinas ativas, não pela programação de produção.","P1–P5 highlights follow the order of active machines, not the production schedule.","P1–P5 標示依啟用機台的排列順序決定，與生產排程無關。"],
+  ["Nenhuma máquina ativa na sequência.","No active machines in the sequence.","順序中沒有啟用的機台。"],
+  ["Abrir sequência de prioridades","Open priority sequence","開啟優先順序"],
+  ["A leitura oficial da programação por máquina será integrada em lote separado, com escopo e permissões validados. Nenhuma alteração de programação é oferecida nesta etapa.","Official per-machine scheduling status will be added in a separate release after scope and permissions are verified. Scheduling changes are unavailable in this release.","各機台的正式排程狀態將在完成範圍及權限驗證後，於另一批次加入。本版本不提供排程變更。"],
+  ["Última alteração da sequência","Last sequence change","上次順序變更"],
+  ["Este resumo não é o histórico completo de auditoria. O detalhamento auditável será disponibilizado após validação dos acessos.","This summary is not the full audit history. Auditable details will be added after access validation.","此摘要並非完整稽核歷史。驗證存取權限後才會提供詳細稽核資料。"],
+  ["Como interpretar as prioridades","How to interpret priorities","如何解讀優先順序"],
+  ["Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.","Priority defines a machine's position in the visual sequence. Active machine refers to catalog status. Scheduled production defines the operational window and is a separate state.","優先順序決定機台在視覺清單中的位置。啟用機台代表其登錄狀態；排定生產則定義運作時段，兩者不同。"],
+  ["Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.","Only authorized users can save a sequence. The first five active machines receive P1 through P5 on the Dashboard.","只有授權使用者可儲存順序。前五部啟用機台在儀表板中標為 P1 至 P5。"],
   // PENTE 1 — ajuda contextual e clareza sobre alertas, PT/EN/zh-TW.
   // PENTE 1 — explorador de gráficos (modal de foco, leitura e dados; PT/EN/zh-TW).
   ["Ocorrências","Occurrences","事件次數"],
