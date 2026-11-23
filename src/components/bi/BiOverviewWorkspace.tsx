@@ -166,7 +166,7 @@ export function BiOverviewWorkspace({
           tooltip={ui(
             "Chamados finalizados atribuídos à manutenção que tiveram retorno, divididos apenas pelos chamados finalizados atribuídos à manutenção. Não é reincidência de novo chamado.",
           )}
-          value={loading && !overview ? "…" : displayPercent(kpis?.maintenanceReturnRatePercent)}
+          value={!overview ? "—" : kpis?.maintenanceReturnRatePercent == null ? ui("Sem amostra") : displayPercent(kpis.maintenanceReturnRatePercent)}
           detail={ui("{0} de {1} de manutenção · {2} ciclo(s)", {
             0: kpis?.returnedCalls ?? 0,
             1: kpis?.maintenanceEligibleFinishedCalls ?? 0,
