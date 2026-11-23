@@ -326,6 +326,34 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/api/dashboard-priority/history", async (request, reply) => {
+    // Only requests bound by the validated central workstation hook can
+    // resolve a machine scope. Legacy access requires its own Priority session.
+    const allowedIds = scopedMachineReadIds(request);
+    if (!centralAccessEnabled()) {
+      const auth = await getPrioritySession(request, reply);
+      if (!auth) return;
+    }
+    const records = await prisma.machinePriorityHistory.findMany({
+      where: allowedIds === null ? undefined : { machineId: { in: [...allowedIds] } },
+      select: {
+        id: true, machineId: true, changedAt: true, changedBy: true,
+        previousOrder: true, newOrder: true,
+        previousPriorityRank: true, newPriorityRank: true,
+      },
+      orderBy: [{ changedAt: "desc" }, { id: "desc" }],
+      take: 101,
+    });
+    return {
+      entries: records.slice(0, 100).map((entry) => ({
+        ...entry,
+        // Do not disclose global editor attribution to a selected-scope reader.
+        changedBy: allowedIds === null ? entry.changedBy : null,
+      })),
+      truncated: records.length > 100,
+    };
+  });
+
   app.put<{ Body: OrderBody }>("/api/dashboard-priority/order", async (request, reply) => {
     if (centralAccessEnabled()) {
       if (!isAuthorizedCentralPriorityRequest(request))
