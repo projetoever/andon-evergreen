@@ -20,6 +20,8 @@ import { ProductionModeCredentialModal } from "@/components/machines/ProductionM
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
@@ -62,6 +64,9 @@ export function DashboardPriorityPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
+  const [productionFilter, setProductionFilter] = useState<"all" | "scheduled" | "not_scheduled" | "unknown">("all");
   // Preserve the existing editing flow as the initial section while introducing
   // the five-panel shell. No operational machine state is inferred by this UI.
   const [activeSection, setActiveSection] = useState<PrioritySectionId>("sequence");
@@ -88,6 +93,16 @@ export function DashboardPriorityPage() {
       .forEach((row, index) => ranks.set(row.id, index + 1));
     return ranks;
   }, [rows]);
+
+  const visibleRows = useMemo(() => rows.filter((machine) => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    return (!query || machine.name.toLocaleLowerCase().includes(query) ||
+        machine.id.toLocaleLowerCase().includes(query)) &&
+      (activityFilter === "all" || (activityFilter === "active" ? machine.isActive : !machine.isActive)) &&
+      (productionFilter === "all" ||
+        (productionFilter === "unknown" ? machine.productionMode == null
+          : machine.productionMode === productionFilter));
+  }), [rows, searchQuery, activityFilter, productionFilter]);
 
   const loadOrder = useCallback(async () => {
     if (passwordRequired && !isDashboardPriorityAuthenticated()) {
@@ -133,29 +148,23 @@ export function DashboardPriorityPage() {
   }, [authenticated, loadOrder]);
 
   function moveRow(sourceIndex: number, targetIndex: number) {
-    if (centralReadOnly) return;
-    if (
-      sourceIndex < 0 ||
-      targetIndex < 0 ||
-      sourceIndex >= rows.length ||
-      targetIndex >= rows.length ||
-      sourceIndex === targetIndex
-    ) {
-      return;
-    }
-
-    setRows((current) => {
-      const next = [...current];
-      const [moved] = next.splice(sourceIndex, 1);
-      next.splice(targetIndex, 0, moved);
-      return next;
-    });
+    if (centralReadOnly || isSaving) return;
+    if (sourceIndex < 0 || targetIndex < 0 ||
+        sourceIndex >= visibleRows.length || targetIndex >= visibleRows.length ||
+        sourceIndex === targetIndex) return;
+    moveById(visibleRows[sourceIndex].id, visibleRows[targetIndex].id);
   }
 
   function moveById(sourceId: string, targetId: string) {
-    const sourceIndex = rows.findIndex((row) => row.id === sourceId);
-    const targetIndex = rows.findIndex((row) => row.id === targetId);
-    moveRow(sourceIndex, targetIndex);
+    if (centralReadOnly || isSaving) return;
+    const visibleIds = visibleRows.map((row) => row.id);
+    setRows((current) => {
+      const nextIds = reorderVisiblePriorityIds(
+        current.map((row) => row.id), visibleIds, sourceId, targetId,
+      );
+      const byId = new Map(current.map((row) => [row.id, row]));
+      return nextIds.map((id) => byId.get(id)!);
+    });
   }
 
   async function handleSave() {
@@ -321,6 +330,34 @@ export function DashboardPriorityPage() {
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="grid gap-3 border-b border-border p-3 sm:grid-cols-3">
+            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+              <span>{ui("Buscar máquina por nome ou ID")}</span>
+              <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={ui("Nome ou ID")} />
+            </label>
+            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+              <span>{ui("Ativação da máquina")}</span>
+              <select value={activityFilter}
+                onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                <option value="all">{ui("Todas as máquinas")}</option>
+                <option value="active">{ui("Máquinas ativas")}</option>
+                <option value="inactive">{ui("Máquinas inativas")}</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+              <span>{ui("Filtrar programação")}</span>
+              <select value={productionFilter}
+                onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+                <option value="all">{ui("Todas as situações")}</option>
+                <option value="scheduled">{ui("Produção Programada")}</option>
+                <option value="not_scheduled">{ui("Fora de Produção")}</option>
+                <option value="unknown">{ui("Estado desconhecido")}</option>
+              </select>
+            </label>
+          </div>
           {isLoading ? (
             <div role="status" aria-label={ui("Carregando sequência...")}
               className="space-y-3 p-4">
@@ -342,13 +379,13 @@ export function DashboardPriorityPage() {
                 {ui("Tentar novamente")}
               </Button>
             </div>
-          ) : rows.length === 0 ? (
+          ) : visibleRows.length === 0 ? (
             <p role="status" className="p-6 text-sm text-muted-foreground">
-              {ui("Nenhuma máquina disponível para ordenar.")}
+              {rows.length === 0 ? ui("Nenhuma máquina disponível para ordenar.") : ui("Nenhuma máquina corresponde aos filtros.")}
             </p>
           ) : (
             <div className="divide-y divide-border">
-              {rows.map((row, index) => {
+              {visibleRows.map((row, index) => {
                 const activeRank = activePriorityRanks.get(row.id) ?? null;
                 return (
                   <div
@@ -368,7 +405,7 @@ export function DashboardPriorityPage() {
                     )}
                   >
                     <div className="text-center font-mono text-sm font-black text-muted-foreground">
-                      {index + 1}
+                      {rows.findIndex((machine) => machine.id === row.id) + 1}
                     </div>
 
                     <button
@@ -416,12 +453,12 @@ export function DashboardPriorityPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={centralReadOnly || index === 0}
+                        disabled={centralReadOnly || isSaving || index === 0}
                         onClick={() => moveRow(index, index - 1)}
                         aria-label={ui("Mover {0} para cima", { 0: row.name })}
                       >
@@ -431,12 +468,20 @@ export function DashboardPriorityPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={centralReadOnly || index === rows.length - 1}
+                        disabled={centralReadOnly || isSaving || index === visibleRows.length - 1}
                         onClick={() => moveRow(index, index + 1)}
                         aria-label={ui("Mover {0} para baixo", { 0: row.name })}
                       >
                         <ArrowDown className="h-4 w-4" />
                       </Button>
+                      {!centralReadOnly && visibleRows.length > 2 && (
+                        <Button type="button" variant="outline" size="sm"
+                          disabled={isSaving || index === 0}
+                          onClick={() => moveRow(index, 0)}
+                          aria-label={ui("Mover {0} para o início do filtro", { 0: row.name })}>
+                          {ui("Topo")}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
