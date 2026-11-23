@@ -2,7 +2,7 @@ import { ui, systemMessage, getInterfaceLocale } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
-  ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
+  CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -27,6 +27,8 @@ import {
   type GlobalHistorySummary,
 } from "@/services/globalHistoryService";
 import { Button } from "@/components/ui/button";
+import { LanguageSelector } from "@/components/layout/LanguageSelector";
+import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { toast } from "@/i18n/toast";
 import { AndonApiError } from "@/api/andonApiClient";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -401,9 +403,8 @@ export function GlobalCallHistoryPage() {
             <Button variant="outline" size="sm" onClick={() => setReload(v => v + 1)}>
               <RefreshCw className="mr-1 h-4 w-4" /> {ui("Atualizar")}
             </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/hub"><ArrowLeft className="mr-1 h-4 w-4" />{ui("Hub")}</Link>
-            </Button>
+            <LanguageSelector compact />
+            <ModuleNavigation showModuleLinks />
           </div>
         </header>
 
