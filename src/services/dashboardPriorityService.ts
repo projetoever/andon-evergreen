@@ -232,7 +232,7 @@ export async function getDashboardPriorityOrder(
   });
 }
 
-export async function saveDashboardPriorityOrder(machineIds: string[]) {
+export async function saveDashboardPriorityOrder(machineIds: string[], expectedMachineIds: string[]) {
   const session = readSession();
 
   if (CONFIGURED_DATA_MODE === "local") {
@@ -261,7 +261,7 @@ export async function saveDashboardPriorityOrder(machineIds: string[]) {
     lastOrderUpdatedBy: string;
   }>("/api/dashboard-priority/order", {
     method: "PUT",
-    body: JSON.stringify({ machineIds }),
+    body: JSON.stringify({ machineIds, expectedMachineIds }),
     headers: {
       "Content-Type": "application/json",
       ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
