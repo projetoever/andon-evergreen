@@ -20,6 +20,7 @@ $script:kioskCalls = 0
 $script:stoppedTasks = @()
 $script:disabledTasks = @()
 $script:enabledTasks = @()
+$script:kioskTaskState = "Ready"
 
 . (Join-Path $repoRoot "installer\AndonInstaller.Runtime.ps1")
 
@@ -38,7 +39,8 @@ function Disable-ScheduledTask {
 }
 function Get-ScheduledTask {
     param([string]$TaskName, [string]$ErrorAction)
-    return [pscustomobject]@{ TaskName = $TaskName; State = 'Ready' }
+    $state = if ($TaskName -eq $Global:AndonTaskKiosk) { $script:kioskTaskState } else { "Ready" }
+    return [pscustomobject]@{ TaskName = $TaskName; State = $state }
 }
 function Stop-ScheduledTask {
     param([string]$TaskName, [string]$ErrorAction)
@@ -113,6 +115,13 @@ try {
         throw "Inicio valido nao executou API, frontend e kiosk na ordem esperada."
     }
 
+    $script:enabledTasks = @()
+    $script:kioskTaskState = "Disabled"
+    Start-AndonRuntime -PreserveAutomaticTasks
+    if ($script:enabledTasks.Count -ne 0 -or $script:kioskCalls -ne 1) {
+        throw "Atualizacao option 2 jamais deve reabilitar Boot/Kiosk/Watchdog nem abrir kiosk desabilitado."
+    }
+    $script:kioskTaskState = "Ready"
     $script:enabledTasks = @()
     Stop-AndonRuntime -PromptAutoStart
     if ($script:stoppedTasks.Count -ne 3 -or
