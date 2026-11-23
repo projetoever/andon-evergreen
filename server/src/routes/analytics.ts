@@ -440,6 +440,24 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         filters,
       });
 
+      // Do not show growth/deterioration against a previous period that
+      // crosses the new measurement baseline. Its population is incomplete.
+      const comparison = buildOverviewComparison(currentOverview, previousOverview);
+      const baselineForComparison = biMeasurementStartAt();
+      if (baselineForComparison && previousStart < baselineForComparison) {
+        for (const key of ["callsOpened", "downtimeMinutes", "mttaMinutes",
+          "mttrMinutes", "mtbfEstimatedMinutes"] as const) {
+          comparison[key] = {
+            ...comparison[key], previous: null, deltaPercent: null,
+            direction: "unavailable" as const,
+          };
+        }
+        comparison.maintenanceReturnRate = {
+          current: currentOverview.kpis.maintenanceReturnRatePercent,
+          previous: null, deltaPoints: null,
+        };
+      }
+
       return {
         ...currentOverview,
         // Explicit cohort metadata for BI screens and reports; never silently
@@ -456,7 +474,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
             start: previousStart.toISOString(),
             end: previousEnd.toISOString(),
           },
-          ...buildOverviewComparison(currentOverview, previousOverview),
+          ...comparison,
         },
         highlights: buildExecutiveHighlights(currentOverview),
       };
