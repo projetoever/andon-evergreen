@@ -684,25 +684,58 @@ export function DashboardPriorityPage() {
                     <div className="grid gap-2 sm:grid-cols-3" role="group"
                       aria-label={ui("Resumo da programação")}>
                       {[
-                        { label: ui("Produção Programada"), count: rows.filter((row) => row.productionMode === "scheduled").length },
-                        { label: ui("Fora de Produção"), count: rows.filter((row) => row.productionMode === "not_scheduled").length },
-                        { label: ui("Estado desconhecido"), count: rows.filter((row) => row.productionMode == null).length },
+                        {
+                          label: ui("Produção Programada"),
+                          count: rows.filter((row) => row.productionMode === "scheduled").length,
+                          tone: "border-emerald-500/60 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200",
+                        },
+                        {
+                          label: ui("Fora de Produção"),
+                          count: rows.filter((row) => row.productionMode === "not_scheduled").length,
+                          tone: "border-amber-500/70 bg-amber-50 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200",
+                        },
+                        {
+                          label: ui("Estado desconhecido"),
+                          count: rows.filter((row) => row.productionMode == null).length,
+                          tone: "border-border bg-muted text-foreground",
+                        },
                       ].map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border bg-background p-3">
-                          <p className="text-xs text-muted-foreground">{item.label}</p>
+                        <div key={item.label} className={cn("rounded-lg border-2 p-3", item.tone)}>
+                          <p className="text-sm font-bold">{item.label}</p>
                           <p className="mt-1 text-2xl font-black tabular-nums">{item.count}</p>
                         </div>
                       ))}
                     </div>
-                    <ul className="divide-y divide-border">
+                    {scheduleRequester && (
+                      <p className="text-xs text-muted-foreground" role="status">
+                        {scheduleRequester.canWrite
+                          ? ui("Sua sessão permite alterar diretamente a programação das máquinas autorizadas.")
+                          : ui("A programação exige aprovação de uma pessoa com permissão de escrita.")}
+                      </p>
+                    )}
+                    <ul className="space-y-2">
                       {rows.map((machine) => (
-                        <li key={machine.id} className="flex flex-wrap items-center gap-2 py-3 text-sm">
+                        <li key={machine.id} className={cn(
+                          "flex flex-wrap items-center gap-3 rounded-lg border border-l-4 px-3 py-3 text-sm",
+                          machine.productionMode === "scheduled"
+                            ? "border-emerald-500/50 border-l-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/30"
+                            : machine.productionMode === "not_scheduled"
+                              ? "border-amber-500/50 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30"
+                              : "border-border bg-muted/30",
+                        )}>
                           <div className="min-w-0 flex-1">
                             <p className="font-bold">{machine.name}</p>
                             <p className="font-mono text-xs text-muted-foreground">ID {machine.id}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold">
+                          <div className="min-w-[150px] text-right">
+                            <p className={cn(
+                              "inline-flex rounded-md border px-2 py-1 text-xs font-black",
+                              machine.productionMode === "scheduled"
+                                ? "border-emerald-500/60 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/70 dark:text-emerald-100"
+                                : machine.productionMode === "not_scheduled"
+                                  ? "border-amber-500/60 bg-amber-100 text-amber-950 dark:bg-amber-900/70 dark:text-amber-100"
+                                  : "border-border bg-muted text-foreground",
+                            )}>
                               {machine.productionMode === "scheduled"
                                 ? ui("Produção Programada")
                                 : machine.productionMode === "not_scheduled"
