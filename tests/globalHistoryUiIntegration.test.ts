@@ -36,10 +36,11 @@ test("HIST-03: central history route does NOT mount the legacy unscoped AndonPro
 });
 
 test("HIST-03: chronology, period and selected-machine filtering cannot bypass server", async () => {
-  const [backend, sql, scope] = await Promise.all([
+  const [backend, sql, scope, page] = await Promise.all([
     source("../server/src/routes/andonCalls.ts"),
     source("../server/src/services/globalCallHistoryQuery.ts"),
     source("../server/src/security/centralScopedMachineReads.ts"),
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
   ]);
   assert.match(backend,/ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1"/);
   assert.match(backend,/scopedGlobalHistoryReadIds\(request\)/);
