@@ -1,6 +1,14 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Atualizar histórico","Refresh history","重新整理歷史記錄"],
+  ["Mostramos até 100 alterações recentes da sequência, respeitando seu escopo de máquinas. A autoria global não é exibida para escopos parciais.","Shows up to 100 recent sequence changes within your machine scope. Global authors are hidden for restricted scopes.","僅顯示權限範圍內最近最多 100 筆順序變更；受限範圍不顯示全域變更人員。"],
+  ["Carregando histórico...","Loading history...","正在載入歷史記錄…"],
+  ["Não foi possível carregar o histórico.","Unable to load history.","無法載入歷史記錄。"],
+  ["Nenhuma alteração de prioridade encontrada.","No priority changes found.","找不到優先順序變更。"],
+  ["Posição: {0} → {1}","Position: {0} → {1}","位置：{0} → {1}"],
+  ["Destaque: {0} → {1}","Highlight: {0} → {1}","標示：{0} → {1}"],
+  ["A lista mostra somente as 100 alterações mais recentes.","Only the 100 most recent changes are displayed.","僅顯示最近 100 筆變更。"],
   ["Buscar máquina por nome ou ID","Search machine by name or ID","依名稱或 ID 搜尋機台"],
   ["Nome ou ID","Name or ID","名稱或 ID"],
   ["Ativação da máquina","Machine activation","機台啟用狀態"],
