@@ -329,6 +329,8 @@ export function GlobalCallHistoryPage() {
     setMobileDetail(false);
     setReload(current => current + 1);
   };
+  // Draft filters never affect a search or export until the operator applies them.
+  const filtersPending = JSON.stringify(draft) !== JSON.stringify(applied);
   const selected = result?.items.find(item => item.id === selectedId) ?? null;
 
   async function exportFilteredCsv() {
@@ -441,6 +443,11 @@ export function GlobalCallHistoryPage() {
                   <ChevronDown aria-hidden="true" className={`ml-1 h-4 w-4 transition-transform ${filtersExpanded ? "rotate-180" : ""}`} />
                 </Button>
               </div>
+              {filtersPending && (
+                <p role="status" className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+                  {ui("Há filtros não aplicados. Clique em Filtrar para atualizar resultados e exportações.")}
+                </p>
+              )}
               <div id="global-history-filters" className={filtersExpanded ? "" : "hidden"}>
                 <form onSubmit={submit} className="space-y-3">
                 <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
@@ -599,6 +606,8 @@ export function GlobalCallHistoryPage() {
                     <span>{ui("OS")} {call.workOrderNumber || "—"}</span>
                     <span aria-hidden="true">·</span>
                     <span>{ui("Criticidade")}: {ui(CRITICALITY_LABELS[call.criticality] || call.criticality)}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{call.failureClassification || ui("Sem classificação")}</span>
                   </span>
                   <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span>{call.isSystemTest ? ui("Teste do sistema") : ui("Chamado real")}</span>
