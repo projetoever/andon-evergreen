@@ -80,3 +80,23 @@ test("phase 2B: não confunde janela, máquina ou encerramento futuro", () => {
   assert.throws(()=>buildBiCausalCohortAudit({...value,asset:{machineId:"38",exposureStartedAt:t(0)}}));
   assert.throws(()=>buildBiCausalCohortAudit({...value,effectiveEnd:t(0)}));
 });
+
+test("RC06: Setup/Teste e eventos cancelados nao contaminam parada ou coorte corretiva", () => {
+  const events = [
+    event("corrective_0001", 0, 20),
+    {...event("setup_0000002", 10, 70), analyticsDisposition: "test"},
+    {...event("system_000003", 30, 60), linkedCallIsSystemTest: true},
+    {...event("cancel_000004", 80, 90), status: "cancelled"},
+    {...event("foreign_000005", 0, 120), machineId: "38"},
+  ];
+  const result = buildBiCausalCohortAudit(input(events));
+  assert.equal(result.episodeCount, 1, "only the eligible corrective event counts");
+  assert.equal(result.official.resolvedMttrMinutes, 20);
+  assert.equal(result.official.mttrEligibleRestorations, 1);
+  assert.equal(result.episodes[0].responsibility, "maintenance");
+  assert.equal(result.episodes[0].mttrReason, "included");
+  assert.equal(result.production.scheduledDowntimeMinutes, 20);
+  const output = JSON.stringify(result);
+  for (const excluded of ["setup_0000002","system_000003","cancel_000004","foreign_000005"])
+    assert.equal(output.includes(excluded), false, excluded + " must never be a KPI incident");
+});
