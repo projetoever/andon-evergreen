@@ -1154,7 +1154,25 @@ function Write-AndonBackendEnv {
     # Never infer the measurement date from installation/update time.
     # The operator must deliberately set this UTC value in andon-config.json.
     $biMeasurementStart = "$($Config.biMeasurementStartAtUtc)".Trim()
-    if ($biMeasurementStart -and $biMeasurementStart -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z    if ("$($Config.transportMode)".Trim().ToLowerInvariant() -eq "https") {
+    if ($biMeasurementStart -and $biMeasurementStart -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$') {
+        throw "biMeasurementStartAtUtc invalido: informe data e hora UTC completas, terminando em Z."
+    }
+    if ($biMeasurementStart) {
+        try {
+            $parsedMeasurementStart = [DateTimeOffset]::Parse(
+                $biMeasurementStart,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal
+            )
+            if ($parsedMeasurementStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") -ne $biMeasurementStart.Substring(0, 19)) {
+                throw "Invalid UTC roundtrip"
+            }
+        } catch {
+            throw "biMeasurementStartAtUtc invalido: instante inexistente no calendario UTC."
+        }
+    }
+    $tlsEnvironment = ""
+    if ("$($Config.transportMode)".Trim().ToLowerInvariant() -eq "https") {
         $tlsEnvironment = @"
 ANDON_TLS_CERT="$($Config.tlsCertificatePath)"
 ANDON_TLS_KEY="$($Config.tlsPrivateKeyPath)"
