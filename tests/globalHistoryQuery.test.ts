@@ -8,7 +8,7 @@ import type { GlobalHistorySearchFilters } from "../src/services/globalHistorySe
 
 const filters = (patch: Partial<GlobalHistorySearchFilters> = {}): GlobalHistorySearchFilters =>
   ({ query:"", machineId:"all", subtype:"", status:"all", criticality:"all", technician:"",
-    failureClassification:"", reasonId:"", origin:"all", period:"30d", customDate:"",
+    failureClassification:"", reasonId:"", origin:"all", period:"30d", sort:"opened", customDate:"",
     ...patch });
 
 test("HIST-03: query encodes machine, classification, text and all current filter families", () => {
