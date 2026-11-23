@@ -47,8 +47,8 @@ export function DashboardPriorityPage() {
   const navigate = useNavigate();
   const { access } = useModuleAccess();
   const returnTo = "/hub";
-  const centralReadOnly = access?.centralAccessEnabled === true &&
-    (access?.prioritiesWriteEnabled !== true || access?.principal?.machineScope !== "all");
+  const centralReadOnly = !access || (access.centralAccessEnabled === true &&
+    (access.prioritiesWriteEnabled !== true || access.principal?.machineScope !== "all"));
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
@@ -425,7 +425,7 @@ export function DashboardPriorityPage() {
                       setDraggedId(null);
                     }}
                     className={cn(
-                      "grid grid-cols-[42px_34px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 transition",
+                      "grid grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 px-3 py-2.5 transition sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
                       draggedId === row.id && "opacity-50",
                       activeRank !== null && "bg-primary/[0.04]",
                       !row.isActive && "opacity-55",
@@ -480,7 +480,7 @@ export function DashboardPriorityPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1">
+                    <div className="col-span-3 flex flex-wrap gap-1 pl-2 sm:col-span-1 sm:pl-0">
                       <Button
                         type="button"
                         variant="outline"
