@@ -23,3 +23,17 @@ test("RC23: cutoff clips time window, never creates negative duration", () => {
   assert.equal(effectiveBiPeriodStart(start,end,at("2026-12-01T00:00:00Z")).toISOString(),end.toISOString());
   assert.equal(effectiveBiPeriodStart(start,end,at("2026-11-01T00:00:00Z")).toISOString(),start.toISOString());
 });
+
+test("RC23: one BI cohort boundary is applied to calls and physical events", async () => {
+  const { analyticsEligibility } = await import("./eligibility.js");
+  const { withBiMeasurementStartAt } = await import("./datasetPolicy.js");
+  const original=analyticsEligibility([]);
+  const baseline=at("2026-11-23T17:00:00Z");
+  assert.equal(withBiMeasurementStartAt(original, null), original);
+  const scoped=withBiMeasurementStartAt(original, baseline);
+  assert.deepEqual(scoped.callWhere, { AND: [original.callWhere, { openedAt: { gte: baseline } }] });
+  assert.deepEqual(scoped.eventWhere, { AND: [original.eventWhere, { startedAt: { gte: baseline } }] });
+  assert.deepEqual(scoped.eventOwnWhere, { AND: [original.eventOwnWhere, { startedAt: { gte: baseline } }] });
+  assert.equal(JSON.stringify(original.eventWhere).includes("startedAt"), false,
+    "baseline OFF must not change legacy BI behavior");
+});
