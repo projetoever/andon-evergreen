@@ -1,6 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Descartar as alterações de prioridade ainda não salvas?","Discard unsaved priority changes?","要捨棄尚未儲存的優先順序變更嗎？"],
+  ["Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.","Drag machines or use ↑/↓. The first five active machines are highlighted on the Dashboard.","拖曳機台或使用 ↑/↓ 調整順序。前五部啟用機台將在儀表板中特別標示。"],
+  [" máquina(s) na sequência · "," machine(s) in sequence · "," 部機台在順序中 · "],
+  [" ativa(s)"," active"," 部啟用"],
+  ["Alterações não salvas. O Dashboard ainda usa a sequência anterior.","Unsaved changes. The Dashboard is still using the previous sequence.","變更尚未儲存。儀表板仍使用先前的順序。"],
+  ["Sequência visual de prioridades salva.","Visual priority sequence saved.","已儲存視覺優先順序。"],
   ["Atualizar histórico","Refresh history","重新整理歷史記錄"],
   ["Mostramos até 100 alterações recentes da sequência, respeitando seu escopo de máquinas. A autoria global não é exibida para escopos parciais.","Shows up to 100 recent sequence changes within your machine scope. Global authors are hidden for restricted scopes.","僅顯示權限範圍內最近最多 100 筆順序變更；受限範圍不顯示全域變更人員。"],
   ["Carregando histórico...","Loading history...","正在載入歷史記錄…"],
