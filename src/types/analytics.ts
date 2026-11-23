@@ -96,6 +96,8 @@ export type AnalyticsProductionMetrics = {
 };
 
 export type AnalyticsOverview = {
+  /** Explicit policy boundary; before this instant operational records remain audited but out of BI. */
+  biMeasurementStartAt?: string | null;
   responsibility?: { downtime: Array<{responsibility: string; downtimeMinutes: number}>; excludedCalls: number; pendingFinishedCalls: number };
   production?: AnalyticsProductionMetrics;
   meta: {
