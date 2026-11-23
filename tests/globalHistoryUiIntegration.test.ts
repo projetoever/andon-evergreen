@@ -45,6 +45,8 @@ test("HIST-03: chronology, period and selected-machine filtering cannot bypass s
   assert.match(backend,/scopedGlobalHistoryReadIds\(request\)/);
   assert.match(sql,/callMachineReadWhere\(machineId, allowedMachineIds\)/);
   assert.match(sql,/openedAt: "desc" as const/);
+  assert.match(sql,/updatedAt: "desc" as const/);
+  assert.match(sql,/nulls: "last" as const/);
   assert.match(scope,/assertPermission\(principal, "history.read"\)/);
   assert.match(scope,/assertPermission\(principal, "history.global.read"\)/);
 });
