@@ -8,7 +8,8 @@
     "status": "passed",
     "testedCommit": "f4f6c2c17008d487a89e8d0e506d0838bfe9e52a",
     "treeMatchesMerged": true,
-    "run": "https://github.com/projetoever/andon-evergreen/actions/runs/45217908319"
+    "run": "https://github.com/projetoever/andon-evergreen/actions/runs/45217908319",
+    "mergedCommit": "70f3bbff83f7c1c506023a43f90438c86fa5a795"
   },
   "gates": [
     {

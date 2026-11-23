@@ -44,4 +44,6 @@ backups/
 # ANDON installer local config
 installer/andon-network.config.json
 installer/*.local.json
+# RC23 local operator/IT attestations are not source code
+release/rc23-acceptance.local.json
 server/.env

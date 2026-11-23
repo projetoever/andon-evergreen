@@ -65,6 +65,16 @@ test("RC gate: P1 waiver needs signed evidence; failed test is never waived", ()
   g.operator="failed";
   assert.equal(evaluateRc23(m,{headCommit:m.candidateCommit}).labGo,false);
 });
+test("RC gate: CI for a previous merged SHA never authorizes a newer candidate", () => {
+  const m=accept();
+  m.ci.mergedCommit="b".repeat(40);
+  const rejected=evaluateRc23(m,{headCommit:m.candidateCommit});
+  assert.equal(rejected.labGo,false);
+  assert(rejected.labBlockers.some(b=>b.includes("CI aprovada")));
+  m.ci.mergedCommit=m.candidateCommit;
+  assert.equal(evaluateRc23(m,{headCommit:m.candidateCommit}).labGo,true);
+});
+
 test("RC gate: field acceptance never grants factory/commercial or RELAT1 without separate permits", () => {
   const m=accept();
   assert.equal(evaluateRc23(m,{headCommit:m.candidateCommit}).industrialCommercialGo,true);
