@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 
 import { parseAnalyticsInstant } from "../analytics/overview.js";
+import { biMeasurementStartAt, effectiveBiPeriodStart } from "../analytics/measurementBaseline.js";
 import { prisma } from "../db/prisma.js";
 import { scopedMachineReadIds } from "../security/centralScopedMachineReads.js";
 import { badRequest } from "./routeUtils.js";
@@ -71,11 +72,11 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
   app.get<{ Querystring: Query }>("/api/analytics/data-quality-details", async (request, reply) => {
     const q = request.query;
     const category = value(q.category);
-    const start = parseAnalyticsInstant(q.startDate);
+    const requestedStart = parseAnalyticsInstant(q.startDate);
     const end = parseAnalyticsInstant(q.endDate);
     const page = validPage(q.page);
     if (!category || !CATEGORIES.includes(category as Category) ||
-        !start || !end || start.getTime() >= end.getTime() || page === null) {
+        !requestedStart || !end || requestedStart.getTime() >= end.getTime() || page === null) {
       return badRequest(reply, "Informe category válida, page positiva e datas com fuso (startDate < endDate).");
     }
 
@@ -92,6 +93,7 @@ export async function registerAnalyticsDataQualityRoutes(app: FastifyInstance) {
       : allowedIds === null ? {} : { machineId: { in: [...allowedIds] } };
     const policy = await loadAnalyticsEligibility();
     const now = new Date();
+    const start = effectiveBiPeriodStart(requestedStart!, end!, biMeasurementStartAt());
     const effectiveEnd = new Date(Math.min(now.getTime(), end.getTime()));
     const cutoff = new Date(now.getTime() - OVER_24H_MS);
     const eventEligibilityWhere: Prisma.FailureEventWhereInput = allowedIds === null
