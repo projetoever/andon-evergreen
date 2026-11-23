@@ -1,6 +1,16 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Buscar máquina por nome ou ID","Search machine by name or ID","依名稱或 ID 搜尋機台"],
+  ["Nome ou ID","Name or ID","名稱或 ID"],
+  ["Ativação da máquina","Machine activation","機台啟用狀態"],
+  ["Filtrar programação","Filter production schedule","篩選生產排程"],
+  ["Todas as situações","All schedules","所有排程狀態"],
+  ["Nenhuma máquina corresponde aos filtros.","No machines match these filters.","沒有符合篩選條件的機台。"],
+  ["Mover {0} para o início do filtro","Move {0} to the top of filtered list","將 {0} 移至篩選結果頂端"],
+  ["Topo","Top","頂端"],
+  ["Recarregar sequência","Reload sequence","重新載入順序"],
+  ["A sequência foi alterada em outra estação. Recarregue e revise antes de salvar.","The sequence was changed at another workstation. Reload and review it before saving.","其他工作站已變更順序。請重新載入並檢查後再儲存。"],
   ["Salve ou descarte as alterações de prioridade antes de alterar a programação.","Save or discard priority changes before updating the production schedule.","變更生產排程前，請先儲存或捨棄優先順序的修改。"],
   ["A programação exige acesso autorizado ao ANDON operacional.","Changing the schedule requires authorized access to operational ANDON.","變更生產排程需要獲得 ANDON 操作模組的授權存取權。"],
   ["Verificando permissão...","Checking permission...","正在確認權限…"],
