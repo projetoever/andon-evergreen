@@ -1,6 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Sem amostra", "No sample", "尚無樣本"],
+  [" setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores sem amostra são identificados explicitamente e não são substituídos por zero.", " sector filters do not assign orphan physical events; call and FailureEvent classifications have different semantics. Metrics without samples are identified explicitly and are not replaced by zero.", " 區域篩選不會將未關聯的實體故障事件歸屬到特定區域；通報與 FailureEvent 的分類有不同語意。無樣本的指標會明確標示，且不會以零取代。"],
   ["Indicadores a partir de {0}. Histórico anterior preservado para auditoria.", "Metrics measured since {0}. Earlier history remains available for audit.", "指標自 {0} 起計算。較早歷史記錄保留供稽核。"],
   ["Evento auditado", "Audited event", "已稽核事件"],
   ["Revisão de diagnóstico registrada", "Diagnosis revision recorded", "已記錄診斷修訂"],
