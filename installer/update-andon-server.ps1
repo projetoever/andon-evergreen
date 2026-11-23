@@ -11,6 +11,20 @@ $script:AndonUpdateStopped = $false
 $script:AndonUpdateStarted = $false
 $script:AndonPreviousTaskStates = @()
 
+# Option 2 must not silently undo the operator's option 8/9 policy.
+# Restores only scheduler task ENABLED state, never starts or stops a task.
+function Restore-AndonUpdateTaskStates {
+    foreach ($taskInfo in $script:AndonPreviousTaskStates) {
+        $task = Get-ScheduledTask -TaskName $taskInfo.Name -ErrorAction SilentlyContinue
+        if (!$task) { throw "Tarefa anterior indisponivel: $($taskInfo.Name)" }
+        if ($taskInfo.WasDisabled) {
+            Disable-ScheduledTask -TaskName $taskInfo.Name -ErrorAction Stop | Out-Null
+        } else {
+            Enable-ScheduledTask -TaskName $taskInfo.Name -ErrorAction Stop | Out-Null
+        }
+    }
+}
+
 function Invoke-AndonGitRead {
     param(
         [Parameter(Mandatory = $true)][string]$GitPath,
@@ -192,7 +206,10 @@ try {
             Assert-AndonUpdateBackupRestorable -Config $config | Out-Null
         } catch {
             Write-AndonWarn "Backup/restore nao aprovado; nenhuma migration foi executada."
-            try { Start-AndonRuntime } catch {
+            try {
+                Restore-AndonUpdateTaskStates
+                Start-AndonRuntime -PreserveAutomaticTasks
+            } catch {
                 Write-AndonWarn "Falha ao reiniciar runtime anterior. Execute health check."
             }
             throw
@@ -202,7 +219,10 @@ try {
             $activateCentralAfterBuild = Request-AndonCentralNotebookActivation -Config $config
         } catch {
             Write-AndonWarn "Falha na verificacao do login central; restaurando runtime anterior."
-            try { Start-AndonRuntime } catch {
+            try {
+                Restore-AndonUpdateTaskStates
+                Start-AndonRuntime -PreserveAutomaticTasks
+            } catch {
                 Write-AndonWarn "Nao foi possivel reiniciar runtime anterior. Verifique os logs."
             }
             throw
@@ -213,14 +233,18 @@ try {
         Invoke-AndonNodePipeline -RunSeed $false -InstallDependencies $true -BuildCommit $pinnedCommit
         Apply-AndonFirewallRules
         Prepare-AndonChromeProfileForReuse
-        Recreate-AndonTasks
+        $previouslyDisabled = @($script:AndonPreviousTaskStates |
+            Where-Object { $_.WasDisabled } | ForEach-Object { $_.Name })
+        Recreate-AndonTasks -PreserveDisabledTaskNames $previouslyDisabled
+        Restore-AndonUpdateTaskStates
         $centralActivated = $false
         try {
             if ($activateCentralAfterBuild) {
                 # No authentication switch before successful migrations and build.
                 $centralActivated = Set-AndonCentralNotebookActivation -Config $config
             }
-            Start-AndonRuntime
+            Start-AndonRuntime -PreserveAutomaticTasks
+            Restore-AndonUpdateTaskStates
             $script:AndonUpdateStarted = $true
             Invoke-AndonHealthCheck
         } catch {
@@ -245,23 +269,28 @@ try {
         Write-AndonWarn "Atualizacao interrompida. Tentando recuperar runtime existente sem migrations ou seed."
         $script:AndonUpdateStarted = $true
         try {
-            Start-AndonRuntime
+            Restore-AndonUpdateTaskStates
+            Start-AndonRuntime -PreserveAutomaticTasks
             Write-AndonOk "Servicos recuperados; o update segue marcado como falha."
         } catch {
             Write-AndonWarn "Recuperacao automatica nao concluida: $($_.Exception.Message)"
             Write-AndonWarn "Use a opcao 4 (Iniciar ANDON) ou a 6 (Saude) apos conferir os logs."
         } finally {
-            foreach ($taskInfo in $script:AndonPreviousTaskStates) {
-                if ($taskInfo.WasDisabled) {
-                    Disable-ScheduledTask -TaskName $taskInfo.Name -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
+            Restore-AndonUpdateTaskStates
         }
     }
     $exitCode = 1
     Write-AndonHeader "ERRO"
     Write-AndonFail "$($_.Exception.Message)"
 } finally {
+    if ($ContinueAfterSync -and $script:AndonUpdateStopped) {
+        try {
+            Restore-AndonUpdateTaskStates
+        } catch {
+            $exitCode = 1
+            Write-AndonFail "Nao foi possivel restaurar a politica anterior de tarefas: $($_.Exception.Message)"
+        }
+    }
     if ($logStarted) { Stop-AndonInstallerLog }
 }
 
