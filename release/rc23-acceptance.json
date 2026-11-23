@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "project": "ANDON Web Industrial — REFINE 23",
+  "asOf": "2026-11-23",
+  "candidateCommit": "70f3bbff83f7c1c506023a43f90438c86fa5a795",
+  "installedCommit": "11c4f84cf0f7e76da9a8c5a5fdd05a8776cee140",
+  "ci": {
+    "status": "passed",
+    "testedCommit": "f4f6c2c17008d487a89e8d0e506d0838bfe9e52a",
+    "treeMatchesMerged": true,
+    "run": "https://github.com/projetoever/andon-evergreen/actions/runs/45217908319"
+  },
+  "gates": [
+    {
+      "id": "RC01",
+      "priority": "P0",
+      "name": "Grupos e visibilidade",
+      "implementation": "partial",
+      "operator": "partial",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/596"
+      ],
+      "notes": "Pneumática no grupo TESTE teve retorno positivo; seleção de chamada ativa, restauração em dois terminais e regra por máquina #596 não aprovadas integralmente."
+    },
+    {
+      "id": "RC02",
+      "priority": "P0",
+      "name": "Histórico Global HIST-A–I",
+      "implementation": "implemented",
+      "operator": "pending",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/479"
+      ],
+      "notes": "HIST-D/F integrados em #601, sem matriz A–I preenchida por critério no notebook."
+    },
+    {
+      "id": "RC03",
+      "priority": "P0",
+      "name": "Operação: OS, multichamados e concorrência",
+      "implementation": "implemented",
+      "operator": "partial",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/474"
+      ],
+      "notes": "Encerramento individual homologado previamente; conjunto completo OS/múltiplos técnicos/duas estações ainda pendente."
+    },
+    {
+      "id": "RC04",
+      "priority": "P0",
+      "name": "Firefox persistente, revogação e ACL",
+      "implementation": "implemented",
+      "operator": "failed",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/570"
+      ],
+      "notes": "Falha de persistência observada no Firefox; correções e testes CI não substituem reboot/duas reaberturas e revogação."
+    },
+    {
+      "id": "RC05",
+      "priority": "P0",
+      "name": "Instalador, backup, restauração e reboot",
+      "implementation": "partial",
+      "operator": "partial",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/476",
+        "https://github.com/projetoever/andon-evergreen/issues/464"
+      ],
+      "notes": "Health SHA antigo OK, main nova não instalada; Boot/Kiosk Disabled; sem restore isolado/reboot comprovado."
+    },
+    {
+      "id": "RC06",
+      "priority": "P1",
+      "name": "BI: MTTA, MTTR, MTBF, disponibilidade, downtime e coortes",
+      "implementation": "implemented",
+      "operator": "pending",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/586"
+      ],
+      "notes": "Testes e auditoria sintética disponíveis, sem conferência de amostras controladas no notebook."
+    },
+    {
+      "id": "RC07",
+      "priority": "P1",
+      "name": "UX Hub, 11 abas, mobile, PT/EN/ZH, cores e som",
+      "implementation": "implemented",
+      "operator": "pending",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/595"
+      ],
+      "notes": "Smoke visual de três resoluções e navegadores pendente de evidência."
+    },
+    {
+      "id": "RC08",
+      "priority": "P0",
+      "name": "Release notes e pacote autorizado para demonstração",
+      "implementation": "pending",
+      "operator": "pending",
+      "evidence": [
+        "https://github.com/projetoever/andon-evergreen/issues/595"
+      ],
+      "notes": "Não preparar divulgação externa/uso da marca sem autorização IP; não gerar PDF/WhatsApp/e-mail gerencial antes do OK."
+    }
+  ],
+  "externalApprovals": [
+    {
+      "id": "ti_firewall_ca",
+      "status": "pending",
+      "evidence": [],
+      "notes": "Any Profile/Any Remote e CA mkcert; responsabilidade da TI, nenhuma mudança automática."
+    },
+    {
+      "id": "code_ip_publication_license",
+      "status": "pending",
+      "evidence": [],
+      "notes": "Titularidade, marca e permissão de divulgação/comercialização não comprovadas."
+    },
+    {
+      "id": "industrial_deployment_window",
+      "status": "pending",
+      "evidence": [],
+      "notes": "Servidor da fábrica, banco e equipamentos nunca são alvo do aceite em notebook."
+    }
+  ],
+  "p1Waivers": [],
+  "operatorFinalAcceptance": {
+    "status": "pending",
+    "evidence": [],
+    "notes": "Somente operador pode confirmar a homologação física; CI e Health não substituem esta etapa."
+  }
+}
