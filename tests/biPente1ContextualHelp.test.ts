@@ -16,6 +16,7 @@ test("PENTE1: seis KPIs mostram ajuda estruturada via popover acessível", async
     assert.match(card, new RegExp("help\\." + field));
   for (const name of ["availability", "mtbf", "mtta", "mttr", "downtime", "returnRate"])
     assert.match(overview, new RegExp("help=\\{help\\." + name + "\\}"));
+  assert.match(overview, /motivo corretivo elegível/);
   assert.match(overview, /explainMissingMtbf\(scheduled\)/);
   assert.match(overview, /explainMissingMttr\(scheduled\)/);
 });

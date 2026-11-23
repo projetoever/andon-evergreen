@@ -105,8 +105,8 @@ export function BiOverviewWorkspace({
       whenUnavailable: ui("Sem paradas registradas, zero pode ser legítimo. Erro de consulta não deve ser apresentado como zero."),
     },
     returnRate: {
-      measure: ui("Percentual dos chamados concluídos de Manutenção que tiveram retorno ao atendimento."),
-      formula: ui("100 × chamados concluídos de Manutenção com retorno ÷ chamados concluídos elegíveis de Manutenção."),
+      measure: ui("Percentual dos chamados concluídos de Manutenção com motivo corretivo elegível que tiveram retorno ao atendimento."),
+      formula: ui("100 × chamados concluídos de Manutenção com motivo corretivo elegível e retorno ÷ total de chamados concluídos de Manutenção com motivo corretivo elegível."),
       interpretation: ui("Quanto menor, menos retornos no mesmo chamado. Não equivale à reincidência registrada em um novo chamado."),
       whenUnavailable: ui("Sem chamados concluídos elegíveis de Manutenção, a taxa não possui amostra."),
     },
