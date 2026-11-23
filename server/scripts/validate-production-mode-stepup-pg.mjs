@@ -17,6 +17,7 @@ const machineId = "ci-prod-mode-" + nonce;
 const otherMachineId = "ci-prod-other-" + nonce;
 const ws = "ws_" + randomUUID();
 const token = randomBytes(32).toString("hex");
+const writerToken = randomBytes(32).toString("hex");
 const verifierPassword = "VerifyProduction-" + nonce;
 const users = [];
 let app;
@@ -60,6 +61,12 @@ try {
     expiresAt: new Date(now.getTime() - 60_000),
     persistentOperational: true, persistentMachineId: machineId,
   } });
+  await db.accessSession.create({ data: {
+    tokenHash: tokenHash(writerToken), workstationId: ws, userId: verifier.id,
+    purpose: "normal", authorizationVersion: verifier.authorizationVersion,
+    createdAt: now, lastInteractionAt: now,
+    expiresAt: new Date(now.getTime() + 3_600_000),
+  } });
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   app = Fastify();
   app.addHook("onRequest", async req => {
@@ -82,10 +89,32 @@ try {
     method: "POST", url: "/api/access/machines/production-mode",
     headers: { ...headers, ...overrides }, payload: { ...body, ...changes },
   });
+  const directPost = (changes = {}, overrides = {}, currentToken = writerToken) => app.inject({
+    method: "POST", url: "/api/access/machines/production-mode/session",
+    headers: {
+      ...headers,
+      cookie: "__Host-andon-access=" + currentToken,
+      "x-andon-csrf": csrfToken(currentToken),
+      ...overrides,
+    },
+    payload: {
+      machineId, expectedProductionMode: "not_scheduled", productionMode: "scheduled",
+      ...changes,
+    },
+  });
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "0";
   assert.equal((await post()).statusCode, 403, "Central schedule changes must be disabled in legacy mode");
+  assert.equal((await directPost()).statusCode, 403, "Session write cannot bypass central disabled");
   process.env.ANDON_CENTRAL_ACCESS_ENABLED = "1";
   assert.equal((await post({ password: "incorrect" })).statusCode, 401);
+  assert.equal((await directPost({}, {}, token)).statusCode, 403,
+    "production.schedule.request alone must NOT authorize a direct write");
+  assert.equal((await directPost({}, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
+  assert.equal((await directPost({}, { origin: "https://evil.test" })).statusCode, 403);
+  assert.equal((await directPost({ unexpected: "x" })).statusCode, 400);
+  assert.equal((await directPost({ expectedProductionMode: "scheduled", productionMode: "scheduled" })).statusCode, 400);
+  assert.equal((await directPost({ machineId: otherMachineId })).statusCode, 403,
+    "Writer cannot mutate a different machine from locked workstation");
   assert.equal((await post({}, { "x-andon-csrf": "0".repeat(64) })).statusCode, 403);
   assert.equal((await post({}, { origin: "https://evil.test" })).statusCode, 403);
   assert.equal((await post({ machineId: otherMachineId })).statusCode, 403);
@@ -117,15 +146,37 @@ try {
   assert.equal(live.persistentOperational, true);
   assert.equal((await post()).statusCode, 409, "stale second operator must not overwrite a committed change");
 
+  const viaSession = await directPost();
+  assert.equal(viaSession.statusCode, 200, viaSession.body);
+  assert.equal(viaSession.json().productionMode, "scheduled");
+  assert.equal((await db.machine.findUniqueOrThrow({ where: { id: machineId } })).productionMode, "scheduled");
+  const updatedEvents = await db.machineProductionEvent.findMany({
+    where: { machineId }, orderBy: { startedAt: "asc" },
+  });
+  assert.equal(updatedEvents.length, 3, "Direct write preserves previous events and opens one new event");
+  assert.ok(updatedEvents[1].endedAt);
+  assert.equal(updatedEvents[2].endedAt, null);
+  assert.equal(updatedEvents[2].productionMode, "scheduled");
+  const directAudits = await db.auditEvent.findMany({
+    where: { action: "machine.production_mode.session_authorized", resourceId: machineId },
+  });
+  assert.equal(directAudits.length, 1);
+  assert.equal(directAudits[0].actorUserId, verifier.id, "Write is attributed to logged-in writer");
+  assert.equal((await directPost()).statusCode, 409, "stale direct write must not overwrite a committed change");
+
   await db.accessUser.update({ where: { id: verifier.id },
     data: { permissions: { deleteMany: { key: "production.schedule.write" } } } });
   assert.equal((await post({ expectedProductionMode: "not_scheduled", productionMode: "scheduled" })).statusCode, 401,
     "Revoked verifier approval must not write");
+  assert.equal((await directPost({
+    expectedProductionMode: "scheduled", productionMode: "not_scheduled",
+  })).statusCode, 403, "Revoked production.schedule.write must deny direct writer");
+  assert.equal((await db.machine.findUniqueOrThrow({ where: { id: machineId } })).productionMode, "scheduled");
   await db.accessUser.update({ where: { id: operator.id },
     data: { permissions: { deleteMany: { key: "production.schedule.request" } } } });
   assert.equal((await post({ expectedProductionMode: "not_scheduled", productionMode: "scheduled" })).statusCode, 403,
     "Terminal without request grant cannot perform this one-shot operation");
-  console.log("REFINE20 schedule step-up PG PASS: central persistent terminal, password, CSRF, Origin, cross-machine, stale revision, audit, no session elevation, revocations");
+  console.log("PENTE2 schedule PG PASS: credential approver and direct authorized session, CSRF, Origin, locked machine, CAS, events, audit, revoked write and request-only denial");
 } finally {
   if (app) await app.close();
   if (previousCentral === undefined) delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;

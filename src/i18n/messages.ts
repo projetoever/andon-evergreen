@@ -1,6 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Sua sessão permite alterar diretamente a programação das máquinas autorizadas.","Your session allows direct scheduling changes for authorized machines.","目前的工作階段可直接變更已授權機台的生產排程。"],
+  ["A programação exige aprovação de uma pessoa com permissão de escrita.","Scheduling requires approval from a person with write permission.","變更生產排程需要具有寫入權限的人員核准。"],
+  ["Atualizando programação...","Updating schedule...","正在更新生產排程…"],
+  ["A programação foi alterada em outra estação. Atualizando o estado.","The schedule was changed at another workstation. Refreshing state.","另一工作站已變更排程，正在重新整理狀態。"],
+  ["Sua sessão ou permissão não permite alterar esta máquina.","Your session or permission does not allow changing this machine.","目前的工作階段或權限不允許變更此機台。"],
+  ["Não foi possível alterar a programação. Confira a conexão e tente novamente.","Unable to change the schedule. Check the connection and try again.","無法變更生產排程。請檢查連線後再試一次。"],
   ["Descartar as alterações de prioridade ainda não salvas?","Discard unsaved priority changes?","要捨棄尚未儲存的優先順序變更嗎？"],
   ["Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.","Drag machines or use ↑/↓. The first five active machines are highlighted on the Dashboard.","拖曳機台或使用 ↑/↓ 調整順序。前五部啟用機台將在儀表板中特別標示。"],
   [" máquina(s) na sequência · "," machine(s) in sequence · "," 部機台在順序中 · "],

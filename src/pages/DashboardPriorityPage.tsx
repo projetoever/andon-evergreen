@@ -76,8 +76,9 @@ export function DashboardPriorityPage() {
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
+  const scheduleSubmittingRef = useRef(false);
   const [scheduleRequester, setScheduleRequester] = useState<{
-    fullScope: boolean; machineIds: string[];
+    fullScope: boolean; machineIds: string[]; canWrite: boolean;
   } | null>(null);
   const [historyItems, setHistoryItems] = useState<DashboardPriorityAuditEntry[]>([]);
   const [historyTruncated, setHistoryTruncated] = useState(false);
@@ -179,7 +180,9 @@ export function DashboardPriorityPage() {
           principal.permissions?.includes("andon.read") === true);
       setScheduleRequester(permitted && principal
         ? { fullScope: principal.machineScope === "all",
-            machineIds: principal.machineIds ?? [] } : null);
+            machineIds: principal.machineIds ?? [],
+            canWrite: principal.isPrimaryAdmin === true ||
+              principal.permissions?.includes("production.schedule.write") === true } : null);
     }).catch(() => { if (!canceled) setScheduleRequester(null); });
     return () => { canceled = true; };
   }, [activeSection, access?.centralAccessEnabled, access?.principal?.userId,
@@ -258,7 +261,7 @@ export function DashboardPriorityPage() {
   }
 
   async function requestScheduleChange(machine: DashboardPriorityMachine) {
-    if (scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
+    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
         !machine.isActive || !machine.productionMode ||
         access?.centralAccessEnabled !== true) return;
     if (hasUnsavedChanges) {
@@ -271,10 +274,12 @@ export function DashboardPriorityPage() {
       toast.error(ui("A programação exige acesso autorizado ao ANDON operacional."));
       return;
     }
+    // Synchronous guard also covers rapid consecutive clicks before React paints.
+    scheduleSubmittingRef.current = true;
     setScheduleCheckingId(machine.id);
     try {
-      // The terminal session is checked afresh. The actual write requires a
-      // DIFFERENT credential-verified approver and a backend expected-mode CAS.
+      // Recheck the live session before choosing the explicit write route.
+      // Request-only accounts still require one-shot credential approval.
       const state = await accessRequest<AccessState>("/session");
       const principal = state.principal;
       const permitted = principal?.purpose === "normal" &&
@@ -289,16 +294,40 @@ export function DashboardPriorityPage() {
         toast.error(ui("Você não tem permissão para alterar a programação desta máquina."));
         return;
       }
-      // Confirmation is the explicit credential form below. No state is
-      // changed by requesting the form.
-      setPendingSchedule({
-        machineId: machine.id,
-        currentMode: machine.productionMode,
-        requestedMode: machine.productionMode === "scheduled" ? "not_scheduled" : "scheduled",
-      });
-    } catch {
-      toast.error(ui("Não foi possível verificar sua permissão. Tente novamente."));
+      const target = machine.productionMode === "scheduled" ? "not_scheduled" : "scheduled";
+      const canWrite = principal!.isPrimaryAdmin === true ||
+        principal!.permissions?.includes("production.schedule.write") === true;
+      if (canWrite) {
+        // Backend revalidates the session, permission, machine scope, CSRF,
+        // workstation, expected mode (409), transaction and audit.
+        await accessRequest("/machines/production-mode/session", "POST", {
+          machineId: machine.id,
+          expectedProductionMode: machine.productionMode,
+          productionMode: target,
+        });
+        toast.success(ui("Programação de produção atualizada com autorização."));
+        await loadOrder();
+      } else {
+        // Request-only operator: an authorized second person must approve.
+        setPendingSchedule({
+          machineId: machine.id,
+          currentMode: machine.productionMode,
+          requestedMode: target,
+        });
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (message.includes("production_mode_changed")) {
+        toast.error(ui("A programação foi alterada em outra estação. Atualizando o estado."));
+        void loadOrder();
+      } else if (/permission_denied|machine_scope_denied|authentication_required|workstation_denied/.test(message)) {
+        setScheduleRequester(null);
+        toast.error(ui("Sua sessão ou permissão não permite alterar esta máquina."));
+      } else {
+        toast.error(ui("Não foi possível alterar a programação. Confira a conexão e tente novamente."));
+      }
     } finally {
+      scheduleSubmittingRef.current = false;
       setScheduleCheckingId(null);
     }
   }
@@ -659,25 +688,58 @@ export function DashboardPriorityPage() {
                     <div className="grid gap-2 sm:grid-cols-3" role="group"
                       aria-label={ui("Resumo da programação")}>
                       {[
-                        { label: ui("Produção Programada"), count: rows.filter((row) => row.productionMode === "scheduled").length },
-                        { label: ui("Fora de Produção"), count: rows.filter((row) => row.productionMode === "not_scheduled").length },
-                        { label: ui("Estado desconhecido"), count: rows.filter((row) => row.productionMode == null).length },
+                        {
+                          label: ui("Produção Programada"),
+                          count: rows.filter((row) => row.productionMode === "scheduled").length,
+                          tone: "border-emerald-500/60 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200",
+                        },
+                        {
+                          label: ui("Fora de Produção"),
+                          count: rows.filter((row) => row.productionMode === "not_scheduled").length,
+                          tone: "border-amber-500/70 bg-amber-50 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200",
+                        },
+                        {
+                          label: ui("Estado desconhecido"),
+                          count: rows.filter((row) => row.productionMode == null).length,
+                          tone: "border-border bg-muted text-foreground",
+                        },
                       ].map((item) => (
-                        <div key={item.label} className="rounded-lg border border-border bg-background p-3">
-                          <p className="text-xs text-muted-foreground">{item.label}</p>
+                        <div key={item.label} className={cn("rounded-lg border-2 p-3", item.tone)}>
+                          <p className="text-sm font-bold">{item.label}</p>
                           <p className="mt-1 text-2xl font-black tabular-nums">{item.count}</p>
                         </div>
                       ))}
                     </div>
-                    <ul className="divide-y divide-border">
+                    {scheduleRequester && (
+                      <p className="text-xs text-muted-foreground" role="status">
+                        {scheduleRequester.canWrite
+                          ? ui("Sua sessão permite alterar diretamente a programação das máquinas autorizadas.")
+                          : ui("A programação exige aprovação de uma pessoa com permissão de escrita.")}
+                      </p>
+                    )}
+                    <ul className="space-y-2">
                       {rows.map((machine) => (
-                        <li key={machine.id} className="flex flex-wrap items-center gap-2 py-3 text-sm">
+                        <li key={machine.id} className={cn(
+                          "flex flex-wrap items-center gap-3 rounded-lg border border-l-4 px-3 py-3 text-sm",
+                          machine.productionMode === "scheduled"
+                            ? "border-emerald-500/50 border-l-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/30"
+                            : machine.productionMode === "not_scheduled"
+                              ? "border-amber-500/50 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30"
+                              : "border-border bg-muted/30",
+                        )}>
                           <div className="min-w-0 flex-1">
                             <p className="font-bold">{machine.name}</p>
                             <p className="font-mono text-xs text-muted-foreground">ID {machine.id}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold">
+                          <div className="min-w-[150px] text-right">
+                            <p className={cn(
+                              "inline-flex rounded-md border px-2 py-1 text-xs font-black",
+                              machine.productionMode === "scheduled"
+                                ? "border-emerald-500/60 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/70 dark:text-emerald-100"
+                                : machine.productionMode === "not_scheduled"
+                                  ? "border-amber-500/60 bg-amber-100 text-amber-950 dark:bg-amber-900/70 dark:text-amber-100"
+                                  : "border-border bg-muted text-foreground",
+                            )}>
                               {machine.productionMode === "scheduled"
                                 ? ui("Produção Programada")
                                 : machine.productionMode === "not_scheduled"
@@ -694,7 +756,7 @@ export function DashboardPriorityPage() {
                             <Button type="button" variant="outline" size="sm"
                               disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || hasUnsavedChanges}
                               onClick={() => void requestScheduleChange(machine)}>
-                              {scheduleCheckingId === machine.id ? ui("Verificando permissão...") :
+                              {scheduleCheckingId === machine.id ? ui("Atualizando programação...") :
                                 machine.productionMode === "scheduled"
                                   ? ui("Retirar da programação") : ui("Programar produção")}
                             </Button>

@@ -34,3 +34,31 @@ test("PENTE 2 reuses the central step-up with authorizer, scope, locks and audit
   assert.match(service, /machineProductionEvent\.create/);
   assert.match(service, /appendAudit\(tx/);
 });
+
+test("PENTE 2 final: authorized writers avoid per-machine password, request-only retains step-up", async () => {
+  const [page, routes, sessionWrite] = await Promise.all([
+    source("src/pages/DashboardPriorityPage.tsx"),
+    source("server/src/routes/access.ts"),
+    source("server/src/access/centralProductionModeSession.ts"),
+  ]);
+  assert.match(page, /principal!\.permissions\?\.includes\("production\.schedule\.write"\)/);
+  assert.match(page, /if \(canWrite\) \{/);
+  assert.match(page, /scheduleSubmittingRef\.current = true/);
+  assert.match(page, /scheduleSubmittingRef\.current = false/);
+  assert.match(page, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
+  assert.match(page, /setPendingSchedule\(\{/);
+  assert.match(page, /machineId: machine\.id,[\s\S]*?expectedProductionMode: machine\.productionMode/);
+  assert.match(routes, /machines\/production-mode\/session/);
+  assert.match(routes, /setCentralProductionModeWithSession\(db/);
+  assert.match(sessionWrite, /assertPermission\(principal, "production\.schedule\.write", machineId\)/);
+  assert.doesNotMatch(sessionWrite, /verifyAccessPassword|input\.password/);
+  assert.match(sessionWrite, /resolveSession\(tx, input\)/);
+  assert.match(sessionWrite, /lockMachineFlow\(tx, input\.machineId\)/);
+  assert.match(sessionWrite, /production_mode_changed", 409/);
+  assert.match(sessionWrite, /machineProductionEvent\.create/);
+  assert.match(sessionWrite, /machine\.production_mode\.session_authorized/);
+  assert.match(page, /bg-emerald-50/);
+  assert.match(page, /bg-amber-50/);
+  assert.match(page, /dark:bg-emerald-950/);
+  assert.match(page, /dark:bg-amber-950/);
+});

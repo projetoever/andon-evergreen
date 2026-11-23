@@ -32,6 +32,7 @@ import { diagnoseSessionLoss } from "../access/sessionLossDiagnostics.js";
 import { lockWorkstationFlow } from "../db/workstationFlowLock.js";
 import { unlockCentralMachineScreen } from "../access/centralMachineScreenUnlock.js";
 import { setCentralProductionModeWithCredential } from "../access/centralProductionModeCredential.js";
+import { setCentralProductionModeWithSession } from "../access/centralProductionModeSession.js";
 import { centralOwnWorkstationPreferencesEnabled } from "../security/centralOwnWorkstationPrefsHttp.js";
 import { centralWorkstationApprovalRequired, isolatedNotebookHmlAutoAdmissionEnabled } from "../access/centralWorkstationAdmissionPolicy.js";
 import { deriveWorkstationPresence, recordWorkstationHeartbeat } from "../access/workstationPresence.js";
@@ -381,6 +382,31 @@ export function registerAccessRoutes(
         });
       },
     );
+    // Direct schedule changes are available ONLY to an already authenticated
+    // PERSON with production.schedule.write. Operators with request-only grants
+    // must still obtain a separate approver via the existing credential route.
+    // All access routes inherit HTTPS, Origin, CSRF and workstation hooks.
+    app.post<{ Body: {
+      machineId: string; expectedProductionMode: "scheduled" | "not_scheduled";
+      productionMode: "scheduled" | "not_scheduled";
+    } }>(
+      `${PREFIX}/machines/production-mode/session`,
+      { schema: schema({
+        machineId: string(160),
+        expectedProductionMode: { enum: ["scheduled", "not_scheduled"] },
+        productionMode: { enum: ["scheduled", "not_scheduled"] },
+      }) },
+      async req => {
+        if (!centralAccessEnabled()) throw new AccessError("central_action_not_supported");
+        limited(`production-session:${req.ip}`, 120, 15 * 60_000);
+        limited(`production-session-machine:${req.ip}:${req.body.machineId}`, 30, 15 * 60_000);
+        return setCentralProductionModeWithSession(db, {
+          ...requestAccess(req), ...req.body,
+          requestId: req.id, ipAddress: req.ip,
+        });
+      },
+    );
+
     // Dedicated screen unlock: uses the current session and one-time verified
     // authorized credentials; never switches or elevates the operator session.
     app.post<{ Body: { login: string; password: string; machineId: string } }>(
