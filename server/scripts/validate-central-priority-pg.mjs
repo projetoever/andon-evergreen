@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { tokenHash, csrfToken } from "../dist/access/credentials.js";
 import { runCentralPriorityOrderWrite } from "../dist/access/centralPriorityOrderWrite.js";
+import { sortPriorityMachineIds } from "../dist/domain/machinePriorityHistory.js";
 import { registerDashboardPriorityRoutes } from "../dist/routes/dashboardPriority.js";
 import { enforceWorkstationAccess } from "../dist/security/workstationAccess.js";
 import { enforceAdminAuthorization } from "../dist/security/adminAuthorization.js";
@@ -21,11 +22,11 @@ const login = "priority.e2e." + suffix;
 const token = randomBytes(32).toString("hex");
 const machineId = "priority-e2e-" + suffix;
 let userId, sessionId, createdHistory = [], createdMachines = [];
-let originalPriorityConfig, originalOrders = [];
+let originalPriorityConfig, originalOrders = [], initialExpectedIds = [];
 let app;
 const request = (ids, options = {}, connection = db) =>
   runCentralPriorityOrderWrite(connection, { token, workstationId: stationId,
-    machineIds: ids, requestId: "priority-" + suffix, ipAddress: "127.0.0.1", ...options });
+    machineIds: ids, expectedMachineIds: initialExpectedIds, requestId: "priority-" + suffix, ipAddress: "127.0.0.1", ...options });
 const auditCount = () => db.auditEvent.count({
   where: { action: "priorities.write", resourceType: "priority_order",
     actorUserId: userId, resourceId: "global" },
@@ -61,7 +62,10 @@ try {
     },
   });
   sessionId = session.id;
-  const base = (await db.machine.findMany({ select: { id: true } })).map(m => m.id);
+  const base = sortPriorityMachineIds(await db.machine.findMany({
+    select: { id: true, isActive: true, priorityOrder: true, displayOrder: true },
+  }));
+  initialExpectedIds = [...base];
   const reversed = [...base].reverse();
   const beforeAudit = await auditCount();
 
@@ -84,12 +88,13 @@ try {
     [...originalOrders, { id: machineId, priorityOrder: null }]
       .map(m => [m.id, m.priorityOrder]).sort());
 
-  const results = await Promise.all([
-    request(reversed), request(base, {}, contender),
-  ]);
-  assert.equal(results.length, 2);
-  assert(results.every(r => r.ok && r.lastOrderUpdatedBy === login));
-  assert.equal(await auditCount(), beforeAudit + 2);
+  const changedOrder = reversed.some((id, index) => id !== base[index]);
+  const resultWrite = await request(reversed);
+  assert.equal(resultWrite.ok, true);
+  if (changedOrder) {
+    await assert.rejects(request(base, {}, contender), (e) => e.code === "priority_order_changed");
+  }
+  assert.equal(await auditCount(), beforeAudit + 1);
   createdHistory = await db.machinePriorityHistory.findMany({
     where: { changedBy: login }, select: { id: true },
   });
@@ -116,11 +121,11 @@ try {
   };
   const send = (override = {}) => app.inject({
     method: "PUT", url: "/api/dashboard-priority/order", headers: { ...headers, ...override },
-    payload: { machineIds: reversed },
+    payload: { machineIds: base, expectedMachineIds: reversed },
   });
   const result = await send();
   assert.equal(result.statusCode, 200, result.body);
-  assert.equal(await auditCount(), beforeAudit + 3);
+  assert.equal(await auditCount(), beforeAudit + 2);
   const invalidCsrf = await send({ "x-andon-csrf": "0".repeat(64) });
   assert.equal(invalidCsrf.statusCode, 403);
   const unauthenticated = await send({ cookie: "" });
@@ -133,7 +138,7 @@ try {
   await db.accessSession.update({ where: { id: sessionId },
     data: { revokedAt: new Date() } });
   await assert.rejects(request(base), (e) => e.code === "authentication_required");
-  assert.equal(await auditCount(), beforeAudit + 3);
+  assert.equal(await auditCount(), beforeAudit + 2);
   console.log("SEC-04 priorities PostgreSQL PASS: ACL, scope, 2 clients, rollback, history, HTTP CSRF, gate-off and revocation");
 } finally {
   if (app) await app.close();
