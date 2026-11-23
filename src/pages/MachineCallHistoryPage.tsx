@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  FileWarning,
   History,
   Pencil,
   Save,
@@ -382,13 +381,11 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
     .sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
   const callIds = new Set(machineCalls.map((call) => call.id));
   const failureEventsByCallId = new Map<string, MachineStopEvent[]>();
-  const orphanFailureEvents: MachineStopEvent[] = [];
 
   for (const event of stopHistory) {
-    if (!event.callId || !callIds.has(event.callId)) {
-      orphanFailureEvents.push(event);
-      continue;
-    }
+    // Legacy physical events remain in PostgreSQL and stop-history audit.
+    // The call-history page no longer duplicates them in a warning panel.
+    if (!event.callId || !callIds.has(event.callId)) continue;
     const linkedEvents = failureEventsByCallId.get(event.callId) ?? [];
     linkedEvents.push(event);
     failureEventsByCallId.set(event.callId, linkedEvents);
@@ -1470,26 +1467,6 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
         </div>
       )}
 
-      {orphanFailureEvents.length > 0 && (
-        <section className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-3 md:p-4">
-          <div className="flex items-start gap-2">
-            <FileWarning className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
-            <div>
-              <h2 className="font-black uppercase tracking-wider text-foreground">
-                {ui("Ocorrências de falha sem chamado vinculado")}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {ui(
-                  "Registros legados ou sem vínculo disponível permanecem acessíveis para consulta e edição.",
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {orphanFailureEvents.map((event) => renderFailureEvent(event, true))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
