@@ -16,6 +16,8 @@ import {
 import { toast } from "@/i18n/toast";
 
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
+import { ProductionModeCredentialModal } from "@/components/machines/ProductionModeCredentialModal";
+import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +34,7 @@ import {
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
 import { LOCAL_STORAGE_KEYS } from "@/constants/localStorageKeys";
 import { loadFromStorage } from "@/services/localStorageService";
-import type { Machine } from "@/types/machine";
+import type { Machine, ProductionMode } from "@/types/machine";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
 
@@ -63,6 +65,10 @@ export function DashboardPriorityPage() {
   // Preserve the existing editing flow as the initial section while introducing
   // the five-panel shell. No operational machine state is inferred by this UI.
   const [activeSection, setActiveSection] = useState<PrioritySectionId>("sequence");
+  const [pendingSchedule, setPendingSchedule] = useState<{
+    machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
+  } | null>(null);
+  const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
 
   const currentIds = rows.map((row) => row.id);
   const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
@@ -181,6 +187,52 @@ export function DashboardPriorityPage() {
     setRows([]);
     setSavedIds([]);
     void navigate({ to: returnTo });
+  }
+
+  async function requestScheduleChange(machine: DashboardPriorityMachine) {
+    if (scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
+        !machine.isActive || !machine.productionMode ||
+        access?.centralAccessEnabled !== true) return;
+    if (hasUnsavedChanges) {
+      toast.error(ui("Salve ou descarte as alterações de prioridade antes de alterar a programação."));
+      return;
+    }
+    const operational = access.modules.find((item) => item.id === "operational");
+    if (!operational?.available || !operational.enabled || !operational.allowed ||
+        !access.workstation.allowOperational) {
+      toast.error(ui("A programação exige acesso autorizado ao ANDON operacional."));
+      return;
+    }
+    setScheduleCheckingId(machine.id);
+    try {
+      // The terminal session is checked afresh. The actual write requires a
+      // DIFFERENT credential-verified approver and a backend expected-mode CAS.
+      const state = await accessRequest<AccessState>("/session");
+      const principal = state.principal;
+      const permitted = principal?.purpose === "normal" &&
+        (principal.isPrimaryAdmin === true ||
+          principal.permissions?.includes("production.schedule.request") === true ||
+          principal.permissions?.includes("production.schedule.write") === true) &&
+        (principal.machineScope === "all" ||
+          principal.machineIds?.includes(machine.id) === true) &&
+        (principal.isPrimaryAdmin === true ||
+          principal.permissions?.includes("andon.read") === true);
+      if (!permitted) {
+        toast.error(ui("Você não tem permissão para alterar a programação desta máquina."));
+        return;
+      }
+      // Confirmation is the explicit credential form below. No state is
+      // changed by requesting the form.
+      setPendingSchedule({
+        machineId: machine.id,
+        currentMode: machine.productionMode,
+        requestedMode: machine.productionMode === "scheduled" ? "not_scheduled" : "scheduled",
+      });
+    } catch {
+      toast.error(ui("Não foi possível verificar sua permissão. Tente novamente."));
+    } finally {
+      setScheduleCheckingId(null);
+    }
   }
 
   const session = getStoredDashboardPrioritySession();
@@ -525,6 +577,15 @@ export function DashboardPriorityPage() {
                                 : ui("Horário da alteração indisponível")}
                             </p>
                           </div>
+                          {access?.centralAccessEnabled === true && machine.productionMode && machine.isActive && (
+                            <Button type="button" variant="outline" size="sm"
+                              disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || hasUnsavedChanges}
+                              onClick={() => void requestScheduleChange(machine)}>
+                              {scheduleCheckingId === machine.id ? ui("Verificando permissão...") :
+                                machine.productionMode === "scheduled"
+                                  ? ui("Retirar da programação") : ui("Programar produção")}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -572,6 +633,19 @@ export function DashboardPriorityPage() {
         </div>
       </div>
 
+      {pendingSchedule && (
+        <ProductionModeCredentialModal
+          open
+          machineId={pendingSchedule.machineId}
+          currentMode={pendingSchedule.currentMode}
+          requestedMode={pendingSchedule.requestedMode}
+          onOpenChange={(open) => { if (!open) setPendingSchedule(null); }}
+          onSuccess={() => {
+            toast.success(ui("Programação de produção atualizada com autorização."));
+            void loadOrder();
+          }}
+        />
+      )}
       <DashboardPriorityLoginModal
         open={loginOpen}
         onOpenChange={(open) => {
