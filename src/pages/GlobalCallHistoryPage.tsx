@@ -2,7 +2,7 @@ import { ui, systemMessage, getInterfaceLocale } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
-  CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
+  ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
