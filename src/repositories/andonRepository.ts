@@ -45,6 +45,8 @@ export interface MachineCatalogInput {
 export interface MachineCatalogPatch {
   name?: string;
   requireWorkOrderAtOpen?: boolean;
+  hiddenDirectSectorIds?: string[];
+  expectedSectorVisibilityRevision?: number;
 }
 
 /**
