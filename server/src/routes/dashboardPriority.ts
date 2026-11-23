@@ -23,6 +23,7 @@ const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 6;
 
 class PriorityCatalogChangedError extends Error {}
+class PriorityOrderChangedError extends Error {}
 
 type PrioritySession = {
   username: string;
@@ -38,6 +39,7 @@ type CredentialsBody = {
 
 type OrderBody = {
   machineIds?: unknown;
+  expectedMachineIds?: unknown;
 };
 
 function normalizeUsername(value: unknown) {
@@ -272,6 +274,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           isActive: true,
           priorityOrder: true,
           displayOrder: true,
+          productionMode: true,
         },
       }),
       prisma.dashboardPriorityConfig.findUnique({
@@ -283,6 +286,24 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       }),
     ]);
 
+    // Production mode comes from the authoritative Machine record. Read only
+    // event timestamps for machines already returned by scoped SQL. Missing
+    // or inconsistent events MUST NOT be replaced with Machine.updatedAt.
+    const events = machines.length
+      ? await prisma.machineProductionEvent.findMany({
+          where: {
+            machineId: { in: machines.map((machine) => machine.id) },
+            endedAt: null,
+          },
+          orderBy: { startedAt: "desc" },
+          select: { machineId: true, productionMode: true, startedAt: true },
+        })
+      : [];
+    const currentProductionEvent = new Map<string, { productionMode: string; startedAt: Date }>();
+    for (const event of events)
+      if (!currentProductionEvent.has(event.machineId))
+        currentProductionEvent.set(event.machineId, event);
+
     machines.sort(
       (current, next) =>
         machineOrderValue(current) - machineOrderValue(next) ||
@@ -290,10 +311,46 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     );
 
     return {
-      machines,
+      machines: machines.map((machine) => ({
+        ...machine,
+        productionMode: machine.productionMode === "scheduled" || machine.productionMode === "not_scheduled"
+          ? machine.productionMode : null,
+        productionModeChangedAt:
+          currentProductionEvent.get(machine.id)?.productionMode === machine.productionMode
+            ? currentProductionEvent.get(machine.id)?.startedAt.toISOString() ?? null
+            : null,
+      })),
       // Global change attribution must not leak activity on inaccessible assets.
       lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
       lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
+    };
+  });
+
+  app.get("/api/dashboard-priority/history", async (request, reply) => {
+    // Only requests bound by the validated central workstation hook can
+    // resolve a machine scope. Legacy access requires its own Priority session.
+    const allowedIds = scopedMachineReadIds(request);
+    if (!centralAccessEnabled()) {
+      const auth = await getPrioritySession(request, reply);
+      if (!auth) return;
+    }
+    const records = await prisma.machinePriorityHistory.findMany({
+      where: allowedIds === null ? undefined : { machineId: { in: [...allowedIds] } },
+      select: {
+        id: true, machineId: true, changedAt: true, changedBy: true,
+        previousOrder: true, newOrder: true,
+        previousPriorityRank: true, newPriorityRank: true,
+      },
+      orderBy: [{ changedAt: "desc" }, { id: "desc" }],
+      take: 101,
+    });
+    return {
+      entries: records.slice(0, 100).map((entry) => ({
+        ...entry,
+        // Do not disclose global editor attribution to a selected-scope reader.
+        changedBy: allowedIds === null ? entry.changedBy : null,
+      })),
+      truncated: records.length > 100,
     };
   });
 
@@ -306,6 +363,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           token: readSecureCookie(request, ACCESS_COOKIE),
           workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
           machineIds: request.body?.machineIds,
+          expectedMachineIds: request.body?.expectedMachineIds,
           requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
         });
       } catch (error) {
@@ -322,6 +380,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     }
 
     const machineIds = request.body.machineIds;
+    const expectedMachineIds = request.body.expectedMachineIds;
+    if (!Array.isArray(expectedMachineIds) || expectedMachineIds.length > 1000 ||
+        expectedMachineIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 120) ||
+        new Set(expectedMachineIds).size !== expectedMachineIds.length)
+      return badRequest(reply, "Informe a sequência original para verificar edições concorrentes.");
     if (
       machineIds.some((id) => typeof id !== "string" || !id.trim()) ||
       new Set(machineIds).size !== machineIds.length
@@ -358,6 +421,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           currentMachines.map((machine) => [machine.id, machine]),
         );
         const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+        if (expectedMachineIds.length !== previousSnapshot.orderedIds.length ||
+            expectedMachineIds.some((id, index) => id !== previousSnapshot.orderedIds[index]))
+          throw new PriorityOrderChangedError(
+            "A sequência foi alterada em outra estação. Recarregue antes de salvar.",
+          );
         const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
         const priorityChanges = diffPrioritySnapshots(
           normalizedIds,
@@ -414,6 +482,8 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
         lastOrderUpdatedBy: result.updatedBy,
       };
     } catch (error) {
+      if (error instanceof PriorityOrderChangedError)
+        return reply.status(409).send({ error: "priority_order_changed", message: error.message });
       if (error instanceof PriorityCatalogChangedError) {
         return reply.status(409).send({
           error: "priority_machine_catalog_changed",

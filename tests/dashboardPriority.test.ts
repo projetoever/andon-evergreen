@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AndonCall } from "../src/types/andon";
 import type { Machine } from "../src/types/machine";
+import { reorderVisiblePriorityIds } from "../src/utils/priorityFilteredOrder";
 import {
   compareByProductionPriority,
   getDashboardPriority,
@@ -217,4 +218,16 @@ test("prioridade visual não altera estado operacional da máquina", () => {
   splitMachinesByProductionPriority([machine], [createCall("call-9", "9", "open")]);
 
   assert.deepEqual(machine, before);
+});
+
+test("PENTE2: filtro não move posições ocultas no universo completo", () => {
+  const all = ["A", "H1", "B", "H2", "C"];
+  const visible = ["A", "B", "C"];
+  assert.deepEqual(reorderVisiblePriorityIds(all, visible, "C", "A"),
+    ["C", "H1", "A", "H2", "B"]);
+  assert.deepEqual(reorderVisiblePriorityIds(all, visible, "A", "C"),
+    ["B", "H1", "C", "H2", "A"]);
+  assert.deepEqual(reorderVisiblePriorityIds(all, visible, "H1", "A"), all);
+  assert.deepEqual(reorderVisiblePriorityIds(all, ["A", "A"], "A", "C"), all);
+  assert.deepEqual(reorderVisiblePriorityIds(all, ["A", "missing"], "A", "missing"), all);
 });

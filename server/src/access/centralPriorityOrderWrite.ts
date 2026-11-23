@@ -15,7 +15,7 @@ import { AccessError, assertFullMachineScope, assertModule, assertPermission } f
  */
 export async function runCentralPriorityOrderWrite(
   db: Pick<PrismaClient, "$transaction">,
-  input: { token: string; workstationId: string; machineIds: unknown;
+  input: { token: string; workstationId: string; machineIds: unknown; expectedMachineIds: unknown;
     ipAddress?: string; requestId?: string },
 ) {
   if (!/^[a-f0-9]{64}$/.test(input.token))
@@ -26,6 +26,12 @@ export async function runCentralPriorityOrderWrite(
       new Set(input.machineIds).size !== input.machineIds.length)
     throw new AccessError("priority_order_invalid", 400);
   const machineIds: string[] = input.machineIds;
+  if (!Array.isArray(input.expectedMachineIds) ||
+      input.expectedMachineIds.length > 1000 ||
+      input.expectedMachineIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 120) ||
+      new Set(input.expectedMachineIds).size !== input.expectedMachineIds.length)
+    throw new AccessError("priority_expected_order_required", 400);
+  const expectedMachineIds: string[] = input.expectedMachineIds;
   return db.$transaction(async (tx: Prisma.TransactionClient) => {
     const session = await tx.accessSession.findUnique({
       where: { tokenHash: tokenHash(input.token) }, select: { userId: true },
@@ -59,6 +65,9 @@ export async function runCentralPriorityOrderWrite(
         machineIds.some((id) => !currentById.has(id)))
       throw new AccessError("priority_machine_catalog_changed", 409);
     const before = buildCurrentPrioritySnapshot(current);
+    if (expectedMachineIds.length !== before.orderedIds.length ||
+        expectedMachineIds.some((id, index) => id !== before.orderedIds[index]))
+      throw new AccessError("priority_order_changed", 409);
     const after = buildPrioritySnapshot(machineIds, currentById);
     const changes = diffPrioritySnapshots(machineIds, before, after);
     const now = new Date();

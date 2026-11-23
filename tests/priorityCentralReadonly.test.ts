@@ -4,12 +4,12 @@ import { readFile } from "node:fs/promises";
 
 test("central priority editor remains read-only while writes are denied", async () => {
   const page = await readFile(new URL("../src/pages/DashboardPriorityPage.tsx", import.meta.url), "utf8");
-  assert.match(page, /centralReadOnly = access\?\.centralAccessEnabled === true/);
+  assert.match(page, /centralReadOnly = !access \|\| \(access\.centralAccessEnabled === true/);
   assert.match(page, /draggable=\{!centralReadOnly\}/);
-  assert.match(page, /if \(centralReadOnly\) return/);
+  assert.match(page, /if \(centralReadOnly \|\| isSaving\) return/);
   assert.match(page, /if \(centralReadOnly \|\| !hasUnsavedChanges \|\| isSaving\) return/);
-  assert.match(page, /disabled=\{centralReadOnly \|\| index === 0\}/);
-  assert.match(page, /disabled=\{centralReadOnly \|\| index === rows.length - 1\}/);
+  assert.match(page, /disabled=\{centralReadOnly \|\| isSaving \|\| index === 0\}/);
+  assert.match(page, /disabled=\{centralReadOnly \|\| isSaving \|\| index === visibleRows.length - 1\}/);
   assert.match(page, /!centralReadOnly && <div className="sticky/);
 });
 test("priority GET requires bound central principal before waiving legacy password", async () => {

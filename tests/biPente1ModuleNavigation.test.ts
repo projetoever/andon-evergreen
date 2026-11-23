@@ -40,13 +40,12 @@ test("PENTE 1: only explicitly authorized, available and enabled modules get nav
   assert.doesNotMatch(nav, /principal\.roleLabel|isPrimaryAdmin/);
 });
 
-test("PENTE 1: other pages retain existing navigation until their own refinement", async () => {
+test("PENTE 1: operational dashboard stays unchanged, while PENTE 2 opts into links", async () => {
   const [priorities, dashboard] = await Promise.all([
     src("pages/DashboardPriorityPage.tsx"),
     src("pages/DashboardPage.tsx"),
   ]);
-  assert.match(priorities, /<ModuleNavigation\s*\/>/);
+  assert.match(priorities, /<ModuleNavigation showModuleLinks\s*\/>/);
   assert.match(dashboard, /<ModuleNavigation\s*\/>/);
-  assert.doesNotMatch(priorities, /<ModuleNavigation showModuleLinks/);
   assert.doesNotMatch(dashboard, /<ModuleNavigation showModuleLinks/);
 });

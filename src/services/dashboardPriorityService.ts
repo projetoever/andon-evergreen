@@ -1,6 +1,6 @@
 import { createAndonApiClient } from "@/api/andonApiClient";
 import { CONFIGURED_DATA_MODE } from "@/config/dataMode";
-import type { Machine } from "@/types/machine";
+import type { Machine, ProductionMode } from "@/types/machine";
 import { getCurrentWorkstationId } from "./workstationIdentityService";
 
 const apiClient = createAndonApiClient();
@@ -36,6 +36,24 @@ export interface DashboardPriorityMachine {
   isActive: boolean;
   priorityOrder: number | null;
   displayOrder: number | null;
+  productionMode: ProductionMode | null;
+  productionModeChangedAt: string | null;
+}
+
+export interface DashboardPriorityAuditEntry {
+  id: string;
+  machineId: string;
+  changedAt: string;
+  changedBy: string | null;
+  previousOrder: number | null;
+  newOrder: number | null;
+  previousPriorityRank: number | null;
+  newPriorityRank: number | null;
+}
+
+export interface DashboardPriorityAuditSnapshot {
+  entries: DashboardPriorityAuditEntry[];
+  truncated: boolean;
 }
 
 export interface DashboardPriorityOrderSnapshot {
@@ -90,6 +108,8 @@ function sortPriorityMachines(machines: Machine[], orderIds: string[] = []) {
       isActive: machine.isActive,
       priorityOrder: explicitOrder.get(machine.id) ?? machine.priorityOrder ?? null,
       displayOrder: machine.displayOrder ?? null,
+      productionMode: machine.productionMode === "scheduled" || machine.productionMode === "not_scheduled" ? machine.productionMode : null,
+      productionModeChangedAt: machine.productionModeChangedAt ?? null,
     }))
     .sort((current, next) => {
       const currentOrder =
@@ -228,7 +248,7 @@ export async function getDashboardPriorityOrder(
   });
 }
 
-export async function saveDashboardPriorityOrder(machineIds: string[]) {
+export async function saveDashboardPriorityOrder(machineIds: string[], expectedMachineIds: string[]) {
   const session = readSession();
 
   if (CONFIGURED_DATA_MODE === "local") {
@@ -257,10 +277,23 @@ export async function saveDashboardPriorityOrder(machineIds: string[]) {
     lastOrderUpdatedBy: string;
   }>("/api/dashboard-priority/order", {
     method: "PUT",
-    body: JSON.stringify({ machineIds }),
+    body: JSON.stringify({ machineIds, expectedMachineIds }),
     headers: {
       "Content-Type": "application/json",
       ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
     },
+  });
+}
+
+export async function getDashboardPriorityHistory(): Promise<DashboardPriorityAuditSnapshot> {
+  const session = readSession();
+  if (CONFIGURED_DATA_MODE === "local") {
+    if (localPasswordRequired && !session) throw new Error("Sessão de prioridades necessária.");
+    // Offline/local simulation has no verified server audit records.
+    return { entries: [], truncated: false };
+  }
+  return apiClient.request<DashboardPriorityAuditSnapshot>("/api/dashboard-priority/history", {
+    method: "GET",
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   });
 }

@@ -48,6 +48,7 @@ test("BI requires filtered aggregates and priority edits differ from reads", () 
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/overview?period=week")?.scope, "aggregate_filter");
   assert.equal(classifyCentralRouteAction("GET", "/api/analytics/filter-options")?.scope, "collection_filter");
   assert.equal(classifyCentralRouteAction("GET", "/api/dashboard-priority/order")?.permission, "priorities.read");
+  assert.equal(classifyCentralRouteAction("GET", "/api/dashboard-priority/history")?.permission, "priorities.read");
   assert.equal(classifyCentralRouteAction("PUT", "/api/dashboard-priority/order")?.permission, "priorities.write");
 });
 

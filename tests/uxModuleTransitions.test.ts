@@ -57,7 +57,8 @@ test("UX-07: BI and Priorities skeletons do not confuse empty, loading and failu
   assert.match(bi, /role="status"/);
   assert.match(priorities, /isLoading \? \(/);
   assert.match(priorities, /loadingError \? \(/);
-  assert.match(priorities, /rows\.length === 0 \? \(/);
+  assert.match(priorities, /visibleRows\.length === 0 \? \(/);
+  assert.match(priorities, /rows\.length === 0 \? ui/);
   assert.match(priorities, /onClick=\{\(\) => void loadOrder\(\)\}/);
 });
 

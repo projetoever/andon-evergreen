@@ -27,6 +27,7 @@ export function isScopedMachineReadRoute(method: string, pathname: string) {
     pathname === "/api/andon-calls/history/export" ||
     /^\/api\/andon-calls\/history\/detail\/[A-Za-z0-9_-]{1,160}$/.test(pathname) ||
     pathname === "/api/dashboard-priority/order" ||
+    pathname === "/api/dashboard-priority/history" ||
     pathname === "/api/analytics/filter-options" ||
     pathname === "/api/analytics/overview" ||
     pathname === "/api/analytics/maintenance" ||
