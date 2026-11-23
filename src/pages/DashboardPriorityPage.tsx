@@ -16,6 +16,7 @@ import {
 import { toast } from "@/i18n/toast";
 
 import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
+import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
@@ -59,6 +60,9 @@ export function DashboardPriorityPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Preserve the existing editing flow as the initial section while introducing
+  // the five-panel shell. No operational machine state is inferred by this UI.
+  const [activeSection, setActiveSection] = useState<PrioritySectionId>("sequence");
 
   const currentIds = rows.map((row) => row.id);
   const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
@@ -213,7 +217,7 @@ export function DashboardPriorityPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <LanguageSelector compact />
-            <ModuleNavigation />
+            <ModuleNavigation showModuleLinks />
             {session?.username && (
               <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">
                 {session.username}
@@ -228,7 +232,21 @@ export function DashboardPriorityPage() {
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <PrioritySectionNav activeSection={activeSection} onSectionChange={setActiveSection} />
+          <main id="priority-main" className="min-w-0 space-y-4">
+            {hasUnsavedChanges && activeSection !== "sequence" && (
+              <div role="status" className="rounded-lg border border-border bg-card p-3 text-sm">
+                <p>{ui("Existem alterações de prioridade não salvas.")}</p>
+                <Button type="button" variant="outline" className="mt-2"
+                  onClick={() => setActiveSection("sequence")}>
+                  {ui("Voltar para a sequência")}
+                </Button>
+              </div>
+            )}
+            {activeSection === "sequence" && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
           <span>
             {rows.length}
             {ui(" máquina(s) na sequência · ")}
@@ -400,6 +418,101 @@ export function DashboardPriorityPage() {
             </Button>
           </div>
         </div>}
+              </>
+            )}
+
+            {activeSection === "overview" && (
+              <section className="space-y-4" aria-label={ui("Visão Geral")}>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <p className="text-sm text-muted-foreground">{ui("Máquinas na sequência")}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">{rows.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <p className="text-sm text-muted-foreground">{ui("Máquinas ativas")}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">
+                      {rows.filter((machine) => machine.isActive).length}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <p className="text-sm text-muted-foreground">{ui("Máquinas inativas")}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">
+                      {rows.filter((machine) => !machine.isActive).length}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <h2 className="mb-3 text-base font-bold">{ui("Cinco primeiras máquinas ativas")}</h2>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    {ui("O destaque P1–P5 é determinado pela ordem das máquinas ativas, não pela programação de produção.")}
+                  </p>
+                  {isLoading ? (
+                    <p role="status">{ui("Carregando sequência...")}</p>
+                  ) : loadingError ? (
+                    <p role="alert" className="text-danger">{loadingError}</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {rows.filter((machine) => machine.isActive).slice(0, 5).map((machine) => (
+                        <li key={machine.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm">
+                          <span className="font-bold text-primary">P{activePriorityRanks.get(machine.id)}</span>
+                          <span className="min-w-0 flex-1 font-semibold">{machine.name}</span>
+                          <span className="font-mono text-xs text-muted-foreground">ID {machine.id}</span>
+                        </li>
+                      ))}
+                      {!rows.some((machine) => machine.isActive) && (
+                        <li className="text-sm text-muted-foreground">{ui("Nenhuma máquina ativa na sequência.")}</li>
+                      )}
+                    </ol>
+                  )}
+                </div>
+                <Button type="button" variant="outline" onClick={() => setActiveSection("sequence")}>
+                  {ui("Abrir sequência de prioridades")}
+                </Button>
+              </section>
+            )}
+
+            {activeSection === "production" && (
+              <section className="rounded-xl border border-border bg-card p-5"
+                aria-label={ui("Produção Programada")}>
+                <h2 className="text-base font-bold">{ui("Produção Programada")}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {ui("A leitura oficial da programação por máquina será integrada em lote separado, com escopo e permissões validados. Nenhuma alteração de programação é oferecida nesta etapa.")}
+                </p>
+              </section>
+            )}
+
+            {activeSection === "history" && (
+              <section className="rounded-xl border border-border bg-card p-5"
+                aria-label={ui("Histórico e Auditoria")}>
+                <h2 className="text-base font-bold">{ui("Última alteração da sequência")}</h2>
+                <p className="mt-3 text-sm">
+                  {lastOrderUpdatedAt
+                    ? ui("Última atualização: {0}{1}", {
+                        0: formatDateTime(lastOrderUpdatedAt),
+                        1: lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : "",
+                      })
+                    : ui("Sequência ainda não salva manualmente")}
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {ui("Este resumo não é o histórico completo de auditoria. O detalhamento auditável será disponibilizado após validação dos acessos.")}
+                </p>
+              </section>
+            )}
+
+            {activeSection === "help" && (
+              <section className="space-y-3 rounded-xl border border-border bg-card p-5"
+                aria-label={ui("Ajuda e Orientações")}>
+                <h2 className="text-base font-bold">{ui("Como interpretar as prioridades")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {ui("Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {ui("Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.")}
+                </p>
+              </section>
+            )}
+          </main>
+        </div>
       </div>
 
       <DashboardPriorityLoginModal
