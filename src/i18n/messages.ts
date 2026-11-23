@@ -1,6 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Dados de alteração global ocultos para este escopo de máquinas.","Global change information is hidden for this machine scope.","此機台存取範圍不顯示全域變更資訊。"],
   ["Sequência de Prioridades","Priority Sequence","優先順序"],
   ["Histórico e Auditoria","History and Audit","歷史與稽核"],
   ["Ajuda e Orientações","Help and Guidance","說明與指引"],
