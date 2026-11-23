@@ -2,7 +2,7 @@ import { ui, systemMessage, getInterfaceLocale } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
-  ArrowLeft, CalendarDays, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
+  ArrowLeft, CalendarDays, ChevronDown, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -42,6 +42,12 @@ const STATUS_LABELS: Record<string, string> = {
   post_maintenance: "Em acompanhamento",
   finished: "Finalizado",
   cancelled: "Cancelado",
+};
+const CRITICALITY_LABELS: Record<string, string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  critical: "Crítica",
 };
 const STATUS_VALUES = [
   ["all", "Todos os status"],
@@ -179,6 +185,7 @@ export function GlobalCallHistoryPage() {
   const [detailError, setDetailError] = useState("");
 
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   // A machine-history deep link only preselects a filter: the existing
   // server-scoped history query remains the sole authority over results.
@@ -422,10 +429,20 @@ export function GlobalCallHistoryPage() {
             className={`min-w-0 rounded-xl border border-border bg-card ${mobileDetail ? "hidden lg:flex" : "flex"} flex-col overflow-hidden`}
           >
             <div className="border-b border-border px-4 py-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
-                <Filter className="h-4 w-4 text-primary" />{ui("Filtros e ocorrências")}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-bold">
+                  <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+                  {ui("Filtros e ocorrências")}
+                </span>
+                <Button type="button" size="sm" variant="ghost"
+                  aria-expanded={filtersExpanded} aria-controls="global-history-filters"
+                  onClick={() => setFiltersExpanded(value => !value)}>
+                  {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
+                  <ChevronDown aria-hidden="true" className={`ml-1 h-4 w-4 transition-transform ${filtersExpanded ? "rotate-180" : ""}`} />
+                </Button>
               </div>
-              <form onSubmit={submit} className="space-y-3">
+              <div id="global-history-filters" className={filtersExpanded ? "" : "hidden"}>
+                <form onSubmit={submit} className="space-y-3">
                 <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
                   <span>{ui("Buscar OS, chamado, falha ou descrição")}</span>
                   <div className="relative">
@@ -554,8 +571,9 @@ export function GlobalCallHistoryPage() {
                   </Button>
                   <Button type="button" variant="outline" onClick={reset}>{ui("Limpar")}</Button>
                 </div>
-              </form>
-              {machineError && <p role="alert" className="mt-2 text-xs text-danger">{machineError}</p>}
+                </form>
+                {machineError && <p role="alert" className="mt-2 text-xs text-danger">{machineError}</p>}
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs text-muted-foreground">
               <span className="font-bold">{applied.sort === "updated" ? ui("Chamados por última movimentação") :
@@ -569,7 +587,7 @@ export function GlobalCallHistoryPage() {
                 <p role="status" className="p-4 text-sm text-muted-foreground">{ui("Nenhum chamado encontrado para esses filtros.")}</p>
               )}
               {!loading && !error && result?.items.map(call=>(
-                <button key={call.id} type="button" aria-current={selectedId===call.id ? "true" : undefined}
+                <button key={call.id} type="button" aria-pressed={selectedId===call.id}
                   onClick={() => {setSelectedId(call.id);setMobileDetail(true);}}
                   className={`w-full space-y-2 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedId===call.id ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted/50"}`}>
                   <span className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
@@ -577,7 +595,19 @@ export function GlobalCallHistoryPage() {
                     <span className="text-muted-foreground">{ui(STATUS_LABELS[call.status] || call.status)}</span>
                   </span>
                   <span className="block break-words text-sm font-bold">{call.machine?.name || call.machineId} · {call.callReasonSnapshot?.optionNameSnapshot || call.subtype || call.category}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{ui("OS")} {call.workOrderNumber || "—"} · {call.failureClassification || ui("Sem classificação")}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{ui("OS")} {call.workOrderNumber || "—"}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{ui("Criticidade")}: {ui(CRITICALITY_LABELS[call.criticality] || call.criticality)}</span>
+                  </span>
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{call.isSystemTest ? ui("Teste do sistema") : ui("Chamado real")}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="min-w-0 truncate">{call.technicianNames?.join(", ") || call.technicianName || ui("Sem mantenedor")}</span>
+                  </span>
+                  <span className="block truncate text-[11px] text-muted-foreground" title={call.id}>
+                    {ui("ID")}: {call.id}
+                  </span>
                 </button>
               ))}
             </div>
