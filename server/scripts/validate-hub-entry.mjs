@@ -105,7 +105,10 @@ export async function validateHubEntry({ request, json, prisma, ids, adminAuthor
     });
     const order = await request("/api/dashboard-priority/order", { headers });
     const saved = await request("/api/dashboard-priority/order", {
-      ...json("PUT", { machineIds: order.machines.map((item) => item.id) }),
+      ...json("PUT", {
+        machineIds: order.machines.map((item) => item.id),
+        expectedMachineIds: order.machines.map((item) => item.id),
+      }),
       headers,
     });
     assert.equal(saved.lastOrderUpdatedBy, `workstation:${ids.workstation}`);
