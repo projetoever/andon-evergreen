@@ -12,7 +12,7 @@ import {
   formatMachineStoppedDurationMinutes,
 } from "../src/utils/durationUtils";
 
-test("unifica chamados, falhas vinculadas e ocorrências órfãs por máquina", async () => {
+test("histórico de chamados mostra falhas vinculadas sem expor painel legado duplicado", async () => {
   const history = await readFile(
     new URL("../src/pages/MachineCallHistoryPage.tsx", import.meta.url),
     "utf8",
@@ -29,12 +29,9 @@ test("unifica chamados, falhas vinculadas e ocorrências órfãs por máquina", 
     /linkedFailureEvents\.map\(\(event\) => renderFailureEvent\(event, false\)\)/,
   );
   assert.match(history, /!event\.callId \|\| !callIds\.has\(event\.callId\)/);
-  assert.match(history, /orphanFailureEvents\.push\(event\)/);
-  assert.match(history, /Ocorrências de falha sem chamado vinculado/);
-  assert.match(
-    history,
-    /orphanFailureEvents\.map\(\(event\) => renderFailureEvent\(event, true\)\)/,
-  );
+  assert.doesNotMatch(history, /orphanFailureEvents/);
+  assert.doesNotMatch(history, /Ocorrências de falha sem chamado vinculado/);
+  assert.match(history, /Legacy physical events remain in PostgreSQL/);
   assert.match(history, /new Date\(b\.stoppedAt\).*new Date\(a\.stoppedAt\)/s);
 });
 
