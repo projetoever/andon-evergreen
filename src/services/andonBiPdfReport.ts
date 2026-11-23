@@ -430,7 +430,7 @@ export function buildExecutiveReportHtml({
       ${tile(ui("MTTA"), minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
       ${tile(ui("MTTR restabelecimento"), overview.production?.resolvedMttrMinutes == null ? ui("Sem amostra") : minutes(overview.production.resolvedMttrMinutes), overview.production && overview.production.resolvedMttrMinutes === null ? explainMissingMttr(overview.production) : ui("{0} episódio(s) de manutenção encerrado(s)", { 0: overview.production?.resolvedEpisodes ?? 0 }), "blue")}
       ${tile(ui("Tempo de parada"), minutes(k.downtimeMinutes), ui("{0} episódio(s) unido(s), inclusive fora da programação", { 0: k.physicalStopEpisodes }), "red")}
-      ${tile(ui("Taxa de retorno"), percentage(k.maintenanceReturnRatePercent), ui("{0} de {1} finalizados de manutenção retornaram", { 0: k.returnedCalls, 1: k.maintenanceEligibleFinishedCalls ?? 0 }), "red")}
+      ${tile(ui("Taxa de retorno"), k.maintenanceReturnRatePercent == null ? ui("Sem amostra") : percentage(k.maintenanceReturnRatePercent), ui("{0} de {1} finalizados de manutenção retornaram", { 0: k.returnedCalls, 1: k.maintenanceEligibleFinishedCalls ?? 0 }), "red")}
     </div>
 
     ${
