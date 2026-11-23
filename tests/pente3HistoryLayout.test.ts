@@ -33,3 +33,13 @@ test("PENTE 3-B: new labels exist in all three supported languages", () => {
     for (const locale of ["en", "zh-TW"] as const)
       assert.notEqual(translateLabel(locale, key), key);
 });
+
+test("PENTE 3-B: layout does not replace authorized search, scoped summary or CSV flows", async () => {
+  const page = await src("pages/GlobalCallHistoryPage.tsx");
+  assert.match(page, /searchGlobalHistory\(applied, offset\)/);
+  assert.match(page, /getGlobalHistorySummary\(applied\)/);
+  assert.match(page, /getAuditedGlobalHistoryExport\(requested\)/);
+  assert.match(page, /downloadGlobalHistoryPageCsv\(result\.items\)/);
+  assert.match(page, /machineId: machineContextLocked \? requestedMachineId : draft\.machineId/);
+  assert.match(page, /<GlobalHistoryDetailSections call=\{detail\}\s*\/>/);
+});
