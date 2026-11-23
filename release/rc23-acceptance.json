@@ -126,5 +126,10 @@
     "status": "pending",
     "evidence": [],
     "notes": "Somente operador pode confirmar a homologação física; CI e Health não substituem esta etapa."
+  },
+  "reportAuthorization": {
+    "status": "pending",
+    "evidence": [],
+    "notes": "RELAT 1, PDF gerencial, WhatsApp e e-mail somente após aceite do Histórico Global e OK explícito do operador."
   }
 }
