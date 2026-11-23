@@ -465,6 +465,23 @@ function Stop-AndonRuntime {
     }
 }
 
+# Pure classifiers: health is observational, never changes ports or scheduled tasks.
+function Get-AndonPortProbeAssessment {
+    param([bool]$ListenerDetected, [bool]$EndpointResponding)
+    if ($ListenerDetected) { return "LISTENER_DETECTED" }
+    if ($EndpointResponding) { return "ENDPOINT_OK_LISTENER_SNAPSHOT_INCONCLUSIVE" }
+    return "SERVICE_NOT_CONFIRMED"
+}
+
+function Get-AndonBootReadiness {
+    param([object[]]$Tasks = @(), [string]$BootTaskName)
+    $boot = @($Tasks | Where-Object { "$($_.TaskName)" -eq $BootTaskName } |
+        Select-Object -First 1)
+    if ($boot.Count -eq 0) { return "BOOT_TASK_MISSING" }
+    if ("$($boot[0].State)" -eq "Disabled") { return "BOOT_DISABLED" }
+    return "BOOT_CONFIGURED_REBOOT_NOT_TESTED"
+}
+
 function Invoke-AndonHealthCheck {
     param([switch]$Full, [switch]$ReadOnly)
 
@@ -533,11 +550,14 @@ function Invoke-AndonHealthCheck {
     Write-Host ("Tempo da validacao PostgreSQL/Docker: {0} ms" -f $stageClock.ElapsedMilliseconds)
     $stageClock.Restart()
 
+    $portListenerSnapshots = @{}
     foreach ($port in @($config.apiPort, $config.frontendPort, $config.postgresPort)) {
-        if (Test-AndonPortInUse ([int]$port)) {
+        $listener = [bool](Test-AndonPortInUse ([int]$port))
+        $portListenerSnapshots["$port"] = $listener
+        if ($listener) {
             Write-AndonOk "Porta $port em uso."
         } else {
-            Write-AndonWarn "Porta $port sem listener."
+            Write-AndonWarn "Porta $port: listener nao identificado nesta sondagem Windows; conferir servico por HTTPS/DB."
         }
     }
 
@@ -545,6 +565,8 @@ function Invoke-AndonHealthCheck {
     $stageClock.Restart()
 
     $api = Get-AndonApiBaseUrl
+    $apiHealthVerified = $false
+    $databaseHealthVerified = $false
     foreach ($url in @("$api/health", "$api/health/db", "$api/health/ready")) {
         $probeTimer = [System.Diagnostics.Stopwatch]::StartNew()
         try {
@@ -552,6 +574,8 @@ function Invoke-AndonHealthCheck {
             if ($url -like "*/health/db" -and $health.connected -ne $true) { throw "Banco desconectado." }
             if ($url -like "*/health/ready" -and ($health.status -ne "ok" -or $health.ready -ne $true)) { throw "Schema indisponivel." }
             $probeTimer.Stop()
+            if ($url -like "*/health") { $apiHealthVerified = $true }
+            if ($url -like "*/health/db") { $databaseHealthVerified = $true }
             Write-AndonOk "$url | $($probeTimer.ElapsedMilliseconds) ms"
             if ($url -like "*/health") {
                 $expectedApiCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
@@ -578,6 +602,13 @@ function Invoke-AndonHealthCheck {
         }
     }
 
+    if ((Get-AndonPortProbeAssessment -ListenerDetected ([bool]$portListenerSnapshots["$($config.apiPort)"]) -EndpointResponding $apiHealthVerified) -eq "ENDPOINT_OK_LISTENER_SNAPSHOT_INCONCLUSIVE") {
+        Write-AndonWarn "Porta $($config.apiPort): HTTPS respondeu; sondagem de listener Windows inconclusiva, nao interpretar como API parada."
+    }
+    if ($config.databaseMode -eq "docker" -and
+        (Get-AndonPortProbeAssessment -ListenerDetected ([bool]$portListenerSnapshots["$($config.postgresPort)"]) -EndpointResponding $databaseHealthVerified) -eq "ENDPOINT_OK_LISTENER_SNAPSHOT_INCONCLUSIVE") {
+        Write-AndonWarn "Porta $($config.postgresPort): banco respondeu pela API; sondagem do listener Docker/Windows inconclusiva."
+    }
     Write-Host ("Tempo das sondagens API HTTPS: {0} ms" -f $stageClock.ElapsedMilliseconds)
     $stageClock.Restart()
 
@@ -595,6 +626,9 @@ function Invoke-AndonHealthCheck {
     }
 
     if ($frontendReady) {
+        if ((Get-AndonPortProbeAssessment -ListenerDetected ([bool]$portListenerSnapshots["$($config.frontendPort)"]) -EndpointResponding $true) -eq "ENDPOINT_OK_LISTENER_SNAPSHOT_INCONCLUSIVE") {
+            Write-AndonWarn "Porta $($config.frontendPort): frontend HTTPS respondeu; sondagem de listener Windows inconclusiva."
+        }
         Write-AndonOk "Frontend $(Get-AndonFrontendUrl) | $($frontendTimer.ElapsedMilliseconds) ms (primeira resposta)"
         $expectedFrontendCommit = "$($config.installedCommit)".Trim().ToLowerInvariant()
         $liveFrontendCommit = Get-AndonFrontendLiveCommit
@@ -626,11 +660,26 @@ function Invoke-AndonHealthCheck {
     } else {
         Write-AndonWarn "Nenhuma tarefa ANDON encontrada."
     }
-
+    $bootReadiness = Get-AndonBootReadiness -Tasks @($tasks) -BootTaskName $Global:AndonTaskBoot
+    switch ($bootReadiness) {
+        "BOOT_DISABLED" {
+            Write-AndonWarn "Boot Servicos desabilitado: API/frontend vivos AGORA, mas reinicio automatico apos reboot NAO garantido. Confirmar se foi escolha intencional; somente a opcao 9 altera essa politica."
+        }
+        "BOOT_TASK_MISSING" {
+            Write-AndonWarn "Tarefa Boot Servicos ausente: reinicio automatico apos reboot NAO garantido. Revisar instalador antes de alterar tarefas."
+        }
+        default {
+            Write-AndonOk "Tarefa Boot configurada; recuperacao efetiva apos reboot ainda exige teste operacional."
+        }
+    }
+    $kioskTask = @($tasks | Where-Object { "$($_.TaskName)" -eq "$Global:AndonTaskKiosk" } |
+        Select-Object -First 1)
     if (Test-AndonKioskVisible) {
         Write-AndonOk "Chrome Kiosk detectado."
+    } elseif ($kioskTask.Count -eq 0 -or "$($kioskTask[0].State)" -eq "Disabled") {
+        Write-AndonWarn "Chrome Kiosk nao detectado; tarefa ausente/desabilitada (pode ser intencional). Validar somente se o kiosk for exigido neste perfil."
     } else {
-        Write-AndonWarn "Chrome Kiosk nao detectado."
+        Write-AndonWarn "Chrome Kiosk nao detectado, apesar da tarefa habilitada: conferir sessao Windows do usuario e inicializacao."
     }
 
     Write-Host ("Tempo das tarefas/Chrome kiosk: {0} ms" -f $stageClock.ElapsedMilliseconds)
