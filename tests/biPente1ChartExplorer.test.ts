@@ -16,6 +16,7 @@ test("PENTE1: chart explorer uses accessible dialog, focus controls, table and l
     'event.key === " "',
     "<DialogTitle",
     "<DialogDescription",
+    "onCloseAutoFocus",
     "validRows",
     "highest",
     "lowest",
@@ -55,6 +56,8 @@ test("PENTE1: overview and temporal chart surfaces open focus with original auth
   assert.match(temporal, /setHeatmapOpen\(true\)/);
   assert.match(temporal, /<Dialog open=\{heatmapOpen\}/);
   assert.match(temporal, /aria-pressed=\{chosen\}/);
+  assert.match(temporal, /heatmapExpandRef/);
+  assert.match(temporal, /onCloseAutoFocus/);
   assert.doesNotMatch(overview, /\.update\(|\.delete\(|\.create\(/);
 });
 
