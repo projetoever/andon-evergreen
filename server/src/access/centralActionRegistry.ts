@@ -105,6 +105,7 @@ export const CENTRAL_ROUTE_ACTIONS: readonly CentralRouteAction[] = [
   { method: "PATCH", route: "/api/andon-calls/:id/failure-details", permission: "diagnosis.edit", scope: "machine_from_call_record", module: "operational" },
 
   { method: "GET", route: "/api/dashboard-priority/order", permission: "priorities.read", scope: "collection_filter", module: "priorities" },
+  { method: "GET", route: "/api/dashboard-priority/history", permission: "priorities.read", scope: "collection_filter", module: "priorities" },
   { method: "PUT", route: "/api/dashboard-priority/order", permission: "priorities.write", scope: "machines_from_body", module: "priorities" },
 
   { method: "GET", route: "/api/analytics/filter-options", permission: "bi.read", scope: "collection_filter", module: "bi" },
