@@ -105,6 +105,7 @@ function Wait-AndonFrontendReady {
 }
 
 function Recreate-AndonTasks {
+    param([string[]]$PreserveDisabledTaskNames = @())
     Write-AndonHeader "TAREFAS AUTOMATICAS $Global:AndonInstallerVersion"
 
     Assert-AndonRuntimeScripts
@@ -201,10 +202,18 @@ function Recreate-AndonTasks {
     Write-AndonOk "Tarefa criada: $Global:AndonTaskKiosk para usuario $interactiveUser"
 
     foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
-        Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+        if ($PreserveDisabledTaskNames -contains $taskName) {
+            Disable-ScheduledTask -TaskName $taskName -ErrorAction Stop | Out-Null
+        } else {
+            Enable-ScheduledTask -TaskName $taskName -ErrorAction Stop | Out-Null
+        }
     }
 
-    Write-AndonOk "Tarefas automaticas $Global:AndonInstallerVersion recriadas e habilitadas."
+    if ($PreserveDisabledTaskNames.Count -gt 0) {
+        Write-AndonOk "Tarefas recriadas; estado desabilitado anterior preservado."
+    } else {
+        Write-AndonOk "Tarefas automaticas $Global:AndonInstallerVersion recriadas e habilitadas."
+    }
 }
 
 function Invoke-AndonKioskOpen {
@@ -298,12 +307,15 @@ function Enable-AndonAutoStart {
     Write-AndonOk "Inicializacao automatica habilitada."
 }
 function Start-AndonRuntime {
+    param([switch]$PreserveAutomaticTasks)
     Write-AndonHeader "INICIANDO ANDON $Global:AndonInstallerVersion"
 
     Assert-AndonRuntimeScripts
 
-    foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
-        Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+    if (!$PreserveAutomaticTasks) {
+        foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
+            Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+        }
     }
 
     $watchdogScript = "$Global:AndonProjectPath\scripts\watchdog-andon.ps1"
@@ -332,13 +344,21 @@ function Start-AndonRuntime {
     if (!(Wait-AndonFrontendReady -TimeoutSeconds 240)) {
         throw "Frontend nao ficou acessivel em $(Get-AndonFrontendUrl). Confira os logs do frontend."
     }
-    Invoke-AndonKioskOpen | Out-Null
-
-    foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
-        Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+    $kioskTask = Get-ScheduledTask -TaskName $Global:AndonTaskKiosk -ErrorAction SilentlyContinue
+    if (!$PreserveAutomaticTasks -or ($kioskTask -and "$($kioskTask.State)" -ne "Disabled")) {
+        Invoke-AndonKioskOpen | Out-Null
+    } else {
+        Write-AndonOk "Chrome Kiosk nao iniciado: politica anterior desabilitada preservada."
     }
 
-    Write-AndonOk "Inicializacao automatica habilitada."
+    if (!$PreserveAutomaticTasks) {
+        foreach ($taskName in @($Global:AndonTaskBoot, $Global:AndonTaskWatchdog, $Global:AndonTaskKiosk)) {
+            Enable-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+        }
+        Write-AndonOk "Inicializacao automatica habilitada."
+    } else {
+        Write-AndonOk "Servicos iniciados; politica de tarefas automaticas preservada."
+    }
 }
 
 function Test-AndonNodeProcessOwned {

@@ -686,6 +686,20 @@ $updateScriptPath =
 $updateScript =
     Get-Content $updateScriptPath -Raw
 
+# RC05: upgrade option 2 is not permission to re-enable disabled tasks.
+$runtimePolicySource = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.Runtime.ps1") -Raw
+Assert-AndonTest -Condition (
+    $updateScript.Contains("function Restore-AndonUpdateTaskStates") -and
+    $updateScript.Contains("Recreate-AndonTasks -PreserveDisabledTaskNames") -and
+    $updateScript.Contains("Start-AndonRuntime -PreserveAutomaticTasks") -and
+    $updateScript.Contains('Restore-AndonUpdateTaskStates') -and
+    $updateScript.Contains('if ($ContinueAfterSync -and $script:AndonUpdateStopped)') -and
+    $runtimePolicySource.Contains('param([switch]$PreserveAutomaticTasks)') -and
+    $runtimePolicySource.Contains('if (!$PreserveAutomaticTasks)') -and
+    $runtimePolicySource.Contains('PreserveDisabledTaskNames')
+) -Message "Option 2 deve preservar Boot/Kiosk/Watchdog anteriores no sucesso e na recuperacao"
+Write-Host "RC05: upgrade nao altera politica de inicializacao sem opcao 9."
+
 $syncIndex = $updateScript.IndexOf("Sync-AndonRepositoryAndTools")
 $installedCommitIndex = $updateScript.IndexOf('-Name "installedCommit"')
 $saveConfigIndex = $updateScript.IndexOf("Save-AndonConfig `$config")
