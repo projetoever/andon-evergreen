@@ -1,14 +1,28 @@
 import { useState } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutGrid, LogOut } from "lucide-react";
+import { BarChart3, Factory, History, LayoutGrid, ListOrdered, LogOut } from "lucide-react";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { logoutModule } from "@/services/moduleAuthService";
+import type { ModuleId } from "@/types/modules";
 
 const iconClassName =
   "inline-flex h-11 w-11 lg:h-9 lg:w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
-export function ModuleNavigation() {
+/** The opt-in is enabled by each module during its own refinement. */
+const moduleLinks = [
+  { id: "operational", to: "/andon", icon: Factory, label: "Abrir ANDON operacional" },
+  { id: "bi", to: "/bi", icon: BarChart3, label: "Abrir ANDON BI" },
+  { id: "priorities", to: "/machine-priorities", icon: ListOrdered, label: "Organizar prioridade de produção" },
+] as const satisfies ReadonlyArray<{
+  id: ModuleId;
+  to: "/andon" | "/bi" | "/machine-priorities";
+  icon: typeof Factory;
+  label: string;
+}>;
+
+/** Never display links if the server did not explicitly grant the target module. */
+export function ModuleNavigation({ showModuleLinks = false }: { showModuleLinks?: boolean } = {}) {
   const { access, refresh } = useModuleAccess();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
@@ -26,6 +40,26 @@ export function ModuleNavigation() {
 
   return (
     <div className="inline-flex items-center gap-2">
+      {showModuleLinks && moduleLinks.map((target) => {
+        const grant = access.modules.find((module) => module.id === target.id);
+        if (target.id === currentModule || !grant?.available || !grant.enabled || !grant.allowed) return null;
+        const Icon = target.icon;
+        return (
+          <Link key={target.id} to={target.to} title={t(target.label)}
+            aria-label={t(target.label)} className={iconClassName}>
+            <Icon aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        );
+      })}
+      {showModuleLinks && pathname !== "/history" &&
+        access.centralAccessEnabled === true &&
+        access.globalHistory?.available === true &&
+        access.globalHistory.allowed === true && (
+          <Link to="/history" title={t("Histórico Global")}
+            aria-label={t("Histórico Global")} className={iconClassName}>
+            <History aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        )}
       <Link
         to="/hub"
         title={t("Ir para o Hub")}
