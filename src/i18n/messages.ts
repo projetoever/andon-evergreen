@@ -1,6 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
+  ["Programação é independente da ordem de prioridades e da ativação cadastral. Os estados exibidos vêm do cadastro oficial de máquinas.","Scheduling is independent of priority order and catalog activation. Displayed modes come from official machine records.","生產排程與優先順序及機台啟用狀態互相獨立；顯示的模式來自正式機台資料。"],
+  ["Resumo da programação","Scheduling summary","生產排程摘要"],
+  ["Estado desconhecido","Unknown state","狀態不明"],
+  ["Horário da alteração indisponível","Change timestamp unavailable","無法取得變更時間"],
+  ["Última alteração: {0}","Last change: {0}","上次變更：{0}"],
   ["Dados de alteração global ocultos para este escopo de máquinas.","Global change information is hidden for this machine scope.","此機台存取範圍不顯示全域變更資訊。"],
   ["Sequência de Prioridades","Priority Sequence","優先順序"],
   ["Histórico e Auditoria","History and Audit","歷史與稽核"],
