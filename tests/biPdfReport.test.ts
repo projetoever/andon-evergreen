@@ -321,7 +321,7 @@ test("BI2A: PDF explica o indicador sem amostra sem transformar ausência em zer
   const html = buildExecutiveReportHtml(data);
   assert.match(html, /2 episódio\(s\) com responsabilidade pendente ou mista/);
   assert.match(html, /1 parada\(s\) encerrada\(s\) ainda sem responsabilidade confirmada/);
-  assert.match(html, /<div class="kpi-value">—<\/div>/);
+  assert.match(html, /<div class="kpi-value">Sem amostra<\/div>/);
   assert.doesNotMatch(html, /<div class="kpi-value">0min<\/div>/);
 });
 
