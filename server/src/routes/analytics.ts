@@ -1,4 +1,5 @@
 import { loadAnalyticsEligibility } from "../analytics/datasetPolicy.js";
+import { biMeasurementStartAt, effectiveBiPeriodStart } from "../analytics/measurementBaseline.js";
 import { correctiveReasonCandidateWhere } from "../analytics/correctiveReasonCohort.js";
 import { buildCausalEpisodes, buildCorrectiveCausalEpisodes, summarizeCausalDowntime } from "../analytics/causality.js";
 import { isCorrectiveReasonCandidate } from "../analytics/correctiveReasonCohort.js";
@@ -57,7 +58,10 @@ function parseAnalyticsPeriod(query: AnalyticsOverviewQuery) {
   const end = parseAnalyticsInstant(query.endDate);
 
   if (!start || !end || start.getTime() >= end.getTime()) return null;
-  return { start, end };
+  // RC23: all BI endpoints share this calendar cutover. A period wholly
+  // before measurement begins has a zero-length effective window, not
+  // invented zero-duration failures or historical production exposure.
+  return { start: effectiveBiPeriodStart(start, end, biMeasurementStartAt()), end };
 }
 
 function parseDrilldownLimit(value: unknown) {
@@ -438,6 +442,9 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
 
       return {
         ...currentOverview,
+        // Explicit cohort metadata for BI screens and reports; never silently
+        // advertise historical minutes as post-baseline measurement.
+        biMeasurementStartAt: biMeasurementStartAt()?.toISOString() ?? null,
         production,
         responsibility: {
           downtime: summarizeCausalDowntime(currentData.causalEpisodes, period.start, effectiveEnd),
