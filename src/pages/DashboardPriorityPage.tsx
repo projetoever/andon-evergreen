@@ -353,6 +353,14 @@ export function DashboardPriorityPage() {
                             {ui("INATIVA")}
                           </span>
                         )}
+                        {row.productionMode && (
+                          <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                            row.productionMode === "scheduled"
+                              ? "border-success/40 bg-success/10 text-foreground"
+                              : "border-border bg-muted text-muted-foreground")}>
+                            {ui(row.productionMode === "scheduled" ? "Produção Programada" : "Fora de Produção")}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -472,12 +480,59 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "production" && (
-              <section className="rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
                 aria-label={ui("Produção Programada")}>
                 <h2 className="text-base font-bold">{ui("Produção Programada")}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {ui("A leitura oficial da programação por máquina será integrada em lote separado, com escopo e permissões validados. Nenhuma alteração de programação é oferecida nesta etapa.")}
+                <p className="text-sm text-muted-foreground">
+                  {ui("Programação é independente da ordem de prioridades e da ativação cadastral. Os estados exibidos vêm do cadastro oficial de máquinas.")}
                 </p>
+                {isLoading ? (
+                  <p role="status">{ui("Carregando sequência...")}</p>
+                ) : loadingError ? (
+                  <p role="alert" className="text-danger">{loadingError}</p>
+                ) : (
+                  <>
+                    <div className="grid gap-2 sm:grid-cols-3" role="group"
+                      aria-label={ui("Resumo da programação")}>
+                      {[
+                        { label: ui("Produção Programada"), count: rows.filter((row) => row.productionMode === "scheduled").length },
+                        { label: ui("Fora de Produção"), count: rows.filter((row) => row.productionMode === "not_scheduled").length },
+                        { label: ui("Estado desconhecido"), count: rows.filter((row) => row.productionMode == null).length },
+                      ].map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border bg-background p-3">
+                          <p className="text-xs text-muted-foreground">{item.label}</p>
+                          <p className="mt-1 text-2xl font-black tabular-nums">{item.count}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <ul className="divide-y divide-border">
+                      {rows.map((machine) => (
+                        <li key={machine.id} className="flex flex-wrap items-center gap-2 py-3 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold">{machine.name}</p>
+                            <p className="font-mono text-xs text-muted-foreground">ID {machine.id}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              {machine.productionMode === "scheduled"
+                                ? ui("Produção Programada")
+                                : machine.productionMode === "not_scheduled"
+                                  ? ui("Fora de Produção") : ui("Estado desconhecido")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {machine.productionModeChangedAt
+                                ? ui("Última alteração: {0}", { 0: formatDateTime(machine.productionModeChangedAt) })
+                                : ui("Horário da alteração indisponível")}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {rows.length === 0 && (
+                      <p role="status" className="text-sm text-muted-foreground">{ui("Nenhuma máquina disponível para ordenar.")}</p>
+                    )}
+                  </>
+                )}
               </section>
             )}
 
