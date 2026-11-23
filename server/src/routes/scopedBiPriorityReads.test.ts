@@ -44,11 +44,11 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   prisma.machine.findMany = (async (query: { where?: unknown }) => {
     queries.push(query);
     return mockedMachineRows;
-  }) as typeof originals.machineFind;
+  }) as unknown as typeof originals.machineFind;
   prisma.machineProductionEvent.findMany = (async (query: { where?: unknown }) => {
     productionQueries.push(query);
     return [{ machineId: "37", productionMode: "scheduled", startedAt: new Date("2026-11-23T15:00:00Z") }];
-  }) as typeof originals.productionEvents;
+  }) as unknown as typeof originals.productionEvents;
   prisma.machinePriorityHistory.findMany = (async (query: { where?: unknown; take?: number }) => {
     historyQueries.push(query);
     return [{
@@ -56,7 +56,7 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
       changedBy: "global.manager", previousOrder: 2, newOrder: 1,
       previousPriorityRank: null, newPriorityRank: 1,
     }];
-  }) as typeof originals.history;
+  }) as unknown as typeof originals.history;
   prisma.dashboardPriorityConfig.findUnique = (async (query: { select?: unknown }) =>
     query.select && typeof query.select === "object" && "passwordRequired" in query.select
       ? { passwordRequired: true }
