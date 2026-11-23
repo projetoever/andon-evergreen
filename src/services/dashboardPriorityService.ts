@@ -40,6 +40,22 @@ export interface DashboardPriorityMachine {
   productionModeChangedAt: string | null;
 }
 
+export interface DashboardPriorityAuditEntry {
+  id: string;
+  machineId: string;
+  changedAt: string;
+  changedBy: string | null;
+  previousOrder: number | null;
+  newOrder: number | null;
+  previousPriorityRank: number | null;
+  newPriorityRank: number | null;
+}
+
+export interface DashboardPriorityAuditSnapshot {
+  entries: DashboardPriorityAuditEntry[];
+  truncated: boolean;
+}
+
 export interface DashboardPriorityOrderSnapshot {
   machines: DashboardPriorityMachine[];
   lastOrderUpdatedAt: string | null;
@@ -266,5 +282,18 @@ export async function saveDashboardPriorityOrder(machineIds: string[], expectedM
       "Content-Type": "application/json",
       ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
     },
+  });
+}
+
+export async function getDashboardPriorityHistory(): Promise<DashboardPriorityAuditSnapshot> {
+  const session = readSession();
+  if (CONFIGURED_DATA_MODE === "local") {
+    if (localPasswordRequired && !session) throw new Error("Sessão de prioridades necessária.");
+    // Offline/local simulation has no verified server audit records.
+    return { entries: [], truncated: false };
+  }
+  return apiClient.request<DashboardPriorityAuditSnapshot>("/api/dashboard-priority/history", {
+    method: "GET",
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   });
 }
