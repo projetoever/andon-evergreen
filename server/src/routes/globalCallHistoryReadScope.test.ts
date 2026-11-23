@@ -47,9 +47,24 @@ test("HIST-02: SQL query intersects machine scope with filters BEFORE pagination
   assert.deepEqual(buildScopedGlobalHistoryQuery({}, null).where, {});
 });
 
+test("RC HIST-D: chronology selection is SQL-scoped with deterministic pagination", () => {
+  const selected = ["15"];
+  const byOpened = buildScopedGlobalHistoryQuery({}, selected);
+  const byUpdated = buildScopedGlobalHistoryQuery({sort: "updated"}, selected);
+  const byFinished = buildScopedGlobalHistoryQuery({sort: "finished"}, selected);
+  assert.deepEqual(byOpened.orderBy, [{openedAt:"desc"},{id:"desc"}]);
+  assert.deepEqual(byUpdated.orderBy, [{updatedAt:"desc"},{id:"desc"}]);
+  assert.deepEqual(byFinished.orderBy, [
+    {finishedAt:{sort:"desc",nulls:"last"}}, {openedAt:"desc"},{id:"desc"},
+  ]);
+  for (const q of [byOpened, byUpdated, byFinished])
+    assert.deepEqual(q.where, {AND:[{machineId:{in:selected}}]});
+});
+
 test("HIST-02: invalid filters, dates and unbounded pagination fail before SQL", () => {
   const bad = [
     { status: "drop" }, { criticality: "urgent" }, { criticality: "all" },
+    { sort: "random" }, { sort: "opened;DROP" },
     { origin: "unknown" }, { limit: "0" },
     { limit: "9999" }, { offset: "-1" }, { offset: "999999" },
     { query: "A".repeat(101) }, { openedFrom: "2026-11-12" },

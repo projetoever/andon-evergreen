@@ -40,9 +40,11 @@ test("HIST-04: OFF, no history grant, out-of-scope IDs never disclose records",a
   const originals={
     find:prisma.andonCall.findFirst,
     event:prisma.failureEvent.findMany,
+    audit:prisma.auditEvent.findMany,
+    diagnosis:prisma.failureDiagnosisAudit.findMany,
     raw:prisma.$queryRaw,
   };
-  let callReads=0,eventReads=0,rawReads=0;
+  let callReads=0,eventReads=0,rawReads=0,auditReads=0,diagnosisReads=0;
   let where:unknown;
   let canSee=false;
   let current:unknown=null;
@@ -53,10 +55,28 @@ test("HIST-04: OFF, no history grant, out-of-scope IDs never disclose records",a
     return [{id:"evt1",callId:"call15",machineId:"15",startedAt:new Date("2026-11-12T12:00:00Z"),endedAt:null,
       classification:"electrical_failure",notes:"Sensor"}];
   }) as typeof originals.event;
+  prisma.auditEvent.findMany=(async(args:any)=>{
+    auditReads++;
+    assert.deepEqual(args.where, {resourceType:"andon_call",resourceId:"call15",machineId:"15"});
+    assert.deepEqual(Object.keys(args.select).sort(), ["action","actorName","id","occurredAt","result"].sort());
+    return [{ id:"a1", occurredAt:new Date("2026-11-12T12:10:00Z"),
+      action:"calls.attend", result:"success", actorName:"Ana" }];
+  }) as typeof originals.audit;
+  prisma.failureDiagnosisAudit.findMany=(async(args:any)=>{
+    diagnosisReads++;
+    assert.deepEqual(args.where,{callId:"call15",machineId:"15"});
+    assert(!("ipAddress" in args.select));
+    return [{ id:"d1", createdAt:new Date("2026-11-12T12:15:00Z"),
+      technicianName:"Ana", previousClassification:"none", newClassification:"motor",
+      previousResponsibility:null,newResponsibility:null,
+      previousDisposition:null,newDisposition:null }];
+  }) as typeof originals.diagnosis;
   prisma.$queryRaw=(async()=>{rawReads++;return [];}) as typeof originals.raw;
   t.after(()=>{
     prisma.andonCall.findFirst=originals.find;
     prisma.failureEvent.findMany=originals.event;
+    prisma.auditEvent.findMany=originals.audit;
+    prisma.failureDiagnosisAudit.findMany=originals.diagnosis;
     prisma.$queryRaw=originals.raw;
     if(flags.central===undefined)delete process.env.ANDON_CENTRAL_ACCESS_ENABLED;
     else process.env.ANDON_CENTRAL_ACCESS_ENABLED=flags.central;
@@ -84,6 +104,8 @@ test("HIST-04: OFF, no history grant, out-of-scope IDs never disclose records",a
   assert.equal(response.statusCode,404,response.body);
   assert.equal(response.json().error,"history_call_not_found");
   assert.equal(eventReads,0);
+  assert.equal(auditReads,0);
+  assert.equal(diagnosisReads,0);
   assert.equal(rawReads,0);
   assert.deepEqual(where,{AND:[{id:"call11"},{machineId:{in:["15"]}}]});
   current={
@@ -98,11 +120,21 @@ test("HIST-04: OFF, no history grant, out-of-scope IDs never disclose records",a
   assert.equal(response.json().call.id,"call15");
   assert.equal(response.json().call.failureEvents.length,1);
   assert.equal(response.json().call.machineId,"15");
+  assert.equal(response.json().call.auditEvents.length,1);
+  assert.equal(response.json().call.auditEvents[0].action,"calls.attend");
+  assert.equal(response.json().call.diagnosisAudits.length,1);
+  assert.equal(response.json().call.auditTruncated,false);
+  assert.equal(response.body.includes("ipAddress"),false,"no network identity in History");
+  assert.equal(response.body.includes("before"),false,"no raw audit metadata in History");
   assert.deepEqual(where,{AND:[{id:"call15"},{machineId:{in:["15"]}}]});
   assert.equal(eventReads,1);
+  assert.equal(auditReads,1);
+  assert.equal(diagnosisReads,1);
   assert.equal(rawReads,1);
   process.env.ANDON_CENTRAL_ACCESS_ENABLED="0";
   response=await app.inject({url:"/api/andon-calls/history/detail/call15"});
   assert.equal(response.statusCode,403);
   assert.equal(eventReads,1);
+  assert.equal(auditReads,1);
+  assert.equal(diagnosisReads,1);
 });

@@ -435,6 +435,15 @@ export function GlobalCallHistoryPage() {
                       className="min-h-10 w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground" />
                   </div>
                 </label>
+                <label className="mb-3 block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Ordenação cronológica")}</span>
+                  <select value={draft.sort} onChange={e=>edit({sort:e.target.value as GlobalHistorySearchFilters["sort"]})}
+                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="opened">{ui("Abertura mais recente")}</option>
+                    <option value="updated">{ui("Última movimentação")}</option>
+                    <option value="finished">{ui("Finalização mais recente")}</option>
+                  </select>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
                     <span>{ui("Máquina")}</span>
@@ -548,7 +557,8 @@ export function GlobalCallHistoryPage() {
               {machineError && <p role="alert" className="mt-2 text-xs text-danger">{machineError}</p>}
             </div>
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs text-muted-foreground">
-              <span className="font-bold">{ui("Falhas por horário de abertura")}</span>
+              <span className="font-bold">{applied.sort === "updated" ? ui("Chamados por última movimentação") :
+                applied.sort === "finished" ? ui("Chamados por finalização") : ui("Falhas por horário de abertura")}</span>
               <span>{result ? `${result.total} ${ui("registros")}` : ui("Consultando…")}</span>
             </div>
             <div className="max-h-[65dvh] min-h-[180px] flex-1 space-y-1 overflow-y-auto p-2">

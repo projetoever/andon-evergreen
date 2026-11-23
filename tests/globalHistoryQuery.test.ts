@@ -8,7 +8,7 @@ import type { GlobalHistorySearchFilters } from "../src/services/globalHistorySe
 
 const filters = (patch: Partial<GlobalHistorySearchFilters> = {}): GlobalHistorySearchFilters =>
   ({ query:"", machineId:"all", subtype:"", status:"all", criticality:"all", technician:"",
-    failureClassification:"", reasonId:"", origin:"all", period:"30d", customDate:"",
+    failureClassification:"", reasonId:"", origin:"all", period:"30d", sort:"opened", customDate:"",
     ...patch });
 
 test("HIST-03: query encodes machine, classification, text and all current filter families", () => {
@@ -31,6 +31,16 @@ test("HIST-03: query encodes machine, classification, text and all current filte
   assert.equal(parsed.searchParams.get("origin"), "real");
   assert.equal(parsed.searchParams.get("offset"), "25");
   assert.equal(parsed.searchParams.get("limit"), "25");
+});
+
+test("RC HIST-D: sort is explicit only when non-default and stays server-scoped", () => {
+  const base = new URL(globalHistorySearchPath(filters({period:"all"})), "https://andon.test");
+  assert.equal(base.searchParams.has("sort"), false);
+  const updated = new URL(globalHistorySearchPath(filters({sort:"updated",machineId:"37",period:"all"})), "https://andon.test");
+  assert.equal(updated.searchParams.get("sort"), "updated");
+  assert.equal(updated.searchParams.get("machineId"), "37");
+  const finished = new URL(globalHistorySearchPath(filters({sort:"finished",period:"all"})), "https://andon.test");
+  assert.equal(finished.searchParams.get("sort"), "finished");
 });
 
 test("HIST-03: all machines/period does not send fake server scope", () => {

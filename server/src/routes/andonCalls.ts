@@ -2502,8 +2502,31 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             notes: true, updatedAt: true,
           },
         });
+        // HIST-F: read ONLY audit entries belonging to this already-authorized
+        // call AND machine. Never return raw before/after, IP, session, PIN,
+        // credential metadata or unrelated machine-level administrative logs.
+        const [auditRows, diagnosisRows] = await Promise.all([
+          prisma.auditEvent.findMany({
+            where: { resourceType: "andon_call", resourceId: call.id, machineId: call.machineId },
+            orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+            take: 201,
+            select: { id: true, occurredAt: true, action: true, result: true, actorName: true },
+          }),
+          prisma.failureDiagnosisAudit.findMany({
+            where: { callId: call.id, machineId: call.machineId },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: 201,
+            select: { id: true, createdAt: true, technicianName: true,
+              previousClassification: true, newClassification: true,
+              previousResponsibility: true, newResponsibility: true,
+              previousDisposition: true, newDisposition: true },
+          }),
+        ]);
+        const auditTruncated = auditRows.length > 200 || diagnosisRows.length > 200;
         const [enriched] = await enrichCallsWithAssetSnapshots([call]);
-        return { call: { ...(enriched as Record<string, unknown>), failureEvents: events } };
+        return { call: { ...(enriched as Record<string, unknown>), failureEvents: events,
+          auditEvents: auditRows.slice(0, 200), diagnosisAudits: diagnosisRows.slice(0, 200),
+          auditTruncated } };
       } catch (error) {
         if (error instanceof AccessError)
           return reply.status(error.statusCode).send({ error: error.code });

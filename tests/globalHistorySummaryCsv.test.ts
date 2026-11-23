@@ -12,7 +12,7 @@ import type { GlobalHistorySearchFilters } from "../src/services/globalHistorySe
 const filters: GlobalHistorySearchFilters = {
   query:"motor & sensor",machineId:"15",subtype:"electrical",status:"finished",criticality:"critical",
   technician:"Carlos",failureClassification:"failure",reasonId:"maintenance",
-  origin:"real",period:"custom",customDate:"2026-11-12",timeFrom:"22:00",timeBefore:"06:00",
+  origin:"real",period:"custom",sort:"updated",customDate:"2026-11-12",timeFrom:"22:00",timeBefore:"06:00",
 };
 
 test("HIST-05: aggregate reuses every filter without page limit or offset", () => {
@@ -110,6 +110,7 @@ test("HIST-13: audited export URI preserves ALL applied filters but never page o
   assert.equal(url.searchParams.has("limit"), false);
   assert.equal(url.searchParams.has("offset"), false);
   assert.equal(url.searchParams.get("machineId"), "15");
+  assert.equal(url.searchParams.get("sort"), "updated");
   assert.equal(url.searchParams.get("criticality"), "critical");
   assert.equal(url.searchParams.get("reasonId"), "maintenance");
   assert.equal(url.searchParams.get("origin"), "real");

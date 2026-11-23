@@ -16,6 +16,7 @@ export interface GlobalHistoryQuery {
   openedBefore?: string;
   limit?: string;
   offset?: string;
+  sort?: string;
 }
 
 /**
@@ -42,6 +43,9 @@ export function buildScopedGlobalHistoryQuery(
   const reasonId = str(raw.reasonId, 80);
   const origin = str(raw.origin, 15);
   const query = str(raw.query, 100);
+  const sort = str(raw.sort, 20) ?? "opened";
+  if (!["opened", "updated", "finished"].includes(sort))
+    throw new AccessError("invalid_history_sort", 400);
   if (status && !["open", "in_progress", "post_maintenance", "finished", "cancelled"].includes(status))
     throw new AccessError("invalid_history_filter", 400);
   if (criticality && !["low", "medium", "high", "critical"].includes(criticality))
@@ -121,6 +125,13 @@ export function buildScopedGlobalHistoryQuery(
     where,
     take,
     skip,
-    orderBy: [{ openedAt: "desc" as const }, { id: "desc" as const }],
+    // Every mode is ordered in SQL AFTER the machine-scoped WHERE; ID is a
+    // stable tie-breaker across pagination. Nullable finish time sorts last.
+    orderBy: sort === "updated"
+      ? [{ updatedAt: "desc" as const }, { id: "desc" as const }]
+      : sort === "finished"
+        ? [{ finishedAt: { sort: "desc" as const, nulls: "last" as const } },
+            { openedAt: "desc" as const }, { id: "desc" as const }]
+        : [{ openedAt: "desc" as const }, { id: "desc" as const }],
   };
 }

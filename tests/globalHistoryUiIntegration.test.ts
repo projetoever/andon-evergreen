@@ -36,15 +36,19 @@ test("HIST-03: central history route does NOT mount the legacy unscoped AndonPro
 });
 
 test("HIST-03: chronology, period and selected-machine filtering cannot bypass server", async () => {
-  const [backend, sql, scope] = await Promise.all([
+  const [backend, sql, scope, page] = await Promise.all([
     source("../server/src/routes/andonCalls.ts"),
     source("../server/src/services/globalCallHistoryQuery.ts"),
     source("../server/src/security/centralScopedMachineReads.ts"),
+    source("../src/pages/GlobalCallHistoryPage.tsx"),
   ]);
   assert.match(backend,/ANDON_CENTRAL_GLOBAL_HISTORY_HTTP_ENABLED !== "1"/);
   assert.match(backend,/scopedGlobalHistoryReadIds\(request\)/);
   assert.match(sql,/callMachineReadWhere\(machineId, allowedMachineIds\)/);
   assert.match(sql,/openedAt: "desc" as const/);
+  assert.match(sql,/updatedAt: "desc" as const/);
+  assert.match(sql,/nulls: "last" as const/);
+  assert.match(page,/value=\{draft\.sort\}/);
   assert.match(scope,/assertPermission\(principal, "history.read"\)/);
   assert.match(scope,/assertPermission\(principal, "history.global.read"\)/);
 });
@@ -65,7 +69,10 @@ test("HIST-04: individual details only load for server-authorized selected calls
   assert.match(panels,/call\.failureEvents/);
   assert.match(panels,/call\.machineStoppedMinutes/);
   assert.match(panels,/call\.attendedAt/);
-  assert.match(panels,/Eventos e tempos apresentados conforme registros existentes/);
+  assert.match(panels,/A linha do tempo contém apenas eventos vinculados/);
+  assert.match(panels,/call\.auditEvents/);
+  assert.match(panels,/call\.diagnosisAudits/);
+  assert.match(panels,/call\.auditTruncated/);
   assert.doesNotMatch(panels,/(?:eval\(|dangerouslySetInnerHTML)/);
 });
 

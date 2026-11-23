@@ -45,6 +45,21 @@ function callTimeline(call: GlobalHistoryCallDetail): EventLine[] {
       description:s.technicianName,
     });
   }
+  for (const audit of call.auditEvents || []) {
+    entries.push({ id: "audit-"+audit.id, at: audit.occurredAt,
+      label: ui("Evento auditado") + ": " + audit.action,
+      description: [audit.actorName, audit.result].filter(Boolean).join(" · ") });
+  }
+  for (const diagnosis of call.diagnosisAudits || []) {
+    const changes = [
+      diagnosis.previousClassification !== diagnosis.newClassification ? ui("Classificação") : null,
+      diagnosis.previousResponsibility !== diagnosis.newResponsibility ? ui("Responsabilidade") : null,
+      diagnosis.previousDisposition !== diagnosis.newDisposition ? ui("Política analítica") : null,
+    ].filter(Boolean);
+    entries.push({ id: "diagnosis-"+diagnosis.id, at: diagnosis.createdAt,
+      label: ui("Revisão de diagnóstico registrada"),
+      description: [diagnosis.technicianName, changes.join(", ")].filter(Boolean).join(" · ") });
+  }
   for (const e of call.failureEvents || []) {
     entries.push({
       id:"failure-start-"+e.id,at:e.startedAt,label:ui("Início de evento de falha"),
@@ -167,7 +182,10 @@ export function GlobalHistoryDetailSections({call}:{call:GlobalHistoryCallDetail
         </dl>
       </section>
       <p role="note" className="rounded-lg border border-info/40 bg-info/10 p-3 text-xs text-muted-foreground">
-        {ui("Eventos e tempos apresentados conforme registros existentes. A auditoria administrativa completa, eventos sem vínculo e exportações serão integrados em etapa posterior.")}
+        {ui("A linha do tempo contém apenas eventos vinculados a este chamado e máquina. Eventos administrativos sem vínculo e registros legados ausentes não são inventados.")}
+        {call.auditTruncated && <strong className="mt-1 block text-warning">
+          {ui("Há mais de 200 registros auditáveis. Exibição parcial; consulte a auditoria autorizada para análise integral.")}
+        </strong>}
       </p>
     </div>
   );
