@@ -76,6 +76,9 @@ export function DashboardPriorityPage() {
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
+  const [scheduleRequester, setScheduleRequester] = useState<{
+    fullScope: boolean; machineIds: string[];
+  } | null>(null);
   const [historyItems, setHistoryItems] = useState<DashboardPriorityAuditEntry[]>([]);
   const [historyTruncated, setHistoryTruncated] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -152,6 +155,35 @@ export function DashboardPriorityPage() {
   useEffect(() => {
     if (authenticated) void loadOrder();
   }, [authenticated, loadOrder]);
+
+  const operationalGranted = access?.modules.some((item) =>
+    item.id === "operational" && item.available && item.enabled && item.allowed) === true &&
+    access?.workstation.allowOperational === true;
+
+  useEffect(() => {
+    if (activeSection !== "production" || access?.centralAccessEnabled !== true ||
+        !operationalGranted) {
+      setScheduleRequester(null);
+      return;
+    }
+    let canceled = false;
+    setScheduleRequester(null);
+    void accessRequest<AccessState>("/session").then((state) => {
+      if (canceled) return;
+      const principal = state.principal;
+      const permitted = principal?.purpose === "normal" &&
+        (principal.isPrimaryAdmin === true ||
+          principal.permissions?.includes("production.schedule.request") === true ||
+          principal.permissions?.includes("production.schedule.write") === true) &&
+        (principal.isPrimaryAdmin === true ||
+          principal.permissions?.includes("andon.read") === true);
+      setScheduleRequester(permitted && principal
+        ? { fullScope: principal.machineScope === "all",
+            machineIds: principal.machineIds ?? [] } : null);
+    }).catch(() => { if (!canceled) setScheduleRequester(null); });
+    return () => { canceled = true; };
+  }, [activeSection, access?.centralAccessEnabled, access?.principal?.userId,
+    operationalGranted]);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -657,7 +689,8 @@ export function DashboardPriorityPage() {
                                 : ui("Horário da alteração indisponível")}
                             </p>
                           </div>
-                          {access?.centralAccessEnabled === true && machine.productionMode && machine.isActive && (
+                          {scheduleRequester && machine.productionMode && machine.isActive &&
+                            (scheduleRequester.fullScope || scheduleRequester.machineIds.includes(machine.id)) && (
                             <Button type="button" variant="outline" size="sm"
                               disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || hasUnsavedChanges}
                               onClick={() => void requestScheduleChange(machine)}>
