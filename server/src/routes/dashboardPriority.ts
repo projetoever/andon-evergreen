@@ -23,6 +23,7 @@ const MIN_USERNAME_LENGTH = 3;
 const MIN_PASSWORD_LENGTH = 6;
 
 class PriorityCatalogChangedError extends Error {}
+class PriorityOrderChangedError extends Error {}
 
 type PrioritySession = {
   username: string;
@@ -38,6 +39,7 @@ type CredentialsBody = {
 
 type OrderBody = {
   machineIds?: unknown;
+  expectedMachineIds?: unknown;
 };
 
 function normalizeUsername(value: unknown) {
@@ -333,6 +335,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           token: readSecureCookie(request, ACCESS_COOKIE),
           workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
           machineIds: request.body?.machineIds,
+          expectedMachineIds: request.body?.expectedMachineIds,
           requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
         });
       } catch (error) {
@@ -349,6 +352,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
     }
 
     const machineIds = request.body.machineIds;
+    const expectedMachineIds = request.body.expectedMachineIds;
+    if (!Array.isArray(expectedMachineIds) || expectedMachineIds.length > 1000 ||
+        expectedMachineIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 120) ||
+        new Set(expectedMachineIds).size !== expectedMachineIds.length)
+      return badRequest(reply, "Informe a sequência original para verificar edições concorrentes.");
     if (
       machineIds.some((id) => typeof id !== "string" || !id.trim()) ||
       new Set(machineIds).size !== machineIds.length
@@ -385,6 +393,11 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           currentMachines.map((machine) => [machine.id, machine]),
         );
         const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+        if (expectedMachineIds.length !== previousSnapshot.orderedIds.length ||
+            expectedMachineIds.some((id, index) => id !== previousSnapshot.orderedIds[index]))
+          throw new PriorityOrderChangedError(
+            "A sequência foi alterada em outra estação. Recarregue antes de salvar.",
+          );
         const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
         const priorityChanges = diffPrioritySnapshots(
           normalizedIds,
@@ -441,6 +454,8 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
         lastOrderUpdatedBy: result.updatedBy,
       };
     } catch (error) {
+      if (error instanceof PriorityOrderChangedError)
+        return reply.status(409).send({ error: "priority_order_changed", message: error.message });
       if (error instanceof PriorityCatalogChangedError) {
         return reply.status(409).send({
           error: "priority_machine_catalog_changed",
