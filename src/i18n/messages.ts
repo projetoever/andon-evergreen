@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Evento auditado", "Audited event", "已稽核事件"],
+  ["Revisão de diagnóstico registrada", "Diagnosis revision recorded", "已記錄診斷修訂"],
+  ["Classificação", "Classification", "分類"],
+  ["Responsabilidade", "Responsibility", "責任"],
+  ["Política analítica", "Analytics policy", "分析政策"],
+  ["A linha do tempo contém apenas eventos vinculados a este chamado e máquina. Eventos administrativos sem vínculo e registros legados ausentes não são inventados.", "The timeline includes only events linked to this call and machine. Unrelated administrative events and missing legacy entries are not invented.", "時間軸僅包含與此通報及機台關聯的事件。不會推測無關的管理事件或遺失的舊紀錄。"],
+  ["Há mais de 200 registros auditáveis. Exibição parcial; consulte a auditoria autorizada para análise integral.", "More than 200 auditable entries exist. Display is partial; use the authorized audit for a complete review.", "存在超過 200 筆可稽核紀錄。此處僅部分顯示；請使用授權稽核查看完整資料。"],
   ["Ordenação cronológica", "Chronological sorting", "時間排序"],
   ["Abertura mais recente", "Most recently opened", "最近開啟"],
   ["Última movimentação", "Last activity", "最後動作"],
