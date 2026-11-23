@@ -2,6 +2,10 @@
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 1 — ajuda contextual e clareza sobre alertas, PT/EN/zh-TW.
   // PENTE 1 — explorador de gráficos (modal de foco, leitura e dados; PT/EN/zh-TW).
+  ["Ampliar mapa de calor","Expand heatmap","放大熱度圖"],
+  ["Leitura ampliada do mapa de calor","Heatmap detailed view","熱度圖詳細檢視"],
+  ["Clique em qualquer célula para ver o valor por dia e hora.","Select a cell to see the value by weekday and hour.","點選任一格以查看星期與時段的數值。"],
+  ["Uma célula resume a janela filtrada naquele dia e horário; não prova causas, taxas por turno ou risco.","Each cell aggregates the selected time window for that weekday and hour; it does not prove causes, shift rates, or risk.","每一格彙總所選期間的該星期與時段；不能據此證明原因、班次比率或風險。"],
   ["Ampliar análise do gráfico: {0}","Open chart analysis: {0}","開啟圖表分析：{0}"],
   ["Abrir análise ampliada","Open detailed analysis","開啟詳細分析"],
   ["Pontos com dados","Data points","有資料的點數"],
