@@ -27,6 +27,8 @@ import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import {
   getDashboardPriorityOrder,
+  getDashboardPriorityHistory,
+  type DashboardPriorityAuditEntry,
   getStoredDashboardPrioritySession,
   isDashboardPriorityAuthenticated,
   logoutDashboardPriority,
@@ -74,6 +76,10 @@ export function DashboardPriorityPage() {
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<DashboardPriorityAuditEntry[]>([]);
+  const [historyTruncated, setHistoryTruncated] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const currentIds = rows.map((row) => row.id);
   const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
@@ -146,6 +152,24 @@ export function DashboardPriorityPage() {
   useEffect(() => {
     if (authenticated) void loadOrder();
   }, [authenticated, loadOrder]);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const snapshot = await getDashboardPriorityHistory();
+      setHistoryItems(snapshot.entries);
+      setHistoryTruncated(snapshot.truncated);
+    } catch (cause) {
+      setHistoryError(cause instanceof Error ? cause.message : ui("Não foi possível carregar o histórico."));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authenticated && activeSection === "history") void loadHistory();
+  }, [authenticated, activeSection, loadHistory]);
 
   function moveRow(sourceIndex: number, targetIndex: number) {
     if (centralReadOnly || isSaving) return;
@@ -654,10 +678,17 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "history" && (
-              <section className="rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
                 aria-label={ui("Histórico e Auditoria")}>
-                <h2 className="text-base font-bold">{ui("Última alteração da sequência")}</h2>
-                <p className="mt-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-bold">{ui("Histórico e Auditoria")}</h2>
+                  <Button type="button" variant="outline" size="sm" disabled={historyLoading}
+                    onClick={() => void loadHistory()}>{ui("Atualizar histórico")}</Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {ui("Mostramos até 100 alterações recentes da sequência, respeitando seu escopo de máquinas. A autoria global não é exibida para escopos parciais.")}
+                </p>
+                <p className="text-sm">
                   {lastOrderUpdatedAt
                     ? ui("Última atualização: {0}{1}", {
                         0: formatDateTime(lastOrderUpdatedAt),
@@ -667,9 +698,45 @@ export function DashboardPriorityPage() {
                       ? ui("Dados de alteração global ocultos para este escopo de máquinas.")
                       : ui("Sequência ainda não salva manualmente")}
                 </p>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {ui("Este resumo não é o histórico completo de auditoria. O detalhamento auditável será disponibilizado após validação dos acessos.")}
-                </p>
+                {historyLoading ? (
+                  <p role="status" className="text-sm">{ui("Carregando histórico...")}</p>
+                ) : historyError ? (
+                  <p role="alert" className="text-sm text-danger">{historyError}</p>
+                ) : historyItems.length === 0 ? (
+                  <p role="status" className="text-sm text-muted-foreground">{ui("Nenhuma alteração de prioridade encontrada.")}</p>
+                ) : (
+                  <>
+                    <ol className="divide-y divide-border">
+                      {historyItems.map((entry) => (
+                        <li key={entry.id} className="py-3 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold">
+                              {rows.find((machine) => machine.id === entry.machineId)?.name ?? entry.machineId}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{formatDateTime(entry.changedAt)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {ui("Posição: {0} → {1}", {
+                              0: entry.previousOrder ?? "—", 1: entry.newOrder ?? "—",
+                            })}
+                            {entry.changedBy ? ` · ${entry.changedBy}` : ""}
+                          </p>
+                          {(entry.previousPriorityRank !== entry.newPriorityRank) && (
+                            <p className="text-xs text-muted-foreground">
+                              {ui("Destaque: {0} → {1}", {
+                                0: entry.previousPriorityRank ?? "—",
+                                1: entry.newPriorityRank ?? "—",
+                              })}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                    {historyTruncated && <p className="text-sm text-muted-foreground">
+                      {ui("A lista mostra somente as 100 alterações mais recentes.")}
+                    </p>}
+                  </>
+                )}
               </section>
             )}
 
