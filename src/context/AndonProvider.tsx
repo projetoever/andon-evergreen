@@ -86,6 +86,9 @@ interface AndonContextValue {
       requireWorkOrderAtOpen?: boolean;
     },
   ) => void;
+  updateMachineDirectSectors: (
+    machineId: string, hiddenDirectSectorIds: string[], expectedSectorVisibilityRevision: number,
+  ) => Promise<void>;
   updateMachineActive: (machineId: string, isActive: boolean) => void;
   updateMachineStopEventDescription: (
     machineId: string,
@@ -421,6 +424,15 @@ export function AndonProvider({ children }: { children: ReactNode }) {
     [machines, handleRepositoryError],
   );
 
+  const updateMachineDirectSectors = useCallback(async (
+    machineId: string, hiddenDirectSectorIds: string[], expectedSectorVisibilityRevision: number,
+  ) => {
+    const result = await andonRepository.updateMachineCatalog(machines, machineId, {
+      hiddenDirectSectorIds, expectedSectorVisibilityRevision,
+    });
+    setMachines(result.machines.map(andonService.normalizeMachine));
+  }, [machines]);
+
   const updateMachineActive = useCallback(
     (machineId: string, isActive: boolean) => {
       void andonRepository.updateMachineActive(machines, machineId, isActive).then((result) => {
@@ -512,6 +524,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       updateMachineProductionMode,
       createMachine,
       updateMachineCatalog,
+      updateMachineDirectSectors,
       updateMachineActive,
       updateMachineStopEventDescription,
       updateSettings,
@@ -543,6 +556,7 @@ export function AndonProvider({ children }: { children: ReactNode }) {
       updateMachineProductionMode,
       createMachine,
       updateMachineCatalog,
+      updateMachineDirectSectors,
       updateMachineActive,
       updateMachineStopEventDescription,
       updateSettings,

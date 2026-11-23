@@ -858,6 +858,8 @@ function Get-AndonDefaultConfig {
         centralAccessEnabled = $false
         centralSecurityValidationEnabled = $false
         hierarchicalCallPilotEnabled = $false
+        # Explicit BI cutover; empty preserves existing historical methodology.
+        biMeasurementStartAtUtc = ""
     }
 }
 
@@ -895,14 +897,15 @@ function Import-AndonConfig {
     if (Test-Path $Global:AndonConfigPath) {
         try {
             $fileConfig = Get-Content $Global:AndonConfigPath -Raw | ConvertFrom-Json
-            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled","centralSecurityValidationEnabled","hierarchicalCallPilotEnabled")) {
+            foreach ($key in @("databaseMode","postgresHost","postgresPort","databaseName","databaseUser","databasePassword","apiPort","frontendPort","projectPath","toolsPath","dockerContainer","dockerVolume","installationProfile","installedCommit","transportMode","httpsHost","tlsCertificatePath","tlsPrivateKeyPath","centralAccessEnabled","centralSecurityValidationEnabled","hierarchicalCallPilotEnabled","biMeasurementStartAtUtc")) {
                 $allowsEmptyValue = $key -in @(
                     "httpsHost",
                     "tlsCertificatePath",
                     "tlsPrivateKeyPath",
                     "centralAccessEnabled",
                     "centralSecurityValidationEnabled",
-                    "hierarchicalCallPilotEnabled"
+                    "hierarchicalCallPilotEnabled",
+                    "biMeasurementStartAtUtc"
                 )
                 if (
                     $null -ne $fileConfig.$key -and
@@ -1148,6 +1151,26 @@ function Write-AndonBackendEnv {
     $securityEnv = ($securityWriteFlags | ForEach-Object {
         "$_=$(if ($validationEnabled) { '1' } else { '0' })"
     }) -join "`r`n"
+    # Never infer the measurement date from installation/update time.
+    # The operator must deliberately set this UTC value in andon-config.json.
+    $biMeasurementStart = "$($Config.biMeasurementStartAtUtc)".Trim()
+    if ($biMeasurementStart -and $biMeasurementStart -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$') {
+        throw "biMeasurementStartAtUtc invalido: informe data e hora UTC completas, terminando em Z."
+    }
+    if ($biMeasurementStart) {
+        try {
+            $parsedMeasurementStart = [DateTimeOffset]::Parse(
+                $biMeasurementStart,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::AssumeUniversal
+            )
+            if ($parsedMeasurementStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") -ne $biMeasurementStart.Substring(0, 19)) {
+                throw "Invalid UTC roundtrip"
+            }
+        } catch {
+            throw "biMeasurementStartAtUtc invalido: instante inexistente no calendario UTC."
+        }
+    }
     $tlsEnvironment = ""
     if ("$($Config.transportMode)".Trim().ToLowerInvariant() -eq "https") {
         $tlsEnvironment = @"
@@ -1165,6 +1188,8 @@ ANDON_CENTRAL_ACCESS_ENABLED=$centralAccessEnabled
 $securityEnv
 # Opening operational calls is independent of catalog CRUD and OFF by default.
 ANDON_HIERARCHICAL_CALL_OPEN_ENABLED=$hierarchicalCallOpening
+# BI cohort boundary is OFF unless set explicitly; preserved across option 2.
+ANDON_BI_MEASUREMENT_START_AT_UTC=$biMeasurementStart
 $tlsEnvironment
 "@ | Set-Content $envPath -Encoding UTF8
     Write-AndonOk ".env gerado a partir do andon-config.json: $envPath"

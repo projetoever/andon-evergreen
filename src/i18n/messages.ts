@@ -1,5 +1,15 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Setores na tela desta máquina", "Direct sectors on this machine screen", "此機台畫面上的部門按鈕"],
+  ["Ocultar aqui não inativa o setor nem o retira dos Grupos. Se houver chamado ativo, o botão reaparece temporariamente para atendimento.", "Hiding here does not disable the sector or unlink it from Groups. While an active call exists, its button reappears temporarily for attendance.", "在此隱藏不會停用部門，也不會將其從群組移除。若有進行中的通報，按鈕會暫時重新顯示以便處理。"],
+  ["Não foi possível carregar a lista de setores. A edição está bloqueada.", "Could not load the sector list. Editing is blocked.", "無法載入部門清單。編輯已封鎖。"],
+  ["Oculto na configuração global; os Grupos continuam disponíveis.", "Hidden by global settings; Groups remain available.", "已在全域設定中隱藏；群組仍可使用。"],
+  ["Exibir setor na tela desta máquina", "Show sector button on this machine", "在此機台顯示部門按鈕"],
+  ["Visibilidade dos setores desta máquina atualizada.", "Machine sector visibility updated.", "已更新此機台的部門顯示設定。"],
+  ["Não foi possível salvar a visibilidade. Atualize e tente novamente.", "Could not save visibility. Refresh and try again.", "無法儲存顯示設定。請重新整理後再試。"],
+  ["Sem amostra", "No sample", "尚無樣本"],
+  [" setor não atribui eventos físicos órfãos; classificação de chamado e de FailureEvent têm semânticas próprias. Indicadores sem amostra são identificados explicitamente e não são substituídos por zero.", " sector filters do not assign orphan physical events; call and FailureEvent classifications have different semantics. Metrics without samples are identified explicitly and are not replaced by zero.", " 區域篩選不會將未關聯的實體故障事件歸屬到特定區域；通報與 FailureEvent 的分類有不同語意。無樣本的指標會明確標示，且不會以零取代。"],
+  ["Indicadores a partir de {0}. Histórico anterior preservado para auditoria.", "Metrics measured since {0}. Earlier history remains available for audit.", "指標自 {0} 起計算。較早歷史記錄保留供稽核。"],
   ["Evento auditado", "Audited event", "已稽核事件"],
   ["Revisão de diagnóstico registrada", "Diagnosis revision recorded", "已記錄診斷修訂"],
   ["Classificação", "Classification", "分類"],

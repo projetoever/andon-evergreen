@@ -81,3 +81,33 @@ test("R10-09 B1: metadata body cannot alter status, priority, downtime or creden
     { name: "Good", requireWorkOrderAtOpen: true, adminPasswordHash: "x" },
   ]) assert.throws(() => parseCentralMachineMetadataPatch(body));
 });
+
+test("RC P0: per-machine visibility is a strict, revisioned, presentation-only allowlist", () => {
+  assert.deepEqual(parseCentralMachineMetadataPatch({
+    hiddenDirectSectorIds: ["mechanical", "pneumatica"],
+    expectedSectorVisibilityRevision: 3,
+  }), {
+    hiddenDirectSectorIds: ["mechanical", "pneumatica"],
+    expectedSectorVisibilityRevision: 3,
+  });
+  assert.deepEqual(parseCentralMachineMetadataPatch({
+    hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0,
+  }), { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0 });
+  for (const payload of [
+    { hiddenDirectSectorIds: ["mechanical"] },
+    { hiddenDirectSectorIds: "mechanical", expectedSectorVisibilityRevision: 0 },
+    { hiddenDirectSectorIds: ["mechanical", "mechanical"], expectedSectorVisibilityRevision: 0 },
+    { hiddenDirectSectorIds: [null], expectedSectorVisibilityRevision: 0 },
+    { hiddenDirectSectorIds: ["../../etc"], expectedSectorVisibilityRevision: 0 },
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: -1 },
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 1.1 },
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: "0" },
+
+    { name: "M37", expectedSectorVisibilityRevision: 0 },
+    { hiddenDirectSectorIds: Array(101).fill("pneumatica"), expectedSectorVisibilityRevision: 0 },
+  ]) denied(() => parseCentralMachineMetadataPatch(payload), "invalid_sector_visibility");
+  for (const mixed of [
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, isActive: false },
+    { hiddenDirectSectorIds: [], expectedSectorVisibilityRevision: 0, requireWorkOrderAtOpen: true },
+  ]) assert.throws(() => parseCentralMachineMetadataPatch(mixed));
+});

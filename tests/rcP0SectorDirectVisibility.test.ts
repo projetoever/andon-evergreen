@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { isDirectSectorButtonEnabled } from "../src/utils/sectorDirectVisibility";
+import { isDirectSectorButtonEnabled, isMachineDirectSectorButtonEnabled } from "../src/utils/sectorDirectVisibility";
 import { deriveMachineSectorTiles } from "../src/utils/deriveMachineSectorTiles";
 import type { AndonCategoryConfig } from "../src/types/settings";
 import type { AndonCall } from "../src/types/andon";
@@ -101,4 +101,49 @@ test("RC P0: API/UI/schema use explicit presentation flag, not category inactiva
   assert.match(schema, /showDirectButton\s+Boolean\s+@default\(true\)/);
   assert.match(migration, /ADD COLUMN "showDirectButton" BOOLEAN NOT NULL DEFAULT TRUE/);
   assert.doesNotMatch(migration, /UPDATE\s+"andon_categories"\s+SET\s+"active"/i);
+});
+
+test("RC P0 #596: one global sector may be hidden on M37 but visible on M38", () => {
+  const area=category(true,true);
+  assert.equal(isMachineDirectSectorButtonEnabled(area, ["pneumatica"]), false);
+  assert.equal(isMachineDirectSectorButtonEnabled(area, []), true);
+  assert.equal(isMachineDirectSectorButtonEnabled(area), true);
+  assert.equal(isMachineDirectSectorButtonEnabled(category(false,true), []),false);
+  assert.equal(isMachineDirectSectorButtonEnabled(category(true,false), []),false);
+  const direct37=[area].filter(sector => isMachineDirectSectorButtonEnabled(sector,["pneumatica"]));
+  const direct38=[area].filter(sector => isMachineDirectSectorButtonEnabled(sector,[]));
+  assert.deepEqual(deriveMachineSectorTiles(direct37,[area],[]),[]);
+  assert.equal(deriveMachineSectorTiles(direct38,[area],[]).length,1);
+  const temporary=deriveMachineSectorTiles(direct37,[area],[call("open")]);
+  assert.equal(temporary.length,1);
+  assert.equal(temporary[0].temporarilyVisible,true);
+  assert.equal(temporary[0].activeCall?.id,"ch-1");
+  assert.equal(temporary[0].category.displayName,"Pneumática");
+  assert.deepEqual(deriveMachineSectorTiles(direct37,[area],[call("finished")]),[]);
+  assert.deepEqual(deriveMachineSectorTiles(direct38,[area],[]).map(x=>x.category.id),["pneumatica"]);
+});
+
+test("RC P0 #596: additive schema and machine-scoped API never alter reason links/history/BI", async () => {
+  const read=(path: string) => readFile(new URL(path,import.meta.url),"utf8");
+  const [schema, migration, server, settings, screen, api, guard]=await Promise.all([
+    read("../server/prisma/schema.prisma"),
+    read("../server/prisma/migrations/20261123133000_machine_direct_sector_visibility/migration.sql"),
+    read("../server/src/access/centralMachineSettings.ts"),
+    read("../src/components/settings/MachineAdminPanel.tsx"),
+    read("../src/pages/MachineDetailPage.tsx"),
+    read("../server/src/routes/machines.ts"),
+    read("../server/src/security/centralMachineSettingsHttp.ts"),
+  ]);
+  assert.match(schema,/hiddenDirectSectorIds\s+String\[\]\s+@default\(\[\]\)/);
+  assert.match(schema,/sectorVisibilityRevision\s+Int\s+@default\(0\)/);
+  assert.match(migration,/ALTER TABLE "machines"/);
+  assert.doesNotMatch(migration, /DELETE|DROP|UPDATE|andon_calls|call_reasons|failure_events|work_order|analytics/i);
+  assert.match(server,/sector_visibility_conflict/);
+  assert.match(server,/machine_scope_denied/);
+  assert.match(server,/andon\.machine\.sector_visibility\.update/);
+  assert.match(settings,/hiddenDirectSectorIds/);
+  assert.match(settings,/Setores na tela desta máquina/);
+  assert.match(screen,/isMachineDirectSectorButtonEnabled/);
+  assert.match(api,/hiddenDirectSectorIds: true/);
+  assert.match(guard,/checkCsrf/);
 });

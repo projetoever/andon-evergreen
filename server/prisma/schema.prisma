@@ -166,6 +166,9 @@ model Machine {
   andonStatus         String                   @default("normal")
   productionMode      String                   @default("scheduled")
   requireWorkOrderAtOpen Boolean                @default(false)
+  // Per-machine presentation only; does not disable sector or group calls.
+  hiddenDirectSectorIds String[]               @default([])
+  sectorVisibilityRevision Int                 @default(0)
   isActive            Boolean                  @default(true)
   displayOrder        Int?
   priorityOrder       Int?

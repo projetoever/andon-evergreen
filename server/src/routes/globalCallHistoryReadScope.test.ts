@@ -171,3 +171,36 @@ test("HIST-02: route is OFF by default and does not read DB without flag + autho
   assert.equal(response.statusCode,403);
   assert.equal(reads,2);
 });
+
+test("RC23 HIST-D/E: combined OS search, technician and period cannot widen authorized machine scope", () => {
+  const query = buildScopedGlobalHistoryQuery({
+    machineId: "38",
+    query: "OS-2026-042",
+    technician: "Ana",
+    status: "finished",
+    openedFrom: "2026-11-12T22:00:00-03:00",
+    openedBefore: "2026-11-13T02:00:00-03:00",
+    sort: "updated",
+    limit: "25",
+    offset: "25",
+  }, ["37"]);
+  const where = query.where;
+  const and = where.AND as Array<Record<string, any>>;
+  assert.deepEqual(and.slice(0, 2), [
+    { machineId: "38" },
+    { machineId: { in: ["37"] } },
+  ], "a request for machine 38 may not escape an account scoped to machine 37");
+  assert.equal(where.status, "finished");
+  assert.deepEqual(where.openedAt, {
+    gte: new Date("2026-11-12T22:00:00-03:00"),
+    lt: new Date("2026-11-13T02:00:00-03:00"),
+  }, "overnight timestamps are absolute, not host-dependent");
+  assert.equal((where.OR as unknown[]).length, 2, "technician search stays an additional AND predicate");
+  assert.equal(and.length, 3);
+  assert((and[2].OR as Array<{ workOrderNumber?: { contains?: string } }>).some(
+    item => item.workOrderNumber?.contains === "OS-2026-042",
+  ), "free-text OS search must not bypass scope or technician");
+  assert.deepEqual(query.orderBy, [{ updatedAt: "desc" }, { id: "desc" }]);
+  assert.equal(query.take, 25);
+  assert.equal(query.skip, 25);
+});
