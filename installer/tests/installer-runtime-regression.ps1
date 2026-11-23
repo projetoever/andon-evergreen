@@ -133,6 +133,47 @@ $Global:AndonProjectPath = "C:\web-andon-industrial\andon"
 $Global:AndonNodeExePath = "C:\web-andon-industrial\runtime\node\node.exe"
 . (Join-Path $repositoryRoot "installer\AndonInstaller.Runtime.ps1")
 
+# RC05: Windows port snapshot is advisory; live HTTPS is authoritative for
+# current availability. Scheduled task readiness is a separate reboot gate.
+Assert-AndonTest -Condition (
+    (Get-AndonPortProbeAssessment -ListenerDetected $false -EndpointResponding $true) -eq
+        "ENDPOINT_OK_LISTENER_SNAPSHOT_INCONCLUSIVE"
+) -Message "Live HTTPS must not be reported as stopped from one missed listener snapshot"
+Assert-AndonTest -Condition (
+    (Get-AndonPortProbeAssessment -ListenerDetected $false -EndpointResponding $false) -eq
+        "SERVICE_NOT_CONFIRMED"
+) -Message "No listener and no service proof must remain unconfirmed"
+Assert-AndonTest -Condition (
+    (Get-AndonPortProbeAssessment -ListenerDetected $true -EndpointResponding $false) -eq
+        "LISTENER_DETECTED"
+) -Message "TCP listener does not falsely claim HTTP readiness"
+$bootFixtures = @(
+    [pscustomobject]@{ TaskName = "ANDON - Boot Servicos"; State = "Disabled" },
+    [pscustomobject]@{ TaskName = "ANDON - Watchdog Servicos"; State = "Running" },
+    [pscustomobject]@{ TaskName = "ANDON - Chrome Kiosk"; State = "Disabled" }
+)
+Assert-AndonTest -Condition (
+    (Get-AndonBootReadiness -Tasks $bootFixtures -BootTaskName "ANDON - Boot Servicos") -eq
+        "BOOT_DISABLED"
+) -Message "Watchdog running must never imply boot after reboot is ready"
+Assert-AndonTest -Condition (
+    (Get-AndonBootReadiness -Tasks @($bootFixtures[1]) -BootTaskName "ANDON - Boot Servicos") -eq
+        "BOOT_TASK_MISSING"
+) -Message "Missing boot task must be visible"
+Assert-AndonTest -Condition (
+    (Get-AndonBootReadiness -Tasks @([pscustomobject]@{ TaskName="ANDON - Boot Servicos"; State="Ready" }) -BootTaskName "ANDON - Boot Servicos") -eq
+        "BOOT_CONFIGURED_REBOOT_NOT_TESTED"
+) -Message "Enabled task cannot be mistaken for proven reboot success"
+$runtimeSourceRc05 = Get-Content -LiteralPath (Join-Path $repositoryRoot "installer\AndonInstaller.Runtime.ps1") -Raw
+$healthSourceRc05 = $runtimeSourceRc05.Substring($runtimeSourceRc05.IndexOf("function Invoke-AndonHealthCheck {"))
+Assert-AndonTest -Condition (
+    $healthSourceRc05 -match 'Get-AndonPortProbeAssessment' -and
+    $healthSourceRc05 -match 'Get-AndonBootReadiness' -and
+    $healthSourceRc05 -match 'somente a opcao 9' -and
+    $healthSourceRc05 -notmatch '(?im)^\s*(Enable-ScheduledTask|Disable-ScheduledTask|Start-ScheduledTask)\b'
+) -Message "Read-only Health reconciles evidence but never changes scheduled tasks"
+Write-Host "RC05: no false negative HTTPS, reboot gate separate, read-only task policy approved."
+
 $legacyConfig = [pscustomobject]@{
     databaseMode = "docker"
 }
