@@ -10,6 +10,9 @@ import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
+// The tracked manifest is an immutable initial snapshot. A final attestation
+// lives in a separate untracked LOCAL JSON file, so recording HEAD does not
+// alter the Git commit whose SHA it must verify (self-reference paradox).
 const manifestPath = resolve(here, "rc23-acceptance.json");
 const sha = value => typeof value === "string" && /^[a-f0-9]{40}$/.test(value);
 const proof = item => Array.isArray(item?.evidence) && item.evidence.length > 0 &&
@@ -31,6 +34,7 @@ export function evaluateRc23(manifest, { headCommit = null } = {}) {
   if (manifest?.installedCommit !== manifest?.candidateCommit)
     labBlockers.push("Notebook: SHA instalado/API/frontend ainda não comprovado no SHA candidato");
   if (manifest?.ci?.status !== "passed" || !sha(manifest?.ci?.testedCommit) ||
+      !sha(manifest?.ci?.mergedCommit) || manifest?.ci?.mergedCommit !== manifest?.candidateCommit ||
       manifest?.ci?.treeMatchesMerged !== true || !manifest?.ci?.run)
     labBlockers.push("CI aprovada e árvore idêntica à versão integrada não comprovadas");
 
@@ -93,9 +97,17 @@ export function evaluateRc23(manifest, { headCommit = null } = {}) {
 }
 
 function main() {
+  const fileArgument = process.argv.find(arg => arg.startsWith("--file="));
+  const localFile = fileArgument ? fileArgument.slice("--file=".length) : null;
+  if (fileArgument && !localFile) {
+    process.stderr.write("Informe --file=<caminho de evidência local>.\n");
+    process.exitCode = 2;
+    return;
+  }
+  const selectedManifestPath = localFile ? resolve(process.cwd(), localFile) : manifestPath;
   let manifest;
   try {
-    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    manifest = JSON.parse(readFileSync(selectedManifestPath, "utf8"));
   } catch (e) {
     process.stderr.write("Manifesto RC indisponível ou inválido.\n");
     process.exitCode = 2;
@@ -121,6 +133,7 @@ function main() {
     for (const message of [...result.errors,...result.labBlockers,...result.externalBlockers])
       process.stdout.write(" - " + message + "\n");
     process.stdout.write("Apenas evidências registradas. Não altera serviços, banco ou tarefas.\n");
+    if (!localFile) process.stdout.write("Snapshot versionado: para aceite final use --file=release/rc23-acceptance.local.json (arquivo não versionado).\n");
   }
   if (!result.valid) process.exitCode = 2;
   else if (!result.labGo || !result.industrialCommercialGo) process.exitCode = 1;
