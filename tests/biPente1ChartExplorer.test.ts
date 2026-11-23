@@ -52,6 +52,9 @@ test("PENTE1: overview and temporal chart surfaces open focus with original auth
   assert.match(overview, /onDrilldown\(\{/);
   assert.match(temporal, /rows=\{byHour\.map/);
   assert.match(temporal, /rows=\{byWeekday\.map/);
+  assert.match(temporal, /setHeatmapOpen\(true\)/);
+  assert.match(temporal, /<Dialog open=\{heatmapOpen\}/);
+  assert.match(temporal, /aria-pressed=\{chosen\}/);
   assert.doesNotMatch(overview, /\.update\(|\.delete\(|\.create\(/);
 });
 
@@ -69,7 +72,7 @@ test("PENTE1: per-chart warnings and translations preserve the metric's meaning"
   assert.match(downtime, /podem estar incompletas/);
   assert.match(overview, /Não confundir quantidade de chamados com minutos parados/);
   assert.match(temporal, /não risco horário/);
-  for (const key of ["Ampliar análise do gráfico: {0}", "Tabela de dados", "Exportar dados CSV", "Menor valor observado"]) {
+  for (const key of ["Ampliar análise do gráfico: {0}", "Tabela de dados", "Exportar dados CSV", "Menor valor observado", "Leitura ampliada do mapa de calor"]) {
     assert.ok(messages.includes(`["${key}",`), `Missing PT\/EN\/ZH-TW key: ${key}`);
   }
 });
