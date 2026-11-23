@@ -293,6 +293,11 @@ export function normalizeMachine(machine: Machine): Machine {
       typeof (source as { requireWorkOrderAtOpen?: unknown }).requireWorkOrderAtOpen === "boolean"
         ? (source as { requireWorkOrderAtOpen: boolean }).requireWorkOrderAtOpen
         : false,
+    hiddenDirectSectorIds: Array.isArray(source.hiddenDirectSectorIds)
+      ? source.hiddenDirectSectorIds.filter((id): id is string => typeof id === "string")
+      : [],
+    sectorVisibilityRevision: Number.isSafeInteger(source.sectorVisibilityRevision) &&
+      (source.sectorVisibilityRevision ?? 0) >= 0 ? source.sectorVisibilityRevision : 0,
     isActive:
       typeof (source as { isActive?: unknown }).isActive === "boolean"
         ? (source as { isActive: boolean }).isActive
