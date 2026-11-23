@@ -1,5 +1,11 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Ordenação cronológica", "Chronological sorting", "時間排序"],
+  ["Abertura mais recente", "Most recently opened", "最近開啟"],
+  ["Última movimentação", "Last activity", "最後動作"],
+  ["Finalização mais recente", "Most recently finalized", "最近結案"],
+  ["Chamados por última movimentação", "Calls by last activity", "依最後動作排序的通報"],
+  ["Chamados por finalização", "Calls by finalization", "依結案時間排序的通報"],
   ["Histórico Global: visualizar", "Global History: view", "全域歷史：檢視"],
   ["Histórico Global: consultar máquinas autorizadas", "Global History: view authorized machines", "全域歷史：檢視授權機台"],
   ["Voltar aos 5 módulos", "Back to 5 modules", "返回五大模組"],
