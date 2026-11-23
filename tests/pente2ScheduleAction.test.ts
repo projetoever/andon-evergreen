@@ -43,6 +43,8 @@ test("PENTE 2 final: authorized writers avoid per-machine password, request-only
   ]);
   assert.match(page, /principal!\.permissions\?\.includes\("production\.schedule\.write"\)/);
   assert.match(page, /if \(canWrite\) \{/);
+  assert.match(page, /scheduleSubmittingRef\.current = true/);
+  assert.match(page, /scheduleSubmittingRef\.current = false/);
   assert.match(page, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.match(page, /setPendingSchedule\(\{/);
   assert.match(page, /machineId: machine\.id,[\s\S]*?expectedProductionMode: machine\.productionMode/);
