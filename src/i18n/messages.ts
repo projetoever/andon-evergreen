@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 3 — Interpretability, permissions and export transparency.
+  ["Como interpretar o Histórico Global e suas exportações","Understanding Global History and exports","如何解讀全域叫修歷史與匯出"],
+  ["A lista mostra uma página do período e filtros aplicados; os totais do resumo consideram todos os registros autorizados que correspondem aos filtros.","The list shows a page of applied filters; summary totals cover all matching authorized records.","清單顯示已套用篩選條件的其中一頁；摘要總數涵蓋所有符合條件且獲授權的紀錄。"],
+  ["Chamados reais e testes do sistema são origens diferentes. Use o filtro Origem para separá-los.","Real calls and system tests are different origins. Use the Origin filter to separate them.","實際叫修與系統測試是不同來源。請使用「來源」篩選來區分。"],
+  ["CSV da página exporta até 25 chamados exibidos e não equivale a uma exportação auditada no servidor.","Page CSV exports up to 25 displayed calls and is not a server-audited export.","頁面 CSV 最多匯出 25 筆目前顯示的叫修，並非伺服器稽核匯出。"],
+  ["CSV filtrado consulta o servidor, registra a exportação e permite até 500 chamados autorizados. Acima do limite, refine os filtros.","Filtered CSV is server-audited and supports up to 500 authorized calls. Narrow your filters if the limit is exceeded.","篩選 CSV 由伺服器稽核，最多支援 500 筆已授權叫修。超過上限時請縮小篩選範圍。"],
+  ["Os tempos de espera, atendimento, acompanhamento, total e parada podem se sobrepor e não devem ser somados.","Waiting, attendance, follow-up, total and stoppage times may overlap and must not be added together.","等待、處理、後續追蹤、總時長與停機時間可能重疊，不應直接相加。"],
   // PENTE 3 — Impact timeline uses actual stored intervals; never infer durations.
   ["Início de impacto de parada", "Machine stoppage impact started", "機台停機影響開始"],
   ["Fim de impacto de parada", "Machine stoppage impact ended", "機台停機影響結束"],
