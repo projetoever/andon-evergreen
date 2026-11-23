@@ -21,6 +21,9 @@ import { cn } from "@/lib/utils";
 import { MachineHierarchyAdminSection } from "./MachineHierarchyAdminSection";
 import { getSystemSettings, SYSTEM_SETTINGS_CHANGED_EVENT } from "@/services/systemSettingsService";
 import { filterMachinesForAdmin } from "@/utils/adminEntityFilterUtils";
+import { getCategoryConfigs } from "@/services/categoryConfigService";
+import type { AndonCategoryConfig } from "@/types/settings";
+import { toast } from "@/i18n/toast";
 
 function sortMachines(machines: Machine[]) {
   return [...machines].sort((a, b) => {
@@ -77,6 +80,7 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
     machines,
     createMachine,
     updateMachineCatalog,
+    updateMachineDirectSectors,
     updateMachineActive,
     updateMachineProductionMode,
   } = useAndon();
@@ -92,6 +96,9 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
   const [newName, setNewName] = useState("");
   const [newProductionMode, setNewProductionMode] = useState<ProductionMode>("scheduled");
   const [newRequireWorkOrder, setNewRequireWorkOrder] = useState(false);
+  const [sectorCatalog, setSectorCatalog] = useState<AndonCategoryConfig[] | null>(null);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [visibilityLoadFailed, setVisibilityLoadFailed] = useState(false);
   // Feature gates come from system-settings, not the visible Admin tab.
   // The central API still enforces approved workstation, session, ACL and CSRF.
   const [centralCapabilities, setCentralCapabilities] = useState<{ create: boolean; update: boolean } | null>(null);
@@ -120,6 +127,43 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
       ? null
       : (machines.find((machine) => machine.id === selectedMachineId) ?? null);
   const selectedMachineRequiresWorkOrder = selectedMachine?.requireWorkOrderAtOpen === true;
+
+  useEffect(() => {
+    if (!centralAccess) return;
+    let alive = true;
+    const refresh = () => {
+      void getCategoryConfigs().then(rows => {
+        if (!alive) return;
+        setSectorCatalog(rows);
+        setVisibilityLoadFailed(false);
+      }).catch(() => {
+        if (!alive) return;
+        setSectorCatalog(null);
+        setVisibilityLoadFailed(true);
+      });
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => { alive = false; window.removeEventListener("focus", refresh); };
+  }, [centralAccess]);
+
+  async function updateDirectVisibility(machine: Machine, sectorId: string, visible: boolean) {
+    if (!centralAccess || !canEditMachineMetadata || visibilitySaving || !sectorCatalog) return;
+    const hidden = machine.hiddenDirectSectorIds ?? [];
+    const updated = visible
+      ? hidden.filter(id => id !== sectorId)
+      : [...new Set([...hidden, sectorId])];
+    if (updated.length === hidden.length && updated.every(id => hidden.includes(id))) return;
+    setVisibilitySaving(true);
+    try {
+      await updateMachineDirectSectors(machine.id, updated, machine.sectorVisibilityRevision ?? 0);
+      toast.success(ui("Visibilidade dos setores desta máquina atualizada."));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : ui("Não foi possível salvar a visibilidade. Atualize e tente novamente."));
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -615,6 +659,35 @@ export function MachineAdminPanel({ centralAccess = false }: { centralAccess?: b
                 </label>
               </div>
             </Section>
+
+            {centralAccess && (
+              <Section
+                title={ui("Setores na tela desta máquina")}
+                description={ui("Ocultar aqui não inativa o setor nem o retira dos Grupos. Se houver chamado ativo, o botão reaparece temporariamente para atendimento.")}
+              >
+                {visibilityLoadFailed && <p role="alert" className="text-sm text-destructive">
+                  {ui("Não foi possível carregar a lista de setores. A edição está bloqueada.")}
+                </p>}
+                {!sectorCatalog && !visibilityLoadFailed && <p role="status" className="text-xs text-muted-foreground">{ui("Carregando setores...")}</p>}
+                {sectorCatalog?.filter(sector => sector.active).map(sector => {
+                  const globalVisible = sector.showDirectButton !== false;
+                  const checked = globalVisible &&
+                    !(selectedMachine.hiddenDirectSectorIds ?? []).includes(sector.id);
+                  return (
+                    <label key={sector.id} className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{sector.displayName}</span>
+                        {!globalVisible && <span className="block text-xs text-muted-foreground">{ui("Oculto na configuração global; os Grupos continuam disponíveis.")}</span>}
+                      </span>
+                      <Switch aria-label={ui("Exibir setor na tela desta máquina") + ": " + sector.displayName}
+                        checked={checked}
+                        disabled={!canEditMachineMetadata || visibilitySaving || !globalVisible}
+                        onCheckedChange={visible => void updateDirectVisibility(selectedMachine, sector.id, visible)} />
+                    </label>
+                  );
+                })}
+              </Section>
+            )}
 
             <Section
               title={ui("Estrutura da máquina")}
