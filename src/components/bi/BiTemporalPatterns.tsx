@@ -2,7 +2,7 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, CalendarDays, Clock3, Maximize2, TimerReset } from "lucide-react";
 import type { AnalyticsTemporalPatterns } from "@/types/analytics";
@@ -62,6 +62,7 @@ export function BiTemporalPatterns({
   const [metric, setMetric] = useState<Metric>("calls");
   const [selected, setSelected] = useState<{ weekday: number; hour: number } | null>(null);
   const [heatmapOpen, setHeatmapOpen] = useState(false);
+  const heatmapExpandRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setSelected(null);
   }, [metric, data]);
@@ -180,6 +181,7 @@ export function BiTemporalPatterns({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button"
+                ref={heatmapExpandRef}
                 aria-label={ui("Ampliar mapa de calor")}
                 title={ui("Ampliar mapa de calor")}
                 onClick={() => setHeatmapOpen(true)}
@@ -415,7 +417,9 @@ export function BiTemporalPatterns({
         </aside>
       </div>
       <Dialog open={heatmapOpen} onOpenChange={setHeatmapOpen}>
-        <DialogContent className="flex max-h-[94dvh] w-[min(96vw,1120px)] max-w-none flex-col gap-3 overflow-hidden p-3 sm:p-5">
+        <DialogContent
+          onCloseAutoFocus={(event) => { event.preventDefault(); heatmapExpandRef.current?.focus(); }}
+          className="flex max-h-[94dvh] w-[min(96vw,1120px)] max-w-none flex-col gap-3 overflow-hidden p-3 sm:p-5">
           <DialogHeader className="shrink-0 pr-9 text-left">
             <DialogTitle>{ui("Leitura ampliada do mapa de calor")}</DialogTitle>
             <DialogDescription>
