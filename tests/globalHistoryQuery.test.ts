@@ -33,6 +33,16 @@ test("HIST-03: query encodes machine, classification, text and all current filte
   assert.equal(parsed.searchParams.get("limit"), "25");
 });
 
+test("RC HIST-D: sort is explicit only when non-default and stays server-scoped", () => {
+  const base = new URL(globalHistorySearchPath(filters({period:"all"})), "https://andon.test");
+  assert.equal(base.searchParams.has("sort"), false);
+  const updated = new URL(globalHistorySearchPath(filters({sort:"updated",machineId:"37",period:"all"})), "https://andon.test");
+  assert.equal(updated.searchParams.get("sort"), "updated");
+  assert.equal(updated.searchParams.get("machineId"), "37");
+  const finished = new URL(globalHistorySearchPath(filters({sort:"finished",period:"all"})), "https://andon.test");
+  assert.equal(finished.searchParams.get("sort"), "finished");
+});
+
 test("HIST-03: all machines/period does not send fake server scope", () => {
   const p = new URL(globalHistorySearchPath(filters({ period: "all" })), "https://andon.test").searchParams;
   for (const key of ["machineId", "status", "criticality", "origin", "openedFrom", "openedBefore"]) {
