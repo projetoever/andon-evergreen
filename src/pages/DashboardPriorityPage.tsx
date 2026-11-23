@@ -77,7 +77,7 @@ export function DashboardPriorityPage() {
   } | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
   const [scheduleRequester, setScheduleRequester] = useState<{
-    fullScope: boolean; machineIds: string[];
+    fullScope: boolean; machineIds: string[]; canWrite: boolean;
   } | null>(null);
   const [historyItems, setHistoryItems] = useState<DashboardPriorityAuditEntry[]>([]);
   const [historyTruncated, setHistoryTruncated] = useState(false);
@@ -179,7 +179,9 @@ export function DashboardPriorityPage() {
           principal.permissions?.includes("andon.read") === true);
       setScheduleRequester(permitted && principal
         ? { fullScope: principal.machineScope === "all",
-            machineIds: principal.machineIds ?? [] } : null);
+            machineIds: principal.machineIds ?? [],
+            canWrite: principal.isPrimaryAdmin === true ||
+              principal.permissions?.includes("production.schedule.write") === true } : null);
     }).catch(() => { if (!canceled) setScheduleRequester(null); });
     return () => { canceled = true; };
   }, [activeSection, access?.centralAccessEnabled, access?.principal?.userId,
@@ -273,8 +275,8 @@ export function DashboardPriorityPage() {
     }
     setScheduleCheckingId(machine.id);
     try {
-      // The terminal session is checked afresh. The actual write requires a
-      // DIFFERENT credential-verified approver and a backend expected-mode CAS.
+      // Recheck the live session before choosing the explicit write route.
+      // Request-only accounts still require one-shot credential approval.
       const state = await accessRequest<AccessState>("/session");
       const principal = state.principal;
       const permitted = principal?.purpose === "normal" &&
@@ -289,15 +291,38 @@ export function DashboardPriorityPage() {
         toast.error(ui("Você não tem permissão para alterar a programação desta máquina."));
         return;
       }
-      // Confirmation is the explicit credential form below. No state is
-      // changed by requesting the form.
-      setPendingSchedule({
-        machineId: machine.id,
-        currentMode: machine.productionMode,
-        requestedMode: machine.productionMode === "scheduled" ? "not_scheduled" : "scheduled",
-      });
-    } catch {
-      toast.error(ui("Não foi possível verificar sua permissão. Tente novamente."));
+      const target = machine.productionMode === "scheduled" ? "not_scheduled" : "scheduled";
+      const canWrite = principal!.isPrimaryAdmin === true ||
+        principal!.permissions?.includes("production.schedule.write") === true;
+      if (canWrite) {
+        // Backend revalidates the session, permission, machine scope, CSRF,
+        // workstation, expected mode (409), transaction and audit.
+        await accessRequest("/machines/production-mode/session", "POST", {
+          machineId: machine.id,
+          expectedProductionMode: machine.productionMode,
+          productionMode: target,
+        });
+        toast.success(ui("Programação de produção atualizada com autorização."));
+        await loadOrder();
+      } else {
+        // Request-only operator: an authorized second person must approve.
+        setPendingSchedule({
+          machineId: machine.id,
+          currentMode: machine.productionMode,
+          requestedMode: target,
+        });
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (message.includes("production_mode_changed")) {
+        toast.error(ui("A programação foi alterada em outra estação. Atualizando o estado."));
+        void loadOrder();
+      } else if (/permission_denied|machine_scope_denied|authentication_required|workstation_denied/.test(message)) {
+        setScheduleRequester(null);
+        toast.error(ui("Sua sessão ou permissão não permite alterar esta máquina."));
+      } else {
+        toast.error(ui("Não foi possível alterar a programação. Confira a conexão e tente novamente."));
+      }
     } finally {
       setScheduleCheckingId(null);
     }
@@ -694,7 +719,7 @@ export function DashboardPriorityPage() {
                             <Button type="button" variant="outline" size="sm"
                               disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || hasUnsavedChanges}
                               onClick={() => void requestScheduleChange(machine)}>
-                              {scheduleCheckingId === machine.id ? ui("Verificando permissão...") :
+                              {scheduleCheckingId === machine.id ? ui("Atualizando programação...") :
                                 machine.productionMode === "scheduled"
                                   ? ui("Retirar da programação") : ui("Programar produção")}
                             </Button>
