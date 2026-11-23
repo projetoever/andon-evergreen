@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  ["Sem amostra", "No sample", "尚無樣本"],
+  ["Indicadores a partir de {0}. Histórico anterior preservado para auditoria.", "Metrics measured since {0}. Earlier history remains available for audit.", "指標自 {0} 起計算。較早歷史記錄保留供稽核。"],
   ["Evento auditado", "Audited event", "已稽核事件"],
   ["Revisão de diagnóstico registrada", "Diagnosis revision recorded", "已記錄診斷修訂"],
   ["Classificação", "Classification", "分類"],
