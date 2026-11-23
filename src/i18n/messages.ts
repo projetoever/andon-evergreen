@@ -1,5 +1,8 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 3 — Impact timeline uses actual stored intervals; never infer durations.
+  ["Início de impacto de parada", "Machine stoppage impact started", "機台停機影響開始"],
+  ["Fim de impacto de parada", "Machine stoppage impact ended", "機台停機影響結束"],
   // PENTE 3 — Global History accessible filter controls.
   ["Há filtros não aplicados. Clique em Filtrar para atualizar resultados e exportações.", "Some filters have not been applied. Select Filter to update results and exports.", "部分篩選條件尚未套用。請按「篩選」更新結果與匯出內容。"],
   ["Mostrar filtros", "Show filters", "顯示篩選條件"],
