@@ -1,10 +1,8 @@
 import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
-import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, FileDown, RefreshCw, Factory } from "lucide-react";
-import { useModuleAccess } from "@/context/ModuleAccessProvider";
+import { BarChart3, FileDown, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
 import { BiAnalyticsDrillDown } from "@/components/bi/BiAnalyticsDrillDown";
@@ -71,7 +69,6 @@ const PERIOD_LABELS: Record<AndonBiPeriodPreset, string> = {
 };
 
 export function AndonBiPage() {
-  const { access } = useModuleAccess();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<BiWorkspaceTab>("overview");
   const [filters, setFilters] = useState<AndonBiFilters>(DEFAULT_FILTERS);
@@ -502,7 +499,7 @@ export function AndonBiPage() {
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <LanguageSelector compact />
-            <ModuleNavigation />
+            <ModuleNavigation showModuleLinks />
             <button
               type="button"
               onClick={() => void exportExecutivePdf()}
@@ -523,19 +520,6 @@ export function AndonBiPage() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
-            {access?.modules.some(
-              (module) =>
-                module.id === "operational" && module.allowed && module.enabled && module.available,
-            ) && (
-              <Link
-                to="/andon"
-                title={t("Abrir ANDON operacional")}
-                aria-label={t("Abrir ANDON operacional")}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-              >
-                <Factory className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            )}
           </div>
         </header>
 
