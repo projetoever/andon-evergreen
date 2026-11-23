@@ -34,7 +34,8 @@ test("PENTE 2: the first lot leaves priority writes and production scheduling se
   assert.match(page, /centralReadOnly = !access \|\| \(access\.centralAccessEnabled === true/);
   assert.match(page, /access\.principal\?\.machineScope !== "all"/);
   assert.match(page, /if \(centralReadOnly \|\| !hasUnsavedChanges \|\| isSaving\) return/);
-  assert.doesNotMatch(page, /setProductionMode|machineProductionEvent|\/machines\/production-mode/);
+  assert.doesNotMatch(page, /setProductionMode|machineProductionEvent|\/api\/machines\/:id\/production-mode/);
+  assert.match(page, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.doesNotMatch(service, /\/machines\/production-mode/);
   assert.match(modal, /expectedProductionMode: currentMode/);
 });
