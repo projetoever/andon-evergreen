@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 test("central priority editor remains read-only while writes are denied", async () => {
   const page = await readFile(new URL("../src/pages/DashboardPriorityPage.tsx", import.meta.url), "utf8");
-  assert.match(page, /centralReadOnly = access\?\.centralAccessEnabled === true/);
+  assert.match(page, /centralReadOnly = !access \|\| \(access\.centralAccessEnabled === true/);
   assert.match(page, /draggable=\{!centralReadOnly\}/);
   assert.match(page, /if \(centralReadOnly \|\| isSaving\) return/);
   assert.match(page, /if \(centralReadOnly \|\| !hasUnsavedChanges \|\| isSaving\) return/);
