@@ -42,7 +42,7 @@ export function DashboardPriorityPage() {
   const { access } = useModuleAccess();
   const returnTo = "/hub";
   const centralReadOnly = access?.centralAccessEnabled === true &&
-    access?.prioritiesWriteEnabled !== true;
+    (access?.prioritiesWriteEnabled !== true || access?.principal?.machineScope !== "all");
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
@@ -426,18 +426,18 @@ export function DashboardPriorityPage() {
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="rounded-xl border border-border bg-card p-4">
                     <p className="text-sm text-muted-foreground">{ui("Máquinas na sequência")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">{rows.length}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">{isLoading || loadingError ? "—" : rows.length}</p>
                   </div>
                   <div className="rounded-xl border border-border bg-card p-4">
                     <p className="text-sm text-muted-foreground">{ui("Máquinas ativas")}</p>
                     <p className="mt-2 text-3xl font-black tabular-nums">
-                      {rows.filter((machine) => machine.isActive).length}
+                      {isLoading || loadingError ? "—" : rows.filter((machine) => machine.isActive).length}
                     </p>
                   </div>
                   <div className="rounded-xl border border-border bg-card p-4">
                     <p className="text-sm text-muted-foreground">{ui("Máquinas inativas")}</p>
                     <p className="mt-2 text-3xl font-black tabular-nums">
-                      {rows.filter((machine) => !machine.isActive).length}
+                      {isLoading || loadingError ? "—" : rows.filter((machine) => !machine.isActive).length}
                     </p>
                   </div>
                 </div>
@@ -491,7 +491,9 @@ export function DashboardPriorityPage() {
                         0: formatDateTime(lastOrderUpdatedAt),
                         1: lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : "",
                       })
-                    : ui("Sequência ainda não salva manualmente")}
+                    : access?.centralAccessEnabled && access?.principal?.machineScope !== "all"
+                      ? ui("Dados de alteração global ocultos para este escopo de máquinas.")
+                      : ui("Sequência ainda não salva manualmente")}
                 </p>
                 <p className="mt-3 text-sm text-muted-foreground">
                   {ui("Este resumo não é o histórico completo de auditoria. O detalhamento auditável será disponibilizado após validação dos acessos.")}
