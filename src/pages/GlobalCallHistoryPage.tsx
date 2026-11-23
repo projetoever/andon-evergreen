@@ -2,7 +2,7 @@ import { ui, systemMessage, getInterfaceLocale } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
-  ArrowLeft, CalendarDays, ChevronDown, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
+  ArrowLeft, CalendarDays, ChevronDown, CircleHelp, Clock3, FileSpreadsheet, Filter, History, Lock, RefreshCw,
   Search, SlidersHorizontal, Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -417,6 +417,19 @@ export function GlobalCallHistoryPage() {
           </div>
         </header>
 
+        <details className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" />
+            {ui("Como interpretar o Histórico Global e suas exportações")}
+          </summary>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <p>{ui("A lista mostra uma página do período e filtros aplicados; os totais do resumo consideram todos os registros autorizados que correspondem aos filtros.")}</p>
+            <p>{ui("Chamados reais e testes do sistema são origens diferentes. Use o filtro Origem para separá-los.")}</p>
+            <p>{ui("CSV da página exporta até 25 chamados exibidos e não equivale a uma exportação auditada no servidor.")}</p>
+            <p>{ui("CSV filtrado consulta o servidor, registra a exportação e permite até 500 chamados autorizados. Acima do limite, refine os filtros.")}</p>
+            <p>{ui("Os tempos de espera, atendimento, acompanhamento, total e parada podem se sobrepor e não devem ser somados.")}</p>
+          </div>
+        </details>
         {summaryLoading && <div role="status" className="space-y-2 rounded-xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{ui("Calculando indicadores dos filtros…")}</p>
           <Skeleton className="h-14 w-full" />
