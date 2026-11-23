@@ -1,5 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 3 — Global History accessible filter controls.
+  ["Mostrar filtros", "Show filters", "顯示篩選條件"],
+  ["Ocultar filtros", "Hide filters", "隱藏篩選條件"],
+  ["Sem mantenedor", "No technician", "無維修人員"],
   // PENTE 2 — priority sidebar, safe read-only panels (PT/EN/zh-TW).
   ["Sua sessão permite alterar diretamente a programação das máquinas autorizadas.","Your session allows direct scheduling changes for authorized machines.","目前的工作階段可直接變更已授權機台的生產排程。"],
   ["A programação exige aprovação de uma pessoa com permissão de escrita.","Scheduling requires approval from a person with write permission.","變更生產排程需要具有寫入權限的人員核准。"],
