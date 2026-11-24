@@ -237,6 +237,7 @@ export function AdminSettingsWorkspace({
       subtitle={ui("Configuração controlada do ANDON Web Industrial.")}
       items={visibleTabs}
       activeId={tab}
+      resetContentScrollOnTabChange
       onSelect={(id) => setTab(id as SettingsTab)}
       onBack={onClose}
       backLabel={ui("Voltar ao ANDON")}
