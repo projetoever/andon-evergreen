@@ -220,7 +220,7 @@ function TechnicianTotals({call}:{call:GlobalHistoryCallDetail}) {
                 <p className="text-xs font-semibold text-muted-foreground">
                   {ui("Sessões detalhadas")}
                 </p>
-                <ol aria-label={ui("Sessões detalhadas")} className="mt-2 grid min-w-0 gap-3 lg:grid-cols-2">
+                <ol aria-label={ui("Sessões detalhadas")} className="mt-2 grid min-w-0 gap-3 xl:grid-cols-2">
                   {(sessionsByTechnician.get(row.key) ?? []).map((session, index) => (
                     <TechnicianRow key={session.id} session={session} position={index + 1} />
                   ))}
@@ -243,7 +243,7 @@ function TechnicianTotals({call}:{call:GlobalHistoryCallDetail}) {
       {unidentifiedSessions.length > 0 && (
         <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
           <p className="text-sm font-semibold">{ui("Sessões sem mantenedor identificado")}</p>
-          <ol aria-label={ui("Sessões detalhadas")} className="mt-2 grid min-w-0 gap-3 lg:grid-cols-2">
+          <ol aria-label={ui("Sessões detalhadas")} className="mt-2 grid min-w-0 gap-3 xl:grid-cols-2">
             {unidentifiedSessions.map((session, index) => (
               <TechnicianRow key={session.id} session={session} position={index + 1} />
             ))}
