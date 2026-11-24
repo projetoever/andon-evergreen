@@ -408,7 +408,7 @@ export function TechniciansSettingsTab() {
           <CardSection
             title={ui("Mantenedores cadastrados")}
             className="xl:absolute xl:inset-0 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden"
-            >
+          >
             <div className="shrink-0 space-y-2">
               <div className="relative">
                 <Search
@@ -434,7 +434,7 @@ export function TechniciansSettingsTab() {
                   </button>
                 )}
               </div>
-  
+
               <div
                 className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
                 aria-label={ui("Filtrar mantenedores por status")}
@@ -462,7 +462,7 @@ export function TechniciansSettingsTab() {
                   </button>
                 ))}
               </div>
-  
+
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="space-y-1 text-xs font-semibold text-muted-foreground">
                   {ui("Área técnica")}
@@ -484,7 +484,7 @@ export function TechniciansSettingsTab() {
                     ))}
                   </select>
                 </label>
-  
+
                 <label className="space-y-1 text-xs font-semibold text-muted-foreground">
                   {ui("Turno")}
                   <select
@@ -503,7 +503,7 @@ export function TechniciansSettingsTab() {
                   </select>
                 </label>
               </div>
-  
+
               <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span>
                   {filteredTechnicians.length}
@@ -527,7 +527,7 @@ export function TechniciansSettingsTab() {
                 )}
               </div>
             </div>
-  
+
             <BigButton
               tone="neutral"
               size="md"
@@ -536,7 +536,7 @@ export function TechniciansSettingsTab() {
             >
               {ui("Adicionar mantenedor")}
             </BigButton>
-  
+
             <div
               role="region"
               aria-label={ui("Lista de mantenedores cadastrados")}
