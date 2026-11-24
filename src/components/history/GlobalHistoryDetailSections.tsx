@@ -228,7 +228,7 @@ function OperationalImpact({call}:{call:GlobalHistoryCallDetail}) {
       {breakdown && <p role="note" className="mt-2 text-xs text-muted-foreground">
         {ui("Distribuição temporal do chamado conforme intervalos reais de produção e de parada, sem alterar indicadores oficiais do BI.")}
       </p>}
-      {call.impactIntervals?.length > 0 && <details className="mt-3 rounded-lg border border-border bg-muted/10 p-3 text-xs">
+      {(call.impactIntervals?.length ?? 0) > 0 && <details className="mt-3 rounded-lg border border-border bg-muted/10 p-3 text-xs">
         <summary className="cursor-pointer font-bold">{ui("Intervalos de parada atribuídos ao chamado")}</summary>
         <ul className="mt-2 space-y-2">
           {call.impactIntervals.map(row => <li key={row.id} className="rounded-md border border-border bg-background p-2">
