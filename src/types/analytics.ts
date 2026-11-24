@@ -139,6 +139,7 @@ export type BiSampleDiagnostics = {
       | "verified_schedule";
     gate:
       | "awaiting_finalization"
+      | "finished_outside_period"
       | "non_corrective_group"
       | "unassigned_diagnosis"
       | "non_maintenance_diagnosis"
