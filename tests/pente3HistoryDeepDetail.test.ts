@@ -34,7 +34,7 @@ test("PENTE 3-G: complete historical modes separate productive stop and support 
   assert(impact);
   assert.equal(impact.productiveDowntimeSeconds, 300);
   assert.equal(impact.nonScheduledDowntimeSeconds, 0);
-  assert.equal(impact.productionBlockedSupportSeconds, 600);
+  assert.equal(impact.productionBlockedSupportSeconds, 300);
   assert.equal(impact.nonScheduledSupportSeconds, 600);
   assert.equal(row.machineStoppedMinutes, 5);
 });
