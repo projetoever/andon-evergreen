@@ -1,6 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 5C — sample attribution investigation and Group policy distinction.
+  ["Programação indisponível com filtro de setor/classificação", "Schedule unavailable with sector/classification filters", "使用部門／分類篩選時無法提供排程資料"],
+  ["Máquina fora da população de confiabilidade", "Machine outside the reliability population", "設備不在可靠度統計範圍"],
+  ["Histórico de programação incompleto: MTBF não verificável", "Incomplete production schedule history: MTBF not verifiable", "生產排程歷史不完整：無法核驗 MTBF"],
+  ["Sem minutos em Produção Programada", "No scheduled production minutes", "無排程生產分鐘數"],
+  ["Programação histórica verificável", "Verifiable production schedule history", "生產排程歷史可供核驗"],
+
   ["Por que os KPIs estão sem amostra?", "Why do KPIs show no samples?", "為什麼 KPI 顯示無樣本？"],
   ["{0} atendido(s) · {1} finalizado(s) · {2} manutenção corretiva confirmada", "{0} attended · {1} finished · {2} confirmed corrective maintenance", "已受理 {0} 筆、已結案 {1} 筆、已確認矯正維修 {2} 筆"],
   ["Registro, atendimento e amostra válida são etapas diferentes. Abaixo estão os filtros aplicados ao período e à máquina selecionados. Nenhum dado é alterado.", "Recording, attendance and a valid KPI sample are distinct steps. These checks use the current period and machine filters. No data is changed.", "建立紀錄、受理及有效 KPI 樣本是不同階段。以下檢查依目前期間及設備篩選，不會修改資料。"],
