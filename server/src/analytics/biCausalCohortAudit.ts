@@ -1,4 +1,4 @@
-import { buildCausalEpisodes, type CausalImpact } from "./causality.js";
+import { buildCorrectiveCausalEpisodes, NON_CORRECTIVE_ORIGIN, type CausalImpact } from "./causality.js";
 import { isEligible, uniqueById } from "./eligibility.js";
 import {
   buildPlannedProductionKpis,
@@ -25,6 +25,7 @@ export type EpisodeExclusion =
   | "still_open"
   | "pending_or_mixed"
   | "not_maintenance"
+  | "non_corrective_origin"
   | "missing_schedule"
   | "outside_scheduled_production"
   | "started_before_window"
@@ -54,7 +55,7 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
   const events = uniqueById(input.events).filter(event =>
     event.machineId === input.machineId && isEligible(event),
   );
-  const episodes = buildCausalEpisodes(events, input.impacts.filter(
+  const episodes = buildCorrectiveCausalEpisodes(events, input.impacts.filter(
     impact => impact.machineId === input.machineId,
   ));
   const productionEvents = input.productionEvents.filter(event =>
@@ -81,6 +82,7 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
       const restoredInside = validEnd && episode.end >= start && episode.end < end;
       const mttrReason: EpisodeExclusion = !validEnd ? "still_open"
         : !restoredInside ? "out_of_period"
+        : episode.responsibility === NON_CORRECTIVE_ORIGIN ? "non_corrective_origin"
         : ["unassigned", "mixed"].includes(episode.responsibility) ? "pending_or_mixed"
         : episode.responsibility !== "maintenance" ? "not_maintenance"
         : "included";
@@ -88,7 +90,8 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
       const inScheduled = activeSchedule.some(
         interval => episode.start >= interval.start && episode.start < interval.end,
       );
-      const mtbfReason: EpisodeExclusion = episode.responsibility === "unassigned" ||
+      const mtbfReason: EpisodeExclusion = episode.responsibility === NON_CORRECTIVE_ORIGIN ? "non_corrective_origin"
+        : episode.responsibility === "unassigned" ||
         episode.responsibility === "mixed" ? "pending_or_mixed"
         : episode.responsibility !== "maintenance" ? "not_maintenance"
         : !beganInside ? "started_before_window"
