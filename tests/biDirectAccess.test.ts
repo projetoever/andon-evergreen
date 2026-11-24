@@ -23,8 +23,14 @@ test("dashboard operacional oferece entrada direta para o ANDON BI", async () =>
     "utf8",
   );
 
-  assert.match(dashboard, /title=\{t\("Abrir ANDON BI"\)\}/);
-  assert.match(dashboard, /navigate\(\{ to: "\/bi" \}\)/);
+  const navigation = await readFile(
+    new URL("../src/components/layout/ModuleNavigation.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(dashboard, /<ModuleNavigation showModuleLinks\s*\/>/);
+  assert.match(navigation, /label: "Abrir ANDON BI"/);
+  assert.match(navigation, /to: "\/bi"/);
+  assert.match(navigation, /!grant\?\.available \|\| !grant\.enabled \|\| !grant\.allowed/);
 });
 
 test("atalho de desktop aponta diretamente para a rota do ANDON BI", async () => {
