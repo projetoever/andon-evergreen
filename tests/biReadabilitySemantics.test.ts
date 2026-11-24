@@ -105,5 +105,8 @@ test("BI2A: razões de indisponibilidade são comuns ao painel e ao relatório",
   assert.match(reason, /pending_attribution/);
   assert.match(reason, /no_maintenance_failures/);
   assert.match(metrics, /closedPendingRestorationEpisodes/);
-  assert.match(metrics, /plannedMtbfMinutes=episodes>0 && pending===0/);
+  assert.match(metrics, /plannedMtbfMinutes=episodes>0/);
+  assert.match(metrics, /mtbfSampleStatus/);
+  assert.match(panel, /explainPartialMtbf\(scheduled\)/);
+  assert.match(pdf, /explainPartialMtbf\(overview\.production\)/);
 });
