@@ -176,7 +176,8 @@ test("causas conflitantes e legado sem snapshot ficam pendentes, sem melhorar ar
   const out = production(events);
   assert.equal(out.availabilityPercent, 50);
   assert.equal(out.pendingAttributionEpisodes, 1);
-  assert.equal(out.plannedMtbfMinutes, null);
+  assert.equal(out.plannedMtbfMinutes, 60);
+  assert.equal(out.mtbfSampleStatus, "partial");
   assert.equal(out.resolvedMttrMinutes, 30);
   const conflicting = buildCausalEpisodes([event("one", 0, 30), event("two", 10, 20, "process")]);
   assert.equal(
