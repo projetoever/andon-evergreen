@@ -74,10 +74,10 @@ test("PENTE 3-G: history left sidebar fills right detail and shows impact, durat
   assert.match(page,/lg:relative/);
   assert.match(page,/lg:absolute lg:inset-0 lg:h-full/);
   assert.match(page,/lg:min-h-0/);
-  assert.doesNotMatch(page,/max-h-\\[65dvh\\]/);
-  assert.match(detail, /historySessionMinutes\\(session\\)/);
-  assert.match(detail, /historyTechnicianTotals\\(call.technicianSessions/);
-  assert.match(detail, /historicalCallImpact\\(call,/);
-  assert.match(page, /getAuditedGlobalHistoryExport\\(requested\\)/);
-  assert.match(page, /access\\?\\.globalHistory\\?\\.allowed === true/);
+  assert.doesNotMatch(page,/max-h-\[65dvh\]/);
+  assert.match(detail, /historySessionMinutes\(session\)/);
+  assert.match(detail, /historyTechnicianTotals\(call.technicianSessions/);
+  assert.match(detail, /historicalCallImpact\(call,/);
+  assert.match(page, /getAuditedGlobalHistoryExport\(requested\)/);
+  assert.match(page, /access\?\.globalHistory\?\.allowed === true/);
 });
