@@ -474,6 +474,8 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
           start: period.start,
           effectiveEnd,
           production,
+          assets,
+          productionEvents,
         }),
         responsibility: {
           downtime: summarizeCausalDowntime(currentData.causalEpisodes, period.start, effectiveEnd),
