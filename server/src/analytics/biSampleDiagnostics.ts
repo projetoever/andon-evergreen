@@ -36,6 +36,7 @@ type DiagnosticKpis = {
 
 export type BiSampleGate =
   | "awaiting_finalization"
+  | "finished_outside_period"
   | "non_corrective_group"
   | "unassigned_diagnosis"
   | "non_maintenance_diagnosis"
@@ -89,7 +90,9 @@ export function buildBiSampleDiagnostics(input: {
         .filter(event => event.machineId === call.machineId);
       const gate: BiSampleGate = call.status !== "finished"
         ? "awaiting_finalization"
-        : !corrective
+        : !inWindow(call.finishedAt,start,effectiveEnd)
+          ? "finished_outside_period"
+          : !corrective
           ? "non_corrective_group"
           : !call.failureResponsibility || call.failureResponsibility === "unassigned"
             ? "unassigned_diagnosis"
