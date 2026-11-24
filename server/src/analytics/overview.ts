@@ -417,9 +417,14 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
     .filter((call) => call.finishedAt && call.finishedAt >= call.openedAt)
     .map((call) => diffMinutes(call.openedAt, call.finishedAt as Date));
 
-  const maintenanceCalls = finishedCalls.filter(call =>
-    call.failureResponsibility === "maintenance" &&
+  const correctiveFinishedCandidates = finishedCalls.filter(call =>
     isCorrectiveReasonCandidate(call.callReasonSnapshot),
+  );
+  const pendingCorrectiveFinishedCalls = correctiveFinishedCandidates.filter(call =>
+    !call.failureResponsibility || call.failureResponsibility === "unassigned",
+  );
+  const maintenanceCalls = correctiveFinishedCandidates.filter(call =>
+    call.failureResponsibility === "maintenance",
   );
   const returnedCalls = maintenanceCalls.filter((call) => call.maintenanceReturnCount > 0);
   const maintenanceReturnCycles = maintenanceCalls.reduce(
@@ -536,6 +541,8 @@ export function buildExecutiveOverview(params: BuildExecutiveOverviewParams) {
       mtbfEstimatedMinutes: reliability.mtbfEstimatedMinutes,
       mtbfEstimatedMachineCount: reliability.monitoredMachineCount,
       maintenanceEligibleFinishedCalls: maintenanceCalls.length,
+      correctiveFinishedCandidates: correctiveFinishedCandidates.length,
+      pendingCorrectiveFinishedCalls: pendingCorrectiveFinishedCalls.length,
       returnedCalls: returnedCalls.length,
       maintenanceReturnCycles,
       maintenanceReturnRatePercent:
