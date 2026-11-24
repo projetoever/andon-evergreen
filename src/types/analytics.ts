@@ -144,6 +144,8 @@ export type AnalyticsOverview = {
     mtbfEstimatedMinutes: number | null;
     mtbfEstimatedMachineCount: number | null;
     maintenanceEligibleFinishedCalls?: number;
+    correctiveFinishedCandidates?: number;
+    pendingCorrectiveFinishedCalls?: number;
     returnedCalls: number;
     maintenanceReturnCycles: number;
     maintenanceReturnRatePercent: number | null;
