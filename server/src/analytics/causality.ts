@@ -16,8 +16,13 @@ export type CausalEpisode = {
   responsibility: string;
   segments: Array<{ start: number; end: number; responsibility: string }>;
 };
-const responsibility = (value?: string | null) =>
-  RESPONSIBILITIES.some((item) => item === value) ? value! : "unassigned";
+/** Internal corrective-cohort marker: a known Setup/Apoio origin is NOT an
+ * unattributed corrective failure. Never emit this as physical responsibility. */
+export const NON_CORRECTIVE_ORIGIN = "non_corrective_origin" as const;
+const responsibility = (value?: string | null, allowNonCorrective = false) =>
+  allowNonCorrective && value === NON_CORRECTIVE_ORIGIN
+    ? NON_CORRECTIVE_ORIGIN
+    : RESPONSIBILITIES.some((item) => item === value) ? value! : "unassigned";
 const overlaps = (a: number, b: number, c: number, d: number) => a < d && c < b;
 
 /** One physical minute belongs to one domain. Explicit call impact intervals
@@ -26,6 +31,7 @@ const overlaps = (a: number, b: number, c: number, d: number) => a < d && c < b;
 export function buildCausalEpisodes(
   events: AnalyticsFailureEventRecord[],
   impacts: CausalImpact[] = [],
+  options: { allowNonCorrectiveOrigin?: boolean } = {},
 ): CausalEpisode[] {
   const machines = new Map<string, AnalyticsFailureEventRecord[]>();
   for (const event of uniqueById(events).filter(isEligible)) {
@@ -94,7 +100,7 @@ export function buildCausalEpisodes(
           : sourceRows.filter((row) =>
               overlaps(start, end, row.startedAt.getTime(), row.endedAt?.getTime() ?? Infinity),
             );
-        const domains = new Set(sources.map((row) => responsibility(row.failureResponsibility)));
+        const domains = new Set(sources.map((row) => responsibility(row.failureResponsibility, options.allowNonCorrectiveOrigin)));
         segments.push({
           start,
           end,
@@ -143,12 +149,13 @@ export function buildCorrectiveCausalEpisodes(
     events.map(event => ({
       ...event,
       failureResponsibility: event.correctiveReasonCandidate === false
-        ? "unassigned" : event.failureResponsibility,
+        ? NON_CORRECTIVE_ORIGIN : event.failureResponsibility,
     })),
     impacts.map(impact => ({
       ...impact,
       failureResponsibility: impact.correctiveReasonCandidate === false
-        ? "unassigned" : impact.failureResponsibility,
+        ? NON_CORRECTIVE_ORIGIN : impact.failureResponsibility,
     })),
+    { allowNonCorrectiveOrigin: true },
   );
 }

@@ -23,7 +23,7 @@ test("S4-C: Setup stop stays physical but cannot prove a corrective episode", ()
   const events = [setup, corrective];
   assert.equal(buildCausalEpisodes(events).filter(row => row.responsibility === "maintenance").length, 2);
   const episodes = buildCorrectiveCausalEpisodes(events);
-  assert.deepEqual(episodes.map(row => row.responsibility), ["unassigned", "maintenance"]);
+  assert.deepEqual(episodes.map(row => row.responsibility), ["non_corrective_origin", "maintenance"]);
   const physical = calculatePhysicalDowntimeByMachine(events,
     date("2026-11-11T09:00:00Z"), date("2026-11-11T12:00:00Z"));
   assert.equal(physical[0]?.downtimeMinutes, 50);
@@ -48,7 +48,7 @@ test("S4-C: setup impact overrides false maintenance diagnosis conservatively", 
     correctiveReasonCandidate: false,
   }];
   const episodes = buildCorrectiveCausalEpisodes([setup], impacts);
-  assert.equal(episodes[0].responsibility, "unassigned");
+  assert.equal(episodes[0].responsibility, "non_corrective_origin");
 });
 
 test("S4-C: legacy physical maintenance event keeps established attribution", () => {

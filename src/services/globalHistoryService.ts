@@ -26,6 +26,9 @@ export interface GlobalHistoryCallSummary {
     optionId: string;
     optionNameSnapshot: string;
     nature: string;
+    maintenanceKpiPolicy?: string | null;
+    analyticsDisposition?: string | null;
+    suggestedResponsibility?: string | null;
   } | null;
 }
 
@@ -90,6 +93,9 @@ export interface GlobalHistoryDiagnosisAudit {
 }
 export interface GlobalHistoryCallDetail extends GlobalHistoryCallSummary {
   attendedAt: string | null;
+  failureResponsibility?: string | null;
+  analyticsDisposition?: string | null;
+  maintenanceReturnCount?: number;
   maintenanceCompletedAt: string | null;
   currentAttendanceStartedAt: string | null;
   callWaitingMinutes: number | null;

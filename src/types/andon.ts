@@ -87,6 +87,8 @@ export interface AndonCall {
     reasonId: string; reasonNameSnapshot: string; reasonRevision: number;
     optionId: string; optionNameSnapshot: string; optionRevision: number;
     technicalAreaId: string; nature: string;
+    maintenanceKpiPolicy?: string | null; analyticsDisposition?: string | null;
+    suggestedResponsibility?: string | null;
   } | null;
   id: string;
   machineId: string;
@@ -147,6 +149,8 @@ export interface AndonCall {
   cancelReason?: string | null;
   notes: string | null;
   failureClassification?: string | null;
+  failureResponsibility?: string | null;
+  analyticsDisposition?: string | null;
   failureDescription?: string | null;
   createdBy: string | null;
   origin: CallOrigin;

@@ -27,7 +27,7 @@ export const GENERIC_DIAGNOSES = ["unclassified", "unidentified_stop", "real_mac
 export function hasSpecificDiagnosis(value?: string | null): value is string {
   return Boolean(value?.trim()) && !GENERIC_DIAGNOSES.includes(value!.trim());
 }
-export const METRIC_VERSION = "bi-causal-1";
+export const METRIC_VERSION = "bi-causal-2";
 
 export type DiagnosisSnapshot = {
   failureResponsibility: string | null;
