@@ -5,10 +5,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
+  ChevronDown,
+  CalendarDays,
+  CircleHelp,
+  Filter,
   GripVertical,
+  History,
   ListOrdered,
+  RefreshCw,
+  Search,
   LogOut,
   Save,
   Undo2,
@@ -19,6 +25,7 @@ import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPrio
 import { ProductionModeCredentialModal } from "@/components/machines/ProductionModeCredentialModal";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
+import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
@@ -67,6 +74,7 @@ export function DashboardPriorityPage() {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
   const [productionFilter, setProductionFilter] = useState<"all" | "scheduled" | "not_scheduled" | "unknown">("all");
   // Preserve the existing editing flow as the initial section while introducing
@@ -104,6 +112,10 @@ export function DashboardPriorityPage() {
     return ranks;
   }, [rows]);
 
+  // Filters apply immediately to the visible list. The order write always sends
+  // the full machine catalog; hidden rows are never dropped from the snapshot.
+  const activeFilterCount = Number(Boolean(searchQuery.trim())) +
+    Number(activityFilter !== "all") + Number(productionFilter !== "all");
   const visibleRows = useMemo(() => rows.filter((machine) => {
     const query = searchQuery.trim().toLocaleLowerCase();
     return (!query || machine.name.toLocaleLowerCase().includes(query) ||
@@ -335,36 +347,32 @@ export function DashboardPriorityPage() {
   const session = getStoredDashboardPrioritySession();
 
   return (
-    <div className="andon-screen-enter min-h-dvh bg-background p-3 md:p-5">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4">
-        <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={ui("Voltar")}
-              onClick={() => void navigate({ to: returnTo })}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ListOrdered className="h-5 w-5" />
+    <div className="andon-screen-enter min-h-dvh bg-background px-3 pb-6 pt-4 text-foreground sm:px-5">
+      <div className="mx-auto max-w-[1800px] space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="rounded-lg bg-primary/10 p-2 text-primary">
+              <ListOrdered className="h-6 w-6" aria-hidden="true" />
             </span>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                {ui("Organização visual")}
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                {ui("ANDON · Organização visual")}
               </p>
-              <h1 className="text-xl font-black">{ui("Prioridade de produção")}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {ui(
-                  "Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.",
-                )}
-              </p>
+              <h1 className="text-xl font-black sm:text-2xl">{ui("Prioridade de produção")}</h1>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm"
+              disabled={isLoading || isSaving}
+              onClick={() => {
+                if (!hasUnsavedChanges ||
+                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
+                  void loadOrder();
+              }}>
+              <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />
+              {ui("Atualizar")}
+            </Button>
             <LanguageSelector compact />
             <ModuleNavigation showModuleLinks />
             {session?.username && (
@@ -373,7 +381,7 @@ export function DashboardPriorityPage() {
               </span>
             )}
             {passwordRequired && (
-              <Button type="button" variant="outline" onClick={() => void handleLogout()}>
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleLogout()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 {ui("Sair")}
               </Button>
@@ -381,9 +389,21 @@ export function DashboardPriorityPage() {
           </div>
         </header>
 
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <details className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" />
+            {ui("Como interpretar as prioridades")}
+          </summary>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <p>{ui("Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.")}</p>
+            <p>{ui("Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.")}</p>
+            <p>{ui("Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.")}</p>
+            <p>{ui("Os filtros alteram somente a lista exibida. A gravação preserva a sequência completa e as máquinas ocultas.")}</p>
+          </div>
+        </details>
+        <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
           <PrioritySectionNav activeSection={activeSection} onSectionChange={setActiveSection} />
-          <main id="priority-main" className="min-w-0 space-y-4">
+          <main id="priority-main" className="min-w-0 space-y-3">
             {hasUnsavedChanges && activeSection !== "sequence" && (
               <div role="status" className="rounded-lg border border-border bg-card p-3 text-sm">
                 <p>{ui("Existem alterações de prioridade não salvas.")}</p>
@@ -418,33 +438,86 @@ export function DashboardPriorityPage() {
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="grid gap-3 border-b border-border p-3 sm:grid-cols-3">
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Buscar máquina por nome ou ID")}</span>
-              <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={ui("Nome ou ID")} />
-            </label>
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Ativação da máquina")}</span>
-              <select value={activityFilter}
-                onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                <option value="all">{ui("Todas as máquinas")}</option>
-                <option value="active">{ui("Máquinas ativas")}</option>
-                <option value="inactive">{ui("Máquinas inativas")}</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Filtrar programação")}</span>
-              <select value={productionFilter}
-                onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                <option value="all">{ui("Todas as situações")}</option>
-                <option value="scheduled">{ui("Produção Programada")}</option>
-                <option value="not_scheduled">{ui("Fora de Produção")}</option>
-                <option value="unknown">{ui("Estado desconhecido")}</option>
-              </select>
-            </label>
+          <div className="border-b border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>{ui("Filtros e máquinas")}</span>
+                {activeFilterCount > 0 && (
+                  <span role="status"
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-black text-primary">
+                    {ui("Filtros ativos: {0}", { 0: activeFilterCount })}
+                  </span>
+                )}
+              </div>
+              <Button type="button" size="sm" variant="ghost"
+                aria-expanded={filtersExpanded} aria-controls="priority-filters"
+                onClick={() => setFiltersExpanded(value => !value)}>
+                {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
+                <ChevronDown aria-hidden="true"
+                  className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
+              </Button>
+            </div>
+            {activeFilterCount > 0 && (
+              <p role="status" className="mt-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                {ui("Os filtros já estão aplicados à lista exibida; a sequência completa permanece preservada.")}
+              </p>
+            )}
+            <div id="priority-filters" className={filtersExpanded ? "mt-3" : "hidden"}>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Buscar máquina por nome ou ID")}</span>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <Input type="search" maxLength={100} value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      className="min-h-10 rounded-lg border-border pl-9"
+                      placeholder={ui("Nome ou ID")} />
+                  </div>
+                </label>
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Ativação da máquina")}</span>
+                  <select value={activityFilter}
+                    onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
+                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="all">{ui("Todas as máquinas")}</option>
+                    <option value="active">{ui("Máquinas ativas")}</option>
+                    <option value="inactive">{ui("Máquinas inativas")}</option>
+                  </select>
+                </label>
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Filtrar programação")}</span>
+                  <select value={productionFilter}
+                    onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
+                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="all">{ui("Todas as situações")}</option>
+                    <option value="scheduled">{ui("Produção Programada")}</option>
+                    <option value="not_scheduled">{ui("Fora de Produção")}</option>
+                    <option value="unknown">{ui("Estado desconhecido")}</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {ui("A busca e os filtros são aplicados imediatamente, sem alterar a ordem salva.")}
+                </p>
+                <Button type="button" size="sm" variant="outline"
+                  disabled={activeFilterCount === 0}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActivityFilter("all");
+                    setProductionFilter("all");
+                  }}>
+                  {ui("Limpar filtros")}
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+            <strong className="text-foreground">{ui("Sequência de Prioridades")}</strong>
+            <span aria-live="polite">
+              {ui("Exibindo {0} de {1} máquinas", { 0: visibleRows.length, 1: rows.length })}
+            </span>
           </div>
           {isLoading ? (
             <div role="status" aria-label={ui("Carregando sequência...")}
@@ -472,7 +545,7 @@ export function DashboardPriorityPage() {
               {rows.length === 0 ? ui("Nenhuma máquina disponível para ordenar.") : ui("Nenhuma máquina corresponde aos filtros.")}
             </p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-2 p-2 sm:p-3">
               {visibleRows.map((row, index) => {
                 const activeRank = activePriorityRanks.get(row.id) ?? null;
                 return (
@@ -486,13 +559,14 @@ export function DashboardPriorityPage() {
                       setDraggedId(null);
                     }}
                     className={cn(
-                      "grid grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 px-3 py-2.5 transition sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
+                      "grid min-w-0 grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
                       draggedId === row.id && "opacity-50",
-                      activeRank !== null && "bg-primary/[0.04]",
-                      !row.isActive && "opacity-55",
+                      activeRank !== null && "border-primary/30 bg-primary/[0.04]",
+                      !row.isActive && "border-dashed bg-muted/20",
                     )}
                   >
-                    <div className="text-center font-mono text-sm font-black text-muted-foreground">
+                    <div className="text-center font-mono text-sm font-black text-primary">
+                      <span className="sr-only">{ui("Posição")} </span>
                       {rows.findIndex((machine) => machine.id === row.id) + 1}
                     </div>
 
@@ -513,35 +587,36 @@ export function DashboardPriorityPage() {
                       <GripVertical className="h-4 w-4" />
                     </button>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-black">{row.name}</p>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          ID {row.id}
-                        </span>
+                        <p className="min-w-0 break-words text-sm font-bold sm:text-base">{row.name}</p>
                         {activeRank !== null && (
-                          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
-                            {ui("P")}
-                            {activeRank}
-                          </span>
-                        )}
-                        {!row.isActive && (
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black text-muted-foreground">
-                            {ui("INATIVA")}
-                          </span>
-                        )}
-                        {row.productionMode && (
-                          <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                            row.productionMode === "scheduled"
-                              ? "border-success/40 bg-success/10 text-foreground"
-                              : "border-border bg-muted text-muted-foreground")}>
-                            {ui(row.productionMode === "scheduled" ? "Produção Programada" : "Fora de Produção")}
+                          <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-black text-primary"
+                            aria-label={ui("Prioridade {0}", { 0: activeRank })}>
+                            P{activeRank}
                           </span>
                         )}
                       </div>
+                      <p className="break-all font-mono text-xs text-muted-foreground">
+                        {ui("ID")}: {row.id}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PriorityActivationBadge active={row.isActive} />
+                        <PriorityProductionBadge mode={row.productionMode} />
+                      </div>
                     </div>
 
-                    <div className="col-span-3 flex flex-wrap gap-1 pl-2 sm:col-span-1 sm:pl-0">
+                    <div className="col-span-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2 sm:col-span-1 sm:border-0 sm:pt-0">
+                      {access?.centralAccessEnabled === true &&
+                        access.globalHistory?.available === true &&
+                        access.globalHistory.allowed === true && (
+                        <Button type="button" variant="outline" size="sm"
+                          aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
+                          onClick={() => void navigate({ to: "/history", search: { machineId: row.id } })}>
+                          <History className="mr-1 h-4 w-4" aria-hidden="true" />
+                          {ui("Histórico")}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -673,9 +748,12 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "production" && (
-              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Produção Programada")}>
-                <h2 className="text-base font-bold">{ui("Produção Programada")}</h2>
+                <h2 className="flex items-center gap-2 text-sm font-bold">
+                  <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+                  {ui("Produção Programada")}
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   {ui("Programação é independente da ordem de prioridades e da ativação cadastral. Os estados exibidos vêm do cadastro oficial de máquinas.")}
                 </p>
@@ -727,24 +805,13 @@ export function DashboardPriorityPage() {
                               ? "border-amber-500/50 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30"
                               : "border-border bg-muted/30",
                         )}>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold">{machine.name}</p>
-                            <p className="font-mono text-xs text-muted-foreground">ID {machine.id}</p>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="break-words font-bold">{machine.name}</p>
+                            <p className="break-all font-mono text-xs text-muted-foreground">{ui("ID")}: {machine.id}</p>
+                            <PriorityActivationBadge active={machine.isActive} />
                           </div>
-                          <div className="min-w-[150px] text-right">
-                            <p className={cn(
-                              "inline-flex rounded-md border px-2 py-1 text-xs font-black",
-                              machine.productionMode === "scheduled"
-                                ? "border-emerald-500/60 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/70 dark:text-emerald-100"
-                                : machine.productionMode === "not_scheduled"
-                                  ? "border-amber-500/60 bg-amber-100 text-amber-950 dark:bg-amber-900/70 dark:text-amber-100"
-                                  : "border-border bg-muted text-foreground",
-                            )}>
-                              {machine.productionMode === "scheduled"
-                                ? ui("Produção Programada")
-                                : machine.productionMode === "not_scheduled"
-                                  ? ui("Fora de Produção") : ui("Estado desconhecido")}
-                            </p>
+                          <div className="flex min-w-[150px] flex-col items-start gap-1 sm:items-end">
+                            <PriorityProductionBadge mode={machine.productionMode} />
                             <p className="text-xs text-muted-foreground">
                               {machine.productionModeChangedAt
                                 ? ui("Última alteração: {0}", { 0: formatDateTime(machine.productionModeChangedAt) })
@@ -773,7 +840,7 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "history" && (
-              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Histórico e Auditoria")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-bold">{ui("Histórico e Auditoria")}</h2>
@@ -801,9 +868,9 @@ export function DashboardPriorityPage() {
                   <p role="status" className="text-sm text-muted-foreground">{ui("Nenhuma alteração de prioridade encontrada.")}</p>
                 ) : (
                   <>
-                    <ol className="divide-y divide-border">
+                    <ol className="space-y-2">
                       {historyItems.map((entry) => (
-                        <li key={entry.id} className="py-3 text-sm">
+                        <li key={entry.id} className="rounded-lg border border-border bg-background px-3 py-3 text-sm">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="font-semibold">
                               {rows.find((machine) => machine.id === entry.machineId)?.name ?? entry.machineId}
@@ -836,7 +903,7 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "help" && (
-              <section className="space-y-3 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Ajuda e Orientações")}>
                 <h2 className="text-base font-bold">{ui("Como interpretar as prioridades")}</h2>
                 <p className="text-sm text-muted-foreground">
