@@ -29,7 +29,7 @@ export function historyTechnicianTotals(sessions: GlobalHistoryTechnicianSession
   for (const session of sessions) {
     const name = session.technicianName?.trim();
     if (!name) continue;
-    const key = name.toLocaleLowerCase("pt-BR");
+    const key = session.technicianId || name.toLocaleLowerCase("pt-BR");
     const row = result.get(key) ?? {
       key, name, sessions: 0, maintenanceMinutes: 0, followUpMinutes: 0, measuredSessions: 0,
     };
