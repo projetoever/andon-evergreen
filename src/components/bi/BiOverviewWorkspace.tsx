@@ -157,7 +157,8 @@ export function BiOverviewWorkspace({
                 })
           }
           icon={BarChart3}
-          tone="green"
+          tone={scheduled?.mtbfSampleStatus === "partial" ? "amber" : "green"}
+          sampleSize={scheduled?.productionFailureEpisodes}
         />
         <BiKpiCard
           label={t("MTTA")}
