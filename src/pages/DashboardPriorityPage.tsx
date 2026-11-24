@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   ChevronDown,
+  CalendarDays,
   CircleHelp,
   Filter,
   GripVertical,
@@ -748,9 +748,12 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "production" && (
-              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Produção Programada")}>
-                <h2 className="text-base font-bold">{ui("Produção Programada")}</h2>
+                <h2 className="flex items-center gap-2 text-sm font-bold">
+                  <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+                  {ui("Produção Programada")}
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   {ui("Programação é independente da ordem de prioridades e da ativação cadastral. Os estados exibidos vêm do cadastro oficial de máquinas.")}
                 </p>
@@ -802,24 +805,13 @@ export function DashboardPriorityPage() {
                               ? "border-amber-500/50 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30"
                               : "border-border bg-muted/30",
                         )}>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold">{machine.name}</p>
-                            <p className="font-mono text-xs text-muted-foreground">ID {machine.id}</p>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="break-words font-bold">{machine.name}</p>
+                            <p className="break-all font-mono text-xs text-muted-foreground">{ui("ID")}: {machine.id}</p>
+                            <PriorityActivationBadge active={machine.isActive} />
                           </div>
-                          <div className="min-w-[150px] text-right">
-                            <p className={cn(
-                              "inline-flex rounded-md border px-2 py-1 text-xs font-black",
-                              machine.productionMode === "scheduled"
-                                ? "border-emerald-500/60 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/70 dark:text-emerald-100"
-                                : machine.productionMode === "not_scheduled"
-                                  ? "border-amber-500/60 bg-amber-100 text-amber-950 dark:bg-amber-900/70 dark:text-amber-100"
-                                  : "border-border bg-muted text-foreground",
-                            )}>
-                              {machine.productionMode === "scheduled"
-                                ? ui("Produção Programada")
-                                : machine.productionMode === "not_scheduled"
-                                  ? ui("Fora de Produção") : ui("Estado desconhecido")}
-                            </p>
+                          <div className="flex min-w-[150px] flex-col items-start gap-1 sm:items-end">
+                            <PriorityProductionBadge mode={machine.productionMode} />
                             <p className="text-xs text-muted-foreground">
                               {machine.productionModeChangedAt
                                 ? ui("Última alteração: {0}", { 0: formatDateTime(machine.productionModeChangedAt) })
@@ -848,7 +840,7 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "history" && (
-              <section className="space-y-4 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Histórico e Auditoria")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-base font-bold">{ui("Histórico e Auditoria")}</h2>
@@ -876,9 +868,9 @@ export function DashboardPriorityPage() {
                   <p role="status" className="text-sm text-muted-foreground">{ui("Nenhuma alteração de prioridade encontrada.")}</p>
                 ) : (
                   <>
-                    <ol className="divide-y divide-border">
+                    <ol className="space-y-2">
                       {historyItems.map((entry) => (
-                        <li key={entry.id} className="py-3 text-sm">
+                        <li key={entry.id} className="rounded-lg border border-border bg-background px-3 py-3 text-sm">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="font-semibold">
                               {rows.find((machine) => machine.id === entry.machineId)?.name ?? entry.machineId}
@@ -911,7 +903,7 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "help" && (
-              <section className="space-y-3 rounded-xl border border-border bg-card p-5"
+              <section className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-6"
                 aria-label={ui("Ajuda e Orientações")}>
                 <h2 className="text-base font-bold">{ui("Como interpretar as prioridades")}</h2>
                 <p className="text-sm text-muted-foreground">
