@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { KeyRound } from "lucide-react";
+import { CredentialActionDialog } from "@/components/common/CredentialActionDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +41,7 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
       form.reset();
       setNewPasswordDraft("");
       setRecovered(true);
+      setExpanded(false);
       await onRecovered();
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : "";
@@ -66,11 +69,13 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
         </p>
       ) : (
         <>
-          <Button type="button" variant="outline" onClick={() => setExpanded(!expanded)}>
+          <Button type="button" variant="outline" onClick={() => setExpanded(true)}>
             {triggerLabel ?? ui("Recuperar conta Admin central")}
           </Button>
-          {expanded && (
-            <form className="space-y-3" onSubmit={(event) => void submit(event)}>
+          <CredentialActionDialog open={expanded} busy={busy} onOpenChange={setExpanded}
+            icon={KeyRound} title={ui("Recuperar conta Admin central")}
+            description={ui("Recuperação exclusiva da conta Admin principal, protegida por código de uso único e validação do servidor.")}>
+            <form className="space-y-4" onSubmit={(event) => void submit(event)}>
               <p className="text-xs text-muted-foreground">
                 {ui("Use o código de recuperação guardado e acesse este formulário diretamente no servidor (localhost, HTTPS). A recuperação encerra todas as sessões Admin existentes.")}
               </p>
@@ -96,11 +101,15 @@ export function CentralAdminRecoveryForm({ onRecovered, triggerLabel }: { onReco
                   required minLength={8} maxLength={128} />
               </Label>
               {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-              <Button type="submit" disabled={busy}>
-                {busy ? ui("Validando recuperação...") : ui("Redefinir senha Admin central")}
-              </Button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button type="button" variant="secondary" className="w-full sm:w-auto" disabled={busy}
+                  onClick={() => setExpanded(false)}>{ui("Cancelar")}</Button>
+                <Button type="submit" className="w-full sm:w-auto" disabled={busy}>
+                  {busy ? ui("Validando recuperação...") : ui("Redefinir senha Admin central")}
+                </Button>
+              </div>
             </form>
-          )}
+          </CredentialActionDialog>
         </>
       )}
     </section>
