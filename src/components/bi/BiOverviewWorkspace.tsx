@@ -9,7 +9,7 @@ import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
 import { BiKpiCard } from "@/components/bi/BiKpiCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { explainMissingMtbf, explainMissingMttr } from "@/utils/biKpiAvailability";
+import { explainMissingMtbf, explainMissingMttr, explainPartialMtbf } from "@/utils/biKpiAvailability";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsOverview,
@@ -84,8 +84,8 @@ export function BiOverviewWorkspace({
     mtbf: {
       measure: ui("Tempo programado de operação por início elegível de falha física atribuída exclusivamente à Manutenção."),
       formula: ui("Minutos programados sem paradas físicas ÷ inícios elegíveis de episódios de Manutenção durante a programação."),
-      interpretation: ui("Quanto maior, melhor, com atenção ao número de falhas. Não é intervalo de calendário entre chamados."),
-      whenUnavailable: ui("Sem início de falha elegível ou com responsabilidade pendente ou mista, não há MTBF confiável."),
+      interpretation: ui("Quanto maior, melhor, com atenção ao número de falhas. Se há causas pendentes, o número exibido é provisório e pode mudar após diagnóstico."),
+      whenUnavailable: ui("Sem início de falha corretiva confirmada não há amostra; havendo uma ou mais, causas pendentes geram estimativa parcial sinalizada."),
     },
     mtta: {
       measure: ui("Espera média da abertura do chamado ao primeiro atendimento nos chamados atendidos no período."),
@@ -143,12 +143,14 @@ export function BiOverviewWorkspace({
           label={t("MTBF")}
           help={help.mtbf}
           tooltip={ui(
-            "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios de episódios de manutenção durante a programação. Causas pendentes ou mistas tornam o MTBF indisponível.",
+            "Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios confirmados de episódios de manutenção. Com causas pendentes, o resultado é provisório e sinalizado.",
           )}
           value={!overview ? "—" : scheduled?.plannedMtbfMinutes == null ? ui("Sem amostra") : formatMinutes(scheduled.plannedMtbfMinutes)}
           detail={
-            scheduled && scheduled.plannedMtbfMinutes === null
-              ? explainMissingMtbf(scheduled)
+            scheduled?.mtbfSampleStatus === "partial"
+              ? explainPartialMtbf(scheduled)
+              : scheduled && scheduled.plannedMtbfMinutes === null
+                ? explainMissingMtbf(scheduled)
               : ui("{0} falha(s) de manutenção · {1} pendente(s)/misto(s)", {
                   0: scheduled?.productionFailureEpisodes ?? 0,
                   1: scheduled?.pendingAttributionEpisodes ?? 0,
@@ -182,7 +184,9 @@ export function BiOverviewWorkspace({
           value={!overview ? "—" : scheduled?.resolvedMttrMinutes == null ? ui("Sem amostra") : formatMinutes(scheduled.resolvedMttrMinutes)}
           detail={
             scheduled && scheduled.resolvedMttrMinutes === null
-              ? explainMissingMttr(scheduled)
+              ? (scheduled.allCauseRestorationMinutes != null
+                ? `${explainMissingMttr(scheduled)} · ${ui("Restauração física observada (não é MTTR):")} ${formatMinutes(scheduled.allCauseRestorationMinutes)}`
+                : explainMissingMttr(scheduled))
               : ui("Manutenção · {0} episódio(s) encerrado(s)", {
                   0: scheduled?.resolvedEpisodes ?? 0,
                 })
@@ -217,7 +221,9 @@ export function BiOverviewWorkspace({
             0: kpis?.returnedCalls ?? 0,
             1: kpis?.maintenanceEligibleFinishedCalls ?? 0,
             2: kpis?.maintenanceReturnCycles ?? 0,
-          })}
+          }) + ((kpis?.pendingCorrectiveFinishedCalls ?? 0) > 0
+            ? ` · ${ui("{0} corretivo(s) aguardam confirmação de responsabilidade", { 0: kpis!.pendingCorrectiveFinishedCalls! })}`
+            : "")}
           icon={RotateCcw}
           tone="red"
           sampleSize={kpis?.maintenanceEligibleFinishedCalls}
