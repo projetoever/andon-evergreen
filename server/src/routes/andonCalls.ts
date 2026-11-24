@@ -78,6 +78,7 @@ const globalHistoryCallSelect = {
   callReasonSnapshot: { select: {
     reasonId: true, reasonNameSnapshot: true,
     optionId: true, optionNameSnapshot: true, nature: true,
+    maintenanceKpiPolicy: true, analyticsDisposition: true, suggestedResponsibility: true,
   } },
 } satisfies Prisma.AndonCallSelect;
 
@@ -224,7 +225,7 @@ const andonCallInclude = {
   technicianSessions: { orderBy: { startedAt: "asc" } },
   technicianTimeAllocations: { orderBy: { startedAt: "asc" } },
   impactIntervals: { orderBy: { startedAt: "asc" } },
-  callReasonSnapshot: { select: { reasonId: true, reasonNameSnapshot: true, reasonRevision: true, optionId: true, optionNameSnapshot: true, optionRevision: true, technicalAreaId: true, nature: true } },
+  callReasonSnapshot: { select: { reasonId: true, reasonNameSnapshot: true, reasonRevision: true, optionId: true, optionNameSnapshot: true, optionRevision: true, technicalAreaId: true, nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true, suggestedResponsibility: true } },
 } satisfies Prisma.AndonCallInclude;
 
 function optionalString(value: unknown) {
