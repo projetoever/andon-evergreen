@@ -1,6 +1,9 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
   // PENTE 3-G — detailed call evidence, verified individual times and productive impact.
+  ["Sessão {0}","Session {0}","第 {0} 筆時段"],
+  ["Sessões detalhadas","Session details","時段詳細資料"],
+  ["Sessões sem mantenedor identificado","Sessions without an identified technician","未識別維護人員的時段"],
   ["Lista de chamados com rolagem independente","Independently scrolling call list","可獨立捲動的叫修清單"],
   ["Início da sessão","Session start","時段開始"],
   ["Fim da sessão","Session end","時段結束"],
