@@ -38,7 +38,7 @@ test("PENTE 3 technician layout: two real Celso sessions share one full-width su
   const html = renderToStaticMarkup(createElement(GlobalHistoryDetailSections, { call: fixture(celso) }));
   assert.equal(count(html, "data-history-technician-group"), 1);
   assert.equal(count(html, "data-history-technician-session"), 2);
-  assert.match(html, /lg:grid-cols-2/);
+  assert.match(html, /xl:grid-cols-2/);
   assert.match(html, /sm:grid-cols-3/);
   assert.match(html, /Sessão 1/);
   assert.match(html, /Sessão 2/);
@@ -93,7 +93,7 @@ test("PENTE 3 technician layout: responsive grouping is display-only and transla
   assert.match(s, /historyTechnicianTotals\(sessions\)/);
   assert.match(s, /historySessionMinutes\(session\)/);
   assert.match(s, /formatSessionEndReason\(session\.endReason\)/);
-  assert.match(s, /lg:grid-cols-2/);
+  assert.match(s, /xl:grid-cols-2/);
   assert.match(s, /sm:grid-cols-3/);
   assert.doesNotMatch(s, /reduce\([^)]*duration|dangerouslySetInnerHTML|eval\(/);
   for (const label of ["Sessão {0}", "Sessões detalhadas", "Sessões sem mantenedor identificado"])
