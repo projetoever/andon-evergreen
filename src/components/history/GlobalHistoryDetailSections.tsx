@@ -4,7 +4,11 @@ import type {
   GlobalHistoryFailureEvent,
   GlobalHistoryTechnicianSession,
 } from "@/services/globalHistoryService";
-import { Activity, Clock3, FileText, Users, Wrench } from "lucide-react";
+import { Activity, Clock3, FileText, Gauge, Users, Wrench } from "lucide-react";
+import {
+  historicalCallImpact, historySessionMinutes, historyTechnicianTotals,
+} from "@/utils/globalHistoryDetailMetrics";
+import { formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
 
 function showInstant(value?: string | null) {
   if (!value) return "—";
@@ -92,19 +96,152 @@ function callTimeline(call: GlobalHistoryCallDetail): EventLine[] {
 }
 
 function TechnicianRow({session}:{session:GlobalHistoryTechnicianSession}) {
+  const minutes = historySessionMinutes(session);
   return (
     <li className="rounded-lg border border-border bg-background p-3 text-sm">
-      <div className="flex flex-wrap justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <strong className="break-words">{session.technicianName}</strong>
-        <span className="text-xs text-muted-foreground">
+        <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold">
           {session.phase === "follow_up" ? ui("Acompanhamento") : ui("Atendimento")}
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {showInstant(session.startedAt)} — {showInstant(session.endedAt)}
-      </p>
+      <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+        <div><dt className="text-muted-foreground">{ui("Início da sessão")}</dt>
+          <dd className="font-medium">{showInstant(session.startedAt)}</dd></div>
+        <div><dt className="text-muted-foreground">{ui("Fim da sessão")}</dt>
+          <dd className="font-medium">{showInstant(session.endedAt)}</dd></div>
+        <div className="rounded-md border border-info/30 bg-info/10 px-2 py-1">
+          <dt className="text-muted-foreground">{ui("Duração da sessão")}</dt>
+          <dd className="font-mono font-black tabular-nums text-info">{showMinutes(minutes)}</dd>
+        </div>
+      </dl>
+      {!session.endedAt && <p className="mt-2 text-xs text-muted-foreground">
+        {ui("Sessão sem encerramento registrado; duração não apurada.")}
+      </p>}
+      {session.endReason && <p className="mt-2 text-xs text-muted-foreground">
+        {ui("Motivo de saída")}: {session.endReason}
+      </p>}
       {session.notes && <p className="mt-2 whitespace-pre-wrap break-words">{session.notes}</p>}
     </li>
+  );
+}
+
+function TechnicianTotals({call}:{call:GlobalHistoryCallDetail}) {
+  const totals = historyTechnicianTotals(call.technicianSessions ?? []);
+  const legacy = (!totals.length ? call.technicianTimeAllocations ?? [] : [])
+    .filter(row => Number.isFinite(row.minutes) && row.minutes >= 0);
+  return (
+    <>
+      {totals.length > 0 && <div className="mt-3 grid gap-3 xl:grid-cols-2">
+        {totals.map(row => <div key={row.key} className="rounded-lg border border-border bg-muted/20 p-3">
+          <div className="flex flex-wrap justify-between gap-2 text-sm">
+            <strong>{row.name}</strong><span className="text-xs text-muted-foreground">
+              {row.sessions} {ui("sessões registradas")}
+            </span>
+          </div>
+          <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <div className="rounded-md bg-info/10 p-2">
+              <dt className="text-muted-foreground">{ui("Atendimento")}</dt>
+              <dd className="font-mono font-bold tabular-nums text-info">{showMinutes(row.maintenanceMinutes)}</dd>
+            </div>
+            <div className="rounded-md bg-success/10 p-2">
+              <dt className="text-muted-foreground">{ui("Acompanhamento")}</dt>
+              <dd className="font-mono font-bold tabular-nums text-success">{showMinutes(row.followUpMinutes)}</dd>
+            </div>
+            <div className="rounded-md bg-muted p-2">
+              <dt className="text-muted-foreground">{ui("Total individual")}</dt>
+              <dd className="font-mono font-bold tabular-nums">
+                {showMinutes(row.maintenanceMinutes + row.followUpMinutes)}
+              </dd>
+            </div>
+          </dl>
+          {row.measuredSessions !== row.sessions && <p className="mt-2 text-xs text-warning">
+            {ui("Total parcial: há sessões sem duração comprovada.")}
+          </p>}
+        </div>)}
+      </div>}
+      {legacy.length > 0 && <div className="mt-3 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          {ui("Alocações legadas registradas; os tempos não foram reconstruídos por sessão.")}
+        </p>
+        {legacy.map((row, index) => <div key={index}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background p-3 text-sm">
+          <strong>{row.technicianName || ui("Sem mantenedor apontado")}</strong>
+          <span className="font-mono font-bold tabular-nums">{showMinutes(row.minutes)}</span>
+        </div>)}
+      </div>}
+      {Boolean(call.technicianSessions?.length) && <ul className="mt-3 space-y-2">
+        {call.technicianSessions.map(s => <TechnicianRow key={s.id} session={s}/>)}
+      </ul>}
+      {!call.technicianSessions?.length && !legacy.length &&
+        <p className="mt-2 text-sm text-muted-foreground">{ui("Sem sessões de mantenedores registradas.")}</p>}
+      <p className="mt-3 text-xs text-muted-foreground">
+        {ui("Tempos individuais representam sessões comprovadas; atuações simultâneas não devem ser somadas como tempo de máquina.")}
+      </p>
+    </>
+  );
+}
+
+function OperationalImpact({call}:{call:GlobalHistoryCallDetail}) {
+  const breakdown = historicalCallImpact(call, new Date().toISOString());
+  const categories = [
+    {label: "Parada produtiva", seconds: breakdown?.productiveDowntimeSeconds, color: "text-danger"},
+    {label: "Em falha sem produção programada", seconds: breakdown?.nonScheduledDowntimeSeconds, color: "text-warning"},
+    {label: "Atendimento sem impacto produtivo", seconds: breakdown?.productionBlockedSupportSeconds, color: "text-info"},
+    {label: "Atendimento fora de produção", seconds: breakdown?.nonScheduledSupportSeconds, color: "text-success"},
+  ];
+  const stopped = call.machineStoppedMinutes;
+  const stopState = typeof stopped !== "number" || !Number.isFinite(stopped)
+    ? "Parada não apurada"
+    : stopped > 0 ? "Com parada registrada" : "Sem parada registrada";
+  return (
+    <section className="rounded-xl border border-border bg-card p-4" aria-label={ui("Impacto operacional")}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-bold">
+            <Gauge className="h-4 w-4 text-primary" />{ui("Impacto operacional")}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {ui("Impacto atribuído ao chamado e classificação por histórico de produção, quando comprovada.")}
+          </p>
+        </div>
+        <span className="rounded-md border border-border bg-muted/30 px-2 py-1 text-xs font-semibold">
+          {ui(stopState)}
+        </span>
+      </div>
+      <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
+        <div className="text-xs text-muted-foreground">{ui("Parada atribuída ao chamado")}</div>
+        <strong className="font-mono text-xl tabular-nums">{showMinutes(stopped)}</strong>
+      </div>
+      <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+        {categories.map(item => <div key={item.label}
+          className="rounded-lg border border-border bg-background p-3">
+          <dt className="text-xs text-muted-foreground">{ui(item.label)}</dt>
+          <dd className={`mt-1 font-mono text-lg font-black tabular-nums ${item.color}`}>
+            {typeof item.seconds === "number" ? formatBreakdownDuration(item.seconds) : "—"}
+          </dd>
+        </div>)}
+      </dl>
+      {!breakdown && <p role="note" className="mt-2 text-xs text-warning">
+        {ui("Classificação produtiva indisponível: faltam intervalos completos de programação ou rastreamento confiável da parada. O tempo oficial de parada permanece exibido acima.")}
+      </p>}
+      {breakdown && <p role="note" className="mt-2 text-xs text-muted-foreground">
+        {ui("Distribuição temporal do chamado conforme intervalos reais de produção e de parada, sem alterar indicadores oficiais do BI.")}
+      </p>}
+      {call.impactIntervals?.length > 0 && <details className="mt-3 rounded-lg border border-border bg-muted/10 p-3 text-xs">
+        <summary className="cursor-pointer font-bold">{ui("Intervalos de parada atribuídos ao chamado")}</summary>
+        <ul className="mt-2 space-y-2">
+          {call.impactIntervals.map(row => <li key={row.id} className="rounded-md border border-border bg-background p-2">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span>{showInstant(row.startedAt)} — {showInstant(row.endedAt)}</span>
+              <strong>{row.durationSeconds !== null && Number.isFinite(row.durationSeconds)
+                ? formatBreakdownDuration(row.durationSeconds!) : "—"}</strong>
+            </div>
+            <div className="mt-1 text-muted-foreground">{ui("Origem")}: {row.source}</div>
+          </li>)}
+        </ul>
+      </details>}
+    </section>
   );
 }
 
@@ -157,12 +294,13 @@ export function GlobalHistoryDetailSections({call}:{call:GlobalHistoryCallDetail
           </div>)}
         </div>
       </section>
+      <OperationalImpact call={call}/>
       <section className="rounded-xl border border-border bg-card p-4" aria-label={ui("Linha do tempo do chamado")}>
         <h3 className="flex items-center gap-2 text-sm font-bold"><Activity className="h-4 w-4 text-primary"/>{ui("Linha do tempo do chamado")}</h3>
         {timeline.length ? (
           <ol className="mt-3 space-y-3 border-l-2 border-border pl-4">
             {timeline.map(event=><li key={event.id} className="relative text-sm">
-              <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true"/>
+              <span className={`absolute -left-[21px] top-1 h-2 w-2 rounded-full ${event.id.startsWith("impact-") ? "bg-danger" : event.id.startsWith("tech-") ? "bg-info" : event.id.startsWith("audit-") ? "bg-warning" : "bg-primary"}`} aria-hidden="true"/>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <strong>{event.label}</strong><time className="text-xs text-muted-foreground">{showInstant(event.at)}</time>
               </div>
@@ -173,9 +311,7 @@ export function GlobalHistoryDetailSections({call}:{call:GlobalHistoryCallDetail
       </section>
       <section className="rounded-xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4 text-primary"/>{ui("Participação dos mantenedores")}</h3>
-        {call.technicianSessions?.length ? <ul className="mt-3 space-y-2">
-          {call.technicianSessions.map(s=><TechnicianRow key={s.id} session={s}/>)}
-        </ul> : <p className="mt-2 text-sm text-muted-foreground">{ui("Sem sessões de mantenedores registradas.")}</p>}
+        <TechnicianTotals call={call}/>
       </section>
       <section className="rounded-xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-bold"><Wrench className="h-4 w-4 text-primary"/>{ui("Eventos de falha vinculados")}</h3>
