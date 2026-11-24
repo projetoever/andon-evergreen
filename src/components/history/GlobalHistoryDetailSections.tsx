@@ -9,6 +9,7 @@ import {
   historicalCallImpact, historySessionMinutes, historyTechnicianTotals,
 } from "@/utils/globalHistoryDetailMetrics";
 import { formatBreakdownDuration } from "@/utils/timeBreakdownUtils";
+import { CallBiParticipationPanel } from "@/components/history/CallBiParticipationPanel";
 import { formatSessionEndReason } from "@/utils/technicianDisplayUtils";
 
 function showInstant(value?: string | null) {
