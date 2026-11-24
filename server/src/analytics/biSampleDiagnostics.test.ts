@@ -7,7 +7,8 @@ const policy = {
   nature: "corrective_failure", maintenanceKpiPolicy: "eligible",
   analyticsDisposition: "include", reasonNameSnapshot: "Corretiva",
 };
-const base = {
+type Call = Parameters<typeof buildBiSampleDiagnostics>[0]["calls"][number];
+const base: Omit<Call, "id"> = {
   machineId: "37",
   subtype: "mechanical",
   status: "finished",
@@ -26,7 +27,7 @@ const production = {
   coveredMachineCount: 1,
   populationCount: 1,
 };
-const build = (calls: Array<typeof base & {id: string}>, failureEvents: Array<{
+const build = (calls: Call[], failureEvents: Array<{
   machineId: string; callId: string | null; startedAt: Date;
   endedAt: Date | null; failureResponsibility: string | null;
 }> = []) => buildBiSampleDiagnostics({
