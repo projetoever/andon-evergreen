@@ -38,6 +38,20 @@ export interface GlobalHistoryTechnicianSession {
   notes: string | null;
   endReason: string | null;
 }
+export interface GlobalHistoryTechnicianAllocation {
+  technicianName: string;
+  minutes: number;
+  source: string;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+export interface GlobalHistoryProductionPeriod {
+  id: string;
+  machineId: string;
+  productionMode: string;
+  startedAt: string;
+  endedAt: string | null;
+}
 export interface GlobalHistoryImpactInterval {
   id: string;
   startedAt: string;
@@ -87,6 +101,10 @@ export interface GlobalHistoryCallDetail extends GlobalHistoryCallSummary {
   cancelReason: string | null;
   notes: string | null;
   technicianSessions: GlobalHistoryTechnicianSession[];
+  technicianTimeAllocations?: GlobalHistoryTechnicianAllocation[];
+  impactTrackingVersion?: number | null;
+  productionHistory?: GlobalHistoryProductionPeriod[];
+  productionHistoryTruncated?: boolean;
   impactIntervals: GlobalHistoryImpactInterval[];
   failureEvents: GlobalHistoryFailureEvent[];
   auditEvents: GlobalHistoryAuditEvent[];
