@@ -1,5 +1,23 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 3-G — detailed call evidence, verified individual times and productive impact.
+  ["Lista de chamados com rolagem independente","Independently scrolling call list","可獨立捲動的叫修清單"],
+  ["Início da sessão","Session start","時段開始"],
+  ["Fim da sessão","Session end","時段結束"],
+  ["Sessão sem encerramento registrado; duração não apurada.","Session has no recorded end; duration is unavailable.","此時段沒有結束紀錄，無法計算時長。"],
+  ["Motivo de saída","Departure reason","離開原因"],
+  ["sessões registradas","recorded sessions","筆已記錄的時段"],
+  ["Total parcial: há sessões sem duração comprovada.","Partial total: some sessions lack a verified duration.","合計不完整：部分時段缺少可驗證的時長。"],
+  ["Alocações legadas registradas; os tempos não foram reconstruídos por sessão.","Legacy allocations shown; per-session durations cannot be reconstructed.","顯示舊版時間分配紀錄；無法還原各時段的時長。"],
+  ["Tempos individuais representam sessões comprovadas; atuações simultâneas não devem ser somadas como tempo de máquina.","Individual durations are based on verified sessions; overlapping technician work must not be added as machine time.","個人時長來自可驗證的工作時段；重疊工作時間不可加總為機台時間。"],
+  ["Impacto atribuído ao chamado e classificação por histórico de produção, quando comprovada.","Stop time attributed to this call and historical production breakdown, when supported by evidence.","顯示歸屬此叫修的停機時間；僅在有歷史資料佐證時提供生產影響分類。"],
+  ["Parada não apurada","Stop time not measured","停機時間未核實"],
+  ["Com parada registrada","Recorded stoppage","有停機紀錄"],
+  ["Sem parada registrada","No recorded stoppage","無停機紀錄"],
+  ["Classificação produtiva indisponível: faltam intervalos completos de programação ou rastreamento confiável da parada. O tempo oficial de parada permanece exibido acima.","Production breakdown unavailable: complete schedule periods or trustworthy stop tracking are missing. Official attributed stop time remains above.","無法分類生產影響：缺少完整排程時段或可信的停機追蹤紀錄。上方仍保留正式歸屬停機時間。"],
+  ["Distribuição temporal do chamado conforme intervalos reais de produção e de parada, sem alterar indicadores oficiais do BI.","Call duration split by recorded production and stoppage periods; official BI indicators remain unchanged.","依據實際生產與停機時段分配叫修時間，不影響正式 BI 指標。"],
+  ["Intervalos de parada atribuídos ao chamado","Stop periods attributed to this call","歸屬此叫修的停機時段"],
+
   // PENTE 3 — Interpretability, permissions and export transparency.
   ["Como interpretar o Histórico Global e suas exportações","Understanding Global History and exports","如何解讀全域叫修歷史與匯出"],
   ["A lista mostra uma página do período e filtros aplicados; os totais do resumo consideram todos os registros autorizados que correspondem aos filtros.","The list shows a page of applied filters; summary totals cover all matching authorized records.","清單顯示已套用篩選條件的其中一頁；摘要總數涵蓋所有符合條件且獲授權的紀錄。"],
