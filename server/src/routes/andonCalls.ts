@@ -2502,6 +2502,22 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
             notes: true, updatedAt: true,
           },
         });
+        // The call is already scoped by principal + machine before this read.
+        // Return only production-mode periods overlapping this call; never read
+        // an entire machine timeline or reveal unrelated asset metadata.
+        // A truncated series must never be used to manufacture impact totals.
+        const start = call.openedAt;
+        const end = call.finishedAt ?? new Date();
+        const productionRows = await prisma.machineProductionEvent.findMany({
+          where: {
+            machineId: call.machineId,
+            startedAt: { lt: end },
+            OR: [{ endedAt: null }, { endedAt: { gt: start } }],
+          },
+          select: { id: true, machineId: true, productionMode: true, startedAt: true, endedAt: true },
+          orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+          take: 1001,
+        });
         // HIST-F: read ONLY audit entries belonging to this already-authorized
         // call AND machine. Never return raw before/after, IP, session, PIN,
         // credential metadata or unrelated machine-level administrative logs.
@@ -2526,7 +2542,8 @@ export async function registerAndonCallRoutes(app: FastifyInstance) {
         const [enriched] = await enrichCallsWithAssetSnapshots([call]);
         return { call: { ...(enriched as Record<string, unknown>), failureEvents: events,
           auditEvents: auditRows.slice(0, 200), diagnosisAudits: diagnosisRows.slice(0, 200),
-          auditTruncated } };
+          auditTruncated, productionHistory: productionRows.slice(0, 1000),
+          productionHistoryTruncated: productionRows.length > 1000 } };
       } catch (error) {
         if (error instanceof AccessError)
           return reply.status(error.statusCode).send({ error: error.code });
