@@ -31,6 +31,7 @@ export interface GlobalHistoryCallSummary {
 
 export interface GlobalHistoryTechnicianSession {
   id: string;
+  technicianId?: string | null;
   technicianName: string;
   phase: string | null;
   startedAt: string;
