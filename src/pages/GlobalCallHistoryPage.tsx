@@ -438,10 +438,13 @@ export function GlobalCallHistoryPage() {
           {ui("Indicadores indisponíveis.")} {summaryError}
         </div>}
         {!summaryLoading && !summaryError && summary && <GlobalHistorySummaryPanel summary={summary} />}
-        <div className="grid min-h-[65dvh] gap-3 lg:grid-cols-[minmax(330px,410px)_minmax(0,1fr)]">
+        <div className="grid min-h-[65dvh] gap-3 lg:min-h-[780px] lg:items-stretch lg:grid-cols-[minmax(330px,410px)_minmax(0,1fr)]">
+          {/* On wide screens the detail defines the grid-row height; the list fills
+              that entire height, with its own scroll and pinned pagination. */}
+          <div className="min-w-0 lg:relative">
           <aside
             aria-label={ui("Falhas e filtros cronológicos")}
-            className={`min-w-0 rounded-xl border border-border bg-card ${mobileDetail ? "hidden lg:flex" : "flex"} flex-col overflow-hidden`}
+            className={`min-w-0 rounded-xl border border-border bg-card ${mobileDetail ? "hidden lg:flex" : "flex"} flex-col overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:min-h-0`}
           >
             <div className="border-b border-border px-4 py-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -461,7 +464,7 @@ export function GlobalCallHistoryPage() {
                   {ui("Há filtros não aplicados. Clique em Filtrar para atualizar resultados e exportações.")}
                 </p>
               )}
-              <div id="global-history-filters" className={filtersExpanded ? "" : "hidden"}>
+              <div id="global-history-filters" className={filtersExpanded ? "lg:max-h-[min(43dvh,450px)] lg:overflow-y-auto lg:pr-1" : "hidden"}>
                 <form onSubmit={submit} className="space-y-3">
                 <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
                   <span>{ui("Buscar OS, chamado, falha ou descrição")}</span>
@@ -600,7 +603,7 @@ export function GlobalCallHistoryPage() {
                 applied.sort === "finished" ? ui("Chamados por finalização") : ui("Falhas por horário de abertura")}</span>
               <span>{result ? `${result.total} ${ui("registros")}` : ui("Consultando…")}</span>
             </div>
-            <div className="max-h-[65dvh] min-h-[180px] flex-1 space-y-1 overflow-y-auto p-2">
+            <div className="min-h-[180px] flex-1 space-y-1 overflow-y-auto p-2 lg:min-h-0" aria-label={ui("Lista de chamados com rolagem independente")}>
               {loading && <div role="status" className="space-y-2 p-2"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>}
               {error && <div role="alert" className="rounded-lg border border-danger/40 p-3 text-sm text-danger">{error}</div>}
               {!loading && !error && result?.items.length===0 && (
@@ -642,6 +645,7 @@ export function GlobalCallHistoryPage() {
                 onClick={()=>setOffset(v=>v+25)}>{ui("Próximo")}</Button>
             </div>
           </aside>
+          </div>
 
           <section aria-label={ui("Detalhe do histórico")} className={`min-w-0 rounded-xl border border-border bg-card p-4 sm:p-6 ${mobileDetail ? "block" : "hidden lg:block"}`}>
             {mobileDetail && <Button variant="outline" className="mb-4 lg:hidden" onClick={()=>setMobileDetail(false)}>
