@@ -355,6 +355,7 @@ export function GlobalHistoryDetailSections({call}:{call:GlobalHistoryCallDetail
   const timeline = callTimeline(call);
   return (
     <div className="space-y-5" aria-label={ui("Registro completo disponível")}>
+      <CallBiParticipationPanel call={call}/>
       <section className="rounded-xl border border-border bg-card p-4" aria-label={ui("Tempos registrados")}>
         <h3 className="flex items-center gap-2 text-sm font-bold"><Clock3 className="h-4 w-4 text-primary"/>{ui("Tempos registrados")}</h3>
         <p className="mt-1 text-xs text-muted-foreground">{ui("Barras indicativas dos tempos registrados. Os intervalos podem se sobrepor; não representam soma de KPIs.")}</p>
