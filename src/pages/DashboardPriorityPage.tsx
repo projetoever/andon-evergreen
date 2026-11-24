@@ -7,8 +7,14 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  ChevronDown,
+  CircleHelp,
+  Filter,
   GripVertical,
+  History,
   ListOrdered,
+  RefreshCw,
+  Search,
   LogOut,
   Save,
   Undo2,
@@ -19,6 +25,7 @@ import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPrio
 import { ProductionModeCredentialModal } from "@/components/machines/ProductionModeCredentialModal";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
+import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
@@ -67,6 +74,7 @@ export function DashboardPriorityPage() {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
   const [productionFilter, setProductionFilter] = useState<"all" | "scheduled" | "not_scheduled" | "unknown">("all");
   // Preserve the existing editing flow as the initial section while introducing
@@ -104,6 +112,10 @@ export function DashboardPriorityPage() {
     return ranks;
   }, [rows]);
 
+  // Filters apply immediately to the visible list. The order write always sends
+  // the full machine catalog; hidden rows are never dropped from the snapshot.
+  const activeFilterCount = Number(Boolean(searchQuery.trim())) +
+    Number(activityFilter !== "all") + Number(productionFilter !== "all");
   const visibleRows = useMemo(() => rows.filter((machine) => {
     const query = searchQuery.trim().toLocaleLowerCase();
     return (!query || machine.name.toLocaleLowerCase().includes(query) ||
@@ -335,36 +347,32 @@ export function DashboardPriorityPage() {
   const session = getStoredDashboardPrioritySession();
 
   return (
-    <div className="andon-screen-enter min-h-dvh bg-background p-3 md:p-5">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4">
-        <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label={ui("Voltar")}
-              onClick={() => void navigate({ to: returnTo })}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ListOrdered className="h-5 w-5" />
+    <div className="andon-screen-enter min-h-dvh bg-background px-3 pb-6 pt-4 text-foreground sm:px-5">
+      <div className="mx-auto max-w-[1800px] space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="rounded-lg bg-primary/10 p-2 text-primary">
+              <ListOrdered className="h-6 w-6" aria-hidden="true" />
             </span>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                {ui("Organização visual")}
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                {ui("ANDON · Organização visual")}
               </p>
-              <h1 className="text-xl font-black">{ui("Prioridade de produção")}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {ui(
-                  "Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.",
-                )}
-              </p>
+              <h1 className="text-xl font-black sm:text-2xl">{ui("Prioridade de produção")}</h1>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm"
+              disabled={isLoading || isSaving}
+              onClick={() => {
+                if (!hasUnsavedChanges ||
+                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
+                  void loadOrder();
+              }}>
+              <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />
+              {ui("Atualizar")}
+            </Button>
             <LanguageSelector compact />
             <ModuleNavigation showModuleLinks />
             {session?.username && (
@@ -373,7 +381,7 @@ export function DashboardPriorityPage() {
               </span>
             )}
             {passwordRequired && (
-              <Button type="button" variant="outline" onClick={() => void handleLogout()}>
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleLogout()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 {ui("Sair")}
               </Button>
@@ -381,9 +389,21 @@ export function DashboardPriorityPage() {
           </div>
         </header>
 
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <details className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" />
+            {ui("Como interpretar as prioridades")}
+          </summary>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <p>{ui("Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.")}</p>
+            <p>{ui("Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.")}</p>
+            <p>{ui("Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.")}</p>
+            <p>{ui("Os filtros alteram somente a lista exibida. A gravação preserva a sequência completa e as máquinas ocultas.")}</p>
+          </div>
+        </details>
+        <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
           <PrioritySectionNav activeSection={activeSection} onSectionChange={setActiveSection} />
-          <main id="priority-main" className="min-w-0 space-y-4">
+          <main id="priority-main" className="min-w-0 space-y-3">
             {hasUnsavedChanges && activeSection !== "sequence" && (
               <div role="status" className="rounded-lg border border-border bg-card p-3 text-sm">
                 <p>{ui("Existem alterações de prioridade não salvas.")}</p>
