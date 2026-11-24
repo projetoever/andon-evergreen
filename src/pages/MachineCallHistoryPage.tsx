@@ -22,6 +22,7 @@ import { CALL_TYPE_OPTIONS } from "@/data/callTypes";
 import { cn } from "@/lib/utils";
 import { getFailureClassificationConfigs } from "@/services/failureClassificationConfigService";
 import { DiagnosisAuditPanel } from "@/components/history/DiagnosisAuditPanel";
+import { CallBiParticipationPanel } from "@/components/history/CallBiParticipationPanel";
 import type { FailureClassification, Machine, MachineStopEvent } from "@/types/machine";
 import type { FailureClassificationConfig } from "@/types/settings";
 import type { AndonCall } from "@/types/andon";
@@ -1046,6 +1047,7 @@ export function MachineCallHistoryPage({ machineId }: MachineCallHistoryPageProp
 
                 {isExpanded && (
                   <div className="mt-3 space-y-3">
+                    <CallBiParticipationPanel call={call}/>
                     <section className="rounded-lg border border-border bg-muted/20 p-3">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
