@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { HubAdminSection } from "@/types/modules";
 import { ArrowLeft, ShieldCheck, type LucideIcon } from "lucide-react";
@@ -28,6 +28,8 @@ export interface AdminWorkspaceShellProps {
   headerActions?: ReactNode;
   alert?: ReactNode;
   hubNavigation?: boolean;
+  /** Only opt-in workspaces reset the content scroll when changing tabs. */
+  resetContentScrollOnTabChange?: boolean;
   children: ReactNode;
 }
 
@@ -38,9 +40,15 @@ export interface AdminWorkspaceShellProps {
 export function AdminWorkspaceShell({
   brand, title, subtitle, ariaLabel, navLabel,
   items, activeId, onSelect, onBack, backLabel,
-  headerActions, alert, hubNavigation = false, children,
+  headerActions, alert, hubNavigation = false, resetContentScrollOnTabChange = false, children,
 }: AdminWorkspaceShellProps) {
   useInterfaceLanguage();
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (resetContentScrollOnTabChange && contentScrollRef.current) {
+      contentScrollRef.current.scrollTop = 0;
+    }
+  }, [activeId, resetContentScrollOnTabChange]);
   const selected = items.find(item => item.id === activeId) ?? items[0];
   const groups = [...new Set(items.map(item => item.group || "Administração"))];
   const BrandIcon = ShieldCheck;
@@ -74,6 +82,7 @@ export function AdminWorkspaceShell({
                       {hubNavigation ? (
                         <Link to="/hub/admin" search={{ section: item.id as HubAdminSection }}
                           aria-current={active ? "page" : undefined}
+                          title={item.description}
                           className={cn(
                             "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -83,6 +92,7 @@ export function AdminWorkspaceShell({
                         </Link>
                       ) : (
                         <button type="button" aria-current={active ? "page" : undefined}
+                          title={item.description}
                           onClick={() => onSelect(item.id)}
                           className={cn(
                             "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -131,8 +141,9 @@ export function AdminWorkspaceShell({
               hubNavigation ? (
                 <Link key={item.id} to="/hub/admin" search={{ section: item.id as HubAdminSection }}
                   aria-current={active ? "page" : undefined}
+                  title={item.description}
                   className={cn(
-                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
+                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
                   )}>
                   <Icon className="h-4 w-4 shrink-0"/>{item.label}
@@ -140,8 +151,9 @@ export function AdminWorkspaceShell({
               ) : (
                 <button key={item.id} type="button" onClick={() => onSelect(item.id)}
                   aria-current={active ? "page" : undefined}
+                  title={item.description}
                   className={cn(
-                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold",
+                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
                   )}>
                   <Icon className="h-4 w-4 shrink-0"/>{item.label}
@@ -162,7 +174,7 @@ export function AdminWorkspaceShell({
             </div>
             {headerActions && <div className="flex flex-wrap items-center gap-2">{headerActions}</div>}
           </div>
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
+          <div ref={contentScrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4 lg:p-6 xl:p-8">
             <div className="mx-auto w-full max-w-none space-y-4">
               {alert}
               {children}

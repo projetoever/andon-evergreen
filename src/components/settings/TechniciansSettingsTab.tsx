@@ -402,199 +402,207 @@ export function TechniciansSettingsTab() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-[minmax(280px,360px)_1fr]">
-        <CardSection
-          title={ui("Mantenedores cadastrados")}
-          className="md:flex md:h-[calc(96dvh-13rem)] md:min-h-0 md:flex-col"
-        >
-          <div className="shrink-0 space-y-2">
-            <div className="relative">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={ui("Pesquisar por nome ou ID...")}
-                aria-label={ui("Pesquisar mantenedores por nome ou ID")}
-                className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  aria-label={ui("Limpar pesquisa de mantenedores")}
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+        {/* A coluna esquerda acompanha a altura REAL da ficha, não um valor fixo de viewport. */}
+        <div className="relative min-w-0 xl:min-h-0">
+          <CardSection
+            title={ui("Mantenedores cadastrados")}
+            className="xl:absolute xl:inset-0 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden"
+          >
+            <div className="shrink-0 space-y-2">
+              <div className="relative">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={ui("Pesquisar por nome ou ID...")}
+                  aria-label={ui("Pesquisar mantenedores por nome ou ID")}
+                  className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    aria-label={ui("Limpar pesquisa de mantenedores")}
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div
+                className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
+                aria-label={ui("Filtrar mantenedores por status")}
+              >
+                {(
+                  [
+                    ["all", ui("Todos")],
+                    ["active", ui("Ativos", {}, "record")],
+                    ["inactive", ui("Inativos", {}, "record")],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={statusFilter === value}
+                    onClick={() => setStatusFilter(value)}
+                    className={cn(
+                      "min-h-9 rounded-md px-2 text-xs font-bold transition-colors",
+                      statusFilter === value
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  {ui("Área técnica")}
+                  <select
+                    aria-label={ui("Filtrar mantenedores por setor")}
+                    value={areaFilter}
+                    onChange={(event) =>
+                      setAreaFilter(
+                        event.target.value === "all" ? "all" : (event.target.value as CallSubtype),
+                      )
+                    }
+                    className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
+                  >
+                    <option value="all">{ui("Todos os setores")}</option>
+                    {filterAreaOptions.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                  {ui("Turno")}
+                  <select
+                    aria-label={ui("Filtrar mantenedores por turno")}
+                    value={shiftFilter}
+                    onChange={(event) => setShiftFilter(event.target.value)}
+                    className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
+                  >
+                    <option value="all">{ui("Todos os turnos")}</option>
+                    {shifts.map((shift) => (
+                      <option key={shift.id} value={shift.id}>
+                        {shift.name}
+                      </option>
+                    ))}
+                    <option value="__none__">{ui("Sem turno")}</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  {filteredTechnicians.length}
+                  {ui(" de ")}
+                  {technicians.length}
+                  {ui(" mantenedor(es)")}
+                </span>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setAreaFilter("all");
+                      setStatusFilter("all");
+                      setShiftFilter("all");
+                    }}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    {ui("Limpar filtros")}
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div
-              className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/20 p-1"
-              aria-label={ui("Filtrar mantenedores por status")}
+            <BigButton
+              tone="neutral"
+              size="md"
+              onClick={handleAddTechnician}
+              disabled={isLoading || Boolean(error) || isSaving || !canCreateTechnician}
             >
-              {(
-                [
-                  ["all", ui("Todos")],
-                  ["active", ui("Ativos", {}, "record")],
-                  ["inactive", ui("Inativos", {}, "record")],
-                ] as const
-              ).map(([value, label]) => (
+              {ui("Adicionar mantenedor")}
+            </BigButton>
+
+            <div
+              role="region"
+              aria-label={ui("Mantenedores cadastrados")}
+              tabIndex={0}
+              className="min-h-[13rem] max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 xl:min-h-0 xl:max-h-none xl:flex-1"
+            >
+              {isLoading && (
+                <p className="text-sm text-muted-foreground">{ui("Carregando mantenedores...")}</p>
+              )}
+              {!isLoading && !error && technicians.length === 0 && (
+                <p className="text-sm text-muted-foreground">{ui("Nenhum item cadastrado.")}</p>
+              )}
+              {!isLoading && !error && technicians.length > 0 && filteredTechnicians.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center">
+                  <p className="text-sm font-bold text-foreground">
+                    {ui("Nenhum mantenedor encontrado")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {ui("Ajuste a pesquisa ou os filtros de status, setor e turno.")}
+                  </p>
+                </div>
+              )}
+              {filteredTechnicians.map((item) => (
                 <button
-                  key={value}
+                  key={item.id}
                   type="button"
-                  aria-pressed={statusFilter === value}
-                  onClick={() => setStatusFilter(value)}
+                  onClick={() => handleSelect(item)}
                   className={cn(
-                    "min-h-9 rounded-md px-2 text-xs font-bold transition-colors",
-                    statusFilter === value
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    "w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/60",
+                    selectedId === item.id
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                      : "border-border",
+                    !item.active && "opacity-70",
                   )}
                 >
-                  {label}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-bold">{item.name}</p>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                        item.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {item.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {ui("ID: ")}
+                    {item.employeeId?.trim() || ui("pendente")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(item.areas?.length ? item.areas : [item.area])
+                      .map((area) => categoryById.get(area)?.displayName ?? area)
+                      .join(", ")}{" "}
+                    · {item.shiftId ? shiftNameById[item.shiftId] : ui("Sem turno")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {ui("PIN: ")}
+                    {item.hasPin ? ui("configurado") : ui("pendente")}
+                    {ui(" · Tag:")} {item.hasTag ? ui("configurada") : ui("não cadastrada")}
+                  </p>
                 </button>
               ))}
             </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-                {ui("Área técnica")}
-                <select
-                  aria-label={ui("Filtrar mantenedores por setor")}
-                  value={areaFilter}
-                  onChange={(event) =>
-                    setAreaFilter(
-                      event.target.value === "all" ? "all" : (event.target.value as CallSubtype),
-                    )
-                  }
-                  className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
-                >
-                  <option value="all">{ui("Todos os setores")}</option>
-                  {filterAreaOptions.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-                {ui("Turno")}
-                <select
-                  aria-label={ui("Filtrar mantenedores por turno")}
-                  value={shiftFilter}
-                  onChange={(event) => setShiftFilter(event.target.value)}
-                  className="h-10 w-full rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground"
-                >
-                  <option value="all">{ui("Todos os turnos")}</option>
-                  {shifts.map((shift) => (
-                    <option key={shift.id} value={shift.id}>
-                      {shift.name}
-                    </option>
-                  ))}
-                  <option value="__none__">{ui("Sem turno")}</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>
-                {filteredTechnicians.length}
-                {ui(" de ")}
-                {technicians.length}
-                {ui(" mantenedor(es)")}
-              </span>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setAreaFilter("all");
-                    setStatusFilter("all");
-                    setShiftFilter("all");
-                  }}
-                  className="font-bold text-primary hover:underline"
-                >
-                  {ui("Limpar filtros")}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <BigButton
-            tone="neutral"
-            size="md"
-            onClick={handleAddTechnician}
-            disabled={isLoading || Boolean(error) || isSaving || !canCreateTechnician}
-          >
-            {ui("Adicionar mantenedor")}
-          </BigButton>
-
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2">
-            {isLoading && (
-              <p className="text-sm text-muted-foreground">{ui("Carregando mantenedores...")}</p>
-            )}
-            {!isLoading && !error && technicians.length === 0 && (
-              <p className="text-sm text-muted-foreground">{ui("Nenhum item cadastrado.")}</p>
-            )}
-            {!isLoading && !error && technicians.length > 0 && filteredTechnicians.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center">
-                <p className="text-sm font-bold text-foreground">
-                  {ui("Nenhum mantenedor encontrado")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {ui("Ajuste a pesquisa ou os filtros de status, setor e turno.")}
-                </p>
-              </div>
-            )}
-            {filteredTechnicians.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleSelect(item)}
-                className={cn(
-                  "w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/60",
-                  selectedId === item.id
-                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                    : "border-border",
-                  !item.active && "opacity-70",
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 truncate text-sm font-bold">{item.name}</p>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                      item.active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {item.active ? ui("Ativo", {}, "record") : ui("Inativo", {}, "record")}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {ui("ID: ")}
-                  {item.employeeId?.trim() || ui("pendente")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {(item.areas?.length ? item.areas : [item.area])
-                    .map((area) => categoryById.get(area)?.displayName ?? area)
-                    .join(", ")}{" "}
-                  · {item.shiftId ? shiftNameById[item.shiftId] : ui("Sem turno")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {ui("PIN: ")}
-                  {item.hasPin ? ui("configurado") : ui("pendente")}
-                  {ui(" · Tag:")} {item.hasTag ? ui("configurada") : ui("não cadastrada")}
-                </p>
-              </button>
-            ))}
-          </div>
-        </CardSection>
+          </CardSection>
+        </div>
 
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3 px-1">

@@ -54,15 +54,23 @@ test("mantenedores usam ficha organizada por blocos funcionais", async () => {
   assert.match(source, /sticky bottom-0/);
 });
 
-test("mantenedores usam a altura útil do Admin e rolam até o último registro", async () => {
+test("mantenedores acompanham a altura real da ficha e rolam dentro da lista", async () => {
   const source = await readFile(
     new URL("../src/components/settings/TechniciansSettingsTab.tsx", import.meta.url),
     "utf8",
   );
 
-  assert.match(source, /md:h-\[calc\(96dvh-13rem\)\]/);
-  assert.match(source, /md:flex-col/);
-  assert.match(source, /min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain/);
+  // Só há duas colunas quando a largura disponível permite o cadastro completo.
+  assert.match(source, /xl:grid-cols-\[minmax\(280px,360px\)_minmax\(0,1fr\)\]/);
+  // A ficha da direita determina a altura do grid; a lista não prende o layout ao viewport.
+  assert.match(source, /relative min-w-0 xl:min-h-0/);
+  assert.match(source, /xl:absolute xl:inset-0 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden/);
+  assert.match(source, /xl:max-h-none xl:flex-1/);
+  // Em telas pequenas a lista continua limitada e rolável, sem estourar o painel.
+  assert.match(source, /max-h-\[55dvh\]/);
+  assert.match(source, /aria-label=\{ui\("Mantenedores cadastrados"\)\}/);
+  assert.match(source, /tabIndex=\{0\}/);
+  assert.doesNotMatch(source, /md:h-\[calc\(96dvh-13rem\)\]/);
   assert.doesNotMatch(source, /max-h-\[56vh\]/);
 });
 
