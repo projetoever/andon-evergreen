@@ -13,13 +13,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BigButton } from "@/components/common/BigButton";
 import { ClockDisplay } from "@/components/common/ClockDisplay";
 import { stopAndonSound, unlockAudio } from "@/services/soundService";
-import { BarChart3, ListOrdered, Volume2, VolumeX, Settings, Eye } from "lucide-react";
+import { Volume2, VolumeX, Settings, Eye } from "lucide-react";
 import { DASHBOARD_ATTENTION_STORAGE_KEY, parseDashboardAttentionMode, type DashboardAttentionMode } from "@/theme/dashboardAttentionMode";
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
-import { DashboardPriorityLoginModal } from "@/components/priority/DashboardPriorityLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
-import { isDashboardPriorityAuthenticated } from "@/services/dashboardPriorityService";
 import { refreshMachineScreenLock } from "@/services/machineScreenLockService";
 import { toast } from "@/i18n/toast";
 import { registerCurrentWorkstation } from "@/services/workstationService";
@@ -86,12 +84,7 @@ export function DashboardPage() {
   };
 
   const { access } = useModuleAccess();
-  const canOpen = (id: "bi" | "priorities") =>
-    access?.modules.some(
-      (item) => item.id === id && item.available && item.enabled && item.allowed,
-    );
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
-  const [priorityLoginOpen, setPriorityLoginOpen] = useState(false);
   const [dashboardSoundMuted, setDashboardSoundMuted] = useState(false);
   const [dashboardSoundStateLoaded, setDashboardSoundStateLoaded] = useState(false);
   const [dashboardSoundSyncing, setDashboardSoundSyncing] = useState(false);
@@ -482,7 +475,7 @@ export function DashboardPage() {
               {t(attentionMode === "highlighted" ? "Destacado" : "Discreto")}
             </span>
           </button>
-          <ModuleNavigation />
+          <ModuleNavigation showModuleLinks />
           {audioUnlocked && (
             <button
               type="button"
@@ -508,40 +501,6 @@ export function DashboardPage() {
               <span className="hidden xl:inline">
                 {dashboardSoundMuted ? t("Som silenciado") : t("Silenciar som")}
               </span>
-            </button>
-          )}
-
-          {canOpen("bi") && (
-            <button
-              type="button"
-              title={t("Abrir ANDON BI")}
-              aria-label={t("Abrir ANDON BI")}
-              onClick={() => void navigate({ to: "/bi" })}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <BarChart3 className="h-4 w-4" />
-            </button>
-          )}
-
-          {canOpen("priorities") && (
-            <button
-              type="button"
-              title={t("Organizar prioridade de produção")}
-              aria-label={t("Organizar prioridade de produção")}
-              onClick={() => {
-                if (
-                  access?.modules.find((item) => item.id === "priorities")?.passwordRequired ===
-                    false ||
-                  isDashboardPriorityAuthenticated()
-                ) {
-                  void navigate({ to: "/machine-priorities" });
-                } else {
-                  setPriorityLoginOpen(true);
-                }
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ListOrdered className="h-4 w-4" />
             </button>
           )}
 
@@ -593,12 +552,6 @@ export function DashboardPage() {
           )}
         </>
       )}
-      <DashboardPriorityLoginModal
-        open={priorityLoginOpen}
-        onOpenChange={setPriorityLoginOpen}
-        onSuccess={() => void navigate({ to: "/machine-priorities" })}
-      />
-
       {initialSnapshotState === "loading" && machines.length === 0 ? (
         <section role="status" aria-label={t("Carregando máquinas do ANDON")}
           className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
