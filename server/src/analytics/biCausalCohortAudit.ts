@@ -1,5 +1,5 @@
 import { buildCorrectiveCausalEpisodes, NON_CORRECTIVE_ORIGIN, type CausalImpact } from "./causality.js";
-import { isEligible, uniqueById } from "./eligibility.js";
+import { isEligible, METRIC_VERSION, uniqueById } from "./eligibility.js";
 import {
   buildPlannedProductionKpis,
   confirmedSchedule,
@@ -120,6 +120,7 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 
   return {
+    metricDefinitionVersion: METRIC_VERSION,
     machineId: input.machineId,
     period: { start: input.start.toISOString(), end: input.effectiveEnd.toISOString() },
     production: {
