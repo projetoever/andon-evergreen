@@ -438,33 +438,86 @@ export function DashboardPriorityPage() {
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="grid gap-3 border-b border-border p-3 sm:grid-cols-3">
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Buscar máquina por nome ou ID")}</span>
-              <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={ui("Nome ou ID")} />
-            </label>
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Ativação da máquina")}</span>
-              <select value={activityFilter}
-                onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                <option value="all">{ui("Todas as máquinas")}</option>
-                <option value="active">{ui("Máquinas ativas")}</option>
-                <option value="inactive">{ui("Máquinas inativas")}</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-xs font-semibold text-muted-foreground">
-              <span>{ui("Filtrar programação")}</span>
-              <select value={productionFilter}
-                onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                <option value="all">{ui("Todas as situações")}</option>
-                <option value="scheduled">{ui("Produção Programada")}</option>
-                <option value="not_scheduled">{ui("Fora de Produção")}</option>
-                <option value="unknown">{ui("Estado desconhecido")}</option>
-              </select>
-            </label>
+          <div className="border-b border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>{ui("Filtros e máquinas")}</span>
+                {activeFilterCount > 0 && (
+                  <span role="status"
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-black text-primary">
+                    {ui("Filtros ativos: {0}", { 0: activeFilterCount })}
+                  </span>
+                )}
+              </div>
+              <Button type="button" size="sm" variant="ghost"
+                aria-expanded={filtersExpanded} aria-controls="priority-filters"
+                onClick={() => setFiltersExpanded(value => !value)}>
+                {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
+                <ChevronDown aria-hidden="true"
+                  className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
+              </Button>
+            </div>
+            {activeFilterCount > 0 && (
+              <p role="status" className="mt-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                {ui("Os filtros já estão aplicados à lista exibida; a sequência completa permanece preservada.")}
+              </p>
+            )}
+            <div id="priority-filters" className={filtersExpanded ? "mt-3" : "hidden"}>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Buscar máquina por nome ou ID")}</span>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <Input type="search" maxLength={100} value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      className="min-h-10 rounded-lg border-border pl-9"
+                      placeholder={ui("Nome ou ID")} />
+                  </div>
+                </label>
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Ativação da máquina")}</span>
+                  <select value={activityFilter}
+                    onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
+                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="all">{ui("Todas as máquinas")}</option>
+                    <option value="active">{ui("Máquinas ativas")}</option>
+                    <option value="inactive">{ui("Máquinas inativas")}</option>
+                  </select>
+                </label>
+                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{ui("Filtrar programação")}</span>
+                  <select value={productionFilter}
+                    onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
+                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="all">{ui("Todas as situações")}</option>
+                    <option value="scheduled">{ui("Produção Programada")}</option>
+                    <option value="not_scheduled">{ui("Fora de Produção")}</option>
+                    <option value="unknown">{ui("Estado desconhecido")}</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {ui("A busca e os filtros são aplicados imediatamente, sem alterar a ordem salva.")}
+                </p>
+                <Button type="button" size="sm" variant="outline"
+                  disabled={activeFilterCount === 0}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActivityFilter("all");
+                    setProductionFilter("all");
+                  }}>
+                  {ui("Limpar filtros")}
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+            <strong className="text-foreground">{ui("Sequência de Prioridades")}</strong>
+            <span aria-live="polite">
+              {ui("Exibindo {0} de {1} máquinas", { 0: visibleRows.length, 1: rows.length })}
+            </span>
           </div>
           {isLoading ? (
             <div role="status" aria-label={ui("Carregando sequência...")}
