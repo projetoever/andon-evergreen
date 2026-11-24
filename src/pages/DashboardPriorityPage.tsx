@@ -545,7 +545,7 @@ export function DashboardPriorityPage() {
               {rows.length === 0 ? ui("Nenhuma máquina disponível para ordenar.") : ui("Nenhuma máquina corresponde aos filtros.")}
             </p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-2 p-2 sm:p-3">
               {visibleRows.map((row, index) => {
                 const activeRank = activePriorityRanks.get(row.id) ?? null;
                 return (
@@ -559,13 +559,14 @@ export function DashboardPriorityPage() {
                       setDraggedId(null);
                     }}
                     className={cn(
-                      "grid grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 px-3 py-2.5 transition sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
+                      "grid min-w-0 grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
                       draggedId === row.id && "opacity-50",
-                      activeRank !== null && "bg-primary/[0.04]",
-                      !row.isActive && "opacity-55",
+                      activeRank !== null && "border-primary/30 bg-primary/[0.04]",
+                      !row.isActive && "border-dashed bg-muted/20",
                     )}
                   >
-                    <div className="text-center font-mono text-sm font-black text-muted-foreground">
+                    <div className="text-center font-mono text-sm font-black text-primary">
+                      <span className="sr-only">{ui("Posição")} </span>
                       {rows.findIndex((machine) => machine.id === row.id) + 1}
                     </div>
 
@@ -586,35 +587,36 @@ export function DashboardPriorityPage() {
                       <GripVertical className="h-4 w-4" />
                     </button>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-black">{row.name}</p>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          ID {row.id}
-                        </span>
+                        <p className="min-w-0 break-words text-sm font-bold sm:text-base">{row.name}</p>
                         {activeRank !== null && (
-                          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
-                            {ui("P")}
-                            {activeRank}
-                          </span>
-                        )}
-                        {!row.isActive && (
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black text-muted-foreground">
-                            {ui("INATIVA")}
-                          </span>
-                        )}
-                        {row.productionMode && (
-                          <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                            row.productionMode === "scheduled"
-                              ? "border-success/40 bg-success/10 text-foreground"
-                              : "border-border bg-muted text-muted-foreground")}>
-                            {ui(row.productionMode === "scheduled" ? "Produção Programada" : "Fora de Produção")}
+                          <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-black text-primary"
+                            aria-label={ui("Prioridade {0}", { 0: activeRank })}>
+                            P{activeRank}
                           </span>
                         )}
                       </div>
+                      <p className="break-all font-mono text-xs text-muted-foreground">
+                        {ui("ID")}: {row.id}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PriorityActivationBadge active={row.isActive} />
+                        <PriorityProductionBadge mode={row.productionMode} />
+                      </div>
                     </div>
 
-                    <div className="col-span-3 flex flex-wrap gap-1 pl-2 sm:col-span-1 sm:pl-0">
+                    <div className="col-span-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2 sm:col-span-1 sm:border-0 sm:pt-0">
+                      {access?.centralAccessEnabled === true &&
+                        access.globalHistory?.available === true &&
+                        access.globalHistory.allowed === true && (
+                        <Button type="button" variant="outline" size="sm"
+                          aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
+                          onClick={() => void navigate({ to: "/history", search: { machineId: row.id } })}>
+                          <History className="mr-1 h-4 w-4" aria-hidden="true" />
+                          {ui("Histórico")}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
