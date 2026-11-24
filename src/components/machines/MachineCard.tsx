@@ -28,6 +28,7 @@ import {
   getLastMachineOccurrence,
 } from "@/utils/durationUtils";
 import { formatDateTime } from "@/utils/dateTimeUtils";
+import { getDashboardCallIdentity } from "@/utils/dashboardCallIdentity";
 import {
   getAlertLevel,
   getCallSubtypeLabel,
@@ -47,6 +48,8 @@ export function MachineCard({ machine, productionPriorityRank = null, attentionM
   const currentCall = machine.currentCallId
     ? calls.find((c) => c.id === machine.currentCallId)
     : null;
+  // Never use the reason snapshot of a different simultaneous active call.
+  const currentCallIdentity = currentCall ? getDashboardCallIdentity(currentCall) : null;
 
   const hasLiveTimer = machine.machineStatus === "stopped" || Boolean(currentCall);
   useTicker(hasLiveTimer ? 1000 : 60000);
@@ -220,7 +223,14 @@ export function MachineCard({ machine, productionPriorityRank = null, attentionM
               ) : (
                 <Bell className="h-3.5 w-3.5 shrink-0" />
               )}
-              <span className="truncate">{getCallSubtypeLabel(currentCall.subtype)}</span>
+              <span
+                className="min-w-0 truncate"
+                title={currentCallIdentity?.label}
+                aria-label={currentCallIdentity?.label}
+                data-call-id={currentCall.id}
+              >
+                {currentCallIdentity?.label}
+              </span>
             </div>
             {callElapsedLabel && callElapsedMinutes !== null && (
               <div className="truncate text-xs text-muted-foreground 2xl:text-sm">
