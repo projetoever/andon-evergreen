@@ -518,6 +518,15 @@ export function CallReasonsSettingsTab() {
                     displayOrder: Number(event.target.value) })} />
               </Label>
             </div>
+            {draft.analyticsDisposition === "include" && (
+              <p role="status" className={draft.nature === "corrective_failure" && draft.maintenanceKpiPolicy === "eligible"
+                ? "rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-700 dark:text-emerald-300"
+                : "rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200"}>
+                {ui(draft.nature === "corrective_failure" && draft.maintenanceKpiPolicy === "eligible"
+                  ? "Grupo candidato aos KPIs corretivos. O registro ainda precisa de diagnóstico confirmado, finalização e prova física para MTTR/MTBF."
+                  : "ATENÇÃO: o grupo aparece no BI operacional, mas NÃO está elegível aos KPIs corretivos. Se for manutenção corretiva, o Admin deve definir Natureza = Manutenção corretiva e marcar Permitir contabilização corretiva mediante evidências. SETUP/Apoio permanecem não corretivos.")}
+              </p>
+            )}
             <details className="rounded-lg border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
               <summary className="cursor-pointer font-semibold text-foreground">{ui("Prévia do tratamento do chamado no BI")}</summary>
               <div className="mt-2 space-y-1">

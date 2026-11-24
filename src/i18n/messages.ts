@@ -1,5 +1,35 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 5C — sample attribution investigation and Group policy distinction.
+  ["Programação indisponível com filtro de setor/classificação", "Schedule unavailable with sector/classification filters", "使用部門／分類篩選時無法提供排程資料"],
+  ["Máquina fora da população de confiabilidade", "Machine outside the reliability population", "設備不在可靠度統計範圍"],
+  ["Histórico de programação incompleto: MTBF não verificável", "Incomplete production schedule history: MTBF not verifiable", "生產排程歷史不完整：無法核驗 MTBF"],
+  ["Sem minutos em Produção Programada", "No scheduled production minutes", "無排程生產分鐘數"],
+  ["Programação histórica verificável", "Verifiable production schedule history", "生產排程歷史可供核驗"],
+
+  ["Por que os KPIs estão sem amostra?", "Why do KPIs show no samples?", "為什麼 KPI 顯示無樣本？"],
+  ["{0} atendido(s) · {1} finalizado(s) · {2} manutenção corretiva confirmada", "{0} attended · {1} finished · {2} confirmed corrective maintenance", "已受理 {0} 筆、已結案 {1} 筆、已確認矯正維修 {2} 筆"],
+  ["Registro, atendimento e amostra válida são etapas diferentes. Abaixo estão os filtros aplicados ao período e à máquina selecionados. Nenhum dado é alterado.", "Recording, attendance and a valid KPI sample are distinct steps. These checks use the current period and machine filters. No data is changed.", "建立紀錄、受理及有效 KPI 樣本是不同階段。以下檢查依目前期間及設備篩選，不會修改資料。"],
+  ["Atendidos", "Attended", "已受理"],
+  ["Finalizados corretivos", "Finished corrective calls", "已結案矯正維修"],
+  ["Responsabilidade pendente", "Pending responsibility", "責任待確認"],
+  ["MTTR: paradas corretivas", "MTTR: corrective stops", "MTTR：矯正停機"],
+  ["MTBF: falhas programadas", "MTBF: scheduled failures", "MTBF：排程期間故障"],
+  ["Também existem {0} chamado(s) finalizado(s) fora da política corretiva, {1} parada(s) encerrada(s) com responsabilidade pendente e {2} episódio(s) pendente(s) na produção programada.", "Additionally, {0} finished calls fall outside the corrective policy, {1} closed stops have pending responsibility and {2} scheduled episodes await attribution.", "另有 {0} 筆結案呼叫不符合矯正政策、{1} 次已結束停機責任待確認、{2} 次排程期間事件待歸屬。"],
+  ["Situação de elegibilidade", "Eligibility status", "符合條件狀態"],
+  ["Botão direto/legado", "Direct/legacy button", "直接／舊版按鈕"],
+  ["Em atendimento: finalize para gerar amostra de retorno", "In progress: finish before counting a return-rate sample", "處理中：結案後才納入回修率樣本"],
+  ["Finalização fora do período escolhido", "Finished outside the selected period", "結案時間不在所選期間"],
+  ["Grupo não habilitado para manutenção corretiva", "Group is not enabled for corrective maintenance", "群組未啟用矯正維修統計"],
+  ["Diagnóstico sem responsabilidade confirmada", "Diagnosis without confirmed responsibility", "診斷責任尚未確認"],
+  ["Diagnóstico atribuído a outra área", "Diagnosis assigned to another department", "診斷歸屬其他部門"],
+  ["Não há parada física vinculada a este chamado", "No physical stop is linked to this call", "此呼叫未關聯實際停機"],
+  ["Candidato: conferir parada física, sobreposições e programação", "Candidate: check physical stop, overlaps and production schedule", "候選：請檢查實際停機、重疊及生產排程"],
+  ["Nenhum chamado elegível foi encontrado nesta janela e nos filtros aplicados.", "No eligible calls were found for this period and selected filters.", "在此期間及篩選條件下找不到符合條件的呼叫。"],
+  ["Chamados candidatos não garantem participação em MTTR/MTBF: a coorte física considera atribuição, sobreposições, restauração e programação. Paradas transferidas podem constar em outro chamado.", "Candidate calls do not guarantee MTTR/MTBF inclusion: physical episodes also consider responsibility, overlaps, restoration and schedule. Transferred stops may appear under another call.", "候選呼叫不代表必定計入 MTTR／MTBF；實際停機事件仍需考慮責任、重疊、復原及排程。轉移的停機可能關聯其他呼叫。"],
+  ["Grupo candidato aos KPIs corretivos. O registro ainda precisa de diagnóstico confirmado, finalização e prova física para MTTR/MTBF.", "Group is a candidate for corrective KPIs. Confirmed diagnosis, closure and physical evidence are still required for MTTR/MTBF.", "群組可候選計入矯正 KPI，仍須確認診斷、結案及實際證據才能計入 MTTR／MTBF。"],
+  ["ATENÇÃO: o grupo aparece no BI operacional, mas NÃO está elegível aos KPIs corretivos. Se for manutenção corretiva, o Admin deve definir Natureza = Manutenção corretiva e marcar Permitir contabilização corretiva mediante evidências. SETUP/Apoio permanecem não corretivos.", "WARNING: this group appears in operational BI but is NOT eligible for corrective KPIs. For corrective maintenance, Admin must select Corrective maintenance and enable corrective counting with evidence. SETUP/Support remain non-corrective.", "注意：此群組出現在營運 BI，但不符合矯正 KPI 條件。若為矯正維修，管理員須選擇矯正維修性質並啟用需有證據的矯正統計。換線／支援仍屬非矯正類。"],
+
   // PENTE 5B — validação com uma falha comprovada, indicador parcial e modais unificados.
   ["Estimativa parcial: {0} falha(s) confirmada(s), {1} pendente(s)/mista(s). Reclassifique para consolidar.", "Partial estimate: {0} confirmed failure(s), {1} pending/mixed. Review classifications to finalize.", "部分估計：已確認 {0} 次故障，尚有 {1} 次待確認／混合原因。請複核分類後定案。"],
   ["Restauração física observada (não é MTTR):", "Observed physical restoration (not MTTR):", "觀察到的實體復原時間（非 MTTR）："],

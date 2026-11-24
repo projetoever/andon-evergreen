@@ -13,6 +13,7 @@ import { buildMachine360Recurrence } from "../analytics/machine360Recurrence.js"
 import { buildMaintenanceParticipation } from "../analytics/maintenance.js";
 import { buildAssetReliability } from "../analytics/reliability.js";
 import { buildPlannedProductionKpis } from "../analytics/productionKpis.js";
+import { buildBiSampleDiagnostics } from "../analytics/biSampleDiagnostics.js";
 import { buildTemporalPatterns } from "../analytics/temporal.js";
 import {
   buildExecutiveHighlights,
@@ -165,6 +166,7 @@ async function loadOverviewDataset(
         failureResponsibility: true, analyticsDisposition: true,
         isSystemTest: true,
         callReasonSnapshot: { select: {
+          reasonNameSnapshot: true,
           nature: true, maintenanceKpiPolicy: true, analyticsDisposition: true,
         } },
       },
@@ -466,6 +468,15 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         // advertise historical minutes as post-baseline measurement.
         biMeasurementStartAt: biMeasurementStartAt()?.toISOString() ?? null,
         production,
+        sampleDiagnostics: buildBiSampleDiagnostics({
+          calls: currentData.calls,
+          failureEvents: currentData.failureEvents,
+          start: period.start,
+          effectiveEnd,
+          production,
+          assets,
+          productionEvents,
+        }),
         responsibility: {
           downtime: summarizeCausalDowntime(currentData.causalEpisodes, period.start, effectiveEnd),
           excludedCalls: currentData.excludedCalls,

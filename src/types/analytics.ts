@@ -98,11 +98,62 @@ export type AnalyticsProductionMetrics = {
   };
 };
 
+export type BiSampleDiagnostics = {
+  period: { start: string; end: string };
+  counters: {
+    openedInPeriod: number;
+    attendedInPeriod: number;
+    activeCalls: number;
+    finishedInPeriod: number;
+    nonCorrectiveFinished: number;
+    correctiveFinished: number;
+    correctiveFinishedPendingResponsibility: number;
+    correctiveFinishedOtherResponsibility: number;
+    correctiveFinishedMaintenance: number;
+    closedMaintenancePhysicalEpisodes: number;
+    closedPendingPhysicalEpisodes: number;
+    scheduledMaintenanceFailureStarts: number;
+    scheduledPendingEpisodes: number;
+    coveredMachines: number;
+    populationMachines: number;
+  };
+  cases: Array<{
+    callIdSuffix: string;
+    machineId: string;
+    subtype: string | null;
+    openedAt: string;
+    status: string;
+    groupName: string | null;
+    groupNature: string | null;
+    groupMaintenanceKpiPolicy: string | null;
+    groupAnalyticsDisposition: string | null;
+    failureClassification: string | null;
+    failureResponsibility: string | null;
+    hasPhysicalLinkedStop: boolean;
+    closedLinkedPhysicalStops: number;
+    scheduleCoverage:
+      | "dimension_filtered"
+      | "outside_population"
+      | "incomplete"
+      | "without_scheduled_minutes"
+      | "verified_schedule";
+    gate:
+      | "awaiting_finalization"
+      | "finished_outside_period"
+      | "non_corrective_group"
+      | "unassigned_diagnosis"
+      | "non_maintenance_diagnosis"
+      | "no_linked_physical_stop"
+      | "candidate_needs_causal_episode";
+  }>;
+};
+
 export type AnalyticsOverview = {
   /** Explicit policy boundary; before this instant operational records remain audited but out of BI. */
   biMeasurementStartAt?: string | null;
   responsibility?: { downtime: Array<{responsibility: string; downtimeMinutes: number}>; excludedCalls: number; pendingFinishedCalls: number };
   production?: AnalyticsProductionMetrics;
+  sampleDiagnostics?: BiSampleDiagnostics;
   meta: {
     metricDefinitionVersion: string;
     generatedAt: string;
