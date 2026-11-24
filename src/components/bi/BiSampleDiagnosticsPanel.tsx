@@ -13,6 +13,14 @@ const GATE_LABELS: Record<BiSampleDiagnostics["cases"][number]["gate"], string> 
   candidate_needs_causal_episode: "Candidato: conferir parada física, sobreposições e programação",
 };
 
+const SCHEDULE_LABELS: Record<BiSampleDiagnostics["cases"][number]["scheduleCoverage"], string> = {
+  dimension_filtered: "Programação indisponível com filtro de setor/classificação",
+  outside_population: "Máquina fora da população de confiabilidade",
+  incomplete: "Histórico de programação incompleto: MTBF não verificável",
+  without_scheduled_minutes: "Sem minutos em Produção Programada",
+  verified_schedule: "Programação histórica verificável",
+};
+
 export function BiSampleDiagnosticsPanel({
   data, noKpiSample,
 }: {
@@ -76,7 +84,12 @@ export function BiSampleDiagnosticsPanel({
               {data.cases.map(item => (
                 <tr key={item.machineId + ":" + item.callIdSuffix} className="border-t border-border/50">
                   <td className="px-2 py-2 font-mono">{item.callIdSuffix}</td>
-                  <td className="px-2 py-2">{item.machineId}</td>
+                  <td className="px-2 py-2">
+                    {item.machineId}
+                    <span className="block max-w-[13rem] text-[10px] text-muted-foreground">
+                      {ui(SCHEDULE_LABELS[item.scheduleCoverage])}
+                    </span>
+                  </td>
                   <td className="px-2 py-2">{item.groupName ?? ui("Botão direto/legado")}</td>
                   <td className="px-2 py-2">
                     {item.failureClassification ?? ui("Não classificado")}
