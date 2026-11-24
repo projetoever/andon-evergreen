@@ -191,3 +191,22 @@ test("REFINE22: Hub and ANDON render exactly the same admin frame without overla
   assert.match(frame, /search=\{\{ section: item\.id as HubAdminSection \}\}/);
   assert.doesNotMatch(frame, /setCookie|localStorage|password|accessRequest|authenticate\(/);
 });
+
+test("PENTE 5: ANDON volta ao topo ao trocar de aba sem alterar o Hub", async () => {
+  const [andon, shared, hub] = await Promise.all([
+    readFile(new URL("../src/components/settings/AdminSettingsModal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/settings/AdminWorkspaceShell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/HubAdminPage.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(andon, /resetContentScrollOnTabChange/);
+  assert.match(shared, /const contentScrollRef = useRef<HTMLDivElement>\(null\)/);
+  assert.match(shared, /contentScrollRef\.current\.scrollTop = 0/);
+  assert.match(shared, /\[activeId, resetContentScrollOnTabChange\]/);
+  assert.match(shared, /ref=\{contentScrollRef\}/);
+  assert.doesNotMatch(hub, /resetContentScrollOnTabChange/);
+  // Dicas de contexto no menu; navegação e permissão continuam propriedade dos pais.
+  assert.match(shared, /title=\{item.description\}/);
+  assert.match(shared, /focus-visible:ring-2 focus-visible:ring-ring/);
+});
+
