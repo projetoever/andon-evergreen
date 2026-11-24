@@ -66,13 +66,15 @@ test("PENTE5: Setup isolado reduz disponibilidade, mas não é falha ou causa pe
   assert.equal(result.mttrAvailabilityReason, "no_closed_maintenance_episodes");
 });
 
-test("PENTE5: responsabilidade corretiva realmente pendente continua bloqueando MTBF", () => {
+test("PENTE5: uma falha confirmada gera MTBF provisório com outra pendente", () => {
   const pending = physical("pending", 35, 55, true, "unassigned");
   const result = measured([setup, repair, pending]);
   assert.equal(result.scheduledDowntimeMinutes, 60);
   assert.equal(result.pendingAttributionEpisodes, 1);
-  assert.equal(result.mtbfAvailabilityReason, "pending_attribution");
-  assert.equal(result.plannedMtbfMinutes, null);
+  assert.equal(result.mtbfAvailabilityReason, "partial_pending_attribution");
+  assert.equal(result.mtbfSampleStatus, "partial");
+  assert.equal(result.productionFailureEpisodes, 1);
+  assert.equal(result.plannedMtbfMinutes, 60);
   assert.equal(result.resolvedMttrMinutes, 20);
 });
 
@@ -84,6 +86,8 @@ test("PENTE5: episódio misto sobreposto não é contado duas vezes nem inventa 
   assert.equal(result.productionFailureEpisodes, 0);
   assert.equal(result.pendingAttributionEpisodes, 1);
   assert.equal(result.mtbfAvailabilityReason, "pending_attribution");
+  assert.equal(result.mtbfSampleStatus, "none");
+  assert.equal(result.plannedMtbfMinutes, null);
   assert.equal(result.resolvedMttrMinutes, null);
 });
 
@@ -131,10 +135,15 @@ test("PENTE5: zero retorno é 0% com denominador; sem denominador é Sem amostra
   assert.equal(one.kpis.maintenanceEligibleFinishedCalls, 1);
   assert.equal(one.kpis.returnedCalls, 0);
   assert.equal(one.kpis.maintenanceReturnRatePercent, 0);
+  assert.equal(one.kpis.correctiveFinishedCandidates, 1);
+  assert.equal(one.kpis.pendingCorrectiveFinishedCalls, 0);
   const two = overview([finishedCall("repair", correctivePolicy, 2)]);
   assert.equal(two.kpis.returnedCalls, 1, "dois ciclos não são dois chamados");
   assert.equal(two.kpis.maintenanceReturnCycles, 2);
   assert.equal(two.kpis.maintenanceReturnRatePercent, 100);
+  const pending = overview([{ ...finishedCall("pending", correctivePolicy, 0), failureResponsibility: null }]);
+  assert.equal(pending.kpis.pendingCorrectiveFinishedCalls, 1);
+  assert.equal(pending.kpis.maintenanceReturnRatePercent, null);
   const noSample = overview([finishedCall("setup", setupPolicy, 0)]);
   assert.equal(noSample.kpis.maintenanceEligibleFinishedCalls, 0);
   assert.equal(noSample.kpis.maintenanceReturnRatePercent, null);
