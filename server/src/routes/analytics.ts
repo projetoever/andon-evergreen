@@ -415,7 +415,9 @@ export async function registerAnalyticsRoutes(app: FastifyInstance) {
         assets,
         productionEvents,
         failureEvents: currentData.failureEvents,
-        causalEpisodes: currentData.causalEpisodes,
+        // Only corrective evidence forms MTTR/MTBF numerators and failure counts.
+        // Independently measured physical failures still form downtime/availability.
+        causalEpisodes: currentData.correctiveCausalEpisodes,
         start: period.start,
         effectiveEnd,
         timeZone: DEFAULT_OPERATIONAL_TIME_ZONE,
