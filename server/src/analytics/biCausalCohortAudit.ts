@@ -97,7 +97,6 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
         : !beganInside ? "started_before_window"
         : !scheduled ? "missing_schedule"
         : !inScheduled ? "outside_scheduled_production"
-        : kpis.pendingAttributionEpisodes > 0 ? "blocked_by_pending_cause"
         : "included";
       const references = events
         .filter(event => overlaps(
@@ -132,6 +131,7 @@ export function buildBiCausalCohortAudit(input: CohortAuditInput) {
     },
     official: {
       plannedMtbfMinutes: kpis.plannedMtbfMinutes,
+      mtbfSampleStatus: kpis.mtbfSampleStatus,
       resolvedMttrMinutes: kpis.resolvedMttrMinutes,
       mtbfAvailabilityReason: kpis.mtbfAvailabilityReason,
       mttrAvailabilityReason: kpis.mttrAvailabilityReason,
