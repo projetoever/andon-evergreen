@@ -719,6 +719,12 @@ export function AndonBiPage() {
           {activeTab === "data-quality" && (
             <BiDataHealthPanel
               data={assetReliability}
+              sampleDiagnostics={overview?.sampleDiagnostics}
+              noKpiSample={Boolean(overview && (
+                overview.production?.plannedMtbfMinutes == null ||
+                overview.production?.resolvedMttrMinutes == null ||
+                overview.kpis.maintenanceReturnRatePercent == null
+              ))}
               loading={reliabilityLoading}
               error={systemMessage(reliabilityError)}
               details={qualityDetails}
