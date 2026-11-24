@@ -8,6 +8,7 @@
 import { PrismaClient } from "@prisma/client";
 import { analyticsEligibility } from "../dist/analytics/eligibility.js";
 import { buildBiCausalCohortAudit } from "../dist/analytics/biCausalCohortAudit.js";
+import { isCorrectiveReasonCandidate } from "../dist/analytics/correctiveReasonCohort.js";
 
 function arg(name) {
   return process.argv.find(x => x.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -47,7 +48,8 @@ if (!valid) {
         const eventSelect={
           id:true,machineId:true,startedAt:true,endedAt:true,
           classification:true,failureResponsibility:true,analyticsDisposition:true,callId:true,
-          call:{select:{isSystemTest:true}},
+          call:{select:{isSystemTest:true,machineId:true,
+            callReasonSnapshot:{select:{nature:true,maintenanceKpiPolicy:true,analyticsDisposition:true}}}},
         };
         let raw=await tx.failureEvent.findMany({
           where:{
@@ -76,6 +78,8 @@ if (!valid) {
           startedAt:e.startedAt,endedAt:e.endedAt,classification:e.classification,
           failureResponsibility:e.failureResponsibility,analyticsDisposition:e.analyticsDisposition,
           callId:e.callId,linkedCallIsSystemTest:e.call?.isSystemTest===true,
+          correctiveReasonCandidate:e.callId===null || (e.call?.machineId===e.machineId &&
+            isCorrectiveReasonCandidate(e.call?.callReasonSnapshot)),
         }));
         const earliest=eventData.length
           ? new Date(Math.min(start.getTime(),...eventData.map(e=>e.startedAt.getTime())))
@@ -85,7 +89,8 @@ if (!valid) {
             where:{machineId,startedAt:{lt:end},OR:[{endedAt:null},{endedAt:{gt:earliest}}],
               call:policy.callWhere},
             select:{id:true,machineId:true,startedAt:true,endedAt:true,
-              call:{select:{failureResponsibility:true}}},
+              call:{select:{failureResponsibility:true,
+                callReasonSnapshot:{select:{nature:true,maintenanceKpiPolicy:true,analyticsDisposition:true}}}}},
           }),
           tx.machineProductionEvent.findMany({
             where:{machineId,startedAt:{lt:end},OR:[{endedAt:null},{endedAt:{gt:start}}]},
@@ -98,6 +103,7 @@ if (!valid) {
           impacts:impacts.map(i=>({
             id:i.id,machineId:i.machineId,startedAt:i.startedAt,endedAt:i.endedAt,
             failureResponsibility:i.call.failureResponsibility,
+            correctiveReasonCandidate:isCorrectiveReasonCandidate(i.call.callReasonSnapshot),
           })),
           start,effectiveEnd:end,
           timeZone:process.env.ANDON_TIME_ZONE?.trim()||"America/Sao_Paulo",
