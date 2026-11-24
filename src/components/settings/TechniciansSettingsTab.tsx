@@ -539,7 +539,7 @@ export function TechniciansSettingsTab() {
 
             <div
               role="region"
-              aria-label={ui("Lista de mantenedores cadastrados")}
+              aria-label={ui("Mantenedores cadastrados")}
               tabIndex={0}
               className="min-h-[13rem] max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain pr-2 pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 xl:min-h-0 xl:max-h-none xl:flex-1"
             >
