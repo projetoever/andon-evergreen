@@ -131,6 +131,12 @@ export type BiSampleDiagnostics = {
     failureResponsibility: string | null;
     hasPhysicalLinkedStop: boolean;
     closedLinkedPhysicalStops: number;
+    scheduleCoverage:
+      | "dimension_filtered"
+      | "outside_population"
+      | "incomplete"
+      | "without_scheduled_minutes"
+      | "verified_schedule";
     gate:
       | "awaiting_finalization"
       | "non_corrective_group"
