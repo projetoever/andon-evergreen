@@ -11,7 +11,7 @@ test("PENTE 3-B: filters remain usable and may be collapsed by keyboard or touch
   assert.match(page, /aria-expanded=\{filtersExpanded\}/);
   assert.match(page, /aria-controls="global-history-filters"/);
   assert.match(page, /id="global-history-filters"/);
-  assert.match(page, /className=\{filtersExpanded \? "" : "hidden"\}/);
+  assert.match(page, /className=\{filtersExpanded \? "lg:max-h-\[min\(43dvh,450px\)\] lg:overflow-y-auto lg:pr-1" : "hidden"\}/);
   assert.match(page, /<form onSubmit=\{submit\}/);
   assert.match(page, /setApplied\(next\)/);
   assert.match(page, /machineContextLocked \? \(/);
