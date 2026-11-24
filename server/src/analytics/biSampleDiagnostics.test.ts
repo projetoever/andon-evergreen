@@ -32,6 +32,8 @@ const build = (calls: Call[], failureEvents: Array<{
   endedAt: Date | null; failureResponsibility: string | null;
 }> = []) => buildBiSampleDiagnostics({
   calls, failureEvents, production, start: at(0), effectiveEnd: at(120),
+  assets: [{ machineId: "37", exposureStartedAt: at(-30) }],
+  productionEvents: [{ machineId: "37", productionMode: "scheduled", startedAt: at(0), endedAt: at(120) }],
 });
 
 test("PENTE5C: atendimento sem finalizar é visível mas não vira retorno nem MTTR", () => {
@@ -71,6 +73,7 @@ test("PENTE5C: 1 manutenção finalizada com ou sem parada não se transforma em
   assert.equal(withPhysical.counters.correctiveFinishedMaintenance,1);
   assert.equal(withPhysical.cases[0].closedLinkedPhysicalStops,1);
   assert.equal(withPhysical.cases[0].gate,"candidate_needs_causal_episode");
+  assert.equal(withPhysical.cases[0].scheduleCoverage,"verified_schedule");
 });
 
 test("PENTE5C: não expõe diagnóstico de outra máquina nem trata acabado fora da janela como amostra",()=>{
