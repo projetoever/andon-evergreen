@@ -71,9 +71,8 @@ export function historicalProductionCoverage(call: GlobalHistoryCallDetail, nowI
       cursor = row.end;
       currentMode = row.mode;
     }
-    if (cursor >= end) return true;
   }
-  return false;
+  return cursor >= end;
 }
 
 export function historicalCallImpact(call: GlobalHistoryCallDetail, nowIso: string): OperationalImpactBreakdown | null {
