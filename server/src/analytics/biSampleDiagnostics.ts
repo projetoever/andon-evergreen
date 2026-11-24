@@ -1,4 +1,5 @@
 import { isCorrectiveReasonCandidate } from "./correctiveReasonCohort.js";
+import { confirmedSchedule, type ProductionAsset, type ProductionModeInterval } from "./productionKpis.js";
 
 type DiagnosticCall = {
   id: string;
@@ -62,8 +63,10 @@ export function buildBiSampleDiagnostics(input: {
   start: Date;
   effectiveEnd: Date;
   production: DiagnosticKpis;
+  assets: ProductionAsset[] | null;
+  productionEvents: ProductionModeInterval[];
 }) {
-  const { calls, failureEvents, start, effectiveEnd, production } = input;
+  const { calls, failureEvents, start, effectiveEnd, production, assets, productionEvents } = input;
   const finished = calls.filter(call =>
     call.status === "finished" && inWindow(call.finishedAt, start, effectiveEnd));
   const correctiveFinished = finished.filter(call =>
@@ -88,6 +91,18 @@ export function buildBiSampleDiagnostics(input: {
       const corrective = isCorrectiveReasonCandidate(call.callReasonSnapshot);
       const linked = (byCall.get(call.id) ?? [])
         .filter(event => event.machineId === call.machineId);
+      const asset = assets?.find(row => row.machineId === call.machineId);
+      const observationStart = asset ? Math.max(start.getTime(), asset.exposureStartedAt.getTime()) : 0;
+      const schedule = asset && observationStart < effectiveEnd.getTime()
+        ? confirmedSchedule(
+            productionEvents.filter(row => row.machineId === call.machineId),
+            { start: observationStart, end: effectiveEnd.getTime() },
+          ) : null;
+      const scheduleCoverage = assets === null ? "dimension_filtered"
+        : !asset ? "outside_population"
+        : schedule === null ? "incomplete"
+        : schedule.length === 0 ? "without_scheduled_minutes"
+        : "verified_schedule";
       const gate: BiSampleGate = call.status !== "finished"
         ? "awaiting_finalization"
         : !inWindow(call.finishedAt,start,effectiveEnd)
@@ -115,6 +130,7 @@ export function buildBiSampleDiagnostics(input: {
         failureResponsibility: call.failureResponsibility,
         hasPhysicalLinkedStop: linked.length > 0,
         closedLinkedPhysicalStops: linked.filter(event => event.endedAt !== null).length,
+        scheduleCoverage,
         gate,
       };
     });
