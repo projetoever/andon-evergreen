@@ -68,7 +68,7 @@ test("mantenedores acompanham a altura real da ficha e rolam dentro da lista", a
   assert.match(source, /xl:max-h-none xl:flex-1/);
   // Em telas pequenas a lista continua limitada e rolável, sem estourar o painel.
   assert.match(source, /max-h-\[55dvh\]/);
-  assert.match(source, /aria-label=\{ui\("Lista de mantenedores cadastrados"\)\}/);
+  assert.match(source, /aria-label=\{ui\("Mantenedores cadastrados"\)\}/);
   assert.match(source, /tabIndex=\{0\}/);
   assert.doesNotMatch(source, /md:h-\[calc\(96dvh-13rem\)\]/);
   assert.doesNotMatch(source, /max-h-\[56vh\]/);
