@@ -152,6 +152,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   const empty={
     availabilityPercent:null as number|null,
     plannedMtbfMinutes:null as number|null,
+    mtbfSampleStatus:"none" as "none" | "complete" | "partial",
     scheduledMinutes:0, scheduledDowntimeMinutes:0, operatingMinutes:0,
     productionFailureEpisodes:0, pendingAttributionEpisodes:0, physicalProductionEpisodes:0, coveredMachineCount:0, uncoveredMachineCount:assets?.length??0,
     populationCount:assets?.length??0,
@@ -164,12 +165,12 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     mttrAvailabilityReason,
     mtbfAvailabilityReason: (assets === null ? "dimension_filtered" : "insufficient_schedule") as
       "dimension_filtered" | "insufficient_schedule" | "no_programmed_minutes" |
-      "pending_attribution" | "no_maintenance_failures" | "available",
+      "pending_attribution" | "partial_pending_attribution" | "no_maintenance_failures" | "available",
     daily:[] as Array<{date:string;availabilityPercent:number|null;scheduledMinutes:number;scheduledDowntimeMinutes:number}>,
     availabilityStatus:assets===null?"dimension_filtered":"insufficient_schedule",
     methodology:{
       availability:"(Minutos programados - parada coincidente com programação) / minutos programados × 100. Apenas máquinas com histórico completo de modo de produção entram no cálculo.",
-      mtbf:"Tempo programado em operação (descontadas todas as paradas reais) / inícios de episódios inteiramente atribuídos à manutenção durante a programação. Causas pendentes ou mistas impedem MTBF; parada anterior à janela não é nova falha.",
+      mtbf:"Tempo programado em operação (descontadas todas as paradas reais) / inícios de episódios inteiramente atribuídos à manutenção durante a programação. Com falhas de causa pendente, valor numérico de amostra confirmada é PARCIAL/PROVISÓRIO; sem falhas confirmadas não há amostra.",
       mttr:"MTTR de restabelecimento: duração integral dos episódios encerrados na janela e inteiramente atribuídos à manutenção / quantidade desses episódios. Outras áreas, causas mistas ou pendentes não entram na amostra; horas de técnicos são separadas.",
       caveat:"Modo Produção Programada é um registro manual da máquina, não um calendário de turnos. Se não for atualizado fielmente, a disponibilidade não representa a programação real.",
     },
@@ -217,11 +218,16 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   const scheduledMinutes=round2(scheduledMs/MINUTE);
   const scheduledDowntimeMinutes=round2(stoppedScheduledMs/MINUTE);
   const availabilityPercent=scheduledMs>0?round2((operatingMs/scheduledMs)*100):null;
-  const plannedMtbfMinutes=episodes>0 && pending===0?round2(operatingMs/MINUTE/episodes):null;
+  // A single confirmed corrective failure is a valid *observed sample*.
+  // Pending causes remain unknown and the resulting figure is explicitly partial;
+  // never advertise this provisional estimate as a complete MTBF.
+  const plannedMtbfMinutes=episodes>0?round2(operatingMs/MINUTE/episodes):null;
+  const mtbfSampleStatus = episodes===0 ? "none" as const : pending>0 ? "partial" as const : "complete" as const;
   const mtbfAvailabilityReason = covered===0 ? "insufficient_schedule" as const :
     scheduledMs===0 ? "no_programmed_minutes" as const :
-    pending>0 ? "pending_attribution" as const :
+    episodes===0 && pending>0 ? "pending_attribution" as const :
     episodes===0 ? "no_maintenance_failures" as const :
+    pending>0 ? "partial_pending_attribution" as const :
     "available" as const;
   if (covered>0) {
     let cursor=startMs;
@@ -240,7 +246,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   })).sort((a,b)=>a.date.localeCompare(b.date));
   return {
     ...empty,
-    availabilityPercent,plannedMtbfMinutes,mtbfAvailabilityReason,
+    availabilityPercent,plannedMtbfMinutes,mtbfAvailabilityReason,mtbfSampleStatus,
     scheduledMinutes,scheduledDowntimeMinutes,
     operatingMinutes:round2(operatingMs/MINUTE),
     productionFailureEpisodes:episodes,
