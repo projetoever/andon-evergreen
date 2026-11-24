@@ -55,15 +55,16 @@ test("Admin deixa explícito que prioridade é somente visual", async () => {
   assert.match(source, /Acesso à gestão de prioridades/);
 });
 
-test("Dashboard possui acesso dedicado e envia modo visual ao grid", async () => {
-  const source = await readFile(
-    new URL("../src/pages/DashboardPage.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /Organizar prioridade de produção/);
-  assert.match(source, /DashboardPriorityLoginModal/);
-  assert.match(source, /to: "\/machine-priorities"/);
+test("Dashboard shares the authorized Priorities route and preserves visual ordering", async () => {
+  const [source, nav, priorityPage] = await Promise.all([
+    readFile(new URL("../src/pages/DashboardPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/layout/ModuleNavigation.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/DashboardPriorityPage.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(source, /<ModuleNavigation showModuleLinks\s*\/>/);
+  assert.match(nav, /label: "Organizar prioridade de produção"/);
+  assert.match(nav, /to: "\/machine-priorities"/);
+  assert.match(priorityPage, /DashboardPriorityLoginModal/);
   assert.match(source, /orderMode=\{dashboardMachineOrderMode\}/);
 });
 
