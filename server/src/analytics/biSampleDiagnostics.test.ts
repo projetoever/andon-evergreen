@@ -86,3 +86,18 @@ test("PENTE5C: não expõe diagnóstico de outra máquina nem trata acabado fora
   assert.equal(result.cases[0].gate,"finished_outside_period");
   assert.equal(result.cases[0].hasPhysicalLinkedStop,false);
 });
+
+test("PENTE5C: falha elegível em máquina com lacuna de programação sinaliza cobertura incompleta", () => {
+  const result = buildBiSampleDiagnostics({
+    calls: [{...base,id:"schedule-gap"}],
+    failureEvents: [{
+      machineId:"37",callId:"schedule-gap",startedAt:at(12),
+      endedAt:at(25),failureResponsibility:"maintenance",
+    }],
+    production, start:at(0),effectiveEnd:at(120),
+    assets:[{machineId:"37",exposureStartedAt:at(-20)}],
+    productionEvents:[{machineId:"37",productionMode:"scheduled",startedAt:at(10),endedAt:at(120)}],
+  });
+  assert.equal(result.cases[0].gate,"candidate_needs_causal_episode");
+  assert.equal(result.cases[0].scheduleCoverage,"incomplete");
+});
