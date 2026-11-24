@@ -52,6 +52,8 @@ export type AnalyticsMetricComparison = {
 export type AnalyticsProductionMetrics = {
   availabilityPercent: number | null;
   plannedMtbfMinutes: number | null;
+  /** Numeric MTBF with pending causes is provisional, never fully calibrated. */
+  mtbfSampleStatus?: "none" | "partial" | "complete";
   scheduledMinutes: number;
   scheduledDowntimeMinutes: number;
   operatingMinutes: number;
@@ -74,6 +76,7 @@ export type AnalyticsProductionMetrics = {
     | "insufficient_schedule"
     | "no_programmed_minutes"
     | "pending_attribution"
+    | "partial_pending_attribution"
     | "no_maintenance_failures";
   coveredMachineCount: number;
   uncoveredMachineCount: number;
@@ -141,6 +144,8 @@ export type AnalyticsOverview = {
     mtbfEstimatedMinutes: number | null;
     mtbfEstimatedMachineCount: number | null;
     maintenanceEligibleFinishedCalls?: number;
+    correctiveFinishedCandidates?: number;
+    pendingCorrectiveFinishedCalls?: number;
     returnedCalls: number;
     maintenanceReturnCycles: number;
     maintenanceReturnRatePercent: number | null;

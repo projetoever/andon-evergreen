@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { UnlockKeyhole } from "lucide-react";
+import { CredentialActionDialog } from "@/components/common/CredentialActionDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { accessRequest, type AccessState } from "@/services/accessService";
@@ -50,14 +51,9 @@ export function CentralMachineScreenUnlockModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={busy ? undefined : onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{ui("Desbloquear tela fixada")}</DialogTitle>
-          <DialogDescription>
-            {ui("Informe a senha de um Admin, mantenedor ou usuário com permissão para desfixar esta máquina. O usuário conectado não será alterado.")}
-          </DialogDescription>
-        </DialogHeader>
+    <CredentialActionDialog open={open} busy={busy} onOpenChange={onOpenChange}
+      icon={UnlockKeyhole} title={ui("Desbloquear tela fixada")}
+      description={ui("Informe a senha de um Admin, mantenedor ou usuário com permissão para desfixar esta máquina. O usuário conectado não será alterado.")}>
         <form className="space-y-4" onSubmit={event => void submit(event)}>
           <label className="block space-y-1 text-sm font-semibold">
             <span>{ui("Usuário")}</span>
@@ -70,15 +66,14 @@ export function CentralMachineScreenUnlockModal({
               value={password} onChange={event => setPassword(event.target.value)} />
           </label>
           {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={busy || !login.trim() || !password}>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="submit" className="w-full sm:w-auto" disabled={busy || !login.trim() || !password}>
               {ui("Desbloquear")}
             </Button>
-            <Button type="button" variant="secondary" disabled={busy}
+            <Button type="button" className="w-full sm:w-auto" variant="secondary" disabled={busy}
               onClick={() => onOpenChange(false)}>{ui("Cancelar")}</Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </CredentialActionDialog>
   );
 }

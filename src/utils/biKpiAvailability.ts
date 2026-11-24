@@ -2,6 +2,14 @@ import { ui } from "@/i18n/translate";
 import type { AnalyticsProductionMetrics } from "@/types/analytics";
 
 /** Explains missing samples without converting missing reliability metrics to zero. */
+/** Numeric MTBF with unresolved causes is an explicitly provisional sample. */
+export function explainPartialMtbf(scheduled: AnalyticsProductionMetrics) {
+  return ui("Estimativa parcial: {0} falha(s) confirmada(s), {1} pendente(s)/mista(s). Reclassifique para consolidar.", {
+    0: scheduled.productionFailureEpisodes,
+    1: scheduled.pendingAttributionEpisodes ?? 0,
+  });
+}
+
 export function explainMissingMtbf(scheduled: AnalyticsProductionMetrics) {
   switch (scheduled.mtbfAvailabilityReason) {
     case "dimension_filtered":

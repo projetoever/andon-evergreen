@@ -1,5 +1,14 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 5B — validação com uma falha comprovada, indicador parcial e modais unificados.
+  ["Estimativa parcial: {0} falha(s) confirmada(s), {1} pendente(s)/mista(s). Reclassifique para consolidar.", "Partial estimate: {0} confirmed failure(s), {1} pending/mixed. Review classifications to finalize.", "部分估計：已確認 {0} 次故障，尚有 {1} 次待確認／混合原因。請複核分類後定案。"],
+  ["Restauração física observada (não é MTTR):", "Observed physical restoration (not MTTR):", "觀察到的實體復原時間（非 MTTR）："],
+  ["{0} corretivo(s) aguardam confirmação de responsabilidade", "{0} corrective call(s) await ownership confirmation", "{0} 筆矯正維修呼叫待確認責任歸屬"],
+  ["Quanto maior, melhor, com atenção ao número de falhas. Se há causas pendentes, o número exibido é provisório e pode mudar após diagnóstico.", "Higher is better, considering the failure count. With pending causes, the value is provisional and may change after diagnosis.", "數值越高越好，但需考量故障次數。若有待確認原因，數值僅為暫定，診斷後可能改變。"],
+  ["Sem início de falha corretiva confirmada não há amostra; havendo uma ou mais, causas pendentes geram estimativa parcial sinalizada.", "No confirmed corrective failure start means no sample; one or more confirmed starts with unresolved causes yield a labeled partial estimate.", "若無已確認的矯正故障起點則無樣本；有至少一次且仍有待確認原因時，會標示為部分估計。"],
+  ["Tempo programado em operação, descontando todas as paradas reais, dividido pelos inícios confirmados de episódios de manutenção. Com causas pendentes, o resultado é provisório e sinalizado.", "Scheduled operating time minus all physical stops, divided by confirmed maintenance failure starts. With pending causes, the result is flagged as provisional.", "排程運作時間扣除所有實際停機後，除以已確認的維修故障起點數。若有待確認原因，結果將標示為暫定。"],
+  ["Recuperação exclusiva da conta Admin principal, protegida por código de uso único e validação do servidor.", "Primary Admin account recovery only, protected by a one-time code and server verification.", "僅供主要管理員帳號復原，須使用一次性驗證碼及伺服器驗證。"],
+
   // PENTE 5-BI — structural contribution, without false claims of counted KPI minutes.
   ["BI operacional","Operational BI","營運 BI"],
   ["MTTA corretivo","Corrective MTTA","矯正維修平均回應時間"],

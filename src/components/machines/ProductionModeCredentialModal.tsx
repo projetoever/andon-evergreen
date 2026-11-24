@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CalendarClock } from "lucide-react";
+import { CredentialActionDialog } from "@/components/common/CredentialActionDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { accessRequest } from "@/services/accessService";
@@ -65,14 +66,9 @@ export function ProductionModeCredentialModal({
   const targetLabel = requestedMode === "scheduled"
     ? ui("Produção Programada") : ui("Fora de Produção");
   return (
-    <Dialog open={open} onOpenChange={busy ? undefined : onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{ui("Confirmar programação de produção")}</DialogTitle>
-          <DialogDescription>
-            {ui("A mudança para {0} exige a senha de um usuário autorizado. A conta conectada ao terminal continuará a mesma.", { 0: targetLabel })}
-          </DialogDescription>
-        </DialogHeader>
+    <CredentialActionDialog open={open} busy={busy} onOpenChange={onOpenChange}
+      icon={CalendarClock} title={ui("Confirmar programação de produção")}
+      description={ui("A mudança para {0} exige a senha de um usuário autorizado. A conta conectada ao terminal continuará a mesma.", { 0: targetLabel })}>
         <form className="space-y-4" onSubmit={event => void submit(event)}>
           <label className="block space-y-2 text-sm font-semibold">
             <span>{ui("Usuário autorizado")}</span>
@@ -93,7 +89,6 @@ export function ProductionModeCredentialModal({
               onClick={() => onOpenChange(false)}>{ui("Cancelar")}</Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </CredentialActionDialog>
   );
 }

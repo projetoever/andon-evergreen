@@ -1,5 +1,5 @@
 import { ui, systemMessage, getInterfaceLocale, getInterfaceLanguage } from "@/i18n/translate";
-import { explainMissingMtbf, explainMissingMttr } from "@/utils/biKpiAvailability";
+import { explainMissingMtbf, explainMissingMttr, explainPartialMtbf } from "@/utils/biKpiAvailability";
 import type {
   AnalyticsAssetReliability,
   AnalyticsFailureIntelligence,
@@ -426,7 +426,7 @@ export function buildExecutiveReportHtml({
     ${sectionTitle(ui("Indicadores executivos"), ui("Base: modo Produção Programada registrado no ANDON, não calendário formal de turnos; lacunas permanecem indisponíveis."))}
     <div class="kpis">
       ${tile(ui("Disponibilidade"), percentage(overview.production?.availabilityPercent), ui("{0}/{1} máquinas com histórico completo", { 0: overview.production?.coveredMachineCount ?? 0, 1: overview.production?.populationCount ?? 0 }), "green")}
-      ${tile(ui("MTBF programado"), overview.production?.plannedMtbfMinutes == null ? ui("Sem amostra") : minutes(overview.production.plannedMtbfMinutes), overview.production && overview.production.plannedMtbfMinutes === null ? explainMissingMtbf(overview.production) : ui("{0} falha(s) de manutenção na programação", { 0: overview.production?.productionFailureEpisodes ?? 0 }), "green")}
+      ${tile(ui("MTBF programado"), overview.production?.plannedMtbfMinutes == null ? ui("Sem amostra") : minutes(overview.production.plannedMtbfMinutes), overview.production?.mtbfSampleStatus === "partial" ? explainPartialMtbf(overview.production) : overview.production && overview.production.plannedMtbfMinutes === null ? explainMissingMtbf(overview.production) : ui("{0} falha(s) de manutenção na programação", { 0: overview.production?.productionFailureEpisodes ?? 0 }), "green")}
       ${tile(ui("MTTA"), minutes(k.mttaMinutes), `${overview.coverage.mttaSampleSize} atendimento(s) na amostra`, "amber")}
       ${tile(ui("MTTR restabelecimento"), overview.production?.resolvedMttrMinutes == null ? ui("Sem amostra") : minutes(overview.production.resolvedMttrMinutes), overview.production && overview.production.resolvedMttrMinutes === null ? explainMissingMttr(overview.production) : ui("{0} episódio(s) de manutenção encerrado(s)", { 0: overview.production?.resolvedEpisodes ?? 0 }), "blue")}
       ${tile(ui("Tempo de parada"), minutes(k.downtimeMinutes), ui("{0} episódio(s) unido(s), inclusive fora da programação", { 0: k.physicalStopEpisodes }), "red")}

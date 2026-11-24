@@ -29,14 +29,16 @@ test("phase 2B: reconcilia episódios físicos, causa pendente e parada aberta s
   assert.equal(result.episodeCount,3);
   assert.equal(result.official.resolvedMttrMinutes,30);
   assert.equal(result.official.mttrEligibleRestorations,1);
-  assert.equal(result.official.plannedMtbfMinutes,null);
+  assert.equal(result.official.plannedMtbfMinutes,10);
+  assert.equal(result.official.mtbfSampleStatus,"partial");
   assert.equal(result.official.pendingScheduledEpisodes,1);
   assert.equal(result.production.scheduledMinutes,120);
   assert.equal(result.production.scheduledDowntimeMinutes,100);
   assert.equal(result.mttrReasons.included,1);
   assert.equal(result.mttrReasons.pending_or_mixed,1);
   assert.equal(result.mttrReasons.still_open,1);
-  assert.equal(result.mtbfReasons.blocked_by_pending_cause,2);
+  assert.equal(result.mtbfReasons.included,2);
+  assert.equal(result.mtbfReasons.blocked_by_pending_cause ?? 0,0);
   assert.equal(result.mtbfReasons.pending_or_mixed,1);
   assert(!JSON.stringify(result).includes("excluded_000004"));
   assert(!JSON.stringify(result).includes("elsewhere_000005"));
