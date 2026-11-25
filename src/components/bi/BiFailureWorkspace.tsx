@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BiFailureIntelligencePanel } from "@/components/bi/BiFailureIntelligencePanel";
 import { BiTemporalPatterns } from "@/components/bi/BiTemporalPatterns";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { BiInlineDistributionChart } from "@/components/bi/BiInlineDistributionChart";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
@@ -131,8 +132,15 @@ export function BiFailureWorkspace({
                 caution={ui("Diagnósticos dos chamados concluídos; apenas as categorias exibidas participam da distribuição.")}
                 allowRank /></div>
             </div>
-
-            <div className="mt-4 min-h-0 flex-1 space-y-3">
+            <div className="mt-3 min-w-0">
+              <BiInlineDistributionChart
+                rows={classificationData.map(item=>({id:item.value,label:item.label,value:item.count}))}
+                unit="count" color="#f59e0b" height={245}
+                onInspect={id=>{const item=classificationData.find(row=>row.value===id);if(item)onDrilldown({dimension:"classification",value:item.value,label:item.label});}} />
+            </div>
+            <details className="mt-2 min-h-0 shrink-0">
+              <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">{ui("Ver classificações detalhadas")}</summary>
+            <div className="mt-2 max-h-44 space-y-2 overflow-y-auto">
               {classificationData.length ? (
                 classificationData.map((item, index) => {
                   const max = classificationData[0]?.count || 1;
@@ -176,6 +184,7 @@ export function BiFailureWorkspace({
                 </div>
               )}
             </div>
+            </details>
           </section>
 
           <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -193,8 +202,15 @@ export function BiFailureWorkspace({
                 caution={ui("Chamados abertos por setor; não representa tempo de parada nem esforço técnico.")}
                 allowRank /></div>
             </div>
-
-            <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 content-start gap-3">
+            <div className="mt-3 min-w-0">
+              <BiInlineDistributionChart
+                rows={sectorData.map(item=>({id:item.value,label:item.label,value:item.count}))}
+                unit="count" color="#38bdf8" height={245}
+                onInspect={id=>{const item=sectorData.find(row=>row.value===id);if(item)onDrilldown({dimension:"sector",value:item.value,label:item.label});}} />
+            </div>
+            <details className="mt-2 shrink-0">
+              <summary className="cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground">{ui("Ver setores detalhados")}</summary>
+            <div className="mt-2 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
               {sectorData.length ? (
                 sectorData.map((item) => (
                   <button
@@ -219,6 +235,8 @@ export function BiFailureWorkspace({
                 </div>
               )}
             </div>
+
+            </details>
 
             <div className="mt-3 shrink-0 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3">
               <p className="text-[10px] leading-4 text-muted-foreground">
