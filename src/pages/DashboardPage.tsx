@@ -90,6 +90,7 @@ export function DashboardPage() {
   const [dashboardSoundSyncing, setDashboardSoundSyncing] = useState(false);
   const [dashboardMachineOrderMode, setDashboardMachineOrderMode] =
     useState<DashboardMachineOrderMode>("default");
+  const [priorityHighlightCount, setPriorityHighlightCount] = useState(5);
   const [dashboardMuteTimerEnabled, setDashboardMuteTimerEnabled] = useState(false);
   const [dashboardMuteDurationMinutes, setDashboardMuteDurationMinutes] = useState(
     DEFAULT_DASHBOARD_SOUND_MUTE_DURATION_MINUTES,
@@ -228,6 +229,8 @@ export function DashboardPage() {
       setDashboardMachineOrderMode(
         systemSettings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
       );
+      setPriorityHighlightCount(Number.isInteger(systemSettings.priorityHighlightCount) &&
+        systemSettings.priorityHighlightCount >= 1 ? systemSettings.priorityHighlightCount : 5);
     };
     const handleSettingsChanged = (event: Event) => {
       applySettings((event as CustomEvent<SystemSettings>).detail);
@@ -278,7 +281,17 @@ export function DashboardPage() {
 
     window.addEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
 
+    // Cross-workstation priority count updates are reflected without page reload.
+    // Poll ONLY the read-only highlight count, never overwrite local sound/mute.
+    const prioritySync = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      void getSystemSettings().then((latest) => {
+        if (!cancelled && Number.isInteger(latest.priorityHighlightCount) &&
+            latest.priorityHighlightCount >= 1) setPriorityHighlightCount(latest.priorityHighlightCount);
+      }).catch(() => { /* Retain the last verified count until the API recovers. */ });
+    }, 20_000);
     return () => {
+      window.clearInterval(prioritySync);
       cancelled = true;
       window.removeEventListener(SYSTEM_SETTINGS_CHANGED_EVENT, handleSettingsChanged);
     };
@@ -576,6 +589,7 @@ export function DashboardPage() {
         <MachineGrid
           className="min-w-0 lg:min-h-0 lg:flex-1"
           orderMode={dashboardMachineOrderMode}
+          priorityHighlightCount={priorityHighlightCount}
           attentionMode={attentionMode}
           machines={[...machines]
             .filter((machine) => machine.isActive)
