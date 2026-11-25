@@ -52,7 +52,8 @@ test("PENTE 2 visual: semantic machine badges, rights-scoped history and operati
   ]);
   assert.match(priority, /<PriorityActivationBadge active=\{row\.isActive\}/);
   assert.match(priority, /<PriorityProductionBadge mode=\{row\.productionMode\}/);
-  assert.match(priority, /<PriorityProductionBadge mode=\{machine\.productionMode\}/);
+  assert.match(priority, /onClick=\{\(\) => void requestScheduleChange\(row\)\}/);
+  assert.match(priority, /scheduleRequester.fullScope \|\| scheduleRequester.machineIds.includes\(row.id\)/);
   assert.match(priority, /activePriorityRanks\.get\(row\.id\)/);
   assert.match(priority, /canShowPriorityMachineHistory\(access, row\.id\)/);
   assert.match(priority, /canShowPriorityMachineHistory\(access, row\.id\)/);
