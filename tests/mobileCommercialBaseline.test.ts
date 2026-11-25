@@ -41,6 +41,16 @@ test("MOB 1: histórico mantém campos integrais em cards mobile e tabela deskto
   assert.match(history, /call\.isSystemTest/);
 });
 
+test("MOB 1: cards industriais mostram nome e grupo completos em telas pequenas", async () => {
+  const card = await source("components/machines/MachineCard.tsx");
+  assert.match(card, /machine\.name\.trim\(\) !== machine\.id/);
+  assert.match(card, /\{machine\.name\}/);
+  assert.match(card, /line-clamp-2/);
+  assert.match(card, /lg:truncate/);
+  assert.match(card, /currentCallIdentity\?\.label/);
+  assert.match(card, /<Link[\s\S]*?to="\/machines\/\$machineId"/);
+});
+
 test("MOB 1: modais e dados BI permitem leitura e toque em viewport estreito", async () => {
   const [dialog, alertDialog, sheet, styles, coverage, machine] = await Promise.all([
     source("components/ui/dialog.tsx"),
