@@ -11,6 +11,7 @@ import { toast } from "@/i18n/toast";
 import { persistentBlockerMessage, PERSISTENCE_NOT_ACTIVE } from "@/services/persistentSessionStatus";
 import { hadConfirmedPersistentSession, sessionLossMessage } from "@/services/sessionRecoveryDiagnostics";
 import { accessRequest, type AccessState } from "@/services/accessService";
+import { withHubTransientRetry } from "@/services/hubTransitionRetry";
 import { personalPasswordHint } from "@/services/personalPasswordHint";
 import type { ModuleAccess } from "@/types/modules";
 
@@ -41,7 +42,7 @@ export function HubIdentityPanel({
   const waiting = access.workstation.pendingApproval && admission?.status === "pending" &&
     session?.principal?.purpose === "workstation_admission";
   const refreshSession = useCallback(async () => {
-    const next = await accessRequest<AccessState>("/session");
+    const next = await withHubTransientRetry(() => accessRequest<AccessState>("/session"));
     setSession(next);
     setError("");
   }, []);
