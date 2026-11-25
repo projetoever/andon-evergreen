@@ -147,7 +147,7 @@ export function BiMaintenanceParticipation({
 
   if (loading && !data) {
     return (
-      <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 border border-border bg-card p-3 shadow-sm">
+      <section className="flex min-w-0 flex-col rounded-xl lg:h-full lg:min-h-0 lg:overflow-y-auto border border-border bg-card p-3 shadow-sm">
         <div className="h-full animate-pulse rounded-lg bg-muted/40" />
       </section>
     );
