@@ -9,6 +9,8 @@ test("MOB 1: Hub e ANDON usam navegação agrupada acessível sem retirar a late
   const shell = await source("components/settings/AdminWorkspaceShell.tsx");
   assert.match(shell, /<Sheet open=\{mobileNavigationOpen\} onOpenChange=\{setMobileNavigationOpen\}>/);
   assert.match(shell, /aria-expanded=\{mobileNavigationOpen\}/);
+  assert.match(shell, /window\.matchMedia\("\(min-width: 640px\)"\)/);
+  assert.match(shell, /setMobileNavigationOpen\(false\)/);
   assert.match(shell, /selected\?\.label \|\| title/);
   assert.match(shell, /items\.filter\(item => \(item\.group \|\| "Administração"\) === group\)/);
   assert.match(shell, /onSelect\(item\.id\); setMobileNavigationOpen\(false\)/);
