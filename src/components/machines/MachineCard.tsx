@@ -177,9 +177,14 @@ export function MachineCard({ machine, productionPriorityRank = null, highlightI
           <div className="text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground 2xl:text-xs">
             {t("Máquina")}
           </div>
-          <div className="text-4xl font-black leading-none tracking-tight text-foreground 2xl:text-5xl">
+          <div className="max-w-full break-all text-3xl font-black leading-tight tracking-tight text-foreground sm:text-4xl 2xl:text-5xl">
             {machine.id}
           </div>
+          {machine.name && machine.name.trim() !== machine.id && (
+            <p className="mt-1 min-w-0 break-words text-sm font-bold leading-snug text-foreground lg:hidden [overflow-wrap:anywhere]">
+              {machine.name}
+            </p>
+          )
         </div>
       </div>
 
@@ -226,7 +231,7 @@ export function MachineCard({ machine, productionPriorityRank = null, highlightI
                 <Bell className="h-3.5 w-3.5 shrink-0" />
               )}
               <span
-                className="min-w-0 truncate"
+                className="min-w-0 break-words leading-snug line-clamp-2 lg:truncate lg:line-clamp-1 [overflow-wrap:anywhere]"
                 title={currentCallIdentity?.label}
                 aria-label={currentCallIdentity?.label}
                 data-call-id={currentCall.id}
@@ -250,7 +255,7 @@ export function MachineCard({ machine, productionPriorityRank = null, highlightI
                 title={t("Clique para ler a informação completa do operador")}
               >
                 <MessageSquareText className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{operatorNoteSummary}</span>
+                <span className="min-w-0 break-words line-clamp-2 lg:truncate lg:line-clamp-1">{operatorNoteSummary}</span>
               </button>
             )}
           </div>
