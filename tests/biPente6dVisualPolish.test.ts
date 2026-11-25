@@ -79,8 +79,8 @@ test("PENTE6-E: texto e rótulos de cada tooltip usam contraste do popover nos d
   assert.equal(biChartTooltipProps.labelStyle.color, "var(--popover-foreground)");
   assert.equal(biChartTooltipProps.contentStyle.background, "var(--popover)");
   const css = source("../src/styles.css");
-  assert.match(css, /--popover:\\s*oklch/);
-  assert.match(css, /--popover-foreground:\\s*oklch/);
+  assert.match(css, /--popover:\s*oklch/);
+  assert.match(css, /--popover-foreground:\s*oklch/);
   const charts = [
     "BiChartAlternative", "BiChartExplorer", "BiInlineDistributionChart",
     "BiDailyAvailabilityCard", "BiDowntimeTrendCard", "BiMaintenanceStackedChart",
@@ -89,10 +89,10 @@ test("PENTE6-E: texto e rótulos de cada tooltip usam contraste do popover nos d
   for (const name of charts) {
     const component = source(`../src/components/bi/${name}.tsx`);
     assert.match(component, /biChartTooltipProps/, name);
-    const tooltips = component.match(/<Tooltip\\b[\\s\\S]*?\\/>/g) ?? [];
+    const tooltips = component.match(/<Tooltip\b[\s\S]*?\/>/g) ?? [];
     assert.ok(tooltips.length > 0, name + " must render a chart tooltip");
     for (const tip of tooltips) {
-      assert.match(tip, /\\{\\.\\.\\.biChartTooltipProps\\}/, name);
+      assert.match(tip, /\{\.\.\.biChartTooltipProps\}/, name);
       assert.doesNotMatch(tip, /contentStyle=/, name);
     }
   }
