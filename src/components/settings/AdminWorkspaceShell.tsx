@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { HubAdminSection } from "@/types/modules";
-import { ArrowLeft, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ChevronDown, Menu, ShieldCheck, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 
@@ -44,6 +45,7 @@ export function AdminWorkspaceShell({
 }: AdminWorkspaceShellProps) {
   useInterfaceLanguage();
   const contentScrollRef = useRef<HTMLDivElement>(null);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   useEffect(() => {
     if (resetContentScrollOnTabChange && contentScrollRef.current) {
       contentScrollRef.current.scrollTop = 0;
@@ -136,6 +138,18 @@ export function AdminWorkspaceShell({
 
         <nav aria-label={navLabel}
           className="flex min-w-0 gap-2 overflow-x-auto border-b border-border bg-background px-3 py-2 lg:hidden">
+          <button
+            type="button"
+            aria-label={navLabel}
+            aria-expanded={mobileNavigationOpen}
+            onClick={() => setMobileNavigationOpen(true)}
+            className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 text-left text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+          >
+            <Menu className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{selected?.label || title}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+          <div className="hidden min-w-max items-center gap-2 sm:flex">
           {items.map(item => {
             const Icon = item.icon;
             const active = item.id === activeId;
@@ -165,7 +179,56 @@ export function AdminWorkspaceShell({
               )
             );
           })}
+          </div>
         </nav>
+
+        <Sheet open={mobileNavigationOpen} onOpenChange={setMobileNavigationOpen}>
+          <SheetContent side="left" className="flex h-dvh w-[min(90vw,22rem)] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:hidden">
+            <SheetHeader className="shrink-0 border-b border-border px-4 py-5 pr-14 text-left">
+              <SheetTitle className="break-words text-base">{title}</SheetTitle>
+              <SheetDescription className="break-words text-xs">{subtitle}</SheetDescription>
+            </SheetHeader>
+            <nav aria-label={navLabel} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 py-4">
+              {groups.map(group => (
+                <div key={group} className="space-y-1">
+                  <p className="px-3 text-xs font-black uppercase tracking-wider text-muted-foreground">{ui(group)}</p>
+                  {items.filter(item => (item.group || "Administração") === group).map(item => {
+                    const Icon = item.icon;
+                    const active = item.id === activeId;
+                    const itemClasses = cn(
+                      "flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    );
+                    return hubNavigation ? (
+                      <Link key={item.id} to="/hub/admin" search={{ section: item.id as HubAdminSection }}
+                        onClick={() => setMobileNavigationOpen(false)}
+                        aria-current={active ? "page" : undefined}
+                        title={item.description} data-audit-action={`admin.tab.${item.id}`} className={itemClasses}>
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 break-words">{item.label}</span>
+                      </Link>
+                    ) : (
+                      <button key={item.id} type="button" className={itemClasses}
+                        aria-current={active ? "page" : undefined}
+                        title={item.description} data-audit-action={`admin.tab.${item.id}`}
+                        onClick={() => { onSelect(item.id); setMobileNavigationOpen(false); }}>
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 break-words">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+            <div className="shrink-0 border-t border-border bg-card p-3">
+              <button type="button" onClick={() => { setMobileNavigationOpen(false); onBack(); }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-muted-foreground hover:bg-accent hover:text-foreground">
+                <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {backLabel}
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         <main className="flex min-h-0 min-w-0 flex-col lg:col-start-2 lg:row-start-1">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 lg:px-6">
