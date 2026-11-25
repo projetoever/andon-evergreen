@@ -49,6 +49,13 @@ test("PENTE2: ranked machines remain contiguous across paginated Dashboard cards
     assert.deepEqual(flattened.slice(0, count).map(m => m.id), ids.slice(0, count));
     for (const page of pages) assert.ok(page.length <= MAX_DASHBOARD_CARDS);
   }
+  const alerted = all.map(m => m.id === "23" ? {...m, machineStatus: "stopped" as const} : m);
+  const pageFive = splitMachinesByProductionPriority(alerted, [], 14, 5);
+  assert.ok(pageFive[0].some(m => m.id === "23"),
+    "the legacy P1-P5 mode must retain operational urgency for free page slots");
+  const pageTwenty = splitMachinesByProductionPriority(alerted, [], 14, 20);
+  assert.ok(pageTwenty[1].some(m => m.id === "23"),
+    "operationally urgent unranked machines must fill free slots after ranked machines");
   const sample = splitMachinesByProductionPriority(all, [], 14, 20);
   assert.equal(sample[0].length, 14);
   assert.deepEqual(sample[1].slice(0, 6).map(m => m.id), ids.slice(14, 20));
