@@ -184,7 +184,7 @@ export function MachineCard({ machine, productionPriorityRank = null, highlightI
             <p className="mt-1 min-w-0 break-words text-sm font-bold leading-snug text-foreground lg:hidden [overflow-wrap:anywhere]">
               {machine.name}
             </p>
-          )
+          )}
         </div>
       </div>
 
