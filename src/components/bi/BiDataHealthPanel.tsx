@@ -95,7 +95,7 @@ export function BiDataHealthPanel({
     }).format(new Date(iso));
 
   return (
-    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto gap-3 rounded-xl border border-border bg-card p-4">
+    <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-5">
       <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wide">
@@ -114,26 +114,36 @@ export function BiDataHealthPanel({
           {ui("Dados do ambiente conectado · somente leitura")}
         </span>
       </header>
-      <div className="grid shrink-0 gap-2 lg:grid-cols-2">
-        <div className="min-w-0 rounded-lg border border-border bg-background/25 p-3">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-2">
+        <div className="min-w-0 rounded-lg border border-border bg-background/25 p-3 sm:p-4">
           <h3 className="text-xs font-black uppercase">{ui("Situação atual dos alertas")}</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">{ui("Alertas com referência ao estado atual. As categorias podem se sobrepor.")}</p>
-          <BiInlineDistributionChart
+          {(["active-calls","open-events","active-sessions"] as AnalyticsDataQualityCategory[]).every(id=>counts[id]===0) ? (
+            <div className="flex min-h-24 items-center gap-3 text-sm text-muted-foreground">
+              <span className="text-3xl font-black tabular-nums text-emerald-400">0</span>
+              {ui("Nenhum alerta neste grupo")}
+            </div>
+          ) : <BiInlineDistributionChart
             rows={(["active-calls","open-events","active-sessions"] as AnalyticsDataQualityCategory[]).map(id=>({id,label:LABELS[id],value:counts[id]}))}
-            unit="count" color="#f59e0b" height={155} allowComposition={false}
-            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>
+            unit="count" color="#f59e0b" height={145} allowComposition={false}
+            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>}
         </div>
         <div className="min-w-0 rounded-lg border border-border bg-background/25 p-3">
           <h3 className="text-xs font-black uppercase">{ui("Alertas no período selecionado")}</h3>
           <p className="mt-1 text-[11px] text-muted-foreground">{ui("Classificações ausentes e eventos sem chamado não representam uma composição aditiva.")}</p>
-          <BiInlineDistributionChart
+          {(["unclassified-calls","unlinked-events"] as AnalyticsDataQualityCategory[]).every(id=>counts[id]===0) ? (
+            <div className="flex min-h-24 items-center gap-3 text-sm text-muted-foreground">
+              <span className="text-3xl font-black tabular-nums text-emerald-400">0</span>
+              {ui("Nenhum alerta neste grupo")}
+            </div>
+          ) : <BiInlineDistributionChart
             rows={(["unclassified-calls","unlinked-events"] as AnalyticsDataQualityCategory[]).map(id=>({id,label:LABELS[id],value:counts[id]}))}
-            unit="count" color="#38bdf8" height={155} allowComposition={false}
-            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>
+            unit="count" color="#38bdf8" height={145} allowComposition={false}
+            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>}
         </div>
       </div>
       <BiSampleDiagnosticsPanel data={sampleDiagnostics} noKpiSample={noKpiSample === true} />
-      <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {categories.map((type) => (
           <button
             key={type}
@@ -158,8 +168,8 @@ export function BiDataHealthPanel({
           </button>
         ))}
       </div>
-      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.8fr)_minmax(270px,0.65fr)]">
-        <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background/20 p-3">
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-h-[260px] min-w-0 flex-col rounded-lg border border-border bg-background/20 p-3 sm:p-4">
           <div className="mb-2 flex shrink-0 justify-between">
             <h3 className="text-xs font-black uppercase tracking-wide">{LABELS[category]}</h3>
             <span className="text-[11px] text-muted-foreground">
@@ -168,7 +178,7 @@ export function BiDataHealthPanel({
                 : String(details?.total ?? 0) + ui(" registro(s)")}
             </span>
           </div>
-          <div className="min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border">
+          <div className="min-h-[200px] max-h-[480px] min-w-0 overflow-auto rounded-lg border border-border">
             {detailsLoading ? (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 {ui("Carregando ocorrências...")}
@@ -178,8 +188,8 @@ export function BiDataHealthPanel({
                 {systemMessage(detailsError)}
               </div>
             ) : details?.items.length ? (
-              <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
-                <thead className="border-b border-border bg-background/40 text-[10px] uppercase text-muted-foreground">
+              <table className="w-full min-w-[760px] table-fixed text-left text-[13px]">
+                <thead className="sticky top-0 z-10 border-b border-border bg-card text-[11px] uppercase text-muted-foreground">
                   <tr>
                     <th className="w-[21%] px-2 py-2">{ui("Máquina")}</th>
                     <th className="w-[18%] px-2 py-2">{ui("Data")}</th>
@@ -190,7 +200,7 @@ export function BiDataHealthPanel({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {details.items.map((item) => (
-                    <tr key={item.id} className="h-[51px]">
+                    <tr key={item.id} className="h-[58px]">
                       <td className="px-2 py-1">
                         <button
                           type="button"
@@ -283,12 +293,13 @@ export function BiDataHealthPanel({
             </div>
           </footer>
         </div>
-        <aside className="min-h-0 rounded-lg border border-border bg-background/20 p-3">
-          <div className="flex items-center gap-2 text-xs font-black uppercase">
+        <details className="rounded-lg border border-border bg-background/20 p-3 text-sm sm:p-4">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold">
             <AlertTriangle className="h-4 w-4 text-amber-300" />
             {ui("Leitura do alerta")}
-          </div>
-          <div className="mt-3 space-y-3 text-xs leading-5 text-muted-foreground">
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{ui("Como interpretar")}</span>
+          </summary>
+          <div className="mt-3 grid gap-3 text-[13px] leading-6 text-muted-foreground md:grid-cols-2">
             <p>
               {ui("O contador da aba soma alertas por categoria, não registros únicos. Zero em uma categoria indica ausência de alertas naquele recorte.")}
             </p>
@@ -315,7 +326,7 @@ export function BiDataHealthPanel({
               )}
             </p>
           </div>
-        </aside>
+        </details>
       </div>
     </section>
   );
