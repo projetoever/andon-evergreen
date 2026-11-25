@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { BiChartAlternative } from "./BiChartAlternative";
 import { availableBiChartModes, type BiChartMode } from "./biChartModePolicy";
+import { biChartGradientId, biChartGridColor, biChartPalette, biChartTooltipStyle } from "./biChartVisualTheme";
 
 type Item = { id: string; label: string; value: number | null };
 type Props = {
@@ -21,6 +22,7 @@ export function BiInlineDistributionChart({
   rows, unit, color, height = 250, allowComposition = true, onInspect,
 }: Props) {
   const [mode, setMode] = useState<BiChartMode>("bars");
+  const gradientId = biChartGradientId(useId(), "bi-inline");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const allowed = useMemo(() => allowComposition
     ? availableBiChartModes(rows, unit, "categorical")
@@ -41,14 +43,14 @@ export function BiInlineDistributionChart({
   };
   if (!valid.length) return <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">{ui("Sem amostra")}</div>;
   const maxLabelLength = Math.max(0, ...rows.map(row => row.label.length));
-  const axisWidth = Math.min(134, Math.max(80, maxLabelLength * 6));
+  const axisWidth = Math.min(150, Math.max(88, maxLabelLength * 6.5));
   return (
-    <div className="min-w-0 space-y-2" data-bi-inline-chart="true">
-      <div className="flex flex-wrap gap-1" role="group" aria-label={ui("Tipo de gráfico")}>
+    <div className="min-w-0 space-y-3" data-bi-inline-chart="true">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border/60 bg-muted/20 p-1" role="group" aria-label={ui("Tipo de gráfico")}>
         {allowed.map(option => (
           <button type="button" key={option} aria-pressed={activeMode === option}
-            className={"rounded-md border px-2.5 py-1 text-[11px] font-semibold transition " +
-              (option === activeMode ? "border-primary/60 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted")}
+            className={"rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (option === activeMode ? "border-primary/40 bg-background text-foreground shadow-sm" : "border-transparent text-muted-foreground hover:bg-muted/70")}
             onClick={() => { setMode(option); setSelectedId(null); }}>
             {ui(({ bars:"Barras", pareto:"Pareto", donut:"Rosca", pie:"Disco", line:"Linha", area:"Área" } as const)[option])}
           </button>
@@ -57,9 +59,10 @@ export function BiInlineDistributionChart({
       <div style={{ height }} className="w-full min-w-0" role="img" aria-label={ui("Gráfico comparativo com escala e valores inspecionáveis")}>
         {activeMode === "bars" ? (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 72, bottom: 12, left: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, "auto"]} tick={{ fill:"var(--muted-foreground)", fontSize:10 }}
+            <BarChart data={rows} layout="vertical" margin={{ top: 12, right: 92, bottom: 14, left: 0 }}>
+              <defs><linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={color} stopOpacity={0.56}/><stop offset="100%" stopColor={color} stopOpacity={1}/></linearGradient></defs>
+              <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" horizontal={false} />
+              <XAxis type="number" domain={[0, "auto"]} tick={{ fill:"var(--muted-foreground)", fontSize:12 }}
                 axisLine={false} tickLine={false}
                 tickFormatter={(v) => unit === "minutes" ? (Number(v)/60).toFixed(0) + ui("h") : String(v)} />
               <YAxis type="category" dataKey="label" width={axisWidth}
@@ -67,11 +70,11 @@ export function BiInlineDistributionChart({
                 tickFormatter={(v) => String(v).length > 19 ? String(v).slice(0, 18) + "…" : String(v)}
                 axisLine={false} tickLine={false} />
               <Tooltip formatter={(v) => [format(v == null ? null : Number(v)), ui("Valor observado")]}
-                contentStyle={{ background:"var(--popover)", borderColor:"var(--border)", borderRadius:10 }} />
-              <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} maxBarSize={23}
+                contentStyle={biChartTooltipStyle} />
+              <Bar dataKey="value" fill={"url(#" + gradientId + ")"} radius={[0, 7, 7, 0]} maxBarSize={29} background={{fill:"var(--muted)",fillOpacity:0.21}} animationDuration={420}
                 onClick={(row) => { const item=row as {id?:string;payload?:{id?:string}}; const id=item.payload?.id ?? item.id; if(id)choose(String(id)); }}>
-                {rows.map(row => <Cell key={row.id} fill={color} fillOpacity={selectedId && selectedId !== row.id ? .35 : .94} cursor={onInspect ? "pointer" : "default"} />)}
-                <LabelList dataKey="value" position="right" formatter={(v: unknown)=>format(v == null ? null : Number(v))} fill="var(--foreground)" fontSize={10}/>
+                {rows.map(row => <Cell key={row.id} fill={"url(#" + gradientId + ")"} fillOpacity={selectedId && selectedId !== row.id ? .35 : 1} cursor={onInspect ? "pointer" : "default"} />)}
+                <LabelList dataKey="value" position="right" formatter={(v: unknown)=>format(v == null ? null : Number(v))} fill="var(--foreground)" fontSize={12}/>
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -81,11 +84,11 @@ export function BiInlineDistributionChart({
         )}
       </div>
       {(activeMode === "donut" || activeMode === "pie") && total > 0 && (
-        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {rows.filter(row => row.value !== null && row.value > 0).map(row => (
             <button key={row.id} type="button" onClick={() => choose(row.id)}
               className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-muted/30 px-2 py-1 text-left text-[11px] hover:bg-muted">
-              <span className="truncate">{row.label}</span>
+              <span className="inline-flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{backgroundColor:biChartPalette[rows.indexOf(row)%biChartPalette.length]}}/><span className="truncate">{row.label}</span></span>
               <span className="shrink-0 tabular-nums">{(100 * row.value! / total).toFixed(1)}%</span>
             </button>
           ))}
