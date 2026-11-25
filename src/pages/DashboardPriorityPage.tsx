@@ -7,7 +7,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
-  CalendarDays,
+  Pencil,
   CircleHelp,
   Filter,
   GripVertical,
@@ -185,8 +185,8 @@ export function DashboardPriorityPage() {
     access?.workstation.allowOperational === true;
 
   useEffect(() => {
-    if (activeSection !== "production" || access?.centralAccessEnabled !== true ||
-        !operationalGranted) {
+    if (activeSection !== "sequence" || !authenticated ||
+        access?.centralAccessEnabled !== true || !operationalGranted) {
       setScheduleRequester(null);
       return;
     }
@@ -208,7 +208,7 @@ export function DashboardPriorityPage() {
               principal.permissions?.includes("production.schedule.write") === true } : null);
     }).catch(() => { if (!canceled) setScheduleRequester(null); });
     return () => { canceled = true; };
-  }, [activeSection, access?.centralAccessEnabled, access?.principal?.userId,
+  }, [activeSection, authenticated, access?.centralAccessEnabled, access?.principal?.userId,
     operationalGranted]);
 
   const loadHistory = useCallback(async () => {
@@ -333,6 +333,10 @@ export function DashboardPriorityPage() {
       const canWrite = principal!.isPrimaryAdmin === true ||
         principal!.permissions?.includes("production.schedule.write") === true;
       if (canWrite) {
+        if (!window.confirm(ui("Confirmar programação de {0} como {1}?", {
+          0: machine.name,
+          1: ui(target === "scheduled" ? "Produção Programada" : "Fora de Produção"),
+        }))) return;
         // Backend revalidates the session, permission, machine scope, CSRF,
         // workstation, expected mode (409), transaction and audit.
         await accessRequest("/machines/production-mode/session", "POST", {
@@ -579,7 +583,10 @@ export function DashboardPriorityPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-            <strong className="text-foreground">{ui("Sequência de Prioridades")}</strong>
+            <div className="min-w-0">
+               <strong className="text-foreground">{ui("Sequência e Programação")}</strong>
+               <p className="mt-1 text-xs text-muted-foreground">{ui("A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.")}</p>
+             </div>
             <span aria-live="polite">
               {ui("Exibindo {0} de {1} máquinas", { 0: visibleRows.length, 1: rows.length })}
             </span>
@@ -624,7 +631,7 @@ export function DashboardPriorityPage() {
                       setDraggedId(null);
                     }}
                     className={cn(
-                      "grid min-w-0 grid-cols-[32px_32px_minmax(0,1fr)] items-center gap-2 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-muted/30 sm:grid-cols-[42px_34px_minmax(0,1fr)_auto]",
+                      "grid min-w-0 grid-cols-[28px_24px_minmax(0,1fr)] items-start gap-x-2 gap-y-3 rounded-lg border border-border bg-background px-3 py-3 transition-colors hover:bg-muted/30 2xl:grid-cols-[36px_24px_minmax(0,1fr)_auto] 2xl:items-center",
                       draggedId === row.id && "opacity-50",
                       activeRank !== null && "border-primary/30 bg-primary/[0.04]",
                       !row.isActive && "border-dashed bg-muted/20",
@@ -671,7 +678,7 @@ export function DashboardPriorityPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2 sm:col-span-1 sm:border-0 sm:pt-0">
+                    <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
                       {canShowPriorityMachineHistory(access, row.id) && (
                         <Button type="button" variant="outline" size="sm"
                           aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
@@ -716,7 +723,7 @@ export function DashboardPriorityPage() {
           )}
         </section>
 
-        {!centralReadOnly && <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+        {!centralReadOnly && <div className="sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
           <p className="text-xs text-muted-foreground">
             {hasUnsavedChanges
               ? ui("Alterações não salvas. O Dashboard ainda usa a sequência anterior.")
@@ -772,98 +779,6 @@ export function DashboardPriorityPage() {
                 lastOrderUpdatedBy={lastOrderUpdatedBy}
                 onSectionChange={setActiveSection}
               />
-            )}
-
-            {activeSection === "production" && (
-              <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6"
-                aria-label={ui("Produção Programada")}>
-                <h2 className="flex items-center gap-2 text-sm font-bold">
-                  <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
-                  {ui("Produção Programada")}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {ui("Programação é independente da ordem de prioridades e da ativação cadastral. Os estados exibidos vêm do cadastro oficial de máquinas.")}
-                </p>
-                {isLoading ? (
-                  <p role="status">{ui("Carregando sequência...")}</p>
-                ) : loadingError ? (
-                  <p role="alert" className="text-danger">{loadingError}</p>
-                ) : (
-                  <>
-                    <div className="grid gap-2 sm:grid-cols-3" role="group"
-                      aria-label={ui("Resumo da programação")}>
-                      {[
-                        {
-                          label: ui("Produção Programada"),
-                          count: rows.filter((row) => row.productionMode === "scheduled").length,
-                          tone: "border-emerald-500/60 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200",
-                        },
-                        {
-                          label: ui("Fora de Produção"),
-                          count: rows.filter((row) => row.productionMode === "not_scheduled").length,
-                          tone: "border-amber-500/70 bg-amber-50 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200",
-                        },
-                        {
-                          label: ui("Estado desconhecido"),
-                          count: rows.filter((row) => row.productionMode == null).length,
-                          tone: "border-border bg-muted text-foreground",
-                        },
-                      ].map((item) => (
-                        <div key={item.label} className={cn("rounded-lg border-2 p-3", item.tone)}>
-                          <p className="text-sm font-bold">{item.label}</p>
-                          <p className="mt-1 text-2xl font-black tabular-nums">{item.count}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {scheduleRequester && (
-                      <p className="text-xs text-muted-foreground" role="status">
-                        {scheduleRequester.canWrite
-                          ? ui("Sua sessão permite alterar diretamente a programação das máquinas autorizadas.")
-                          : ui("A programação exige aprovação de uma pessoa com permissão de escrita.")}
-                      </p>
-                    )}
-                    <ul className="space-y-2">
-                      {rows.map((machine) => (
-                        <li key={machine.id} className={cn(
-                          "flex flex-wrap items-center gap-3 rounded-lg border border-l-4 px-3 py-3 text-sm",
-                          machine.productionMode === "scheduled"
-                            ? "border-emerald-500/50 border-l-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/30"
-                            : machine.productionMode === "not_scheduled"
-                              ? "border-amber-500/50 border-l-amber-500 bg-amber-50/80 dark:bg-amber-950/30"
-                              : "border-border bg-muted/30",
-                        )}>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <p className="break-words font-bold">{machine.name}</p>
-                            <p className="break-all font-mono text-xs text-muted-foreground">{ui("ID")}: {machine.id}</p>
-                            <PriorityActivationBadge active={machine.isActive} />
-                          </div>
-                          <div className="flex min-w-[150px] flex-col items-start gap-1 sm:items-end">
-                            <PriorityProductionBadge mode={machine.productionMode} />
-                            <p className="text-xs text-muted-foreground">
-                              {machine.productionModeChangedAt
-                                ? ui("Última alteração: {0}", { 0: formatDateTime(machine.productionModeChangedAt) })
-                                : ui("Horário da alteração indisponível")}
-                            </p>
-                          </div>
-                          {scheduleRequester && machine.productionMode && machine.isActive &&
-                            (scheduleRequester.fullScope || scheduleRequester.machineIds.includes(machine.id)) && (
-                            <Button type="button" variant="outline" size="sm"
-                              disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || hasUnsavedChanges}
-                              onClick={() => void requestScheduleChange(machine)}>
-                              {scheduleCheckingId === machine.id ? ui("Atualizando programação...") :
-                                machine.productionMode === "scheduled"
-                                  ? ui("Retirar da programação") : ui("Programar produção")}
-                            </Button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {rows.length === 0 && (
-                      <p role="status" className="text-sm text-muted-foreground">{ui("Nenhuma máquina disponível para ordenar.")}</p>
-                    )}
-                  </>
-                )}
-              </section>
             )}
 
             {activeSection === "history" && (
