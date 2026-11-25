@@ -1,5 +1,6 @@
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { BiProductionCoverageDialog } from "@/components/bi/BiProductionCoverageDialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { AnalyticsProductionMetrics } from "@/types/analytics";
@@ -40,6 +41,7 @@ export function BiDailyAvailabilityCard({
             title={ui("Disponibilidade por dia")}
             description={ui("Tempo programado sem paradas registradas · percentual")}
             unit="percent"
+            chartKind="temporal"
             color="#10b981"
             caution={ui("Dias sem programação não são zero por cento. Compare somente dias com histórico verificável; a média simples não substitui o KPI consolidado.")}
             rows={data!.daily.map((day) => ({
@@ -127,6 +129,7 @@ export function BiDailyAvailabilityCard({
               1: data.populationCount,
             })
           : ui("Aguardando histórico de programação")}
+        {data?.machineCoverage && <BiProductionCoverageDialog data={data} />}
       </p>
     </article>
   );
