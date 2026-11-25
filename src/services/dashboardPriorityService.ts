@@ -270,14 +270,14 @@ export async function saveDashboardPriorityOrder(
       throw new Error("priority_highlight_changed");
     const updatedAt = new Date().toISOString();
     localOrderIds = [...machineIds];
-    if (config) {
-      localConfig = {
-        ...config,
-        lastOrderUpdatedAt: updatedAt,
-        lastOrderUpdatedBy: username,
-        priorityHighlightCount: priorityHighlightCount ?? oldCount,
-      };
-    }
+    localConfig = {
+      username: config?.username ?? username,
+      password: config?.password ?? "",
+      ...config,
+      lastOrderUpdatedAt: updatedAt,
+      lastOrderUpdatedBy: username,
+      priorityHighlightCount: priorityHighlightCount ?? oldCount,
+    };
     return {
       ok: true,
       lastOrderUpdatedAt: updatedAt,
