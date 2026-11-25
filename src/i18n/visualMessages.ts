@@ -208,4 +208,5 @@ export const visualMessages: ReadonlyArray<readonly [string,string,string]> = [
 ["Lacuna ou modo desconhecido","Gap or unknown mode","紀錄缺口或未知模式"],
 ["Nenhuma máquina neste grupo.","No machines in this group.","此群組沒有設備。"],
 ["Nenhum alerta neste grupo","No alerts in this group","此群組沒有警示"],
+["Categorias","Categories","分類"],
 ];
