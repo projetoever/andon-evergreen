@@ -27,43 +27,52 @@ export function MachineDetailHeader({
   onToggleScreenLock,
 }: MachineDetailHeaderProps) {
   const { t } = useLanguage();
+  const machineName = machine.name?.trim() || machine.id;
   return (
-    <div className="grid shrink-0 grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,8rem)_minmax(0,1fr)]">
-      <div className="flex min-w-0 items-center gap-2 md:gap-3">
+    <header
+      className="grid min-w-0 shrink-0 grid-cols-1 gap-3 rounded-xl border border-border bg-card px-3 py-3 sm:px-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start"
+      aria-label={t("Máquina")}
+    >
+      {/* Keep the machine identity wide; never constrain it to an 8rem column. */}
+      <div className="flex min-w-0 items-start gap-3">
         {!screenLocked && (
           <Link
             to="/andon"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-accent md:h-10 md:w-10"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t("Voltar ao painel")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
         )}
-        <div className="min-w-0 overflow-hidden">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {t("Máquina")}
-          </div>
-          <div
-            className="truncate text-3xl font-black leading-none text-foreground md:text-4xl"
+          </p>
+          <h1
+            className="line-clamp-2 min-w-0 break-words text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl 2xl:text-4xl [overflow-wrap:anywhere]"
+            title={machineName}
+            aria-label={machineName}
+          >
+            {machineName}
+          </h1>
+          <p
+            className="min-w-0 text-xs text-muted-foreground sm:text-sm"
             title={machine.id}
           >
-            {machine.id}
-          </div>
-          <div
-            className="mt-0.5 truncate text-xs text-muted-foreground md:text-sm"
-            title={machine.name}
-          >
-            {machine.name}
-          </div>
+            <span className="font-semibold">{t("ID")}:</span>{" "}
+            <span className="break-all font-mono">{machine.id}</span>
+          </p>
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 md:justify-end">
+
+      {/* Controls can wrap independently of the name. Their handlers and grants are unchanged. */}
+      <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:max-w-[min(52vw,52rem)] xl:justify-end">
         <ClockDisplay />
         {!screenLocked && <ModuleNavigation />}
         <button
           type="button"
           onClick={onToggleMachineSound}
-          className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
           title={machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
           aria-label={
             machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")
@@ -72,12 +81,6 @@ export function MachineDetailHeader({
           {machineSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           {machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
         </button>
-        <MachineStatusBadge status={machine.machineStatus} className="text-xs md:text-sm" />
-        <AndonStatusBadge status={machine.andonStatus} className="text-xs md:text-sm" />
-        <ProductionModeBadge
-          productionMode={machine.productionMode}
-          className="text-xs md:text-sm"
-        />
         <div className="inline-flex shrink-0 items-center gap-1.5">
           {historyAllowed && <Link
             to="/machines/$machineId/call-history"
@@ -114,6 +117,16 @@ export function MachineDetailHeader({
           </button>
         </div>
       </div>
-    </div>
+
+      {/* Status badges are independent; none can compress the machine name. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-border/60 pt-2 xl:col-span-2">
+        <MachineStatusBadge status={machine.machineStatus} className="text-xs md:text-sm" />
+        <AndonStatusBadge status={machine.andonStatus} className="text-xs md:text-sm" />
+        <ProductionModeBadge
+          productionMode={machine.productionMode}
+          className="text-xs md:text-sm"
+        />
+      </div>
+    </header>
   );
 }
