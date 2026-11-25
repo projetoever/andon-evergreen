@@ -11,7 +11,7 @@ test("PENTE 6: nome da máquina fica em destaque, com ID sempre identificável",
   assert.match(source, /line-clamp-2/);
   assert.match(source, /\[overflow-wrap:anywhere\]/);
   assert.match(source, /text-2xl[\s\S]*?sm:text-3xl[\s\S]*?2xl:text-4xl/);
-  assert.match(source, /<span className="font-semibold">ID:<\/span>/);
+  assert.match(source, /<span className="font-semibold">\{t\("ID"\)\}:<\/span>/);
   assert.match(source, /<span className="break-all font-mono">\{machine\.id\}<\/span>/);
   assert.doesNotMatch(source, /truncate text-3xl|truncate text-xs/);
 });
