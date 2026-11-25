@@ -609,9 +609,7 @@ try {
       ];
       for (const label of tabs) {
         await clickAdminItem(andonNavLabel, "button", label);
-        await assertActiveAdminItem(andonNavLabel, "button", label); 
-        assert.equal(true, true,
-          "Admin ANDON did not select tab: " + label);
+        await assertActiveAdminItem(andonNavLabel, "button", label);
         assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
           "Tab content heading must exist: " + label);
       }
