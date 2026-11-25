@@ -89,7 +89,7 @@ test("P1-P5 formam um grupo visual externo sem contorno individual nos cards", a
     readFile(new URL("../src/components/machines/MachineCard.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(grid, /orderedMachines\.slice\(0, 5\)/);
+  assert.match(grid, /orderedMachines\.slice\(0, effectiveHighlightCount\)/);
   assert.match(grid, /data-production-priority-group="true"/);
   assert.match(grid, /border-orange-500\/70/);
   assert.match(grid, /absolute -inset-1/);
