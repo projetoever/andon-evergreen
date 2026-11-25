@@ -85,10 +85,10 @@ export function BiInlineDistributionChart({
       </div>
       {(activeMode === "donut" || activeMode === "pie") && total > 0 && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {rows.filter(row => row.value !== null && row.value > 0).map(row => (
+          {rows.filter(row => row.value !== null && row.value > 0).map((row,index) => (
             <button key={row.id} type="button" onClick={() => choose(row.id)}
               className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-muted/30 px-2 py-1 text-left text-[11px] hover:bg-muted">
-              <span className="inline-flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{backgroundColor:biChartPalette[rows.indexOf(row)%biChartPalette.length]}}/><span className="truncate">{row.label}</span></span>
+              <span className="inline-flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{backgroundColor:biChartPalette[index%biChartPalette.length]}}/><span className="truncate">{row.label}</span></span>
               <span className="shrink-0 tabular-nums">{(100 * row.value! / total).toFixed(1)}%</span>
             </button>
           ))}
