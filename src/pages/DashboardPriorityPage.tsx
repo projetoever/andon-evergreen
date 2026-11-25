@@ -559,9 +559,9 @@ export function DashboardPriorityPage() {
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+          <div className="border-b border-border px-4 py-3 sm:px-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-h-9 flex-wrap items-center gap-2 text-sm font-bold">
                 <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span>{ui("Filtros e máquinas")}</span>
                 {activeFilterCount > 0 && (
@@ -571,19 +571,19 @@ export function DashboardPriorityPage() {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" variant="outline"
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                <Button type="button" size="sm" variant="outline" className="h-9"
                   disabled={activeFilterCount === 0}
                   onClick={() => { setSearchQuery(""); setActivityFilter("all"); setProductionFilter("all"); }}>
                   {ui("Limpar filtros")}
                 </Button>
-              <Button type="button" size="sm" variant="ghost"
-                aria-expanded={filtersExpanded} aria-controls="priority-filters"
-                onClick={() => setFiltersExpanded(value => !value)}>
-                {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
-                <ChevronDown aria-hidden="true"
-                  className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
-              </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-9"
+                  aria-expanded={filtersExpanded} aria-controls="priority-filters"
+                  onClick={() => setFiltersExpanded(value => !value)}>
+                  {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
+                  <ChevronDown aria-hidden="true"
+                    className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
+                </Button>
               </div>
             </div>
             {activeFilterCount > 0 && (
@@ -592,32 +592,32 @@ export function DashboardPriorityPage() {
               </p>
             )}
             <div id="priority-filters" className={filtersExpanded ? "mt-3" : "hidden"}>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Buscar máquina por nome ou ID")}</span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Buscar máquina por nome ou ID")}</span>
+                  <div className="relative min-w-0">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                     <Input type="search" maxLength={100} value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
-                      className="min-h-10 rounded-lg border-border pl-9"
+                      className="h-10 w-full rounded-lg border-border pl-9"
                       placeholder={ui("Nome ou ID")} />
                   </div>
                 </label>
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Ativação da máquina")}</span>
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Ativação da máquina")}</span>
                   <select value={activityFilter}
                     onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
-                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
                     <option value="all">{ui("Todas as máquinas")}</option>
                     <option value="active">{ui("Máquinas ativas")}</option>
                     <option value="inactive">{ui("Máquinas inativas")}</option>
                   </select>
                 </label>
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Filtrar programação")}</span>
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Filtrar programação")}</span>
                   <select value={productionFilter}
                     onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
-                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
                     <option value="all">{ui("Todas as situações")}</option>
                     <option value="scheduled">{ui("Produção Programada")}</option>
                     <option value="not_scheduled">{ui("Fora de Produção")}</option>
@@ -627,12 +627,12 @@ export function DashboardPriorityPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="min-w-0">
-               <strong className="text-foreground">{ui("Sequência e Programação")}</strong>
-               <p className="mt-1 text-xs text-muted-foreground">{ui("A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.")}</p>
-             </div>
-            <span aria-live="polite">
+              <strong className="text-sm text-foreground">{ui("Sequência e Programação")}</strong>
+              <p className="mt-1 max-w-3xl leading-relaxed">{ui("A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.")}</p>
+            </div>
+            <span aria-live="polite" className="shrink-0 font-semibold tabular-nums">
               {ui("Exibindo {0} de {1} máquinas", { 0: visibleRows.length, 1: rows.length })}
             </span>
           </div>
@@ -722,16 +722,17 @@ export function DashboardPriorityPage() {
                         {scheduleRequester && row.productionMode && row.isActive &&
                           (scheduleRequester.fullScope || scheduleRequester.machineIds.includes(row.id)) ? (
                           <button type="button"
-                            className="group inline-flex max-w-full items-center gap-1.5 rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule)}
+                            className={cn(
+                              "inline-flex max-w-full cursor-pointer items-center rounded-md text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-wait disabled:opacity-70",
+                              row.productionMode === "scheduled"
+                                ? "ring-1 ring-emerald-500/60 hover:ring-emerald-500 focus-visible:ring-emerald-500"
+                                : "ring-1 ring-amber-500/60 hover:ring-amber-500 focus-visible:ring-amber-500",
+                            )}
+                            disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || Boolean(scheduleConfirmation)}
                             title={ui(row.productionMode === "scheduled" ? "Retirar da programação" : "Programar produção")}
                             aria-label={ui("Alterar a programação de {0}", { 0: row.name })}
                             onClick={() => void requestScheduleChange(row)}>
                             <PriorityProductionBadge mode={row.productionMode} />
-                            <Pencil className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                            <span className="text-xs font-bold text-primary underline-offset-2 group-hover:underline">
-                              {ui("Alterar programação")}
-                            </span>
                           </button>
                         ) : <PriorityProductionBadge mode={row.productionMode} />}
                         {scheduleCheckingId === row.id && (
@@ -745,7 +746,7 @@ export function DashboardPriorityPage() {
                       )}
                     </div>
 
-                    <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
+                    <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:self-center 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
                       {canShowPriorityMachineHistory(access, row.id) && (
                         <Button type="button" variant="outline" size="sm"
                           aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
