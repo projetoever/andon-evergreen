@@ -38,7 +38,7 @@ export function BiFailureWorkspace({
   onDrilldown: (selection: AnalyticsDrilldownSelection) => void;
 }) {
   useInterfaceLanguage();
-  const [mode, setMode] = useState<"recurrence" | "distribution" | "temporal">("recurrence");
+  const [mode, setMode] = useState<"recurrence" | "distribution" | "temporal">("distribution");
   const classificationData = (overview?.classificationPareto ?? []).slice(0, 8).map((item) => ({
     ...item,
     value: item.label,
