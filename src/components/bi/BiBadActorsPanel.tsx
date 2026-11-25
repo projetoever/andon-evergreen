@@ -106,7 +106,7 @@ export function BiBadActorsPanel({
           unit="minutes" color="#ef4444" height={205}
           onInspect={id=>{const asset=assets.find(row=>row.machineId===id);if(asset)onSelectMachine(asset.machineId,asset.machineName);}} />
       </div>
-      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto lg:overflow-hidden rounded-lg border border-border bg-background/25">
+      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border bg-background/25">
         <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
           <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
