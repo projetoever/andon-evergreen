@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, CircleHelp, Database, CheckCircle2 } from "lucide-react";
-import { ui } from "@/i18n/translate";
+import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { AnalyticsProductionMetrics } from "@/types/analytics";
 
@@ -32,7 +32,7 @@ export function BiProductionCoverageDialog({ data }: { data: AnalyticsProduction
     .filter((row) => filter === "all" || (filter === "incomplete" ? row.status === "incomplete" : row.status === "complete" || row.status === "complete_no_scheduled"))
     .sort((a, b) => a.machineId.localeCompare(b.machineId, undefined, { numeric: true }));
   const coveragePercent = data.populationCount > 0
-    ? (data.coveredMachineCount * 100 / data.populationCount).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%"
+    ? (data.coveredMachineCount * 100 / data.populationCount).toLocaleString(getInterfaceLocale(), { maximumFractionDigits: 1 }) + "%"
     : "—";
 
   return (
