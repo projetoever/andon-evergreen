@@ -16,7 +16,7 @@ export const messages: ReadonlyArray<readonly [string, string, string]> = [
   ["Gestão de usuário","User management","使用者管理"],
   ["Operação do ANDON","ANDON operation","ANDON 作業"],
   ["Evento do sistema","System event","系統事件"],
-  ["Chamado","Call","叫修"],
+  ["Chamado","Call","呼叫"],
   ["Interface","Interface","介面"],
   ["Auditoria","Audit","稽核"],
   ["Acesso à tela","Page viewed","開啟頁面"],
