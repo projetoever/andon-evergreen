@@ -264,6 +264,7 @@ export function BiOverviewWorkspace({
                 unit="minutes"
                 color="#ef4444"
                 orientation="horizontal"
+                defaultMode="pareto"
                 caution={ui("Ranking das máquinas por duração de parada física observada na seleção. Não confundir quantidade de chamados com minutos parados.")}
                 rows={overview.machinePareto.map((machine) => ({
                   id: machine.machineId,
