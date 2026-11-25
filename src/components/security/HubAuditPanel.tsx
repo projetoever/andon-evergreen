@@ -77,7 +77,32 @@ function eventLabel(action: string): string {
     case "ui.click": return ui("Clique na interface");
     case "audit.view": return ui("Consulta à auditoria");
     case "audit.export": return ui("Exportação de auditoria");
-    default: return action;
+    case "access.login": return ui("Login realizado");
+    case "access.logout": return ui("Saída do sistema");
+    case "access.password.changed": return ui("Senha alterada");
+    case "access.password.reset": return ui("Senha redefinida");
+    case "access.admin.reauthenticated": return ui("Administrador reautenticado");
+    case "access.sessions.revoked": return ui("Sessões revogadas");
+    case "access.request.denied": return ui("Acesso negado pelo servidor");
+    case "workstation.access.updated": return ui("Acesso da workstation alterado");
+    case "history.export.csv": return ui("Histórico exportado");
+    default:
+      if (action.startsWith("calls.")) return ui("Operação em chamado");
+      if (action.startsWith("machine.")) return ui("Operação em máquina");
+      if (action.startsWith("workstation.")) return ui("Operação em workstation");
+      if (action.startsWith("access.user.")) return ui("Gestão de usuário");
+      if (action.startsWith("andon.")) return ui("Operação do ANDON");
+      return ui("Evento do sistema");
+  }
+}
+function resourceLabel(type: string): string {
+  switch (type) {
+    case "andon_call": return ui("Chamado");
+    case "machine": return ui("Máquina");
+    case "workstation": return ui("Workstation");
+    case "interface": return ui("Interface");
+    case "audit": return ui("Auditoria");
+    default: return type;
   }
 }
 
@@ -207,13 +232,13 @@ export function HubAuditPanel({ open, onOpenChange, canExport }: {
                     <td className="whitespace-nowrap p-3 tabular-nums">{new Date(item.occurredAt).toLocaleString(getInterfaceLocale())}</td>
                     <td className="max-w-48 break-words p-3">
                       <div className="font-semibold">{item.actorName || item.actorLogin || ui("Não identificado")}</div>
-                      <div className="text-xs text-muted-foreground">{item.actorLogin || item.actorType}</div>
+                      <div className="text-xs text-muted-foreground">{item.actorLogin || item.actorType}{item.actorRole ? ` · ${item.actorRole}` : ""}</div>
                     </td>
                     <td className="p-3"><div className="font-semibold">{eventLabel(item.action)}</div>
                       <code className="break-all text-xs text-muted-foreground">{item.action}</code>
                     </td>
                     <td className="max-w-56 break-all p-3">
-                      <div>{item.resourceType}{item.resourceId ? ` · ${item.resourceId}` : ""}</div>
+                      <div>{resourceLabel(item.resourceType)}{item.resourceId ? ` · ${item.resourceId}` : ""}</div>
                       {item.machineId && <div className="text-xs text-muted-foreground">{ui("Máquina")}: {item.machineId}</div>}
                     </td>
                     <td className="p-3"><span className={item.result === "success" ? "text-success" : "text-warning"}>{resultLabel(item.result)}</span></td>
