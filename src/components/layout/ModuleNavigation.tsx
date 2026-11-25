@@ -39,7 +39,7 @@ export function ModuleNavigation({ showModuleLinks = false }: { showModuleLinks?
     return null;
 
   return (
-    <div className="inline-flex items-center gap-2">
+    <div className="inline-flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
       {showModuleLinks && moduleLinks.map((target) => {
         const grant = access.modules.find((module) => module.id === target.id);
         if (target.id === currentModule || !grant?.available || !grant.enabled || !grant.allowed) return null;
