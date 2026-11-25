@@ -3,6 +3,7 @@ import type { TLSSocket } from "node:tls";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
+import { registerAccessAuditRoutes } from "./accessAudit.js";
 import { appendAudit, actorFromPrincipal, type AuditActor } from "../access/audit.js";
 import { AccessError, PERMISSIONS, assertPermission, assertFullMachineScope } from "../access/policy.js";
 import { csrfToken, checkCsrf, tokenHash } from "../access/credentials.js";
@@ -523,6 +524,7 @@ export function registerAccessRoutes(
       await recordInteraction(db, requestAccess(req));
       return { ok: true };
     });
+    registerAccessAuditRoutes(app, db, requestAccess, limited);
     app.get(`${PREFIX}/catalog`, async (req) => {
       await requireUserAdmin(db, requestAccess(req));
       return {
