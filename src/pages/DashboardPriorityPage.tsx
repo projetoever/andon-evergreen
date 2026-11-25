@@ -463,6 +463,11 @@ export function DashboardPriorityPage() {
                       }) : ui("Sequência ainda não salva manualmente")}
                     </p>
                   </div>
+                  <div className="col-span-full flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-2 text-xs text-muted-foreground" role="status">
+                    <span>{ui("Produção Programada")}: <strong className="font-black text-foreground">{activeRows.filter(row => row.productionMode === "scheduled").length}</strong></span>
+                    <span>{ui("Fora de Produção")}: <strong className="font-black text-foreground">{activeRows.filter(row => row.productionMode === "not_scheduled").length}</strong></span>
+                    <span>{ui("Estado desconhecido")}: <strong className="font-black text-foreground">{activeRows.filter(row => row.productionMode == null).length}</strong></span>
+                  </div>
                 </section>
 
                 {centralReadOnly && (
@@ -692,6 +697,11 @@ export function DashboardPriorityPage() {
                           <span role="status" className="text-xs text-muted-foreground">{ui("Verificando permissão...")}</span>
                         )}
                       </div>
+                      {row.productionModeChangedAt && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {ui("Última alteração: {0}", { 0: formatDateTime(row.productionModeChangedAt) })}
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
