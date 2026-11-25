@@ -67,7 +67,12 @@ try {
       return page.getByRole("navigation", { name: navLabel });
     };
     const closeAdminNav = async () => {
-      if (viewport.width < 640) await page.keyboard.press("Escape");
+      if (viewport.width < 640) {
+        await page.keyboard.press("Escape");
+        // Radix Sheet uses an exit animation. An asserted absence must wait
+        // for the drawer to unmount, not just for its Escape handler.
+        await page.getByRole("dialog").waitFor({ state: "hidden" });
+      }
     };
     const countAdminNavItems = async (navLabel) => {
       const nav = await openAdminNav(navLabel);
