@@ -67,6 +67,8 @@ export function DashboardPriorityPage() {
   );
   const [rows, setRows] = useState<DashboardPriorityMachine[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [priorityHighlightCount, setPriorityHighlightCount] = useState(5);
+  const [savedHighlightCount, setSavedHighlightCount] = useState(5);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [lastOrderUpdatedAt, setLastOrderUpdatedAt] = useState<string | null>(null);
   const [lastOrderUpdatedBy, setLastOrderUpdatedBy] = useState<string | null>(null);
@@ -94,7 +96,14 @@ export function DashboardPriorityPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const currentIds = rows.map((row) => row.id);
-  const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
+  const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|") ||
+    priorityHighlightCount !== savedHighlightCount;
+  const activeRows = rows.filter((row) => row.isActive);
+  const activeMachineCount = activeRows.length;
+  const effectiveHighlightCount = Math.min(priorityHighlightCount, activeMachineCount);
+  const canShowGlobalRanks = !access?.centralAccessEnabled || access?.principal?.machineScope === "all";
+  const prioritizedRows = canShowGlobalRanks ? activeRows.slice(0, effectiveHighlightCount) : [];
+  const upcomingRows = canShowGlobalRanks ? activeRows.slice(effectiveHighlightCount, effectiveHighlightCount + 5) : [];
   useBlocker({
     shouldBlockFn: () =>
       hasUnsavedChanges &&
@@ -105,12 +114,12 @@ export function DashboardPriorityPage() {
 
   const activePriorityRanks = useMemo(() => {
     const ranks = new Map<string, number>();
-    rows
-      .filter((row) => row.isActive)
-      .slice(0, 5)
-      .forEach((row, index) => ranks.set(row.id, index + 1));
+    if (canShowGlobalRanks) {
+      activeRows.slice(0, effectiveHighlightCount)
+        .forEach((row, index) => ranks.set(row.id, index + 1));
+    }
     return ranks;
-  }, [rows]);
+  }, [rows, effectiveHighlightCount, canShowGlobalRanks]);
 
   // Filters apply immediately to the visible list. The order write always sends
   // the full machine catalog; hidden rows are never dropped from the snapshot.
@@ -143,6 +152,8 @@ export function DashboardPriorityPage() {
       const snapshot = await getDashboardPriorityOrder(localMachines);
       setRows(snapshot.machines);
       setSavedIds(snapshot.machines.map((machine) => machine.id));
+      setPriorityHighlightCount(snapshot.priorityHighlightCount ?? 5);
+      setSavedHighlightCount(snapshot.priorityHighlightCount ?? 5);
       setLastOrderUpdatedAt(snapshot.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(snapshot.lastOrderUpdatedBy);
     } catch (error) {
@@ -240,17 +251,29 @@ export function DashboardPriorityPage() {
 
   async function handleSave() {
     if (centralReadOnly || !hasUnsavedChanges || isSaving) return;
+    if (priorityHighlightCount !== savedHighlightCount &&
+        (!Number.isInteger(priorityHighlightCount) || priorityHighlightCount < 1 ||
+         priorityHighlightCount > activeMachineCount)) {
+      toast.error(ui("Selecione entre 1 e {0} máquinas ativas.", { 0: activeMachineCount }));
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const result = await saveDashboardPriorityOrder(rows.map((row) => row.id), savedIds);
+      const result = await saveDashboardPriorityOrder(
+        rows.map((row) => row.id), savedIds,
+        priorityHighlightCount !== savedHighlightCount ? priorityHighlightCount : undefined,
+        priorityHighlightCount !== savedHighlightCount ? savedHighlightCount : undefined,
+      );
       setSavedIds(rows.map((row) => row.id));
+      setSavedHighlightCount(result.priorityHighlightCount);
+      setPriorityHighlightCount(result.priorityHighlightCount);
       setLastOrderUpdatedAt(result.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(result.lastOrderUpdatedBy);
       toast.success("Sequência visual de prioridades salva.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      toast.error(/priority_order_changed|priority_machine_catalog_changed/.test(message)
+      toast.error(/priority_order_changed|priority_machine_catalog_changed|priority_highlight_changed|priority_highlight_count_out_of_range/.test(message)
         ? ui("A sequência foi alterada em outra estação. Recarregue e revise antes de salvar.")
         : message || ui("Não foi possível salvar a sequência."));
     } finally {
