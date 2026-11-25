@@ -635,7 +635,7 @@ export function AndonBiPage() {
           </div>
         )}
 
-        <section key={activeTab} className="andon-panel-enter min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        <section key={activeTab} className={`andon-panel-enter min-w-0 lg:min-h-0 lg:flex-1 ${activeTab === "overview" ? "lg:overflow-hidden" : "lg:overflow-y-auto lg:overscroll-contain lg:pb-3"}`}>
           {activeTab === "overview" && (
             <BiOverviewWorkspace
               overview={overview}
@@ -648,7 +648,7 @@ export function AndonBiPage() {
           )}
 
           {activeTab === "reliability" && (
-            <div className="grid gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_auto_minmax(0,1fr)] gap-2">
+            <div className="grid min-w-0 gap-3 lg:grid-rows-[auto_auto_minmax(22rem,auto)]">
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-muted-foreground">
                   {ui(
@@ -706,7 +706,7 @@ export function AndonBiPage() {
           )}
 
           {activeTab === "maintenance" && (
-            <div className="min-w-0 lg:h-full lg:min-h-0 lg:overflow-hidden">
+            <div className="min-w-0">
               <BiMaintenanceParticipation
                 data={maintenance}
                 loading={maintenanceLoading}
