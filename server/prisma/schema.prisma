@@ -51,6 +51,7 @@ model DashboardPriorityConfig {
   managerUsername    String?
   managerPasswordHash String?
   passwordRequired   Boolean   @default(true)
+  priorityHighlightCount Int @default(5)
   lastOrderUpdatedAt DateTime?
   lastOrderUpdatedBy String?
   createdAt          DateTime  @default(now())
