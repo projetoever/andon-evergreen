@@ -22,7 +22,7 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
         aria-pressed={theme === "light"}
         title={toggleLabel}
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border sm:h-9 sm:w-9 border-border bg-card text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
       </button>
@@ -32,8 +32,8 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
         title={t("Idioma da interface")}
         className={
           compact
-            ? "h-9 w-9 shrink-0 justify-center border-border bg-card p-0 text-foreground [&>svg:last-child]:hidden"
-            : "h-9 w-auto shrink-0 gap-1.5 border-border bg-card px-2 text-xs font-bold text-foreground"
+            ? "h-11 w-11 shrink-0 justify-center border-border sm:h-9 sm:w-9 bg-card p-0 text-foreground [&>svg:last-child]:hidden"
+            : "h-11 w-auto shrink-0 gap-1.5 border-border sm:h-9 bg-card px-2 text-xs font-bold text-foreground"
         }
       >
         <Globe2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
