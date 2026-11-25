@@ -66,7 +66,7 @@ export function BiBadActorsPanel({
   const assets = eligibleAssets.slice(0, 8);
 
   return (
-    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -99,16 +99,16 @@ export function BiBadActorsPanel({
         </div>
       </div>
 
-      <div className="mt-3 shrink-0 rounded-lg border border-red-500/20 bg-background/30 p-2">
+      <div className="mt-3 shrink-0 rounded-lg border border-red-500/20 bg-background/30 p-3">
         <p className="px-1 pb-2 text-[11px] text-muted-foreground">{ui("Compare as horas físicas de parada e identifique a contribuição acumulada das máquinas.")}</p>
         <BiInlineDistributionChart
           rows={assets.map(asset=>({id:asset.machineId,label:asset.machineName,value:asset.downtimeMinutes}))}
-          unit="minutes" color="#ef4444" height={205}
+          unit="minutes" color="#ef4444" height={190}
           onInspect={id=>{const asset=assets.find(row=>row.machineId===id);if(asset)onSelectMachine(asset.machineId,asset.machineName);}} />
       </div>
-      <div className="mt-3 min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border bg-background/25">
-        <table className="w-full min-w-[48rem] lg:min-w-0 table-fixed text-left text-xs">
-          <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
+      <div className="mt-4 min-h-[242px] max-h-[360px] min-w-0 overflow-auto rounded-lg border border-border bg-background/25">
+        <table className="w-full min-w-[880px] table-fixed text-left text-[13px]">
+          <thead className="sticky top-0 z-10 border-b border-border bg-card text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="w-[22%] px-3 py-2">{ui("Ativo", {}, "asset")}</th>
               <th className="w-[12%] px-2 py-2">{ui("Parada")}</th>
@@ -131,10 +131,10 @@ export function BiBadActorsPanel({
             {assets.map((asset, index) => (
               <tr
                 key={asset.machineId}
-                className="cursor-pointer transition hover:bg-muted/40"
+                className="h-11 cursor-pointer transition hover:bg-muted/40"
                 onClick={() => onSelectMachine(asset.machineId, asset.machineName)}
               >
-                <td className="px-3 py-2">
+                <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <span
                       className={

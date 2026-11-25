@@ -25,7 +25,9 @@ test("PENTE 6-B: falhas e confiabilidade usam gráficos incorporados com inspeç
   const inline = read("../src/components/bi/BiInlineDistributionChart.tsx");
   assert.match(failures, /<BiInlineDistributionChart/g);
   assert.match(failures, /onInspect=\{id=>.*onDrilldown/s);
-  assert.match(failures, /Ver classificações detalhadas/);
+  assert.doesNotMatch(failures, /Ver classificações detalhadas/);
+  assert.doesNotMatch(failures, /Ver setores detalhados/);
+  assert.match(failures, /height=\{330\}/);
   assert.match(actors, /<BiInlineDistributionChart/);
   assert.match(actors, /onInspect=\{id=>.*onSelectMachine/s);
   assert.match(inline, /availableBiChartModes/);

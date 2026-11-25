@@ -132,7 +132,8 @@ test("BI-UX-1 usa workspace de tela única com abas e drill-down em overlay", as
   ]);
 
   assert.match(page, /lg:h-dvh lg:overflow-hidden/);
-  assert.match(page, /lg:min-h-0 lg:flex-1 lg:overflow-hidden/);
+  assert.match(page, /lg:min-h-0 lg:flex-1/);
+  assert.match(page, /activeTab === "overview" \? "lg:overflow-hidden" : "lg:overflow-y-auto/);
   assert.match(page, /activeTab === "overview"/);
   assert.match(page, /activeTab === "reliability"/);
   assert.match(page, /activeTab === "failures"/);
