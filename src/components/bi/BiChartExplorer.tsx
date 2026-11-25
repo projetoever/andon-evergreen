@@ -5,7 +5,8 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import { Download, Maximize2 } from "lucide-react";
 import { BiChartAlternative } from "@/components/bi/BiChartAlternative";
 import { availableBiChartModes, type BiChartKind, type BiChartMode } from "@/components/bi/biChartModePolicy";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type BiChartRow = {
   id: string;
@@ -68,6 +69,7 @@ export function BiChartExplorer({
   onInspectRow,
 }: BiChartExplorerProps) {
   useLanguage();
+  const fillId = biChartGradientId(useId(), "bi-explorer");
   const [open, setOpen] = useState(false);
   const expandButtonRef = useRef<HTMLButtonElement>(null);
   const drilldownNavigationRef = useRef(false);
@@ -136,9 +138,9 @@ export function BiChartExplorer({
         </button>
       ) : (<div className={`relative flex min-h-0 min-w-0 flex-col ${className}`}>
         {chartModes.length > 1 && (
-          <div className="mb-1 flex shrink-0 flex-wrap items-center gap-1 rounded-md bg-muted/20 px-1 py-0.5" role="group" aria-label={ui("Tipo de gráfico")}>
+          <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/15 p-1" role="group" aria-label={ui("Tipo de gráfico")}>
             {chartModes.map(mode => <button type="button" key={mode} aria-pressed={activeMode===mode}
-              className={`rounded px-2 py-1 text-[10px] font-semibold transition ${activeMode===mode?"bg-primary/15 text-foreground":"text-muted-foreground hover:bg-muted"}`}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeMode===mode?"bg-background text-foreground shadow-sm":"text-muted-foreground hover:bg-muted"}`}
               onClick={()=>{setChartMode(mode);setSelectedId(null);}}>
               {ui(({bars:"Barras",line:"Linha",area:"Área",donut:"Rosca",pie:"Disco",pareto:"Pareto"} as const)[mode])}
             </button>)}
@@ -242,7 +244,7 @@ export function BiChartExplorer({
               </div>
             )}
             {view === "chart" ? (
-              <div className="min-w-0 rounded-lg border border-border bg-card p-2 sm:p-3">
+              <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
                 <div className="max-h-[44dvh] min-w-0 overflow-y-auto">
                   <div className="min-h-[240px] min-w-0"
                     style={{ height: orientation === "horizontal" ? Math.max(320, displayRows.length * 36) : 380 }}>
@@ -260,7 +262,8 @@ export function BiChartExplorer({
                           if (payload?.id) setSelectedId(payload.id);
                         }}
                       >
-                        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={orientation !== "horizontal"} horizontal={orientation === "horizontal"} />
+                        <defs><linearGradient id={fillId} x1="0" y1={orientation === "horizontal" ? "0" : "1"} x2={orientation === "horizontal" ? "1" : "0"} y2="0"><stop offset="0%" stopColor={color} stopOpacity={0.55}/><stop offset="100%" stopColor={color} stopOpacity={1}/></linearGradient></defs>
+                        <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" vertical={orientation !== "horizontal"} horizontal={orientation === "horizontal"} />
                         {orientation === "horizontal" ? (
                           <>
                             <XAxis type="number" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
@@ -278,11 +281,12 @@ export function BiChartExplorer({
                           </>
                         )}
                         <Tooltip formatter={(v) => [formatValue(Number(v), unit), title]}
-                          contentStyle={{ background: "var(--popover)", borderColor: "var(--border)", borderRadius: 10 }} />
-                        <Bar dataKey="value" fill={color} maxBarSize={orientation === "horizontal" ? 45 : 35}
-                          radius={orientation === "horizontal" ? [0, 4, 4, 0] : [4, 4, 0, 0]}>
+                          contentStyle={biChartTooltipStyle} />
+                        <Bar dataKey="value" fill={"url(#" + fillId + ")"} maxBarSize={orientation === "horizontal" ? 42 : 34}
+                          radius={orientation === "horizontal" ? [0, 7, 7, 0] : [7, 7, 0, 0]}
+                          background={{fill:"var(--muted)",fillOpacity:0.20}} animationDuration={420}>
                           {displayRows.map((row) => (
-                            <Cell key={row.id} fill={color} fillOpacity={selectedId && selectedId !== row.id ? 0.3 : 0.92} cursor="pointer" />
+                            <Cell key={row.id} fill={"url(#" + fillId + ")"} fillOpacity={selectedId && selectedId !== row.id ? 0.3 : 1} cursor="pointer" />
                           ))}
                         </Bar>
                       </BarChart>

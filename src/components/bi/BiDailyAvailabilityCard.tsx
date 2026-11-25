@@ -1,4 +1,6 @@
+import { useId } from "react";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { BiProductionCoverageDialog } from "@/components/bi/BiProductionCoverageDialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
@@ -25,6 +27,7 @@ export function BiDailyAvailabilityCard({
   data: AnalyticsProductionMetrics | null | undefined;
 }) {
   useInterfaceLanguage();
+  const availabilityFill = biChartGradientId(useId(), "bi-availability");
   const available =
     data?.availabilityStatus === "available" && data.daily.some((d) => d.scheduledMinutes > 0);
   return (
@@ -57,8 +60,9 @@ export function BiDailyAvailabilityCard({
             className="h-full"
           >
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data!.daily} margin={{ left: 0, right: 2, top: 0, bottom: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+            <BarChart data={data!.daily} margin={{ left: 0, right: 3, top: 10, bottom: 2 }}>
+              <defs><linearGradient id={availabilityFill} x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stopColor="#059669" stopOpacity={0.55}/><stop offset="100%" stopColor="#34d399" stopOpacity={1}/></linearGradient></defs>
+              <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={dayLabel}
@@ -99,18 +103,16 @@ export function BiDailyAvailabilityCard({
                     ui("Disponibilidade"),
                   ];
                 }}
-                contentStyle={{
-                  background: "var(--popover)",
-                  borderColor: "var(--border)",
-                  borderRadius: 10,
-                }}
+                contentStyle={biChartTooltipStyle}
               />
               <Bar
                 name={ui("Disponibilidade")}
                 dataKey="availabilityPercent"
-                fill="#10b981"
-                radius={[4, 4, 0, 0]}
+                fill={"url(#" + availabilityFill + ")"}
+                radius={[7, 7, 0, 0]}
                 maxBarSize={35}
+                background={{fill:"var(--muted)",fillOpacity:0.20}}
+                animationDuration={420}
               />
             </BarChart>
           </ResponsiveContainer>

@@ -2,7 +2,8 @@ import { ui, systemMessage } from "@/i18n/translate";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "./biChartVisualTheme";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, CalendarDays, Clock3, Maximize2, TimerReset } from "lucide-react";
 import type { AnalyticsTemporalPatterns } from "@/types/analytics";
@@ -59,6 +60,8 @@ export function BiTemporalPatterns({
   error: string | null;
 }) {
   useInterfaceLanguage();
+  const hourFill = biChartGradientId(useId(), "bi-hour");
+  const weekdayFill = biChartGradientId(useId(), "bi-weekday");
   const [metric, setMetric] = useState<Metric>("calls");
   const [selected, setSelected] = useState<{ weekday: number; hour: number } | null>(null);
   const [heatmapOpen, setHeatmapOpen] = useState(false);
@@ -311,8 +314,9 @@ export function BiTemporalPatterns({
                 className="h-full"
               >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byHour} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <BarChart data={byHour} margin={{ left: 0, right: 2, top: 10, bottom: 2 }}>
+                  <defs><linearGradient id={hourFill} x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stopColor={metric === "calls" ? "#d97706" : "#f97316"} stopOpacity={0.56}/><stop offset="100%" stopColor={metric === "calls" ? "#fbbf24" : "#ef4444"} stopOpacity={1}/></linearGradient></defs>
+                  <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" vertical={false} />
                   <XAxis
                     dataKey="hourLabel"
                     interval={2}
@@ -330,17 +334,15 @@ export function BiTemporalPatterns({
                   <Tooltip
                     formatter={(v) => [formatter(Number(v)), metricName]}
                     labelFormatter={(v) => `${v}${ui("h")}`}
-                    contentStyle={{
-                      background: "var(--popover)",
-                      borderColor: "var(--border)",
-                      borderRadius: 8,
-                    }}
+                    contentStyle={biChartTooltipStyle}
                   />
                   <Bar
                     dataKey="count"
-                    fill={metric === "calls" ? "#f59e0b" : "#ef4444"}
-                    radius={[3, 3, 0, 0]}
-                    maxBarSize={18}
+                    fill={"url(#" + hourFill + ")"}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={21}
+                    background={{fill:"var(--muted)",fillOpacity:0.20}}
+                    animationDuration={420}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -369,8 +371,9 @@ export function BiTemporalPatterns({
                 className="h-full"
               >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byWeekday} margin={{ left: 0, right: 1, top: 1, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <BarChart data={byWeekday} margin={{ left: 0, right: 2, top: 10, bottom: 2 }}>
+                  <defs><linearGradient id={weekdayFill} x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stopColor={metric === "calls" ? "#d97706" : "#f97316"} stopOpacity={0.56}/><stop offset="100%" stopColor={metric === "calls" ? "#fbbf24" : "#ef4444"} stopOpacity={1}/></linearGradient></defs>
+                  <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" vertical={false} />
                   <XAxis
                     dataKey="day"
                     tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
@@ -386,17 +389,15 @@ export function BiTemporalPatterns({
                   />
                   <Tooltip
                     formatter={(v) => [formatter(Number(v)), metricName]}
-                    contentStyle={{
-                      background: "var(--popover)",
-                      borderColor: "var(--border)",
-                      borderRadius: 8,
-                    }}
+                    contentStyle={biChartTooltipStyle}
                   />
                   <Bar
                     dataKey="count"
-                    fill={metric === "calls" ? "#f59e0b" : "#ef4444"}
-                    radius={[3, 3, 0, 0]}
-                    maxBarSize={34}
+                    fill={"url(#" + weekdayFill + ")"}
+                    radius={[7, 7, 0, 0]}
+                    maxBarSize={36}
+                    background={{fill:"var(--muted)",fillOpacity:0.20}}
+                    animationDuration={420}
                   />
                 </BarChart>
               </ResponsiveContainer>

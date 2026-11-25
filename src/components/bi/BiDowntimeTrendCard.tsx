@@ -1,4 +1,6 @@
+import { useId } from "react";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
+import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -32,6 +34,7 @@ export function BiDowntimeTrendCard({
   data: Array<{ date: string; downtimeMinutes: number }>;
 }) {
   useInterfaceLanguage();
+  const downtimeFill = biChartGradientId(useId(), "bi-downtime");
   return (
     <article className="flex h-full min-h-0 flex-col rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/[0.05] to-card p-3 xl:p-4 shadow-sm">
       <h2 className="text-xs xl:text-sm font-black uppercase tracking-wide">
@@ -63,8 +66,9 @@ export function BiDowntimeTrendCard({
             className="h-full"
           >
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ left: 1, right: 2 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+            <BarChart data={data} margin={{ left: 1, right: 5, top: 10, bottom: 3 }}>
+              <defs><linearGradient id={downtimeFill} x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stopColor="#f97316" stopOpacity={0.60}/><stop offset="100%" stopColor="#ef4444" stopOpacity={1}/></linearGradient></defs>
+              <CartesianGrid stroke={biChartGridColor} strokeOpacity={0.45} strokeDasharray="3 6" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDateLabel}
@@ -82,19 +86,16 @@ export function BiDowntimeTrendCard({
               <Tooltip
                 labelFormatter={(value) => formatDateLabel(String(value))}
                 formatter={(value) => [formatMinutes(Number(value)), ui("Parada no dia")]}
-                contentStyle={{
-                  background: "var(--popover)",
-                  borderColor: "var(--border)",
-                  borderRadius: 10,
-                }}
+                contentStyle={biChartTooltipStyle}
               />
               <Bar
                 name={ui("Parada no dia")}
                 dataKey="downtimeMinutes"
-                fill="#ef4444"
-                fillOpacity={0.9}
-                radius={[4, 4, 0, 0]}
+                fill={"url(#" + downtimeFill + ")"}
+                radius={[7, 7, 0, 0]}
                 maxBarSize={38}
+                background={{fill:"var(--muted)",fillOpacity:0.20}}
+                animationDuration={420}
               />
             </BarChart>
           </ResponsiveContainer>
