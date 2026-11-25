@@ -29,6 +29,7 @@ interface MachineGridProps {
   className?: string;
   orderMode?: DashboardMachineOrderMode;
   attentionMode?: DashboardAttentionMode;
+  priorityHighlightCount?: number;
 }
 
 function MachinePageGrid({
@@ -45,6 +46,7 @@ function MachinePageGrid({
   const remainingMachines = machines.filter((machine) => !priorityRanks.has(machine.id));
   const hasPriorityGroup =
     groupedPriorityMachines.length > 0 &&
+    priorityRanks.size <= 5 &&
     groupedPriorityMachines.every((machine, index) => machines[index]?.id === machine.id);
 
   function renderMachineCard(machine: Machine) {
@@ -53,6 +55,7 @@ function MachinePageGrid({
         key={machine.id}
         machine={machine}
         productionPriorityRank={priorityRanks.get(machine.id) ?? null}
+        highlightIndividualPriority={priorityRanks.size > 5}
         attentionMode={attentionMode}
       />
     );
@@ -85,7 +88,10 @@ function MachinePageGrid({
   );
 }
 
-export function MachineGrid({ machines, className, orderMode = "default", attentionMode = "discreet" }: MachineGridProps) {
+export function MachineGrid({
+  machines, className, orderMode = "default", attentionMode = "discreet",
+  priorityHighlightCount = 5,
+}: MachineGridProps) {
   const { calls } = useAndon();
   const { t } = useLanguage();
   const [pageIndex, setPageIndex] = useState(0);
@@ -98,23 +104,25 @@ export function MachineGrid({ machines, className, orderMode = "default", attent
     [machines, orderMode],
   );
   const hasOverflow = orderedMachines.length > MAX_DASHBOARD_CARDS;
+  const effectiveHighlightCount = orderMode === "priority" && Number.isInteger(priorityHighlightCount)
+    ? Math.min(Math.max(1, priorityHighlightCount), orderedMachines.length) : 0;
 
   const priorityRanks = useMemo(() => {
     const ranks = new Map<string, number>();
     if (orderMode !== "priority") return ranks;
 
-    orderedMachines.slice(0, 5).forEach((machine, index) => {
+    orderedMachines.slice(0, effectiveHighlightCount).forEach((machine, index) => {
       ranks.set(machine.id, index + 1);
     });
     return ranks;
-  }, [orderMode, orderedMachines]);
+  }, [orderMode, orderedMachines, effectiveHighlightCount]);
 
   const pages = useMemo(() => {
     if (!hasOverflow) return [orderedMachines];
     return orderMode === "priority"
-      ? splitMachinesByProductionPriority(orderedMachines, calls)
+      ? splitMachinesByProductionPriority(orderedMachines, calls, MAX_DASHBOARD_CARDS, effectiveHighlightCount)
       : splitMachinesByDashboardPriority(orderedMachines, calls);
-  }, [calls, hasOverflow, orderMode, orderedMachines]);
+  }, [calls, hasOverflow, orderMode, orderedMachines, effectiveHighlightCount]);
 
   const prioritySignature = useMemo(
     () =>
@@ -133,7 +141,7 @@ export function MachineGrid({ machines, className, orderMode = "default", attent
 
   useEffect(() => {
     setPageIndex(0);
-  }, [prioritySignature]);
+  }, [prioritySignature, effectiveHighlightCount]);
 
   useEffect(() => {
     if (pageIndex === 0) return;
