@@ -28,6 +28,8 @@ export interface ModuleAccess {
   centralAccessEnabled?: boolean;
   prioritiesWriteEnabled?: boolean;
   globalHistory?: { available: boolean; allowed: boolean };
+  /** Server-derived display hint only: all audit API endpoints enforce ACL. */
+  audit?: { read: boolean; export: boolean };
   principal?: {
     userId: string;
     login: string;
