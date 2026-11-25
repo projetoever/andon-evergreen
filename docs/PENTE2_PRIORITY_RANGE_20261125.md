@@ -72,3 +72,14 @@ A API de Histórico Global continua validando `history.global.read`, `history.re
 12. Rodar regressões PENTE 1 BI, PENTE 3 Histórico Global, navegação Hub/ANDON, alarmes/mute, ordenação/filtros e auditoria.
 
 **Não declarar homologado comercialmente/fábrica até essa lista ser aprovada no notebook.**
+
+
+## PENTE 2B — Navegação unificada (25/11/2026)
+
+- A navegação agora tem quatro seções: Visão Geral, Sequência e Programação, Histórico e Auditoria e Ajuda e Orientações; o link de programação na Visão Geral abre a sequência.
+- Os controles de cada máquina mostram o estado oficial de programação junto à ordem P1..Pn, com ação de alteração *somente* se a sessão operacional tiver `production.schedule.request` ou `production.schedule.write` e acesso à máquina. Máquinas inativas, estado desconhecido e escopo não permitido ficam em leitura.
+- A ação reaproveita `/session` e `/machines/production-mode/session` ou o modal de segunda credencial existente, preservando CSRF/workstation, validação de `expectedProductionMode` e conflito 409, `machineScope` e auditoria. Não concede `production.schedule.write` por `priorities.write`.
+- Antes da alteração operacional, não pode haver alterações pendentes de sequência/destaques; a ordem é recarregada após confirmar a operação. A ação operacional é independente do botão Salvar sequência.
+- Revisados cabeçalho resumido, filtros com botão Limpar no topo, diagramação dos cards, botões e barra de salvar, mantendo modos read-only e PT/EN/zh-TW.
+
+**Aceite no notebook (ainda pendente):** validar desktop/mobile e nomes longos; temas/idiomas; perfis com somente leitura, solicitação, escrita, acesso parcial e estação revogada; confirmação e cancelamento; conflito 409; reordenação com filtros; P1..Pn; Histórico/BI; backup/instalador. Nada foi instalado diretamente no ambiente industrial.

@@ -1,5 +1,12 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 2B — unified priorities and production scheduling.
+  ["Sequência e Programação","Sequence and Scheduling","優先順序與生產排程"],
+  ["Resumo da sequência e programação","Sequence and scheduling overview","優先順序與排程摘要"],
+  ["A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.","Scheduling and priority are separate controls. Change scheduling status directly on authorized machines.","排程與優先順序是獨立控制。僅可直接變更已授權機台的排程狀態。"],
+  ["Alterar a programação de {0}","Change production schedule for {0}","變更 {0} 的生產排程"],
+  ["Alterar programação","Change schedule","變更排程"],
+  ["Confirmar programação de {0} como {1}?","Confirm scheduling {0} as {1}?","確定將 {0} 的排程狀態改為 {1}？"],
   // PENTE 2 — configurable priority highlight count and operational overview.
   ["Usa a sequência do responsável e destaca P1 até a quantidade configurada no módulo Prioridades.", "Uses the manager’s sequence and highlights P1 through the count set in Priorities.", "依管理者順序顯示，並突出標示從 P1 至優先順序模組中設定的數量。"],
   ["Selecione entre 1 e {0} máquinas ativas.","Select between 1 and {0} active machines.","請選擇 1 至 {0} 部啟用中的機台。"],
