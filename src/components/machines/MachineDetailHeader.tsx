@@ -59,7 +59,7 @@ export function MachineDetailHeader({
             className="min-w-0 text-xs text-muted-foreground sm:text-sm"
             title={machine.id}
           >
-            <span className="font-semibold">ID:</span>{" "}
+            <span className="font-semibold">{t("ID")}:</span>{" "}
             <span className="break-all font-mono">{machine.id}</span>
           </p>
         </div>
@@ -81,11 +81,11 @@ export function MachineDetailHeader({
           {machineSoundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           {machineSoundEnabled ? t("Som do ANDON: Ativo") : t("Som do ANDON: Silenciado")}
         </button>
-        <div className="inline-flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="inline-flex shrink-0 items-center gap-1.5">
           {historyAllowed && <Link
             to="/machines/$machineId/call-history"
             params={{ machineId: machine.id }}
-            className="inline-flex h-10 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-foreground md:h-10"
             title={t("Histórico da máquina")}
             aria-label={t("Histórico da máquina")}
           >
@@ -96,7 +96,7 @@ export function MachineDetailHeader({
             type="button"
             onClick={onToggleScreenLock}
             className={cn(
-              "inline-flex h-10 items-center gap-1 rounded-xl border px-2.5 text-[11px] font-bold uppercase tracking-wide transition",
+              "inline-flex h-9 items-center gap-1 rounded-xl border px-2.5 text-[11px] font-bold uppercase tracking-wide transition md:h-10",
               screenLocked
                 ? "border-warning/60 bg-warning/15 text-warning hover:bg-warning/25"
                 : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
