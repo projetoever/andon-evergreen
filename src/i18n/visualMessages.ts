@@ -178,6 +178,7 @@ export const visualMessages: ReadonlyArray<readonly [string,string,string]> = [
 ["Gráfico comparativo com escala e valores inspecionáveis","Comparative chart with axes and inspectable values","有刻度和可檢視數值的比較圖"],
 ["Pareto: curva acumulada e referência de 80% do total exibido.","Pareto: cumulative curve and an 80% reference for the displayed total.","柏拉圖：顯示總量的累積曲線及 80% 參考線。"],
 ["Escala em horas por pessoa","Scale: hours per person","刻度：每人小時數"],
+["Escala em horas técnicas","Scale: technical hours","刻度：技術工時"],
 ["Comparativo empilhado de tempo de manutenção e acompanhamento por técnico ou área","Stacked comparison of maintenance and follow-up time by technician or area","依技術人員或部門堆疊比較維修及追蹤時間"],
 ["Horas técnicas são somadas por pessoa e podem ser simultâneas. Não representam horas de máquina parada.","Technical hours sum per person and can overlap. They do not represent machine downtime.","技術工時按個人加總，可能同時發生；不代表設備停機時數。"],
 ["Exibindo as oito maiores participações. A tabela contém todos os registros.","Showing the top eight contributions. The table contains all records.","僅顯示前八項，表格含所有紀錄。"],
