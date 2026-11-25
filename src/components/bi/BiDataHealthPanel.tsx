@@ -95,7 +95,7 @@ export function BiDataHealthPanel({
     }).format(new Date(iso));
 
   return (
-    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 gap-3 rounded-xl border border-border bg-card p-4">
+    <section className="flex min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto gap-3 rounded-xl border border-border bg-card p-4">
       <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wide">
