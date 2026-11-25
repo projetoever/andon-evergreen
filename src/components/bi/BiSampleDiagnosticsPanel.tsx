@@ -1,6 +1,7 @@
 import { ui } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { AlertTriangle, ClipboardList } from "lucide-react";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import type { BiSampleDiagnostics } from "@/types/analytics";
 
 const GATE_LABELS: Record<BiSampleDiagnostics["cases"][number]["gate"], string> = {
@@ -49,6 +50,16 @@ export function BiSampleDiagnosticsPanel({
         <p className="text-[11px] leading-5 text-muted-foreground">
           {ui("Registro, atendimento e amostra válida são etapas diferentes. Abaixo estão os filtros aplicados ao período e à máquina selecionados. Nenhum dado é alterado.")}
         </p>
+        <BiChartExplorer launcher title={ui("Composição das finalizações por elegibilidade")}
+          description={ui("Categorias mutuamente exclusivas de chamados finalizados")}
+          chartKind="categorical" orientation="horizontal" unit="count" color="#f59e0b"
+          rows={[
+            {id:"maintenance",label:ui("Corretivo de manutenção"),value:c.correctiveFinishedMaintenance},
+            {id:"pending",label:ui("Corretivo pendente"),value:c.correctiveFinishedPendingResponsibility},
+            {id:"other",label:ui("Corretivo de outra área"),value:c.correctiveFinishedOtherResponsibility},
+            {id:"noncorrective",label:ui("Não corretivo"),value:c.nonCorrectiveFinished},
+          ]}
+          caution={ui("Distribuição dos chamados finalizados. A elegibilidade não substitui a prova física e a programação do MTTR/MTBF.")} />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {([
             [ui("Atendidos"), c.attendedInPeriod],

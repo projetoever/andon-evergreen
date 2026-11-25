@@ -195,3 +195,33 @@ test("BI2A: indicadores disponíveis não têm seus valores alterados", () => {
   assert.equal(out.resolvedMttrMinutes,60);
   assert.equal(out.resolvedEpisodes,1);
 });
+
+test("PENTE6: cobertura histórica não é quantidade de máquinas produzindo agora",()=>{
+  const out=build({
+    assets:[asset("M"),asset("N"),asset("O")],
+    productionEvents:[
+      production("M","scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z"),
+      production("N","not_scheduled","2026-10-12T10:00:00Z","2026-10-12T18:00:00Z"),
+      production("O","scheduled","2026-10-12T12:00:00Z","2026-10-12T18:00:00Z"),
+    ],
+  });
+  assert.equal(out.populationCount,3);
+  assert.equal(out.coveredMachineCount,2);
+  assert.equal(out.uncoveredMachineCount,1);
+  assert.equal(out.scheduledMinutes,480);
+  assert.equal(out.availabilityPercent,100);
+  assert.equal(out.machineCoverage.length,3);
+  const byId=new Map(out.machineCoverage.map(x=>[x.machineId,x]));
+  assert.equal(byId.get("M")?.status,"complete");
+  assert.equal(byId.get("N")?.status,"complete_no_scheduled");
+  assert.equal(byId.get("O")?.status,"incomplete");
+  assert.equal(byId.get("O")?.reason,"history_gap");
+});
+
+test("PENTE6: ausência total de modo histórico é explicada sem imputação",()=>{
+  const out=build({productionEvents:[]});
+  assert.equal(out.coveredMachineCount,0);
+  assert.equal(out.uncoveredMachineCount,1);
+  assert.equal(out.machineCoverage[0].reason,"no_history");
+  assert.equal(out.availabilityPercent,null);
+});

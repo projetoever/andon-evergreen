@@ -3,6 +3,7 @@ import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
 import { BiFailureIntelligencePanel } from "@/components/bi/BiFailureIntelligencePanel";
 import { BiTemporalPatterns } from "@/components/bi/BiTemporalPatterns";
+import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import type {
   AnalyticsDrilldownSelection,
   AnalyticsFailureIntelligence,
@@ -123,6 +124,12 @@ export function BiFailureWorkspace({
               <p className="mt-1 text-xs text-muted-foreground">
                 {ui("Diagnóstico registrado na conclusão dos chamados")}
               </p>
+              <div className="mt-2"><BiChartExplorer launcher
+                title={ui("Pareto de classificações")} description={ui("Diagnóstico registrado na conclusão dos chamados")}
+                chartKind="categorical" orientation="horizontal" unit="count" color="#f59e0b"
+                rows={classificationData.map(item=>({id:item.value,label:item.label,value:item.count}))}
+                caution={ui("Diagnósticos dos chamados concluídos; apenas as categorias exibidas participam da distribuição.")}
+                allowRank /></div>
             </div>
 
             <div className="mt-4 min-h-0 flex-1 space-y-3">
@@ -179,6 +186,12 @@ export function BiFailureWorkspace({
               <p className="mt-1 text-xs text-muted-foreground">
                 {ui("Chamados abertos no período selecionado")}
               </p>
+              <div className="mt-2"><BiChartExplorer launcher
+                title={ui("Demanda por setor")} description={ui("Chamados abertos no período selecionado")}
+                chartKind="categorical" orientation="horizontal" unit="count" color="#38bdf8"
+                rows={sectorData.map(item=>({id:item.value,label:item.label,value:item.count}))}
+                caution={ui("Chamados abertos por setor; não representa tempo de parada nem esforço técnico.")}
+                allowRank /></div>
             </div>
 
             <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 content-start gap-3">

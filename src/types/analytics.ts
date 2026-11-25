@@ -81,6 +81,12 @@ export type AnalyticsProductionMetrics = {
   coveredMachineCount: number;
   uncoveredMachineCount: number;
   populationCount: number;
+  machineCoverage?: Array<{
+    machineId: string;
+    status: "complete" | "complete_no_scheduled" | "incomplete" | "outside_window";
+    observationStartAt: string;
+    reason: "verified_scheduled" | "verified_not_scheduled" | "no_history" | "history_gap" | "not_in_window";
+  }>;
   resolvedMttrMinutes: number | null;
   resolvedEpisodes: number;
   daily: Array<{

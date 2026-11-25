@@ -52,6 +52,7 @@ export function BiDowntimeTrendCard({
             title={ui("Tempo de parada por dia")}
             description={ui("Horas de parada em cada data · dias parciais no período móvel")}
             unit="minutes"
+            chartKind="temporal"
             color="#ef4444"
             caution={ui("Distribuição de minutos de parada por dia no período filtrado; as datas de borda podem estar incompletas. Não indica causalidade nem melhora automática.")}
             rows={data.map((day) => ({
