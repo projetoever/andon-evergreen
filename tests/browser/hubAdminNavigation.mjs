@@ -57,6 +57,35 @@ try {
       );
     }, { id: workstationId });
     const page = await context.newPage();
+    // MOB 1: the same authorized items live in a drawer on narrow phones.
+    // Exercise the actual tappable menu, not offscreen/hidden DOM controls.
+    const openAdminNav = async (navLabel) => {
+      if (viewport.width < 640) {
+        await page.getByRole("button", { name: navLabel, exact: true }).click();
+        return page.getByRole("dialog").getByRole("navigation", { name: navLabel });
+      }
+      return page.getByRole("navigation", { name: navLabel });
+    };
+    const closeAdminNav = async () => {
+      if (viewport.width < 640) await page.keyboard.press("Escape");
+    };
+    const countAdminNavItems = async (navLabel) => {
+      const nav = await openAdminNav(navLabel);
+      const count = await nav.getByRole("link").count();
+      await closeAdminNav();
+      return count;
+    };
+    const openAdminItem = async (navLabel, role, label) =>
+      (await openAdminNav(navLabel)).getByRole(role, { name: label, exact: true });
+    const clickAdminItem = async (navLabel, role, label) => {
+      const item = await openAdminItem(navLabel, role, label);
+      await item.click();
+    };
+    const assertActiveAdminItem = async (navLabel, role, label) => {
+      const item = await openAdminItem(navLabel, role, label);
+      assert.equal(await item.getAttribute("aria-current"), "page");
+      await closeAdminNav();
+    };
     const errors = [];
     let delayModules = false;
     let centralMode = false;
@@ -329,8 +358,8 @@ try {
     assert.equal(await page.getByText("“Vistas nos últimos 30 min” considera apenas o último registro no servidor. Não confirma que a tela ANDON ou o kiosk estejam abertos.",{exact:true}).count(),1);
     await page.getByRole("button",{name:"Atualizar resumo"}).click();
     await page.getByRole("group",{name:"Registradas"}).getByText("3",{exact:true}).waitFor();
-    const navigation = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
-    assert.equal(await navigation.getByRole("link").count(), 5);
+    const hubNavLabel = "Seções administrativas do Hub";
+    assert.equal(await countAdminNavItems(hubNavLabel), 5);
     const hubWorkspace = page.getByRole("region", { name: "Administração do Hub" });
     await hubWorkspace.waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Administração do Hub" }).count(), 0);
@@ -338,7 +367,10 @@ try {
     assert(hubBounds && Math.abs(hubBounds.width - viewport.width) <= 2,
       "Hub settings must use the same full-width frame as ANDON");
     assert.equal(await hubWorkspace.locator("aside").first().isVisible(), viewport.width >= 1024);
-    assert.equal(await page.getByRole("link", { name: "Usuários e Acessos", exact: true }).count(), 1);
+    if (viewport.width >= 640)
+      assert.equal(await page.getByRole("link", { name: "Usuários e Acessos", exact: true }).count(), 1);
+    else
+      assert.equal(await page.getByRole("button", { name: hubNavLabel, exact: true }).getAttribute("aria-expanded"), "false");
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-overview.png`, fullPage: true });
     assert.equal(await page.getByRole("link",{name:"Gerenciar workstations",exact:true}).getAttribute("href"),
@@ -351,36 +383,29 @@ try {
       ["Módulos e senhas", "modules"],
       ["Visão geral", "overview"],
     ]) {
-      const link = navigation.getByRole("link", { name: label, exact: true });
-      await link.click();
+      await clickAdminItem(hubNavLabel, "link", label);
       await page.waitForURL((url) => url.searchParams.get("section") === section);
-      assert.equal(await link.getAttribute("aria-current"), "page");
+      await assertActiveAdminItem(hubNavLabel, "link", label);
     }
 
-    await navigation.getByRole("link",{name:"Segurança",exact:true}).click();
+    await clickAdminItem(hubNavLabel, "link", "Segurança");
     await page.getByText("Admin legado e Admin central são contas distintas",{exact:true}).waitFor();
-    await navigation.getByRole("link",{name:"Visão geral",exact:true}).click();
-    await navigation.getByRole("link", { name: "Usuários e Acessos", exact: true }).click();
+    await clickAdminItem(hubNavLabel, "link", "Visão geral");
+    await clickAdminItem(hubNavLabel, "link", "Usuários e Acessos");
     await page.waitForURL((url) => url.searchParams.get("section") === "users");
     await page.reload();
     await page.getByText("Sessão central: Admin Central · admin.central", { exact: true }).waitFor();
-    assert.equal(
-      await page
-        .getByRole("navigation", { name: "Seções administrativas do Hub" })
-        .getByRole("link", { name: "Usuários e Acessos", exact: true })
-        .getAttribute("aria-current"),
-      "page",
-    );
+    await assertActiveAdminItem(hubNavLabel, "link", "Usuários e Acessos");
     await noOverflow();
     await page.screenshot({ path: `${output}/${viewport.width}-users.png`, fullPage: true });
 
     const language = page.getByRole("combobox").first();
     await language.click();
     await page.getByRole("option", { name: "English", exact: true }).click();
-    await page.getByRole("link", { name: "Users and Access", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Users and Access", exact: true }).first().waitFor();
     await language.click();
     await page.getByRole("option", { name: "繁體中文", exact: true }).click();
-    await page.getByRole("link", { name: "使用者與存取權", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "使用者與存取權", exact: true }).first().waitFor();
 
     await page.goto("http://127.0.0.1:4187/hub/admin?section=users");
     await page
@@ -485,11 +510,13 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     const centralNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
     await centralNav.waitFor();
-    assert.equal(await centralNav.getByRole("link").count(), 4);
-    assert.equal(await centralNav.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 0);
+    assert.equal(await countAdminNavItems(hubNavLabel), 4);
+    const centralItems = await openAdminNav(hubNavLabel);
+    assert.equal(await centralItems.getByRole("link", { name: "Configurações gerais do Hub" }).count(), 0);
     await page.getByRole("region", { name: "Identificação da empresa e unidade" }).waitFor();
     await page.getByRole("region", { name: "Estado da autenticação do Hub" }).waitFor();
-    assert.equal(await centralNav.getByRole("link", { name: "Integrações API" }).count(), 1);
+    assert.equal(await centralItems.getByRole("link", { name: "Integrações API" }).count(), 1);
+    await closeAdminNav();
     await page.getByRole("region", { name: "Identificação da versão instalada" }).waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Acesso administrativo" }).count(), 0);
     await noOverflow();
@@ -573,7 +600,7 @@ try {
       await page.screenshot({
         path: `${output}/${viewport.width}-andon-admin-fullscreen.png`, fullPage: true,
       });
-      const andonNavigation = workspace.getByRole("navigation", { name: "Seções administrativas do ANDON" });
+      const andonNavLabel = "Seções administrativas do ANDON";
       const tabs = [
         "Configurações da operação", "Aparência e cores", "Sons do ANDON",
         "Modo de atendimento", "Mantenedores", "Turnos",
@@ -581,19 +608,18 @@ try {
         "Catálogos de ativos", "Máquinas",
       ];
       for (const label of tabs) {
-        const tab = andonNavigation.getByRole("button", { name: label, exact: true });
-        await tab.waitFor();
-        await tab.click();
-        assert.equal(await tab.getAttribute("aria-current"), "page",
+        await clickAdminItem(andonNavLabel, "button", label);
+        await assertActiveAdminItem(andonNavLabel, "button", label); 
+        assert.equal(true, true,
           "Admin ANDON did not select tab: " + label);
         assert(await workspace.getByRole("heading", { name: label, exact: true }).count() >= 1,
           "Tab content heading must exist: " + label);
       }
       // Groups have their own full-screen sidebar page; no nested motivos tab.
-      await andonNavigation.getByRole("button", { name: "Grupos de chamados", exact: true }).click();
+      await clickAdminItem(andonNavLabel, "button", "Grupos de chamados");
       await workspace.getByRole("heading", { name: "Grupos de chamados", exact: true }).first().waitFor();
       assert.equal(await workspace.getByRole("navigation", { name: "Organização dos cadastros de chamados" }).count(), 0);
-      await andonNavigation.getByRole("button", { name: "Setores / categorias", exact: true }).click();
+      await clickAdminItem(andonNavLabel, "button", "Setores / categorias");
       await workspace.getByRole("heading", { name: "Setores / categorias", exact: true }).first().waitFor();
       // P1 failed field test: verify Return works and re-entering config
       // mounts the same fullscreen page without an overlay or lost session.
@@ -604,8 +630,7 @@ try {
       const reopened = page.getByRole("region", { name: "Painel administrativo do ANDON" });
       await reopened.waitFor();
       assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
-      await reopened.getByRole("navigation", { name: "Seções administrativas do ANDON" })
-        .getByRole("button", { name: "Aparência e cores", exact: true }).click();
+      await clickAdminItem(andonNavLabel, "button", "Aparência e cores");
       return reopened.getByRole("region", { name: "Aparência e cores" });
     };
     // UX-12 still fails closed until the server authorizes palette writes.
@@ -743,9 +768,10 @@ try {
     managerScope = "all";
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.getByRole("heading", { name: "Painel do gerente" }).waitFor();
-    const managerNav = page.getByRole("navigation", { name: "Seções administrativas do Hub" });
+    const managerNav = await openAdminNav(hubNavLabel);
     assert.equal(await managerNav.getByRole("link").count(), 2);
     assert.equal(await managerNav.getByRole("link", { name: "Usuários e Acessos" }).count(), 0);
+    await closeAdminNav();
     assert.equal(await page.getByRole("button", { name: "Cadastrar usuário" }).count(), 0);
     assert.equal(await page.getByRole("heading", { name: "Resumo gerencial" }).count(), 1);
     await page.goto("https://127.0.0.1:4188/hub/admin?section=workstations");
@@ -767,7 +793,7 @@ try {
     const managerAndon = page.getByRole("region", { name: "Painel administrativo do ANDON" });
     await managerAndon.waitFor();
     assert.equal(await page.getByRole("dialog", { name: "Painel administrativo do ANDON" }).count(), 0);
-    await managerAndon.getByRole("button", { name: "Configurações da operação" }).click();
+    await clickAdminItem("Seções administrativas do ANDON", "button", "Configurações da operação");
     const safeWrite = await page.evaluate(async () => {
       const res = await fetch("/api/system-settings", {
         method: "PATCH", headers: { "Content-Type": "application/json", "X-Andon-CSRF": "a".repeat(64) },
@@ -790,7 +816,7 @@ try {
     await page.goto("https://127.0.0.1:4188/hub/admin?section=users");
     await page.waitForURL((url) => url.pathname === "/hub/admin" && url.searchParams.get("section") === "overview");
     await page.getByText("Esta seção exige a conta Admin principal.", { exact: true }).waitFor();
-    assert.equal(await page.getByRole("navigation", { name: "Seções administrativas do Hub" }).getByRole("link").count(), 2);
+    assert.equal(await countAdminNavItems(hubNavLabel), 2);
     managerScope = "selected";
     await page.goto("https://127.0.0.1:4188/hub/admin?section=overview");
     await page.waitForURL((url) => url.pathname === "/hub");
