@@ -924,6 +924,45 @@ export function DashboardPriorityPage() {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={scheduleConfirmation !== null}
+        onOpenChange={(open) => { if (!open) setScheduleConfirmation(null); }}
+        title={ui("Confirmar programação de produção")}
+        description={scheduleConfirmation ? ui("Alterar programação da máquina {0} de {1} para {2}?", {
+          0: scheduleConfirmation.machineName,
+          1: ui(scheduleConfirmation.currentMode === "scheduled" ? "Produção Programada" : "Fora de Produção"),
+          2: ui(scheduleConfirmation.requestedMode === "scheduled" ? "Produção Programada" : "Fora de Produção"),
+        }) : undefined}
+        confirmLabel={ui("Confirmar alteração")}
+        onConfirm={() => void confirmScheduleChange()}
+      />
+      <ConfirmDialog
+        open={pendingUnsavedAction !== null}
+        onOpenChange={(open) => { if (!open) setPendingUnsavedAction(null); }}
+        title={ui("Existem alterações de prioridade não salvas.")}
+        description={ui("Descartar as alterações de prioridade ainda não salvas?")}
+        confirmLabel={ui("Descartar")}
+        destructive
+        onConfirm={() => {
+          const action = pendingUnsavedAction;
+          setPendingUnsavedAction(null);
+          if (action === "reload") void loadOrder();
+          if (action === "logout") void finishLogout();
+        }}
+      />
+      <ConfirmDialog
+        open={navigationBlocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open && navigationBlocker.status === "blocked") navigationBlocker.reset();
+        }}
+        title={ui("Existem alterações de prioridade não salvas.")}
+        description={ui("Descartar as alterações de prioridade ainda não salvas?")}
+        confirmLabel={ui("Descartar")}
+        destructive
+        onConfirm={() => {
+          if (navigationBlocker.status === "blocked") navigationBlocker.proceed();
+        }}
+      />
       {pendingSchedule && (
         <ProductionModeCredentialModal
           open
