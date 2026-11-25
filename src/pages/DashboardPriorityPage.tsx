@@ -7,7 +7,6 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
-  Pencil,
   CircleHelp,
   Filter,
   GripVertical,
@@ -28,6 +27,7 @@ import { PrioritySectionNav, type PrioritySectionId } from "@/components/priorit
 import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
 import { PriorityOverviewPanel } from "@/components/priority/PriorityOverviewPanel";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
 import { canShowPriorityMachineHistory } from "@/utils/priorityHistoryVisibility";
@@ -61,6 +61,7 @@ export function DashboardPriorityPage() {
   const passwordRequired =
     access?.modules.find((item) => item.id === "priorities")?.passwordRequired !== false;
   const leavingAfterLogout = useRef(false);
+  const proceedingNavigationRef = useRef(false);
   const [authenticated, setAuthenticated] = useState(
     () => !passwordRequired || isDashboardPriorityAuthenticated(),
   );
@@ -87,6 +88,11 @@ export function DashboardPriorityPage() {
   const [pendingSchedule, setPendingSchedule] = useState<{
     machineId: string; currentMode: ProductionMode; requestedMode: ProductionMode;
   } | null>(null);
+  const [scheduleConfirmation, setScheduleConfirmation] = useState<{
+    machineId: string; machineName: string;
+    currentMode: ProductionMode; requestedMode: ProductionMode;
+  } | null>(null);
+  const [pendingUnsavedAction, setPendingUnsavedAction] = useState<"reload" | "logout" | null>(null);
   const [scheduleCheckingId, setScheduleCheckingId] = useState<string | null>(null);
   const scheduleSubmittingRef = useRef(false);
   const [scheduleRequester, setScheduleRequester] = useState<{
@@ -104,11 +110,10 @@ export function DashboardPriorityPage() {
   const activeMachineCount = activeRows.length;
   const effectiveHighlightCount = Math.min(priorityHighlightCount, activeMachineCount);
   const canShowGlobalRanks = !access?.centralAccessEnabled || access?.principal?.machineScope === "all";
-  useBlocker({
-    shouldBlockFn: () =>
-      hasUnsavedChanges &&
-      !leavingAfterLogout.current &&
-      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")),
+  const navigationBlocker = useBlocker({
+    shouldBlockFn: () => hasUnsavedChanges && !leavingAfterLogout.current,
+    withResolver: true,
+    // The browser itself handles closing/reloading a tab with unsaved data.
     enableBeforeUnload: hasUnsavedChanges,
   });
 
@@ -281,12 +286,15 @@ export function DashboardPriorityPage() {
     }
   }
 
-  async function handleLogout() {
-    if (
-      hasUnsavedChanges &&
-      !window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?"))
-    )
+  function requestReload() {
+    if (hasUnsavedChanges) {
+      setPendingUnsavedAction("reload");
       return;
+    }
+    void loadOrder();
+  }
+
+  async function finishLogout() {
     leavingAfterLogout.current = true;
     await logoutDashboardPriority();
     setAuthenticated(false);
@@ -295,8 +303,16 @@ export function DashboardPriorityPage() {
     void navigate({ to: returnTo });
   }
 
+  async function handleLogout() {
+    if (hasUnsavedChanges) {
+      setPendingUnsavedAction("logout");
+      return;
+    }
+    await finishLogout();
+  }
+
   async function requestScheduleChange(machine: DashboardPriorityMachine) {
-    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || isLoading || isSaving ||
+    if (scheduleSubmittingRef.current || scheduleCheckingId || pendingSchedule || scheduleConfirmation || isLoading || isSaving ||
         !machine.isActive || !machine.productionMode ||
         access?.centralAccessEnabled !== true) return;
     if (hasUnsavedChanges) {
@@ -333,19 +349,13 @@ export function DashboardPriorityPage() {
       const canWrite = principal!.isPrimaryAdmin === true ||
         principal!.permissions?.includes("production.schedule.write") === true;
       if (canWrite) {
-        if (!window.confirm(ui("Confirmar programação de {0} como {1}?", {
-          0: machine.name,
-          1: ui(target === "scheduled" ? "Produção Programada" : "Fora de Produção"),
-        }))) return;
-        // Backend revalidates the session, permission, machine scope, CSRF,
-        // workstation, expected mode (409), transaction and audit.
-        await accessRequest("/machines/production-mode/session", "POST", {
+        // Confirm in the ANDON interface before the audited production change.
+        setScheduleConfirmation({
           machineId: machine.id,
-          expectedProductionMode: machine.productionMode,
-          productionMode: target,
+          machineName: machine.name,
+          currentMode: machine.productionMode,
+          requestedMode: target,
         });
-        toast.success(ui("Programação de produção atualizada com autorização."));
-        await loadOrder();
       } else {
         // Request-only operator: an authorized second person must approve.
         setPendingSchedule({
@@ -354,6 +364,42 @@ export function DashboardPriorityPage() {
           requestedMode: target,
         });
       }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (message.includes("production_mode_changed")) {
+        toast.error(ui("A programação foi alterada em outra estação. Atualizando o estado."));
+        void loadOrder();
+      } else if (/permission_denied|machine_scope_denied|authentication_required|workstation_denied/.test(message)) {
+        setScheduleRequester(null);
+        toast.error(ui("Sua sessão ou permissão não permite alterar esta máquina."));
+      } else {
+        toast.error(ui("Não foi possível alterar a programação. Confira a conexão e tente novamente."));
+      }
+    } finally {
+      scheduleSubmittingRef.current = false;
+      setScheduleCheckingId(null);
+    }
+  }
+
+  async function confirmScheduleChange() {
+    const confirmation = scheduleConfirmation;
+    if (!confirmation || scheduleSubmittingRef.current || isSaving || isLoading) return;
+    setScheduleConfirmation(null);
+    if (hasUnsavedChanges) {
+      toast.error(ui("Salve ou descarte as alterações de prioridade antes de alterar a programação."));
+      return;
+    }
+    scheduleSubmittingRef.current = true;
+    setScheduleCheckingId(confirmation.machineId);
+    try {
+      // The backend rechecks rights, scope, workstation, CSRF, expected mode/409 and audit.
+      await accessRequest("/machines/production-mode/session", "POST", {
+        machineId: confirmation.machineId,
+        expectedProductionMode: confirmation.currentMode,
+        productionMode: confirmation.requestedMode,
+      });
+      toast.success(ui("Programação de produção atualizada com autorização."));
+      await loadOrder();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
       if (message.includes("production_mode_changed")) {
@@ -392,11 +438,7 @@ export function DashboardPriorityPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm"
               disabled={isLoading || isSaving}
-              onClick={() => {
-                if (!hasUnsavedChanges ||
-                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
-                  void loadOrder();
-              }}>
+              onClick={requestReload}>
               <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />
               {ui("Atualizar")}
             </Button>
@@ -518,9 +560,9 @@ export function DashboardPriorityPage() {
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+          <div className="border-b border-border px-4 py-3 sm:px-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-h-9 flex-wrap items-center gap-2 text-sm font-bold">
                 <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span>{ui("Filtros e máquinas")}</span>
                 {activeFilterCount > 0 && (
@@ -530,19 +572,19 @@ export function DashboardPriorityPage() {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" variant="outline"
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                <Button type="button" size="sm" variant="outline" className="h-9"
                   disabled={activeFilterCount === 0}
                   onClick={() => { setSearchQuery(""); setActivityFilter("all"); setProductionFilter("all"); }}>
                   {ui("Limpar filtros")}
                 </Button>
-              <Button type="button" size="sm" variant="ghost"
-                aria-expanded={filtersExpanded} aria-controls="priority-filters"
-                onClick={() => setFiltersExpanded(value => !value)}>
-                {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
-                <ChevronDown aria-hidden="true"
-                  className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
-              </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-9"
+                  aria-expanded={filtersExpanded} aria-controls="priority-filters"
+                  onClick={() => setFiltersExpanded(value => !value)}>
+                  {ui(filtersExpanded ? "Ocultar filtros" : "Mostrar filtros")}
+                  <ChevronDown aria-hidden="true"
+                    className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
+                </Button>
               </div>
             </div>
             {activeFilterCount > 0 && (
@@ -551,32 +593,32 @@ export function DashboardPriorityPage() {
               </p>
             )}
             <div id="priority-filters" className={filtersExpanded ? "mt-3" : "hidden"}>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Buscar máquina por nome ou ID")}</span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Buscar máquina por nome ou ID")}</span>
+                  <div className="relative min-w-0">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                     <Input type="search" maxLength={100} value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
-                      className="min-h-10 rounded-lg border-border pl-9"
+                      className="h-10 w-full rounded-lg border-border pl-9"
                       placeholder={ui("Nome ou ID")} />
                   </div>
                 </label>
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Ativação da máquina")}</span>
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Ativação da máquina")}</span>
                   <select value={activityFilter}
                     onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}
-                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
                     <option value="all">{ui("Todas as máquinas")}</option>
                     <option value="active">{ui("Máquinas ativas")}</option>
                     <option value="inactive">{ui("Máquinas inativas")}</option>
                   </select>
                 </label>
-                <label className="block space-y-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{ui("Filtrar programação")}</span>
+                <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="block leading-4">{ui("Filtrar programação")}</span>
                   <select value={productionFilter}
                     onChange={(event) => setProductionFilter(event.target.value as typeof productionFilter)}
-                    className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
                     <option value="all">{ui("Todas as situações")}</option>
                     <option value="scheduled">{ui("Produção Programada")}</option>
                     <option value="not_scheduled">{ui("Fora de Produção")}</option>
@@ -586,12 +628,12 @@ export function DashboardPriorityPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 border-b border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="min-w-0">
-               <strong className="text-foreground">{ui("Sequência e Programação")}</strong>
-               <p className="mt-1 text-xs text-muted-foreground">{ui("A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.")}</p>
-             </div>
-            <span aria-live="polite">
+              <strong className="text-sm text-foreground">{ui("Sequência e Programação")}</strong>
+              <p className="mt-1 max-w-3xl leading-relaxed">{ui("A programação e a prioridade são controles independentes. Altere o status diretamente na máquina autorizada.")}</p>
+            </div>
+            <span aria-live="polite" className="shrink-0 font-semibold tabular-nums">
               {ui("Exibindo {0} de {1} máquinas", { 0: visibleRows.length, 1: rows.length })}
             </span>
           </div>
@@ -681,16 +723,17 @@ export function DashboardPriorityPage() {
                         {scheduleRequester && row.productionMode && row.isActive &&
                           (scheduleRequester.fullScope || scheduleRequester.machineIds.includes(row.id)) ? (
                           <button type="button"
-                            className="group inline-flex max-w-full items-center gap-1.5 rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule)}
+                            className={cn(
+                              "inline-flex max-w-full cursor-pointer items-center rounded-md text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-wait disabled:opacity-70",
+                              row.productionMode === "scheduled"
+                                ? "ring-1 ring-emerald-500/60 hover:ring-emerald-500 focus-visible:ring-emerald-500"
+                                : "ring-1 ring-amber-500/60 hover:ring-amber-500 focus-visible:ring-amber-500",
+                            )}
+                            disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule) || Boolean(scheduleConfirmation)}
                             title={ui(row.productionMode === "scheduled" ? "Retirar da programação" : "Programar produção")}
                             aria-label={ui("Alterar a programação de {0}", { 0: row.name })}
                             onClick={() => void requestScheduleChange(row)}>
                             <PriorityProductionBadge mode={row.productionMode} />
-                            <Pencil className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                            <span className="text-xs font-bold text-primary underline-offset-2 group-hover:underline">
-                              {ui("Alterar programação")}
-                            </span>
                           </button>
                         ) : <PriorityProductionBadge mode={row.productionMode} />}
                         {scheduleCheckingId === row.id && (
@@ -704,7 +747,7 @@ export function DashboardPriorityPage() {
                       )}
                     </div>
 
-                    <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
+                    <div className="col-span-3 flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3 2xl:col-span-1 2xl:self-center 2xl:border-l 2xl:border-t-0 2xl:py-0 2xl:pl-3">
                       {canShowPriorityMachineHistory(access, row.id) && (
                         <Button type="button" variant="outline" size="sm"
                           aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
@@ -757,11 +800,7 @@ export function DashboardPriorityPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={isSaving || isLoading}
-              onClick={() => {
-                if (!hasUnsavedChanges ||
-                    window.confirm(ui("Descartar as alterações de prioridade ainda não salvas?")))
-                  void loadOrder();
-              }}>
+              onClick={requestReload}>
               {ui("Recarregar sequência")}
             </Button>
             <Button
@@ -886,6 +925,48 @@ export function DashboardPriorityPage() {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={scheduleConfirmation !== null}
+        onOpenChange={(open) => { if (!open) setScheduleConfirmation(null); }}
+        title={ui("Confirmar programação de produção")}
+        description={scheduleConfirmation ? ui("Alterar programação da máquina {0} de {1} para {2}?", {
+          0: scheduleConfirmation.machineName,
+          1: ui(scheduleConfirmation.currentMode === "scheduled" ? "Produção Programada" : "Fora de Produção"),
+          2: ui(scheduleConfirmation.requestedMode === "scheduled" ? "Produção Programada" : "Fora de Produção"),
+        }) : undefined}
+        confirmLabel={ui("Confirmar alteração")}
+        onConfirm={() => void confirmScheduleChange()}
+      />
+      <ConfirmDialog
+        open={pendingUnsavedAction !== null}
+        onOpenChange={(open) => { if (!open) setPendingUnsavedAction(null); }}
+        title={ui("Existem alterações de prioridade não salvas.")}
+        description={ui("Descartar as alterações de prioridade ainda não salvas?")}
+        confirmLabel={ui("Descartar")}
+        destructive
+        onConfirm={() => {
+          const action = pendingUnsavedAction;
+          setPendingUnsavedAction(null);
+          if (action === "reload") void loadOrder();
+          if (action === "logout") void finishLogout();
+        }}
+      />
+      <ConfirmDialog
+        open={navigationBlocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open && navigationBlocker.status === "blocked" && !proceedingNavigationRef.current) navigationBlocker.reset();
+        }}
+        title={ui("Existem alterações de prioridade não salvas.")}
+        description={ui("Descartar as alterações de prioridade ainda não salvas?")}
+        confirmLabel={ui("Descartar")}
+        destructive
+        onConfirm={() => {
+          if (navigationBlocker.status === "blocked") {
+            proceedingNavigationRef.current = true;
+            navigationBlocker.proceed();
+          }
+        }}
+      />
       {pendingSchedule && (
         <ProductionModeCredentialModal
           open

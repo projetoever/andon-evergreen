@@ -48,7 +48,9 @@ test("PENTE 2 final: authorized writers avoid per-machine password, request-only
   assert.match(page, /scheduleSubmittingRef\.current = false/);
   assert.match(page, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.match(page, /setPendingSchedule\(\{/);
-  assert.match(page, /machineId: machine\.id,[\s\S]*?expectedProductionMode: machine\.productionMode/);
+  assert.match(page, /currentMode: machine\.productionMode/);
+  assert.match(page, /expectedProductionMode: confirmation\.currentMode/);
+  assert.match(page, /setScheduleConfirmation\(\{/);
   assert.match(routes, /machines\/production-mode\/session/);
   assert.match(routes, /setCentralProductionModeWithSession\(db/);
   assert.match(sessionWrite, /assertPermission\(principal, "production\.schedule\.write", machineId\)/);
@@ -66,4 +68,15 @@ test("PENTE 2 final: authorized writers avoid per-machine password, request-only
   assert.match(badge, /bg-amber-50/);
   assert.match(badge, /dark:bg-emerald-950/);
   assert.match(badge, /dark:bg-amber-950/);
+});
+
+test("PENTE 2C: confirmed scheduling is audited and pending priorities remain protected", async () => {
+  const page = await source("src/pages/DashboardPriorityPage.tsx");
+  assert.match(page, /setScheduleConfirmation\(\{/);
+  assert.match(page, /async function confirmScheduleChange\(\)/);
+  assert.match(page, /scheduleSubmittingRef\.current = true/);
+  assert.match(page, /expectedProductionMode: confirmation\.currentMode/);
+  assert.match(page, /setPendingSchedule\(\{/);
+  assert.match(page, /toast\.error\(ui\("A programação foi alterada em outra estação/);
+  assert.doesNotMatch(page, /window\.confirm\(/);
 });

@@ -1,5 +1,7 @@
 /** Authored interface and system messages. Never pass user content as a key. */
 export const messages: ReadonlyArray<readonly [string, string, string]> = [
+  // PENTE 2C — native confirmation replaced by the standard ANDON dialog.
+  ["Alterar programação da máquina {0} de {1} para {2}?","Change the production schedule for {0} from {1} to {2}?","是否將機台 {0} 的生產排程狀態由「{1}」改為「{2}」？"],
   // PENTE 6 — Hub audit console, permissions and export (pt-BR / en / zh-TW).
   ["Login realizado","Signed in","登入成功"],
   ["Saída do sistema","Signed out","登出系統"],

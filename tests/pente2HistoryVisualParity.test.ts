@@ -40,7 +40,10 @@ test("PENTE 2 visual: collapsible filters apply only to visible rows without dro
   assert.match(priority, /saveDashboardPriorityOrder\(\s*rows\.map\(\(row\) => row\.id\), savedIds,/);
   assert.match(priority, /priorityHighlightCount !== savedHighlightCount/);
   assert.match(priority, /hasUnsavedChanges/);
-  assert.match(priority, /window\.confirm\(ui\("Descartar as alterações de prioridade ainda não salvas\?"\)\)/);
+  assert.match(priority, /withResolver: true/);
+  assert.match(priority, /navigationBlocker\.status === "blocked"/);
+  assert.match(priority, /open=\{pendingUnsavedAction !== null\}/);
+  assert.doesNotMatch(priority, /window\.confirm\(/);
 });
 
 test("PENTE 2 visual: semantic machine badges, rights-scoped history and operational separation", async () => {
@@ -68,7 +71,7 @@ test("PENTE 2 visual: semantic machine badges, rights-scoped history and operati
   assert.doesNotMatch(priority, /machineStatus|activeCalls\.length|andonStatus/);
   assert.match(priority, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.match(priority, /<ProductionModeCredentialModal/);
-  assert.match(priority, /expectedProductionMode: machine\.productionMode/);
+  assert.match(priority, /expectedProductionMode: confirmation\.currentMode/);
   assert.match(service, /expectedMachineIds/);
   assert.match(nav, /!grant\?\.available \|\| !grant\.enabled \|\| !grant\.allowed/);
 });

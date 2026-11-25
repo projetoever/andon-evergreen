@@ -83,3 +83,16 @@ A API de Histórico Global continua validando `history.global.read`, `history.re
 - Revisados cabeçalho resumido, filtros com botão Limpar no topo, diagramação dos cards, botões e barra de salvar, mantendo modos read-only e PT/EN/zh-TW.
 
 **Aceite no notebook (ainda pendente):** validar desktop/mobile e nomes longos; temas/idiomas; perfis com somente leitura, solicitação, escrita, acesso parcial e estação revogada; confirmação e cancelamento; conflito 409; reordenação com filtros; P1..Pn; Histórico/BI; backup/instalador. Nada foi instalado diretamente no ambiente industrial.
+
+
+## PENTE 2C — Status clicável, confirmações ANDON e filtros alinhados (25/11/2026)
+
+**Pedido de homologação visual:** imagens da aba "Sequência e Programação" mostram o popup nativo do navegador, CTA redundante com lápis e desalinhamento vertical entre busca e selects. Implementação em branch, **sem merge até aprovação expressa**.
+
+- O próprio status `Produção Programada` (verde) ou `Fora de Produção` (âmbar) é o botão clicável, com hover, ring e foco acessível. O rótulo de ação fica somente no `aria-label`/`title`; removidos lápis e CTA visível. Usuários sem permissão recebem o badge somente leitura. Máquina inativa ou com programação desconhecida permanece somente leitura.
+- Escrita autorizada exige confirmação no `ConfirmDialog` existente e segue usando `/machines/production-mode/session`, com `expectedProductionMode`, controle de concorrência 409, auditoria e toast padrão. Usuário apenas solicitante mantém o `ProductionModeCredentialModal`/aprovação one-shot. Nenhuma permissão é ampliada e o controle de `hasUnsavedChanges` é preservado.
+- Confirmações de descarte em ações internas de recarregar/sair/navegação utilizam o `ConfirmDialog` do ANDON, sem `window.confirm` nesta página. O aviso `beforeunload` administrado pelo navegador ao fechar ou recarregar a aba permanece, pois não é substituível de forma segura por UI personalizada.
+- Área de filtros utiliza labels `flex-col` com espaçamento fixo, controles `h-10`, ícone de busca centralizado verticalmente e ações do cabeçalho alinhadas. O cabeçalho da sequência tem hierarquia uniforme, a lista conserva IDs, timestamps, badges e ações. Layout desktop/tablet/mobile e PT/EN/zh-TW.
+- Escopo de código: interface e testes. **Não modificar banco industrial, endpoints de autorização, métricas do BI, CLP, Node-RED ou certificados.**
+
+**Gates para merge:** CI completo (Linux/PostgreSQL + Windows PowerShell, frontend/SSR), testes de não regressão e aprovação do usuário. **Depois de merge autorizado:** atualização do notebook pelo instalador oficial com backup; conferir as cores/hover/foco, edição autorizada, solicitação com credencial, 409, lista com filtros/nomes longos, modais, toasts, permissões, temas e traduções.
