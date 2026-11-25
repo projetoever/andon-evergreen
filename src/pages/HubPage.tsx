@@ -189,12 +189,12 @@ export function HubPage() {
               </Button>
             )}
 
-            <Button variant="outline" onClick={enterAdministration}>
+            <Button variant="outline" data-audit-action="hub.open.administration" onClick={enterAdministration}>
               <Settings className="mr-2 h-4 w-4" />
               {t("Administração do Hub")}
             </Button>
             {access?.centralAccessEnabled && access.principal?.purpose === "normal" && (
-              <Button variant="outline" disabled={logoutBusy}
+              <Button variant="outline" disabled={logoutBusy} data-audit-action="hub.logout"
                 aria-label={ui("Sair desta sessão")} title={ui("Sair desta sessão")}
                 onClick={() => void endOwnCentralSession()}>
                 <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
