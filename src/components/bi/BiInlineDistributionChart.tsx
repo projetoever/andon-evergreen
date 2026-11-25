@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 import { BiChartAlternative } from "./BiChartAlternative";
 import { availableBiChartModes, type BiChartMode } from "./biChartModePolicy";
@@ -57,7 +57,7 @@ export function BiInlineDistributionChart({
       <div style={{ height }} className="w-full min-w-0" role="img" aria-label={ui("Gráfico comparativo com escala e valores inspecionáveis")}>
         {activeMode === "bars" ? (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 24, bottom: 12, left: 0 }}>
+            <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 72, bottom: 12, left: 0 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" domain={[0, "auto"]} tick={{ fill:"var(--muted-foreground)", fontSize:10 }}
                 axisLine={false} tickLine={false}
@@ -71,6 +71,7 @@ export function BiInlineDistributionChart({
               <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} maxBarSize={23}
                 onClick={(row) => { const item=row as {id?:string;payload?:{id?:string}}; const id=item.payload?.id ?? item.id; if(id)choose(String(id)); }}>
                 {rows.map(row => <Cell key={row.id} fill={color} fillOpacity={selectedId && selectedId !== row.id ? .35 : .94} cursor={onInspect ? "pointer" : "default"} />)}
+                <LabelList dataKey="value" position="right" formatter={v=>format(Number(v))} fill="var(--foreground)" fontSize={10}/>
               </Bar>
             </BarChart>
           </ResponsiveContainer>
