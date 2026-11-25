@@ -659,8 +659,8 @@ export function DashboardPriorityPage() {
                       <GripVertical className="h-4 w-4" />
                     </button>
 
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <p className="min-w-0 break-words text-sm font-bold sm:text-base">{row.name}</p>
                         {activeRank !== null && (
                           <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-black text-primary"
@@ -669,12 +669,29 @@ export function DashboardPriorityPage() {
                           </span>
                         )}
                       </div>
-                      <p className="break-all font-mono text-xs text-muted-foreground">
-                        {ui("ID")}: {row.id}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="break-all font-mono text-xs text-muted-foreground">
+                          {ui("ID")}: {row.id}
+                        </span>
                         <PriorityActivationBadge active={row.isActive} />
-                        <PriorityProductionBadge mode={row.productionMode} />
+                        {scheduleRequester && row.productionMode && row.isActive &&
+                          (scheduleRequester.fullScope || scheduleRequester.machineIds.includes(row.id)) ? (
+                          <button type="button"
+                            className="group inline-flex max-w-full items-center gap-1.5 rounded-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isLoading || isSaving || Boolean(scheduleCheckingId) || Boolean(pendingSchedule)}
+                            title={ui(row.productionMode === "scheduled" ? "Retirar da programação" : "Programar produção")}
+                            aria-label={ui("Alterar a programação de {0}", { 0: row.name })}
+                            onClick={() => void requestScheduleChange(row)}>
+                            <PriorityProductionBadge mode={row.productionMode} />
+                            <Pencil className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                            <span className="text-xs font-bold text-primary underline-offset-2 group-hover:underline">
+                              {ui("Alterar programação")}
+                            </span>
+                          </button>
+                        ) : <PriorityProductionBadge mode={row.productionMode} />}
+                        {scheduleCheckingId === row.id && (
+                          <span role="status" className="text-xs text-muted-foreground">{ui("Verificando permissão...")}</span>
+                        )}
                       </div>
                     </div>
 
