@@ -2,8 +2,10 @@
 
 **Data:** 25/11/2026 · **Issue:** #614 · **Branch:** `pente/02-priority-range-overview-20261125`
 
-**Base verificada:** `main@f6a2ff7b8d63faa743f0913e77dbd44b820b0849` (PR #630 integrada).
+**Base original auditada:** `main@f6a2ff7b8d63faa743f0913e77dbd44b820b0849` (PR #630 integrada).
+**Base da PR sincronizada #646:** `main@62bfac192dd073d410b2af8893aafaf500eac069` (inclui PENTE 6D BI; suite `test:ui` reconciliada).
 **Regra de entrega:** branch e PR de desenvolvimento, CI e autorização expressa antes de integrar na main. Nenhuma modificação ao servidor industrial.
+**PR de integração:** #646 `pente/02-priority-range-overview-sync-20261125`; PR original #645 mantida apenas para rastreabilidade dos commits de desenvolvimento e falhas estáticas iniciais corrigidas. A decisão de integrar à main depende de CI verde no HEAD final.
 
 ## Diagnóstico
 
