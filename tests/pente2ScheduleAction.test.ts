@@ -36,10 +36,11 @@ test("PENTE 2 reuses the central step-up with authorizer, scope, locks and audit
 });
 
 test("PENTE 2 final: authorized writers avoid per-machine password, request-only retains step-up", async () => {
-  const [page, routes, sessionWrite] = await Promise.all([
+  const [page, routes, sessionWrite, badge] = await Promise.all([
     source("src/pages/DashboardPriorityPage.tsx"),
     source("server/src/routes/access.ts"),
     source("server/src/access/centralProductionModeSession.ts"),
+    source("src/components/priority/PriorityMachineBadges.tsx"),
   ]);
   assert.match(page, /principal!\.permissions\?\.includes\("production\.schedule\.write"\)/);
   assert.match(page, /if \(canWrite\) \{/);
@@ -57,8 +58,12 @@ test("PENTE 2 final: authorized writers avoid per-machine password, request-only
   assert.match(sessionWrite, /production_mode_changed", 409/);
   assert.match(sessionWrite, /machineProductionEvent\.create/);
   assert.match(sessionWrite, /machine\.production_mode\.session_authorized/);
-  assert.match(page, /bg-emerald-50/);
-  assert.match(page, /bg-amber-50/);
-  assert.match(page, /dark:bg-emerald-950/);
-  assert.match(page, /dark:bg-amber-950/);
+  // The unified row composes the existing semantic badge; its colors belong
+  // to the badge component rather than a duplicated production-only list.
+  assert.match(page, /<PriorityProductionBadge mode=\{row\.productionMode\}/);
+  assert.match(page, /onClick=\{\(\) => void requestScheduleChange\(row\)\}/);
+  assert.match(badge, /bg-emerald-50/);
+  assert.match(badge, /bg-amber-50/);
+  assert.match(badge, /dark:bg-emerald-950/);
+  assert.match(badge, /dark:bg-amber-950/);
 });
