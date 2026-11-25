@@ -2,6 +2,7 @@ import { getInterfaceLocale, ui, systemMessage } from "@/i18n/translate";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from "lucide-react";
 import { BiSampleDiagnosticsPanel } from "@/components/bi/BiSampleDiagnosticsPanel";
+import { BiInlineDistributionChart } from "@/components/bi/BiInlineDistributionChart";
 import type {
   AnalyticsAssetReliability,
   BiSampleDiagnostics,
@@ -113,6 +114,24 @@ export function BiDataHealthPanel({
           {ui("Dados do ambiente conectado · somente leitura")}
         </span>
       </header>
+      <div className="grid shrink-0 gap-2 lg:grid-cols-2">
+        <div className="min-w-0 rounded-lg border border-border bg-background/25 p-3">
+          <h3 className="text-xs font-black uppercase">{ui("Situação atual dos alertas")}</h3>
+          <p className="mt-1 text-[11px] text-muted-foreground">{ui("Alertas com referência ao estado atual. As categorias podem se sobrepor.")}</p>
+          <BiInlineDistributionChart
+            rows={(["active-calls","open-events","active-sessions"] as AnalyticsDataQualityCategory[]).map(id=>({id,label:LABELS[id],value:counts[id]}))}
+            unit="count" color="#f59e0b" height={155} allowComposition={false}
+            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>
+        </div>
+        <div className="min-w-0 rounded-lg border border-border bg-background/25 p-3">
+          <h3 className="text-xs font-black uppercase">{ui("Alertas no período selecionado")}</h3>
+          <p className="mt-1 text-[11px] text-muted-foreground">{ui("Classificações ausentes e eventos sem chamado não representam uma composição aditiva.")}</p>
+          <BiInlineDistributionChart
+            rows={(["unclassified-calls","unlinked-events"] as AnalyticsDataQualityCategory[]).map(id=>({id,label:LABELS[id],value:counts[id]}))}
+            unit="count" color="#38bdf8" height={155} allowComposition={false}
+            onInspect={id=>onCategoryChange(id as AnalyticsDataQualityCategory)}/>
+        </div>
+      </div>
       <BiSampleDiagnosticsPanel data={sampleDiagnostics} noKpiSample={noKpiSample === true} />
       <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {categories.map((type) => (
