@@ -26,9 +26,11 @@ import { ProductionModeCredentialModal } from "@/components/machines/ProductionM
 import { accessRequest, type AccessState } from "@/services/accessService";
 import { PrioritySectionNav, type PrioritySectionId } from "@/components/priority/PrioritySectionNav";
 import { PriorityActivationBadge, PriorityProductionBadge } from "@/components/priority/PriorityMachineBadges";
+import { PriorityOverviewPanel } from "@/components/priority/PriorityOverviewPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { reorderVisiblePriorityIds } from "@/utils/priorityFilteredOrder";
+import { canShowPriorityMachineHistory } from "@/utils/priorityHistoryVisibility";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleNavigation } from "@/components/layout/ModuleNavigation";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
@@ -67,6 +69,8 @@ export function DashboardPriorityPage() {
   );
   const [rows, setRows] = useState<DashboardPriorityMachine[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [priorityHighlightCount, setPriorityHighlightCount] = useState(5);
+  const [savedHighlightCount, setSavedHighlightCount] = useState(5);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [lastOrderUpdatedAt, setLastOrderUpdatedAt] = useState<string | null>(null);
   const [lastOrderUpdatedBy, setLastOrderUpdatedBy] = useState<string | null>(null);
@@ -94,7 +98,12 @@ export function DashboardPriorityPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const currentIds = rows.map((row) => row.id);
-  const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|");
+  const hasUnsavedChanges = currentIds.join("|") !== savedIds.join("|") ||
+    priorityHighlightCount !== savedHighlightCount;
+  const activeRows = rows.filter((row) => row.isActive);
+  const activeMachineCount = activeRows.length;
+  const effectiveHighlightCount = Math.min(priorityHighlightCount, activeMachineCount);
+  const canShowGlobalRanks = !access?.centralAccessEnabled || access?.principal?.machineScope === "all";
   useBlocker({
     shouldBlockFn: () =>
       hasUnsavedChanges &&
@@ -105,12 +114,12 @@ export function DashboardPriorityPage() {
 
   const activePriorityRanks = useMemo(() => {
     const ranks = new Map<string, number>();
-    rows
-      .filter((row) => row.isActive)
-      .slice(0, 5)
-      .forEach((row, index) => ranks.set(row.id, index + 1));
+    if (canShowGlobalRanks) {
+      activeRows.slice(0, effectiveHighlightCount)
+        .forEach((row, index) => ranks.set(row.id, index + 1));
+    }
     return ranks;
-  }, [rows]);
+  }, [rows, effectiveHighlightCount, canShowGlobalRanks]);
 
   // Filters apply immediately to the visible list. The order write always sends
   // the full machine catalog; hidden rows are never dropped from the snapshot.
@@ -143,6 +152,8 @@ export function DashboardPriorityPage() {
       const snapshot = await getDashboardPriorityOrder(localMachines);
       setRows(snapshot.machines);
       setSavedIds(snapshot.machines.map((machine) => machine.id));
+      setPriorityHighlightCount(snapshot.priorityHighlightCount ?? 5);
+      setSavedHighlightCount(snapshot.priorityHighlightCount ?? 5);
       setLastOrderUpdatedAt(snapshot.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(snapshot.lastOrderUpdatedBy);
     } catch (error) {
@@ -240,17 +251,29 @@ export function DashboardPriorityPage() {
 
   async function handleSave() {
     if (centralReadOnly || !hasUnsavedChanges || isSaving) return;
+    if (priorityHighlightCount !== savedHighlightCount &&
+        (!Number.isInteger(priorityHighlightCount) || priorityHighlightCount < 1 ||
+         priorityHighlightCount > activeMachineCount)) {
+      toast.error(ui("Selecione entre 1 e {0} máquinas ativas.", { 0: activeMachineCount }));
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const result = await saveDashboardPriorityOrder(rows.map((row) => row.id), savedIds);
+      const result = await saveDashboardPriorityOrder(
+        rows.map((row) => row.id), savedIds,
+        priorityHighlightCount !== savedHighlightCount ? priorityHighlightCount : undefined,
+        priorityHighlightCount !== savedHighlightCount ? savedHighlightCount : undefined,
+      );
       setSavedIds(rows.map((row) => row.id));
+      setSavedHighlightCount(result.priorityHighlightCount);
+      setPriorityHighlightCount(result.priorityHighlightCount);
       setLastOrderUpdatedAt(result.lastOrderUpdatedAt);
       setLastOrderUpdatedBy(result.lastOrderUpdatedBy);
       toast.success("Sequência visual de prioridades salva.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      toast.error(/priority_order_changed|priority_machine_catalog_changed/.test(message)
+      toast.error(/priority_order_changed|priority_machine_catalog_changed|priority_highlight_changed|priority_highlight_count_out_of_range/.test(message)
         ? ui("A sequência foi alterada em outra estação. Recarregue e revise antes de salvar.")
         : message || ui("Não foi possível salvar a sequência."));
     } finally {
@@ -395,9 +418,9 @@ export function DashboardPriorityPage() {
             {ui("Como interpretar as prioridades")}
           </summary>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-            <p>{ui("Arraste as máquinas ou use ↑/↓. As cinco primeiras máquinas ativas recebem destaque no Dashboard.")}</p>
+            <p>{ui("Arraste as máquinas ou use ↑/↓. A quantidade configurada de máquinas ativas recebe destaque no Dashboard.")}</p>
             <p>{ui("Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.")}</p>
-            <p>{ui("Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.")}</p>
+            <p>{ui("Somente usuários autorizados podem salvar uma sequência e a quantidade de destaques P1 a Pn no Dashboard.")}</p>
             <p>{ui("Os filtros alteram somente a lista exibida. A gravação preserva a sequência completa e as máquinas ocultas.")}</p>
           </div>
         </details>
@@ -435,6 +458,48 @@ export function DashboardPriorityPage() {
         {centralReadOnly && (
           <p role="status" className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             {ui("Somente leitura")}: {ui("A edição de prioridades pela autenticação central ainda não está liberada.")}
+          </p>
+        )}
+        {!centralReadOnly && (
+          <section className="rounded-xl border border-primary/25 bg-card px-4 py-3"
+            aria-label={ui("Configurar quantidade de prioridades")}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <h2 className="text-sm font-bold text-foreground">{ui("Quantidade de cards prioritários")}</h2>
+                <p className="max-w-xl text-xs text-muted-foreground">
+                  {ui("Escolha quantas máquinas ativas terão destaque P1 até P{0} no Dashboard ANDON. A alteração só entra em vigor ao salvar.", { 0: effectiveHighlightCount })}
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-xs font-semibold">
+                <span>{ui("Prioridades")}</span>
+                <select aria-label={ui("Quantidade de cards prioritários")}
+                  className="h-10 min-w-20 rounded-lg border border-input bg-background px-3 text-base font-bold text-foreground"
+                  disabled={isLoading || isSaving || activeMachineCount === 0}
+                  value={activeMachineCount === 0 ? 0 : effectiveHighlightCount}
+                  onChange={(event) => setPriorityHighlightCount(Number(event.target.value))}>
+                  {activeMachineCount === 0 && <option value={0}>0</option>}
+                  {Array.from({ length: activeMachineCount }, (_, i) => i + 1).map((count) => (
+                    <option key={count} value={count}>{count}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p role="status" className="mt-2 text-xs text-muted-foreground">
+              {activeMachineCount === 0 ? ui("Sem máquinas ativas para priorizar.") :
+                priorityHighlightCount !== savedHighlightCount
+                  ? ui("Quantidade alterada, aguardando salvar.") :
+                  ui("Configuração sincronizada com o Dashboard.")}
+            </p>
+            {priorityHighlightCount > activeMachineCount && activeMachineCount > 0 && (
+              <p className="mt-2 text-xs text-warning">
+                {ui("O cadastro passou a ter menos máquinas ativas. O Dashboard aplica somente {0} destaques até que a configuração seja revisada.", { 0: activeMachineCount })}
+              </p>
+            )}
+          </section>
+        )}
+        {centralReadOnly && (
+          <p className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            {ui("Destaques ativos no Dashboard")}: {effectiveHighlightCount}
           </p>
         )}
         <section className="overflow-hidden rounded-xl border border-border bg-card">
@@ -607,9 +672,7 @@ export function DashboardPriorityPage() {
                     </div>
 
                     <div className="col-span-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2 sm:col-span-1 sm:border-0 sm:pt-0">
-                      {access?.centralAccessEnabled === true &&
-                        access.globalHistory?.available === true &&
-                        access.globalHistory.allowed === true && (
+                      {canShowPriorityMachineHistory(access, row.id) && (
                         <Button type="button" variant="outline" size="sm"
                           aria-label={ui("Consultar histórico de {0}", { 0: row.name })}
                           onClick={() => void navigate({ to: "/history", search: { machineId: row.id } })}>
@@ -679,6 +742,7 @@ export function DashboardPriorityPage() {
                     .map((id) => byId.get(id))
                     .filter((row): row is DashboardPriorityMachine => Boolean(row)),
                 );
+                setPriorityHighlightCount(savedHighlightCount);
               }}
             >
               <Undo2 className="mr-2 h-4 w-4" />
@@ -698,53 +762,16 @@ export function DashboardPriorityPage() {
             )}
 
             {activeSection === "overview" && (
-              <section className="space-y-4" aria-label={ui("Visão Geral")}>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas na sequência")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">{isLoading || loadingError ? "—" : rows.length}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas ativas")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">
-                      {isLoading || loadingError ? "—" : rows.filter((machine) => machine.isActive).length}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{ui("Máquinas inativas")}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums">
-                      {isLoading || loadingError ? "—" : rows.filter((machine) => !machine.isActive).length}
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <h2 className="mb-3 text-base font-bold">{ui("Cinco primeiras máquinas ativas")}</h2>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    {ui("O destaque P1–P5 é determinado pela ordem das máquinas ativas, não pela programação de produção.")}
-                  </p>
-                  {isLoading ? (
-                    <p role="status">{ui("Carregando sequência...")}</p>
-                  ) : loadingError ? (
-                    <p role="alert" className="text-danger">{loadingError}</p>
-                  ) : (
-                    <ol className="space-y-2">
-                      {rows.filter((machine) => machine.isActive).slice(0, 5).map((machine) => (
-                        <li key={machine.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm">
-                          <span className="font-bold text-primary">P{activePriorityRanks.get(machine.id)}</span>
-                          <span className="min-w-0 flex-1 font-semibold">{machine.name}</span>
-                          <span className="font-mono text-xs text-muted-foreground">ID {machine.id}</span>
-                        </li>
-                      ))}
-                      {!rows.some((machine) => machine.isActive) && (
-                        <li className="text-sm text-muted-foreground">{ui("Nenhuma máquina ativa na sequência.")}</li>
-                      )}
-                    </ol>
-                  )}
-                </div>
-                <Button type="button" variant="outline" onClick={() => setActiveSection("sequence")}>
-                  {ui("Abrir sequência de prioridades")}
-                </Button>
-              </section>
+              <PriorityOverviewPanel
+                machines={rows}
+                configuredHighlightCount={priorityHighlightCount}
+                globalRankVisible={canShowGlobalRanks}
+                loading={isLoading}
+                error={loadingError}
+                lastOrderUpdatedAt={lastOrderUpdatedAt}
+                lastOrderUpdatedBy={lastOrderUpdatedBy}
+                onSectionChange={setActiveSection}
+              />
             )}
 
             {activeSection === "production" && (
@@ -910,7 +937,7 @@ export function DashboardPriorityPage() {
                   {ui("Prioridade define a posição da máquina na sequência visual. Máquina ativa indica disponibilidade no cadastro. Produção programada determina a janela operacional e é um estado diferente.")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {ui("Somente usuários autorizados podem salvar uma sequência. As cinco primeiras máquinas ativas recebem P1 a P5 no Dashboard.")}
+                  {ui("Somente usuários autorizados podem salvar uma sequência e a quantidade de destaques P1 a Pn no Dashboard.")}
                 </p>
               </section>
             )}

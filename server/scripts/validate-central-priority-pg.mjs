@@ -89,8 +89,20 @@ try {
       .map(m => [m.id, m.priorityOrder]).sort());
 
   const changedOrder = reversed.some((id, index) => id !== base[index]);
-  const resultWrite = await request(reversed);
+  const previousHighlightCount = originalPriorityConfig?.priorityHighlightCount ?? 5;
+  const resultWrite = await request(reversed, {
+    priorityHighlightCount: 1, expectedPriorityHighlightCount: previousHighlightCount,
+  });
   assert.equal(resultWrite.ok, true);
+  assert.equal(resultWrite.priorityHighlightCount, 1);
+  assert.equal((await db.dashboardPriorityConfig.findUnique({ where: { id: "global" } })).priorityHighlightCount, 1);
+  await assert.rejects(request(reversed, {
+    expectedMachineIds: reversed, priorityHighlightCount: 1, expectedPriorityHighlightCount: previousHighlightCount + 1,
+  }), e => e.code === "priority_highlight_changed");
+  const activeCount = await db.machine.count({ where: { isActive: true } });
+  if (activeCount < 1000) await assert.rejects(request(reversed, {
+    expectedMachineIds: reversed, priorityHighlightCount: activeCount + 1, expectedPriorityHighlightCount: 1,
+  }), e => e.code === "priority_highlight_count_out_of_range");
   if (changedOrder) {
     await assert.rejects(request(base, {}, contender), (e) => e.code === "priority_order_changed");
   }
@@ -161,6 +173,7 @@ try {
         data: {
           lastOrderUpdatedAt: originalPriorityConfig.lastOrderUpdatedAt,
           lastOrderUpdatedBy: originalPriorityConfig.lastOrderUpdatedBy,
+          priorityHighlightCount: originalPriorityConfig.priorityHighlightCount,
         },
       });
     else

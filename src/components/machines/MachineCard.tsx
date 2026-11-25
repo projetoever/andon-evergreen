@@ -38,10 +38,11 @@ import {
 interface MachineCardProps {
   machine: Machine;
   productionPriorityRank?: number | null;
+  highlightIndividualPriority?: boolean;
   attentionMode?: DashboardAttentionMode;
 }
 
-export function MachineCard({ machine, productionPriorityRank = null, attentionMode = "discreet" }: MachineCardProps) {
+export function MachineCard({ machine, productionPriorityRank = null, highlightIndividualPriority = false, attentionMode = "discreet" }: MachineCardProps) {
   const { calls, settings } = useAndon();
   const { t } = useLanguage();
   const [operatorNoteOpen, setOperatorNoteOpen] = useState(false);
@@ -133,6 +134,7 @@ export function MachineCard({ machine, productionPriorityRank = null, attentionM
     <div
       className={cn(
         "relative isolate flex h-full min-h-0 flex-col gap-1.5 overflow-visible rounded-xl border-2 bg-card p-2 shadow-md transition-all 2xl:gap-2 2xl:p-2.5",
+        highlightIndividualPriority && productionPriorityRank !== null && "ring-2 ring-orange-500/70 ring-offset-1 ring-offset-background",
         cardAttentionTone === null && !isCritical && !isWarning && "andon-palette-machine-card",
         attentionMode === "highlighted" && cardAttentionTone === "danger" && "andon-card-highlighted-danger",
         attentionMode === "highlighted" && cardAttentionTone === "warning" && "andon-card-highlighted-warning",

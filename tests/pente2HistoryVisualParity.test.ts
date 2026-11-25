@@ -37,7 +37,8 @@ test("PENTE 2 visual: collapsible filters apply only to visible rows without dro
   assert.match(priority, /visibleRows\.length === 0 \? \(/);
   assert.match(priority, /rows\.length === 0 \? ui/);
   assert.match(priority, /reorderVisiblePriorityIds/);
-  assert.match(priority, /saveDashboardPriorityOrder\(rows\.map\(\(row\) => row\.id\), savedIds\)/);
+  assert.match(priority, /saveDashboardPriorityOrder\(\s*rows\.map\(\(row\) => row\.id\), savedIds,/);
+  assert.match(priority, /priorityHighlightCount !== savedHighlightCount/);
   assert.match(priority, /hasUnsavedChanges/);
   assert.match(priority, /window\.confirm\(ui\("Descartar as alterações de prioridade ainda não salvas\?"\)\)/);
 });
@@ -53,8 +54,8 @@ test("PENTE 2 visual: semantic machine badges, rights-scoped history and operati
   assert.match(priority, /<PriorityProductionBadge mode=\{row\.productionMode\}/);
   assert.match(priority, /<PriorityProductionBadge mode=\{machine\.productionMode\}/);
   assert.match(priority, /activePriorityRanks\.get\(row\.id\)/);
-  assert.match(priority, /access\.globalHistory\?\.available === true/);
-  assert.match(priority, /access\.globalHistory\.allowed === true/);
+  assert.match(priority, /canShowPriorityMachineHistory\(access, row\.id\)/);
+  assert.match(priority, /canShowPriorityMachineHistory\(access, row\.id\)/);
   assert.match(priority, /navigate\(\{ to: "\/history", search: \{ machineId: row\.id \} \}\)/);
   assert.match(badge, /CalendarCheck2/);
   assert.match(badge, /CalendarX2/);

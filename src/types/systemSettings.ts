@@ -21,6 +21,8 @@ export interface SystemSettings {
   dashboardSoundMutedUntil: string | null;
   dashboardSoundMuteReason: "manual" | "auto" | null;
   dashboardMachineOrderMode: DashboardMachineOrderMode;
+  /** Global number of highlighted active machines; effective count is clamped by catalog. */
+  priorityHighlightCount?: number;
   attendanceMode: AttendanceMode;
   rfidReaderMode: "keyboard_hid";
   rfidInputTerminator: RfidInputTerminator;

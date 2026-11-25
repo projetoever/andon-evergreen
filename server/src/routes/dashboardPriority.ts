@@ -24,6 +24,8 @@ const MIN_PASSWORD_LENGTH = 6;
 
 class PriorityCatalogChangedError extends Error {}
 class PriorityOrderChangedError extends Error {}
+class PriorityHighlightChangedError extends Error {}
+class PriorityHighlightRangeError extends Error {}
 
 type PrioritySession = {
   username: string;
@@ -40,6 +42,8 @@ type CredentialsBody = {
 type OrderBody = {
   machineIds?: unknown;
   expectedMachineIds?: unknown;
+  priorityHighlightCount?: unknown;
+  expectedPriorityHighlightCount?: unknown;
 };
 
 function normalizeUsername(value: unknown) {
@@ -282,6 +286,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
         select: {
           lastOrderUpdatedAt: true,
           lastOrderUpdatedBy: true,
+          priorityHighlightCount: true,
         },
       }),
     ]);
@@ -323,6 +328,7 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
       // Global change attribution must not leak activity on inaccessible assets.
       lastOrderUpdatedAt: allowedIds === null ? (config?.lastOrderUpdatedAt ?? null) : null,
       lastOrderUpdatedBy: allowedIds === null ? (config?.lastOrderUpdatedBy ?? null) : null,
+      priorityHighlightCount: config?.priorityHighlightCount ?? 5,
     };
   });
 
@@ -364,6 +370,8 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           workstationId: parseWorkstationId(request.headers["x-andon-workstation-id"]) ?? "",
           machineIds: request.body?.machineIds,
           expectedMachineIds: request.body?.expectedMachineIds,
+          priorityHighlightCount: request.body?.priorityHighlightCount,
+          expectedPriorityHighlightCount: request.body?.expectedPriorityHighlightCount,
           requestId: request.id, ipAddress: request.ip.replace(/^::ffff:/, ""),
         });
       } catch (error) {
@@ -381,6 +389,14 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
 
     const machineIds = request.body.machineIds;
     const expectedMachineIds = request.body.expectedMachineIds;
+    const isHighlightChange = request.body.priorityHighlightCount !== undefined;
+    if (isHighlightChange && (typeof request.body.priorityHighlightCount !== "number" ||
+        !Number.isInteger(request.body.priorityHighlightCount) ||
+        Number(request.body.priorityHighlightCount) < 1 ||
+        Number(request.body.priorityHighlightCount) > 1000 ||
+        typeof request.body.expectedPriorityHighlightCount !== "number" ||
+        !Number.isInteger(request.body.expectedPriorityHighlightCount)))
+      return badRequest(reply, "Quantidade de destaques inválida.");
     if (!Array.isArray(expectedMachineIds) || expectedMachineIds.length > 1000 ||
         expectedMachineIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 120) ||
         new Set(expectedMachineIds).size !== expectedMachineIds.length)
@@ -420,13 +436,22 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
         const currentById = new Map(
           currentMachines.map((machine) => [machine.id, machine]),
         );
-        const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines);
+        const config = await tx.dashboardPriorityConfig.findUnique({
+          where: { id: GLOBAL_PRIORITY_CONFIG_ID }, select: { priorityHighlightCount: true },
+        });
+        const oldCount = config?.priorityHighlightCount ?? 5;
+        const newCount = isHighlightChange ? Number(request.body.priorityHighlightCount) : oldCount;
+        if (isHighlightChange && Number(request.body.expectedPriorityHighlightCount) !== oldCount)
+          throw new PriorityHighlightChangedError("A quantidade de destaques mudou em outra estação. Recarregue.");
+        if (isHighlightChange && newCount > currentMachines.filter((machine) => machine.isActive).length)
+          throw new PriorityHighlightRangeError("A quantidade deve estar entre 1 e o número de máquinas ativas.");
+        const previousSnapshot = buildCurrentPrioritySnapshot(currentMachines, oldCount);
         if (expectedMachineIds.length !== previousSnapshot.orderedIds.length ||
             expectedMachineIds.some((id, index) => id !== previousSnapshot.orderedIds[index]))
           throw new PriorityOrderChangedError(
             "A sequência foi alterada em outra estação. Recarregue antes de salvar.",
           );
-        const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById);
+        const nextSnapshot = buildPrioritySnapshot(normalizedIds, currentById, newCount);
         const priorityChanges = diffPrioritySnapshots(
           normalizedIds,
           previousSnapshot,
@@ -462,17 +487,20 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
           update: {
             lastOrderUpdatedAt: updatedAt,
             lastOrderUpdatedBy: auth.session.username,
+            ...(isHighlightChange ? { priorityHighlightCount: newCount } : {}),
           },
           create: {
             id: GLOBAL_PRIORITY_CONFIG_ID,
             lastOrderUpdatedAt: updatedAt,
             lastOrderUpdatedBy: auth.session.username,
+            priorityHighlightCount: newCount,
           },
         });
 
         return {
           updatedAt,
           updatedBy: auth.session.username,
+          priorityHighlightCount: newCount,
         };
       });
 
@@ -480,8 +508,13 @@ export function registerDashboardPriorityRoutes(app: FastifyInstance) {
         ok: true,
         lastOrderUpdatedAt: result.updatedAt,
         lastOrderUpdatedBy: result.updatedBy,
+        priorityHighlightCount: result.priorityHighlightCount,
       };
     } catch (error) {
+      if (error instanceof PriorityHighlightChangedError)
+        return reply.status(409).send({ error: "priority_highlight_changed", message: error.message });
+      if (error instanceof PriorityHighlightRangeError)
+        return reply.status(409).send({ error: "priority_highlight_count_out_of_range", message: error.message });
       if (error instanceof PriorityOrderChangedError)
         return reply.status(409).send({ error: "priority_order_changed", message: error.message });
       if (error instanceof PriorityCatalogChangedError) {

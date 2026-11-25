@@ -42,6 +42,7 @@ function createDefaultLocalSystemSettings(): SystemSettings {
     dashboardSoundMutedUntil: null,
     dashboardSoundMuteReason: null,
     dashboardMachineOrderMode: "default",
+    priorityHighlightCount: 5,
     attendanceMode: "name",
     rfidReaderMode: "keyboard_hid",
     rfidInputTerminator: "enter",
