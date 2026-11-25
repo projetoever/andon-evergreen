@@ -37,7 +37,6 @@ export function HubIdentityPanel({
   const actionInFlight = useRef(false);
   const [error, setError] = useState("");
   const [newPasswordDraft, setNewPasswordDraft] = useState("");
-  const [showSessionDiagnosis, setShowSessionDiagnosis] = useState(false);
   const admission = access.workstation.admission;
   const waiting = access.workstation.pendingApproval && admission?.status === "pending" &&
     session?.principal?.purpose === "workstation_admission";
@@ -228,19 +227,12 @@ export function HubIdentityPanel({
           {ui(error)}
         </p>
       )}
-      {!principal && session.sessionDiagnostic && (
+      {!principal && session.sessionDiagnostic && hadConfirmedPersistentSession() && (
         <section className="space-y-2 text-xs" aria-label={ui("Diagnóstico do login anterior")}>
-          {(hadConfirmedPersistentSession() || showSessionDiagnosis) ? (
-            <p role="status" className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2">
-              <strong>{ui("Diagnóstico do login anterior")} ({session.sessionDiagnostic}):</strong>{" "}
-              {ui(sessionLossMessage(session.sessionDiagnostic))}
-            </p>
-          ) : (
-            <Button type="button" variant="outline" size="sm"
-              onClick={() => setShowSessionDiagnosis(true)}>
-              {ui("Ver diagnóstico do login anterior")}
-            </Button>
-          )}
+          <p role="status" className="rounded-lg border border-warning/40 bg-warning/5 px-3 py-2">
+            <strong>{ui("Diagnóstico do login anterior")} ({session.sessionDiagnostic}):</strong>{" "}
+            {ui(sessionLossMessage(session.sessionDiagnostic))}
+          </p>
         </section>
       )}
       {!principal && (
