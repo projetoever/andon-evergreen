@@ -71,7 +71,7 @@ export function BiInlineDistributionChart({
               <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} maxBarSize={23}
                 onClick={(row) => { const item=row as {id?:string;payload?:{id?:string}}; const id=item.payload?.id ?? item.id; if(id)choose(String(id)); }}>
                 {rows.map(row => <Cell key={row.id} fill={color} fillOpacity={selectedId && selectedId !== row.id ? .35 : .94} cursor={onInspect ? "pointer" : "default"} />)}
-                <LabelList dataKey="value" position="right" formatter={v=>format(v == null ? null : Number(v))} fill="var(--foreground)" fontSize={10}/>
+                <LabelList dataKey="value" position="right" formatter={(v: unknown)=>format(v == null ? null : Number(v))} fill="var(--foreground)" fontSize={10}/>
               </Bar>
             </BarChart>
           </ResponsiveContainer>
