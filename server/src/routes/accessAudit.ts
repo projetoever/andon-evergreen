@@ -59,13 +59,15 @@ export function auditWhere(query: AuditQuery): Prisma.AuditEventWhereInput {
 }
 const auditOrder = [{ occurredAt: "desc" as const }, { id: "desc" as const }];
 const safePage = /^\/(?:$|hub(?:\/admin)?$|andon(?:\/admin)?$|bi$|machine-priorities$|history$|active-calls$|settings$|machines\/[a-zA-Z0-9_-]{1,80}(?:\/(?:call-history|failure-history))?$)/;
+export function isSafeAuditPage(page: string): boolean { return safePage.test(page); }
 const csvColumns = [
   "occurredAt", "id", "actorType", "actorLogin", "actorName", "actorRole",
   "workstationId", "ipAddress", "action", "resourceType", "resourceId",
   "machineId", "result", "reason", "before", "after",
 ] as const;
 export function auditCsvCell(value: unknown): string {
-  const str = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+  const str = value == null ? "" : value instanceof Date ? value.toISOString() :
+    typeof value === "object" ? JSON.stringify(value) : String(value);
   // Spreadsheet clients interpret cells beginning with =, +, -, @, CR or TAB
   // as formulas. Preserve evidence as inert text even after CSV export.
   const safe = /^[=+\-@\t\r\n]/.test(str) ? "'" + str : str;
