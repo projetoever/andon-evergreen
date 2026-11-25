@@ -187,7 +187,7 @@ export function BiFailureWorkspace({
             </details>
           </section>
 
-          <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
+          <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <div className="shrink-0">
               <h2 className="text-sm font-black uppercase tracking-wide">
                 {ui("Demanda por setor")}
