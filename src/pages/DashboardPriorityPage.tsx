@@ -525,6 +525,12 @@ export function DashboardPriorityPage() {
                   </span>
                 )}
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" variant="outline"
+                  disabled={activeFilterCount === 0}
+                  onClick={() => { setSearchQuery(""); setActivityFilter("all"); setProductionFilter("all"); }}>
+                  {ui("Limpar filtros")}
+                </Button>
               <Button type="button" size="sm" variant="ghost"
                 aria-expanded={filtersExpanded} aria-controls="priority-filters"
                 onClick={() => setFiltersExpanded(value => !value)}>
@@ -532,6 +538,7 @@ export function DashboardPriorityPage() {
                 <ChevronDown aria-hidden="true"
                   className={cn("ml-1 h-4 w-4 transition-transform", filtersExpanded && "rotate-180")} />
               </Button>
+              </div>
             </div>
             {activeFilterCount > 0 && (
               <p role="status" className="mt-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
@@ -571,20 +578,6 @@ export function DashboardPriorityPage() {
                     <option value="unknown">{ui("Estado desconhecido")}</option>
                   </select>
                 </label>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground">
-                  {ui("A busca e os filtros são aplicados imediatamente, sem alterar a ordem salva.")}
-                </p>
-                <Button type="button" size="sm" variant="outline"
-                  disabled={activeFilterCount === 0}
-                  onClick={() => {
-                    setSearchQuery("");
-                    setActivityFilter("all");
-                    setProductionFilter("all");
-                  }}>
-                  {ui("Limpar filtros")}
-                </Button>
               </div>
             </div>
           </div>
