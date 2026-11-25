@@ -66,7 +66,7 @@ test("PENTE 2B: inline programming uses existing protected operation", async () 
   assert.match(page, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.match(page, /setPendingSchedule\(\{/);
   assert.match(page, /<ProductionModeCredentialModal/);
-  assert.match(page, /expectedProductionMode: machine.productionMode/);
+  assert.match(page, /expectedProductionMode: confirmation.currentMode/);
   assert.match(page, /2xl:grid-cols-\[36px_24px_minmax\(0,1fr\)_auto\]/);
 });
 
