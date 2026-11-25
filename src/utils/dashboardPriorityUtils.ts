@@ -197,24 +197,26 @@ export function splitMachinesByProductionPriority<
   // when their count spans multiple pages. Unranked machines fill any free
   // slots by the existing operational attention rule.
   const fixed = orderedMachines.slice(0, Math.min(Math.max(0, fixedPriorityCount), orderedMachines.length));
-  const remaining = orderedMachines.slice(fixed.length).sort((current, next) => {
-    const operationalDifference =
-      getDashboardPriority(current, calls) - getDashboardPriority(next, calls);
-    return operationalDifference || compareByProductionPriority(current, next);
-  });
+  const remaining = orderedMachines.slice(fixed.length);
   const pages: T[][] = [];
   for (let index = 0; index < fixed.length; index += pageSize)
     pages.push(fixed.slice(index, index + pageSize));
   if (!pages.length) pages.push([]);
 
-  let cursor = 0;
+  // Retain legacy page composition: operational urgency chooses which
+  // unranked machines fill free slots, but their visual order still follows
+  // the manager's saved sequence. All ranked positions stay contiguous.
   const last = pages[pages.length - 1];
-  while (last.length < pageSize && cursor < remaining.length)
-    last.push(remaining[cursor++]);
-  while (cursor < remaining.length) {
-    pages.push(remaining.slice(cursor, cursor + pageSize));
-    cursor += pageSize;
-  }
+  const freeSlots = Math.max(0, pageSize - last.length);
+  const selectedIds = new Set(remaining.slice().sort((current, next) => {
+    const operationalDifference =
+      getDashboardPriority(current, calls) - getDashboardPriority(next, calls);
+    return operationalDifference || compareByProductionPriority(current, next);
+  }).slice(0, freeSlots).map(machine => machine.id));
+  last.push(...remaining.filter(machine => selectedIds.has(machine.id)));
+  const overflow = remaining.filter(machine => !selectedIds.has(machine.id));
+  for (let index = 0; index < overflow.length; index += pageSize)
+    pages.push(overflow.slice(index, index + pageSize));
 
   return pages;
 }
