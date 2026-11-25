@@ -127,7 +127,7 @@ export function PriorityOverviewPanel({
                     {ui("Destaque de prioridade e programação são independentes. Verifique as situações antes de tomar decisões operacionais.")}
                   </p>}
               <Button className="mt-3" size="sm" variant="outline" type="button"
-                onClick={() => onSectionChange("production")}>
+                onClick={() => onSectionChange("sequence")}>
                 {ui("Ver programação por máquina")}
               </Button>
             </section>
