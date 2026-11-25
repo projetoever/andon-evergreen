@@ -29,7 +29,11 @@ test("PENTE 2: the first lot leaves priority writes and production scheduling se
   assert.match(page, /scheduleRequester && row.productionMode && row.isActive/);
   assert.match(page, /scheduleRequester.fullScope \|\| scheduleRequester.machineIds.includes\(row.id\)/);
   assert.match(page, /onClick=\{\(\) => void requestScheduleChange\(row\)\}/);
-  assert.match(page, /if \(!window.confirm\(ui\("Confirmar programação de/);
+  assert.doesNotMatch(page, /window\.confirm\(/);
+  assert.match(page, /setScheduleConfirmation\(\{/);
+  assert.match(page, /open=\{scheduleConfirmation !== null\}/);
+  assert.match(page, /onConfirm=\{\(\) => void confirmScheduleChange\(\)\}/);
+  assert.match(page, /<PriorityProductionBadge mode=\{row\.productionMode\} \/>/);
   assert.match(page, /activeSection === "history" &&/);
   assert.match(page, /activeSection === "overview" &&/);
   assert.match(page, /activeSection === "help" &&/);
@@ -64,4 +68,22 @@ test("PENTE 2B: inline programming uses existing protected operation", async () 
   assert.match(page, /<ProductionModeCredentialModal/);
   assert.match(page, /expectedProductionMode: machine.productionMode/);
   assert.match(page, /2xl:grid-cols-\[36px_24px_minmax\(0,1fr\)_auto\]/);
+});
+
+test("PENTE 2C: status-only control, aligned filters and standard feedback", async () => {
+  const page = await source("pages/DashboardPriorityPage.tsx");
+  const messages = await source("i18n/messages.ts");
+  assert.doesNotMatch(page, /<Pencil/);
+  assert.doesNotMatch(page, /ui\("Alterar programação"\)/);
+  assert.match(page, /ring-emerald-500\/60/);
+  assert.match(page, /ring-amber-500\/60/);
+  assert.match(page, /hover:shadow-md/);
+  assert.match(page, /focus-visible:ring-2/);
+  assert.match(page, /grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-3/);
+  assert.match(page, /flex min-w-0 flex-col gap-2 text-xs font-semibold text-muted-foreground/);
+  assert.match(page, /h-10 w-full rounded-lg/);
+  assert.match(page, /top-1\/2 h-4 w-4 -translate-y-1\/2/);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /toast\.success\(ui\("Programação de produção atualizada com autorização\."\)\)/);
+  assert.match(messages, /Alterar programação da máquina \{0\} de \{1\} para \{2\}\?/);
 });
