@@ -52,7 +52,7 @@ export function BiMaintenanceStackedChart({ rows, height = 265 }: {
             </Bar>
             <Bar dataKey="followUpMinutes" stackId="technical" name={ui("Acompanhamento")} fill="#10b981" maxBarSize={25} radius={[0,4,4,0]}>
               {chartRows.map(row => <Cell key={row.id} fill="#10b981"/>)}
-              <LabelList dataKey="totalPersonMinutes" position="right" formatter={v=>duration(Number(v))} fill="var(--foreground)" fontSize={10}/>
+              <LabelList dataKey="totalPersonMinutes" position="right" formatter={(v: unknown)=>duration(Number(v))} fill="var(--foreground)" fontSize={10}/>
             </Bar>
           </BarChart>
         </ResponsiveContainer>
