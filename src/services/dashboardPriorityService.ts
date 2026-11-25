@@ -11,6 +11,7 @@ let localConfig: {
   password: string;
   lastOrderUpdatedAt?: string | null;
   lastOrderUpdatedBy?: string | null;
+  priorityHighlightCount?: number;
 } | null = null;
 let localOrderIds: string[] = [];
 let localPasswordRequired = true;
@@ -60,6 +61,7 @@ export interface DashboardPriorityOrderSnapshot {
   machines: DashboardPriorityMachine[];
   lastOrderUpdatedAt: string | null;
   lastOrderUpdatedBy: string | null;
+  priorityHighlightCount: number;
 }
 
 function readSession(): DashboardPrioritySession | null {
@@ -239,6 +241,7 @@ export async function getDashboardPriorityOrder(
       machines: sortPriorityMachines(currentMachines, orderIds),
       lastOrderUpdatedAt: config?.lastOrderUpdatedAt ?? null,
       lastOrderUpdatedBy: config?.lastOrderUpdatedBy ?? null,
+      priorityHighlightCount: config?.priorityHighlightCount ?? 5,
     };
   }
 
@@ -248,26 +251,38 @@ export async function getDashboardPriorityOrder(
   });
 }
 
-export async function saveDashboardPriorityOrder(machineIds: string[], expectedMachineIds: string[]) {
+export async function saveDashboardPriorityOrder(
+  machineIds: string[], expectedMachineIds: string[],
+  priorityHighlightCount?: number, expectedPriorityHighlightCount?: number,
+) {
   const session = readSession();
 
   if (CONFIGURED_DATA_MODE === "local") {
     if (localPasswordRequired && !session) throw new Error("Sessão de prioridades necessária.");
     const username = session?.username ?? `workstation:${getCurrentWorkstationId()}`;
+    const config = readLocalConfig();
+    const oldCount = config?.priorityHighlightCount ?? 5;
+    if (priorityHighlightCount !== undefined && (
+      !Number.isInteger(priorityHighlightCount) || priorityHighlightCount < 1 ||
+      priorityHighlightCount > machineIds.length
+    )) throw new Error("Quantidade de destaques inválida.");
+    if (priorityHighlightCount !== undefined && expectedPriorityHighlightCount !== oldCount)
+      throw new Error("priority_highlight_changed");
     const updatedAt = new Date().toISOString();
     localOrderIds = [...machineIds];
-    const config = readLocalConfig();
-    if (config) {
-      localConfig = {
-        ...config,
-        lastOrderUpdatedAt: updatedAt,
-        lastOrderUpdatedBy: username,
-      };
-    }
+    localConfig = {
+      username: config?.username ?? username,
+      password: config?.password ?? "",
+      ...config,
+      lastOrderUpdatedAt: updatedAt,
+      lastOrderUpdatedBy: username,
+      priorityHighlightCount: priorityHighlightCount ?? oldCount,
+    };
     return {
       ok: true,
       lastOrderUpdatedAt: updatedAt,
       lastOrderUpdatedBy: username,
+      priorityHighlightCount: priorityHighlightCount ?? oldCount,
     };
   }
 
@@ -275,9 +290,12 @@ export async function saveDashboardPriorityOrder(machineIds: string[], expectedM
     ok: true;
     lastOrderUpdatedAt: string;
     lastOrderUpdatedBy: string;
+    priorityHighlightCount: number;
   }>("/api/dashboard-priority/order", {
     method: "PUT",
-    body: JSON.stringify({ machineIds, expectedMachineIds }),
+    body: JSON.stringify({ machineIds, expectedMachineIds,
+      ...(priorityHighlightCount !== undefined ? { priorityHighlightCount, expectedPriorityHighlightCount } : {}),
+    }),
     headers: {
       "Content-Type": "application/json",
       ...(session ? { Authorization: `Bearer ${session.token}` } : {}),

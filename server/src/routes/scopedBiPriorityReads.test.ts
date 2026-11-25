@@ -94,6 +94,7 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   assert.deepEqual(queries.pop()?.where, { id: { in: ["37"] } });
   assert.equal(priority.json().lastOrderUpdatedAt, null);
   assert.equal(priority.json().lastOrderUpdatedBy, null);
+  assert.equal(priority.json().priorityHighlightCount, 5);
 
   // Validate that schedule values and event timestamps are returned only for
   // SQL-scoped assets; a machine merely updated for another reason is NOT a
@@ -128,6 +129,7 @@ test("priorities order and BI machine selectors apply SQL scope and conceal glob
   assert.equal(fullPriority.statusCode, 200, fullPriority.body);
   assert.equal(queries.pop()?.where, undefined);
   assert.equal(fullPriority.json().lastOrderUpdatedBy, "other.admin");
+  assert.equal(fullPriority.json().priorityHighlightCount, 5);
 
   const fullHistory = await app.inject({ url: "/api/dashboard-priority/history", headers });
   assert.equal(fullHistory.statusCode, 200, fullHistory.body);

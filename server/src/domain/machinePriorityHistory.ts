@@ -40,13 +40,14 @@ export function sortPriorityMachineIds(machines: PriorityMachineState[]) {
 export function buildPrioritySnapshot(
   orderedIds: string[],
   byId: Map<string, PriorityMachineState>,
+  highlightCount = 5,
 ): PrioritySnapshot {
   const orderById = new Map(orderedIds.map((id, index) => [id, index + 1]));
   const priorityRankById = new Map<string, number>();
 
   orderedIds
     .filter((id) => byId.get(id)?.isActive)
-    .slice(0, 5)
+    .slice(0, Math.max(0, highlightCount))
     .forEach((id, index) => priorityRankById.set(id, index + 1));
 
   return {
@@ -58,11 +59,13 @@ export function buildPrioritySnapshot(
 
 export function buildCurrentPrioritySnapshot(
   machines: PriorityMachineState[],
+  highlightCount = 5,
 ): PrioritySnapshot {
   const orderedIds = sortPriorityMachineIds(machines);
   return buildPrioritySnapshot(
     orderedIds,
     new Map(machines.map((machine) => [machine.id, machine])),
+    highlightCount,
   );
 }
 
