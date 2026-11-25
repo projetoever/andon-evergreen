@@ -45,7 +45,7 @@ export function ModuleNavigation({ showModuleLinks = false }: { showModuleLinks?
         if (target.id === currentModule || !grant?.available || !grant.enabled || !grant.allowed) return null;
         const Icon = target.icon;
         return (
-          <Link key={target.id} to={target.to} title={t(target.label)}
+          <Link key={target.id} to={target.to} data-audit-action={`navigate.${target.id}`} title={t(target.label)}
             aria-label={t(target.label)} className={iconClassName}>
             <Icon aria-hidden="true" className="h-4 w-4" />
           </Link>
@@ -55,13 +55,14 @@ export function ModuleNavigation({ showModuleLinks = false }: { showModuleLinks?
         access.centralAccessEnabled === true &&
         access.globalHistory?.available === true &&
         access.globalHistory.allowed === true && (
-          <Link to="/history" title={t("Histórico Global")}
+          <Link to="/history" data-audit-action="navigate.history" title={t("Histórico Global")}
             aria-label={t("Histórico Global")} className={iconClassName}>
             <History aria-hidden="true" className="h-4 w-4" />
           </Link>
         )}
       <Link
         to="/hub"
+        data-audit-action="navigate.hub"
         title={t("Ir para o Hub")}
         aria-label={t("Ir para o Hub")}
         className={iconClassName}

@@ -38,10 +38,9 @@ export function ModuleAccessProvider({ children }: { children: ReactNode }) {
       // Navigation revalidates permissions from the API. A single brief
       // retry prevents a transient Hub flash; never reuse stale permission
       // data or retry a definite 401/403 denial.
-      const isHub = pathname === "/" || pathname === "/hub" || pathname.startsWith("/hub/");
-      let next = await (isHub
-        ? withHubTransientRetry(loadModuleAccess)
-        : loadModuleAccess());
+      // All protected screens retry one transient transport failure before
+      // showing an error. Definite authorization denials are never retried.
+      let next = await withHubTransientRetry(loadModuleAccess);
       // Older sessions issued before the no-expiry fix may still carry a
       // 12-hour cookie, even though the account is now configured persistent.
       // The browser never decides eligibility: a protected backend POST

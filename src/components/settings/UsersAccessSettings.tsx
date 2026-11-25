@@ -898,6 +898,27 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                       </p>
                     </fieldset>
                   )}
+                  {catalog.permissions.includes("audit.read") && (
+                    <fieldset className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                      <legend className="px-1 font-bold">{ui("Auditoria e rastreabilidade")}</legend>
+                      <p className="text-sm text-muted-foreground">
+                        {ui("Autorize individualmente a consulta aos registros do sistema. Exportação CSV exige também a permissão de leitura; o Admin principal sempre tem acesso.")}
+                      </p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {(["audit.read", "audit.export"] as const).filter(key => catalog.permissions.includes(key)).map(key => (
+                          <Label key={key} className="flex min-h-12 items-center gap-3 rounded-md border border-border bg-background p-3">
+                            <input type="checkbox" checked={draft.permissions.includes(key)}
+                              disabled={draft.accountType !== "person"}
+                              onChange={event => togglePermission(key, event.target.checked)} />
+                            <span className="min-w-0 flex-1 font-semibold">{ui(permissionLabels[key])}</span>
+                          </Label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {ui("Este acesso é global e pode exibir operações de diferentes máquinas e usuários. Não é concedido automaticamente por perfil ou módulo.")}
+                      </p>
+                    </fieldset>
+                  )}
                   {advancedPermissions && <fieldset className="space-y-3">
                     <legend className="font-bold">{ui("Permissões por módulo e ação")}</legend>
                     <p className="text-sm text-muted-foreground">
@@ -930,7 +951,7 @@ export function UsersAccessSettings({ onSessionInitialized }: { onSessionInitial
                         {ui("Estas permissões não são selecionadas por nenhum dos 5 módulos. Habilite-as individualmente somente quando necessárias.")}
                       </p>
                       <div className="grid gap-2 md:grid-cols-2">
-                        {advancedIndependentGrants(catalog.permissions).map((key) => (
+                        {advancedIndependentGrants(catalog.permissions).filter(key => key !== "audit.read" && key !== "audit.export").map((key) => (
                           <Label key={key} className="flex min-h-11 items-start gap-3 rounded-md border border-border bg-background p-3">
                             <input
                               className="mt-1 shrink-0"

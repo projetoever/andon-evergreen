@@ -1,7 +1,7 @@
 import { systemMessage, ui } from "@/i18n/translate";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LayoutGrid, LogOut, Settings } from "lucide-react";
+import { LayoutGrid, LogOut, ScrollText, Settings } from "lucide-react";
 import { LanguageSelector } from "@/components/layout/LanguageSelector";
 import { ModuleCards } from "@/components/layout/ModuleCards";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useModuleAccess } from "@/context/ModuleAccessProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { HubIdentityPanel } from "@/components/security/HubIdentityPanel";
+import { HubAuditPanel } from "@/components/security/HubAuditPanel";
 import { AdminLoginModal } from "@/components/settings/AdminLoginModal";
 import { isAdminAuthenticated } from "@/services/adminAuthService";
 import { getSystemSettings } from "@/services/systemSettingsService";
@@ -26,6 +27,7 @@ export function HubPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const centralIdentityRequired = access?.centralAccessEnabled === true &&
@@ -178,13 +180,21 @@ export function HubPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <LanguageSelector />
+            {access?.centralAccessEnabled && access.audit?.read && (
+              <Button type="button" variant="outline" size="icon"
+                data-audit-action="audit.open"
+                aria-label={ui("Abrir central de auditoria")} title={ui("Abrir central de auditoria")}
+                onClick={() => setAuditOpen(true)}>
+                <ScrollText className="h-5 w-5" aria-hidden="true" />
+              </Button>
+            )}
 
-            <Button variant="outline" onClick={enterAdministration}>
+            <Button variant="outline" data-audit-action="hub.open.administration" onClick={enterAdministration}>
               <Settings className="mr-2 h-4 w-4" />
               {t("Administração do Hub")}
             </Button>
             {access?.centralAccessEnabled && access.principal?.purpose === "normal" && (
-              <Button variant="outline" disabled={logoutBusy}
+              <Button variant="outline" disabled={logoutBusy} data-audit-action="hub.logout"
                 aria-label={ui("Sair desta sessão")} title={ui("Sair desta sessão")}
                 onClick={() => void endOwnCentralSession()}>
                 <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -285,6 +295,10 @@ export function HubPage() {
                 )}
             </footer>
           </>
+        )}
+        {access?.centralAccessEnabled && access.audit?.read && (
+          <HubAuditPanel open={auditOpen} onOpenChange={setAuditOpen}
+            canExport={access.audit.export} />
         )}
         {!access?.centralAccessEnabled && <AdminLoginModal
           open={adminLoginOpen}

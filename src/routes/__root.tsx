@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 import { GlobalVisualPaletteProvider } from "@/theme/GlobalVisualPaletteProvider";
 import { ModuleAccessProvider, useModuleAccess } from "@/context/ModuleAccessProvider";
 import { AndonBrowserIdentity } from "@/components/layout/AndonBrowserIdentity";
+import { UiAuditTracker } from "@/components/security/UiAuditTracker";
 import { canOpenPinnedMachineHistory } from "@/services/lockedMachineHistoryPolicy";
 
 import appCss from "../styles.css?url";
@@ -121,6 +122,7 @@ function RootComponent() {
   return (
     <ModuleAccessProvider>
       <AndonBrowserIdentity />
+      <UiAuditTracker />
       <RootContent />
     </ModuleAccessProvider>
   );

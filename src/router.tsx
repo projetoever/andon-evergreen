@@ -1,6 +1,6 @@
 import { LanguageProvider, useLanguage } from "@/i18n/LanguageProvider";
 import { systemMessage } from "@/i18n/translate";
-import { createRouter, useRouter } from "@tanstack/react-router";
+import { createRouter, Link, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
@@ -55,12 +55,12 @@ function ErrorContent({ error, reset }: { error: Error; reset: () => void }) {
           >
             {t("Tentar novamente")}
           </button>
-          <a
-            href="/"
+          <Link
+            to="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             {t("Ir para o início")}
-          </a>
+          </Link>
         </div>
       </div>
     </div>
