@@ -156,6 +156,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     scheduledMinutes:0, scheduledDowntimeMinutes:0, operatingMinutes:0,
     productionFailureEpisodes:0, pendingAttributionEpisodes:0, physicalProductionEpisodes:0, coveredMachineCount:0, uncoveredMachineCount:assets?.length??0,
     populationCount:assets?.length??0,
+    machineCoverage:[] as Array<{machineId:string; status:"complete"|"complete_no_scheduled"|"incomplete"|"outside_window"; observationStartAt:string; reason:"verified_scheduled"|"verified_not_scheduled"|"no_history"|"history_gap"|"not_in_window"}>,
     resolvedMttrMinutes:restoration.mttrMinutes,
     resolvedEpisodes:restoration.resolvedEpisodes,
     allCauseRestorationMinutes:allCauseRestoration.mttrMinutes, allCauseResolvedEpisodes:allCauseRestoration.resolvedEpisodes,
@@ -184,6 +185,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     records.push(event);eventsByMachine.set(event.machineId,records);
   }
   let scheduledMs=0, stoppedScheduledMs=0, episodes=0, pending=0, physicalEpisodes=0, covered=0, uncovered=0;
+  const machineCoverage: typeof empty.machineCoverage=[];
   const dailyMap=new Map<string,{scheduledMs:number;downtimeMs:number}>();
   const addDay=(key:string,kind:"scheduledMs"|"downtimeMs",ms:number)=>{
     const d=dailyMap.get(key)??{scheduledMs:0,downtimeMs:0};
@@ -191,10 +193,12 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
   };
   for(const asset of uniqueById(assets.map(asset => ({...asset, id:asset.machineId})))){
     const assetStart=Math.max(startMs,asset.exposureStartedAt.getTime());
-    if(assetStart>=endMs)continue;
-    const scheduled=confirmedSchedule(eventsByMachine.get(asset.machineId)??[],asInterval(assetStart,endMs));
-    if(!scheduled){uncovered++;continue;}
+    if(assetStart>=endMs){machineCoverage.push({machineId:asset.machineId,status:"outside_window",observationStartAt:new Date(assetStart).toISOString(),reason:"not_in_window"});continue;}
+    const machineEvents=eventsByMachine.get(asset.machineId)??[];
+    const scheduled=confirmedSchedule(machineEvents,asInterval(assetStart,endMs));
+    if(!scheduled){uncovered++;machineCoverage.push({machineId:asset.machineId,status:"incomplete",observationStartAt:new Date(assetStart).toISOString(),reason:machineEvents.length?"history_gap":"no_history"});continue;}
     covered++;
+    machineCoverage.push({machineId:asset.machineId,status:scheduled.length?"complete":"complete_no_scheduled",observationStartAt:new Date(assetStart).toISOString(),reason:scheduled.length?"verified_scheduled":"verified_not_scheduled"});
     const failure=failures.get(asset.machineId)??[];
     for(const segment of scheduled){
       scheduledMs+=segment.end-segment.start;
@@ -251,7 +255,7 @@ export function buildPlannedProductionKpis(input: PlannedProductionInput) {
     operatingMinutes:round2(operatingMs/MINUTE),
     productionFailureEpisodes:episodes,
     pendingAttributionEpisodes:pending, physicalProductionEpisodes:physicalEpisodes,
-    coveredMachineCount:covered,uncoveredMachineCount:uncovered,
+    coveredMachineCount:covered,uncoveredMachineCount:uncovered,machineCoverage,
     availabilityStatus:scheduledMs>0?"available":covered===0?"insufficient_schedule":"no_programmed_minutes",
     daily,
   };
