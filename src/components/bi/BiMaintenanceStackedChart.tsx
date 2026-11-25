@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
 
 export type TechnicalEffortChartRow = {
@@ -37,7 +37,7 @@ export function BiMaintenanceStackedChart({ rows, height = 265 }: {
       <div style={{height}} className="w-full min-w-0" role="img"
         aria-label={ui("Comparativo empilhado de tempo de manutenção e acompanhamento por técnico ou área")}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartRows} layout="vertical" barGap={1} margin={{top: 8,right: 24,bottom: 15,left: 0}}>
+          <BarChart data={chartRows} layout="vertical" barGap={1} margin={{top: 8,right: 78,bottom: 15,left: 0}}>
             <CartesianGrid horizontal={false} stroke="var(--border)" strokeDasharray="3 3"/>
             <XAxis type="number" domain={[0,"auto"]} axisLine={false} tickLine={false}
               tick={{fill:"var(--muted-foreground)",fontSize:10}}
@@ -52,6 +52,7 @@ export function BiMaintenanceStackedChart({ rows, height = 265 }: {
             </Bar>
             <Bar dataKey="followUpMinutes" stackId="technical" name={ui("Acompanhamento")} fill="#10b981" maxBarSize={25} radius={[0,4,4,0]}>
               {chartRows.map(row => <Cell key={row.id} fill="#10b981"/>)}
+              <LabelList dataKey="totalPersonMinutes" position="right" formatter={v=>duration(Number(v))} fill="var(--foreground)" fontSize={10}/>
             </Bar>
           </BarChart>
         </ResponsiveContainer>
