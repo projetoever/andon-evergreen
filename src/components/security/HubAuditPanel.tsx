@@ -162,7 +162,7 @@ export function HubAuditPanel({ open, onOpenChange, canExport }: {
           <Input type="date" value={draft.to} onChange={event => setDraft({ ...draft, to: event.target.value })}
             aria-label={ui("Data final (UTC)")} />
           <div className="flex flex-wrap items-center gap-2 md:col-span-6">
-            <Button type="submit" variant="default"><Search className="mr-2 h-4 w-4" />{ui("Filtrar")}</Button>
+            <Button type="submit" variant="default" data-audit-action="audit.filter"><Search className="mr-2 h-4 w-4" />{ui("Filtrar")}</Button>
             <Button type="button" variant="outline" onClick={() => {
               setDraft(emptyFilters); setApplied(emptyFilters); setPage(0); setReload(value => value + 1);
             }}>{ui("Limpar filtros")}</Button>
@@ -171,7 +171,7 @@ export function HubAuditPanel({ open, onOpenChange, canExport }: {
               <RefreshCw className="mr-2 h-4 w-4" />{ui("Atualizar")}
             </Button>
             {canExport && (
-              <Button type="button" variant="outline" disabled={exporting}
+              <Button type="button" variant="outline" disabled={exporting} data-audit-action="audit.export"
                 onClick={() => void exportCsv()}>
                 <Download className="mr-2 h-4 w-4" />
                 {exporting ? ui("Preparando CSV...") : ui("Exportar CSV")}
