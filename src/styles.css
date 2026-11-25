@@ -361,8 +361,10 @@
     max-height: calc(var(--visible-height, 100dvh) - 1rem);
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    overflow-wrap: anywhere;
   }
 
   .mobile-dialog:not([data-virtual-keyboard-ui]) {
@@ -399,6 +401,22 @@
 @media (max-width: 63.999rem) {
   .bi-page .grid {
     grid-auto-columns: minmax(0, 1fr);
+  }
+
+  /* Long translated labels, form controls and nested cards must not force a
+     page-wide scrollbar. Dedicated data tables retain their own scrolling. */
+  .bi-page,
+  .machine-detail-page,
+  .mobile-dialog {
+    min-width: 0;
+  }
+
+  .mobile-dialog :where(button, input, select, textarea) {
+    max-width: 100%;
+  }
+
+  .mobile-dialog :where(h1, h2, h3, p, label) {
+    overflow-wrap: anywhere;
   }
 
   .bi-page .grid > *,

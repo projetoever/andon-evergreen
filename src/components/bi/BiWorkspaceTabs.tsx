@@ -64,8 +64,24 @@ export function BiWorkspaceTabs({
 }) {
   const { t } = useLanguage();
   return (
+    <>
+      <label className="block min-w-0 rounded-xl border border-border bg-card/70 p-2 text-xs font-bold text-muted-foreground sm:hidden">
+        {ui("Áreas do ANDON BI")}
+        <select
+          value={activeTab}
+          onChange={(event) => onChange(event.target.value as BiWorkspaceTab)}
+          aria-label={ui("Áreas do ANDON BI")}
+          className="mt-1 min-h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {TABS.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {t(tab.label)}{tab.id === "data-quality" && attentionCount > 0 ? ` (${attentionCount})` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
     <nav
-      className="flex shrink-0 gap-2 overflow-x-auto lg:grid lg:grid-cols-5 lg:overflow-visible rounded-xl border border-border bg-card/70 p-2"
+      className="hidden shrink-0 gap-2 overflow-x-auto sm:flex lg:grid lg:grid-cols-5 lg:overflow-visible rounded-xl border border-border bg-card/70 p-2"
       aria-label={ui("Áreas do ANDON BI")}
     >
       {TABS.map((tab) => {
@@ -106,5 +122,6 @@ export function BiWorkspaceTabs({
         );
       })}
     </nav>
+    </>
   );
 }

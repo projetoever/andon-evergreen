@@ -174,7 +174,7 @@ export function BiMachine360Overlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-3"
       role="dialog"
       aria-modal="true"
       aria-label={ui("Machine 360 · {0}", { 0: machineName })}
@@ -182,14 +182,14 @@ export function BiMachine360Overlay({
         if (event.currentTarget === event.target) onClose();
       }}
     >
-      <section className="flex h-[calc(100dvh-24px)] w-full max-w-[1620px] min-h-0 flex-col gap-3 overflow-y-auto lg:overflow-hidden rounded-xl border border-emerald-500/30 bg-background p-4 shadow-2xl">
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+      <section className="flex h-[calc(100dvh-1rem)] w-full min-w-0 max-w-[1620px] min-h-0 flex-col gap-3 overflow-x-hidden overflow-y-auto rounded-xl border border-emerald-500/30 bg-background p-3 shadow-2xl sm:h-[calc(100dvh-24px)] sm:p-4 lg:overflow-hidden">
+        <header className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.17em] text-emerald-300">
               <Activity className="h-4 w-4" />
               {ui(" Confiabilidade por ativo")}
             </div>
-            <h2 className="mt-1 text-2xl font-black">
+            <h2 className="mt-1 min-w-0 break-words text-xl font-black sm:text-2xl [overflow-wrap:anywhere]">
               {ui("Machine 360 · ")}
               {data?.machine.name ?? machineName}
             </h2>
@@ -209,7 +209,7 @@ export function BiMachine360Overlay({
                 onClick={() =>
                   openReportPrintDialog(buildMachinePdfHtml(data, classificationLabels))
                 }
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 text-xs font-black text-amber-200 hover:bg-amber-500/20"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 text-xs font-black text-amber-200 hover:bg-amber-500/20"
                 title={ui("Salvar relatório individual da máquina como PDF pelo navegador")}
               >
                 <FileDown className="h-4 w-4" />
@@ -222,7 +222,7 @@ export function BiMachine360Overlay({
               autoFocus
               title={ui("Fechar (Esc)")}
               aria-label={ui("Fechar Machine 360")}
-              className="rounded-lg border border-border bg-card p-2 transition hover:bg-muted"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card transition hover:bg-muted"
             >
               <X className="h-5 w-5" />
             </button>

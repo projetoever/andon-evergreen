@@ -55,7 +55,7 @@ export function BiProductionCoverageDialog({ data }: { data: AnalyticsProduction
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid shrink-0 grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
             <div className="rounded-lg border border-border bg-muted/20 p-3">
               <div className="text-2xl font-black tabular-nums">{data.populationCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{ui("Máquinas na população")}</p>
@@ -64,7 +64,7 @@ export function BiProductionCoverageDialog({ data }: { data: AnalyticsProduction
               <div className="text-2xl font-black tabular-nums text-emerald-400">{data.coveredMachineCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{ui("Históricos completos")}</p>
             </div>
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <div className="col-span-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:col-span-1">
               <div className="text-2xl font-black tabular-nums text-amber-400">{data.uncoveredMachineCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{ui("Históricos incompletos")}</p>
             </div>
@@ -107,7 +107,24 @@ export function BiProductionCoverageDialog({ data }: { data: AnalyticsProduction
               </div>
             </div>
             <div className="min-h-[130px] flex-1 overflow-auto rounded-lg border border-border">
-              <table className="w-full min-w-[580px] text-left text-[13px]">
+              <div className="space-y-2 p-2 sm:hidden" aria-label={ui("Situação por máquina")}>
+                {shown.map((row) => (
+                  <article key={row.machineId} className="min-w-0 space-y-2 rounded-lg border border-border/60 bg-background p-3">
+                    <p className="break-words text-base font-black text-foreground">{row.machineId}</p>
+                    <p className="flex min-w-0 items-start gap-2 break-words text-sm font-semibold">
+                      {row.status === "incomplete"
+                        ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+                        : <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />}
+                      <span>{ui(LABELS[row.status])}</span>
+                    </p>
+                    <p className="break-words text-xs text-muted-foreground">{ui(REASONS[row.reason])}</p>
+                  </article>
+                ))}
+                {!shown.length && (
+                  <p role="status" className="p-3 text-center text-sm text-muted-foreground">{ui("Nenhuma máquina neste grupo.")}</p>
+                )}
+              </div>
+              <table className="hidden w-full min-w-[580px] text-left text-[13px] sm:table">
                 <thead className="sticky top-0 z-10 bg-card text-xs text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">{ui("Máquina")}</th>

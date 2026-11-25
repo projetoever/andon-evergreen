@@ -469,7 +469,7 @@ export function AndonBiPage() {
 
   return (
     <main className="andon-screen-enter bi-page min-h-dvh bg-background lg:h-dvh lg:overflow-hidden text-foreground">
-      <div className="mx-auto flex w-full max-w-[1920px] lg:h-full flex-col gap-3 px-4 py-3 md:px-6">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1920px] flex-col gap-3 px-3 py-3 sm:px-4 md:px-6 lg:h-full">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
@@ -497,7 +497,7 @@ export function AndonBiPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             <LanguageSelector compact />
             <ModuleNavigation showModuleLinks />
             <button
@@ -506,7 +506,7 @@ export function AndonBiPage() {
               disabled={reportLoading}
               title={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
               aria-label={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-amber-500/40 sm:h-9 sm:w-9 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
             >
               <FileDown className="h-3.5 w-3.5" />
             </button>
@@ -516,7 +516,7 @@ export function AndonBiPage() {
               disabled={loading}
               title={loading ? ui("Atualizando…") : t("Atualizar")}
               aria-label={loading ? ui("Atualizando…") : t("Atualizar")}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-card text-xs sm:h-9 sm:w-9 font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
