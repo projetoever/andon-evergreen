@@ -116,7 +116,7 @@ export function BiFailureWorkspace({
           />
         </div>
       ) : (
-        <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <div className="grid min-w-0 items-stretch gap-4 lg:grid-cols-2">
           <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
             <div className="shrink-0">
               <h2 className="text-sm font-black uppercase tracking-wide">
@@ -132,59 +132,13 @@ export function BiFailureWorkspace({
                 caution={ui("Diagnósticos dos chamados concluídos; apenas as categorias exibidas participam da distribuição.")}
                 allowRank /></div>
             </div>
-            <div className="mt-3 min-w-0">
+            <div className="mt-4 min-w-0 flex-1">
               <BiInlineDistributionChart
                 rows={classificationData.map(item=>({id:item.value,label:item.label,value:item.count}))}
-                unit="count" color="#f59e0b" height={215}
+                unit="count" color="#f59e0b" height={330}
                 onInspect={id=>{const item=classificationData.find(row=>row.value===id);if(item)onDrilldown({dimension:"classification",value:item.value,label:item.label});}} />
             </div>
-            <details className="mt-3 min-w-0 rounded-lg border border-border/80 bg-background/30 p-3 open:pb-4">
-              <summary className="cursor-pointer py-1 text-sm font-semibold text-foreground hover:text-primary">{ui("Ver classificações detalhadas")}</summary>
-            <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-1">
-              {classificationData.length ? (
-                classificationData.map((item, index) => {
-                  const max = classificationData[0]?.count || 1;
 
-                  return (
-                    <button
-                      type="button"
-                      key={item.value}
-                      onClick={() =>
-                        onDrilldown({
-                          dimension: "classification",
-                          value: item.value,
-                          label: item.label,
-                        })
-                      }
-                      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-lg border border-transparent p-3 text-left transition hover:border-amber-500/30 hover:bg-amber-500/[0.04]"
-                    >
-                      <div>
-                        <div className="mb-2 flex items-center gap-2 text-sm">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/15 text-[9px] font-black text-amber-300">
-                            {index + 1}
-                          </span>
-                          <span className="truncate font-bold">{item.label}</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-amber-400"
-                            style={{
-                              width: `${Math.max(4, (item.count / max) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <span className="self-end text-sm font-black tabular-nums">{item.count}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  {ui("Sem classificações concluídas no período")}
-                </div>
-              )}
-            </div>
-            </details>
           </section>
 
           <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
@@ -202,49 +156,15 @@ export function BiFailureWorkspace({
                 caution={ui("Chamados abertos por setor; não representa tempo de parada nem esforço técnico.")}
                 allowRank /></div>
             </div>
-            <div className="mt-3 min-w-0">
+            <div className="mt-4 min-w-0 flex-1">
               <BiInlineDistributionChart
                 rows={sectorData.map(item=>({id:item.value,label:item.label,value:item.count}))}
-                unit="count" color="#38bdf8" height={215}
+                unit="count" color="#38bdf8" height={330}
                 onInspect={id=>{const item=sectorData.find(row=>row.value===id);if(item)onDrilldown({dimension:"sector",value:item.value,label:item.label});}} />
             </div>
-            <details className="mt-3 min-w-0 rounded-lg border border-border/80 bg-background/30 p-3 open:pb-4">
-              <summary className="cursor-pointer py-1 text-sm font-semibold text-foreground hover:text-primary">{ui("Ver setores detalhados")}</summary>
-            <div className="mt-3 grid max-h-[300px] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-              {sectorData.length ? (
-                sectorData.map((item) => (
-                  <button
-                    type="button"
-                    key={item.value}
-                    onClick={() =>
-                      onDrilldown({
-                        dimension: "sector",
-                        value: item.value,
-                        label: item.label,
-                      })
-                    }
-                    className="flex items-center justify-between rounded-lg border border-border border-l-2 border-l-sky-400 bg-background/40 px-4 py-3 text-left transition hover:bg-muted"
-                  >
-                    <span className="truncate text-sm font-semibold">{item.label}</span>
-                    <span className="ml-3 text-lg font-black tabular-nums">{item.count}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="sm:col-span-2 flex h-full items-center justify-center text-sm text-muted-foreground">
-                  {ui("Sem chamados no período")}
-                </div>
-              )}
-            </div>
 
-            </details>
 
-            <div className="mt-3 shrink-0 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3">
-              <p className="text-xs leading-5 text-muted-foreground">
-                {ui(
-                  "Classificações representam diagnósticos de chamados concluídos; demanda por setor considera aberturas. Para repetição de diagnóstico, use a aba Reincidências.",
-                )}
-              </p>
-            </div>
+
           </section>
         </div>
       )}
