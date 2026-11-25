@@ -245,6 +245,7 @@ export function toggleAndonModulePermission(
       next.add("andon.read");
       next.add("history.read");
     }
+    if (key === "audit.export") next.add("audit.read");
   } else {
     next.delete(key);
     if (key === "andon.read") {
@@ -253,6 +254,7 @@ export function toggleAndonModulePermission(
       next.delete("history.global.read");
     }
     if (key === "history.read") next.delete("history.global.read");
+    if (key === "audit.read") next.delete("audit.export");
   }
   return [...next];
 }
