@@ -81,6 +81,7 @@ export function AdminWorkspaceShell({
                     <div key={item.id}>
                       {hubNavigation ? (
                         <Link to="/hub/admin" search={{ section: item.id as HubAdminSection }}
+                          data-audit-action={`admin.tab.${item.id}`}
                           aria-current={active ? "page" : undefined}
                           title={item.description}
                           className={cn(
@@ -92,6 +93,7 @@ export function AdminWorkspaceShell({
                         </Link>
                       ) : (
                         <button type="button" aria-current={active ? "page" : undefined}
+                          data-audit-action={`admin.tab.${item.id}`}
                           title={item.description}
                           onClick={() => onSelect(item.id)}
                           className={cn(
@@ -140,6 +142,7 @@ export function AdminWorkspaceShell({
             return (
               hubNavigation ? (
                 <Link key={item.id} to="/hub/admin" search={{ section: item.id as HubAdminSection }}
+                  data-audit-action={`admin.tab.${item.id}`}
                   aria-current={active ? "page" : undefined}
                   title={item.description}
                   className={cn(
@@ -150,6 +153,7 @@ export function AdminWorkspaceShell({
                 </Link>
               ) : (
                 <button key={item.id} type="button" onClick={() => onSelect(item.id)}
+                  data-audit-action={`admin.tab.${item.id}`}
                   aria-current={active ? "page" : undefined}
                   title={item.description}
                   className={cn(
