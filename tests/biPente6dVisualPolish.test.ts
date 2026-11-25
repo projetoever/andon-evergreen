@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { biChartGradientId, biChartPalette } from "../src/components/bi/biChartVisualTheme.ts";
+import { biChartGradientId, biChartPalette, biChartTooltipProps } from "../src/components/bi/biChartVisualTheme.ts";
 import { availableBiChartModes, biParetoRows } from "../src/components/bi/biChartModePolicy.ts";
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -72,4 +72,28 @@ test("PENTE6-D: token de cores e legenda multilíngue ligados ao BI", () => {
   const translations = source("../src/i18n/visualMessages.ts");
   assert.match(translations, /\["Categorias","Categories","分類"\]/);
   assert.match(source("../src/i18n/translate.ts"),/visualMessages/);
+});
+
+test("PENTE6-E: texto e rótulos de cada tooltip usam contraste do popover nos dois temas", () => {
+  assert.equal(biChartTooltipProps.itemStyle.color, "var(--popover-foreground)");
+  assert.equal(biChartTooltipProps.labelStyle.color, "var(--popover-foreground)");
+  assert.equal(biChartTooltipProps.contentStyle.background, "var(--popover)");
+  const css = source("../src/styles.css");
+  assert.match(css, /--popover:\s*oklch/);
+  assert.match(css, /--popover-foreground:\s*oklch/);
+  const charts = [
+    "BiChartAlternative", "BiChartExplorer", "BiInlineDistributionChart",
+    "BiDailyAvailabilityCard", "BiDowntimeTrendCard", "BiMaintenanceStackedChart",
+    "BiTemporalPatterns", "BiOverviewWorkspace",
+  ];
+  for (const name of charts) {
+    const component = source(`../src/components/bi/${name}.tsx`);
+    assert.match(component, /biChartTooltipProps/, name);
+    const tooltips = component.match(/<Tooltip\b[\s\S]*?\/>/g) ?? [];
+    assert.ok(tooltips.length > 0, name + " must render a chart tooltip");
+    for (const tip of tooltips) {
+      assert.match(tip, /\{\.\.\.biChartTooltipProps\}/, name);
+      assert.doesNotMatch(tip, /contentStyle=/, name);
+    }
+  }
 });

@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import { Download, Maximize2 } from "lucide-react";
 import { BiChartAlternative } from "@/components/bi/BiChartAlternative";
 import { availableBiChartModes, type BiChartKind, type BiChartMode } from "@/components/bi/biChartModePolicy";
-import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartTooltipProps } from "@/components/bi/biChartVisualTheme";
 import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type BiChartRow = {
@@ -281,7 +281,7 @@ export function BiChartExplorer({
                           </>
                         )}
                         <Tooltip formatter={(v) => [formatValue(Number(v), unit), title]}
-                          contentStyle={biChartTooltipStyle} />
+                          {...biChartTooltipProps} />
                         <Bar dataKey="value" fill={"url(#" + fillId + ")"} maxBarSize={orientation === "horizontal" ? 42 : 34}
                           radius={orientation === "horizontal" ? [0, 7, 7, 0] : [7, 7, 0, 0]}
                           background={{fill:"var(--muted)",fillOpacity:0.20}} animationDuration={420}>

@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { BiDowntimeTrendCard } from "@/components/bi/BiDowntimeTrendCard";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
+import { biChartTooltipProps } from "@/components/bi/biChartVisualTheme";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { BiDailyAvailabilityCard } from "@/components/bi/BiDailyAvailabilityCard";
 import { BiExecutiveSummary } from "@/components/bi/BiExecutiveSummary";
@@ -306,11 +307,7 @@ export function BiOverviewWorkspace({
                   />
                   <Tooltip
                     formatter={(value) => [formatMinutes(Number(value)), ui("Tempo de parada")]}
-                    contentStyle={{
-                      background: "var(--popover)",
-                      borderColor: "var(--border)",
-                      borderRadius: 10,
-                    }}
+                    {...biChartTooltipProps}
                   />
                   <Bar
                     dataKey="downtimeMinutes"

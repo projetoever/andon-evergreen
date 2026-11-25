@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { getInterfaceLocale, ui } from "@/i18n/translate";
-import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "@/components/bi/biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartTooltipProps } from "@/components/bi/biChartVisualTheme";
 import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { BiProductionCoverageDialog } from "@/components/bi/BiProductionCoverageDialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
@@ -103,7 +103,7 @@ export function BiDailyAvailabilityCard({
                     ui("Disponibilidade"),
                   ];
                 }}
-                contentStyle={biChartTooltipStyle}
+                {...biChartTooltipProps}
               />
               <Bar
                 name={ui("Disponibilidade")}

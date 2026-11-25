@@ -16,6 +16,24 @@ export const biChartTooltipStyle = {
   fontSize: 12,
 };
 
+/** Recharts colors tooltip items from each series by default, even if the container
+ * uses a themed popover. Override both item and label text to preserve contrast in
+ * dark/light mode; series colors remain visible on the plotted marks.
+ */
+export const biChartTooltipProps = {
+  contentStyle: biChartTooltipStyle,
+  itemStyle: {
+    color: "var(--popover-foreground)",
+    fontWeight: 600,
+    overflowWrap: "anywhere",
+  },
+  labelStyle: {
+    color: "var(--popover-foreground)",
+    fontWeight: 600,
+    overflowWrap: "anywhere",
+  },
+} as const;
+
 export const biChartTickStyle = {
   fill: "var(--muted-foreground)",
   fontSize: 11,

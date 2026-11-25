@@ -3,7 +3,7 @@ import { BiChartExplorer } from "@/components/bi/BiChartExplorer";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage as useInterfaceLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { biChartGradientId, biChartGridColor, biChartTooltipStyle } from "./biChartVisualTheme";
+import { biChartGradientId, biChartGridColor, biChartTooltipProps } from "./biChartVisualTheme";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, CalendarDays, Clock3, Maximize2, TimerReset } from "lucide-react";
 import type { AnalyticsTemporalPatterns } from "@/types/analytics";
@@ -334,7 +334,7 @@ export function BiTemporalPatterns({
                   <Tooltip
                     formatter={(v) => [formatter(Number(v)), metricName]}
                     labelFormatter={(v) => `${v}${ui("h")}`}
-                    contentStyle={biChartTooltipStyle}
+                    {...biChartTooltipProps}
                   />
                   <Bar
                     dataKey="count"
@@ -389,7 +389,7 @@ export function BiTemporalPatterns({
                   />
                   <Tooltip
                     formatter={(v) => [formatter(Number(v)), metricName]}
-                    contentStyle={biChartTooltipStyle}
+                    {...biChartTooltipProps}
                   />
                   <Bar
                     dataKey="count"
