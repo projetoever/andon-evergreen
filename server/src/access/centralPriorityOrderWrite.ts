@@ -16,6 +16,7 @@ import { AccessError, assertFullMachineScope, assertModule, assertPermission } f
 export async function runCentralPriorityOrderWrite(
   db: Pick<PrismaClient, "$transaction">,
   input: { token: string; workstationId: string; machineIds: unknown; expectedMachineIds: unknown;
+    priorityHighlightCount?: unknown; expectedPriorityHighlightCount?: unknown;
     ipAddress?: string; requestId?: string },
 ) {
   if (!/^[a-f0-9]{64}$/.test(input.token))
@@ -32,6 +33,13 @@ export async function runCentralPriorityOrderWrite(
       new Set(input.expectedMachineIds).size !== input.expectedMachineIds.length)
     throw new AccessError("priority_expected_order_required", 400);
   const expectedMachineIds: string[] = input.expectedMachineIds;
+  const isHighlightChange = input.priorityHighlightCount !== undefined;
+  if (isHighlightChange &&
+      (!Number.isInteger(input.priorityHighlightCount) ||
+       Number(input.priorityHighlightCount) < 1 ||
+       Number(input.priorityHighlightCount) > 1000 ||
+       !Number.isInteger(input.expectedPriorityHighlightCount)))
+    throw new AccessError("priority_highlight_count_invalid", 400);
   return db.$transaction(async (tx: Prisma.TransactionClient) => {
     const session = await tx.accessSession.findUnique({
       where: { tokenHash: tokenHash(input.token) }, select: { userId: true },
@@ -64,11 +72,22 @@ export async function runCentralPriorityOrderWrite(
     if (current.length !== machineIds.length ||
         machineIds.some((id) => !currentById.has(id)))
       throw new AccessError("priority_machine_catalog_changed", 409);
-    const before = buildCurrentPrioritySnapshot(current);
+    const config = await tx.dashboardPriorityConfig.findUnique({
+      where: { id: "global" }, select: { priorityHighlightCount: true },
+    });
+    const previousHighlightCount = config?.priorityHighlightCount ?? 5;
+    const activeCount = current.filter((machine) => machine.isActive).length;
+    const nextHighlightCount = isHighlightChange
+      ? Number(input.priorityHighlightCount) : previousHighlightCount;
+    if (isHighlightChange && Number(input.expectedPriorityHighlightCount) !== previousHighlightCount)
+      throw new AccessError("priority_highlight_changed", 409);
+    if (isHighlightChange && nextHighlightCount > activeCount)
+      throw new AccessError("priority_highlight_count_out_of_range", 409);
+    const before = buildCurrentPrioritySnapshot(current, previousHighlightCount);
     if (expectedMachineIds.length !== before.orderedIds.length ||
         expectedMachineIds.some((id, index) => id !== before.orderedIds[index]))
       throw new AccessError("priority_order_changed", 409);
-    const after = buildPrioritySnapshot(machineIds, currentById);
+    const after = buildPrioritySnapshot(machineIds, currentById, nextHighlightCount);
     const changes = diffPrioritySnapshots(machineIds, before, after);
     const now = new Date();
     for (const [index, id] of machineIds.entries())
@@ -84,18 +103,20 @@ export async function runCentralPriorityOrderWrite(
       where: { id: "global" },
       create: {
         id: "global", lastOrderUpdatedAt: now, lastOrderUpdatedBy: principal.login,
+        priorityHighlightCount: nextHighlightCount,
       },
-      update: { lastOrderUpdatedAt: now, lastOrderUpdatedBy: principal.login },
+      update: { lastOrderUpdatedAt: now, lastOrderUpdatedBy: principal.login,
+        ...(isHighlightChange ? { priorityHighlightCount: nextHighlightCount } : {}) },
     });
     await appendAudit(tx, {
       ...actorFromPrincipal(principal),
       ipAddress: input.ipAddress, requestId: input.requestId,
     }, {
       action: "priorities.write", resourceType: "priority_order", resourceId: "global",
-      before: { machineIds: before.orderedIds },
-      after: { machineIds: after.orderedIds, changes },
+      before: { machineIds: before.orderedIds, priorityHighlightCount: previousHighlightCount },
+      after: { machineIds: after.orderedIds, priorityHighlightCount: nextHighlightCount, changes },
     });
     return { ok: true as const, lastOrderUpdatedAt: now,
-      lastOrderUpdatedBy: principal.login };
+      lastOrderUpdatedBy: principal.login, priorityHighlightCount: nextHighlightCount };
   });
 }
