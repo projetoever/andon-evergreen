@@ -506,7 +506,7 @@ export function AndonBiPage() {
               disabled={reportLoading}
               title={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
               aria-label={reportLoading ? ui("Preparando PDF…") : t("Exportar PDF")}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-amber-500/40 sm:h-9 sm:w-9 bg-amber-500/10 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-60"
             >
               <FileDown className="h-3.5 w-3.5" />
             </button>
@@ -516,7 +516,7 @@ export function AndonBiPage() {
               disabled={loading}
               title={loading ? ui("Atualizando…") : t("Atualizar")}
               aria-label={loading ? ui("Atualizando…") : t("Atualizar")}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-card text-xs font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-card text-xs sm:h-9 sm:w-9 font-bold transition hover:bg-muted disabled:cursor-wait disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
