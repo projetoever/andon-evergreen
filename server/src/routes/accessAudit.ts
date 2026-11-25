@@ -58,7 +58,7 @@ export function auditWhere(query: AuditQuery): Prisma.AuditEventWhereInput {
   };
 }
 const auditOrder = [{ occurredAt: "desc" as const }, { id: "desc" as const }];
-const safePage = /^\/(?:hub(?:\/admin)?|andon(?:\/admin)?|bi|machine-priorities|history|active-calls|machines\/[a-zA-Z0-9_-]{1,80}(?:\/(?:call-history|failure-history))?)$/;
+const safePage = /^\/(?:$|hub(?:\/admin)?$|andon(?:\/admin)?$|bi$|machine-priorities$|history$|active-calls$|settings$|machines\/[a-zA-Z0-9_-]{1,80}(?:\/(?:call-history|failure-history))?$)/;
 const csvColumns = [
   "occurredAt", "id", "actorType", "actorLogin", "actorName", "actorRole",
   "workstationId", "ipAddress", "action", "resourceType", "resourceId",
