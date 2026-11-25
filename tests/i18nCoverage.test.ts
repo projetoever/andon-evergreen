@@ -4,6 +4,9 @@ import test from "node:test";
 import path from "node:path";
 import ts from "typescript";
 import { interfaceMessages, systemMessage, translateLabel } from "../src/i18n/translate";
+import baseMessages from "../src/i18n/baseMessages.json";
+import { messages } from "../src/i18n/messages";
+import { visualMessages } from "../src/i18n/visualMessages";
 import { buildHistoryCsv } from "../src/services/exportService";
 import type { AndonCall } from "../src/types/andon";
 import { validationMessage } from "../src/i18n/validationMessages";
@@ -23,6 +26,19 @@ async function sources(directory: string): Promise<string[]> {
   );
   return nested.flat();
 }
+
+test("PENTE 6: commercial locale catalog has no contradictory translations for the same key", () => {
+  const canonical = new Map<string, readonly string[]>();
+  const contradictory: string[] = [];
+  for (const row of [...baseMessages, ...messages, ...visualMessages]) {
+    const key = normalize(row[0]);
+    const previous = canonical.get(key);
+    if (previous && (previous[1] !== row[1] || previous[2] !== row[2]))
+      contradictory.push(key);
+    canonical.set(key, row);
+  }
+  assert.deepEqual(contradictory, []);
+});
 
 test("all authored translation keys have English and Traditional Chinese coverage with identical placeholders", async () => {
   const missing: string[] = [];
