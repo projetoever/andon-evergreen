@@ -229,7 +229,8 @@ export function DashboardPage() {
       setDashboardMachineOrderMode(
         systemSettings.dashboardMachineOrderMode === "priority" ? "priority" : "default",
       );
-      setPriorityHighlightCount(Number.isInteger(systemSettings.priorityHighlightCount) &&
+      setPriorityHighlightCount(typeof systemSettings.priorityHighlightCount === "number" &&
+        Number.isInteger(systemSettings.priorityHighlightCount) &&
         systemSettings.priorityHighlightCount >= 1 ? systemSettings.priorityHighlightCount : 5);
     };
     const handleSettingsChanged = (event: Event) => {
@@ -286,8 +287,8 @@ export function DashboardPage() {
     const prioritySync = window.setInterval(() => {
       if (document.visibilityState === "hidden") return;
       void getSystemSettings().then((latest) => {
-        if (!cancelled && Number.isInteger(latest.priorityHighlightCount) &&
-            latest.priorityHighlightCount >= 1) setPriorityHighlightCount(latest.priorityHighlightCount);
+        if (!cancelled && typeof latest.priorityHighlightCount === "number" &&
+            Number.isInteger(latest.priorityHighlightCount) && latest.priorityHighlightCount >= 1) setPriorityHighlightCount(latest.priorityHighlightCount);
       }).catch(() => { /* Retain the last verified count until the API recovers. */ });
     }, 20_000);
     return () => {
