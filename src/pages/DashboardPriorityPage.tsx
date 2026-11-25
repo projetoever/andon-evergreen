@@ -442,24 +442,30 @@ export function DashboardPriorityPage() {
             )}
             {activeSection === "sequence" && (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-          <span>
-            {rows.length}
-            {ui(" máquina(s) na sequência · ")}
-            {rows.filter((row) => row.isActive).length}
-            {ui(" ativa(s)")}
-          </span>
-          <span>
-            {lastOrderUpdatedAt
-              ? ui("Última atualização: {0}{1}", {
-                  0: formatDateTime(lastOrderUpdatedAt),
-                  1: lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : "",
-                })
-              : ui("Sequência ainda não salva manualmente")}
-          </span>
-        </div>
+                <section className="grid min-w-0 gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 2xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.5fr)]"
+                  aria-label={ui("Resumo da sequência e programação")}>
+                  {[
+                    { label: ui("Máquinas no ranking"), value: rows.length },
+                    { label: ui("Máquinas ativas"), value: activeMachineCount },
+                    { label: ui("Destaques ativos no Dashboard"), value: effectiveHighlightCount },
+                  ].map((item) => (
+                    <div key={item.label} className="min-w-0 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-muted-foreground">{item.label}</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-foreground">{item.value}</p>
+                    </div>
+                  ))}
+                  <div className="min-w-0 rounded-lg border border-border/60 bg-background/60 px-3 py-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground">{ui("Última alteração da sequência")}</p>
+                    <p className="mt-1 break-words text-xs font-semibold">
+                      {lastOrderUpdatedAt ? ui("Última atualização: {0}{1}", {
+                        0: formatDateTime(lastOrderUpdatedAt),
+                        1: lastOrderUpdatedBy ? ` · ${lastOrderUpdatedBy}` : "",
+                      }) : ui("Sequência ainda não salva manualmente")}
+                    </p>
+                  </div>
+                </section>
 
-        {centralReadOnly && (
+                {centralReadOnly && (
           <p role="status" className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             {ui("Somente leitura")}: {ui("A edição de prioridades pela autenticação central ainda não está liberada.")}
           </p>
