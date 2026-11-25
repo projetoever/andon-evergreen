@@ -71,7 +71,7 @@ test("PENTE 2 visual: semantic machine badges, rights-scoped history and operati
   assert.doesNotMatch(priority, /machineStatus|activeCalls\.length|andonStatus/);
   assert.match(priority, /accessRequest\("\/machines\/production-mode\/session", "POST"/);
   assert.match(priority, /<ProductionModeCredentialModal/);
-  assert.match(priority, /expectedProductionMode: machine\.productionMode/);
+  assert.match(priority, /expectedProductionMode: confirmation\.currentMode/);
   assert.match(service, /expectedMachineIds/);
   assert.match(nav, /!grant\?\.available \|\| !grant\.enabled \|\| !grant\.allowed/);
 });
