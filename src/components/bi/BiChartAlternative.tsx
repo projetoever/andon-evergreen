@@ -28,7 +28,7 @@ export function BiChartAlternative({mode, rows, unit, color, selectedId, onSelec
     return <ResponsiveContainer width="100%" height="100%">
       <PieChart><Pie data={slices} dataKey="value" nameKey="label" cx="50%" cy="50%"
         innerRadius={mode==="donut" ? "46%" : 0} outerRadius="75%" stroke="var(--background)" strokeWidth={2}
-        onClick={r=>{if(r?.id)onSelect(String(r.id));}}>
+        onClick={r=>{const item=r as {id?:string;payload?:{id?:string}};const id=item.payload?.id ?? item.id;if(id)onSelect(String(id));}}>
         {slices.map((r,i)=><Cell key={r.id} fill={tones[i%tones.length]}
           fillOpacity={selectedId && selectedId!==r.id ? .35 : .96} cursor="pointer"/>)}
       </Pie><Tooltip formatter={(v,name)=>[formatValue(Number(v)),String(name)]} contentStyle={popup}/></PieChart>
