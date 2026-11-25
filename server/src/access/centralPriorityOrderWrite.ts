@@ -35,9 +35,11 @@ export async function runCentralPriorityOrderWrite(
   const expectedMachineIds: string[] = input.expectedMachineIds;
   const isHighlightChange = input.priorityHighlightCount !== undefined;
   if (isHighlightChange &&
-      (!Number.isInteger(input.priorityHighlightCount) ||
+      (typeof input.priorityHighlightCount !== "number" ||
+       !Number.isInteger(input.priorityHighlightCount) ||
        Number(input.priorityHighlightCount) < 1 ||
        Number(input.priorityHighlightCount) > 1000 ||
+       typeof input.expectedPriorityHighlightCount !== "number" ||
        !Number.isInteger(input.expectedPriorityHighlightCount)))
     throw new AccessError("priority_highlight_count_invalid", 400);
   return db.$transaction(async (tx: Prisma.TransactionClient) => {
