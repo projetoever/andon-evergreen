@@ -399,7 +399,7 @@ export function GeneralSettingsTab() {
               >
                 <p className="font-black">{ui("Prioridade de produção")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {ui("Usa a sequência definida pelo responsável e destaca visualmente P1–P5.")}
+                  {ui("Usa a sequência do responsável e destaca P1 até a quantidade configurada no módulo Prioridades.")}
                 </p>
               </button>
             </div>
